@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.9 1993-10-22 21:25:14 corbet Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.10 1993-12-01 17:00:10 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,7 +44,7 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.9 1993-10-22 21:25:14 corbet Exp 
  *	at the far right of the graphics window
  * Icon Region: This region occupies the specified width and height at
  *	the bottom of the graphics window
- * Axis Region(s): The axis region(s) buffer the data region and any
+ * Axis Region (s) : The axis region (s) buffer the data region and any
  * 	other regions that may be defined.
  *
  * As each region is defined space is added or subtracted from the
@@ -66,7 +66,7 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.9 1993-10-22 21:25:14 corbet Exp 
  *	 | l  |			   | i	|   e	|
  *	 | e  |			   | g	|   g	|
  *	 | f  |			   | h	|   e	|
- *	 | p  |			   | t  |   n	|
+ *	 | t  |			   | t  |   n	|
  *	 |    |      data region   |  	|   d	|
  *	 | a  |			   | a	|	|
  *	 | x  |			   | x	|   r	|
@@ -74,8 +74,8 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.9 1993-10-22 21:25:14 corbet Exp 
  *	 | s  |			   | s	|   g	|
  *	 |    |			   |	|   i	|
  *	 |------------------------------|   o	|
- *	 |    |	    bottom axis		|   n	|
- *	 |    |				|	|
+ *	 |    |	    bottom axis	   |	|   n	|
+ *	 |    |			   |	|	|
  *       ----------------------------------------
  *	 |					|
  *	 |		icon region		|
@@ -95,8 +95,7 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.9 1993-10-22 21:25:14 corbet Exp 
  * and user coordinate-transformation.
  */
 DataValRec	UX0, UX1, UY0, UY1; /* Actual coordinates of use */
-DataValRec	IUX0, IUX1, IUY0, IUY1; /* Inverted coordinates */
-DataValRec	OUX0, OUX1, OUY0, OUY1; /* The ORIGINAL coordinates
+DataValRec	OUX0, OUX1, OUY0, OUY1; /* The base (original) coordinates
 				           before applying zoom transform */
 /*
  *  Variables containing boundary of the the various graphics regions
@@ -104,39 +103,98 @@ DataValRec	OUX0, OUX1, OUY0, OUY1; /* The ORIGINAL coordinates
  */
 
 float	FX0 = 0.0, FY0 = 0.0, FX1 = 1.0, FY1 = 1.0;
-float	AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
-float	IconX0,IconX1,IconY0,IconY1;
+float	AxisX0[4], AxisX1[4], AxisY0[4], AxisY1[4];
+float	IconX0, IconX1, IconY0, IconY1;
 int	IconSpace;
-float	AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
-float	LegendX0,LegendX1,LegendY0,LegendY1;
-int	AxisSet[] = {0,0,0,0}, LegendSet = 0, IconSet = 0, AnnotateSet = 0;
+float	AnnotateX0, AnnotateX1, AnnotateY0, AnnotateY1;
+float	LegendX0, LegendX1, LegendY0, LegendY1;
 TransRegion CurrentTrans = DataTrans;
 
 typedef struct ScaleRec_ {
-    float scale;  /* store scaling factore */
+    float scale;  /* store scaling factor */
     struct scaleRec_ *next, *prev;
 } ScaleStack;
 
-ScaleStack *ZoomStack[4] = { NULL, NULL, NULL, NULL};
-ScaleStack *ZoomBottom[4] = { NULL, NULL, NULL, NULL};
+ScaleStack *ZoomStack[4] = {NULL, NULL, NULL, NULL};
+ScaleStack *ZoomTail[4] = {NULL, NULL, NULL, NULL};
 int	Zlevel = 0;
 
-void lc_LoadZoom ( )
+
+
+
+void
+lc_Init ()
+/*
+ * Initialize the layout variables
+ */
+{
+/*
+ * The data region takes up all the space by default
+ */
+	FX0 = 0.0; FY0 = 0.0; FX1 = 1.0; FY1 = 1.0;
+/*
+ * (No) space for each axis
+ */
+	AxisX0[SideLeft] = AxisX1[SideLeft] = 0.0;
+	AxisY0[SideLeft] = 0.0;
+	AxisY1[SideLeft] = 1.0;
+
+	AxisX0[SideRight] = AxisX1[SideRight] = 1.0;
+	AxisY0[SideRight] = 0.0;
+	AxisY1[SideRight] = 1.0;
+
+	AxisY0[SideBottom] = AxisY1[SideBottom] = 0.0;
+	AxisX0[SideBottom] = 0.0;
+	AxisX1[SideBottom] = 1.0;
+
+	AxisY0[SideTop] = AxisY1[SideTop] = 1.0;
+	AxisX0[SideTop] = 0.0;
+	AxisX1[SideTop] = 1.0;
+/*
+ * (No) space icons
+ */
+	IconY0 = IconY1 = 0.0;
+	IconX0 = 0.0;
+	IconX1 = 1.0;
+/*
+ * (No) space for top annotation
+ */
+	AnnotateY0 = AnnotateY1 = 1.0;
+	AnnotateX0 = 0.0;
+	AnnotateX1 = 1.0;
+/*
+ * (No) space for right side legends
+ */
+	LegendX0 = LegendX1 = 1.0;
+	LegendY0 = 0.0;
+	LegendY1 = 1.0;
+}
+
+	
+
+void
+lc_LoadZoom ()
 {
    float xmin, xmax, ymin,ymax;
    int zlev;
-   if ( pd_Retrieve (Pd, "global", "zoom-level", (char *) &zlev, SYMT_INT) &&
-	zlev > 0 ) {
-       pd_Retrieve (Pd, "global", "zoom-xmin", (char *) &xmin, SYMT_FLOAT);
-       pd_Retrieve (Pd, "global", "zoom-xmax", (char *) &xmax, SYMT_FLOAT);
-       pd_Retrieve (Pd, "global", "zoom-ymin", (char *) &ymin, SYMT_FLOAT);
-       pd_Retrieve (Pd, "global", "zoom-ymax", (char *) &ymax, SYMT_FLOAT);
-       lc_Zoom ( xmin, xmax, ymin, ymax );
+
+   if (pd_Retrieve (Pd, "global", "zoom-level", (char *) &zlev, SYMT_INT) &&
+       zlev > 0) 
+   {
+	   pd_Retrieve (Pd, "global", "zoom-xmin", (char *) &xmin, SYMT_FLOAT);
+	   pd_Retrieve (Pd, "global", "zoom-xmax", (char *) &xmax, SYMT_FLOAT);
+	   pd_Retrieve (Pd, "global", "zoom-ymin", (char *) &ymin, SYMT_FLOAT);
+	   pd_Retrieve (Pd, "global", "zoom-ymax", (char *) &ymax, SYMT_FLOAT);
+	   lc_Zoom (xmin, xmax, ymin, ymax);
    }
 }
 
-void lc_Zoom ( xmin, xmax, ymin, ymax )
-float xmin,xmax,ymin,ymax;   /* normalized coordinates of area to be "zoomed" */
+
+
+
+void
+lc_Zoom (xmin, xmax, ymin, ymax)
+float xmin, xmax, ymin, ymax;	/* normalized coords of area to be "zoomed" */
 {
    ScaleStack *zs = NULL;
    int		i;
@@ -152,21 +210,23 @@ float xmin,xmax,ymin,ymax;   /* normalized coordinates of area to be "zoomed" */
    /*
     * Only allow 13 levels of zoom...
     */
-   for ( i =0; i < 4; i++) {
-      zs = (ScaleStack*)malloc (sizeof (ScaleStack));
-      if ( zs ) {
-         zs->next = (struct scaleRec_ *)ZoomStack[i];
+   for (i =0; i < 4; i++) 
+   {
+      zs = (ScaleStack*) malloc (sizeof (ScaleStack));
+      if (zs) 
+      {
+         zs->next = (struct scaleRec_ *) ZoomStack[i];
          zs->prev = NULL;
          zs->scale = box[i];
-         if ( ZoomStack[i] ) {
-            ZoomStack[i]->prev = (struct scaleRec_ *)zs;
-         } else {
-            ZoomBottom[i] = zs;
-         }
+         if (ZoomStack[i])
+            ZoomStack[i]->prev = (struct scaleRec_ *) zs;
+	 else
+            ZoomTail[i] = zs;
+
          ZoomStack[i] = zs;
-      } else {
+      } 
+      else
 	   msg_ELog (EF_PROBLEM, "Couldn't allocate zoom record.");
-      }
    }
    /*
     * Mark the zoom-level
@@ -179,410 +239,379 @@ float xmin,xmax,ymin,ymax;   /* normalized coordinates of area to be "zoomed" */
    pd_Store (Pd, "global", "zoom-ymax", (char *) &box[3], SYMT_FLOAT);
 }
 
-void lc_UnZoom (nlevel)
+
+
+
+int
+lc_UnZoom (nlevel)
 int nlevel;
 {
    ScaleStack *zs;
    int		i;
-   do {
-      for ( i= 0; i < 4; i++ ) {
-        if ( ZoomStack[i] ) {
-          zs = ZoomStack[i];
-          ZoomStack[i] = (ScaleStack*)(zs->next);
-          if (ZoomStack[i]) 
-             ZoomStack[i]->prev = NULL;
-          else 
-	     ZoomBottom[i] = NULL;
-          free (zs);
-        }
-      }
-      /*
-       * Don't decrement below zero.
-       */
-      if (Zlevel) { 
-         Zlevel--;
-      } 
-      nlevel--;
-   }
-   while ( nlevel > 0);
-   
+/*
+ * Return false if we can't unzoom any
+ */
+   if (Zlevel == 0)
+	   return (FALSE);
+/*
+ * Pop the requested number of levels from the zoom stack
+ */
+   do 
+   {
+	   for (i = 0; i < 4; i++) 
+	   {
+		   if (ZoomStack[i]) 
+		   {
+			   zs = ZoomStack[i];
+			   ZoomStack[i] = (ScaleStack*) (zs->next);
+			   if (ZoomStack[i]) 
+				   ZoomStack[i]->prev = NULL;
+			   else 
+				   ZoomTail[i] = NULL;
+			   free (zs);
+		   }
+	   }
    /*
-    * Mark the zoom-level info in the plot description.
+    * Don't decrement below zero.
     */
+	   if (Zlevel)
+		   Zlevel--;
+
+	   nlevel--;
+   } while (nlevel > 0);
+   
+/*
+ * Mark the zoom-level info in the plot description.
+ */
    pd_Store (Pd, "global", "zoom-level", (char *) &Zlevel, SYMT_INT);
-   if ( Zlevel > 0 ) {
-       pd_Store (Pd, "global", "zoom-xmin", 
-		(char *) &(ZoomStack[0]->scale), SYMT_FLOAT);
-       pd_Store (Pd, "global", "zoom-xmax", 
-		(char *) &(ZoomStack[1]->scale), SYMT_FLOAT);
-       pd_Store (Pd, "global", "zoom-ymin", 
-		(char *) &(ZoomStack[2]->scale), SYMT_FLOAT);
-       pd_Store (Pd, "global", "zoom-ymax", 
-		(char *) &(ZoomStack[3]->scale), SYMT_FLOAT);
+   if (Zlevel > 0) 
+   {
+	   pd_Store (Pd, "global", "zoom-xmin", 
+		     (char *) & (ZoomStack[0]->scale), SYMT_FLOAT);
+	   pd_Store (Pd, "global", "zoom-xmax", 
+		     (char *) & (ZoomStack[1]->scale), SYMT_FLOAT);
+	   pd_Store (Pd, "global", "zoom-ymin", 
+		     (char *) & (ZoomStack[2]->scale), SYMT_FLOAT);
+	   pd_Store (Pd, "global", "zoom-ymax", 
+		     (char *) & (ZoomStack[3]->scale), SYMT_FLOAT);
    }
+
+   return (TRUE);
 }
 
+
+
+
 void
-lc_SetAxisDim(axis,pixSize)
-int	axis;
+lc_SetAxisSpace (axis, pixSize)
+AxisSide	axis;
 int	pixSize;
+/*
+ * Change the space allocated for the named axis.
+ */
 {
-    if ( pixSize < 0 )
-    {	
-	msg_ELog (EF_PROBLEM, 
-		"Pixel size (%d) for axis space is negative",pixSize);
-	return;
-    }
-    switch (axis)
-    {
-        case AXIS_BOTTOM:
-	    if ( AxisSet[axis] )
-	    {
-		FY0 = AxisY0[axis];
-	    }
-	    AxisX0[axis] = FX0;
-	    AxisY0[axis] = FY0;
-	    AxisX1[axis] = FX1;
-	    AxisY1[axis] = FY0 + 
-			(float)pixSize/(float)GWHeight(Graphics);
-	    FY0 = AxisY1[axis];
-        break;
-        case AXIS_LEFT:
-	    if ( AxisSet[axis] )
-	    {
-		FX0 = AxisX0[axis];
-	    }
-	    AxisX0[axis] = FX0;
-	    AxisY0[axis] = FY0;
-	    AxisX1[axis] = FX0 + 
-			(float)pixSize/(float)GWWidth(Graphics);
-	    AxisY1[axis] = FY1;
-	    FX0 = AxisX1[axis];
-        break;
-        case AXIS_TOP:
-	    if ( AxisSet[axis] )
-	    {
-		FY1 = AxisY1[axis];
-	    }
-	    AxisX0[axis] = FX0;
-	    AxisY0[axis] = FY1 - 
-			(float)pixSize/(float)GWHeight(Graphics);
-	    AxisX1[axis] = FX1;
-	    AxisY1[axis] = FY1;
-	    FY1 = AxisY0[axis];
-        break;
-        case AXIS_RIGHT:
-	    if ( AxisSet[axis] )
-	    {
-		FX1 = AxisX1[axis];
-	    }
-	    AxisX0[axis] = FX1 - 
-			(float)pixSize/(float)GWWidth(Graphics);
-	    AxisY0[axis] = FY0;
-	    AxisX1[axis] = FX1;
-	    AxisY1[axis] = FY1;
-	    FX1 = AxisX0[axis];
-        break;
-    }
-    if ( pixSize > 0 )
-        AxisSet[axis] = 1;
-    else
-	AxisSet[axis] = 0;
-}
-void
-lc_SetIconDim(pixWidth,pixHeight)
-int	pixWidth,pixHeight;
-{
-    if ( pixWidth < 0 || pixHeight < 0 )
-    {	
-	msg_ELog (EF_PROBLEM, 
-		"Pixel width (%d) or height (%d) for icon space is negative",
-		pixWidth, pixHeight);
-	return;
-    }
-
-    if ( IconSet && AxisSet[AXIS_BOTTOM])
-    {
-	AxisY1[AXIS_BOTTOM] = 0.0 + (AxisY1[AXIS_BOTTOM]-AxisY0[AXIS_BOTTOM]);
-	AxisY0[AXIS_BOTTOM] = 0.0;
-	FY0 = AxisY1[AXIS_BOTTOM];
-    }
-    else if ( IconSet );
-    {
-	FY0 = 0.0;
-    }
-
-    IconX0 = 0.0;
-    IconY0 = 0.0;
-    IconX1 = (float)pixWidth/(float)GWWidth(Graphics);
-    IconY1 = (float)pixHeight/(float)GWHeight(Graphics);
-    if ( AxisSet[AXIS_BOTTOM] )
-    {
-	AxisY1[AXIS_BOTTOM] = IconY1+(AxisY1[AXIS_BOTTOM]-AxisY0[AXIS_BOTTOM]);
-	AxisY0[AXIS_BOTTOM] = IconY1;
-	FY0 = AxisY1[AXIS_BOTTOM];
-    }
-    else
-        FY0 = IconY1;
-
-    if ( LegendSet && IconX1 > LegendX0 )
-    {
-	LegendY0 = IconY1;
-    }
-    if ( pixWidth > 0 && pixHeight > 0 )
-	IconSet = 1;
-    else
-	IconSet = 0;
+/*
+ * Sanity
+ */
+	if (pixSize < 0)
+	{	
+		msg_ELog (EF_PROBLEM, 
+			  "Negative pixel size (%d) for %c axis space", 
+			  pixSize, SIDE_NAME (axis));
+		return;
+	}
+/*
+ * Adjust the box for the appropriate axis.  The data region 
+ * also gets adjusted.
+ */
+	switch (axis)
+	{
+	    case SideBottom:
+		FY0 = AxisY1[axis] = AxisY0[axis] + 
+			(float) pixSize / (float) GWHeight (Graphics);
+		break;
+	    case SideLeft:
+		FX0 = AxisX1[axis] = AxisX0[axis] + 
+			(float) pixSize / (float) GWWidth (Graphics);
+		break;
+	    case SideTop:
+		FY1 = AxisY0[axis] = AxisY1[axis] - 
+			(float) pixSize / (float) GWHeight (Graphics);
+		break;
+	    case SideRight:
+		FX1 = AxisX0[axis] = AxisX1[axis] - 
+			(float) pixSize / (float) GWWidth (Graphics);
+		break;
+	}
 }
 
+
+
+
 void
-lc_SetLegendDim(pixWidth,pixHeight)
-int	pixWidth;
+lc_SetIconSpace (pixHeight)
 int	pixHeight;
+/*
+ * Change the amount of space reserved for icons.
+ */
 {
-    if ( pixWidth < 0 || pixHeight < 0 )
-    {	
-	msg_ELog (EF_PROBLEM, 
-		"Pixel width (%d) or height (%d) for legend space is negative",
-		pixWidth, pixHeight);
-	return;
-    }
+	float	axisdepth;
+/*
+ * Sanity
+ */
+	if (pixHeight < 0)
+	{	
+		msg_ELog (EF_PROBLEM, 
+			  "Negative pixel height (%d) for icon space",
+			  pixHeight);
+		return;
+	}
+/*
+ * Set the depth for the icon space.
+ */
+	IconY1 = (float) pixHeight / (float) GWHeight (Graphics);
+/*
+ * Shift the bottom axis box, the bottom of the data region, and the
+ * bottom of the legend space accordingly.
+ */
+	axisdepth = AxisY1[SideBottom] - AxisY0[SideBottom];
+	AxisY0[SideBottom] = IconY1;
+	AxisY1[SideBottom] = AxisY0[SideBottom] + axisdepth;
 
-    if ( LegendSet )
-    {
-	FX1 = LegendX1;
-    }
-    LegendX0 = 1.0 - (float)pixWidth/(float)GWWidth(Graphics);
-    if ( IconSet )
+	FY0 = AxisY1[SideBottom];
+
 	LegendY0 = IconY1;
-    else
-	LegendY0 = 0.0;
-    LegendX1 = 1.0;
-    if ( AnnotateSet )
-	LegendY1 = AnnotateY0;
-    else
-	LegendY1 = 1.0;
-    FX1 = LegendX0;
+}
 
-    if ( pixWidth > 0 && pixHeight > 0 )
-	LegendSet = 1;
-    else
-	LegendSet = 0;
+
+
+
+void
+lc_SetLegendSpace (pixWidth)
+int	pixWidth;
+/*
+ * Set the width of the legend space on the right side of the window
+ */
+{
+	float	axiswidth;
+/*
+ * Sanity
+ */
+	if (pixWidth < 0)
+	{	
+		msg_ELog (EF_PROBLEM, 
+			  "Negative pixel width (%d) for legend space", 
+			  pixWidth);
+		return;
+	}
+/*
+ * Adjust the left side of the legend space, which then affects the
+ * right axis space and the data region.
+ */
+	LegendX0 = LegendX1 - (float) pixWidth / (float) GWWidth (Graphics);
+
+	axiswidth = AxisX1[SideRight] - AxisX0[SideRight];
+	AxisX1[SideRight] = LegendX0;
+	AxisX0[SideRight] = AxisX1[SideRight] - axiswidth;
+
+	FX1 = AxisX0[SideRight];
 }
 
 void
-lc_SetAnnotateDim(pixWidth,pixHeight)
-int	pixWidth,pixHeight;
+lc_SetAnnotateSpace (pixHeight)
+int	pixHeight;
+/*
+ * Change the space allocated for top annotation.
+ */
 {
-    if ( pixWidth < 0 || pixHeight < 0 )
-    {	
-	msg_ELog (EF_PROBLEM, 
-	    "Pixel width (%d) or height (%d) for annotatione space is negative",
-		pixWidth, pixHeight);
-	return;
-    }
+	float	axisdepth;
+/*
+ * Sanity
+ */
+	if (pixHeight < 0)
+	{	
+		msg_ELog (EF_PROBLEM, 
+			  "Negative pixel height (%d) for annotatione space",
+			  pixHeight);
+		return;
+	}
+/*
+ * Adjust the bottom of the annotation space, which then affects the
+ * top axis space and the data region.
+ */
+	AnnotateY0 = AnnotateY1 - 
+		(float) pixHeight / (float) GWWidth (Graphics);
 
-    if ( AnnotateSet && AxisSet[AXIS_TOP])
-    {
-	AxisY0[AXIS_TOP] = 1.0 - (AxisY1[AXIS_TOP]-AxisY0[AXIS_TOP]);
-	AxisY1[AXIS_TOP] = 1.0;
-	FY1 = AxisY0[AXIS_TOP];
-    }
-    else if ( AnnotateSet )
-    {
-	FY1 = 1.0;
-    }
-
-    AnnotateX0 = 0.0;
-    AnnotateY0 = 1.0 - (float)pixHeight/(float)GWHeight(Graphics);
-    AnnotateX1 = (float)pixWidth/(float)GWWidth(Graphics);
-    AnnotateY1 = 1.0;
-    if ( LegendSet && AnnotateX1 > LegendX0)
-    {
-	LegendY1 = AnnotateY0;
-    }
-    if ( AxisSet[AXIS_TOP] )
-    {
-	AxisY0[AXIS_TOP] = AnnotateY0 - (AxisY1[AXIS_TOP]-AxisY0[AXIS_TOP]);
-	AxisY1[AXIS_TOP] = AnnotateY0;
-	FY1 = AxisY0[AXIS_TOP];
-    }
-    else
-    {
-	FY1 =  AnnotateY0;
-    }
-    if ( pixWidth > 0 || pixHeight > 0 )
-	AnnotateSet = 1;
-    else
-	AnnotateSet = 0;
+	axisdepth = AxisY1[SideTop] - AxisY0[SideTop];
+	AxisY1[SideTop] = AnnotateY0;
+	AxisY0[SideTop] = AxisY1[SideTop] - axisdepth;
+	
+	FY1 = AxisY0[SideTop];
 }
+
+
+
+
 void 
-lc_GetOrigCoord( xmin, xmax, ymin, ymax )
-DataValPtr xmin,xmax,ymin,ymax;
+lc_GetBaseUserCoord (xleft, xright, ybottom, ytop)
+DataValPtr xleft, xright, ybottom, ytop;
 /*
  * Return the current UNZOOMED coordinate system
  */
 {
-    if (xmin) *xmin = OUX0;
-    if (xmax) *xmax = OUX1;
-    if (ymin) *ymin = OUY0;
-    if (ymax) *ymax = OUY1;
+    if (xleft) *xleft = OUX0;
+    if (xright) *xright = OUX1;
+    if (ybottom) *ybottom = OUY0;
+    if (ytop) *ytop = OUY1;
 }
+
+
+
+
 void 
-lc_GetUserCoord( xmin, xmax, ymin, ymax, mode )
-DataValPtr xmin,xmax,ymin,ymax;
+lc_GetUserCoord (xleft, xright, ybottom, ytop)
+DataValPtr xleft, xright, ybottom, ytop;
 /*
- * Return the current ZOOMED  coordinate system
+ * Return the current ZOOMED coordinate system
  */
 {
-    if (mode & INVERT) {
-        if (xmin) *xmin = IUX0;
-        if (xmax) *xmax = IUX1;
-        if (ymin) *ymin = IUY0;
-        if (ymax) *ymax = IUY1;
-    } else {
-        if (xmin) *xmin = UX0;
-        if (xmax) *xmax = UX1;
-        if (ymin) *ymin = UY0;
-        if (ymax) *ymax = UY1;
-    }
+        if (xleft) *xleft = UX0;
+        if (xright) *xright = UX1;
+        if (ybottom) *ybottom = UY0;
+        if (ytop) *ytop = UY1;
 }
-lc_ComputeZoom( min, max, dim, mode ) 
-DataValPtr min,max;
+
+
+
+
+int
+lc_ComputeZoom (bottom, top, dim)
+DataValPtr	bottom, top;
 char dim;
-unsigned short mode;
 {
-   float	fmax, fmin;
-   DataValRec   umax, umin;
-   float	adjmin, adjmax;
-   ScaleStack   *zsMin, *zsMax;
-   char		a[8];
-   if ( min->type != max->type ) {
-      msg_ELog( EF_PROBLEM, "ComputeZoom: min and max are not same type");
+   float	ftop, fbottom;
+   DataValRec   utop, ubottom;
+   float	adjbottom, adjtop;
+   ScaleStack   *zsBottom, *zsTop;
+
+   if (bottom->type != top->type) 
+   {
+      msg_ELog (EF_PROBLEM, "ComputeZoom: bottom and top are not same type");
       return;
    }
    /*
     * Set up the parameters
     */
-   switch ( dim ) {
+   switch (dim) {
       case 'x':
-	fmin = FX0;
-	fmax = FX1;
-        zsMin = ZoomBottom[0];
-        zsMax = ZoomBottom[1];
+	fbottom = FX0;
+	ftop = FX1;
+        zsBottom = ZoomTail[0];
+        zsTop = ZoomTail[1];
       break;
       case 'y':
-	fmin = FY0;
-	fmax = FY1;
-        zsMin = ZoomBottom[2];
-        zsMax = ZoomBottom[3];
+	fbottom = FY0;
+	ftop = FY1;
+        zsBottom = ZoomTail[2];
+        zsTop = ZoomTail[3];
       break;
       default:
-        msg_ELog( EF_PROBLEM, "ComputeZoom: unknown dimension %c",dim);
+        msg_ELog (EF_PROBLEM, "ComputeZoom: unknown dimension '%c'", dim);
 	return;
       break;
    }
-   if (mode == INVERT) 
-      strcpy( a, "(invt)");
-   else
-      strcpy( a, "(norm)");
-       
-   while ( zsMin && zsMax ) {
-      switch ( min->type ) {
+
+   while (zsBottom && zsTop) {
+      switch (bottom->type) {
 	    case 't':
-		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
-		    (float)( max->val.t.zt_Sec - min->val.t.zt_Sec );
-		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
-		    (float)( max->val.t.zt_Sec - min->val.t.zt_Sec );
-                if (mode == INVERT) {
-		   max->val.t.zt_Sec -= (long)adjmin;
-		   min->val.t.zt_Sec -= (long)adjmax;
-                } else {
-		   min->val.t.zt_Sec += (long)adjmin;
-		   max->val.t.zt_Sec += (long)adjmax;
-                }
-	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %u max(%f) %u",a,dim,
-			zsMin->scale,min->val.t.zt_Sec,
-			zsMax->scale,max->val.t.zt_Sec);
+		adjbottom = ((zsBottom->scale-fbottom) / (ftop-fbottom)) *
+		    (float) (top->val.t.zt_Sec - bottom->val.t.zt_Sec);
+		adjtop = ((zsTop->scale-ftop) / (ftop-fbottom)) *
+		    (float) (top->val.t.zt_Sec - bottom->val.t.zt_Sec);
+
+		bottom->val.t.zt_Sec += (long) adjbottom;
+		top->val.t.zt_Sec += (long) adjtop;
+
+	        msg_ELog (EF_DEBUG, "zoomed-%c: bottom (%f) %u top (%f) %u", 
+			  dim, zsBottom->scale, bottom->val.t.zt_Sec, 
+			  zsTop->scale, top->val.t.zt_Sec);
 	    break;
 	    case 'i':
-		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
-		    (float)( max->val.i - min->val.i );
-		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
-		    (float)( max->val.i - min->val.i );
-                if (mode == INVERT) {
-		   max->val.i -= (int)adjmin;
-		   min->val.i -= (int)adjmax;
-                } else {
-		   min->val.i += (int)adjmin;
-		   max->val.i += (int)adjmax;
-                }
-	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %d max(%f) %d",a,dim,
-			zsMin->scale,min->val.i, zsMax->scale,max->val.i);
+		adjbottom = ((zsBottom->scale-fbottom) / (ftop-fbottom)) *
+		    (float) (top->val.i - bottom->val.i);
+		adjtop = ((zsTop->scale-ftop) / (ftop-fbottom)) *
+		    (float) (top->val.i - bottom->val.i);
+
+		bottom->val.i += (int) adjbottom;
+		top->val.i += (int) adjtop;
+
+	        msg_ELog (EF_DEBUG, "zoomed-%c: bottom (%f) %d top (%f) %d", 
+			  dim, zsBottom->scale, bottom->val.i, 
+			  zsTop->scale, top->val.i);
             break;
 	    case 'f':
-		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
-		    (float)( max->val.f - min->val.f );
-		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
-		    (float)( max->val.f - min->val.f );
-                if ( mode == INVERT ) {
-		   max->val.f -= adjmin;
-		   min->val.f -= adjmax;
-                } else {
-		   min->val.f += adjmin;
-		   max->val.f += adjmax;
-                }
-	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %f max(%f) %f",a,dim,
-			zsMin->scale,min->val.f, zsMax->scale,max->val.f);
+		adjbottom = ((zsBottom->scale-fbottom) / (ftop-fbottom)) *
+		    (float) (top->val.f - bottom->val.f);
+		adjtop = ((zsTop->scale-ftop) / (ftop-fbottom)) *
+		    (float) (top->val.f - bottom->val.f);
+
+		bottom->val.f += adjbottom;
+		top->val.f += adjtop;
+
+	        msg_ELog (EF_DEBUG, "zoomed-%c: bottom (%f) %f top (%f) %f", 
+			  dim, zsBottom->scale, bottom->val.f, zsTop->scale, 
+			  top->val.f);
             break;
 	    case 'd':
-		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
-		    (float)( max->val.d - min->val.d );
-		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
-		    (float)( max->val.d - min->val.d );
-                if ( mode == INVERT ) {
-		   max->val.d -= (double)adjmin;
-		   min->val.d -= (double)adjmax;
-                } else {
-		   min->val.d += (double)adjmin;
-		   max->val.d += (double)adjmax;
-                }
-	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %f max(%f) %f",a,dim,
-			zsMin->scale,min->val.d, zsMax->scale,max->val.d);
+		adjbottom = ((zsBottom->scale-fbottom) / (ftop-fbottom)) *
+		    (float) (top->val.d - bottom->val.d);
+		adjtop = ((zsTop->scale-ftop) / (ftop-fbottom)) *
+		    (float) (top->val.d - bottom->val.d);
+
+		bottom->val.d += (double) adjbottom;
+		top->val.d += (double) adjtop;
+
+	        msg_ELog (EF_DEBUG, "zoomed-%c: bottom (%f) %f top (%f) %f", 
+			  dim, zsBottom->scale, bottom->val.d, zsTop->scale, 
+			  top->val.d);
 	    break;
       }
-      zsMin = (ScaleStack *)(zsMin->prev);
-      zsMax = (ScaleStack *)(zsMax->prev);
+      zsBottom = (ScaleStack *) (zsBottom->prev);
+      zsTop = (ScaleStack *) (zsTop->prev);
   }
 }
 
+
+
+
 void
-lc_SetUserCoord( xmin, xmax, ymin,ymax )
-DataValPtr xmin,xmax,ymin,ymax;
+lc_SetBaseUserCoord (xleft, xright, ybottom, ytop)
+DataValPtr xleft, xright, ybottom, ytop;
 /*
- * Set the user coordinates from the original coordinates
- * input: ORIGINAL coordinates actual min and max values
+ * Set the base (unzoomed) user coordinates for the data region
  */
 {
-    if ( xmin && xmax ) {
-      if ( xmin->type == xmax->type ) {
-        switch ( xmin->type )
+    if (xleft && xright) 
+    {
+      if (xleft->type == xright->type) 
+      {
+        switch (xleft->type)
         {
 	    case 't':
-	        msg_ELog (EF_DEBUG, "xmin %u xmax %u", 
-			xmin->val.t.zt_Sec, xmax->val.t.zt_Sec);
+	        msg_ELog (EF_DEBUG, "xleft %u xright %u", 
+			xleft->val.t.zt_Sec, xright->val.t.zt_Sec);
 	    break;
 	    case 'i':
-	        msg_ELog (EF_DEBUG, "xmin %d xmax %d", 
-			xmin->val.i, xmax->val.i);
+	        msg_ELog (EF_DEBUG, "xleft %d xright %d", 
+			xleft->val.i, xright->val.i);
 	    break;
 	    case 'f':
-	        msg_ELog (EF_DEBUG, "xmin %f xmax %f", 
-			xmin->val.f, xmax->val.f);
+	        msg_ELog (EF_DEBUG, "xleft %f xright %f", 
+			xleft->val.f, xright->val.f);
 	    break;
 	    case 'd':
-	        msg_ELog (EF_DEBUG, "xmin %f xmax %f", 
-			xmin->val.d, xmax->val.d);
+	        msg_ELog (EF_DEBUG, "xleft %f xright %f", 
+			xleft->val.d, xright->val.d);
 	    break;
 	    default:
 	        msg_ELog (EF_PROBLEM, 
@@ -590,35 +619,37 @@ DataValPtr xmin,xmax,ymin,ymax;
         	return;
 	    break;
         }
-	OUX0 = *xmin; OUX1 = *xmax;
-	UX0 = *xmin; UX1 = *xmax;
-	IUX0 = *xmin; IUX1 = *xmax;
-        lc_ComputeZoom( &UX0, &UX1, 'x', 0 );
-        lc_ComputeZoom( &IUX0, &IUX1, 'x', INVERT);
-      } else {
-	msg_ELog (EF_PROBLEM, "xmin and xmax are not the same type.");
+	OUX0 = *xleft; OUX1 = *xright;
+	UX0 = *xleft; UX1 = *xright;
+        lc_ComputeZoom (&UX0, &UX1, 'x');
+      } 
+      else 
+      {
+	msg_ELog (EF_PROBLEM, "xleft and xright are not the same type.");
         return;
       }
     }
-    if ( ymin && ymax ) {
-      if ( ymin->type == ymax->type ) {
-        switch ( ymin->type )
+    if (ybottom && ytop)
+    {
+      if (ybottom->type == ytop->type) 
+      {
+        switch (ybottom->type)
         {
 	    case 't':
-	        msg_ELog (EF_DEBUG, "ymin %u ymax %u", 
-			ymin->val.t.zt_Sec, ymax->val.t.zt_Sec);
+	        msg_ELog (EF_DEBUG, "ybottom %u ytop %u", 
+			ybottom->val.t.zt_Sec, ytop->val.t.zt_Sec);
 	    break;
 	    case 'i':
-	        msg_ELog (EF_DEBUG, "ymin %d ymax %d", 
-			ymin->val.i, ymax->val.i);
+	        msg_ELog (EF_DEBUG, "ybottom %d ytop %d", 
+			ybottom->val.i, ytop->val.i);
 	    break;
 	    case 'f':
-	        msg_ELog (EF_DEBUG, "ymin %f ymax %f", 
-			ymin->val.f, ymax->val.f);
+	        msg_ELog (EF_DEBUG, "ybottom %f ytop %f", 
+			ybottom->val.f, ytop->val.f);
 	    break;
 	    case 'd':
-	        msg_ELog (EF_DEBUG, "ymin %f ymax %f", 
-			ymin->val.d, ymax->val.d);
+	        msg_ELog (EF_DEBUG, "ybottom %f ytop %f", 
+			ybottom->val.d, ytop->val.d);
 	    break;
 	    default:
 	        msg_ELog (EF_PROBLEM, 
@@ -626,13 +657,13 @@ DataValPtr xmin,xmax,ymin,ymax;
         	return;
 	    break;
         }
-	OUY0 = *ymin; OUY1 = *ymax;
-	UY0 = *ymin; UY1 = *ymax;
-	IUY0 = *ymin; IUY1 = *ymax;
-        lc_ComputeZoom( &UY0, &UY1, 'y',0 );
-        lc_ComputeZoom( &IUY0, &IUY1, 'y',INVERT ); 
-      } else {
-	msg_ELog (EF_PROBLEM, "ymin and ymax are not the same type.");
+	OUY0 = *ybottom; OUY1 = *ytop;
+	UY0 = *ybottom; UY1 = *ytop;
+        lc_ComputeZoom (&UY0, &UY1, 'y');
+      } 
+      else 
+      {
+	msg_ELog (EF_PROBLEM, "ybottom and ytop are not the same type.");
         return;
       }
     }
@@ -640,44 +671,50 @@ DataValPtr xmin,xmax,ymin,ymax;
 }
 
 
+
+
 void
-lc_DecrData( d1,incr )
+lc_DecrData (d1,incr)
 DataValPtr	d1;
 double		incr;
 {
     time_t	timeSec;
-    switch ( d1->type )
+    switch (d1->type)
     {
 	case 't':
-	    d1->val.t.zt_Sec -= (long)incr;
+	    d1->val.t.zt_Sec -= (long) incr;
 	break;
 	case 'i':
-	    d1->val.i -= (int)incr;
+	    d1->val.i -= (int) incr;
 	break;
 	case 'f':
-	    d1->val.f -= (float)incr;
+	    d1->val.f -= (float) incr;
 	break;
 	case 'd':
 	    d1->val.d -= incr;
 	break;
     }
 }
+
+
+
+
 void
-lc_IncrData( d1,incr )
+lc_IncrData (d1, incr)
 DataValPtr	d1;
 double		incr;
 {
     time_t	timeSec;
-    switch ( d1->type )
+    switch (d1->type)
     {
 	case 't':
-	    d1->val.t.zt_Sec += (long)incr;
+	    d1->val.t.zt_Sec += (long) incr;
 	break;
 	case 'i':
-	    d1->val.i += (int)incr;
+	    d1->val.i += (int) incr;
 	break;
 	case 'f':
-	    d1->val.f += (float)incr;
+	    d1->val.f += (float) incr;
 	break;
 	case 'd':
 	    d1->val.d += incr;
@@ -685,16 +722,19 @@ double		incr;
     }
 }
 
+
+
+
 int
-lc_CompareData( d1,d2 )
-DataValPtr	d1,d2;
+lc_CompareData (d1, d2)
+DataValPtr	d1, d2;
 {
-    int	val =0;
-    switch ( d1->type )
+    int	val = 0;
+    switch (d1->type)
     {
 	case 't':
 	    val = d1->val.t.zt_Sec - d2->val.t.zt_Sec;
-	    if ( !val ) val = d1->val.t.zt_MicroSec - d2->val.t.zt_MicroSec;
+	    if (!val) val = d1->val.t.zt_MicroSec - d2->val.t.zt_MicroSec;
 	break;
 	case 'i':
 	    val = d1->val.i-d2->val.i;
@@ -711,272 +751,222 @@ DataValPtr	d1,d2;
     return (val);
 }
 
-int 
-devY ( user_y , mode)
-DataValPtr user_y;
-unsigned short mode;
-{
-    int dev_y = 0;
-    float	uy0,uy1,uy;
-    DataValRec umin, umax;
-    lc_GetUserCoord( NULL, NULL, &umin, &umax,  mode );
-    switch ( user_y->type )
-    {
-	case 't': /* scale the time so as to minimize loss of acuracy */
-	    uy0 = 0.0;
-	    uy1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
-	    uy = (float)(user_y->val.t.zt_Sec - umin.val.t.zt_Sec);
-	break;
-	case 'd':
-	    uy0 = (float)umin.val.d;
-	    uy1 = (float)umax.val.d;
-	    uy = (float)user_y->val.d;
-	break;
-	case 'i':
-	    uy0 = (float)umin.val.i;
-	    uy1 = (float)umax.val.i;
-	    uy = (float)user_y->val.i;
-	break;
-	case 'f':
-	    uy0 = (float)umin.val.f;
-	    uy1 = (float)umax.val.f;
-	    uy = (float)user_y->val.f;
-	break;
-	default:
-	    fprintf ( stderr, "\rdevY: bad coordinate type: #%c#\n", user_y->type );
-    }
-    switch ( CurrentTrans )
-    {
-	case DataTrans:
-	    if ( mode & INVERT )
-	    {
-		dev_y = LC_FYPIX(uy,uy0,uy1);
-	    }
-	    else
-	    {
-		dev_y = LC_YPIX(uy,uy0,uy1);
-	    }
-	break;
-	case DeviceTrans:
-	    if ( mode & INVERT )
-	    {
-	        dev_y = GWWidth(Graphics) - (int)uy;
-	    }
-	    else
-	    {
-	        dev_y = (int)uy;
-	    }
-	break;
-    }
-    return ( dev_y );
-}
+
+
 
 int 
-devX ( user_x,mode )
-DataValPtr user_x;
-unsigned short mode;
+devY (user_y)
+DataValPtr user_y;
 {
-    int dev_x = 0;
-    float ux,ux0,ux1;
-    DataValRec umin, umax;
-    lc_GetUserCoord( &umin,&umax, NULL, NULL, mode );
-    switch ( user_x->type )
+    int		dev_y = 0;
+    float	y0, y1, y;
+
+    switch (user_y->type)
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
-	    ux0 = 0.0;
-	    ux1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
-	    ux = (float)(user_x->val.t.zt_Sec - umin.val.t.zt_Sec);
+	    y0 = 0.0;
+	    y1 = (float) (UY1.val.t.zt_Sec - UY0.val.t.zt_Sec);
+	    y = (float) (user_y->val.t.zt_Sec - UY0.val.t.zt_Sec);
 	break;
 	case 'd':
-	    ux0 = (float)umin.val.d;
-	    ux1 = (float)umax.val.d;
-	    ux = (float)user_x->val.d;
+	    y0 = (float) UY0.val.d;
+	    y1 = (float) UY1.val.d;
+	    y = (float) user_y->val.d;
 	break;
 	case 'i':
-	    ux0 = (float)umin.val.i;
-	    ux1 = (float)umax.val.i;
-	    ux = (float)user_x->val.i;
+	    y0 = (float) UY0.val.i;
+	    y1 = (float) UY1.val.i;
+	    y = (float) user_y->val.i;
 	break;
 	case 'f':
-	    ux0 = umin.val.f;
-	    ux1 = umax.val.f;
-	    ux = user_x->val.f;
+	    y0 = (float) UY0.val.f;
+	    y1 = (float) UY1.val.f;
+	    y = (float) user_y->val.f;
 	break;
 	default:
-	    fprintf ( stderr, "\rdevX: bad coordinate type: #%c#\n", user_x->type );
+	    msg_ELog (EF_PROBLEM, "devY: bad coordinate type: '%c'", 
+		      user_y->type);
     }
-    switch ( CurrentTrans )
+
+    switch (CurrentTrans)
     {
 	case DataTrans:
-	    if ( mode & INVERT )
-	    {
-		dev_x = LC_FXPIX(ux,ux0,ux1);
-	    }
-	    else
-	    {
-		dev_x = LC_XPIX(ux,ux0,ux1);
-	    }
+	    dev_y = LC_YPIX (y, y0, y1);
 	break;
 	case DeviceTrans:
-	    if ( mode & INVERT )
-	    {
-	        dev_x = GWWidth(Graphics) - (int)ux;
-	    }
-	    else
-	    {
-	        dev_x = (int)ux;
-	    }
+	    dev_y = (int) y;
 	break;
     }
+
+    return (dev_y);
+}
+
+
+
+
+int 
+devX (user_x)
+DataValPtr user_x;
+{
+    int		dev_x = 0;
+    float	x, x0, x1;
+
+    switch (user_x->type)
+    {
+	case 't': /* scale the time so as to minimize loss of acuracy */
+	    x0 = 0.0;
+	    x1 = (float) (UX1.val.t.zt_Sec - UX0.val.t.zt_Sec);
+	    x = (float) (user_x->val.t.zt_Sec - UX0.val.t.zt_Sec);
+	break;
+	case 'd':
+	    x0 = (float) UX0.val.d;
+	    x1 = (float) UX1.val.d;
+	    x = (float) user_x->val.d;
+	break;
+	case 'i':
+	    x0 = (float) UX0.val.i;
+	    x1 = (float) UX1.val.i;
+	    x = (float) user_x->val.i;
+	break;
+	case 'f':
+	    x0 = UX0.val.f;
+	    x1 = UX1.val.f;
+	    x = user_x->val.f;
+	break;
+	default:
+	    msg_ELog (EF_PROBLEM, "devX: bad coordinate type: '%c'", 
+		      user_x->type);
+    }
+
+    switch (CurrentTrans)
+    {
+	case DataTrans:
+	    dev_x = LC_XPIX (x, x0, x1);
+	break;
+	case DeviceTrans:
+	    dev_x = (int) x;
+	break;
+    }
+
     return (dev_x);
 }
 
-DataValRec 
-userX ( dev_x,mode )
-int dev_x;
-unsigned short mode;
-{
-    DataValRec user_x;
-    float	ux0,ux1,ux;
-    struct tm	*t;
-    time_t	timeSec;
-    DataValRec umin, umax;
-    lc_GetUserCoord( &umin,&umax, NULL, NULL, mode );
 
-/*
-    user_x = (DataValPtr)calloc(1,sizeof(DataValRec));
-*/
-    switch ( umin.type )
+
+
+DataValRec 
+userX (dev_x)
+int dev_x;
+{
+    DataValRec	user_x;
+    float	x0, x1, x;
+
+    switch (UX0.type)
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
-	    ux0 = 0.0;
-	    ux1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
+	    x0 = 0.0;
+	    x1 = (float) (UX1.val.t.zt_Sec - UX0.val.t.zt_Sec);
 	break;
 	case 'f':
-	    ux0 = (float)umin.val.f;
-	    ux1 = (float)umax.val.f;
+	    x0 = (float) UX0.val.f;
+	    x1 = (float) UX1.val.f;
 	break;
 	case 'i':
-	    ux0 = (float)umin.val.i;
-	    ux1 = (float)umax.val.i;
+	    x0 = (float) UX0.val.i;
+	    x1 = (float) UX1.val.i;
 	break;
 	case 'd':
-	    ux0 = (float)umin.val.d;
-	    ux1 = (float)umax.val.d;
+	    x0 = (float) UX0.val.d;
+	    x1 = (float) UX1.val.d;
 	break;
     }
-    switch ( CurrentTrans )
+
+    switch (CurrentTrans)
     {
 	case DataTrans:
-	    if ( mode & INVERT )
-	    {
-		ux = LC_FXUSER(dev_x,ux0,ux1);
-	    }
-	    else
-	    {
-		ux = LC_XUSER(dev_x,ux0,ux1);
-	    }
+	    x = LC_XUSER (dev_x, x0, x1);
 	break;
 	case DeviceTrans:
-	    if ( mode & INVERT )
-	    {
-	        ux = (float)(GWWidth(Graphics) - dev_x);
-	    }
-	    else
-	    {
-	        ux = (float)dev_x;
-	    }
+	        x = (float) dev_x;
 	break;
     }
-    switch (user_x.type = umin.type)
+
+    switch (user_x.type = UX0.type)
     {
 	case 't': 
-	    user_x.val.t.zt_Sec = umin.val.t.zt_Sec + (long)ux;
-	    user_x.val.t.zt_MicroSec = umin.val.t.zt_MicroSec;
+	    user_x.val.t.zt_Sec = UX0.val.t.zt_Sec + (long) x;
+	    user_x.val.t.zt_MicroSec = UX0.val.t.zt_MicroSec;
 	break;
 	case 'f':
-	    user_x.val.f = ux;
+	    user_x.val.f = x;
 	break;
 	case 'i':
-	    user_x.val.i = (int)ux;
+	    user_x.val.i = (int) x;
 	break;
 	case 'd':
-	    user_x.val.d = (double)ux;
+	    user_x.val.d = (double) x;
 	break;
     }
+
     return (user_x);
 }
-DataValRec 
-userY ( dev_y ,mode)
-int dev_y;
-unsigned short mode;
-{
-    DataValRec user_y;
-    float	uy0,uy1,uy;
-    struct tm	*t;
-    time_t	timeSec;
-    DataValRec umin, umax;
-    lc_GetUserCoord( NULL, NULL, &umin, &umax,  mode );
 
-/*
-    user_y = (DataValPtr)calloc(1,sizeof(DataValRec));*/
-    switch ( umin.type )
+
+
+
+DataValRec 
+userY (dev_y)
+int dev_y;
+{
+    DataValRec	user_y;
+    float	uy0, uy1, uy;
+
+    switch (UY0.type)
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
+	    uy1 = (float) (UY1.val.t.zt_Sec - UY0.val.t.zt_Sec);
 	break;
 	case 'f':
-	    uy0 = (float)umin.val.f;
-	    uy1 = (float)umax.val.f;
+	    uy0 = (float) UY0.val.f;
+	    uy1 = (float) UY1.val.f;
 	break;
 	case 'i':
-	    uy0 = (float)umin.val.i;
-	    uy1 = (float)umax.val.i;
+	    uy0 = (float) UY0.val.i;
+	    uy1 = (float) UY1.val.i;
 	break;
 	case 'd':
-	    uy0 = (float)umin.val.d;
-	    uy1 = (float)umax.val.d;
+	    uy0 = (float) UY0.val.d;
+	    uy1 = (float) UY1.val.d;
 	break;
     }
-    switch ( CurrentTrans )
+
+    switch (CurrentTrans)
     {
 	case DataTrans:
-	    if ( mode & INVERT )
-	    {
-		uy = LC_FYUSER(dev_y,uy0,uy1);
-	    }
-	    else
-	    {
-		uy = LC_YUSER(dev_y,uy0,uy1);
-	    }
+	    uy = LC_YUSER (dev_y, uy0, uy1);
 	break;
 	case DeviceTrans:
-	    if ( mode & INVERT )
-	    {
-	        uy = (float)(GWWidth(Graphics) - dev_y);
-	    }
-	    else
-	    {
-	        uy = (float)dev_y;
-	    }
+	    uy = (float) dev_y;
 	break;
     }
-    switch (user_y.type = umin.type)
+
+    switch (user_y.type = UY0.type)
     {
 	case 't': 
-	    user_y.val.t.zt_Sec = umin.val.t.zt_Sec + (long)uy;
-	    user_y.val.t.zt_MicroSec = umin.val.t.zt_MicroSec;
+	    user_y.val.t.zt_Sec = UY0.val.t.zt_Sec + (long) uy;
+	    user_y.val.t.zt_MicroSec = UY0.val.t.zt_MicroSec;
 	break;
 	case 'f':
 	    user_y.val.f = uy;
 	break;
 	case 'i':
-	    user_y.val.i = (int)uy;
+	    user_y.val.i = (int) uy;
 	break;
 	case 'd':
-	    user_y.val.d = (double)uy;
+	    user_y.val.d = (double) uy;
 	break;
     }
+
     return (user_y);
 }
