@@ -1,5 +1,5 @@
 Makefile
-nvxgoes.F
-nvxgvar.F
-nvxps.F
-nvxrect.F
+nvxgoes.f
+nvxgvar.f
+nvxps.f
+nvxrect.f
