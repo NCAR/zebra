@@ -1,0 +1,37 @@
+      FUNCTION NCHARS(CVAL,IB,IE)
+C *** McIDAS Revision History ***
+C 1 NCHARS.FOR 13-Mar-90,22:00:44,`SSEC' PC-McIDAS ver 5.00
+C 2 NCHARS.FOR 25-Sep-90,7:35:34,`SMG' First Release into COMmon
+C *** McIDAS Revision History ***
+C $ NCHARS(CVAL, IB, IE)  (DAS)
+C $ COUNTS THE NUMBER OF CHARACTERS IN A STRING.  RETURNS NUMBER OF
+C $   CHARACTERS (IE - IB + 1).
+C $ CVAL = (C) INPUT  STRING
+C $ IB = (I) WORK VARIABLE  FIRST NON-BLANK CHARACTER
+C $ IE = (I) WORK VARIABLE  LAST NON-BLANK CHARACTER
+C $$ NCHARS = CHARACTER
+      CHARACTER*(*) CVAL
+      CHARACTER*1 C
+      IB=0
+      IE=-1
+      LCVAL=LEN(CVAL)
+      DO 1 I=1,LCVAL
+      C=CVAL(I:I)
+      IF(C.NE.' ') THEN
+         IB=I
+         GO TO 2
+      ENDIF
+1     CONTINUE
+2     CONTINUE
+      DO 3 I=LCVAL,1,-1
+      C=CVAL(I:I)
+      IF(C.NE.' ') THEN
+         IE=I
+         GO TO 4
+      ENDIF
+3     CONTINUE
+4     CONTINUE
+      NUM=IE-IB+1
+      NCHARS=NUM
+      RETURN
+      END
