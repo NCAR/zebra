@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.28 1994-01-26 11:24:17 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.29 1994-01-31 19:53:09 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -1606,7 +1606,7 @@ float badval;
 						       badval);
 #endif /* FILL_FIELDS */
 			}
-#ifndef APPLY_BADVALUE
+#ifdef APPLY_BADVALUE
 		/*
 		 * If we got data, swap our bad value flag for the netCDF one
 		 */
@@ -1728,7 +1728,7 @@ dsDetail *dets;
 					   count[1]*count[2]*count[3], badval);
 #endif /* FILL_FIELDS */
 			}
-#ifndef APPLY_BADVALUE
+#ifdef APPLY_BADVALUE
 		/*
 		 * If that works, we can apply the bad value flag and
 		 * store the data away.
@@ -2475,7 +2475,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.28 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.29 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
