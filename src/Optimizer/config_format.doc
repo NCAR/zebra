@@ -1,0 +1,31 @@
+                           Optimizer Config File Format
+                           (as of 12 July 91 16:45 GMT)
+                           ----------------------------
+
+
+0.7 0.7 0.4 0.4 0.0 4.0 ASAP	<-- H and V res., min. H and V separation,
+				    volume bottom and top, volume scan time
+CP2			<-- radar name
+/dev/modem 4978836 2400	<-- device, phone #, and baud rate for communications
+28.7544 -80.7747	<-- latitude and longitude
+15.0 12.0		<-- maximum H and V scan rates
+10.0 10.0		<-- maximum H and V accelerations
+64 1024	variable	<-- minimum and maximum hits, default setting
+960			<-- default PRF
+disabled		<-- enabled/disabled
+RHI			<-- default scan type
+5.0 0.2			<-- default minimum range and minimum elevation
+constant		<-- constant/variable angle steps
+512 150			<-- number of gates and gate spacing
+
+More radars can follow, with a blank line before the start of each.  The blank
+line shown before the first radar above is real; it is not just there as
+a result of the comments I added to the right.
+
+The config line specifying outgoing line and phone number is special.  If 
+the first character of the line is '-', no direct communication with
+the radar will be attempted.  Otherwise, the line should have the device
+name to use for communicating with the radar, the phone number to dial, and
+the baud rate.  For radio modems, use the string 'radio-modem' for the phone 
+number.
+

@@ -1,0 +1,40 @@
+0.7 0.7 0.4 0.4 0.0 4.0 ASAP
+
+CP2
+-
+28.7544 -80.7747
+15.0 12.0
+10.0 10.0
+64 1024 variable
+960
+disabled
+RHI
+5.0 0.2
+constant
+512 150
+
+CP3
+/dev/cua0 4972075 2400
+28.3417 -80.9350
+20.0 17.25
+20.0 17.25
+64 4096 variable
+1250
+enabled
+PPI
+5.0 0.2
+constant
+512 150
+
+CP4
+/dev/null radio-modem 2400
+28.2294 -80.7356
+20.0 17.25
+20.0 17.25
+64 4096 variable
+1250
+enabled
+PPI
+5.0 0.2
+constant
+512 150
