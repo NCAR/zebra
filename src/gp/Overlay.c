@@ -1,10 +1,6 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-#ifndef lint
-static char *rcsid = 
-	"$Id: Overlay.c,v 2.40 1995-04-17 22:12:13 granger Exp $";
-#endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -43,6 +39,7 @@ static char *rcsid =
 # include <string.h>
 # include <defs.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <message.h>
 # include <dm.h>
 # include <DataStore.h>
@@ -52,6 +49,7 @@ static char *rcsid =
 # include "DrawText.h"
 # include "gp_cmds.h"
 
+RCSID("$Id: Overlay.c,v 2.41 1995-05-12 16:29:36 granger Exp $")
 
 /*
  * Stuff for locations and other things needing icons.
@@ -67,7 +65,7 @@ static stbl OvIcons = 0;	/* Symbol table for icons		*/
 
 # endif /* ifdef OV_POSITION_ICON */
 
-/*//////////////////////////////////////////////////////////////////////*/
+/* //////////////////////////////////////////////////////////////////// */
 
 # if C_CAP_OVERLAY
 
@@ -155,6 +153,7 @@ typedef struct _MapPoints
  */
 static void 	ov_GridBBox FP ((char *, int));
 static void 	ov_DrawFeature FP ((char *, int));
+static void	ov_DoFeature FP ((Feature *fp));
 static void 	ov_Map FP ((char *, int));
 static void 	ov_WBounds FP ((char *, int));
 static void 	ov_RangeRings FP ((char *, int));
@@ -663,7 +662,7 @@ bool update;
 
 
 
-
+static void
 ov_DoFeature (fp)
 Feature *fp;
 /*
@@ -698,6 +697,9 @@ Feature *fp;
 		width = XPIX (x + fp->f_radius) - px;
 	   	XDrawArc (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
 			px, py, width, width, 0, 360*64);
+		break;
+	   case FMarker:
+		msg_ELog (EF_DEBUG, "Marker not handled in DoFeature");
 		break;
 	}
 }
@@ -871,7 +873,8 @@ char *name;
  * Load the map by this name.
  */
 {
-	char fname[200], line[200], c;
+	char fname[200], line[200];
+	int c;
 	float lat, lon;
 	int type, npt, pt;
 	SValue v;
@@ -965,7 +968,7 @@ char *name;
 /*
  * Feature definition stuff.
  */
-
+void
 ov_Feature (cmds)
 struct ui_command *cmds;
 /*
@@ -1108,9 +1111,9 @@ int update;
 	XColor xc;
 	LabelOpt opt;
 	float x, y, asize;
-	int ix, iy;
+	int ix = 0, iy = 0;
 	char *penup;
-	float penup_pt;	/* The x OR y value in lat-lon indicating a break */
+	float penup_pt = 0; /* The x OR y lat-lon value indicating a break */
 	Location *lp, c;
 /*
  * Get the various parameters that control boundary drawing.
@@ -1189,12 +1192,12 @@ int update;
 	 */
 		pt = 0;
 		first_valid = 1;
-		msg_ELog(EF_DEBUG,"Boundary platform %s: datachunk has %i points",
-			 pnames[i],npt);
+		msg_ELog (EF_DEBUG, "Boundary %s: datachunk has %i points",
+			  pnames[i], npt);
 		for (total_pts = 0; total_pts < npt; total_pts++)
 		{
 			if (penup /* The penup-point attr existed */ &&
-			   ((lp->l_lat == penup_pt) || (lp->l_lon == penup_pt)))
+			  ((lp->l_lat == penup_pt) || (lp->l_lon == penup_pt)))
 			{
 				/* Draw all points from 0 to pt-1
 				 */
@@ -1219,7 +1222,7 @@ int update;
 		/*
 		 * Annotate beneath the icon if called for.
 		 */
- 			if ((first_valid) && (opt != NoLabel))
+ 			if (first_valid)
 			{
 				first_valid = 0;
 				ix = xpts[pt].x;
@@ -1253,8 +1256,8 @@ int update;
 		/*
 		 * Draw them, clean up.
 		 */
-			XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, pt,
-					CoordModeOrigin);
+			XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, 
+				    pt, CoordModeOrigin);
 		}
 		ot_AddStatusLine (comp, pnames[i], " ", &t);
 	/*
@@ -1266,9 +1269,9 @@ int update;
 		 * Where to put the icon? 
 		 * The default, (ix,iy), is the first valid point found above
 		 */
-		    if (((lat = dc_GetSampleAttr (dc, 0, "center_lat")) != NULL)
-			 && ((lon = dc_GetSampleAttr (dc, 0, "center_lon")) 
-				!= NULL))
+		    if (((lat = dc_GetSampleAttr(dc, 0, "center_lat")) != NULL)
+			&& ((lon = dc_GetSampleAttr(dc, 0, "center_lon"))
+			    != NULL))
 			{
 				msg_ELog(EF_DEBUG,
 			   "Using DC atts center_lat/lon %s,%s for %s icon",
@@ -1283,7 +1286,7 @@ int update;
 		 * Put it there.
 		 */
 			I_PositionIcon (comp, pnames[i], &t, iconname, ix, iy, 
-				xc.pixel); 
+					xc.pixel); 
 		}
 	/*
 	 * Free the data chunk and memory.
@@ -1601,7 +1604,7 @@ int update;
 	 * Find this platform.
 	 */
 		if (! FancyGetLocation (comp, plist[plat], &PlotTime,
-				&loctime, &loc))
+					&loctime, &loc))
 			continue;
 	/*
 	 * Convert to pixel space, then offset to put the hot spot of
@@ -1617,8 +1620,8 @@ int update;
 	 */
 	 	if (opt != NoLabel)
 		{
-			char *strrchr (), *plabel;
-			if (plabel = strrchr (plist[plat], '/'))
+			char *plabel;
+			if ((plabel = strrchr (plist[plat], '/')))
 				plabel++;
 			else
 				plabel = plist[plat];
@@ -1645,31 +1648,27 @@ int update;
 		 */
 			(void) pda_Search (Pd, comp, "local-time",plist[plat], 
 					   &tlocal, SYMT_BOOL);
+			tzstr = "z";
 			if (tlocal)
 			{
 				if (! pda_Search (Pd, comp, "timezone-offset",
 						  plist[plat],
 						  (char *)&tzoffset, SYMT_INT))
 				{
-					tzstr = "z";
 					msg_ELog(EF_PROBLEM,
                    "no 'timezone-offset' parameter, though 'local-time' true");
 				}
-				else if (tzoffset == 0)
+				else
 				{
-					tzstr = "z";
-				}
-			/*
-			 * Now do time zone adjustment
-			 */
 				/* 
 				 * Local time is GMT time plus the timezones
 				 * offset in minutes from GMT (i.e., minutes
 				 * east of Greenwich).  So eastern hemisphere
 				 * has positive offsets.
 				 */
-				loctime.zt_Sec += tzoffset * 60;
-				tzstr = "loc";
+					loctime.zt_Sec += tzoffset * 60;
+					tzstr = "loc";
+				}
 			}
 		/*
 		 * Format up the date.  Only put in the month/day portion
@@ -2069,6 +2068,7 @@ float aint;
  * Pass along the rows.
  */
 	nx = 0;
+	xp = 0;
 	for (xpos = blon; xpos <= maxlon; xpos += xs)
 	{
 	/*
@@ -2108,7 +2108,7 @@ float aint;
 	/*
 	 * Bottom annotation.
 	 */
-		if (fabs(fmod(xpos,aint)) < TOLERANCE)
+		if (blat <= maxlat && fabs(fmod(xpos,aint)) < TOLERANCE)
 		{
 			sprintf (label, "%d", 
 				 (int)((xpos>180)?(xpos-360):(xpos)));
@@ -2347,6 +2347,7 @@ char *name;
 
 
 
+int
 ov_PositionIcon (name, x, y, fg)
 char	*name;
 int	x, y, fg;
