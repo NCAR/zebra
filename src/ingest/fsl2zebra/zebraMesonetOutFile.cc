@@ -247,18 +247,18 @@ zebraMesonetOutFile::checkFile(StationMap& needStations, floatVarList& outVars)
     // Ditto for vars
     //
     timeVar = ncfile->get_var("time");
-    if (! timeVar->is_valid())
+    if (! timeVar || ! timeVar->is_valid())
 	throw FileError("no 'time' var in " + filename);
 
     timeDim = timeVar->get_dim(0);
-    if (! timeDim->is_valid())
+    if (! timeDim || ! timeDim->is_valid())
 	throw FileError("bad time dimension in " + filename);
     
     for (int i = 0; i < outVars.size(); i++)
     {
 	string varname = outVars[i]->getName();
 	NcVar* var = ncfile->get_var(varname.c_str());
-	if (! var->is_valid())
+	if (! var || ! var->is_valid())
 	    throw FileError("var '" + varname + "' not defined in " + 
 			    filename);
 	
