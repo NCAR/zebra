@@ -1,10 +1,10 @@
 <title>Starting Zeb</title>
 <h2>Starting Zeb</h2>
-<hr>
 
 Documentation on obtaining the Zeb software and installation can be found
-in the <a href=../../../zebdoc/Install.html> Zeb release notes, installation,
-and tutorial</A> option off the <a href=../../../zeb.html>Zeb home page</a>.<p>
+in the <a href=http://www.atd.ucar.edu/rdp/zebdoc/Install.html> Zeb release
+notes, installation, and tutorial</A> option off the <a
+href=http://www.atd.ucar.edu/rdp/zeb.html>Zeb home page</a>.<p>
 
 Once Zeb is loaded onto your system, type <code>startzeb</code>	in a free
 window.  Note: Do not run startzeb in background.  
@@ -19,9 +19,11 @@ starts up zeb through the following series of steps:
      first checks to see if the current directory is a project directory.
      Failing that, the user will be prompted for the name of the directory
      to use.
+<p>
 <li> Next <code>startzeb</code> needs to find the data directory.  If the
      environment variable <code>DATA_DIR</code> is set then its value will
      be used; otherwise the user is prompted.
+<p>
 <li> Finally, all of the zeb processes are started up with a properly
      configured environment.  Some project configurations include special
      startup code which will also be run by <code>startzeb</code>.  For
@@ -66,9 +68,9 @@ Graphics Window </a> will be displayed.
 
 <hr>
 <a href=intro.html><img src=la.gif></a>
-<a href=shut-down.html><img src=ra.gif></a><p>
+<a href=shut-down.html><img src=ra.gif> Next: shutting down</a><p>
 <i>Return to <a href=index.html> Zeb Help Index</i></a>
-
+<h6>$Id: start.html,v 1.2 1994-11-30 17:25:18 corbet Exp $</h6>
 
 
 

@@ -1,0 +1,122 @@
+<title>Time-series plots</title>
+<h1>Time-series plots</h1>
+
+<! img src=time-series.gif>
+<p>
+Time-series plots display an arbitrary number of fields and platforms
+plotted against time on the X axis.
+
+<h2>Working with time-series windows</h2>
+When you first add a time-series window to the screen (for details on
+adding windows see the <a href=editing-configs.html>editing</a> section),
+it comes up empty, like this:
+<blockquote><img src=ts-empty.gif></blockquote>
+Most people consider this pretty boring, and will want to add some data to
+the window.  There are a couple of ways to add data to time-series windows:
+<ul>
+<li> The most common way is with <a href=posicons.html>active icons</a> in
+     a horizontal window.  For example, an array of surface stations can be
+     placed on the horizontal window as a station plot, then individual
+     stations can be picked and added to the time-series window.
+<p>
+<li> Some sorts of platforms (i.e. aircraft) may be added directly from the
+     <a href=iconbar.html>icon bar</a>.
+</ul>
+In either case, when a platform is added to an empty time-series window, a
+default field (usually temperature) is picked and displayed, yielding
+something like:
+<blockquote><img src=ts-first.gif></blockquote>
+If you wish to see a different field, move to the time-series <img
+src=tseries-icon.gif> icon and use the <b>middle</b> mouse button to pull
+down the field menu and select a new field.
+<p>
+If you now add a second platform to the time-series window, a new trace
+will be added displaying whatever field is already present in the window:
+<blockquote><img src=ts-two.gif></blockquote>
+Platforms may be stacked up indefinitely.
+<p>
+Now suppose you want to look at a second field in this window.  Move back
+to the time-series <img src=tseries-icon.gif> icon and use the <b>right</b>
+mouse button to select <tt>Add new field</tt> from the bottom of the menu.
+The window will add a new field and axis, making an attempt to (1) pick a
+field which does not already appear in the window, and (2) assign unique
+colors to the new traces for each platform.  This attempt is not always
+entirely successful, but it is a start.  The result will look something
+like:
+<blockquote><img src=ts-split.gif></blockquote>
+A few details of interest when adding fields:
+<ul>
+<li> A new axis will be added for the new field, even if some fields could
+     share an axis (i.e. temperature and dewpoint).  If autoscaling is on
+     (the default) the axes will be different; you will need to use manual
+     scaling to force the two fields to a common axis.
+<p>
+<li> You can add as many fields as you wish, but it really gets kind of
+     messy after two.  It is possible to set up time-series windows that
+     deal gracefully with more axes, but some knowledge of zebra
+     configuration is required.
+<p>
+<li> Space for side annotation often gets tight as more fields and
+     platforms are added.  In the above picture I have used the
+     <b>right</b> mouse button on the time-series icon to remove the times
+     from the side annotation to make more space.
+</ul>
+
+<h2>Removing data from time-series plots</h2>
+
+There are a couple different ways to remove data from time-series plots,
+depending on what you wish to accomplish:
+<p>
+If you want to get rid of all traces for a given field, move to the
+associated time-series <img src=tseries-icon.gif> icon and select
+<tt>remove</tt> with the <b>left</b> mouse button in the usual manner.
+<p>
+If you want to remove individual traces, you need to move instead to that
+trace's annotation on the right side of the window.  The line to the right
+of the platform name will illuminate:
+<blockquote><img src=ts-sannot.gif></blockquote>
+You may then use the <b>left</b> mouse button to remove the given trace.
+If you remove all traces for a field, the entire field will be removed from
+the window.
+
+<h2>Other time-series features</h2>
+
+If you use the <b>left</b> mouse button on the time-series <img
+src=tseries-icon.gif> icon to select <tt>adjust limits</tt>, you will get a
+widget like the following:
+<blockquote><img src=ts-limits.gif></blockquote>
+This widget allows a couple of operations:
+<ul>
+<li> The time period covered by the plot may be changed.  Note that this is
+     a global parameter, even though you accessed it via an individual
+     overlay.  If you change the time period, it will be changed for all
+     fields in the window.
+<p>
+<li> You may change scale modes and limits.  Time-series plots use
+     autoscaling by default, but there are times when that is not
+     desireable.  For example, one glitch in the data can completely
+     demolish the scaling algorithm, reducing your data to a horizontal
+     line.  If you set the scale mode to <tt>manual</tt>, you must also set
+     the upper and lower bounds to their desired values.
+</ul>
+<p>
+The colors of individual traces may be changed.  Move into the side
+annotation area of the trace you wish to change, and use the <b>right</b>
+button menu to select a new color.
+<p>
+Time-series plots are <a href=zoom.html>zoomable</a>.  Simply use shift
+and the left mouse button in the usual manner.
+<p>
+Finally, time-series plots need not be drawn as lines.  The <b>right</b>
+button may be used in the time-series <img src=tseries-icon.gif> icon to
+change the representation to one of a number of iconic forms.  (An
+experienced configuration hacker can make any icon available; the menu has
+a selected subset).  After changing the representation and shortening the
+time period, the above plot ends up like:
+<blockquote><img src=ts-nolines.gif></blockquote>
+
+<hr>
+<a href=xy-graphs.html><img src=la.gif></a>
+<a href=time-height.html><img src=ra.gif> Next: time-height plots</a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+<h6>$Id: time-series.html,v 1.1 1994-11-30 17:25:35 corbet Exp $</h6>

@@ -1,0 +1,71 @@
+<title>Adjusting track parameters</title>
+<h1>Adjusting track parameters</h1>
+
+Tracks show the position of a moving platform (such as an aircraft, boat,
+or balloon) over a period of time, possibly annotated, color-coded, and
+with wind arrows.  There is a very large number of parameters which control
+the plotting of tracks, which will be described here.
+<p>
+When you pull a track off the icon bar, you will get something that looks
+like the following by default:
+<blockquote><img src=track.gif></blockquote>
+This is a track which is color-coded by the altitude of the aircraft,
+covering an hour of flight, with wind arrows and an icon at the end.  The
+icon is an active <a href=posicons.html>position icon</a> and may be used
+to display this platform in other windows.
+
+<h2>Color coding</h2>
+The color-coding of this track is controlled by the menu on the
+<b>middle</b> mouse button in the icon at the bottom of the graphics
+window.  This (often lengthy) menu lists all of the fields available for
+this platform; selecting a field will cause the track to be color-coded
+using that field.  The special field <tt>None</tt> at the bottom of the
+menu disables color-coding; the result, if selected, will be a monochrome
+track.
+
+<h2>Simple track parameters</h2>
+
+The <b>right</b> mouse button in the icon will produce a menu that allows
+some simple parameters to be adjusted:
+<ul>
+<li> The <b>color</b> of the track -- when color coding has been turned
+     off, as described above.
+<li> The <b>width</b> of the track.  If you need to emphasize a track over
+     a busy background, it can be helpful to make it very wide.
+</ul>
+
+<h2>Fancy track parameters</h2>
+
+However, many track parameters are accessible only through the <tt>other
+track parameters</tt> entry in the right-button menu, which yields this
+widget:
+<blockquote><img src=acwidget.gif></blockquote>
+At the top is the <b>Time period</b> line.  This line controls the length
+of the track (in time); it's use is pretty much self-explanitory.
+<p>
+The next few lines control the placement of wind (or other vector field)
+arrows on the track:
+<blockquote><img src=acarrows.gif></blockquote>
+The top line lets you turn arrows off altogether, or to change their
+colors.  The next line down controls the separation (in time) of the
+arrows, and their size.  The "scale factor" is an obscure number, and is
+best adjusted relative to its current setting without an attempt to
+understand it.  The bottom line allows the fields used for the arrows to be
+changed.
+<p>
+The bottom two lines
+<blockquote><img src=acannot.gif></blockquote>
+control the placement of time annotations on the track.  These annotations
+are turned off by default (to reduce clutter), but may be enabled when
+precise knowledge of times is required.  The parameters controlling
+annotations are all pretty obvious.  The result of enabling annotations
+with the parameters shown above is:
+<blockquote><img src=track-a.gif></blockquote>
+
+
+
+<hr>
+<a href=hp-meso-fields.html><img src=la.gif></a>
+<a href=xy-graphs.html><img src=ra.gif> Next: XYGraphs</a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+<h6>$Id: hp-aircraft.html,v 1.1 1994-11-30 17:24:27 corbet Exp $</h6>

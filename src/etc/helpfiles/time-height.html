@@ -1,0 +1,72 @@
+<title>Time-height plots</title>
+<h1>Time-height plots</h1>
+
+Time-height plots display one or more fields in a time-height format.  They
+are used primarily for upward-looking data, such as that from soundings,
+wind profilers, and RASS stations.
+
+<h2>Adding data to a time-height plot</h2>
+
+A brand-new time-height window will start out empty:
+<blockquote><img src=th-empty.gif></blockquote>
+Generally, the only way to add data to a time-height window is through the
+use of <a href=posicons.html>active icons</a> in a horizontal plot.  Simply
+select the platform of interest and click on the time-height window to
+place it there.  Selecting a wind profiler platform, for example, will
+produce a display like:
+<blockquote><img src=th-profile.gif></blockquote>
+Note that two overlays have been added here!  One is a contoured
+representation of the vertical wind (in this case); on top of that is a set
+of wind barbs showing the horizontal winds.  In general, adding a platform
+of a given type will cause the new platform to replace any existing
+platforms of that type; if a new wind profiler is added to this window at
+this point, only data from that profiler will be displayed.
+
+<h2>Tweaking time-height contoured displays</h2>
+
+There are no end of options available for adjusting the contoured fields in
+a time-height display; only a few of them will be discussed here.  See also
+<a href=interpmethods.html>adjusting interpolation</a> and <a
+href=xy-contour-limits.html>adjusting xygraph contour limits</a> for other
+options.
+<p>
+The contours can often be hard to see below the wind barbs.  Using the
+<b>right</b> mouse button on the contour <img src=contour-icon.gif> icon,
+you may change the contour type to <tt>filled</tt>.  The result looks
+like:
+<blockquote><img src=th-solid.gif></blockquote>
+With the same menu you may change the color table used to generate the
+contours.  Changing to a three-color table yields the following plot
+<blockquote><img src=th-3color.gif></blockquote>
+which strongly emphasizes the downward velocities.
+<p>
+The field to be contoured may be changed using the <b>middle</b> mouse
+button on the contour <img src=contour-icon.gif> icon
+
+<h2>Tweaking time-height winds displays</h2>
+
+Many people prefer to see winds values as vectors, rather than barbs.
+Through use of the <b>middle</b> mouse button on the vector <img
+src=vector-icon.gif> icon, vectors may be selected.  It is also possible to
+turn on color-coding of the vectors (or barbs); this feature is useful
+mostly when no contours are being displayed underneath.  By performing the
+above and shortening the time period, the following plot was obtained:
+<blockquote><img src=th-vector.gif></blockquote>
+<p>
+Most other parameters of interest can be controlled through this widget:
+<p><img src=th-wwidget.gif><p>
+which may be obtained with the <b>middle</b> button on the vector <img
+src=vector-icon.gif> icon.  Adjusting the time period in this widget has global
+effect -- all overlays will be plotted with the new time period.
+
+
+<hr>
+<a href=time-series.html><img src=la.gif></a>
+<a href=xy-contour-limits.html><img src=ra.gif> Next: adjusting xygraph
+   contour limits</a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+<h6>$Id: time-height.html,v 1.1 1994-11-30 17:25:33 corbet Exp $</h6>
+
+
+
+

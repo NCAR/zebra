@@ -1,0 +1,64 @@
+<title>Recalling a saved display configuration</title>
+<h1>Recalling a saved display configuration</h1>
+
+At the current time, zeb is not able to automatically add new display
+configurations to the icon bar.  Thus, if you want to bring up your new
+configuration, you will actually have to type a command.  Move to the
+terminal window in which you originally started zeb, and type the
+following:
+<pre>
+	DM&gt; display name
+</pre>
+Where <tt>name</tt> is the name under which you saved your display
+configuration.  (The <tt>DM&gt;</tt> is the display manager prompt; do not
+type it yourself).
+<p>
+If you always want to see a particular display configuration when you start
+up zeb, assign the environment variable <tt>DEFAULT_CONFIG</tt> to be the
+name of that configuration.
+
+<h2>Adding a configuration to the icon bar</h2>
+
+This is a (slightly) advanced topic for those who wish to add a new display
+configuration to the icon bar.  This modification is an easy text editing
+task.  The steps are:
+<ul>
+<li> Be sure that the display configuration has been saved in a directory
+     that is accessible by all users.  Otherwise you will create
+     frustration for other zeb users who will see the new menu entry, but
+     who will be unable to invoke it.
+<p>
+<li> Move to the project directory, and edit the file <tt>IconBar</tt> with
+     your favorite text editor.
+<p>
+<li> Not too far from the top is the definition of the menu containing all
+     of the display configurations.  You will see a number of lines like:
+<pre>
+	entry 'Wide-screen satellite' 'display wide' \
+		(dm$config = 'wide')
+</pre>
+<p>
+<li> Duplicate one of these (pairs of) lines.  Replace the name of the
+     configuration with the name of the new one, and replace the first
+     quoted string with a short, textual description of your configuration.
+<p>
+<li> Be sure of a couple of things: (1) maintain the quotes as shown above,
+     and (2) the backslash must appear at the end of the first line.
+<p>
+<li> Save the file, and you are done.  You will need to restart zeb before
+     the new menu entry is available.
+</ul>
+For the curious: the keyword <tt>entry</tt> denotes an entry in the
+pulldown menu.  The first parameter (quoted string) is the text which
+appears in the menu; the second is the <tt>display</tt> command which is
+invoked when this menu entry is selected, and the third entry (the stuff in
+parentheses) is a logical test which assigns a marker next to this entry
+when this configuration is the one currently being displayed.
+<p>
+
+
+<hr>
+<a href=ec-save.html><img src=la.gif></a>
+<a href=dsdwidget.html><img src=ra.gif> Next: Displaying available data</a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+<h6>$Id: ec-display.html,v 1.1 1994-11-30 17:24:05 corbet Exp $</h6>
