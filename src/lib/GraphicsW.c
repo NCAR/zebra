@@ -39,7 +39,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-MAKE_RCSID("$Id: GraphicsW.c,v 2.14 1994-01-28 21:30:54 granger Exp $")
+MAKE_RCSID("GraphicsW.c,v 2.14 1994/01/28 21:30:54 granger Exp")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -598,7 +598,7 @@ GraphicsWidget w;
 		XShmQueryVersion (dpy, &maj, &min, &sp) && sp;
 
 	msg_ELog (EF_DEBUG, "XShmExt: %s supported by display %s",
-		 possible ? "IS" : "NOT", dpy->display_name);
+		 possible ? "IS" : "NOT", DisplayString (dpy));
 
 	if (!possible)
 	{
@@ -612,20 +612,20 @@ GraphicsWidget w;
  * local.  The whole heuristic is rather flawed, but it should be
  * accurate most of the time.
  */
-	n = (c = strchr(dpy->display_name, ':')) ? 
-	   (int)(c - dpy->display_name) : strlen(dpy->display_name);
+	n = (c = strchr(DisplayString (dpy), ':')) ? 
+	   (int)(c - DisplayString (dpy)) : strlen(DisplayString (dpy));
 	gethostname(host, HOSTLEN);
 	host[HOSTLEN - 1] = '\0';
-	if (!n || (!strncmp(dpy->display_name, "unix", n)))
+	if (!n || (!strncmp(DisplayString (dpy), "unix", n)))
 		possible = True;
 	else if (n == strlen(host))
-		possible = !strncmp(host, dpy->display_name, n);
+		possible = !strncmp(host, DisplayString (dpy), n);
 	else
 		possible = False;
 	msg_ELog(EF_DEBUG, 
 		 "XShm %s: server %s, client at %s",
 		 possible ? "possible" : "NOT possible",
-		 dpy->display_name, host);
+		 DisplayString (dpy), host);
 	w->graphics.shm_possible = (possible) ? True : False;
 }
 
