@@ -33,7 +33,6 @@ define widget contour-model-right intmenu 'contour right'
 		(PDParam(icon_component,'color-mono') <> 'true')
 	submenu 'Contour color (when mono)' 'simple-color'
 	submenu 'Line width' linewidth
-	entry 'Adjust range limits...' 'require range; popup range-limits'
 endmenu
 
 !
@@ -62,7 +61,6 @@ define widget contour-label-options intmenu 'label options'
 	entry 'Blank data under labels' 'ToggleBoolean label-blanking' \
 		(PDParam(icon_component,'label-blanking') <> 'false')
 endmenu
-
 
 !
 ! A procedure to put up the center/step adjuster.
