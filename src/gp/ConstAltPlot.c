@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.20 1992-10-14 17:15:00 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.21 1992-10-15 15:54:12 corbet Exp $")
 
 
 /*
@@ -73,6 +73,17 @@ static int Ctlimit;
 typedef enum {LineContour, FilledContour} contour_type;
 
 
+/*
+ * This structure is used to describe stations in the station plot rep.
+ */
+typedef struct _StInfo
+{
+	int	si_x, si_y;	/* Where it is (on screen)	*/
+	bool	si_excl;	/* Excluded?			*/
+	bool	si_mark;	/* Used in filtering operations */
+} StInfo;
+
+
 
 /*
  * Forwards.
@@ -91,6 +102,10 @@ void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 static bool 	CAP_VecParams FP ((char *, char *, char *, char *, float *,
 			char *, int *, float *, XColor *));
+static StInfo	*CAP_StationInfo FP ((DataChunk *, Location *, int));
+static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
+			int));
+
 
 
 
@@ -367,14 +382,14 @@ Boolean update;
 	static const int offset_y[4] = { -10, 10, -10, 10 };
 	PlatformId pid, *platforms;
 	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
-	float x0, x1, y0, y1;
 	int linewidth, numquads = 0, shifted, npts, i, j;
-	int pix_x0, pix_x1, pix_y0, pix_y1, tacmatch;
+	int pix_x0, pix_y0, tacmatch, filter = 0;
 	ZebTime zt;
 	XColor	color, qcolor;
 	FieldId	fields[6];
 	DataChunk	*dc;
 	Location	*locations;
+	StInfo		*sinfo;
 /*
  * Get necessary parameters from the plot description
  */
@@ -444,12 +459,27 @@ Boolean update;
 	dc_IRGetPlatforms (dc, platforms, locations);
 	badvalue = dc_GetBadval (dc);
 /*
+ * Convert locations and such.
+ */
+	sinfo = CAP_StationInfo (dc, locations, npts);
+/*
  * Get the u and v components, and possibly quadrants.
  */
 	ugrid = dc_IRGetGrid (dc, 0, fields[0]);
 	vgrid = dc_IRGetGrid (dc, 0, fields[1]);
 	for (i = 0; i < numquads; i++)
 		qgrid[i] = dc_IRGetGrid (dc, 0, fields[i + 2]);
+/*
+ * Apply spatial thinning if they want it.
+ */
+	if (pda_Search (Pd, c, "spatial-filter", platform, CPTR (filter),
+			SYMT_BOOL) && filter)
+	{
+		int res = 50;
+		pda_Search (Pd, c, "filter-resolution", platform, CPTR (res),
+				SYMT_INT);
+		CAP_SpFilter (ugrid, vgrid, &badvalue, sinfo, npts, res);
+	}
 /*
  * Graphics context stuff.
  */
@@ -459,10 +489,17 @@ Boolean update;
  */
 	for (i = 0; i < npts; i++)
 	{
-		cvt_ToXY (locations[i].l_lat, locations[i].l_lon, 
-			&x0, &y0);
-		pix_x0 = XPIX (x0);
-		pix_y0 = YPIX (y0);
+	/*
+	 * Look at our station info and see if we want to plot this
+	 * one at all.
+	 */
+		if (sinfo[i].si_excl)
+			continue;
+		pix_x0 = sinfo[i].si_x;
+		pix_y0 = sinfo[i].si_y;
+	/*
+	 * Plot the arrow.
+	 */
 		ov_PositionIcon ("pam-loc", pix_x0, pix_y0, color.pixel);
 		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
 			linewidth, LineSolid, CapButt, JoinMiter);
@@ -490,6 +527,7 @@ Boolean update;
 /*
  * Free the data.
  */
+	free (sinfo);
 	free (platforms);
 	free (locations);
 	dc_DestroyDC (dc);
@@ -541,6 +579,141 @@ Boolean update;
  * Finish up the time widget and we are done.
  */
 	lw_TimeStatus (c, platform, &zt);
+}
+
+
+
+
+
+static StInfo *
+CAP_StationInfo (dc, locs, nsta)
+DataChunk *dc;
+Location *locs;
+int nsta;
+/*
+ * Pull together basic info on these stations.
+ */
+{
+	int sta;
+	float x0, y0;
+	StInfo *sinfo;
+/*
+ * Allocate the info array.
+ */
+	sinfo = (StInfo *) malloc (nsta * sizeof (StInfo));
+/*
+ * Fill it in.
+ */
+	for (sta = 0; sta < nsta; sta++)
+	{
+	/*
+	 * Convert the location of this station into pixel space.
+	 */
+		cvt_ToXY (locs[sta].l_lat, locs[sta].l_lon, &x0, &y0);
+		if (x0 < Xlo || x0 > Xhi || y0 < Ylo || y0 > Yhi)
+			sinfo[sta].si_excl = TRUE;
+		else
+		{
+			sinfo[sta].si_x = XPIX (x0);
+			sinfo[sta].si_y = YPIX (y0);
+			sinfo[sta].si_excl = FALSE;
+		}
+	}
+	return (sinfo);
+}
+
+
+
+
+static
+# ifdef __GNUC__
+inline
+# endif
+int
+CAP_SDist (sinfo, xp, yp, max)
+StInfo *sinfo;
+int xp, yp, max;
+/*
+ * Return the distance from this station to the grid point, or some quick
+ * approximation thereof.  (This little routine can get run tens of thousands
+ * of times for a single plot, so it needs to be a bit on the speedy side).
+ */
+{
+	int dist;
+/*
+ * The test on mark is controversial; by testing this way it could select
+ * a station that is not the very closest to the grid point.
+ */
+	if (sinfo->si_excl || sinfo->si_mark)
+		return (99999);
+	dist = ((xp > sinfo->si_x) ? (xp - sinfo->si_x) : (sinfo->si_x - xp)) +
+	       ((yp > sinfo->si_y) ? (yp - sinfo->si_y) : (sinfo->si_y - yp));
+	return (dist > max ? 99999 : dist);
+}
+
+
+
+
+static void
+CAP_SpFilter (ugrid, vgrid, badval, sinfo, nsta, res)
+float *ugrid, *vgrid, *badval;
+int nsta;
+StInfo *sinfo;
+/*
+ * Apply spatial filtering (thinning) to this data chunk.
+ */
+{
+	float bv = *badval;
+	int sta, xp, yp, max = 3*res/2;
+/*
+ * Pixel limits.
+ */
+	int xmin = F_X0*GWWidth (Graphics);
+	int xmax = F_X1*GWWidth (Graphics);
+	int ymin = (1.0 - F_Y1)*GWHeight (Graphics);
+	int ymax = (1.0 - F_Y0)*GWHeight (Graphics);
+/*
+ * Pass once through the station array, reset all the marks, and exclude
+ * everything that lacks good wind data.
+ */
+	for (sta = 0; sta < nsta; sta++)
+	{
+		sinfo[sta].si_mark = FALSE;
+		if (ugrid[sta] == bv || vgrid[sta] == bv)
+			sinfo[sta].si_excl = TRUE;
+	}
+/*
+ * Now we need to pass through the grid points and find the closest station
+ * to each.
+ *
+ * (A better algorithm, for someday: pass through each station, find closest
+ *  grid point, assign to that point if is closest station.  Should be faster,
+ *  but this seems to work, for the moment).
+ */
+	for (xp = xmin; xp <= xmax; xp += res)
+		for (yp = ymin; yp <= ymax; yp += res)
+		{
+			int cdist = 9999, closest = -1;
+			for (sta = 0; sta < nsta; sta++)
+			{
+				int dist = CAP_SDist (sinfo + sta, xp, yp,res);
+				if (dist < cdist)
+				{
+					cdist = dist;
+					closest = sta;
+				}
+			}
+			if (closest >= 0)
+				sinfo[closest].si_mark = TRUE;
+		}
+/*
+ * Now one last pass through to exclude everything which was not marked.
+ */
+	for (sta = 0; sta < nsta; sta++)
+	{
+		if (! sinfo[sta].si_mark)
+			sinfo[sta].si_excl = TRUE;
+	}
 }
 
 
