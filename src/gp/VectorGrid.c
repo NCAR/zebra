@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.3 1992-06-02 20:09:08 corbet Exp $";
+static char *rcsid = "$Id: VectorGrid.c,v 2.4 1992-07-07 23:56:52 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -98,7 +98,7 @@ float	vlen;
 		/*
 		 * Check for bad values
 		 */
-			if ((int) UDATA(i,j) != bad && (int) VDATA(i,j) != bad)
+			if (UDATA(i,j) != bad && VDATA(i,j) != bad)
 				draw_vector (XtDisplay (w), d, Gcontext, 
 					xpos, ypos, UDATA (i, j), VDATA (i, j),
 					 unitlen);
