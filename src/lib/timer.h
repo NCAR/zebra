@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 1.2 1990-04-26 16:25:42 corbet Exp $ */
+/* $Id: timer.h,v 1.3 1990-05-07 11:32:45 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -13,6 +13,8 @@
 # define TR_CANCELALL	5	/* Cancel all alarm requests	*/
 # define TR_CANCEL	6	/* Cancel one request		*/
 # define TR_STATUS	7	/* Get back status		*/
+# define TR_PRT		8	/* Go into pseudo real time mode */
+# define TR_RT		9	/* Go into real real time mode	*/
 
 /*
  * Incremental times are stored as fractions of seconds -- INCFRAC to be
@@ -100,6 +102,26 @@ struct tm_cancel
 };
 
 
+/*
+ * The "enter pseudo real time" request.
+ */
+struct tm_prt
+{
+	int	tr_type;	/* == TR_PRT				*/
+	time	tr_time;	/* What time to consider it to be	*/
+	int	tr_scale;	/* Time scale factor			*/
+};
+
+/*
+ * When the current notion of the time changes, tell the world.
+ */
+# define TRR_TCHANGE	104	/* Broadcast on PRT change		*/
+struct tm_tchange
+{
+	int	tm_type;	/* == TRR_TCHANGE			*/
+	time	tm_time;	/* The new time				*/
+	bool	tm_pseudo;	/* Pseudo real time mode?		*/
+};
 
 
 /*

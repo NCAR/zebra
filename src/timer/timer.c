@@ -1,8 +1,8 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 1.3 1990-04-26 16:25:34 corbet Exp $";
-char *Version = "$Revision: 1.3 $ $Date: 1990-04-26 16:25:34 $";
+static char *rcsid = "$Id: timer.c,v 1.4 1990-05-07 11:32:34 corbet Exp $";
+char *Version = "$Revision: 1.4 $ $Date: 1990-05-07 11:32:34 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,6 +30,12 @@ struct tq_entry
  */
 struct tq_entry *Tq = 0;
 struct tq_entry *T_free = 0;
+
+/*
+ * The time offset, in seconds, when we are running in pseudo real time
+ * mode.
+ */
+int	T_offset = 0;
 
 /*
  * Forward routines.
@@ -63,14 +69,6 @@ main ()
  * Log a message telling the world we're here.
  */
 	msg_log ("--- Timer process version %s", Version);
-# ifdef notdef
-/*
- * Arrange for our alarm signal handler.
- */
-	svec.sv_handler = timer_alarm;
-	svec.sv_flags = svec.sv_mask = 0;
-	sigvec (SIGALRM, &svec, (struct sigvec *) 0);
-# endif
 /*
  * Now just wait for things to happen.
  */
@@ -241,6 +239,10 @@ struct tm_req *tr;
 	   	Status (who);
 		break;
 
+	   case TR_PRT:
+	   	EnterPRT ((struct tm_prt *) tr);
+		break;
+
 	   default:
 	   	msg_log ("Unknown TR: %d from %s\n", tr->tr_type, who);
 		break;
@@ -306,6 +308,7 @@ GetTime ()
 	struct timezone tz;
 
 	gettimeofday (&tv, &tz);
+	tv.tv_sec -= T_offset;
 	return (&tv);
 }
 
@@ -632,4 +635,61 @@ char *who;
  */
 	*cp++ = '\0';
 	msg_send (who, MT_TIMER, FALSE, ts, cp - tbuf);
+}
+
+
+
+
+
+EnterPRT (prt)
+struct tm_prt *prt;
+/*
+ * Throw the system into pseudo real time mode.
+ */
+{
+	int oldoffset = T_offset;
+	struct timeval newtime, *now;
+/*
+ * Convert the desired time into a system time, and make sure that it is
+ * not in the future.
+ */
+	CvtFccToSys (&prt->tr_time, &newtime);
+	T_offset = 0;	/* To get real time */
+	now = GetTime ();
+	if (TLT (now, &newtime))
+	{
+		T_offset = oldoffset;
+		msg_log ("*** Attempt to run PRT in the future");
+		return;
+	}
+/*
+ * Set the new offset, and inform the world.
+ */
+	T_offset = now->tv_sec - newtime.tv_sec;
+	msg_log ("Pseudo RT mode: time %d %d, (%d sec)",
+		prt->tr_time.ds_yymmdd, prt->tr_time.ds_hhmmss, T_offset);
+	TimeChangeBc ();
+}
+
+
+
+
+
+
+TimeChangeBc ()
+/*
+ * Broadcast a time change to the world.
+ */
+{
+	struct tm_tchange tc;
+/*
+ * Put together the broadcast.
+ */
+	tc.tm_type = TRR_TCHANGE;
+	CvtSysToFcc (GetTime (), &tc.tm_time);
+	tc.tm_pseudo = (T_offset != 0);
+/*
+ * Send it.
+ */
+	msg_send ("TimeChange", MT_TIMER, TRUE, &tc, sizeof (tc));
 }
