@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.35 1995-06-29 23:29:27 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.36 1995-07-24 20:09:43 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -178,11 +178,16 @@ pc_PlotHandler ()
  */
 	FrameCount = 1;
 	pda_Search (Pd, "global", "time-frames", 0, (char *)(&FrameCount), 
-		SYMT_INT);
+		    SYMT_INT);
+	MaxFrames = DEFAULT_MAXFRAMES;
 	pda_Search (Pd, "global", "max-frames", 0, (char *)(&MaxFrames), 
-		SYMT_INT);
+		    SYMT_INT);
 	if ((MaxFrames <= 0) || (MaxFrames > NCACHE))
-		MaxFrames = NCACHE;
+	{
+		msg_ELog (EF_PROBLEM, "illegal max-frames %d, %s %d",
+			  MaxFrames, "using default", DEFAULT_MAXFRAMES);
+		MaxFrames = DEFAULT_MAXFRAMES;
+	}
 	msg_ELog (EF_DEBUG, "Setting MaxFrames to %d.", MaxFrames);
 	/* 
 	 * Add stuff here to get more frames for spatial depth
@@ -204,7 +209,7 @@ pc_PlotHandler ()
  *  If a movie is running, keep it running, so the changes can be incorporated
  *  into the movie.
  */		
-	if((PlotMode == History) && MovieMode)
+	if ((PlotMode == History) && MovieMode)
 	{
 		mc_PDChange();
 		return;
