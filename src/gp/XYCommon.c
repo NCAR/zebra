@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.32 1998-10-28 21:22:18 corbet Exp $")
+RCSID("$Id: XYCommon.c,v 1.33 1998-11-20 16:06:11 burghart Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -274,11 +274,17 @@ DataValPtr	min, max;
  */
 {
 	char	keyword[20];
+	char	justname[32];
 	int	ok = TRUE, time;
+	FieldId fid = F_Lookup (fldname);
+/*
+ * Get just the name part of the field string
+ */
+	strcpy (justname, F_GetName (fid));
 /*
  * Are we dealing with time?
  */
-	time = (strcmp (fldname, "time") == 0);
+	time = (strcmp (justname, "time") == 0);
 
 	if (time)
 		min->type = max->type = 't';
@@ -290,10 +296,10 @@ DataValPtr	min, max;
 	sprintf (keyword, "scale-%c-min", dim);
 
 	if (time)
-		ok &= pda_ReqSearch (Pd, c, keyword, fldname, 
+		ok &= pda_ReqSearch (Pd, c, keyword, justname, 
 				    (char *) &(min->val.t), SYMT_DATE);
 	else
-		ok &= pda_ReqSearch (Pd, c, keyword, fldname, 
+		ok &= pda_ReqSearch (Pd, c, keyword, justname, 
 				    (char *) &(min->val.f), SYMT_FLOAT);
 /*
  * maximum
@@ -301,10 +307,10 @@ DataValPtr	min, max;
 	sprintf (keyword, "scale-%c-max", dim);
 
 	if (time)
-		ok &= pda_ReqSearch (Pd, c, keyword, fldname,
+		ok &= pda_ReqSearch (Pd, c, keyword, justname,
 				     (char *) &(max->val.t), SYMT_DATE);
 	else
-		ok &= pda_ReqSearch (Pd, c, keyword, fldname,
+		ok &= pda_ReqSearch (Pd, c, keyword, justname,
 				     (char *) &(max->val.f), SYMT_FLOAT);
 
 	return (ok);
