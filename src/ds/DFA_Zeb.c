@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.6 1992-08-06 16:41:00 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.7 1992-08-10 17:30:54 corbet Exp $");
 
 
 /*
@@ -150,7 +150,8 @@ static void	zn_FreeSpace FP ((znTag *, long, int));
 
 
 int
-zn_CreateFile (df, dc, rtag)
+zn_CreateFile (fname, df, dc, rtag)
+char *fname;
 DataFile *df;
 DataChunk *dc;
 char **rtag;
@@ -166,10 +167,10 @@ char **rtag;
 /*
  * Create the file itself before we go anywhere.
  */
-	if ((tag->zt_Fd = open (df->df_name, O_RDWR|O_TRUNC|O_CREAT, 0666)) <0)
+	if ((tag->zt_Fd = open (fname, O_RDWR|O_TRUNC|O_CREAT, 0666)) <0)
 	{
 		msg_ELog (EF_PROBLEM, "Can't create file %s (%d)",
-			df->df_name, errno);
+			fname, errno);
 		free (tag);
 		return (FALSE);
 	}
@@ -1216,7 +1217,8 @@ void *ctag;
 
 
 int
-zn_Open (df, write, rtag)
+zn_Open (fname, df, write, rtag)
+char *fname;
 DataFile *df;
 bool write;
 void **rtag;
@@ -1232,10 +1234,10 @@ void **rtag;
  * Open the file.
  */
 	memset (tag, 0, sizeof (znTag));
-	if ((tag->zt_Fd = open (df->df_name, write ? O_RDWR : O_RDONLY)) < 0)
+	if ((tag->zt_Fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
 		free (tag);
-		msg_ELog (EF_PROBLEM, "Can't open %s (%d)", df->df_name,errno);
+		msg_ELog (EF_PROBLEM, "Can't open %s (%d)", fname, errno);
 		return (FALSE);
 	}
 	zn_GetBlock (tag, 0, &tag->zt_Hdr, sizeof (zn_Header));
@@ -1365,7 +1367,7 @@ ZebTime *zt;
 	date t;
 
 	TC_ZtToUI (zt, &t);
-	sprintf (dest, "%s/%s.%06d.%04d.znf", dir, platform, t.ds_yymmdd,
+	sprintf (dest, "%s.%06d.%04d.znf", platform, t.ds_yymmdd,
 		t.ds_hhmmss / 100);
 }
 

@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.5 1992-07-23 14:38:29 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.6 1992-08-10 17:30:54 corbet Exp $")
 
 # include "netcdf.h"
 
@@ -220,7 +220,8 @@ int *nsamp;
 
 
 int
-dnc_OpenFile (dp, write, rtag)
+dnc_OpenFile (fname, dp, write, rtag)
+char *fname;
 DataFile *dp;
 int write;
 NCTag **rtag;
@@ -234,7 +235,7 @@ NCTag **rtag;
  * Try to open the file.
  */
 	ncopts = 0;		/* Change default error behavior	 */
-	if ((tag->nc_id = ncopen (dp->df_name, write ? NC_WRITE : NC_NOWRITE))
+	if ((tag->nc_id = ncopen (fname, write ? NC_WRITE : NC_NOWRITE))
 			    < 0)
 	{
 		free (tag);
@@ -1633,7 +1634,7 @@ ZebTime *zt;
 	date t;
 
 	TC_ZtToUI (zt, &t);
-	sprintf (dest, "%s/%s.%06d.%04d.cdf", dir, platform, t.ds_yymmdd,
+	sprintf (dest, "%s.%06d.%04d.cdf", platform, t.ds_yymmdd,
 		t.ds_hhmmss / 100);
 }
 
@@ -1642,7 +1643,8 @@ ZebTime *zt;
 
 
 
-dnc_CreateFile (df, dc, rtag)
+dnc_CreateFile (fname, df, dc, rtag)
+char *fname;
 DataFile *df;
 DataChunk *dc;
 NCTag **rtag;
@@ -1661,7 +1663,7 @@ NCTag **rtag;
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
  */
-	if ((tag->nc_id = nccreate (df->df_name, NC_CLOBBER)) < 0)
+	if ((tag->nc_id = nccreate (fname, NC_CLOBBER)) < 0)
 	{
 		free (tag);
 		dnc_NCError ("File create");

@@ -23,6 +23,7 @@
 
 # include <sys/types.h>
 # include <sys/vfs.h>
+# include <fcntl.h>
 # include <dirent.h>
 # include <errno.h>
 # include <copyright.h>
@@ -34,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.3 1992-07-15 17:14:22 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.4 1992-08-10 17:30:54 corbet Exp $")
 
 
 
@@ -65,6 +66,8 @@ static void	Rescan FP ((struct dsp_Rescan *));
 static void	RescanPlat FP ((Platform *));
 static int	FileKnown FP ((Platform *, char *, char *, int));
 static void	CleanChain FP ((Platform *, int));
+static void	WriteCache FP ((void));
+static int	LoadCache FP ((Platform *, int));
 
 /*
  * Broadcast stuff.
@@ -78,6 +81,14 @@ static int BCastSocket = -1;
 int NEvery = 0;
 char *ECmds[MAXEVERY];
 
+/*
+ * Caching options.
+ */
+static int LDirConst = FALSE;	/* Nothing changes		*/
+static int RDirConst = FALSE;
+static int LFileConst = FALSE;	/* Files don't change (but they	*/
+static int RFileConst = FALSE;	/* can come and go)		*/
+static int CacheOnExit = FALSE;	/* Write cache on way out?	*/
 
 int DisableRemote = FALSE;
 
@@ -90,6 +101,7 @@ char **argv;
 {
 	char loadfile[80];
 	int argt = SYMT_STRING;
+	stbl vtable;
 /*
  * Hook into the message system.
  */
@@ -102,14 +114,19 @@ char **argv;
 	fixdir_t ("DSDLOADFILE", LIBDIR, "dsDaemon.lf", loadfile, ".lf");
 	ui_init (loadfile, FALSE, TRUE);
 	SetupConfigVariables ();
+	cp_SetupCmdProto ();
 /*
  * Initialize.
  */
+	vtable = usy_g_stbl ("ui$variable_table");
 	strcpy (DefDataDir, DATADIR);
-	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "datadir",
-		DefDataDir, SYMT_STRING, 80);
-	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "DisableRemote",
-		&DisableRemote, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "datadir", DefDataDir, SYMT_STRING, 80);
+	usy_c_indirect (vtable, "DisableRemote", &DisableRemote, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "LDirConst", &LDirConst, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "RDirConst", &RDirConst, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "LFileConst", &LFileConst, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "RFileConst", &RFileConst, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "CacheOnExit", &CacheOnExit, SYMT_BOOL, 0);
 	InitSharedMemory ();
 	dt_InitTables ();
 	dap_Init ();
@@ -140,13 +157,18 @@ FinishInit ()
  * Finish our initialization.
  */
 {
+	ZebTime t1, t2;
 /*
  * Build the data table free list, then fill it up by scanning the disk
  * to see which data is already present.
  */
  	ShmLock ();
 	dt_FinishTables ();
+	msg_ELog (EF_INFO, "Starting file scan");
+	tl_Time (&t1);
 	DataScan ();
+	tl_Time (&t2);
+	msg_ELog (EF_INFO, "Scan done, took %d secs", t2.zt_Sec - t1.zt_Sec);
 	ShmUnlock ();
 /*
  * If a cleanup_procedure exists, run it now.
@@ -247,6 +269,12 @@ struct ui_command *cmds;
 	 */
 	   case DK_BROADCAST:
 	   	BCSetup (UPTR (cmds[1]), UINT (cmds[2]));
+		break;
+	/*
+	 * Write out cache files.
+	 */
+	   case DK_CACHE:
+	   	WriteCache ();
 		break;
 
 	   default:
@@ -388,6 +416,7 @@ bool local, rescan;
 	char *dir = local ? p->dp_dir : p->dp_rdir;
 	DIR *dp = opendir (dir);
 	struct dirent *ent;
+	int cloaded = FALSE;
 /*
  * Make sure there really is a directory.
  */
@@ -398,11 +427,23 @@ bool local, rescan;
 		return;
 	}
 /*
+ * Try to load a cache file.
+ */
+	if (! rescan)
+		cloaded = LoadCache (p, local);
+	if (cloaded && (local ? LDirConst : RDirConst))
+		return; /* Cache is gospel in this case */
+/*
  * Go through the files.
  */
 	while (ent = readdir (dp))
-		ScanFile (p, dir, ent->d_name, local, rescan);
+		ScanFile (p, dir, ent->d_name, local, rescan || cloaded);
 	closedir (dp);
+/*
+ * If we loaded a cache, go through and preen out nonexistent files.
+ */
+	if (cloaded)
+		CleanChain (p, local ? LOCALDATA (*p) : REMOTEDATA (*p));
 }
 
 
@@ -436,11 +477,17 @@ bool local, rescan;
  */
 	if (! (df = dt_NewFile ()))
 		return;	/* bummer */
-	sprintf (df->df_name, "%s/%s", dir, file);
+	/* sprintf (df->df_name, "%s/%s", dir, file); */
+	strcpy (df->df_name, file);
+	df->df_flags = DFF_Seen;
+	if (! local)
+		df->df_flags |= DFF_Remote;
+	df->df_platform = p - PTable;
+	df->df_rev = dfa_GetRevision (df);
 /*
  * Find the times for this file.
  */
-	if (! dfa_QueryDate (p->dp_ftype, df->df_name, &df->df_begin,
+	if (! dfa_QueryDate (p->dp_ftype, dfa_FilePath (df), &df->df_begin,
 			&df->df_end, &ns))
 	{
 		msg_ELog (EF_PROBLEM, "File '%s' inaccessible", df->df_name);
@@ -469,6 +516,56 @@ bool local, rescan;
 
 
 
+static int
+LoadCache (p, local)
+Platform *p;
+int local;
+/*
+ * Attempt to pull in a cache file.
+ */
+{
+	int fd;
+	char fname[300];
+/*
+ * See if we can get the cache file.
+ */
+	strcpy (fname, local ? p->dp_dir : p->dp_rdir);
+	strcat (fname, "/.ds_cache");
+	if ((fd = open (fname, O_RDONLY)) < 0)
+	{
+		msg_ELog (EF_DEBUG, "No cache file for %s", p->dp_name);
+		return (FALSE);
+	}
+/*
+ * OK, we got one.  Now plow through it and load all the files.
+ */
+	msg_ELog (EF_DEBUG, "Loading %s cache", p->dp_name);
+	for (;;)
+	{
+		DataFile *df = dt_NewFile ();
+	/*
+	 * Get the next entry and add it to the list.
+	 */
+		if (read (fd, df, sizeof (DataFile)) < sizeof (DataFile))
+		{
+			dt_FreeDFE (df);
+			close (fd);
+			return (TRUE);
+		}
+	/*
+	 * Get the remote flag right, since the point of view of the 
+	 * process that wrote the cache may not agree with our own.
+	 */
+		df->df_flags &= ~DFF_Seen;
+	 	if (! local)
+			df->df_flags |= DFF_Remote;
+		dt_AddToPlatform (p, df, local);
+	}
+}
+
+
+
+
 
 static int
 FileKnown (p, dir, file, local)
@@ -480,18 +577,28 @@ bool local;
  */
 {
 	int dfi = local ? LOCALDATA (*p) : REMOTEDATA (*p);
-	int dirlen = strlen (dir) + 1;
+	int isconst = local ? LFileConst : RFileConst;
 /*
  * Just pass through the list and see if we find it.
  */
 	for (; dfi; dfi = DFTable[dfi].df_FLink)
-		if (! strcmp (DFTable[dfi].df_name + dirlen, file))
-		{
-			msg_ELog (EF_DEBUG, "File %s known dfi %d", file, dfi);
-			DFTable[dfi].df_flags |= DFF_Seen;
-			return (TRUE);
-		}
-	msg_ELog (EF_DEBUG, "New file %s/%s", p->dp_name, file);
+		if (! strcmp (DFTable[dfi].df_name, file))
+			break;
+	if (! dfi)
+	{
+		msg_ELog (EF_DEBUG, "New file %s/%s", p->dp_name, file);
+		return (FALSE);
+	}
+/*
+ * Now we need to see if maybe the file has changed on is.  If so,
+ * we zap it from the list and start over.
+ */
+	msg_ELog (EF_DEBUG, "File %s known dfi %d", file, dfi);
+	DFTable[dfi].df_flags |= DFF_Seen;
+	if (isconst || (dfa_GetRevision(DFTable + dfi) == DFTable[dfi].df_rev))
+		return (TRUE);
+	msg_ELog (EF_DEBUG, "File %s changed", file);
+	dt_RemoveDFE (p, dfi);
 	return (FALSE);
 }
 
@@ -508,6 +615,13 @@ struct dsp_Rescan *req;
  * Implement the rescan request.
  */
 {
+/*
+ * Reset the "file constant" flags -- we always want to check on a rescan.
+ */
+	LFileConst = RFileConst = FALSE;
+/*
+ * If they want everything done, then we need to pass through the list.
+ */
 	if (req->dsp_all)
 	{
 		int plat;
@@ -521,6 +635,9 @@ struct dsp_Rescan *req;
 				RescanPlat (p);
 		}
 	}
+/*
+ * Otherwise just do the one they asked for.
+ */
 	else
 		RescanPlat (PTable + req->dsp_pid);
 }
@@ -600,6 +717,8 @@ struct message *msg;
 	switch (tm->mh_type)
 	{
 	   case MH_SHUTDOWN:
+		if (CacheOnExit)
+			WriteCache ();
 		ui_finish ();
 		exit (1);
 	/*
@@ -801,7 +920,8 @@ struct dsp_UpdateFile *request;
 		    	append = TRUE;
 	}
 	df->df_nsample += request->dsp_NSamples;
-	df->df_rev++;
+	/* df->df_rev++; */
+	df->df_rev = dfa_GetRevision (df);
 	plat->dp_NewSamps += request->dsp_NSamples;
 	plat->dp_OwSamps += request->dsp_NOverwrite;
 /*
@@ -910,7 +1030,6 @@ struct dsp_BCDataGone *dg;
  */
 {
 	Platform *plat;
-	char fname[200];
 	int dfindex;
 	DataFile *df;
 /*
@@ -921,16 +1040,12 @@ struct dsp_BCDataGone *dg;
 /*
  * Construct the file name from our perspective.
  */
-	sprintf (fname, "%s/%s", plat->dp_rdir, dg->dsp_File);
 	for (dfindex = REMOTEDATA (*plat); dfindex;
 			dfindex = DFTable[dfindex].df_FLink)
-		if (! strcmp (fname, DFTable[dfindex].df_name))
+		if (! strcmp (dg->dsp_File, DFTable[dfindex].df_name))
 			break;
 	if (! dfindex)
-	{
-		msg_ELog (EF_INFO, "BCDataGone on nonex file '%s'", fname);
 		return;
-	}
 /*
  * Now we get rid of it.
  */
@@ -969,8 +1084,7 @@ DataFile *df;
 		struct dsp_BCDataGone dg;
 		dg.dsp_type = dpt_BCDataGone;
 		strcpy (dg.dsp_Plat, PTable[df->df_platform].dp_name);
-		strcpy (dg.dsp_File, df->df_name + 
-			strlen (PTable[df->df_platform].dp_dir) + 1);
+		strcpy (dg.dsp_File, df->df_name);
 		msg_BCast (BCastSocket, &dg, sizeof (dg));
 	}
 /*
@@ -978,9 +1092,10 @@ DataFile *df;
  * entry.
  */
 	dfa_ForceClose (df - DFTable);
-	if (unlink (df->df_name) < 0)
-		msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", errno,
-			df->df_name);
+	if (! (df->df_flags & DFF_Remote))
+		if (unlink (dfa_FilePath (df)) < 0)
+			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", errno,
+				df->df_name);
 	dt_FreeDFE (df);
 }
 
@@ -1078,4 +1193,46 @@ union usy_value *argv, *rv;
  */
 	rv->us_v_int = sfs.f_bavail;
 	*rt = SYMT_INT;
+}
+
+
+
+
+
+
+static void
+WriteCache ()
+/*
+ * Dump out cache files for all local directores.
+ */
+{
+	int plat, fd, df;
+	char fname[300];
+
+	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+	{
+		Platform *p = PTable + plat;
+	/*
+	 * We don't dump subplatforms.
+	 */
+		if (p->dp_flags & DPF_SUBPLATFORM)
+			continue;
+	/*
+	 * Create the dump file.
+	 */
+		sprintf (fname, "%s/.ds_cache", p->dp_dir);
+		if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0)
+		{
+			msg_ELog (EF_PROBLEM, "Error %d opening %s", errno,
+					fname);
+			continue;
+		}
+		msg_ELog (EF_DEBUG, "Cache %s opened", fname);
+	/*
+	 * Follow the chain.
+	 */
+	 	for (df = LOCALDATA (*p); df; df = DFTable[df].df_FLink)
+			write (fd, DFTable + df, sizeof (DataFile));
+		close (fd);
+	}
 }

@@ -48,7 +48,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.16 1992-07-22 14:44:52 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.17 1992-08-10 17:30:54 corbet Exp $")
 
 /*
  * Issues:
@@ -1223,6 +1223,8 @@ int all;
 		if (! strncmp (fname, DATADIR, strlen (DATADIR)))
 			fname += (strlen (DATADIR) + 1);
 		msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
+		strcat (Tarbuf, p->dp_dir); /* 8/92 jc dir now not in ... */
+		strcat (Tarbuf, "/");	    /* ...the datafile struct.	  */
 		strcat (Tarbuf, fname);
 		strcat (Tarbuf, " ");
 	/*

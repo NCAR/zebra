@@ -13,7 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.3 1992-07-13 16:39:13 kris Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.4 1992-08-10 17:30:54 corbet Exp $")
 
 
 
@@ -89,7 +89,8 @@ int size;
 
 
 int
-drf_OpenFile (dp, write, rtag)
+drf_OpenFile (fname, dp, write, rtag)
+char *fname;
 DataFile *dp;
 bool write;
 void **rtag;
@@ -102,9 +103,9 @@ void **rtag;
 /*
  * Open up the actual disk file.
  */
-	if ((tag->rt_fd = open (dp->df_name, write ? O_RDWR : O_RDONLY)) < 0)
+	if ((tag->rt_fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno,dp->df_name);
+		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno, fname);
 		free (tag);
 		return (FALSE);
 	}
@@ -115,7 +116,7 @@ void **rtag;
 			sizeof (RFHeader))
         {
                 msg_ELog (EF_PROBLEM, "Error %d reading RF hdr on %s", errno,
-                        dp->df_name);
+                        fname);
                 close (tag->rt_fd);
                 free (tag);
                 return (FALSE);
@@ -126,7 +127,7 @@ void **rtag;
 	if (tag->rt_hdr.rf_Magic != RF_MAGIC &&
 			tag->rt_hdr.rf_Magic != RF_OLDMAGIC)
 	{
-		msg_ELog (EF_PROBLEM, "Bad ID in file %s", dp->df_name);
+		msg_ELog (EF_PROBLEM, "Bad ID in file %s", fname);
 		close (tag->rt_fd);
 		free (tag);
 		return (FALSE);
@@ -275,15 +276,15 @@ ZebTime *t;
 	time ut;
 	
 	TC_ZtToUI (t, &ut);
-	sprintf (dest, "%s/%s.%06d.%06d.rf", dir, name, ut.ds_yymmdd,
-		ut.ds_hhmmss);
+	sprintf (dest, "%s.%06d.%06d.rf", name, ut.ds_yymmdd, ut.ds_hhmmss);
 }
 
 
 
 
 int
-drf_CreateFile (dp, dc, rtag)
+drf_CreateFile (fname, dp, dc, rtag)
+char *fname;
 DataFile *dp;
 DataChunk *dc;
 void **rtag;
@@ -299,10 +300,10 @@ void **rtag;
 /*
  * We gotta create a file before doing much of anything.
  */
-	if ((tag->rt_fd = open (dp->df_name, O_RDWR | O_CREAT, 0664)) < 0)
+	if ((tag->rt_fd = open (fname, O_RDWR | O_CREAT, 0664)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
-				dp->df_name);
+				fname);
 		free (tag);
 		return (FALSE);
 	}

@@ -24,6 +24,9 @@
  * maintenance or updates for its software.
  */
 
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <errno.h>
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -31,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.2 1992-06-19 16:20:05 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.3 1992-08-10 17:30:54 corbet Exp $")
 
 
 
@@ -126,7 +129,8 @@ MAKE_RCSID ("$Id: DataFileAccess.c,v 3.2 1992-06-19 16:20:05 corbet Exp $")
  *	Create an appropriate name for a new file in directory, starting
  *	at the given time.
  *
- * f_CreateFile (dfile, dc, tag)
+ * f_CreateFile (fname, dfile, dc, tag)
+ * char *fname;
  * DataFile *dfile;
  * DataChunk *dc;
  * void **tag;
@@ -366,7 +370,7 @@ typedef struct _OpenFile
 	int	of_dfindex;		/* DF structure index		*/
 	int	of_format;		/* Format type			*/
 	struct _OpenFile *of_next;	/* Next in chain		*/
-	int	of_rev;			/* Revision count		*/
+	long	of_rev;			/* Revision count		*/
 	int	of_write;		/* File open for write access	*/
 } OpenFile;
 
@@ -664,7 +668,8 @@ ZebTime *t;
  * Try to open up the file.  If successful, do our accounting and return
  * our success.
  */
-	if (! (*Formats[dfp->df_ftype].f_CreateFile) (dfp, dc, &tag))
+	if (! (*Formats[dfp->df_ftype].f_CreateFile) (dfa_FilePath (dfp),
+								dfp, dc, &tag))
 		return (FALSE);
 	dfa_AddOpenFile (df, TRUE, tag);
 	return (TRUE);
@@ -835,7 +840,8 @@ int dfindex;
 	OpenFile *ofp = dfa_FileIsOpen (dfindex);
 
 	if (ofp)
-		ofp->of_rev++;
+		ofp->of_rev = dfa_GetRevision (DFTable + dfindex);
+		/* ofp->of_rev++; */
 }
 
 
@@ -880,11 +886,53 @@ void **tag;
 /*
  * Nope, open it now.
  */
-	if (! (*Formats[dp->df_ftype].f_OpenFile) (dp, write, tag))
+	if (! (*Formats[dp->df_ftype].f_OpenFile) (dfa_FilePath (dp), dp,
+						write, tag))
 		retv = FALSE;
 	else 	/* success */
 		dfa_AddOpenFile (dfindex, write, *tag);
 
 	dsm_ShmUnlock ();
 	return (retv);
+}
+
+
+
+
+
+char *
+dfa_FilePath (df)
+DataFile *df;
+/*
+ * Generate the full name of this data file.  The name is returned in
+ * static space and will get zapped with the next call.
+ */
+{
+	static char fname[512];
+	Platform *p = PTable + df->df_platform;
+
+	sprintf (fname, "%s/%s", (df->df_flags & DFF_Remote) ?
+		p->dp_rdir : p->dp_dir, df->df_name);
+	return (fname);
+}
+
+
+
+
+long 
+dfa_GetRevision (df)
+DataFile *df;
+/*
+ * Get a revision count for this file.
+ */
+{
+	struct stat sbuf;
+
+	if (stat (dfa_FilePath (df), &sbuf) < 0)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno,
+				dfa_FilePath (df));
+		return (0);
+	}
+	return (sbuf.st_mtime);
 }

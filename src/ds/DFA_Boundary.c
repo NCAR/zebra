@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.2 1992-08-10 17:30:54 corbet Exp $")
 
 
 
@@ -123,7 +123,7 @@ char *dir, *name, *string;
 	time t;
 	
 	TC_ZtToUI (zt, &t);
-	sprintf (string, "%s/%s.%06d.%04d.bf", dir, name, t.ds_yymmdd,
+	sprintf (string, "%s.%06d.%04d.bf", name, t.ds_yymmdd,
 		t.ds_hhmmss/100);
 }
 
@@ -132,7 +132,8 @@ char *dir, *name, *string;
 
 
 int
-bf_CreateFile (dfile, dc, rtag)
+bf_CreateFile (fname, dfile, dc, rtag)
+char *fname;
 DataFile *dfile;
 DataChunk *dc;
 char **rtag;
@@ -145,10 +146,10 @@ char **rtag;
 /*
  * Start by trying to create the file.
  */
-	if ((tag->bt_fd = open (dfile->df_name, O_RDWR | O_CREAT, 0664)) < 0)
+	if ((tag->bt_fd = open (fname, O_RDWR | O_CREAT, 0664)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
-			dfile->df_name);
+			fname);
 		free (tag);
 		return (FALSE);
 	}
@@ -308,7 +309,7 @@ int len, sample;
 
 
 int
-bf_OpenFile (dp, write, rtag)
+bf_OpenFile (fname, dp, write, rtag)
 DataFile *dp;
 bool write;
 char **rtag;
@@ -321,9 +322,9 @@ char **rtag;
 /*
  * See if we can really open the file.
  */
-	if ((tag->bt_fd = open (dp->df_name, write ? O_RDWR : O_RDONLY)) < 0)
+	if ((tag->bt_fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno,dp->df_name);
+		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno,fname);
 		free (tag);
 		return (FALSE);
 	}
@@ -334,14 +335,14 @@ char **rtag;
 			sizeof (struct BFHeader))
 	{
 		msg_ELog (EF_PROBLEM, "Error %d reading BF hdr on %s", errno,
-			dp->df_name);
+			fname);
 		close (tag->bt_fd);
 		free (tag);
 		return (FALSE);
 	}
 	if (tag->bt_hdr.bh_Magic != BH_MAGIC)
 		msg_ELog (EF_PROBLEM, "Bad magic (%x) on %s",
-			tag->bt_hdr.bh_Magic, dp->df_name);
+			tag->bt_hdr.bh_Magic, fname);
 /*
  * Pull in the boundary table.
  */

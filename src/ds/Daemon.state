@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.7 1992-08-06 16:40:33 corbet Exp $
+! $Id: Daemon.state,v 2.8 1992-08-10 17:30:54 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -47,6 +47,9 @@ define state initial
 	endinput
 	input 'receive' 18
 		next ust$final_int
+	endinput
+	input 'cache' 20
+		next ust$no_more
 	endinput
 enddef
 

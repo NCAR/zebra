@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: dsdump.c,v 3.3 1992-07-22 16:49:03 corbet Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.4 1992-08-10 17:30:54 corbet Exp $")
 
 
 msg_handler ()
@@ -208,9 +208,9 @@ int start, dlen;
 	/*
 	 * Do the print.
 	 */
-		ui_printf ("  %s%c %2d/%d '%s' %s -> %s [%d]\n", which,
+		ui_printf ("  %s%c %2d/%d-%d %s %s > %s [%d]\n", which,
 			(dp->df_flags & DFF_Archived) ? 'A' : 'N',
-			start, dp->df_use, dp->df_name + dlen,
+			start, dp->df_use, dp->df_rev, dp->df_name,
 			abegin, aend, dp->df_nsample);
 		start = dp->df_FLink;
 	}

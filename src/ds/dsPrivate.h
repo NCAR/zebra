@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.4 1992-08-06 16:39:50 corbet Exp $
+ * $Id: dsPrivate.h,v 3.5 1992-08-10 17:30:54 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -49,7 +49,7 @@ struct ds_ShmHeader
 	int	sm_nDTEUsed;		/* How many used		*/
 	int	sm_DTFreeList;		/* First free entry		*/
 };
-# define SHM_MAGIC	0x71492		/* Change for incompatible changes */
+# define SHM_MAGIC	0x80692		/* Change for incompatible changes */
 
 
 
@@ -94,18 +94,19 @@ typedef struct ds_Platform
 /*
  * The structure describing a file full of data.
  */
+# define FNAMELEN 32
 typedef struct ds_DataFile
 {
-	char	df_name[NAMELEN];	/* The name of the file		*/
+	char	df_name[FNAMELEN];	/* The name of the file		*/
 	FileType df_ftype;		/* Type of this file		*/
 	ZebTime	df_begin;		/* When the data begins		*/
 	ZebTime	df_end;			/* When it ends			*/
-	int	df_rev;			/* Revision count		*/
+	long	df_rev;			/* Revision count		*/
 	short	df_FLink;		/* Data table forward link	*/
 	short	df_BLink;		/* Data table backward link	*/
 	short	df_nsample;		/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
-	int	df_use;			/* Structure use count		*/
+	short	df_use;			/* Structure use count		*/
 	char	df_flags;		/* File flags			*/
 } DataFile;
 

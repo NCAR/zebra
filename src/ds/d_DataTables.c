@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.2 1992-07-15 17:14:22 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.3 1992-08-10 17:30:54 corbet Exp $")
 
 
 /*
@@ -126,8 +126,6 @@ char *name;
  */
 	new = PTable + ShmHeader->sm_nPlatform++;
 	dt_SetNames (name, new);
-	msg_ELog (EF_DEBUG, "New platform '%s' at %d", name,
-		ShmHeader->sm_nPlatform);
 /*
  * Fill it in and return it.
  */
@@ -232,6 +230,7 @@ dt_NewFile ()
 /*
  * Give it back to them.
  */
+	ret->df_flags = 0;
 	ret->df_FLink = 0;
 	ret->df_rev = 1;
 	return (ret);
@@ -379,7 +378,7 @@ bool local;
 {
 	df->df_platform = p - PTable;
 	df->df_use++;
-	df->df_flags = DFF_Seen;
+	/* df->df_flags = DFF_Seen; */
 	if (local)
 		dt_IPAdd (df, &p->dp_LocalData);
 	else
