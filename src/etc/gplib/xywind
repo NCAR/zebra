@@ -1,0 +1,89 @@
+!
+! Wind profile stuff.
+!
+!
+
+define widget time-height-winds intmenu 'Generic winds'
+	title 'Time-Height Winds'
+	line
+	entry 'Vector' 'adjust_representation_style vector' \
+		(PDParam (icon_component,"representation-style") = "vector")
+	entry 'Barb' 'adjust_representation_style barb' \
+		(PDParam (icon_component,"representation-style") = "barb")
+	line
+	entry 'Other plot parameters...' 'popup iss-params'
+endmenu
+
+
+
+
+!
+! big damn form widget to tweak all these parameters.
+!
+define widget iss-params form 'ISS parameters'
+	noheader
+	popup 'iss-par-popup'
+
+	label title 'Wind profile display parameters'
+	button apply 'Apply' command 'iss-par-apply'
+	button dismiss 'Dismiss' color red command 'popdown #ui$form'
+	label comp 'x' width 1 color gray95
+	newline
+
+	label l1 'Time period:'
+	blank time 'funky' width 50 command 'iss-par-apply'
+	label l2 '(s = seconds, m = minutes, h = hours)'
+	newline
+
+	label l3 'Max height:'
+	blank height 'funky' width 60 command 'iss-par-apply'
+	label l4 '(meters), with lines every'
+	blank lines 'funky' width 60 command 'iss-par-apply'
+	newline
+
+	label l5 'Vector scale:'
+	blank vscale 'x' width 60 command 'iss-par-apply'
+	label l6 'Barb shaft length:'
+	blank bscale 'x' width 60 command 'iss-par-apply'
+enddef
+
+
+
+procedure iss-par-popup
+	local f ui$form
+	local c icon_component
+
+	formtext #f comp #c
+	local t PDParam('global','xy-series-span')
+	formtext #f time #t
+	local h PDParam('global','height-scale-y-max')
+	formtext #f height #h
+	local l PDParam('global','xy-axis-l-tic-interval')
+	formtext #f lines #l
+	local v PDParam(c,'vec-scale')
+	formtext #f vscale #v
+	local b PDParam(c,'barb-scale')
+	formtext #f bscale #b
+endprocedure
+
+
+procedure iss-par-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+
+	local t getftext(f, 'time')
+	parameter global xy-series-span #t
+	local h getftext(f, 'height')
+	parameter global height-scale-y-max #h
+	local l getftext(f, 'lines')
+	parameter global xy-axis-l-tic-interval #l
+	local v getftext(f, 'vscale')
+	parameter #c vec-scale #v
+	local b getftext(f, 'bscale')
+	parameter #c barb-scale #b
+endprocedure
+
+
+procedure adjust_representation_style style string
+	param #icon_component representation-style #style
+endprocedure

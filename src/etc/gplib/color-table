@@ -10,19 +10,19 @@ endif
 define widget #wname intmenu 'ctbl'
 	title 'Color tables'
 	line
-	entry 'Black and white stepped' 'SetCTbl 16gray' \
+	entry 'Black and white stepped' 'CTSet 16gray' \
 		(PDParam(icon_component, 'color-table') = '16gray')
-	entry 'Black and white log' 'SetCTbl newgray' \
+	entry 'Black and white log' 'CTSet newgray' \
 		(PDParam(icon_component, 'color-table') = 'newgray')
-	entry 'scook table' 'SetCTbl scook' \
+	entry 'scook table' 'CTSet scook' \
 		(PDParam(icon_component, 'color-table') = 'scook')
-	entry 'Hot and cold table' 'SetCTbl hotcold' \
+	entry 'Hot and cold table' 'CTSet hotcold' \
 		(PDParam (icon_component, 'color-table') = 'hotcold')
-	entry 'Wild color table' 'SetCTbl wild' \
+	entry 'Wild color table' 'CTSet wild' \
 		(PDParam (icon_component, 'color-table') = 'wild')
 endmenu
 
 
-procedure SetCTbl table string
+procedure CTSet table string
 	parameter #icon_component color-table #table
 endprocedure

@@ -1,0 +1,41 @@
+!
+! Skew-t support stuff.
+!
+!
+! The Skewt Adjust Limits submenu
+!
+define widget adjust-skewt-limits intmenu 'Adjust Limits'
+	title 'Adjust Limits'
+	line
+	entry 'Pressure' 'i_adjust pres-limit-proc'
+	entry 'Temperature' 'i_adjust temp-limit-proc'
+endmenu
+
+!
+! The Skew-t left button menu.
+!
+define widget skewt-left intmenu 'Skewt left'
+	title 'Overlay Operations'
+	line
+	submenu 'Adjust Limits' 'adjust-skewt-limits'
+	line
+	entry 'Raise to top' 'move #icon_component 0'
+	entry 'Move to bottom' 'move #icon_component 1'
+	entry 'Remove' 'i_remove_component'
+endmenu
+
+
+
+!
+! Toggle between ft and km.
+!
+define widget feet-km intmenu 'feet/km'
+	title 'Feet/Kilometers'
+	line
+	entry 'Ft' 'do-feet-proc true'
+	entry 'Km' 'do-feet-proc false'
+endmenu
+
+procedure do-feet-proc value string
+	parameter #icon_component do-feet #value
+endprocedure
