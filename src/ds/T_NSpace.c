@@ -672,6 +672,11 @@ ZebTime *now;
 	begin = *now;
 	begin.zt_Sec += 3600*24*5;
 	end = when = begin;
+	/*
+	 * Reset the field list before and after since this test uses
+	 * so many.
+	 */
+	F_Reset ();
 	{	/* push limits of number of dims and fields in a chunk */
 
 		char name[ 10 ];
@@ -722,6 +727,7 @@ ZebTime *now;
 		errors += !ds_Store (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
+	F_Reset ();
 	return (errors);
 }
 
@@ -1270,6 +1276,11 @@ ZebTime *when;
 
 	pid = MakePlatform (&sgpRWP);
 	CleanPlatform (pid);
+	/*
+	 * This test declares alot of temporary fields, so reset the
+	 * fields table before and after we use it.
+	 */
+	F_Reset ();
 	power = F_DeclareField ("power", "Power offset", "none");
 	gate = F_DeclareField ("range_gate", "Height Index", "index");
 	angle = F_DeclareField ("angle", "Beam elevation angle", "Deg");
@@ -1361,6 +1372,7 @@ ZebTime *when;
 			  DC_MaxField, nfield);
 	}
 	dc_Destroy (dc);
+	F_Reset ();
 	return (err);
 }
 

@@ -1,7 +1,7 @@
 /*
  * Fields module stuff.
  *
- * $Id: ds_fields.h,v 1.5 1996-11-19 09:39:00 granger Exp $
+ * $Id: ds_fields.h,v 1.6 1996-11-21 22:20:25 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -33,6 +33,7 @@ typedef int FieldId;
 
 void	F_Init FP((void));
 void	F_Closure FP((void));
+void 	F_Reset FP((void));
 FieldId	F_Lookup FP((const char *));
 FieldId F_DeclareField FP((const char *, const char *, const char *));
 FieldId F_Declared FP((const char *name));

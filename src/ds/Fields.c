@@ -28,7 +28,7 @@
 # include <message.h>
 # include "ds_fields.h"
 
-RCSID ("$Id: Fields.c,v 3.10 1996-11-19 08:32:17 granger Exp $")
+RCSID ("$Id: Fields.c,v 3.11 1996-11-21 22:20:21 granger Exp $")
 
 
 /*
@@ -83,6 +83,19 @@ F_Closure ()
 		FNameTable = NULL;
 	}
 	NField = 0;
+}
+
+
+
+
+void
+F_Reset ()
+/*
+ * Forget all fields and return to our original initialized state.
+ */
+{
+	F_Closure ();
+	F_Init ();
 }
 
 
