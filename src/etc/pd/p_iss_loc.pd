@@ -9,13 +9,16 @@ p_iss_loc
 	representation:	overlay
 	field:		location
 	color:		white
-	label-size:	12
-	icon:		radar-loc
+	label-size:	14
+	icon:		iss-loc
 	icon-left-menu:		minimal-cap-left-menu
 	icon-right-menu:	location-options
+	location-time:		observation
 	posicon-left-menu:	minimal-cap-left-menu
 	posicon-right-menu:	location-options
-	posicon-middle-menu:	send-iss
+	posicon-middle-menu:	iss-to-other
 	label:		platform
 	active-icon:	true
+	time-label:	true
 	require:	location, iss-cap
+
