@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.11 2001-01-08 22:13:54 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.12 2001-06-12 23:11:52 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,12 +74,17 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.11 2001-01-08 22:13:54 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.12 2001-06-12 23:11:52 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
 #include "FieldClass.h"
 #undef FC_DEFINE_FIELDS
+
+// Solaris 8 defines this and it messes things up
+#ifdef tdelta
+#undef tdelta
+#endif
 
 class AppException
 {
