@@ -15,3 +15,6 @@ bfdump
 hdflook
 apple
 aline
+FDParse.tab.cc
+FDParse.tab.h
+FDScan.cc
