@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.8 1995-06-23 19:39:23 corbet Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.9 1996-03-15 22:24:16 burghart Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -61,6 +61,7 @@ float RadarLat = 0, RadarLon = 0;
 float ElTolerance = 1.0;	/* Elevation difference tolerance, deg. */
 int MinSweep = 25;
 int GMTOffset = 0;
+int MinRHI = 0;			/* not used in adrad_ingest yet */
 int NFrames = 2;		/* How many frames		*/
 int Niceness = 0;
 int WidgetUpdate = 20;
