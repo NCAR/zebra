@@ -5,7 +5,9 @@
 SRCS = dsdelete.c
 OBJS = dsdelete.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
 
 NormalProgramTarget(dsdelete, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+DependTarget ()
