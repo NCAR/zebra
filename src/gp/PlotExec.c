@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.19 1992-11-03 20:37:15 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.20 1992-12-18 10:08:27 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -103,14 +103,27 @@ name_to_num Pt_table[] =
 
 name_to_num Rt_table[] = 
 {
+# if C_PT_CAP
 	{"filled-contour",	RT_FCONTOUR	},
 	{"contour",		RT_CONTOUR	},
 	{"line-contour",	RT_CONTOUR	},
+#    if C_CAP_VECTOR
 	{"vector",		RT_VECTOR	},
+#    endif
 	{"station",		RT_STATION	},
+#    if C_CAP_RASTER
 	{"raster",		RT_RASTER	},
+#    endif
+#    if C_CAP_TRACKS
 	{"track",		RT_TRACK	},
+#    endif
+#    if C_CAP_OVERLAY
 	{"overlay",		RT_OVERLAY	},
+#    endif
+#    if C_CAP_LIGHTNING
+	{"lightning",		RT_LIGHTNING	},
+#    endif
+# endif
 # if C_PT_SKEWT
 	{"skewt",		RT_SKEWT	},
 # endif
@@ -123,7 +136,6 @@ name_to_num Rt_table[] =
 	{"contour",		RT_CONTOUR	},
 	{"obs",			RT_OBS	},
 # endif
-	{"lightning",		RT_LIGHTNING	},
 	{NULL,			0		}
 };
 
@@ -153,8 +165,12 @@ void	px_Init FP ((void));
 void	px_AddComponent FP ((char *, int));
 # if C_PT_CAP
 	void	CAP_FContour FP ((char *, int));
+#    if C_CAP_VECTOR
 	void	CAP_Vector FP ((char *, int));
+#    endif
+#    if C_CAP_RASTER
 	void	CAP_Raster FP ((char *, int));
+#    endif
 	void	CAP_Station FP ((char *, int));
 	void	CAP_LineContour FP ((char *, int));
 	void	CAP_Init FP ((time *));
@@ -164,11 +180,25 @@ static bool px_GetCoords FP ((void));
 static	void px_GetAltitude FP ((void));
 
 /*
+ * To distinguish between missing capability and uncompiled capability in the
+ * plot function table
+ */
+void UncompiledFunction() {};
+# define UNCOMPILED_FUNCTION	(&UncompiledFunction)
+
+/*
  * Other routines.
  */
 # if C_PT_CAP
-	extern void	tr_CAPTrack (), ov_CAPOverlay ();
-	extern void	li_CAPLight ();
+#    if C_CAP_TRACKS
+	extern void	tr_CAPTrack ();
+#    endif
+#    if C_CAP_OVERLAY
+        extern void	ov_CAPOverlay ();
+#    endif
+#    if C_CAP_LIGHTNING
+        extern void	li_CAPLight ();
+#    endif
 # endif
 # if C_PT_SKEWT
 	extern void	sk_Skewt ();
@@ -709,11 +739,15 @@ Boolean	update;
 /*
  * Execute the appropriate plot table entry
  */
-	if (Plot_routines[PlotType][rtype] != NULL)
-		(*Plot_routines[PlotType][rtype]) (c, update);
-	else
+	if (Plot_routines[PlotType][rtype] == NULL)
 		msg_ELog (EF_PROBLEM, "Cannot make a '%s' plot of type '%s'",
-			rep, px_NumberToName (PlotType, Pt_table));
+		   rep, px_NumberToName (PlotType, Pt_table));
+	else if (Plot_routines[PlotType][rtype] == UNCOMPILED_FUNCTION)
+		msg_ELog (EF_PROBLEM, 
+		   "'%s' plot of type '%s' not configured into this compilation of Zeb",
+		   rep, px_NumberToName (PlotType, Pt_table));
+	else
+		(*Plot_routines[PlotType][rtype]) (c, update);
 }
 
 
@@ -733,36 +767,75 @@ px_Init ()
 		for (rt = 0; rt < N_RTYPES; rt++)
 			Plot_routines[pt][rt] = NULL;
 /*
- * Put in the entries that exist
+ * Put in the entries that exist and were chosen in configuration.
+ * Entries that do not exist are left null, those that were not chosen
+ * are set to UNCOMPILED_FUNCTION.
  */
 # if C_PT_CAP
 	Plot_routines[PT_CAP][RT_INIT] = CAP_Init;
 	Plot_routines[PT_CAP][RT_FCONTOUR] = CAP_FContour;
 	Plot_routines[PT_CAP][RT_CONTOUR] = CAP_LineContour;
-	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
 	Plot_routines[PT_CAP][RT_STATION] = CAP_Station;
+# else
+	Plot_routines[PT_CAP][RT_INIT] = NULL;
+	Plot_routines[PT_CAP][RT_FCONTOUR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_CAP][RT_CONTOUR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_CAP][RT_STATION] = UNCOMPILED_FUNCTION;
+# endif
+# if C_CAP_VECTOR
+	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
+# else
+	Plot_routines[PT_CAP][RT_VECTOR] = UNCOMPILED_FUNCTION;
+# endif
+# if C_CAP_RASTER
 	Plot_routines[PT_CAP][RT_RASTER] = CAP_Raster;
+# else
+	Plot_routines[PT_CAP][RT_RASTER] = UNCOMPILED_FUNCTION;
+# endif
+# if C_CAP_TRACKS
 	Plot_routines[PT_CAP][RT_TRACK] = tr_CAPTrack;
+# else
+	Plot_routines[PT_CAP][RT_TRACK] = UNCOMPILED_FUNCTION;
+# endif
+# if C_CAP_OVERLAY
 	Plot_routines[PT_CAP][RT_OVERLAY] = ov_CAPOverlay;
+# else
+	Plot_routines[PT_CAP][RT_OVERLAY] = UNCOMPILED_FUNCTION;
+# endif
+# if C_CAP_LIGHTNING
 	Plot_routines[PT_CAP][RT_LIGHTNING] = li_CAPLight;
+# else
+	Plot_routines[PT_CAP][RT_LIGHTNING] = UNCOMPILED_FUNCTION;
 # endif
 
 # if C_PT_SKEWT
 	Plot_routines[PT_SKEWT][RT_SKEWT] = sk_Skewt;
+# else
+	Plot_routines[PT_SKEWT][RT_SKEWT] = UNCOMPILED_FUNCTION;
 # endif
 
 # if C_PT_XSECT
 	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
+# else
+	Plot_routines[PT_XSECT][RT_CONTOUR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XSECT][RT_FCONTOUR] = UNCOMPILED_FUNCTION;
 # endif
 # if C_PT_TSERIES
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
+# else
+	Plot_routines[PT_TSERIES][RT_TSERIES] = UNCOMPILED_FUNCTION;
 # endif
 # if C_PT_XYGRAPH
 	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = xy_Graph;	
 	Plot_routines[PT_XYGRAPH][RT_WIND] = xy_Wind;	
 	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = xy_Contour;	
 	Plot_routines[PT_XYGRAPH][RT_OBS] = xy_Observation;	
+# else
+	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XYGRAPH][RT_WIND] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XYGRAPH][RT_OBS] = UNCOMPILED_FUNCTION;
 # endif
 /*
  * Done
