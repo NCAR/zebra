@@ -43,7 +43,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.14 1994-06-02 17:27:28 burghart Exp $
+XCOMM $Id: config.h.dist,v 1.15 1994-06-29 20:35:56 case Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -163,8 +163,8 @@ XCOMM -----------------------------------------------------------------------
 /*
  * The data manager utilities are the programs dsmanage and tapeindex.
  * These are extremely useful in most environments, but not absolutely
- * necessary.  These programs require a C++ compiler, so if you do not have
- * a C++ compiler, define this to NO.  See further on in this file for
+ * necessary.  These programs require GCC's C++ compiler, so if you do not have
+ * GCC's C++ compiler, define this to NO.  See further on in this file for
  * information about specifying the C++ compiler.
  */
 # define	BuildDataManager		YES
@@ -242,6 +242,11 @@ XCOMM -----------------------------------------------------------------------
  * 	 writing, the version of gcc distributed by FSF does not support
  *	 debugging on the HP.  Either turn off "-g" below, or get the
  *	 special version at jaguar.cs.utah.edu.
+ *
+ *  SGI: At the time of this writing, the gcc compiler and IRIX 5.x
+ *       systems did not support debugging and had other unresolved loader
+ *       problems.  If you're compiling on the SGI, use the SGI cc compiler
+ *	 and set UseGcc to NO 
  */
 # define UseGcc YES
 
@@ -302,8 +307,14 @@ XCOMM -----------------------------------------------------------------------
  *	  or you will encounter more weirdness than you ever wished to deal
  *	  with.  You must also provide the "+ppu" fortran option or you will
  *	  get undefined externals when you link the graphics process.
+ *
+ *   SGI: DO turn on the K&R option ("-cckr") with the native SGI C compiler
+ *        and turn off optimization.  See the example below.  
+ *
  */
 # define CCOptions -O
+/* # define CCOptions -cckr */		/* SGI version */
+
 # define FortOptions -O
 /* # define FortOptions -O +ppu */	/* HPUX version */
 
@@ -454,6 +465,8 @@ XCOMM -----------------------------------------------------------------------
 /* HP-UX */
 /* # define FortranLibraries -lU77 -lf -lisamstub */
 
+/* SGI */
+/* # define FortranLibraries -lF77 */
 /*
  * Some of Zeb's routines require the terminal capability library,
  * usually /usr/lib/libtermcap.a, and the math library, /usr/lib/libm.a.
