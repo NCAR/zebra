@@ -258,8 +258,8 @@ time *t;
  * Generate a file name.
  */
 {
-	sprintf (dest, "%s/%s.%06d.%04d.rf", dir, name, t->ds_yymmdd,
-		t->ds_hhmmss/100);
+	sprintf (dest, "%s/%s.%06d.%06d.rf", dir, name, t->ds_yymmdd,
+		t->ds_hhmmss);
 }
 
 
