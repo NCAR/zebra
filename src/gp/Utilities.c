@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.46 1997-05-13 11:24:20 granger Exp $")
+RCSID ("$Id: Utilities.c,v 2.47 1997-05-13 16:19:02 ishikawa Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -605,7 +605,12 @@ int nstep;
  * Now find a nice center that's a multiple of step
  */
 	*center = 0.5 * (top + bottom);
+
+#ifdef __osf__
+	*center = (int) nint (*center/(*step)) * (*step);
+#else
 	*center = nint (*center/(*step)) * (*step);
+#endif
 }
 
 
@@ -755,7 +760,8 @@ float *min, *max;
 
 
 
-# if defined(hpux) || defined(SVR4) || defined (linux)
+# if (defined(hpux) || defined(SVR4) || defined (linux) || defined(aix)) &&
+!defined(__osf__)
 int
 nint (x)
 double x;
