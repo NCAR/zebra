@@ -34,10 +34,17 @@ typedef int FieldId;
 	FieldId	F_Lookup (char *);
 	FieldId F_DeclareField (char *, char *, char *);
 	FieldId F_Alias (char *, char *);
-	char *	F_GetName (FieldID);
+	char *	F_GetName (FieldId);
 	char *	F_GetUnits (FieldId);
 	char *	F_GetDesc (FieldId);
 # else
+	void	F_Init ();
+	FieldId	F_Lookup ();
+	FieldId F_DeclareField ();
+	FieldId F_Alias ();
+	char *	F_GetName ();
+	char *	F_GetUnits ();
+	char *	F_GetDesc ();
 # endif
 
 # endif /* __DS_FIELDS_H__ */

@@ -1,7 +1,6 @@
 /*
  * Field management for the zeb data store.
  */
-static char *rcsid = "$Id: Fields.c,v 1.1 1991-11-22 15:58:34 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,6 +22,7 @@ static char *rcsid = "$Id: Fields.c,v 1.1 1991-11-22 15:58:34 corbet Exp $";
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
+MAKE_RCSID ("$Id: Fields.c,v 1.2 1991-12-04 21:57:05 corbet Exp $")
 
 
 
@@ -86,6 +86,7 @@ char *name, *desc, *units;
 {
 	int ind;
 	SValue v;
+	extern char *strcpy ();
 
 	if ((ind = F_Lookup (name)) == BadField)
 		ind = NField++;
@@ -104,7 +105,7 @@ char *name, *desc, *units;
 
 FieldId
 F_Alias (name, alias)
-char *name, alias;
+char *name, *alias;
 /*
  * Cause "alias" to be equivalent to the existing field "name".
  */
