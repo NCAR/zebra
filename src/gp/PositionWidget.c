@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.13 1993-11-30 01:31:51 corbet Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.14 1993-11-30 01:51:31 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -104,7 +104,7 @@ XtAppContext 	actx;
  */
 {
 	Widget	form, hbutton;
-	Arg	args[10];
+	Arg	args[20];
 	int	n;
 
 /*
