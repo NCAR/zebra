@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.28 1993-03-10 22:14:25 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.29 1993-03-19 18:53:56 granger Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -933,7 +933,6 @@ struct gen_widget *child;
 	n = 0;
 	XtSetArg (formargs[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (formargs[n], XtNfromVert, frame->fw_bottom);	n++;
-	XtSetArg (formargs[n], XtNvertDistance, -2);		n++;
 	XtSetArg (formargs[n], XtNtop, XtChainTop);		n++;
 	XtSetArg (formargs[n], XtNbottom, XtChainBottom);	n++;
 	XtSetArg (formargs[n], XtNleft, XtChainLeft);		n++;
