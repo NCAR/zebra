@@ -13,6 +13,7 @@
 # endif /* SYSV */
 # endif /* UNIX */
 
+static char *rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_error.c,v 1.2 1989-03-10 16:27:39 corbet Exp $";
 /*
  * Stack stuff.
  */
@@ -31,7 +32,10 @@ static struct jstack
 	static bool Errorbell = TRUE;
 # endif
 
-
+/*
+ * The lookaside list for jstack structures.
+ */
+static struct jstack *Js_lal = 0;
 
 
 ui_errinit ()
@@ -230,8 +234,12 @@ jmp_buf label;
  * Push an error catch onto the stack.
  */
 {
-	struct jstack *jp = (struct jstack *) getvm (sizeof (struct jstack));
+	struct jstack *jp;
 
+	if (jp = Js_lal)
+		Js_lal = Js_lal->js_next;
+	else
+		jp = (struct jstack *) getvm (sizeof (struct jstack));
 	jp->js_value = label;
 	jp->js_next = Stack;
 	Stack = jp;
@@ -257,7 +265,8 @@ ui_epop ()
 	if (! Stack)
 		c_panic ("Popped an empty error stack");
 	Stack = Stack->js_next;
-	relvm (jp);
+	jp->js_next = Js_lal;
+	Js_lal = jp;
 }
 
 
