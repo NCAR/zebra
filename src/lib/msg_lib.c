@@ -32,7 +32,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.29 1995-05-05 17:42:32 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.30 1995-05-24 22:30:43 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -257,6 +257,18 @@ char *ident;
 		EchoMode = 1;
 	}
  	return (TRUE);
+}
+
+
+
+int
+msg_Connected ()
+/*
+ * Return non-zero when if we're hooked into the message manager and its
+ * safe to send messages.
+ */
+{
+	return (!ShuttingDown && !NoConnection);
 }
 
 
@@ -1318,6 +1330,7 @@ struct msg_elog *el;
 /*
  * If this message won't get logged, don't bother sending it.
  */
+	el->el_flag &= ~EF_DEVELOP;
 	if (! (el->el_flag & SendMask) && ! (el->el_flag & PrintMask))
 		return;
 /*
