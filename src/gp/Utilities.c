@@ -47,18 +47,18 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.52 1998-02-26 19:53:58 granger Exp $")
+RCSID ("$Id: Utilities.c,v 2.53 1998-08-19 14:23:24 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
  */
 static char *ImgRules[] =
 {
-	"cat",					/* xwd */
-	"xwdtopnm -quiet | ppmtogif -quiet",	/* gif */
-	"xwd2ps",				/* pscolor */
-	"xwd2ps -I -m",				/* psmono */
-	"xwd2ps -I",				/* psrev */
+	"cat",			/* xwd */
+	"convert xwd:- gif:-",	/* gif */
+	"xwd2ps",		/* pscolor */
+	"xwd2ps -I -m",		/* psmono */
+	"xwd2ps -I",		/* psrev */
 };
 
 
@@ -68,6 +68,9 @@ static char *ImgRules[] =
 # define M_PI 3.14159265358979323846
 # endif
 
+# define lowbit(x) ((x) & (~(x) + 1))
+
+static Pixel MakePixel (int entry, Visual *vis);
 static void ApplyConstOffset FP ((Location *, double, double));
 static void ApplyAdvection FP ((Location *, double, double, ZebTime *,
 		ZebTime *));
@@ -860,9 +863,9 @@ char *file;
 	XColor	xc;
 	U_XWDColor xwdc;
     /*
-     * Get the XColor for this pixel value
+     * Generate the pixel, then get the associated XColor
      */
-	xc.pixel = i;
+	xc.pixel = MakePixel (i, vis);
 	XQueryColor (Disp, win_info.colormap, &xc);
     /*
      * Convert it to a XWDColor
@@ -872,6 +875,7 @@ char *file;
 	ToBigUI2 (xc.green, (void*)&(xwdc.green));
 	ToBigUI2 (xc.blue, (void*)&(xwdc.blue));
 	xwdc.flags = xc.flags;
+	xwdc.pad = 0;
 
 	fwrite ((char *) &xwdc, SIZEOF(XWDColor), 1, xwdfile);
     }
@@ -896,6 +900,36 @@ char *file;
     unlink (xwdname);
 }
 
+
+
+static Pixel 
+MakePixel (int entry, Visual *vis)
+/*
+ * Turn the colormap entry number into a good pixel value.  For PseudoColor
+ * this is trivial, but for DirectColor and TrueColor we have to set red, 
+ * green, and blue bits separately.
+ */
+{
+    int i;
+    
+    if (vis->class == DirectColor || vis->class == TrueColor) 
+    {
+        Pixel red, green, blue, red1, green1, blue1;
+
+        red1 = lowbit (vis->red_mask);
+        red = (entry * red1) & vis->red_mask;
+
+        green1 = lowbit (vis->green_mask);
+	green = (entry * green1) & vis->green_mask;
+
+        blue1 = lowbit (vis->blue_mask);
+	blue = (entry * blue1) & vis->blue_mask;
+
+	return (red | green | blue);
+    }
+    else 
+	return (entry);
+}
 
 
 
