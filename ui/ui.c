@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.15 1991-12-23 19:58:45 case Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.16 1991-12-23 20:56:52 case Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -160,7 +160,7 @@ bool interact, nokeypad;
 	strcpy (sdfname, UIDIR);
 	v.us_v_ptr = sdfname;
 	usy_s_symbol (Ui_variable_table, "ui$rdss_root", SYMT_STRING, &v);
-	strcat (sdfname, "/ui_commands");
+	strcat (sdfname, "/ui/ui_commands");
 	usy_s_symbol (Ui_variable_table, "ui$defs_file", SYMT_STRING, &v); 
 /*
  * Initialize other stuff.
