@@ -5,7 +5,7 @@ OBJS = EventLogger.o
 INCLUDES = $(XINCLUDES)
 LIBS = $(LIBZEB) $(XLIBS)
 DISTFILES = $(SRCS) Imakefile EventLogger.ad
-SYSLIBS = $(LIBMATH) $(LIBREGEXP)
+SYSLIBS = $(LIBREGEXP)
 
 CompleteProgramTarget(EventLogger, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(EventLogger)
