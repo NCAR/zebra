@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 22:55:14 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.4 1992-04-30 15:43:41 granger Exp $"
 
 # include "../../include/config.h"
 
@@ -24,8 +24,9 @@ MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 22:55:14 corbet Exp $"
  * Sun options
  */
 CC=CCompiler
-CFLAGS=CCOptions -I$(FCCINC) -I$(RDSSINC)
-LIBS= ZebLibrary -lnetcdf -lrdss -lXaw -lXmu -lXt -lXext -lX11 -ltermcap -lm
+CFLAGS=CCOptions IncludeDirs
+LIBS= ZebLibrary CDFLibrary MiscLibs
+XLIBS=XLibraries
 # endif
 
 
@@ -43,10 +44,10 @@ install:	ac_ingest ac_ingest.lf ac_status ac_status.lf
 include:
 
 ac_ingest:	$(OBJS)
-	$(CC) $(CFLAGS) -o ac_ingest $(OBJS) $(LIBS)
+	$(CC) $(CFLAGS) -o ac_ingest $(OBJS) $(LIBS) $(XLIBS)
 
 ac_status:	$(OBJS2)
-	$(CC) $(CFLAGS) -o ac_status $(OBJS2) $(LIBS)
+	$(CC) $(CFLAGS) -o ac_status $(OBJS2) $(LIBS) $(XLIBS)
 
 ac_ingest.lf: ac_ingest.state
 	uic < make-lf
