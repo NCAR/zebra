@@ -41,7 +41,8 @@
  */
 
 # ifndef lint
-	static char *rcsid = "$Id: trmm_sonde.c,v 1.1 1993-05-21 19:21:08 granger Exp $";
+static char *rcsid = 
+	"$Id: trmm_sonde.c,v 1.2 1993-06-07 19:00:23 granger Exp $";
 # endif
 
 # include <time.h>
