@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.12 1994-11-19 00:34:44 burghart Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.13 1995-04-17 21:50:53 granger Exp $")
 
 
 /*
@@ -57,14 +57,12 @@ static void EntryCallback FP ((Widget, XtPointer, XtPointer));
 static void PopupCallback FP ((Widget, XtPointer, XtPointer));
 static int SetupFields FP ((void));
 static int Funky FP ((char *));
-static int AddPlatform FP ((char *, int, ZebTime *));
-static void ToRealTime FP ((Widget, XtPointer, XtPointer));
 
 /*
  * XXX Ugly snarfed out of ui_wPulldown.c.
  */
 static int	Star_width = 16, Star_height = 16;
-unsigned static char Star_bits[] = {
+static unsigned char Star_bits[] = {
 	0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x88, 0x08, 0x90, 0x04, 
 	0xa0, 0x02, 0x40, 0x01, 0x3e, 0x3e, 0x40, 0x01, 0xa0, 0x02, 
 	0x90, 0x04, 0x88, 0x08, 0x80, 0x00, 0x80, 0x00, 0x00, 0x00, 
@@ -80,7 +78,6 @@ InitFieldMenu ()
 {
 	Arg args[2];
 	int i, n;
-	Widget rt;
 
 	VTable = usy_g_stbl ("ui$variable_table");
 /*
@@ -123,8 +120,7 @@ XtPointer xwhich, junk;
  */
 {
 	int which = (int) xwhich;
-	char cbuf[200], *fname;
-	UItime uitime;
+	char cbuf[512], *fname;
 /*
  * See which field name we should use.
  */
@@ -166,7 +162,7 @@ XtPointer junk, junk1;
 {
 	int nentry, i, type;
 	Arg args[2];
-	char string[80], field[40];
+	char string[256], field[FieldListLen];
 	SValue v;
 /*
  * Get the platforms set.
@@ -189,7 +185,8 @@ XtPointer junk, junk1;
 	/*
 	 * Add the text.
 	 */
-		sprintf (string, "%s", F_GetDesc (Fields[i]));
+		strncpy (string, F_GetDesc (Fields[i]), 60);
+		string[60] = 0;
 		if (strcmp (string, name))
 			sprintf (string + strlen (string), " (%s)", name);
 		if (strcmp (units, "none"))
@@ -302,7 +299,7 @@ SetupFields ()
  * If we are dealing with a comma-separated list of platforms, just
  * use the first.  This may not be the ideal behavior, but then, what is?
  */
-	if (comma = strchr (Platform, ','))
+	if ((comma = strchr (Platform, ',')))
 		*comma = '\0';
 /*
  * Query the fields that are available.
@@ -321,7 +318,7 @@ static int
 Funky (s)
 char *s;
 /*
- * Return such that the given gripe appears in the menu.
+ * Send notice of the given gripe.
  */
 {
 	msg_ELog (EF_PROBLEM, "Field menu problem: %s", s);
