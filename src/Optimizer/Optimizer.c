@@ -24,6 +24,7 @@
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <unistd.h>
+# include <string.h>
 
 # include <ui.h>
 # include <ui_date.h>
@@ -38,7 +39,7 @@
 # include "keywords.h"
 # include "prototypes.h"
 
-RCSID ("$Id: Optimizer.c,v 1.9 1999-03-04 22:15:51 burghart Exp $")
+RCSID ("$Id: Optimizer.c,v 1.10 2000-04-24 19:06:41 burghart Exp $")
 
 /*
  * Declare global variables here
@@ -396,8 +397,15 @@ char	*cfg;
 		  r.baud = 0;
 		}
 
-		r.line_out = (char*) malloc (1 + strlen (line));
-		strcpy (r.line_out, line);;
+		if (strlen (line) > 0)
+		{
+		    r.line_out = (char*) malloc (1 + strlen (line));
+		    strcpy (r.line_out, line);
+		}
+		else
+		{
+		    r.line_out = 0;
+		}
 	/*
 	 * Lat and lon
 	 */
@@ -653,7 +661,7 @@ char	*line;
  * Handle ui_printf'd stuff.
  */
 {
-	char	*nl, *start, *strchr ();
+	char	*nl, *start;
 	char	tbuf[400];
 /*
  * Break at NL's.
