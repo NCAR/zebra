@@ -1,4 +1,4 @@
-/*
+/* -*- mode: c; c-basic-offset: 8; -*- 
  * The definition of the MetData data chunk class.  This class adds the
  * concept of fields and stuff in general interpretable as meteorological
  * data.
@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.27 2002-09-17 18:28:43 granger Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.28 2002-10-06 07:45:59 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -1018,14 +1018,22 @@ DataPtr data;
 		if (data)
 			memcpy ((char *) space + ft[findex].ft_Offset, data,
 					size);
-		if (! base)
-			base = (void *)((char *)space + ft[findex].ft_Offset);
 	/*
 	 * On to the next one.
 	 */
 		t++;
 		if (data)
 			data = (char *) data + size;
+	}
+	/*
+	 * After everything is allocated and the dust has settled, _then_ we
+	 * can compute the 'base' pointer into the first sample for the field.
+	 */
+	space = dc_GetSample (dc, start, &len);
+	if (space)
+	{
+		ft = (FieldTOC *) space;
+		base = (void *)((char *)space + ft[findex].ft_Offset);
 	}
 	return (base);
 }
@@ -1069,9 +1077,6 @@ DataPtr data;
 		if (data)
 			memcpy ((char *) space + finfo->fi_Offset[findex], 
 				data, size);
-		if (! base)
-			base = (void *)((char *)space + 
-					finfo->fi_Offset[findex]);
 	/*
 	 * On to the next one.
 	 */
@@ -1079,6 +1084,9 @@ DataPtr data;
 		if (data)
 			data = (char *) data + size;
 	}
+	space = dc_GetSample (dc, start, &len);
+	if (space)
+		base = (void *)((char *)space + finfo->fi_Offset[findex]);
 	return (base);
 }
 
@@ -1152,9 +1160,10 @@ DataPtr data;
 			memcpy ((char *) dest + offset, data, finfo->fi_Size);
 			data = (char *) data + finfo->fi_Size;
 		}
-		if (! base)
-			base = (void *)((char *)dest + offset);
 	}
+	dest = dc_GetSample (dc, start, NULL);
+	if (dest)
+		base = (void *)((char *)dest + offset);
 	return (base);
 }
 
