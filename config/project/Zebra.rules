@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.5 1996-02-08 21:31:17 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.6 1996-03-14 19:24:18 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -332,6 +332,14 @@ distclean::								@@\
 #endif /* DistCleanTarget */
 
 /*
+ * Subdirectory makes must test for -n, -k, and -i flags in MFLAGS.
+ * Thanks to GNU's inclusion of variables and -- options in MFLAGS,
+ * this test gets rather complicated.
+ */
+#define IKFLAGPATTERN	-[ik]*|-[^-]*[ik]*|*\ -[ik]*|*\ -[^-]*[ik]*
+#define NFLAGPATTERN	-n*|-[^-]*n*|*\ -n*|*\ -[^-]*n*
+
+/*
  * Propagate the distfiles and distclean targets to dist subdirectories.
  * Note that we can't use the more standard NamedTargetSubdirs() macro for
  * distfiles since that macro echoes info that would interfere with the
@@ -343,7 +351,7 @@ distclean::								@@\
 #ifndef DistfilesSubdirs
 #define DistfilesSubdirs(dirs)						@@\
 distfiles::								@@\
-	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
+	@case '${MFLAGS}' in IKFLAGPATTERN) set +e;; esac; \		@@\
 	for i in dirs END;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
@@ -601,15 +609,18 @@ step step.srcname:: srcname						@@\
  * conditional builds).
  *
  * For the sake of GNU make, which puts variable assignments in MFLAGS,
- * require a hypen before flags in case variables contain an 'n'.
+ * require a single hypen before flags in case variables contain an 'n',
+ * and so that GNU double-hyphen opts don't confuse things.
  */
 #ifdef MakeMakeSubdirs
 #undef MakeMakeSubdirs
 #endif
 #define MakeMakeSubdirs(dirs,target)					@@\
 target::								@@\
-	-@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
-	case '${MFLAGS}' in *-n*) executeit="no";; esac; \		@@\
+	-@case '${MFLAGS}' in IKFLAGPATTERN) \
+		 set +e;; esac; \					@@\
+	case '${MFLAGS}' in NFLAGPATTERN) \
+		executeit="no";; esac; \				@@\
 	for i in dirs END ;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
@@ -674,7 +685,7 @@ target::								@@\
 #endif
 #define NamedTargetSubdirs(name,dirs,verb,flags,subname)		@@\
 name::									@@\
-	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
+	@case '${MFLAGS}' in IKFLAGPATTERN) set +e;; esac; \		@@\
 	for i in dirs END ;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
