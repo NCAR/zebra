@@ -23,7 +23,7 @@
 # include <time.h>
 # include <sys/types.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.9 1993-10-21 14:27:13 burghart Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.10 1993-10-22 21:33:47 corbet Exp $");
 
 /*
  * The months of the year.
@@ -62,7 +62,7 @@ UItime *fcc;
  */
 {
 	struct tm t;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
         char tz[20];
 #endif
 
@@ -72,11 +72,11 @@ UItime *fcc;
 	t.tm_hour = fcc->ds_hhmmss/10000;
 	t.tm_min = (fcc->ds_hhmmss/100) % 100;
 	t.tm_sec = fcc->ds_hhmmss % 100;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
         strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;
-        altzone = 0;
+        /* altzone = 0; */
         daylight = 0;
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
@@ -145,7 +145,7 @@ ZebTime *zt;
  */
 {
 	struct tm t;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	char tz[20];
 #endif
 	t.tm_year = ui->ds_yymmdd/10000;
@@ -155,11 +155,11 @@ ZebTime *zt;
 	t.tm_min = (ui->ds_hhmmss/100) % 100;
 	t.tm_sec = ui->ds_hhmmss % 100;
 	zt->zt_MicroSec = 0;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;
-        altzone = 0;
+        /* altzone = 0; */
         daylight = 0;
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
@@ -252,7 +252,7 @@ int year, month, day, hour, minute, second, microsec;
  */
 {
 	struct tm t;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	char tz[20];
 #endif
 
@@ -263,11 +263,11 @@ int year, month, day, hour, minute, second, microsec;
 	t.tm_min = minute;
 	t.tm_sec = second;
 	zt->zt_MicroSec = 0;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;
-        altzone = 0;
+        /* altzone = 0; */
         daylight = 0;
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;

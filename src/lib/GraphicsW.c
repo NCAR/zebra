@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.10 1993-05-14 17:01:35 corbet Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.11 1993-10-22 21:33:45 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,6 +21,15 @@ static char *rcsid = "$Id: GraphicsW.c,v 2.10 1993-05-14 17:01:35 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+/*
+ * Some joker who put together the "contrib" X11 on HP required that we do
+ * the following.  Illegal my ass.
+ */
+# ifdef hpux
+# define XLIB_ILLEGAL_ACCESS	/* grumble */
+# endif
+
+
 # include <stdio.h>
 # include <errno.h>
 # include <X11/IntrinsicP.h>
@@ -38,9 +47,13 @@ static char *rcsid = "$Id: GraphicsW.c,v 2.10 1993-05-14 17:01:35 corbet Exp $";
 Pixmap gw_GetShmPixmap();
 # endif
 
+/*
+ * The following is vintage Ardent.  Maybe it should go away.
+ */
 # ifdef use_XB
 #	include <X11/XB.h>
 # endif
+
 
 void	Realize (), Destroy (), Redraw (), Resize (), ChangeManaged ();
 Boolean	SetValues ();
