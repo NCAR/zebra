@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.6 1992-05-27 16:45:55 kris Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.7 1992-07-02 15:45:27 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -31,7 +31,6 @@ static char *rcsid = "$Id: RBand.c,v 2.6 1992-05-27 16:45:55 kris Exp $";
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
-# include <DataChunk.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
@@ -1056,6 +1055,10 @@ rb_Point ()
 		RBandCursor = XCreateFontCursor (Disp, XC_center_ptr);
 	RBandType = RBTPoint;
 	XDefineCursor (Disp, XtWindow (Graphics), RBandCursor);
+/*
+ * Initialize the point.
+ */
+	Point.x = Point.y = -9999;
 /*
  * Figure out the color to use when we draw in the point.
  */
