@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.30 1997-12-04 19:59:47 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.31 1997-12-08 23:39:57 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -72,6 +72,7 @@ XCOMM --- Auto-binary distribution
 /*
  * We require g++ (see config.h.dist for the reasons...)
  */
+# define HasCplusplus YES
 # define CplusplusCmd g++
 # ifdef SGIArchitecture		/* -ansi needed for IRIX */
 #   ifndef CplusplusOptions
