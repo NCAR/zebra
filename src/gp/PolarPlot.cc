@@ -52,7 +52,7 @@ public:
 	int faredge;		// Is this from a far angle?
 	int vertical;		// Intersect with vertical edge?
 
-	Set (int fe, float ix, float iy, float ir, int vert)
+	void Set (int fe, float ix, float iy, float ir, int vert)
 	{
 		faredge = fe;
 		x = ix;
@@ -425,7 +425,7 @@ ScanConverter::Setup (PolarBeam *pb)
 
 
 
-
+int
 ScanConverter::GetIntersections (int second, float sine, float cosine, 
 		Intersection &close, Intersection &far)
 //
