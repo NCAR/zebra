@@ -29,19 +29,15 @@
 # include <ui.h>
 # include <fcntl.h>
 
-# ifdef notdef
-# include "xhelp.h"
-# endif
-
-# include "config.h"
-# include "defs.h"
-# include "message.h"
-# include "dm.h"
-# include "pd.h"
-# include "GraphicsW.h"
-# include "timer.h"
-# include "DataStore.h"
-# include "copyright.h"
+# include <config.h>
+# include <defs.h>
+# include <message.h>
+# include <dm.h>
+# include <pd.h>
+# include <GraphicsW.h>
+# include <timer.h>
+# include <DataStore.h>
+# include <copyright.h>
 
 # include "gp_cmds.h"
 # include "EventQueue.h"
@@ -50,7 +46,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.50 1994-11-19 00:34:50 burghart Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.51 1995-04-17 22:02:44 granger Exp $")
 
 /*
  * Default resources.
@@ -66,11 +62,6 @@ static String Resources[] = {
 /*	"	*Command*font:	-*-times-medium-i-*-*-*-120-*-*-*-*-*-*", */
 	0,
 };
-
-/*
- * Globals.
- */
-char Ourname[CFG_MSGNAME_LEN];	/* What is our process name?	*/
 
 /*
  * Definition of globals referenced in GraphProc.h
@@ -177,37 +168,11 @@ GPShutDown ()
 /*
  * Is this necessary?
  */
-	sprintf(filename, "%s/%s%dFrameFile",FrameFilePath, Ourname, getpid());
+	sprintf(filename, "%s/%s%dFrameFile",FrameFilePath, 
+		msg_myname(), getpid());
 	unlink(filename);
 
 	exit (0);
-}
-
-
-
-static void
-SetOurname (argc, argv)
-int argc;
-char *argv[];
-/*
- * Check the first argument for our process name.  The argument will be
- * of the form 'process-name:init-file'.  If there is no semi-colon, the
- * argument is assumed to be just the init-file name.  Note that it's
- * possible that argv[1] will be left as an empty string on return.
- */
-{
-	char *colon;
-
-	if ((argc > 1) && (colon = strchr(argv[1], ':')) != NULL)
-	{
-		*colon = '\0';
-		strcpy (Ourname, argv[1]);
-		argv[1] = colon+1;
-	}
-	else
-	{
-		strcpy (Ourname, argv[0]);
-	}
 }
 
 
@@ -219,15 +184,21 @@ char **argv;
 {
 	char loadfile[200];
 /*
- * Our process name may be embedded in the first command-line option
+ * Get any dm options from our command line.
  */
-	SetOurname (argc, argv);
+	dm_Setup (&argc, argv, NULL /* no default handle */);
 /*
  * Connect to the message handler immediately -- Ardent weirdness
  * requires this.
  */
-	msg_connect (msg_handler, Ourname);
-	msg_join ("Graphproc");
+	if (! msg_connect (msg_handler, dm_MessageName()))
+	{
+		fprintf (stderr, 
+			 "%s (%s): unable to connect to message handler\n",
+			 dm_MessageName(), argv[0]);
+		exit (1);
+	}
+	msg_join (dm_GroupName());
 	msg_join ("TimeChange");
 	msg_DeathHandler (GPShutDown);
 	msg_SetQueryHandler (AnswerQuery);
@@ -252,7 +223,7 @@ char **argv;
  * sources to a terminal that doesn't exist (or which should not be
  * mucked with).
  */
-	ui_get_command ("initial", Ourname, dispatcher, 0);
+	ui_get_command ("initial", (char *)msg_myname(), dispatcher, 0);
 	GPShutDown ();
 }
 
@@ -278,8 +249,6 @@ finish_setup ()
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
 	int pd_removeparam (), substr_remove(), ReplString ();
 	char initfile[128], perf[80];
-	XSizeHints hints;
-	long supplied;
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
@@ -308,8 +277,10 @@ finish_setup ()
 	XtSetArg (args[0], XtNinput, True);
 	XtSetArg (args[1], XtNwidthInc, 4);
 	XtSetArg (args[2], XtNallowShellResize, True);
-	GrShell = XtCreatePopupShell (Ourname, applicationShellWidgetClass,
-		Top, args, 3);
+	XtSetArg (args[3], XtNwinGravity, StaticGravity);
+	XtSetArg (args[4], XtNtitle, dm_WindowName());
+	GrShell = XtCreatePopupShell (msg_myname(), 
+			      applicationShellWidgetClass, Top, args, 5);
 /*
  * Inside this shell goes the graphics widget itself.
  */
@@ -350,10 +321,14 @@ finish_setup ()
 	aw_InitAnnot ();	/* Annotation widget		*/
 	lc_Init ();		/* Layout control		*/
 	pdm_Init ();		/* Plot description monitoring	*/
+	dm_SetupVariables ();	/* dm indirect variables	*/
 /*
  * Tell DM that we're here.
  */
+#ifdef notdef
 	greet_dm ();
+#endif
+	dm_Greet ();
 
 #ifdef notdef	/* moved to happen after we have a window */
 /*
@@ -403,7 +378,6 @@ finish_setup ()
 /*
  * Indirect variables.
  */
-	usy_c_indirect (Vtable, "ourname", Ourname, SYMT_STRING, 40);
 	usy_c_indirect (Vtable, "holdprocess", &HoldProcess, SYMT_BOOL, 0);
 	usy_c_indirect (Vtable, "iconpath", IconPath, SYMT_STRING, PathLen);
 	usy_c_indirect (Vtable, "mappath", MapPath, SYMT_STRING, PathLen);
@@ -547,44 +521,9 @@ greet_dm ()
  */
 	dmh.dmm_type = DM_HELLO;
 	dmh.dmm_win = XtWindow (GrShell);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
+	dm_Send (&dmh, sizeof (dmh));
 }
 #endif
-
-
-
-greet_dm ()
-/*
- * Say "hello" to the display manager so that we can get our
- * configuration and plot descriptions.
- */
-{
-	struct dm_hello dmh;
-/*
- * Send the message.
- */
-	dmh.dmm_type = DM_HELLO;
-	dmh.dmm_win = 0;
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
-}
-
-
-
-send_window ()
-/*
- * Send our window id to the display manager.
- */
-{
-	struct dm_hello dmh;
-/*
- * Send the message.
- */
-	dmh.dmm_type = DM_WINDOW;
-	dmh.dmm_win = XtWindow (GrShell);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
-}
-
-
 
 
 /* ARGSUSED */
@@ -598,8 +537,6 @@ struct ui_command *cmds;
 	static bool first = TRUE;
 	extern void mc_MovieRun ();
 	struct dm_event dme;
-	char helpfile[100];
-	char topic[40];
 
 	switch (UKEY (*cmds))
 	{
@@ -628,8 +565,7 @@ struct ui_command *cmds;
 			break;
 		}
 		strcpy (dme.dmm_data, UPTR (cmds[1]));
-		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
-			sizeof (dme));
+		dm_Send (&dme, sizeof (dme));
 		break;
 	/*
 	 * Change a PD parameter.
@@ -740,20 +676,7 @@ struct ui_command *cmds;
 		dme.dmm_type = DM_EVENT;
 		sprintf (dme.dmm_data, "help %s", (cmds[1].uc_ctype == UTT_END)
 				? "" : UPTR (cmds[1]));
-		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
-			sizeof (dme));
-# ifdef notdef
-		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
-		if (cmds[1].uc_ctype == UTT_END)
-			strcpy (topic, XHELP_INTRO_ID);
-		else /* enforce length of 13 on topic */
-		{
-			strcpy (topic, UPTR (cmds[1]));
-			strcat (topic, "             ");
-			topic[13] = '\0';
-		}
-		XhCallXHelp (Graphics, helpfile, topic, "Welcome to Zeb");
-# endif
+		dm_Send (&dme, sizeof (dme));
 		break;
 	/*
 	 * The user wants to annotate something.
@@ -821,8 +744,8 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_RECONFIG:
 		msg_ELog (EF_DEBUG, "reconfig message received from dm");
-	   	Eq_AddEvent (PUrgent, eq_reconfig, dmsg, sizeof (*dmsg),
-			Override);
+	   	Eq_AddEvent (PUrgent, eq_reconfig, dmsg, 
+			     sizeof (struct dm_reconfig), Override);
 		break;
 	/*
 	 * Geometry query.
@@ -925,7 +848,34 @@ struct dm_msg *dmm;
 	reply.dmm_dx = width;
 	reply.dmm_dy = height;
 
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+	dm_Send (&reply, sizeof (reply));
+}
+
+
+
+
+static void
+ConfigureWindow (display, win, x, y, width, height)
+Display *display;
+Window win;
+int x, y;
+int width, height;
+/*
+ * Configure this window with the given geometry.  Rely on the window
+ * manager to send the ConfigureNotify to the client so that the 
+ * window's children re-arrange themselves as necessary.
+ */
+{
+	unsigned int mask;
+	XWindowChanges changes;
+
+	mask = CWX | CWY | CWWidth | CWHeight;
+	changes.x = x;
+	changes.y = y;
+	changes.width = width;
+	changes.height = height;
+	XConfigureWindow (display, win, mask, &changes);
+	XSync (display, True);
 }
 
 
@@ -934,7 +884,7 @@ struct dm_msg *dmm;
 /* ARGSUSED */
 void
 eq_reconfig (dmsg, len)
-struct dm_msg *dmsg;
+struct dm_reconfig *dmsg;
 int len;
 /*
  * Reconfigure the window.
@@ -948,6 +898,11 @@ int len;
 
 	msg_ELog (EF_DEBUG, "reconfig routine entered from event queue");
 /*
+ * Let dm interface gleen what it wants from the message, like our
+ * window name, and then set our UI variable accordingly.
+ */
+	dm_Reconfig (dmsg);
+/*
  * We're being told to reconfig, supposedly from a display configuration
  * change, so pop down any existing widgets and start with a clean slate.
  */
@@ -956,24 +911,29 @@ int len;
 /*
  * Figure out if anything really important has changed.
  */
-	schanged = (dmsg->dmm_dx != GWWidth (Graphics)) ||
-			(dmsg->dmm_dy != GWHeight (Graphics));
+	schanged = (dmsg->dmr_dx != GWWidth (Graphics)) ||
+			(dmsg->dmr_dy != GWHeight (Graphics));
 	wchanged = (WindowState == DOWN);
-/*
- * Set the geometry first, in case this is the first time we're
- * popping up this window and it needs some geometry settings.
- */
-	width = dmsg->dmm_dx;
-	height = dmsg->dmm_dy;
-	XtSetArg (args[0], XtNwidth, width);
-	XtSetArg (args[1], XtNheight, height);
-	XtSetValues (Graphics, args, (Cardinal)2);
 
-	x = dmsg->dmm_x;
-	y = dmsg->dmm_y;
- 	XtSetArg (args[0], XtNx, x);
-	XtSetArg (args[1], XtNy, y);
-	XtSetValues (GrShell, args, (Cardinal)2);
+	if (! WindowSent)
+	{
+	/*
+	 * Set the geometry first, in case this is the first time we're
+	 * popping up this window and it needs some geometry settings.
+	 * These are just defaults and probably won't match our configuration.
+	 */
+		width = dmsg->dmr_dx;
+		height = dmsg->dmr_dy;
+		XtSetArg (args[0], XtNwidth, width);
+		XtSetArg (args[1], XtNheight, height);
+		XtSetValues (Graphics, args, (Cardinal)2);
+
+		x = dmsg->dmr_x;
+		y = dmsg->dmr_y;
+		XtSetArg (args[0], XtNx, x);
+		XtSetArg (args[1], XtNy, y);
+		XtSetValues (GrShell, args, (Cardinal)2);
+	}
 /*
  * If this is the first time we've popped up, send along our newly-realized
  * window id.
@@ -981,7 +941,7 @@ int len;
 	ChangeState (UP);
 	if (! WindowSent)
 	{
-		send_window ();
+		dm_SendWindowID (XtWindow (GrShell));
 		WindowSent = TRUE;
 		/*
 		 * Graphics context
@@ -989,33 +949,44 @@ int len;
 		Gcontext = XCreateGC (XtDisplay (Graphics), 
 				      XtWindow (Graphics), 0, NULL);
 	}
-/*
- * Do the geometry setting again for those window managers which
- * don't get it the first time.
- */
+	/*
+	 * Change title and geometry
+	 */
+	XtSetArg (args[0], XtNtitle, dm_WindowName());
+	XtSetValues (GrShell, args, (Cardinal)1);
+	ConfigureWindow (XtDisplay(GrShell), XtWindow(GrShell), 
+			 dmsg->dmr_x, dmsg->dmr_y,
+			 dmsg->dmr_dx, dmsg->dmr_dy);
+#ifdef notdef
+	/*
+	 * Do the geometry setting again for those window managers which
+	 * don't get it the first time.
+	 */
 	XtSetArg (args[0], XtNwidth, width);
 	XtSetArg (args[1], XtNheight, height);
 	XtSetValues (Graphics, args, (Cardinal)2);
  	XtSetArg (args[0], XtNx, x);
 	XtSetArg (args[1], XtNy, y);
 	XtSetValues (GrShell, args, (Cardinal)2);
-/*
- * Set the cursor to our normal value.
- */
+#endif
+	/*
+	 * Set the cursor to our normal value.
+	 */
 	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
-/*
- * If nothing drastic has changed, we can quit now and not redraw everything.
- */
+	/*
+	 * If nothing drastic has changed, we can quit now and not redraw 
+	 * everything.
+	 */
 	if (! schanged && ! wchanged)
 		return;
-/*
- * Invalidate the frame cache if the window size has changed.
- */
+	/*
+	 * Invalidate the frame cache if the window size has changed.
+	 */
 	if (schanged)
 		fc_InvalidateCache ();
-/*
- * Force a redisplay.
- */
+	/*
+	 * Force a redisplay.
+	 */
 	if (Pd)
 	{
 		Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
@@ -1113,7 +1084,7 @@ eq_ReturnPD ()
 	dmp->dmm_type = DM_PDCHANGE;
 	dmp->dmm_pdlen = rpd->rp_len;
 	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, dmp, len);
+	dm_Send (dmp, len);
 /*
  * (1/29/91 jc -- sigh) Free the memory we used.
  */
@@ -1677,8 +1648,7 @@ struct ui_command *cmds;
 		dme.dmm_type = DM_EVENT;
 		sprintf (dme.dmm_data, "AllXSect %.3f %.3f %.3f %.3f",
 				x0, y0, x1, y1);
-		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
-				sizeof (dme));
+		dm_Send (&dme, sizeof (dme));
 		return;
 	}
 /*
@@ -1696,18 +1666,18 @@ struct ui_command *cmds;
 	dme.dmm_type = DM_EVENT;
 
 	sprintf (dme.dmm_data, "param %s global plot-hold true", win);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+	dm_Send (&dme, sizeof (dme));
 
 	sprintf (dme.dmm_data, "param %s %s left-endpoint %.3f,%.3f", win, 
 		comp, x0, y0);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+	dm_Send (&dme, sizeof (dme));
 
 	sprintf (dme.dmm_data, "param %s %s right-endpoint %.3f,%.3f", win, 
 		comp, x1, y1);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+	dm_Send (&dme, sizeof (dme));
 
 	sprintf (dme.dmm_data, "param %s global plot-hold false", win);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+	dm_Send (&dme, sizeof (dme));
 
 	msg_ELog (EF_DEBUG, 
 		"Sent endpoints (%.2f,%.2f) (%.2f,%.2f) to '%s/%s'", x0, y0,
@@ -1734,8 +1704,9 @@ char *who;
  */
 	msg_ELog (EF_DEBUG, "Query from %s", who);
 	sprintf (abuf, 
-	   "Graphics process %s, window %s, coords [%.2f %.2f] -> [%.2f %.2f]",
-		Ourname, WindowState == UP ? "UP" : "DOWN", Xlo, Ylo, Xhi,Yhi);
+		 "%s %s, window '%s' %s, coords [%.2f %.2f] -> [%.2f %.2f]",
+		 "Graphics process", msg_myname(), dm_WindowName(), 
+		 WindowState == UP ? "UP" : "DOWN", Xlo, Ylo, Xhi,Yhi);
 	msg_AnswerQuery (who, abuf);
 /*
  * Send back the PD -- they asked for it!
@@ -1784,23 +1755,7 @@ XtPointer call_data;
 
 	dme.dmm_type = DM_EVENT;
 	sprintf (dme.dmm_data, "help %s", topic ? topic : "");
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
-
-# ifdef notdef
-	char helpfile[100];
-	char full_topic[40];
-/*
- * Call Xhelp with the supplied topic.  If topic is NULL, use
- * XHELP_INTRO_ID instead.
- */
-	if (!topic)
-		topic = XHELP_INTRO_ID;
-	strcpy(full_topic, topic);
-	strcat(full_topic,"             ");
-	full_topic[13] = '\0';
-	fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
-	XhCallXHelp (Graphics, helpfile, full_topic, "Welcome to Zeb");
-# endif
+	dm_Send (&dme, sizeof (dme));
 }
 
 
