@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.1 1991-09-12 01:30:31 corbet Exp $ */
+/* $Id: dm.h,v 2.2 1991-12-27 21:01:45 corbet Exp $ */
 /*
  * Display manager stuff.
  */
@@ -114,7 +114,7 @@ struct dm_rp_wbounds
 struct dm_history
 {
 	int dmm_type;		/* == DM_HISTORY		*/
-	time dmm_time;		/* The time of interest		*/
+	ZebTime dmm_time;	/* The time of interest		*/
 };
 
 

@@ -1,7 +1,6 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.8 1991-12-20 17:49:15 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -31,6 +30,7 @@ static char *rcsid = "$Id: dm.c,v 2.8 1991-12-20 17:49:15 corbet Exp $";
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
+MAKE_RCSID ("$Id: dm.c,v 2.9 1991-12-27 21:01:45 corbet Exp $")
 
 
 /*
@@ -1188,7 +1188,8 @@ struct ui_command *cmds;
  * Put together the message.
  */
 	dmh.dmm_type = DM_HISTORY;
-	dmh.dmm_time = UDATE (cmds[1]);
+	/* dmh.dmm_time = UDATE (cmds[1]); */
+	TC_UIToZt (&UDATE (cmds[1]), &dmh.dmm_time);
 /*
  * Ship it out.
  */
@@ -1250,7 +1251,7 @@ struct ui_command *cmds;
 int
 tw_cb (mode, t, control_all)
 int mode;
-time *t;
+ZebTime *t;
 int control_all;
 {
 	struct dm_history dmh;
