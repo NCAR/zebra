@@ -51,7 +51,13 @@ int size;
 	cp[1] = ALLOC_FLAG;
 	return (cp + 2);
 # else
+
+# if defined (__osf__) || defined (aix)
+        return ( (char *) malloc (size));
+# else 
 	return (malloc (size));
+# endif
+
 # endif
 }
 
