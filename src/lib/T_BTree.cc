@@ -10,13 +10,6 @@
 #include <function.h>
 #include <algorithm>
 
-#define RANDOM 0
-
-#if RANDOM
-#include <MLCG.h>	// GNU c++ lib
-#include <RndInt.h>
-#endif
-
 #include <time.h>	// Need time() to seed srand()
 #include <string>
 
@@ -25,21 +18,26 @@
 #include "BTreeFile.cc"
 #include "BTreeStats.hh"
 
-typedef BTreeFile<ZTime,ZTime> TimeTree;
-typedef BTreeFile<string,string> StringTree;
+typedef BTreeFile<ZTime,ZTime> TimeFileTree;
+typedef BTreeFile<string,string> StringFileTree;
+typedef BTreeFile<long,long> LongFileTree;
+
+typedef BTree<ZTime,ZTime> TimeTree;
+typedef BTree<string,string> StringTree;
+typedef BTree<long,long> LongTree;
 
 /*
- * Choose the test_key type for the test trees.
+ * Choose the default tree type.
  */
-typedef long test_key;
-//typedef string test_key;
+//typedef long test_key;
+typedef string test_key;
 //typedef ZTime test_key;
 
-typedef BTreeFile<test_key,test_key> test_tree;
-//typedef BTree<test_key,test_key> test_tree;
+typedef BTreeFile<test_key,test_key> default_tree;
 
 static int Debug = 0;
 
+#ifdef notdef
 #ifdef linux
 extern "C" { int __getfpucw (); }
 
@@ -48,10 +46,23 @@ int __getfpucw ()
 	return 0;
 }
 #endif
+#endif
 
 
+// ----------------------------------------------------------------------
+// To test a tree, use sequential and random generators of integers.  Try
+// inserting in order, then in reverse, then randomly.  After each
+// insertion sequence, verify that all the keys can be found and have the
+// correct values.  Make sure traversing the tree forward and reverse
+// returns the correct keys and values.  Reinsert all the keys with a new
+// value and verify those values.  Then remove all the keys randomly, and
+// verify the tree is empty after it all.
+// ----------------------------------------------------------------------
 
-// Use a template of tree type so we can get the correct stats type.
+
+/*
+ * Use a template of tree type so we can get the correct stats type.
+ */
 template <class T>
 Summarize (ostream &out, T &t)
 {
@@ -89,82 +100,6 @@ Summarize (ostream &out, T &t)
 //#define Summarize(a,b)
 
 
-int TestTree (test_tree &tree, int N);
-int T_Traversal (test_tree &tree, int print = 0);
-
-
-int main (int argc, char *argv[])
-{
-	int N = 10;
-	int order = 3;
-
-	srand (1000);
-
-	// Set the default logger.
-	//ofstream lf("tbtree.log");
-	//StreamLogger log(lf);
-	//Logger::Prototype (log);
-
-	cout << "-----------------================----------------" << endl;
-	if (argc > 1)
-		N = atoi(argv[1]);
-	if (argc > 2)
-		order = atoi(argv[2]);
-
-	int err = 0;
-	// When both number and order given, test that combo once.
-	if (argc > 2)
-	{{
-		test_tree tree(order, sizeof(test_key));
-		err += T_Traversal (tree, 1);
-		tree.Check();
-		if (Debug) tree.Print(cout);
-		//tree.Check(1);
-		tree.Erase ();	// Start fresh
-		cout << "Testing tree of order " << tree.Order() 
-		     << " with " << N << " members..." << endl;
-		err += TestTree (tree, N);
-	}
-	if (err) cout << "***** ";
-	cout << err << " errors." << endl;
-	exit (err);
-	}
-
-	// Perform the tests on trees of various orders, using a given N
-	if (argc <= 1)
-		N = 5000;
-	for (int o = 3; (o == 3) || (o < N / 10); o *= 3)
-	{
-		BlockFile bf("btree.bf");
-		test_tree tree(0, bf, o);
-		//test_tree tree(o);
-		//cout << "BTreeFile address: " << tree.Address() << endl;
-		tree.Erase ();	// Start fresh
-		
-		cout << "Testing tree of order " << tree.Order() 
-		     << " with " << N << " members..." << endl;
-		err += TestTree (tree, N);
-	}
-	
-	if (err) cout << "***** ";
-	cout << err << " errors." << endl;
-	exit (err);
-}
-
-
-
-
-// To test a tree, use sequential and random generators of integers.  Try
-// inserting in order, then in reverse, then randomly.  After each
-// insertion sequence, verify that all the keys can be found and have the
-// correct values.  Make sure traversing the tree forward and reverse
-// returns the correct keys and values.  Reinsert all the keys with a new
-// value and verify those values.  Then remove all the keys randomly, and
-// verify the tree is empty after it all.
-
-// Use internal checking and automatic aborting.
-
-
 /*
  * Simple generator for keys.
  */
@@ -198,33 +133,47 @@ Counter<string>::operator()()
 }
 
 
+template <class T>
 struct tree_member // predicate
 {
-	typedef test_tree::key_type argument_type; 
+	typedef typename T::key_type argument_type; 
 	typedef bool result_type;
 
-	bool operator() (const test_tree::key_type &key) const
+	bool operator() (const argument_type &key) const
 	{
 		return (tree.Find (key));
 	}
-	tree_member (test_tree &_tree) : tree(_tree)
+	tree_member (T &tree_) : tree(tree_)
 	{ }
 
 private:
-	test_tree &tree;
+	T &tree;
 };
 
 
 
+/*
+ * Put the test routines in a template class so we can call multiple
+ * tree types within the same test.
+ */
+template <class test_tree>
+class TreeTest
+{
+public:
+
+	typedef typename test_tree::key_type key_type;
+	typedef typename test_tree::value_type value_type;
+
 int 
-T_Members (test_tree &tree, vector<test_key> &keys)
+T_Members (test_tree &tree, vector<key_type> &keys)
 {
 	// Verify that all of the keys can be found in the tree
 	int err = 0;
-	vector<test_key>::iterator k;
+	vector<key_type>::iterator k;
 
 	k = find_if (keys.begin(), keys.end(), 
-		     compose1(logical_not<bool>(), tree_member(tree)));
+		     compose1(logical_not<bool>(), 
+			      tree_member<test_tree>(tree)));
 	if (k != keys.end())
 	{
 		cout << "***** Member error: missing key: " << *k << endl;
@@ -236,14 +185,14 @@ T_Members (test_tree &tree, vector<test_key> &keys)
 
 
 int
-T_Compare (test_tree &tree, vector<test_key> &keys, 
-	   vector<test_tree::value_type> &values)
+T_Compare (test_tree &tree, vector<key_type> &keys, 
+	   vector<value_type> &values)
 {
 	// Given a tree, keys, and values, verify the tree contains all
 	// the keys and has the correct values
 	int err = 0;
-	vector<test_key>::iterator k, v;
-	test_tree::value_type value;
+	vector<key_type>::iterator k, v;
+	value_type value;
 
 	for (k = keys.begin(), v = values.begin(); k != keys.end();
 	     ++k, ++v)
@@ -268,10 +217,10 @@ T_Compare (test_tree &tree, vector<test_key> &keys,
 
 
 int 
-T_Insert (test_tree &tree, vector<test_key> &keys, vector<test_key> &values)
+T_Insert (test_tree &tree, vector<key_type> &keys, vector<key_type> &values)
 {
 	int err = 0;
-	vector<test_key>::iterator k, v;
+	vector<key_type>::iterator k, v;
 
 	// Do the insertions
 	//cout << " ...inserting keys: ";
@@ -312,12 +261,12 @@ T_Insert (test_tree &tree, vector<test_key> &keys, vector<test_key> &values)
 
 int
 T_Removal (test_tree &tree, 
-	   vector<test_key>::iterator k, 
-	   vector<test_key>::iterator last, int check_empty = 1)
+	   vector<key_type>::iterator k, 
+	   vector<key_type>::iterator last, int check_empty = 1)
 {
 	// Accept default initialization 
-	test_tree::value_type v0 = test_tree::value_type();
-	test_tree::value_type v  = v0;
+	value_type v0 = value_type();
+	value_type v  = v0;
 
 	// As removing, make sure the removed key cannot be found
 	//cout << " ...removing key: ";
@@ -372,8 +321,8 @@ T_RandomRemoval (test_tree &tree)
 {
 	// Build a vector of keys by traversing the tree, then shuffle
 	// and remove.  We should be empty when its over.
-	vector<test_tree::key_type> keys;
-	test_tree::key_type key;
+	vector<key_type> keys;
+	key_type key;
 
 	tree.First ();
 	//cout << " ...removal finding keys: ";
@@ -385,11 +334,6 @@ T_RandomRemoval (test_tree &tree)
 	}
 	//cout << endl;
 
-#if RANDOM
-	MLCG rng(time(0));
-	RandomInteger rnd(&rng);
-	random_shuffle (keys.begin(), keys.end(), rnd);
-#endif
 	random_shuffle (keys.begin(), keys.end());
 	return (T_Removal (tree, keys.begin(), keys.end()));
 }
@@ -406,11 +350,11 @@ T_PartialRemoval (test_tree &tree, int n)
 	// n keys.
 	//typedef pair<test_tree::key_type,test_tree::value_type> Pair; 
 	//vector<Pair> entries;
-	vector<test_tree::key_type> keys;
-	vector<test_tree::value_type> values;
-	test_tree::key_type key;
-	test_tree::value_type val;
-	vector<test_key>::iterator k;
+	vector<key_type> keys;
+	vector<value_type> values;
+	key_type key;
+	value_type val;
+	vector<key_type>::iterator k;
 
 	tree.First ();
 	//cout << " ...removal finding keys: ";
@@ -448,8 +392,8 @@ int
 T_ReverseRemoval (test_tree &tree)
 {
 	// Build a vector of keys by traversing the tree backwards.
-	vector<test_tree::key_type> keys;
-	test_tree::key_type key;
+	vector<key_type> keys;
+	key_type key;
 
 	tree.Last ();
 	//cout << " ...removal finding keys: ";
@@ -471,9 +415,9 @@ int
 T_Traversal (test_tree &tree, int print = 0)
 {
 	// Build an ordered vector of keys by traversing the tree forwards.
-	vector<test_tree::key_type> keys;
-	vector<test_tree::key_type>::iterator iv;
-	test_tree::key_type key;
+	vector<key_type> keys;
+	vector<key_type>::iterator iv;
+	key_type key;
 	int err = 0;
 
 	tree.First ();
@@ -552,16 +496,6 @@ T_Traversal (test_tree &tree, int print = 0)
 
 
 
-#ifdef notdef
-int
-Reopen (test_tree &tree)
-{
-	cout << " ### Re-opening tree ###" << endl;
-	delete
-}
-#endif
-
-
 
 int
 TestTree (test_tree &tree, int N)
@@ -569,12 +503,8 @@ TestTree (test_tree &tree, int N)
 	// Put a tree through its paces.  Check() it after major operations.
 
 	int err = 0;
-	vector<test_key> keys(N);
-#if RANDOM
-	MLCG rng(time(0));
-	RandomInteger rnd(&rng);
-#endif
-	generate (keys.begin(), keys.end(), Counter<test_key>(1));
+	vector<key_type> keys(N);
+	generate (keys.begin(), keys.end(), Counter<key_type>(1));
 
 	// Insert the sequential keys and values and test.
 	cout << "Sequential insert... " 
@@ -620,7 +550,7 @@ TestTree (test_tree &tree, int N)
 		cout << "***** Tree not empty after Erase()" << endl;
 	}
 	// Make sure operations fail on an empty tree
-	test_tree::key_type value;
+	key_type value;
 	err += (tree.Find (keys[0]));
 	err += (tree.Remove (keys[0]));
 	err += (tree.First ());
@@ -668,7 +598,7 @@ TestTree (test_tree &tree, int N)
 
 	// Random overwrites, new values
 	cout << "Random overwrites... " << endl;
-	vector<test_key> values = keys;
+	vector<key_type> values = keys;
 	random_shuffle (keys.begin(), keys.end());
 	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
@@ -709,6 +639,86 @@ TestTree (test_tree &tree, int N)
 	Summarize(cout, tree);
 
 	return err;
+}
+
+
+}; // class TreeTest
+
+
+template <class T>
+TestTree (T &tree, string name, int N)
+{
+	cout << "-----------------================----------------" << endl;
+	int err = 0;
+	TreeTest<T> test;
+	tree.Erase ();
+	cout << "Testing " << name << " tree of order " << tree.Order() 
+	     << " with " << N << " members..." << endl;
+	err += test.TestTree (tree, N);
+	return err;
+}
+
+
+
+int main (int argc, char *argv[])
+{
+	int N = 10;
+	int order = 3;
+
+	srand (1000);
+
+	// Set the default logger.
+	//ofstream lf("tbtree.log");
+	//StreamLogger log(lf);
+	//Logger::Prototype (log);
+
+	if (argc > 1)
+		N = atoi(argv[1]);
+	if (argc > 2)
+		order = atoi(argv[2]);
+
+	int err = 0;
+	// When both number and order given, test that combo once
+	// with the compiled test_key type.
+	if (argc > 2)
+	{{
+		default_tree tree(order);
+		//TreeTest<default_tree> test;
+		//err += test.T_Traversal (tree, 1);
+		tree.Check();
+		if (Debug) tree.Print(cout);
+		err += TestTree (tree, "default", N);
+	}
+	if (err) cout << "***** ";
+	cout << err << " errors." << endl;
+	exit (err);
+	}
+
+	// Perform the tests on trees of various types and orders, 
+	// using a given N.
+	if (argc <= 1)
+		N = 5000;
+	BlockFile bf("fulltree.bf", 0, BlockFile::BF_CREATE);
+	for (int o = 5; (o == 5) || (o < N / 10); o *= 10)
+	{
+		// Try memory trees first.
+		LongTree ltree(o);
+		err += TestTree (ltree, "long", N);
+		StringTree stree(o);
+		err += TestTree (stree, "string", N);
+		TimeTree ttree(o);
+		err += TestTree (ttree, "time", N);
+
+		// Now the file trees.
+		LongFileTree lftree(0, bf, o);
+		err += TestTree (lftree, "long file", N);
+		StringFileTree sftree(0, bf, o);
+		err += TestTree (sftree, "string file", N);
+	}
+	
+	if (err) cout << "***** ";
+	cout << err << " errors." << endl;
+	exit (err);
 }
 
 
