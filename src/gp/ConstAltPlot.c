@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.59 1995-09-20 20:44:45 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.60 1995-09-21 21:00:56 granger Exp $")
 
 
 /*
@@ -1093,6 +1093,8 @@ WindInfo *wi;
 	badvalue = dc_GetBadval (dc);
 	dc_GetLoc (dc, 0, &loc);
 	prj_Project (loc.l_lat, loc.l_lon, &x0, &y0);
+	if (x0 < Xlo || x0 > Xhi || y0 < Ylo || y0 > Yhi)
+		return;
 /*
  * Get the u and v components, and possibly quadrants.
  */
