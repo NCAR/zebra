@@ -36,7 +36,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.30 2000-11-22 19:27:36 granger Exp $")
+RCSID("$Id: AxisControl.c,v 1.31 2000-12-01 23:05:23 granger Exp $")
 
 /*
  * Convenient scratch string
@@ -695,14 +695,20 @@ float   *drawGrid;
 	*ticInterval = 0.0;
 	if (type == 't')
 	{
-                if (pda_Search (Pd, c, Scratch, "xy", tstep, SYMT_STRING) &&
-		    ! (*ticInterval = (float) pc_TimeTrigger (tstep)))
-			msg_ELog (EF_PROBLEM, "Bad tic interval: %s", 
-				  tstep);
+                if (pda_Search (Pd, c, Scratch, "xy", tstep, SYMT_STRING))
+		{
+		    /* pc_TimeTrigger will complain for us if the tic step
+		     * is bad, and the interval will be set to zero to
+		     * trigger auto intervals.
+		     */
+		    *ticInterval = (float) pc_TimeTrigger (tstep);
+		}
 	}
 	else
+	{
 		pda_Search (Pd, c, Scratch, "xy", (char*) ticInterval,
 			    SYMT_FLOAT);
+	}
 /*
  * font scale
  */
