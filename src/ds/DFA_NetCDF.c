@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.21 1993-08-12 18:20:39 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.22 1993-09-30 21:55:17 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -196,7 +196,7 @@ static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
  */
 #define VATT_LONGNAME	"long_name"	/* description of variable */
 #define VATT_UNITS	"units"		/* units of variable	   */
-
+#define VATT_MISSING	"missing_value" /* bad value		   */
 
 int
 dnc_QueryTime (file, begin, end, nsamp)
@@ -1607,23 +1607,38 @@ float badval, *data;
 int ndata;
 /*
  * Turn the bad value flag stored with the data, if any, into the user-
- * supplied one.
+ * supplied one.  If no bad value flag, no conversion is done.
  */
 {
 	float ncbadval;
+	nc_type atype;
+	char buf[256];
+	int len;
 	int i;
 
-	if (ncattget (tag->nc_id, vfield, "missing_value", &ncbadval) >= 0 &&
-				    ncbadval != badval)
+	/*
+	 * If the att is not a float already, try to convert it to a string
+	 * first (from whatever type it is) and then convert to a float.
+	 */
+	if (ncattinq (tag->nc_id, vfield, VATT_MISSING, &atype, &len) < 0)
+		return;
+	if (len*nctypelen(atype) > 255)
+		return;
+	if (ncattget (tag->nc_id, vfield, VATT_MISSING, (void *)buf) < 0)
+		return;
+	if (atype == NC_FLOAT)
+		ncbadval = *(float *)buf;
+	else
+		ncbadval = atoi(dnc_ValueToString((void *)buf, atype, len));
+	if (ncbadval != badval)
 	{
 		for (i = 0; i < ndata; i++)
 			if (data[i] == ncbadval)
 				data[i] = badval;
-		dc_SetFieldAttr (dc, fid, "missing_value",
+		dc_SetFieldAttr (dc, fid, VATT_MISSING,
 			 dnc_ValueToString ((void *)&badval, NC_FLOAT, 1));
 	}
 }
-
 
 
 
@@ -2181,34 +2196,32 @@ int *dims;
 			varid = ncvardef (tag->nc_id, F_GetName (fids[var]),
 					  NC_FLOAT, ndim, dims);
 		}
+	/*
+	 * Add the conventional attributes first.  Similarly-named attributes
+	 * in the DataChunk are explicitly blocked from overwriting the values
+	 * from the fields table by the dnc_PutAttribute() function.
+	 */
+		attr = F_GetUnits(fids[var]);
+		(void) ncattput (tag->nc_id, varid, VATT_UNITS,
+				NC_CHAR, strlen(attr)+1, attr);
+		attr = F_GetDesc(fids[var]);
+		(void) ncattput (tag->nc_id, varid, VATT_LONGNAME,
+				NC_CHAR, strlen(attr)+1, attr);
+	/*
+	 * Add the missing_value attribute.  This one must be written as
+	 * a float, so we write it here with the expectation than 
+	 * dnc_PutAttribute() will not store any like-named attribute keys 
+	 * from the DataChunk.
+	 */
+		(void) ncattput (tag->nc_id, varid, VATT_MISSING,
+				NC_FLOAT, 1, &badval);
 	/* 
-	 * Add attributes that may be stored with this field first,
+	 * Add the field attributes from the DataChunk,
 	 * passing the tag and varid via global variables.  
 	 */
 		Tag = tag;
 		VarId = varid;
 		dc_ProcessFieldAttrs(dc, fids[var], NULL, dnc_PutAttribute);
-	/*
-	 * Then overwrite conventional attributes with values taken from the
-	 * field declaration.  We want to override any missing_value
-	 * attribute because we want to make sure it is stored as a float.
-	 */
-		(void) ncattput (tag->nc_id, varid, "missing_value",
-				NC_FLOAT, 1, &badval);
-		attr = F_GetUnits(fids[var]);
-		(void) ncattput (tag->nc_id, varid, "units",
-				NC_CHAR, strlen(attr)+1, attr);
-		attr = F_GetDesc(fids[var]);
-		(void) ncattput (tag->nc_id, varid, "long_name",
-				NC_CHAR, strlen(attr)+1, attr);
-#ifdef notdef
-		keys = dc_GetFieldAttrList(dc, fids[var], /*pattern*/NULL,
-					   &values, &natts);
-		for (i = 0; i < natts; ++i)
-			(void)ncattput (tag->nc_id, varid,
-					keys[i], NC_CHAR, 
-					strlen(values[i])+1, values[i]);
-#endif
 	}
 }
 
@@ -2223,7 +2236,7 @@ DataChunk *dc;
 	unsigned long sizes[ DC_MaxDimension ];
 	int i, ndim;
 
-	ndim = dc_NSGetAllDimensions (dc, names, /*fields*/NULL, sizes);
+	ndim = dc_NSGetAllDimensions (dc, names, /*dimn ids*/NULL, sizes);
 
 	for (i = 0; i < ndim; ++i)
 	{
@@ -2299,7 +2312,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.21 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.22 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2315,8 +2328,16 @@ char *value;
  * Add this datachunk attribute to the file's attributes for VarId
  */
 {
-	(void)ncattput(Tag->nc_id, VarId,
-		       key, NC_CHAR, strlen(value)+1, value);
+	/*
+	 * Ignore certain attributes so that we don't override the
+	 * legitimate ones.
+	 */
+	if (strcmp(key, VATT_MISSING) && strcmp(key, VATT_LONGNAME) &&
+	    strcmp(key, VATT_UNITS))
+	{
+		(void)ncattput(Tag->nc_id, VarId,
+			       key, NC_CHAR, strlen(value)+1, value);
+	}
 	return(0);
 }
 
@@ -2443,6 +2464,7 @@ DataChunk *dc;
 		ncvarput1 (tag->nc_id, vlat, 0, &loc.l_lat);
 		ncvarput1 (tag->nc_id, vlon, 0, &loc.l_lon);
 		ncvarput1 (tag->nc_id, valt, 0, &loc.l_alt);
+		tag->nc_sloc = loc;
 	}
 }
 
@@ -2500,6 +2522,7 @@ DataChunk *dc;
 	ncvarput1 (tag->nc_id, vlat, 0, &loc.l_lat);
 	ncvarput1 (tag->nc_id, vlon, 0, &loc.l_lon);
 	ncvarput1 (tag->nc_id, valt, 0, &loc.l_alt);
+	tag->nc_sloc = loc;
 	ncvarput1 (tag->nc_id, vx, 0, &tag->nc_rgrid.rg_Xspacing);
 	if ((tag->nc_org == Org2dGrid) || (tag->nc_org == Org3dGrid))
 	{
@@ -2652,78 +2675,6 @@ ZebTime *zt;
 	return (zt->zt_Sec - tag->nc_base + (zt->zt_MicroSec/1000000.0));
 }
 
-
-
-
-
-#ifdef notdef	/* being phased out, replaced with dnc_FindTimes() */
-static int
-dnc_FindDest (tag, wc, t, fsample)
-NCTag *tag;
-WriteCode wc;
-ZebTime *t;
-long *fsample;
-/*
- * Figure out just where this sample is supposed to go.
- */
-{
-	int status;
-	float ftime;
-	long one = 1;
-/*
- * It all depends on the write code.
- */
-	switch (wc)
-	{
-	/*
-	 * The append case is like in the good old days.  We allocate a
-	 * new TOC entry and set this up to be written at the end of
-	 * the file.
-	 */
-	   case wc_Append:
-		if (tag->nc_ntime)
-			tag->nc_times = (double *) realloc (tag->nc_times,
-				(tag->nc_ntime + 1) * sizeof(double));
-		else
-			tag->nc_times = (double *) malloc (sizeof(double));
-		tag->nc_times[tag->nc_ntime] = dnc_ZtToOffset (tag, t);
-		*fsample = tag->nc_ntime++;
-		break;
-	/*
-	 * The insert case is hopeless, for now.  The only way to really
-	 * do this is to copy all of the data from here to the end of the
-	 * file on down.  Ugly.
-	 */
-	   case wc_Insert:
-	   	return (FALSE);
-	/*
-	 * In the overwrite case we need to find the doomed sample and 
-	 * tweak the TOC accordingly.
-	 */
-	   case wc_Overwrite:
-	   	*fsample = dnc_TimeIndex (tag, t);
-		tag->nc_times[*fsample] = dnc_ZtToOffset (tag, t);
-		break;
-	}
-/*
- * Flush out the new TOC entry.
- */
-	if (tag->nc_timeIsFloat)
-	{
-		ftime = (float) tag->nc_times[*fsample];
-		status = ncvarput (tag->nc_id, tag->nc_vTime, fsample, &one, 
-			&ftime);
-	}
-	else
-		status = ncvarput (tag->nc_id, tag->nc_vTime, fsample, &one,
-			    tag->nc_times + *fsample);
-
-	if (status < 0)
-		dnc_NCError("New time write");
-
-	return (TRUE);
-}
-#endif  /* notdef */
 
 
 
@@ -3236,7 +3187,11 @@ int len;
 	int i;
 
 	if (type == NC_CHAR)
-		return((char *)value);
+	{
+		strncpy (buf, value, len);
+		buf[len] = '\0';
+		return(buf);
+	}
 	buf[0] = '\0';
 	for (i = 0; i < len; ++i)
 	{
@@ -3342,10 +3297,11 @@ int len;
 
 	ncopts = 0;
 	if ((ncattinq (cdfid, varid, att_name, &att_type, &att_len) >= 0) 
-	    && (att_len < len) && (att_type == NC_CHAR))
+	    && (att_len+1 < len) && (att_type == NC_CHAR))
 	{
 		ncopts = saveopts;
 		ncattget (cdfid, varid, att_name, (void *)att_val);
+		att_val[att_len] = '\0';
 		return (att_val);
 	}
 	ncopts = saveopts;
