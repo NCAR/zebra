@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.9 1991-04-12 21:55:53 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.10 1991-06-14 22:36:46 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -96,6 +96,7 @@ fc_InvalidateCache ()
 			PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
+		unlink (FileName);
 	}
 }
 
@@ -114,6 +115,7 @@ void fc_CreateFrameFile()
 			PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
+		unlink (FileName);
 	}
 }
 
@@ -133,7 +135,7 @@ int number;
 /*
  * Sanity checking.
  */
-	if (number >= NCACHE)
+	if (number >= MaxFrames)
 	{
 		msg_ELog (EF_PROBLEM, "Frame number %d exceeds cache", number);
 		return;
@@ -249,7 +251,7 @@ time *when;
 /*
  * Now go searching.
  */
-	for (i = 0; i < NCACHE; i++)
+	for (i = 0; i < MaxFrames; i++)
 		if (FCache[i].fc_valid && 
 		    FCache[i].fc_time.ds_yymmdd == when->ds_yymmdd &&
 		    FCache[i].fc_time.ds_hhmmss == when->ds_hhmmss &&
@@ -330,7 +332,7 @@ int ntime;
 /*
  * Now go through all frames.
  */
-	for (frame = 0; frame < NCACHE; frame++)
+	for (frame = 0; frame < MaxFrames; frame++)
 	{
 		struct FrameCache *fc = FCache + frame;
 
@@ -359,7 +361,7 @@ fc_UnMarkFrames()
 
 	int i;
 
-	for(i = 0; i < NCACHE; i++)
+	for(i = 0; i < MaxFrames; i++)
 		if(FCache[i].fc_valid)
 			FCache[i].fc_keep = FALSE;
 }
@@ -610,7 +612,7 @@ fc_GetFreeFrame()
 {
 	int i, minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
 
-	for(i = 0; i < NCACHE; i++)
+	for(i = 0; i < MaxFrames; i++)
 	{
 		if(! FCache[i].fc_valid)
 			return(i);	
@@ -648,7 +650,7 @@ int n;
 	for(i = 0; i < n; i++)
 		if(FreePixmaps[i] == InvalidEntry)
 			FreePixmaps[i] = FREE;
-	for(i = n; i < NCACHE; i++)
+	for(i = n; i < MaxFrames; i++)
 	{
 		if(FreePixmaps[i] >= 0)
 			if(! fc_PixmapToFile(FreePixmaps[i]));
@@ -666,7 +668,7 @@ fc_PrintCache()
 {
 	int i;
 
-	for(i = 0; i < NCACHE; i++)
+	for(i = 0; i < MaxFrames; i++)
 		if(FCache[i].fc_valid)
 			msg_ELog(EF_DEBUG, "FCache[%d] base %s alt %f  lru %d  
 				keep %d  valid %d inmem %d  index %d ", 
@@ -713,11 +715,11 @@ fc_GetFreeFile()
 	int offset, index;
 	int minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
 
-	for(offset = 0; offset < NCACHE; offset++)
+	for(offset = 0; offset < MaxFrames; offset++)
 	{
 		if(BufferTable[offset] == FREE)
 			return(offset);
-		if(BufferTable[offset] < 0 || BufferTable[offset] >=NCACHE)
+		if(BufferTable[offset] < 0 || BufferTable[offset] >= MaxFrames)
 			msg_ELog(EF_PROBLEM, "Problem with BufferTable.");
 		index = BufferTable[offset];
 		if(! FCache[index].fc_inmem)
