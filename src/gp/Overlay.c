@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.3 1990-07-08 12:55:08 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.4 1990-09-13 09:44:31 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -225,10 +225,7 @@ bool update;
  * Find the closest set of features.
  */
 	if (fl->fl_features && fl->fl_features->f_type != FMarker)
-	{
 		fp = fl->fl_features;
-		msg_ELog (EF_DEBUG, "Default feature fp = 0x%x", fp);
-	}
 	else
 	{
 		last = 0;
@@ -249,7 +246,6 @@ bool update;
  */
 	for (; fp && fp->f_type != FMarker; fp = fp->f_next)
 	{
-		msg_ELog (EF_DEBUG, "Do ftr 0x%x", fp);
 		ov_DoFeature (fp, disp, d, gcontext, xc.pixel);
 	}
 /*
@@ -277,7 +273,6 @@ int color;
 /*
  * Turn our location into something we can use.
  */
-	msg_ELog (EF_DEBUG, "ov_DoFeature (0x%x)", fp);
 	cvt_ToXY (fp->f_lat, fp->f_lon, &x, &y);
 /*
  * Now just do some drawing.
@@ -497,7 +492,7 @@ struct ui_command *cmds;
 	   	fp->f_type = FText;
 		strcpy (fp->f_string, UPTR (cmds[3]));
 		if (cmds[4].uc_ctype != UTT_END)
-			fp->f_size = UINT (cmds[4]);
+			fp->f_size = UFLOAT (cmds[4]);
 		else
 			fp->f_size = DEFAULT_TEXT_SIZE;
 	   	break;
