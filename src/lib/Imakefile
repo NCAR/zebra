@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.33 2000-06-08 16:47:36 granger Exp $ */
+/* $Id: Imakefile,v 1.34 2000-12-01 23:35:51 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -70,10 +70,14 @@ TEMPLATESRCS = BTree.cc BTreeFile.cc
  */
 XOBJS = Bitmaps.o barb.o vector.o Buttons.o
 XUIOBJS = alarmwidget.o twidget.o dm_lib.o 
+#ifdef notdef
 UIOBJS = pdlib.o pdretrv.o pdaux.o cmd_proto.o
+UISRCS = $(UIOBJS:.o=.c)
+#endif
 CFGOBJS = ConfigVars.o ConfigUI.o 
+CFGSRCS = $(CFGOBJS:.o=.c)
 
-SPECIAL_OBJS = $(XOBJS) $(XUIOBJS) $(UIOBJS) $(CFGOBJS)
+SPECIAL_OBJS = $(XOBJS) $(XUIOBJS) /*$(UIOBJS)*/ $(CFGOBJS)
 
 OBJS = $(SPECIAL_OBJS) altunits.o byteorder.o cmd_exec.o convert.o \
 	GraphicsW.o ImageXfr.o msg_BCast.o msg_lib.o netread.o Parse.o \
@@ -116,15 +120,19 @@ PHEADERS = setup.h BlockFileP.hh
 
 DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PHEADERS) $(SOURCES.x)
 
+INCLUDES = $(RDSSINCLUDES)
+
 NormalLibraryTarget (Zebra, $(OBJS))
 
 $(OBJS): $(RPCTARGETS)
 
-SpecialObjectRule($(XUIOBJS),/**/,$(XINCLUDES) $(RDSSINCLUDES))
+SpecialObjectRule($(XUIOBJS),/**/,$(XINCLUDES))
 SpecialObjectRule($(XOBJS),/**/,$(XINCLUDES))
-SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
-SpecialObjectRule($(CFGOBJS),/**/,$(DIRDEFINES) $(RDSSINCLUDES))
-SpecialObjectRule(GraphicsW.o,GraphicsW.c GraphicsW.h GraphicsWP.h,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
+#ifdef notdef
+SpecialObjectRule($(UIOBJS),$(UISRCS),$(RDSSINCLUDES))
+#endif
+SpecialObjectRule($(CFGOBJS),$(CFGSRCS),$(DIRDEFINES))
+SpecialObjectRule(GraphicsW.o,GraphicsW.c GraphicsW.h GraphicsWP.h,$(SHMDEFINES) $(XINCLUDES))
 
 /*
  * rpcgen rules
