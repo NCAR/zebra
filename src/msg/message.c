@@ -37,13 +37,6 @@
 # include <sys/file.h>
 #endif
 
-/*
- * Just in case not defined in in.h
- */
-#ifndef IPPORT_RESERVED
-#define IPPORT_RESERVED 2048
-#endif
-
 # include <defs.h>
 # include <copyright.h>
 
@@ -51,7 +44,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.28 1995-04-27 13:56:43 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.29 1995-04-28 21:21:48 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -351,12 +344,6 @@ char **argv;
 		else if (! strncmp (argv[i], "-port", optlen) && i+1 < argc)
 		{
 			Port = atoi (argv[++i]);
-			if (Port <= IPPORT_RESERVED)
-			{
-				fprintf (stderr,"%s must be greater than %d\n",
-					 "port number", IPPORT_RESERVED);
-				exit (1);
-			}
 		}
 		else if (! strncmp (argv[i], "-file", optlen) && i+1 < argc)
 		{
@@ -546,12 +533,6 @@ int port;
 	{
 		fprintf (stderr, "too many host entries; max is %d\n",
 			 MAX_HOSTS);
-		exit (1);
-	}
-	if (port <= IPPORT_RESERVED)
-	{
-		fprintf (stderr,"%s must be greater than %d\n",
-			 "port number", IPPORT_RESERVED);
 		exit (1);
 	}
 	/*
@@ -856,6 +837,8 @@ again:
 			goto again;
 		}
 		perror ("IN Socket bind");
+		log (EF_PROBLEM, "bind error %d, continuing with no IN socket",
+		     errno);
 		M_in_socket = -1;
 	}
 	if (ntry)
@@ -863,9 +846,12 @@ again:
 /*
  * Tell them we're ready.
  */
-	listen (M_in_socket, 5);
-	if (M_in_socket >= Nfd)
-		Nfd = M_in_socket + 1;
+	if (M_in_socket >= 0)
+	{
+		listen (M_in_socket, 5);
+		if (M_in_socket >= Nfd)
+			Nfd = M_in_socket + 1;
+	}
 }
 
 
