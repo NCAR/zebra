@@ -43,9 +43,9 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.10 1996-11-19 07:12:02 granger Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.11 1997-02-14 07:07:17 granger Exp $");
 
-extern "C" void strcat (char *, const char *);
+extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
 
 
