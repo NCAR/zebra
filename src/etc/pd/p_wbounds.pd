@@ -1,0 +1,16 @@
+!
+! Generic window bounds component.  Just change the "platform" (i.e., the
+! window from which to get the bounds).
+!
+GLOBAL
+	pd-name:	p_wbounds
+p_wbounds
+	platform:	SOMETHING
+	representation:	overlay
+	field:		wbounds
+	color:		red
+	line-width:	2
+	icon:		wbounds
+	icon-middle-menu:	simple-color
+	icon-right-menu:	linewidth
+	require:	simple-color
