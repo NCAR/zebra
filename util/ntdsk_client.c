@@ -112,7 +112,7 @@ char *file;
 	gethostname (hostname, 40);
 	msg_addstr (hostname);
 	msg_addstr (getenv ("USER"));
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 # ifdef notdef
 	ui_printf ("'%s'\n", rpl_getstr ());
@@ -135,7 +135,7 @@ char *file;
 	netdisk_setup (file);
 	msg_addopc (OP_BIO_OPEN);
 	msg_addstr (&file[strcspn (file, ":") + 1]);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	fileid = (int *) rpl_getbyt (4);
 	return (*fileid);
@@ -153,7 +153,7 @@ char *file;
 	netdisk_setup (file);
 	msg_addopc (OP_BIO_VIEW);
 	msg_addstr (&file[strcspn (file, ":") + 1]);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	fileid = (int *) rpl_getbyt (4);
 	return (*fileid);
@@ -174,7 +174,7 @@ int *alloc, *extend;
 	msg_addstr (&file[strcspn (file, ":") + 1]);
 	msg_addbyt ((char *) alloc, 4);
 	msg_addbyt ((char *) extend, 4);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	fileid = (int *) rpl_getbyt (4);
 	return (*fileid);
@@ -194,7 +194,7 @@ int *alloc, *extend;
 	msg_addstr (&file[strcspn (file, ":") + 1]);
 	msg_addbyt ((char *) alloc, 4);
 	msg_addbyt ((char *) extend, 4);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	fileid = (int *) rpl_getbyt (4);
 	return (*fileid);
@@ -210,7 +210,7 @@ int lun;
 	if (!Connected) return;
 	msg_addopc (OP_BIO_CLOSE);
 	msg_addbyt ((char *) &lun, 4);
-	msg_send ();
+	ntd_msg_send ();
 }
 
 
@@ -228,7 +228,7 @@ char *buffer;
 	msg_addbyt ((char *) &lun, 4);
 	msg_addbyt ((char *) block, 4);
 	msg_addbyt ((char *) nbytes, 4);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	nread = *(int *) rpl_getbyt (4);
 	if (nread > 0)
@@ -261,7 +261,7 @@ char *buffer;
 	msg_addbyt ((char *) block, 4);
 	msg_addbyt ((char *) nbytes, 4);
 	msg_addbyt (buffer, *nbytes);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	Len = *(int *) rpl_getbyt (4);
 	return (Len);		
@@ -277,7 +277,7 @@ char *file;
 	netdisk_setup (file);
 	msg_addopc (OP_DCREATE);
 	msg_addstr (&file[strcspn (file, ":") + 1]);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	return (*(int *) rpl_getbyt (4));
 }
@@ -292,7 +292,7 @@ char *file;
 	netdisk_setup (file);
 	msg_addopc (OP_DOPEN);
 	msg_addstr (&file[strcspn (file, ":") + 1]);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	return (*(int *) rpl_getbyt (4));
 }
@@ -307,7 +307,7 @@ char *file;
 	netdisk_setup (file);
 	msg_addopc (OP_DVIEW);
 	msg_addstr (&file[strcspn (file, ":") + 1]);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	return (*(int *) rpl_getbyt (4));
 }
@@ -322,7 +322,7 @@ char *file;
 	netdisk_setup (file);
 	msg_addopc (OP_DAPPEND);
 	msg_addstr (&file[strcspn (file, ":") + 1]);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	return (*(int *) rpl_getbyt (4));
 }
@@ -339,7 +339,7 @@ char *buf;
 	msg_addbyt (&fnum, 4);
 	msg_addbyt (&len, 4);
 	msg_addbyt (buf, len);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	return (*(int *) rpl_getbyt (4));
 }
@@ -358,7 +358,7 @@ char *buf;
 	msg_addopc (OP_DGET);
 	msg_addbyt (&fnum, 4);
 	msg_addbyt (&max, 4);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	nread = *(int *) rpl_getbyt (4);
 	if (nread > 0)
@@ -377,7 +377,7 @@ short *rfa;
 	if (!Connected) return;
 	msg_addopc (OP_DRFA);
 	msg_addbyt (&fnum, 4);
-	msg_send ();
+	ntd_msg_send ();
 	rpl_receive ();
 	memcpy (rfa, rpl_getbyt (6), 6);
 }
@@ -392,7 +392,7 @@ int fnum;
 	if (!Connected) return;
 	msg_addopc (OP_DAGAIN);
 	msg_addbyt (&fnum, 4);
-	msg_send ();
+	ntd_msg_send ();
 }
 
 
@@ -407,7 +407,7 @@ short rfa[3];
 	msg_addopc (OP_DFIND);
 	msg_addbyt (&fnum, 4);
 	msg_addbyt (rfa, 6);
-	msg_send ();
+	ntd_msg_send ();
 }
 
 
@@ -420,7 +420,7 @@ int fnum;
 	if (!Connected) return;
 	msg_addopc (OP_DCLOSE);
 	msg_addbyt (&fnum, 4);
-	msg_send ();
+	ntd_msg_send ();
 }
 
 
@@ -433,7 +433,7 @@ int fnum;
 	if (!Connected) return;
 	msg_addopc (OP_DREWIND);
 	msg_addbyt (&fnum, 4);
-	msg_send ();
+	ntd_msg_send ();
 }
 
 
@@ -477,7 +477,7 @@ int num;
 
 
 
-msg_send ()
+ntd_msg_send ()
 {
 	int	num, ntimes, nsend;
 	double	ceil ();
