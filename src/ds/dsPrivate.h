@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.8 1993-02-08 22:35:50 corbet Exp $
+ * $Id: dsPrivate.h,v 3.9 1993-04-26 16:00:50 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -49,7 +49,19 @@ struct ds_ShmHeader
 	int	sm_nDTEUsed;		/* How many used		*/
 	int	sm_DTFreeList;		/* First free entry		*/
 };
-# define SHM_MAGIC	0x80692		/* Change for incompatible changes */
+# define SHM_MAGIC	0x31293		/* Change for incompatible changes */
+
+
+/*
+ * The following structure is used to keep track of locks held on platforms
+ * by other processes.
+ */
+typedef struct s_Lock
+{
+	char	l_Owner[MAX_NAME_LEN];	/* Who owns the lock	*/
+	ZebTime l_When;			/* Since when		*/
+	struct s_Lock *l_Next;		/* Next in chain	*/
+} Lock;
 
 
 
@@ -74,6 +86,8 @@ typedef struct ds_Platform
 	short	dp_Tfile;		/* Temp file under creation	*/
 	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
+	Lock	*dp_RLockQ;		/* Read locks held		*/
+	Lock	*dp_WLock;		/* The write lock 		*/
 } Platform;
 
 # define DPF_MOBILE	0x0001		/* Does this platform move?	*/
@@ -86,10 +100,14 @@ typedef struct ds_Platform
 /*
  * Macro to return the right data list for a platform.
  */
+# ifdef notdef
 # define LOCALDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
 		PTable[(p).dp_parent].dp_LocalData : (p).dp_LocalData)
 # define REMOTEDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
 		PTable[(p).dp_parent].dp_RemoteData : (p).dp_RemoteData)
+# endif
+# define LOCALDATA(p) (ds_DataChain (&(p), 0))
+# define REMOTEDATA(p) (ds_DataChain (&(p), 1))
 
 /*
  * The structure describing a file full of data.
@@ -107,6 +125,7 @@ typedef struct ds_DataFile
 	unsigned short df_nsample;	/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
 	short	df_use;			/* Structure use count		*/
+	short	df_index;		/* Data file index		*/
 	char	df_flags;		/* File flags			*/
 } DataFile;
 
@@ -122,12 +141,13 @@ typedef struct ds_DataFile
  * The size of the shared memory segment, and the pointer which will locate
  * it in each process.
  */
+# ifdef notdef
 # define SHM_SIZE 65536*12
 char *ShmSegment;
 struct ds_ShmHeader *ShmHeader;
 
 # define DS_KEY 0x072161
-
+# endif
 /*
  * The semaphores which control the shared memory setup.
  */
@@ -179,12 +199,34 @@ enum dsp_Types
 	dpt_MarkArchived,		/* Mark a file as archived	*/
 	dpt_R_UpdateAck,		/* Acknowledge a file update	*/
 	dpt_Rescan,			/* Force rescan of platform	*/
-/*
- * Cross-machine broadcast notifications.
- */
 	dpt_BCDataGone,			/* Data zapped			*/
+	/*
+	 * Start additions for non-SHM data store.
+	 */
+	dpt_GetNPlat,			/* Return the number of platforms */
+	 dpt_R_NPlat,			/* the number of platforms	*/
+	dpt_GetPlatStruct,		/* Get a platform structure	*/
+	 dpt_R_PlatStruct,		/* Returned plat struct		*/
+	dpt_GetFileStruct,		/* Get a DFE			*/
+	 dpt_R_FileStruct,
+	dpt_PLock,			/* Lock a platform		*/
+	 dpt_R_PLockGranted,		/* Acknowledge the lock		*/
+	dpt_ReleasePLock,		/* Release platform lock	*/
+	dpt_LookupPlatform,		/* Plat name -> pid translation	*/
+	 dpt_R_PID,			/* Reply 			*/
+	dpt_FindDF,			/* Find DFE based on time	*/
+	 dpt_R_DFIndex,			/* Index of found DF		*/
+	dpt_CacheInvalidate,		/* Invalidate a cache entry	*/
+	dpt_Hello,			/* New client greeting		*/
+	 dpt_R_ProtoVersion,		/* Protocol version		*/
 };
 # define DSP_FLEN	256		/* File name length		*/
+
+/*
+ * The current data store protocol version.  CHANGE this when incompatible
+ * protocol changes have been made.
+ */
+# define DSProtocolVersion	0x930323
 
 /*
  * Create a new data file.
@@ -307,4 +349,115 @@ struct dsp_Rescan
 	enum dsp_Types dsp_type;	/* == dpt_Rescan		*/
 	PlatformId dsp_pid;		/* Which platform...		*/
 	int dsp_all;			/* ...or all of them.		*/
+};
+
+
+/*
+ * Number of platforms.
+ */
+struct dsp_NPlat
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_NPlat		*/
+	int dsp_nplat;			/* the number			*/
+};
+
+
+/*
+ * A request for a platform structure.
+ */
+struct dsp_GetPlatStruct
+{
+	enum dsp_Types dsp_type;	/* == dpt_GetPlatStruct		*/
+	PlatformId dsp_pid;		/* Platform of interest		*/
+};
+
+
+struct dsp_PlatStruct
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_PlatStruct		*/
+	Platform dsp_plat;		/* Platform structure		*/
+};
+	
+
+/*
+ * And file structure too.
+ */
+struct dsp_GetFileStruct
+{
+	enum dsp_Types dsp_type;	/* == dpt_GetFileStruct		*/
+	int dsp_index;			/* Index of file of interest	*/
+};
+
+struct dsp_FileStruct
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_FileStruct		*/
+	DataFile dsp_file;		/* The file structure		*/
+};
+
+
+
+/*
+ * Locking stuff.
+ */
+struct dsp_PLock
+{
+	enum dsp_Types dsp_type;	/* == dpt_PLock || dpt_PLockGranted */
+	PlatformId dsp_pid;		/* Which platform		*/
+};
+
+
+
+/*
+ * Look up platform names.
+ */
+struct dsp_PLookup
+{
+	enum dsp_Types dsp_type;	/* == dpt_LookupPlatform	*/
+	char dsp_name[NAMELEN];		/* Name of interest		*/
+};
+
+struct dsp_PID
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_PID			*/
+	PlatformId dsp_pid;		/* Plat id or BadPlatform	*/
+};
+
+
+/*
+ * Find DFE's based on the time of interest.
+ */
+struct dsp_FindDF
+{
+	enum dsp_Types dsp_type;	/* == dpt_FindDF		*/
+	PlatformId dsp_pid;		/* Platform of interest		*/
+	ZebTime dsp_when;		/* Time				*/
+	int dsp_src;			/* Which source?		*/
+};
+# define SRC_ALL (-1)
+
+
+struct dsp_R_DFI
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_DFIndex		*/
+	int dsp_index;			/* index of our file		*/
+};
+
+
+/*
+ * Cache invalidations.
+ */
+struct dsp_CacheInvalidate
+{
+	enum dsp_Types dsp_type;	/* == dpt_CacheInvalidate	*/
+	DataFile dsp_dfe;		/* New, updated DFE		*/
+};
+
+
+/*
+ * Protocol stuff
+ */
+struct dsp_ProtoVersion
+{
+	enum dsp_Types dsp_type;	/* == dpt_ProtoVersion	*/
+	int	dsp_version;
 };

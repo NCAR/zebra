@@ -24,36 +24,70 @@
 #include "../include/message.h"
 #include "DataStore.h"
 #include "dsPrivate.h"
+# define NO_SHM
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.5 1992-08-06 16:39:50 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.6 1993-04-26 16:00:50 corbet Exp $")
 
 
 /*
  * Local stuff.
  */
 static void     ds_InitPFTable FP ((void));
-static void     ds_NotifyDaemon FP ((int, DataChunk *, int, int, int, int));
+static void     ds_NotifyDaemon FP ((Platform *, int, DataChunk *, int, int,
+			int, int));
 static void     ds_DispatchNotify FP ((struct dsp_Notify *));
 int             ds_DSMessage FP ((struct message *));
-static int      ds_AttrCheck FP ((int, char *));
-static int	ds_FindDF FP ((PlatformId, ZebTime *));
-static int 	ds_FindDest FP ((DataChunk *, int, int *, WriteCode *, int));
+static int      ds_AttrCheck FP ((int, ZebTime *, char *));
+static int 	ds_FindDest FP ((DataChunk *, Platform *, int, int *,
+			WriteCode *, int));
 static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
-static int	ds_MakeNewFile FP ((DataChunk *, int));
+static int	ds_MakeNewFile FP ((DataChunk *, Platform *, int));
 static int	ds_RequestNewDF FP ((PlatformId, char *, ZebTime *));
 static int	ds_GetNDFResp FP ((struct message *,
 				struct dsp_R_CreateFile *));
 static void	ds_AbortNewDF FP ((PlatformId, int));
 static int	ds_AwaitAck FP ((Message *, int));
+static int	ds_AwaitNPlat FP ((Message *, int *));
+static int	ds_AwaitPlat FP ((Message *, Platform *));
 static void 	ds_FProcGetList FP ((DataChunk *, GetList *, dsDetail *, int));
+static int	ds_AwaitFile FP ((Message *, DataFile *));
+static int	ds_AwaitGrant FP ((Message *, int));
+static int	ds_AwaitPID FP ((Message *, PlatformId *));
+static void	ds_SendToDaemon FP ((void *, int));
+static int	ds_AwaitDF FP ((Message *, int *));
+static void	ds_ZapCache FP ((DataFile *));
+static void	ds_GreetDaemon FP ((void));
+static int	ds_CheckProtocol FP ((Message *, int));
 
 /*
  * The application notification table.
  */
-#define MAXPLAT 1024
+#define MAXPLAT 2048
 typedef void (*VFunc) ();
 VFunc ApplFuncs[MAXPLAT];
 VFunc CopyFunc = 0;
+
+/*
+ * Platform structure caching.
+ */
+static Platform *PlatStructs[MAXPLAT] = { 0 };
+
+/*
+ * Data file entry cache structure.  The cache is intended to be small, 
+ * fast and cheap...
+ */
+# define N_DF_CACHE 10
+static DataFile DFCache[N_DF_CACHE];
+static int DFZap = 0;	/* Next entry to zap	*/
+
+
+/*
+ * How many locks we have active at once.  This is a kludgy way to prevent
+ * multiple locking for now.  It will prevent locking of more than one 
+ * platform at once, which may be undesirable, but I don't think that will
+ * break anything now.
+ */
+static int LockCount = 0;
 
 
 
@@ -67,8 +101,10 @@ ds_Initialize()
 /*
  * Hook into the shared memory segment.
  */
+# ifdef notdef	
 	if (!dsm_Init())
 		return (FALSE);
+# endif
 /*
  * Set up the platform lookup table.
  */
@@ -81,7 +117,15 @@ ds_Initialize()
 	msg_join("DataStore");
 	F_Init ();
 	msg_AddProtoHandler(MT_DATASTORE, ds_DSMessage);
-
+/*
+ * Say hi to the daemon.
+ */
+	ds_GreetDaemon ();
+/*
+ * Initialize the datafile cache.
+ */
+	for (i = 0; i < N_DF_CACHE; i++)
+		DFCache[i].df_index = -1;
 	return (TRUE);
 }
 
@@ -102,22 +146,6 @@ ds_InitPFTable ()
  * Create the table itself.
  */
 	Pf_Names = usy_c_stbl ("Platform_names");
-/*
- * Just go through the platform list and make all the entries.
- */
-	dsm_ShmLock ();
-	for (i = 0; i < SHeader->sm_nPlatform; i++)
-	{
-		v.us_v_int = i;
-		usy_s_symbol (Pf_Names, PTable[i].dp_name, SYMT_INT, &v);
-		slash = strchr (PTable[i].dp_name, '/');
-		while (slash)
-		{
-			usy_s_symbol (Pf_Names, slash + 1, SYMT_INT, &v);
-			slash = strchr (slash + 1, '/');
-		}
-	}
-	dsm_ShmUnlock ();
 }
 
 
@@ -134,11 +162,59 @@ char *name;
 {
 	int             type;
 	SValue          v;
-
-	if (!usy_g_symbol (Pf_Names, name, &type, &v))
-		return (BadPlatform);
-	return (v.us_v_int);
+	PlatformId pid;
+	struct dsp_PLookup req;
+/*
+ * If we already know about this platform just send back the ID.
+ */
+	if (usy_g_symbol (Pf_Names, name, &type, &v))
+		return (v.us_v_int);
+/*
+ * Otherwise we need to ask mom.
+ */
+	req.dsp_type = dpt_LookupPlatform;
+	strcpy (req.dsp_name, name);
+	ds_SendToDaemon (&req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitPID, &pid);
+/*
+ * Remember this for next time.  We don't stash failures on the theory
+ * that someday we will have dynamic platform creation and a name that
+ * fails once could succeed later.
+ */
+	if (pid != BadPlatform)
+	{
+		v.us_v_int = pid;
+		usy_s_symbol (Pf_Names, name, SYMT_INT, &v);
+		/* PlatNames[pid] = usy_pstring (name);*/
+	}
+	return (pid);
 }
+
+
+
+
+
+static int
+ds_AwaitPID (msg, pid)
+Message *msg;
+PlatformId *pid;
+/*
+ * Wait for the platform lookup to return.
+ */
+{
+	struct dsp_PID *dp = (struct dsp_PID *) msg->m_data;
+
+	if (dp->dsp_type == dpt_R_PID)
+	{
+		*pid = dp->dsp_pid;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
 
 
 
@@ -151,7 +227,12 @@ PlatformId id;
  * Get back the name for this platform.
  */
 {
-	return (PTable[id].dp_name);
+	if (! PlatStructs[id])
+	{
+		Platform p;
+		ds_GetPlatStruct (id, &p, FALSE);
+	}
+	return (PlatStructs[id]->dp_name);
 }
 
 
@@ -163,8 +244,12 @@ PlatformId id;
  * Return TRUE iff this is a mobile platform.
  */
 {
-	return (PTable[id].dp_flags & DPF_MOBILE);
+	Platform p;
+	ds_GetPlatStruct (id, &p, FALSE);
+	return (p.dp_flags & DPF_MOBILE);
 }
+
+
 
 
 
@@ -184,43 +269,60 @@ int max;
  * Find the data file holding the observation of interest, then pass
  * off the real work to DFA.
  */
-	if ((dfindex = ds_FindDF (pid, when)) < 0)
+	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
 		return (0);
 	return (dfa_GetObsSamples (dfindex, times, locs, max));
 }
 
 
 
-static int
-ds_FindDF (pid, when)
+int
+ds_FindDF (pid, when, src)
 PlatformId pid;
 ZebTime *when;
+int src;
 /*
  * Find the first datafile entry before this time.
  */
 {
-	int ret = LOCALDATA (PTable[pid]);
-
-	dsm_ShmLock ();
-	for (; ret; ret = DFTable[ret].df_FLink)
-		if (TC_LessEq (DFTable[ret].df_begin, *when))
-		{
-			dsm_ShmUnlock ();
-			return (ret);
-		}
+	struct dsp_FindDF req;
+	int index;
 /*
- * If we didn't find the data locally, see if there's anything in the
- * remote data table.
+ * Just fire off a request to the daemon.
  */
-	for (ret = REMOTEDATA (PTable[pid]); ret; ret = DFTable[ret].df_FLink)
-		if (TC_LessEq (DFTable[ret].df_begin, *when))
-		{
-			dsm_ShmUnlock ();
-			return (ret);
-		}
-	dsm_ShmUnlock ();
-	return (-1);
+ 	req.dsp_type = dpt_FindDF;
+	req.dsp_pid = pid;
+	req.dsp_when = *when;
+	req.dsp_src = src;
+	ds_SendToDaemon (&req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitDF, &index);
+	return (index);
 }
+
+
+
+
+
+static int
+ds_AwaitDF (msg, index)
+Message *msg;
+int *index;
+/*
+ * Wait for a data file index to come back.
+ */
+{
+	struct dsp_R_DFI *ans = (struct dsp_R_DFI *) msg->m_data;
+
+	if (ans->dsp_type == dpt_R_DFIndex)
+	{
+		*index = ans->dsp_index;
+		return (0);
+	}
+	return (1);
+}
+		
+
+
 
 
 
@@ -237,25 +339,27 @@ char *attr;
  */
 {
 	int             df, i;
+	DataFile dfe;
 /*
  * Find the first datafile which works.
  */
-	if ((df = ds_FindDF (pid, when)) < 0)
+	if ((df = ds_FindDF (pid, when, SRC_ALL)) < 0)
 		return (0);
 /*
  * Now return some times.
  */
-	dsm_ShmLock ();
+	ds_LockPlatform (pid);
 	for (i = 0; i < ntime && df;)
 	{
-		if (!attr || ds_AttrCheck (df, attr))
+		ds_GetFileStruct (df, &dfe);
+		if (!attr || ds_AttrCheck (df, &dfe.df_begin, attr))
 		{
-			*times++ = DFTable[df].df_begin;
+			*times++ = dfe.df_begin;
 			i++;
 		}
-		df = DFTable[df].df_FLink;
+		df = dfe.df_FLink;
 	}
-	dsm_ShmUnlock ();
+	ds_UnlockPlatform (pid);
 	return (i);
 }
 
@@ -263,8 +367,9 @@ char *attr;
 
 
 static int
-ds_AttrCheck (df, attr)
+ds_AttrCheck (df, t, attr)
 int df;
+ZebTime *t;
 char *attr;
 /*
  * See if this attribute is found in the data.
@@ -275,7 +380,7 @@ char *attr;
 /*
  * If no data attrs, assume yes.
  */
-	if (! (dattr = dfa_GetAttr (df, &DFTable[df].df_begin, &len)))
+	if (! (dattr = dfa_GetAttr (df, t, &len)))
 		return (TRUE);
 /*
  * Parse up the attributes and see if any match.
@@ -288,6 +393,10 @@ char *attr;
 			return (TRUE);
 	return (FALSE);
 }
+
+
+
+
 
 
 
@@ -305,7 +414,7 @@ FieldId *flist;
 /*
  * Find a file entry to look at.
  */
-	if ((dfindex = ds_FindDF (plat, t)) < 0)
+	if ((dfindex = ds_FindDF (plat, t, SRC_ALL)) < 0)
 		return (0);
 /*
  * Have the format driver actually look.
@@ -324,9 +433,14 @@ int n;
 TimeSpec which;
 /*
  * Return a list of up to "n" times related to "time" by the given spec.
+ *
+ * Reworked for new non-SHM scheme.  This routine fetches more DFE's than
+ * might really be desired, but so it goes.
  */
 {
 	int ndone = 0, index, last = 0;
+	DataFile dfe;
+	Platform p;
 /*
  * We don't do it all yet.
  */
@@ -339,20 +453,24 @@ TimeSpec which;
 	 * Scan down the datafile list until we find the first entry
 	 * which begins before the given time.
 	 */
-		if ((index = ds_FindDF (platform, when)) < 0)
+		if ((index = ds_FindDF (platform, when, SRC_ALL)) < 0)
 			return (0);
 	/*
 	 * Now we plow through datafile entries until we have all we
 	 * want.
 	 */
-		dsm_ShmLock ();
+		ds_LockPlatform (platform);
 		while (index && ndone < n)
 		{
 			ndone += dfa_DataTimes (index, when, which, n - ndone,
 					       rettimes + ndone);
-			index = DFTable[index].df_FLink;
+			if (ndone < n)
+			{
+				ds_GetFileStruct (index, &dfe);
+				index = dfe.df_FLink;
+			}
 		}
-		dsm_ShmUnlock ();
+		ds_UnlockPlatform (platform);
 		return (ndone);
 /*
  * We now do DsAfter too.
@@ -362,11 +480,13 @@ TimeSpec which;
 	 * Scan down the datafile list until we find the first entry
 	 * which does not end after the time of interest.
 	 */
-		dsm_ShmLock ();
-		for (index = LOCALDATA(PTable[platform]); index;
-					index = DFTable[index].df_FLink)
+		ds_LockPlatform (platform);
+		ds_GetPlatStruct (platform, &p, TRUE);
+		for (index = LOCALDATA(p); index;
+					index = dfe.df_FLink)
 		{
-			if (TC_LessEq (DFTable[index].df_end, *when))
+			ds_GetFileStruct (index, &dfe);
+			if (TC_LessEq (dfe.df_end, *when))
 				break;
 			last = index;
 		}
@@ -374,10 +494,11 @@ TimeSpec which;
 	 * Check the remote table too if need be.
 	 */
 		if (!index)
-			for (index = REMOTEDATA(PTable[platform]); index;
-			     index = DFTable[index].df_FLink)
+			for (index = REMOTEDATA(p); index;
+					     index = dfe.df_FLink)
 			{
-				if (TC_LessEq (DFTable[index].df_end, *when))
+				ds_GetFileStruct (index, &dfe);
+				if (TC_LessEq (dfe.df_end, *when))
 					break;
 				last = index;
 			}
@@ -386,19 +507,22 @@ TimeSpec which;
 	 * one.  Else start with the last entry in the list.
 	 */
 		if (index)
-			index = DFTable[index].df_BLink;
+			index = dfe.df_BLink;
 		else if (! (index = last))
 		{
-			dsm_ShmUnlock ();
+			ds_UnlockPlatform (platform);
 			return (0);
 		}
 	/*
 	 * Now we move forward filling the array.
 	 */
-		for (; index && ndone < n; index = DFTable[index].df_BLink)
-			ndone += dfa_DataTimes(index, when, which, n - ndone,
+		for (; index && ndone < n; index = dfe.df_BLink)
+		{
+			ds_GetFileStruct (index, &dfe);
+			ndone += dfa_DataTimes (index, when, which, n - ndone,
 					       rettimes + n - ndone - 1);
-		dsm_ShmUnlock ();
+		}
+		ds_UnlockPlatform (platform);
 	/*
 	 * If we couldn't do it all, copy what we could do forward.
 	 */
@@ -410,11 +534,11 @@ TimeSpec which;
 	 * But that's all.
 	 */
 	   default:
-		msg_ELog (EF_PROBLEM, "Only DsBefore TimeSpec handled");
+		msg_ELog (EF_PROBLEM,
+			"Only DsBefore and dsAfter TimeSpec handled");
 		return (0);
 	}
 }
-
 
 
 
@@ -430,18 +554,19 @@ RGrid *rg;
  * Get the rgrid params for this date.
  */
 {
-	Platform *p = PTable + pid;
+	Platform p;
 	int dfindex;
 /*
  * Make sure this makes sense.
  */
-	if (p->dp_org != Org1dGrid && p->dp_org != Org2dGrid &&
-					p->dp_org != Org3dGrid)
+	ds_GetPlatStruct (pid, &p, FALSE);
+	if (p.dp_org != Org1dGrid && p.dp_org != Org2dGrid &&
+					p.dp_org != Org3dGrid)
 		return (FALSE);
 /*
  * Now find a datafile entry we can use.
  */
-	if ((dfindex = ds_FindDF (pid, when)) < 0)
+	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
 		return (FALSE);
 /*
  * Get the rest from the format-specific code.
@@ -455,6 +580,7 @@ RGrid *rg;
 
 
 
+
 DataOrganization
 ds_PlatformDataOrg(pid)
 PlatformId pid;
@@ -462,8 +588,12 @@ PlatformId pid;
  * Return the organization of the data returned by this platform.
  */
 {
-	return (PTable[pid].dp_org);
+	Platform p;
+	
+	ds_GetPlatStruct (pid, &p, FALSE);
+	return (p.dp_org);
 }
+
 
 
 
@@ -475,6 +605,8 @@ struct message *msg;
  */
 {
 	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
+	struct dsp_DataGone *ddg;
+	int i;
 
 	switch (dt->dsp_type)
 	{
@@ -483,7 +615,14 @@ struct message *msg;
 	 * sure that we close the file and forget about it.
 	 */
 	    case dpt_DataGone:
-		dfa_ForceClose (((struct dsp_DataGone *) dt)->dsp_file);
+		ddg = (struct dsp_DataGone *) dt;
+		dfa_ForceClose (ddg->dsp_file);
+		for (i = 0; i < N_DF_CACHE; i++)
+			if (DFCache[i].df_index == ddg->dsp_file)
+			{
+				DFCache[i].df_index = -1;
+				break;
+			}
 		break;
 	/*
 	 * An application notification has arrived.  Dispatch it back
@@ -502,6 +641,13 @@ struct message *msg;
 	   case dpt_CancelNotify:
 		if (CopyFunc)
 			(*CopyFunc) (msg->m_data);
+		break;
+
+	/*
+	 * Cache invalidations.
+	 */
+	   case dpt_CacheInvalidate:
+	   	ds_ZapCache (&((struct dsp_CacheInvalidate *) dt)->dsp_dfe);
 		break;
 
 	   default:
@@ -530,7 +676,7 @@ int leave;
 	del.dsp_type = dpt_DeleteData;
 	del.dsp_plat = platform;
 	del.dsp_leave = leave;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &del, sizeof (del));
+	ds_SendToDaemon (&del, sizeof (del));
 }
 
 
@@ -550,7 +696,7 @@ int all;
 	req.dsp_type = dpt_Rescan;
 	req.dsp_pid = platform;
 	req.dsp_all = all;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof (req));
+	ds_SendToDaemon (&req, sizeof (req));
 }
 
 
@@ -575,13 +721,14 @@ void (*func) ();
 	req.dsp_type = dpt_NotifyRequest;
 	req.dsp_pid = platform;
 	req.dsp_param = param;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof(req));
+	ds_SendToDaemon (&req, sizeof(req));
 /*
  * Stash away the function so we can call it when the notifications
  * arrive.
  */
 	ApplFuncs[platform] = func;
 }
+
 
 
 
@@ -596,7 +743,7 @@ ds_CancelNotify()
 	int             i;
 
 	req.dsp_type = dpt_CancelNotify;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof (req));
+	ds_SendToDaemon (&req, sizeof (req));
 	for (i = 0; i < MAXPLAT; i++)
 		ApplFuncs[i] = 0;
 }
@@ -633,9 +780,10 @@ void (*handler) ();
 	struct dsp_Template req;
 
 	req.dsp_type = dpt_CopyNotifyReq;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof(req));
+	ds_SendToDaemon (&req, sizeof(req));
 	CopyFunc = handler;
 }
+
 
 
 
@@ -694,10 +842,6 @@ dsDetail *details;
  * Hmm...the getlist is returned in the usual reverse-time order, which 
  * was never a problem in the past.  Now we need to reverse things again.
  */
-# ifdef notdef
-	for (gp = get; gp; gp = gp->gl_next)
-		dfa_GetData (dc, gp, details, ndetail);
-# endif
 	ds_FProcGetList (dc, get, details, ndetail);
 	dgl_ReturnList (get);
 	return (dc);
@@ -754,6 +898,7 @@ dsDetail *details;
 {
 	DataChunk *dc;
 	GetList *get;
+	DataFile dfe;
 /*
  * Make the get list describing where this data has to come from.  Then 
  * expand it to cover the entire file.
@@ -763,8 +908,9 @@ dsDetail *details;
 		msg_ELog (EF_DEBUG, "GetList get failure");
 		return (NULL);
 	}
-	get->gl_begin = DFTable[get->gl_dfindex].df_begin;
-	get->gl_end = DFTable[get->gl_dfindex].df_end;
+	ds_GetFileStruct (get->gl_dfindex, &dfe);
+	get->gl_begin = dfe.df_begin;
+	get->gl_end = dfe.df_end;
 /*
  * Now it is up to the format driver to get ready and create a data 
  * chunk for us.
@@ -800,6 +946,9 @@ int ndetail;
 {
 	int nsample, sample, dfile, nnew = 0, now = 0, olddf = -1, ndone = 0;
 	WriteCode wc;
+	Platform p;
+
+	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 /*
  * For now (and maybe forever) we do the writing one sample at a time,
  * to ease the process of figuring out what goes where.
@@ -810,7 +959,7 @@ int ndetail;
 	/*
 	 * Find a feasible location for this data.
 	 */
-		if (! ds_FindDest (dc, sample, &dfile, &wc,
+		if (! ds_FindDest (dc, &p, sample, &dfile, &wc,
 						newfile && (sample == 0)))
 			continue;	/* Sigh */
 	/*
@@ -818,7 +967,7 @@ int ndetail;
 	 */
 	 	if (wc == wc_NewFile)
 		{
-			if ((dfile = ds_MakeNewFile (dc, sample)) < 0)
+			if ((dfile = ds_MakeNewFile (dc, &p, sample)) < 0)
 				break;	/* Bail completely */
 			wc = wc_Append; /* Now that the file is around */
 		}
@@ -839,7 +988,7 @@ int ndetail;
 	/*
 	 * Fill in the daemon on what we have done.
 	 */
-	 	ds_NotifyDaemon (dfile, dc, now, nnew, sample, 
+	 	ds_NotifyDaemon (&p, dfile, dc, now, nnew, sample, 
 			sample == (nsample - 1));
 		now = nnew = 0;
 	}
@@ -855,8 +1004,9 @@ int ndetail;
 
 
 static int
-ds_FindDest (dc, sample, dfile, wc, newfile)
+ds_FindDest (dc, plat, sample, dfile, wc, newfile)
 DataChunk *dc;
+Platform *plat;
 int sample, *dfile, newfile;
 WriteCode *wc;
 /*
@@ -864,18 +1014,23 @@ WriteCode *wc;
  * Return value is TRUE iff it was possible.
  */
 {
-	int df = LOCALDATA (PTable[dc->dc_Platform]);
-	DataFile *dp;
+	int df = LOCALDATA (*plat);
+	DataFile *dp, dfe;
 	ZebTime when, dftime;
-	Platform *plat = PTable + dc->dc_Platform;
 /*
  * Find the first file in the local list which begins before the time
- * of interest.
+ * of interest.  This may seem like an inefficient search, and I suppose
+ * it, but the fact of the matter is that almost every time we are 
+ * appending data and we'll stop at the first DFE.
  */
+	ds_LockPlatform (dc->dc_Platform);
 	dc_GetTime (dc, sample, &when);
-	for (; df; df = DFTable[df].df_FLink)
-		if (TC_LessEq (DFTable[df].df_begin, when))
+	for (; df; df = dfe.df_FLink)
+	{
+		ds_GetFileStruct (df, &dfe);
+		if (TC_LessEq (dfe.df_begin, when))
 			break;
+	}
 /*
  * If there is none, then this data predates anything we have, so we
  * just return a new file case.
@@ -884,30 +1039,31 @@ WriteCode *wc;
 	{
 		*dfile = -1;
 		*wc = wc_NewFile;
+		ds_UnlockPlatform (dc->dc_Platform);
 		return (TRUE);
 	}
 /*
  * See if the datum actually falls after the end of this dfile (most common
  * case).  If so, we either append or newfile.
  */
-	dp = DFTable + df;
 	*dfile = df;
-	if (TC_Less (dp->df_end, when))
+	if (TC_Less (dfe.df_end, when))
 	{
-		if (! newfile &&
-			 dp->df_nsample < plat->dp_maxsamp &&
-			 (! (plat->dp_flags & DPF_SPLIT) ||
-			 	ds_SameDay (&when, &dp->df_end)) &&
-			 (dp->df_flags & DFF_Archived) == 0)
+		if (! newfile && dfe.df_nsample < plat->dp_maxsamp &&
+				 (! (plat->dp_flags & DPF_SPLIT) ||
+			 	ds_SameDay (&when, &dfe.df_end)) &&
+				 (dfe.df_flags & DFF_Archived) == 0)
 			*wc = wc_Append;
 		else
 			*wc = wc_NewFile;
+		ds_UnlockPlatform (dc->dc_Platform);
 		return (TRUE);
 	}
 /*
  * The simple cases are not to be.  Now we have to see whether we need to be
  * overwriting data, or stuffing it in between.
  */
+	ds_UnlockPlatform (dc->dc_Platform);
 	if (! dfa_DataTimes (df, &when, DsBefore, 1, &dftime) ||
 			! TC_Eq (when, dftime))
 		*wc = wc_Insert;
@@ -937,8 +1093,9 @@ ZebTime *t1, *t2;
 
 
 static int
-ds_MakeNewFile (dc, sample)
+ds_MakeNewFile (dc, plat, sample)
 DataChunk *dc;
+Platform *plat;
 int sample;
 /*
  * Make a new file that will contain this DC and sample.
@@ -946,15 +1103,14 @@ int sample;
 {
 	char fname[256];
 	int newdf;
-	PlatformId plat = dc->dc_Platform;
 	ZebTime when;
 /*
  * Create the new file name and tell the daemon what we have in mind
  * to do.
  */
 	dc_GetTime (dc, sample, &when);
-	dfa_MakeFileName (PTable + plat, &when, fname);
-	if ((newdf = ds_RequestNewDF (plat, fname, &when)) < 0)
+	dfa_MakeFileName (plat, &when, fname);
+	if ((newdf = ds_RequestNewDF (dc->dc_Platform, fname, &when)) < 0)
 		return (-1);
 /*
  * Have DFA get the file made for us.  They use the data object to know which
@@ -962,7 +1118,7 @@ int sample;
  */
 	if (! dfa_CreateFile (newdf, dc, &when))
 	{
-		ds_AbortNewDF (plat, newdf);
+		ds_AbortNewDF (dc->dc_Platform, newdf);
 		return (-1);
 	}
 	return (newdf);
@@ -999,7 +1155,7 @@ ZebTime *t;
 /*
  * Ship it off, and pick out our response.
  */
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &dspcf, sizeof (dspcf));
+	ds_SendToDaemon (&dspcf, sizeof (dspcf));
 	msg_Search (MT_DATASTORE, ds_GetNDFResp, &dspresp);
 	return ((dspresp.dsp_type == dpt_R_NewFileSuccess) ?
 			dspresp.dsp_FileIndex : -1);
@@ -1044,7 +1200,7 @@ int df;
 	abort.dsp_type = dpt_AbortNewFile;
 	abort.dsp_FileIndex = df;
 	abort.dsp_pid = plat;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &abort, sizeof (abort));
+	ds_SendToDaemon (&abort, sizeof (abort));
 }
 
 
@@ -1052,7 +1208,8 @@ int df;
 
 
 static void
-ds_NotifyDaemon (dfile, dc, now, nnew, sample, last)
+ds_NotifyDaemon (p, dfile, dc, now, nnew, sample, last)
+Platform *p;
 int dfile, now, nnew, sample, last;
 DataChunk *dc;
 /*
@@ -1069,11 +1226,11 @@ DataChunk *dc;
 	update.dsp_NSamples = nnew;
 	update.dsp_NOverwrite = now;
 	update.dsp_Last = last;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &update, sizeof(update));
+	ds_SendToDaemon ( &update, sizeof(update));
 /*
  * Then let DFA know that we've signalled a revision on this file.
  */
-	dfa_NoteRevision (dfile);
+	dfa_NoteRevision (p, dfile);
 /*
  * Wait for the update ack.
  */
@@ -1092,9 +1249,14 @@ int junk;
  * See if this is our ack.
  */
 {
-	struct dsp_Template *tmpl = (struct dsp_Template *) msg->m_data;
+	struct dsp_FileStruct *fs = (struct dsp_FileStruct *) msg->m_data;
 
-	return (tmpl->dsp_type != dpt_R_UpdateAck);
+	if (fs->dsp_type == dpt_R_UpdateAck)
+	{
+		ds_ZapCache (&fs->dsp_file);
+		return (0);
+	}
+	return (1);
 }
 
 
@@ -1122,3 +1284,438 @@ SValue *v;
 }
 
 
+
+
+
+int
+ds_GetNPlat ()
+/*
+ * Return the number of platforms known to the system.
+ */
+{
+	struct dsp_Template req;
+	int nplat;
+/*
+ * Send off the request to the daemon.
+ */
+ 	req.dsp_type = dpt_GetNPlat;
+	ds_SendToDaemon ( &req, sizeof(req));
+/*
+ * Now we gotta wait for the answer.
+ */
+	msg_Search (MT_DATASTORE, ds_AwaitNPlat, &nplat);
+	return (nplat);
+}
+
+
+
+
+
+static int
+ds_AwaitNPlat (msg, np)
+Message *msg;
+int *np;
+/*
+ * See if this is our ack.
+ */
+{
+	struct dsp_Template *tmpl = (struct dsp_Template *) msg->m_data;
+
+	if (tmpl->dsp_type == dpt_R_NPlat)
+	{
+		struct dsp_NPlat *dnp = (struct dsp_NPlat *) msg->m_data;
+		*np = dnp->dsp_nplat;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
+void
+ds_GetPlatInfo (pid, pinfo)
+PlatformId pid;
+PlatformInfo *pinfo;
+/*
+ * Get some info about this plat.
+ */
+{
+	Platform plat;
+/*
+ * Get the platform structure and reformat it into the user's structure.
+ */
+	ds_GetPlatStruct (pid, &plat, FALSE);
+	strcpy (pinfo->pl_Name, plat.dp_name);
+	pinfo->pl_NDataSrc = (plat.dp_flags & DPF_REMOTE) ? 2 : 1;
+	pinfo->pl_Mobile = plat.dp_flags & DPF_MOBILE;
+	pinfo->pl_SubPlatform = plat.dp_flags & DPF_SUBPLATFORM;
+	pinfo->pl_Parent = plat.dp_parent;
+}
+
+
+
+
+void
+ds_GetPlatStruct (pid, plat, refresh)
+PlatformId pid;
+Platform *plat;
+bool refresh;
+/*
+ * Get the platform structure for this PID.  Only re-fetch a cached struct
+ * if the "refresh" flag is true.
+ */
+{
+	struct dsp_GetPlatStruct req;
+/*
+ * See if we have it cached and that is sufficient.
+ */
+	if (PlatStructs[pid] && ! refresh)
+	{
+		*plat = *PlatStructs[pid];
+		return;
+	}
+/*
+ * Send off the request and wait for an answer.
+ */
+ 	req.dsp_type = dpt_GetPlatStruct;
+	req.dsp_pid = pid;
+	ds_SendToDaemon ( &req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitPlat, plat);
+/*
+ * Cache the result.
+ */
+	if (! PlatStructs[pid])
+		PlatStructs[pid] = ALLOC (Platform);
+	*PlatStructs[pid] = *plat;
+}
+
+
+
+
+static int
+ds_AwaitPlat (msg, p)
+Message *msg;
+Platform *p;
+/*
+ * See if this is our platform structure.
+ */
+{
+	struct dsp_Template *tmpl = (struct dsp_Template *) msg->m_data;
+
+	if (tmpl->dsp_type == dpt_R_PlatStruct)
+	{
+		struct dsp_PlatStruct *dps = (struct dsp_PlatStruct *) tmpl;
+		*p = dps->dsp_plat;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
+int
+ds_GetDataSource (pid, which, dsi)
+PlatformId pid;
+int which;
+DataSrcInfo *dsi;
+/*
+ * Return information about a data source on this platform.
+ */
+{
+	Platform plat;
+	char *remname;
+/*
+ * We need the platform structure to get anywhere with this.
+ */
+	ds_GetPlatStruct (pid, &plat, TRUE);
+/*
+ * Now see what they want.  This is currently the bleeding edge of the 
+ * "data source" notion, so we fake it from the old scheme.
+ */
+	if (which == 0)		/* local source */
+	{
+		strcpy (dsi->dsrc_Name, "Local");
+		strcpy (dsi->dsrc_Where, plat.dp_dir);
+		dsi->dsrc_Type = dst_Local;
+		dsi->dsrc_FFile = plat.dp_LocalData;
+		return (TRUE);
+	}
+/*
+ * "Remote" directory is 1, if it exists.
+ */
+	if (which != 1 || ! (plat.dp_flags & DPF_REMOTE))
+		return (FALSE);
+	strcpy (dsi->dsrc_Name,
+		(remname = getenv ("REMOTE_NAME")) ? remname : "Secondary");
+	strcpy (dsi->dsrc_Where, plat.dp_rdir);
+	dsi->dsrc_Type = dst_Local;
+	dsi->dsrc_FFile = plat.dp_RemoteData;
+	return (TRUE);
+}
+
+
+
+
+void
+ds_GetFileInfo (index, dfi)
+int index;
+DataFileInfo *dfi;
+/*
+ * Get some info about this file
+ */
+{
+	DataFile df;
+/*
+ * Get the platform structure and reformat it into the user's structure.
+ */
+	ds_GetFileStruct (index, &df);
+	strcpy (dfi->dfi_Name, df.df_name);
+	dfi->dfi_Begin = df.df_begin;
+	dfi->dfi_End = df.df_end;
+	dfi->dfi_NSample = df.df_nsample;
+	dfi->dfi_Plat = df.df_platform;
+	dfi->dfi_Archived = df.df_flags & DFF_Archived;
+	dfi->dfi_Next = df.df_FLink;
+}
+
+
+
+
+void
+ds_GetFileStruct (index, df)
+int index;
+DataFile *df;
+/*
+ * Get the file structure for this index.
+ */
+{
+	struct dsp_GetFileStruct req;
+	int i;
+/*
+ * See if we have this one in the cache.
+ */
+	for (i = 0; i < N_DF_CACHE; i++)
+		if (DFCache[i].df_index == index)
+		{
+			*df = DFCache[i];
+			return;
+		}
+/*
+ * Send off the request and wait for an answer.
+ */
+ 	req.dsp_type = dpt_GetFileStruct;
+	req.dsp_index = index;
+	ds_SendToDaemon ( &req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitFile, df);
+}
+
+
+
+
+static int
+ds_AwaitFile (msg, df)
+Message *msg;
+DataFile *df;
+/*
+ * See if this is our platform structure.
+ */
+{
+	struct dsp_Template *tmpl = (struct dsp_Template *) msg->m_data;
+/*
+ * See if this is it.  If so, add it to the cache and return it.
+ */
+	if (tmpl->dsp_type == dpt_R_FileStruct)
+	{
+		struct dsp_FileStruct *dfs = (struct dsp_FileStruct *) tmpl;
+		DFCache[DFZap++] = *df = dfs->dsp_file;
+		if (DFZap >= N_DF_CACHE)
+			DFZap = 0;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
+static void
+ds_ZapCache (dfe)
+DataFile *dfe;
+/*
+ * Deal with an invalidated cache entry.
+ */
+{
+	int i;
+
+	for (i = 0; i < N_DF_CACHE; i++)
+		if (DFCache[i].df_index == dfe->df_index)
+		{
+			DFCache[i] = *dfe;
+			break;
+		}
+}
+
+
+
+
+
+
+
+void
+ds_LockPlatform (plat)
+PlatformId plat;
+/*
+ * Take out a read lock on this platform.
+ */
+{
+	struct dsp_PLock req;
+/*
+ * If we already have a lock active do nothing.
+ */
+	if (LockCount++)
+		return;
+/*
+ * Send off the lock request, and wait for the answer saying that we
+ * got it.
+ */
+	req.dsp_type = dpt_PLock;
+	req.dsp_pid = plat;
+	ds_SendToDaemon ( &req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitGrant, 0);
+}
+
+
+
+
+
+static int
+ds_AwaitGrant (msg, junk)
+Message *msg;
+int junk;
+/*
+ * Wait for a grant message.
+ */
+{
+	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
+
+	return (dt->dsp_type != dpt_R_PLockGranted);
+}
+
+
+
+
+void
+ds_UnlockPlatform (plat)
+PlatformId plat;
+/*
+ * Release the lock on this platform.
+ */
+{
+	struct dsp_PLock req;
+
+	if (--LockCount)
+		return;	/* not yet */
+	req.dsp_type = dpt_ReleasePLock;
+	req.dsp_pid = plat;
+	ds_SendToDaemon ( &req, sizeof (req));
+}
+
+
+
+
+
+void
+ds_SendToDaemon (msg, len)
+void *msg;
+int len;
+/*
+ * Send a message off to the data store daemon.
+ */
+{
+	static char daemon[80];
+	static int first = TRUE;
+	char *dhost, group[80];
+
+	if (first)
+	{
+		if (dhost = getenv ("DS_DAEMON_HOST"))
+		{
+			sprintf (group, "DataStore@%s", dhost);
+			msg_join (group);
+			strcpy (daemon, "DS_Daemon@");
+			strcat (daemon, dhost);
+		}
+		else
+			strcpy (daemon, "DS_Daemon");
+		first = FALSE;
+	}
+	msg_send (daemon, MT_DATASTORE, FALSE, msg, len);
+}
+
+
+
+
+int
+ds_DataChain (p, which)
+Platform *p;
+int which;
+/*
+ * Return the beginning of the appropriate data chain.
+ */
+{
+	Platform parent;
+/*
+ * If this is a subplatform we refer ourselves to the parent instead.
+ */
+	if (p->dp_flags & DPF_SUBPLATFORM)
+	{
+		ds_GetPlatStruct (p->dp_parent, &parent, TRUE);
+		p = &parent;
+	}
+/*
+ * Now just return what they want.
+ */
+	return (which == 0 ? p->dp_LocalData : p->dp_RemoteData);
+}
+
+
+
+
+
+static void
+ds_GreetDaemon ()
+/*
+ * Say hi to the daemon and check protocol versions.
+ */
+{
+	struct dsp_Template dt;
+
+	dt.dsp_type = dpt_Hello;
+	ds_SendToDaemon (&dt, sizeof (dt));
+	msg_Search (MT_DATASTORE, ds_CheckProtocol, 0);
+}
+
+
+
+static int
+ds_CheckProtocol (msg, junk)
+Message *msg;
+int junk;
+/*
+ * Get the protocol version packet back and check the number.
+ */
+{
+	struct dsp_ProtoVersion *dpv = (struct dsp_ProtoVersion *) msg->m_data;
+
+	if (dpv->dsp_type != dpt_R_ProtoVersion)
+		return (1);
+	if (dpv->dsp_version != DSProtocolVersion)
+	{
+		msg_ELog (EF_PROBLEM, "DS Protocol version mismatch %x vs %x",
+			DSProtocolVersion, dpv->dsp_version);
+		msg_ELog (EF_PROBLEM, "This program should be relinked");
+	}
+	return (0);
+}

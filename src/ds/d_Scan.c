@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.1.1.1 1993-04-02 00:33:48 granger Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.2 1993-04-26 16:00:50 corbet Exp $");
 
 
 /*
@@ -53,7 +53,7 @@ DataScan ()
 /*
  * Do this for every platform.
  */
-	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+	for (plat = 0; plat < NPlatform; plat++)
 	{
 		Platform *p = PTable + plat;
 	/*
@@ -206,7 +206,7 @@ int local;
  * Attempt to pull in a cache file.
  */
 {
-	int fd;
+	int fd, version;
 	char fname[300];
 /*
  * See if we can get the cache file.
@@ -216,6 +216,17 @@ int local;
 	if ((fd = open (fname, O_RDONLY)) < 0)
 	{
 		msg_ELog (EF_DEBUG, "No cache file for %s", p->dp_name);
+		return (FALSE);
+	}
+/*
+ * Pull in the protocol version number.
+ */
+	read (fd, &version, sizeof (int));
+	if (version != DSProtocolVersion)
+	{
+		msg_ELog (EF_PROBLEM, "Cache version mismatch for %s",
+			p->dp_name);
+		close (fd);
 		return (FALSE);
 	}
 /*
@@ -309,7 +320,7 @@ struct dsp_Rescan *req;
 	if (req->dsp_all)
 	{
 		int plat;
-		for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+		for (plat = 0; plat < NPlatform; plat++)
 		{
 			Platform *p = PTable + plat;
 		/*
@@ -395,10 +406,10 @@ WriteCache ()
  * Dump out cache files for all local directores.
  */
 {
-	int plat, fd, df;
+	int plat, fd, df, version = DSProtocolVersion;
 	char fname[300];
 
-	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+	for (plat = 0; plat < NPlatform; plat++)
 	{
 		Platform *p = PTable + plat;
 	/*
@@ -417,6 +428,7 @@ WriteCache ()
 			continue;
 		}
 		msg_ELog (EF_DEBUG, "Cache %s opened", fname);
+		write (fd, &version, sizeof (int));
 	/*
 	 * Follow the chain.
 	 */

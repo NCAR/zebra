@@ -20,11 +20,9 @@
  * maintenance or updates for its software.
  */
 
-
 # include <sys/types.h>
 # include <sys/vfs.h>
 # include <fcntl.h>
-# include <dirent.h>
 # include <errno.h>
 # include <copyright.h>
 # include "config.h"
@@ -35,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.12 1993-02-24 19:57:53 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.13 1993-04-26 16:00:50 corbet Exp $")
 
 
 
@@ -45,9 +43,6 @@ MAKE_RCSID ("$Id: Daemon.c,v 3.12 1993-02-24 19:57:53 corbet Exp $")
 static int 	msg_Handler FP ((struct message *));
 static int	ui_Handler FP ((int, struct ui_command *));
 void		Shutdown FP ((void));
-static void	DataScan FP ((void));
-static void	ScanDirectory FP ((Platform *, int, int));
-static void	ScanFile FP ((Platform *, char *, char *, int, int));
 static void	mh_message FP ((struct message *));
 static void	ds_message FP ((char *, struct dsp_Template *));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
@@ -62,12 +57,17 @@ static int	FreeSpace FP ((int, SValue *, int *, SValue *, int *));
 static int	BCHandler FP ((int, char *, int));
 static void	BCSetup FP ((char *, int));
 static void	RemDataGone FP ((struct dsp_BCDataGone *));
-static void	Rescan FP ((struct dsp_Rescan *));
-static void	RescanPlat FP ((Platform *));
-static int	FileKnown FP ((Platform *, char *, char *, int));
-static void	CleanChain FP ((Platform *, int));
-static void	WriteCache FP ((void));
-static int	LoadCache FP ((Platform *, int));
+static void 	SendNPlat FP ((char *));
+static void	SendPlatStruct FP ((char *, struct dsp_GetPlatStruct *));
+static void	SendFileStruct FP ((char *, int));
+static void	LockPlatform FP ((char *, PlatformId));
+static void	UnlockPlatform FP ((char *, PlatformId, int));
+static int	AwaitUnlock FP ((Message *, int));
+static Lock	*GetLockEntry FP ((void));
+static void	DoLookup FP ((char *, char *));
+static void	FindDF FP ((char *, struct dsp_FindDF *));
+static int	QueryHandler FP ((char *));
+
 
 /*
  * Broadcast stuff.
@@ -82,13 +82,29 @@ int NEvery = 0;
 char *ECmds[MAXEVERY];
 
 /*
+ * Lookaside list for lock structures.
+ */
+static Lock *FreeLocks = 0;
+
+bool InitialScan = TRUE;
+
+/*
  * Caching options.
  */
-static int LDirConst = FALSE;	/* Nothing changes		*/
-static int RDirConst = FALSE;
-static int LFileConst = FALSE;	/* Files don't change (but they	*/
-static int RFileConst = FALSE;	/* can come and go)		*/
-static int CacheOnExit = FALSE;	/* Write cache on way out?	*/
+int LDirConst = FALSE;	/* Nothing changes		*/
+int RDirConst = FALSE;
+int LFileConst = FALSE;	/* Files don't change (but they	*/
+int RFileConst = FALSE;	/* can come and go)		*/
+int CacheOnExit = FALSE;	/* Write cache on way out?	*/
+
+/*
+ * Memory allocation options.
+ */
+int PTableSize = 200;	/* Platform table initial size	*/
+int PTableGrow = 50;	/* Amount to grow by		*/
+int DFTableSize = 2000;	/* Data file table size		*/
+int DFTableGrow = 500;	/* Amount to grow by		*/
+
 
 int DisableRemote = FALSE;
 
@@ -108,6 +124,7 @@ char **argv;
 	msg_connect (msg_Handler, DS_DAEMON_NAME);
 	msg_join ("Client events");
 	msg_DeathHandler (Shutdown);
+	msg_SetQueryHandler (QueryHandler);
 /*
  * Hook into the UI.
  */
@@ -130,8 +147,18 @@ char **argv;
 	usy_c_indirect (vtable, "LFileConst", &LFileConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "RFileConst", &RFileConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "CacheOnExit", &CacheOnExit, SYMT_BOOL, 0);
-	InitSharedMemory ();
-	dt_InitTables ();
+/*
+ * Indirects for the tables too.
+ */
+	usy_c_indirect (vtable, "PTableSize", &PTableSize, SYMT_INT, 0);
+	usy_c_indirect (vtable, "PTableGrow", &PTableGrow, SYMT_INT, 0);
+	usy_c_indirect (vtable, "DFTableSize", &DFTableSize, SYMT_INT, 0);
+	usy_c_indirect (vtable, "DFTableGrow", &DFTableGrow, SYMT_INT, 0);
+/*
+ * Other initialization.
+ */
+/*	InitSharedMemory (); */
+/*	dt_InitTables (); */
 	dap_Init ();
 	uf_def_function ("freespace", 1, &argt, FreeSpace);
 /*
@@ -165,14 +192,13 @@ FinishInit ()
  * Build the data table free list, then fill it up by scanning the disk
  * to see which data is already present.
  */
- 	ShmLock ();
-	dt_FinishTables ();
+	/* dt_FinishTables (); */
 	msg_ELog (EF_INFO, "Starting file scan");
 	tl_Time (&t1);
 	DataScan ();
 	tl_Time (&t2);
 	msg_ELog (EF_INFO, "Scan done, took %d secs", t2.zt_Sec - t1.zt_Sec);
-	ShmUnlock ();
+	InitialScan = FALSE;
 /*
  * If a cleanup_procedure exists, run it now.
  */
@@ -372,352 +398,12 @@ Shutdown ()
 /*
  * Clean up the shared memory segment.
  */
-	ShmCleanup ();
+	/* ShmCleanup (); */
 	exit (0);
 }
 
 
 
-static void
-DataScan ()
-/*
- * Go through the disk and see what data already exists.
- */
-{
-	int plat;
-/*
- * Do this for every platform.
- */
-	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
-	{
-		Platform *p = PTable + plat;
-	/*
-	 * Don't scan subplatforms.
-	 */
-		if (p->dp_flags & DPF_SUBPLATFORM)
-			continue;
-	/*
-	 * Scan the local directory, and the local one if it exists.
-	 */
-		ScanDirectory (p, TRUE, FALSE);
-		if (p->dp_flags & DPF_REMOTE)
-			ScanDirectory (p, FALSE, FALSE);
-	}
-}
-
-
-
-
-static void
-ScanDirectory (p, local, rescan)
-Platform *p;
-bool local, rescan;
-/*
- * Scan a directory for this platform.
- */
-{
-	char *dir = local ? p->dp_dir : p->dp_rdir;
-	DIR *dp = opendir (dir);
-	struct dirent *ent;
-	int cloaded = FALSE;
-/*
- * Make sure there really is a directory.
- */
-	if (! dp)
-	{
-		msg_ELog (EF_PROBLEM,
-			"Data dir %s (plat %s) nonexistent", dir, p->dp_name);
-		if (mkdir (dir, 0777))
-		{
-			msg_ELog (EF_PROBLEM, "...and unable to create.");
-			return;
-		}
-		dp = opendir (dir);
-	}
-/*
- * Try to load a cache file.
- */
-	if (! rescan)
-		cloaded = LoadCache (p, local);
-	if (cloaded && (local ? LDirConst : RDirConst))
-	{
-		closedir (dp);
-		return; /* Cache is gospel in this case */
-	}
-/*
- * Go through the files.
- */
-	while (ent = readdir (dp))
-		ScanFile (p, dir, ent->d_name, local, rescan || cloaded);
-	closedir (dp);
-/*
- * If we loaded a cache, go through and preen out nonexistent files.
- */
-	if (cloaded)
-		CleanChain (p, local ? LOCALDATA (*p) : REMOTEDATA (*p));
-}
-
-
-
-
-
-static void
-ScanFile (p, dir, file, local, rescan)
-Platform *p;
-char *file, *dir;
-bool local, rescan;
-/*
- * Look at this file and see what we think of it.
- */
-{
-	DataFile *df;
-	int ns;
-	char abegin[40], aend[40];
-/*
- * If DFA doesn't recognize it, we don't even bother.
- */
-	if (! dfa_CheckName (p->dp_ftype, file))
-		return;
-/*
- * If this is a rescan, check to see if we already know about this file.
- */
-	if (rescan && FileKnown (p, dir, file, local))
-		return;
-/*
- * Grab a new datafile entry and begin to fill it in.
- */
-	if (! (df = dt_NewFile ()))
-		return;	/* bummer */
-	/* sprintf (df->df_name, "%s/%s", dir, file); */
-	strcpy (df->df_name, file);
-	df->df_flags = DFF_Seen;
-	if (! local)
-		df->df_flags |= DFF_Remote;
-	df->df_platform = p - PTable;
-	df->df_rev = dfa_GetRevision (df);
-/*
- * Find the times for this file.
- */
-	if (! dfa_QueryDate (p->dp_ftype, dfa_FilePath (df), &df->df_begin,
-			&df->df_end, &ns))
-	{
-		msg_ELog (EF_PROBLEM, "File '%s' inaccessible", df->df_name);
-		dt_FreeDFE (df);
-		return;
-	}
-	df->df_nsample = ns;
-/*
- * Debugging is nice sometimes.
- */
- 	TC_EncodeTime (&df->df_begin, TC_Full, abegin);
-	TC_EncodeTime (&df->df_end, TC_TimeOnly, aend);
-	msg_ELog (EF_DEBUG, "%c File '%s', %s to %s ns %d",
-		local ? 'L' : 'C', file, abegin, aend, df->df_nsample);
-# ifdef notdef
-	TC_UIToZt (&begin, &df->df_begin);
-	TC_UIToZt (&end, &df->df_end);
-# endif
-/*
- * Finish the fillin and add it to this platform's list.
- */
-	df->df_ftype = p->dp_ftype;
-	dt_AddToPlatform (p, df, local);
-/*
- * This is a rather ugly kludge.....if this becomes the most recent file
- * for this platform, send out a notification for it.
- */
-	if (rescan && LOCALDATA(*p) == (df - DFTable))
-		dap_Notify (df->df_platform, &df->df_end, ns, 0, TRUE);
-}
-
-
-
-
-static int
-LoadCache (p, local)
-Platform *p;
-int local;
-/*
- * Attempt to pull in a cache file.
- */
-{
-	int fd;
-	char fname[300];
-/*
- * See if we can get the cache file.
- */
-	strcpy (fname, local ? p->dp_dir : p->dp_rdir);
-	strcat (fname, "/.ds_cache");
-	if ((fd = open (fname, O_RDONLY)) < 0)
-	{
-		msg_ELog (EF_DEBUG, "No cache file for %s", p->dp_name);
-		return (FALSE);
-	}
-/*
- * OK, we got one.  Now plow through it and load all the files.
- */
-	msg_ELog (EF_DEBUG, "Loading %s cache", p->dp_name);
-	for (;;)
-	{
-		DataFile *df = dt_NewFile ();
-	/*
-	 * Get the next entry and add it to the list.
-	 */
-		if (read (fd, df, sizeof (DataFile)) < sizeof (DataFile))
-		{
-			dt_FreeDFE (df);
-			close (fd);
-			return (TRUE);
-		}
-	/*
-	 * Get the remote flag right, since the point of view of the 
-	 * process that wrote the cache may not agree with our own.
-	 */
-		df->df_flags &= ~DFF_Seen;
-	 	if (! local)
-			df->df_flags |= DFF_Remote;
-		dt_AddToPlatform (p, df, local);
-	}
-}
-
-
-
-
-
-static int
-FileKnown (p, dir, file, local)
-Platform *p;
-char *dir, *file;
-bool local;
-/*
- * See if we already know about this file.
- */
-{
-	int dfi = local ? LOCALDATA (*p) : REMOTEDATA (*p);
-	int isconst = local ? LFileConst : RFileConst;
-/*
- * Just pass through the list and see if we find it.
- */
-	for (; dfi; dfi = DFTable[dfi].df_FLink)
-		if (! strcmp (DFTable[dfi].df_name, file))
-			break;
-	if (! dfi)
-	{
-		msg_ELog (EF_DEBUG, "New file %s/%s", p->dp_name, file);
-		return (FALSE);
-	}
-/*
- * Now we need to see if maybe the file has changed on is.  If so,
- * we zap it from the list and start over.
- */
-	msg_ELog (EF_DEBUG, "File %s known dfi %d", file, dfi);
-	DFTable[dfi].df_flags |= DFF_Seen;
-	if (isconst || (dfa_GetRevision(DFTable + dfi) == DFTable[dfi].df_rev))
-		return (TRUE);
-	msg_ELog (EF_DEBUG, "File %s changed", file);
-	dt_RemoveDFE (p, dfi);
-	return (FALSE);
-}
-
-
-
-
-
-
-
-static void
-Rescan (req)
-struct dsp_Rescan *req;
-/*
- * Implement the rescan request.
- */
-{
-/*
- * Reset the "file constant" flags -- we always want to check on a rescan.
- */
-	LFileConst = RFileConst = FALSE;
-/*
- * If they want everything done, then we need to pass through the list.
- */
-	if (req->dsp_all)
-	{
-		int plat;
-		for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
-		{
-			Platform *p = PTable + plat;
-		/*
-		 * Don't scan subplatforms.
-		 */
-			if ((p->dp_flags & DPF_SUBPLATFORM) == 0)
-				RescanPlat (p);
-		}
-	}
-/*
- * Otherwise just do the one they asked for.
- */
-	else
-		RescanPlat (PTable + req->dsp_pid);
-}
-
-
-
-
-static void
-RescanPlat (p)
-Platform *p;
-/*
- * Rescan the files for this platform.
- */
-{
-	int dfindex;
-/*
- * Go through and clear the "seen" flags.
- */
-	for (dfindex = LOCALDATA (*p); dfindex;
-				dfindex = DFTable[dfindex].df_FLink)
-		DFTable[dfindex].df_flags &= ~DFF_Seen;
-	for (dfindex = REMOTEDATA (*p); dfindex;
-				dfindex = DFTable[dfindex].df_FLink)
-		DFTable[dfindex].df_flags &= ~DFF_Seen;
-/*
- * Rescan the directory(ies).
- */
-	ScanDirectory (p, TRUE, TRUE);
-	if (p->dp_flags & DPF_REMOTE && ! RDirConst)
-		ScanDirectory (p, FALSE, TRUE);
-/*
- * Now get rid of anything that has disappeared.
- */
-	CleanChain (p, LOCALDATA (*p));
-	if (p->dp_flags & DPF_REMOTE && ! RDirConst)
-		CleanChain (p, REMOTEDATA (*p));
-}
-
-
-
-
-
-static void
-CleanChain (p, chain)
-Platform *p;
-int chain;
-/*
- * Get rid of vanished files in this chain.
- */
-{
-	int dfi, next;
-
-	for (dfi = chain; dfi; dfi = next)
-	{
-		next = DFTable[dfi].df_FLink;
-		if ((DFTable[dfi].df_flags & DFF_Seen) == 0)
-		{
-			msg_ELog (EF_DEBUG, "File %s disappeared",
-				DFTable[dfi].df_name);
-			dt_RemoveDFE (p, dfi);
-		}
-	}
-}
 
 
 
@@ -731,6 +417,7 @@ struct message *msg;
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
 	struct mh_client *client;
+	int i;
 
 	switch (tm->mh_type)
 	{
@@ -746,8 +433,13 @@ struct message *msg;
 	   case MH_CLIENT:
 		client = (struct mh_client *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
+		{
 			dap_Cancel (client->mh_client,
 					(struct dsp_Template *) tm);
+			for (i = 0; i < NPlatform; i++)
+				if (PTable[i].dp_RLockQ)
+					UnlockPlatform (client->mh_client,i,0);
+		}
 		break;
 
 	   default:
@@ -768,6 +460,7 @@ struct dsp_Template *dt;
  */
 {
 	struct dsp_MarkArchived *dma;
+	struct dsp_ProtoVersion dpv;
 
 	switch (dt->dsp_type)
 	{
@@ -824,6 +517,48 @@ struct dsp_Template *dt;
 	   	Rescan ((struct dsp_Rescan *) dt);
 		break;
 	/*
+	 * Platform info.
+	 */
+	   case dpt_GetNPlat:
+	   	SendNPlat (from);
+		break;
+	   case dpt_GetPlatStruct:
+	   	SendPlatStruct (from, ((struct dsp_GetPlatStruct *) dt));
+		break;
+	   case dpt_GetFileStruct:
+	   	SendFileStruct (from,
+			((struct dsp_GetFileStruct *) dt)->dsp_index);
+		break;
+	/*
+	 * Locking.
+	 */
+	   case dpt_PLock:
+	   	LockPlatform (from, ((struct dsp_PLock *) dt)->dsp_pid);
+		break;
+	   case dpt_ReleasePLock:
+	   	UnlockPlatform (from, ((struct dsp_PLock *) dt)->dsp_pid, 1);
+		break;
+	/*
+	 * Platform lookup.
+	 */
+	   case dpt_LookupPlatform:
+	   	DoLookup (from, ((struct dsp_PLookup *) dt)->dsp_name);
+		break;
+	/*
+	 * Find a data file based on time.
+	 */
+	   case dpt_FindDF:
+	   	FindDF (from, (struct dsp_FindDF *) dt);
+		break;
+	/*
+	 * Greeting.
+	 */
+	   case dpt_Hello:
+	   	dpv.dsp_type = dpt_R_ProtoVersion;
+		dpv.dsp_version = DSProtocolVersion;
+		msg_send (from, MT_DATASTORE, FALSE, &dpv, sizeof (dpv));
+		break;
+	/*
 	 * Chaos.
 	 */
 	   default:
@@ -865,7 +600,7 @@ struct dsp_CreateFile *request;
 /*
  * Fill in the info and hook it into the platform.
  */
-	ShmLock ();
+	ClearLocks (PTable + request->dsp_plat);
 	strcpy (new->df_name, request->dsp_file);
 	new->df_begin = new->df_end = request->dsp_time;
 	new->df_rev = 0;
@@ -873,7 +608,6 @@ struct dsp_CreateFile *request;
 	new->df_platform = request->dsp_plat;
 	new->df_ftype = PTable[request->dsp_plat].dp_ftype;
 	PTable[request->dsp_plat].dp_Tfile = new - DFTable;
-	ShmUnlock ();
 /*
  * Respond back to the requester and quit.
  */
@@ -921,7 +655,7 @@ struct dsp_UpdateFile *request;
 	DataFile *df = DFTable + request->dsp_FileIndex;
 	Platform *plat = PTable + df->df_platform;
 	int append = FALSE;
-	struct dsp_Template ack;
+	struct dsp_FileStruct ack;
 /*
  * Mark the changes in the datafile entry.  Update the rev count so that
  * reader processes know things have changed.
@@ -929,7 +663,7 @@ struct dsp_UpdateFile *request;
 	msg_ELog (EF_DEBUG, "Update file %d plat %s, ns %d, ow %d last %d", 
 		request->dsp_FileIndex, plat->dp_name, request->dsp_NSamples,
 		request->dsp_NOverwrite, request->dsp_Last);
-	ShmLock ();
+	ClearLocks (plat);
 	if (TC_Less (df->df_end, request->dsp_EndTime))
 	{
 		df->df_end = request->dsp_EndTime;
@@ -939,7 +673,7 @@ struct dsp_UpdateFile *request;
 	}
 	df->df_nsample += request->dsp_NSamples;
 	/* df->df_rev++; */
-	df->df_rev = dfa_GetRevision (df);
+	df->df_rev = dfa_GetRevision (plat, df);
 	plat->dp_NewSamps += request->dsp_NSamples;
 	plat->dp_OwSamps += request->dsp_NOverwrite;
 /*
@@ -951,17 +685,18 @@ struct dsp_UpdateFile *request;
 		plat->dp_Tfile = 0;
 		dt_AddToPlatform (plat, df, TRUE);
 	}
-	ShmUnlock ();
 /*
  * Send an ack back to the updating process.
  */
 	ack.dsp_type = dpt_R_UpdateAck;
+	ack.dsp_file = *df;
 	msg_send (from, MT_DATASTORE, FALSE, &ack, sizeof (ack));
 /*
  * Now we do data available notifications.
  */
 	if (request->dsp_Last)
 	{
+		CacheInvalidate (df - DFTable);
 		dap_Notify (df->df_platform, &df->df_end, plat->dp_NewSamps,
 				plat->dp_OwSamps, append);
 		plat->dp_NewSamps = plat->dp_OwSamps = 0;
@@ -1008,7 +743,7 @@ int sub;
  * Now we go through and remove every file which ends before this time.
  */
 	last = index;
-	ShmLock ();
+	ClearLocks (p);
 	while (index)
 	{
 		DataFile *df = DFTable + index;
@@ -1035,7 +770,6 @@ int sub;
 			index = DFTable[last].df_FLink = df->df_FLink;
 		ZapDF (df);
 	}
-	ShmUnlock ();
 }
 
 
@@ -1111,7 +845,7 @@ DataFile *df;
  */
 	dfa_ForceClose (df - DFTable);
 	if (! (df->df_flags & DFF_Remote))
-		if (unlink (dfa_FilePath (df)) < 0)
+		if (unlink (dfa_FilePath (PTable + df->df_platform, df)) < 0)
 			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", errno,
 				df->df_name);
 	dt_FreeDFE (df);
@@ -1183,7 +917,7 @@ struct ui_command *cmds;
 /*
  * Otherwise we go through the list and do everything.
  */
-	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+	for (plat = 0; plat < NPlatform; plat++)
 		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
 			dp_DeleteData (PTable + plat,
 				seconds > 0 ? seconds : PTable[plat].dp_keep);
@@ -1218,39 +952,323 @@ union usy_value *argv, *rv;
 
 
 
+
+
+
+
 static void
-WriteCache ()
+SendNPlat (to)
+char *to;
 /*
- * Dump out cache files for all local directores.
+ * Tell this person how many platforms we have.
  */
 {
-	int plat, fd, df;
-	char fname[300];
+	struct dsp_NPlat np;
 
-	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+	np.dsp_type = dpt_R_NPlat;
+	np.dsp_nplat = NPlatform;
+	msg_send (to, MT_DATASTORE, FALSE, &np, sizeof (np));
+}
+
+
+
+
+
+static void
+SendPlatStruct (to, req)
+char *to;
+struct dsp_GetPlatStruct *req;
+/*
+ * Answer this platform structure request.
+ */
+{
+	struct dsp_PlatStruct answer;
+
+	answer.dsp_type = dpt_R_PlatStruct;
+	answer.dsp_plat = PTable[req->dsp_pid];
+	msg_send (to, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+static void
+SendFileStruct (to, index)
+char *to;
+int index;
+/*
+ * Send off this file structure.
+ */
+{
+	struct dsp_FileStruct answer;
+
+	answer.dsp_type = dpt_R_FileStruct;
+	answer.dsp_file = DFTable[index];
+	msg_send (to, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+
+static Lock *
+GetLockEntry ()
+/*
+ * Get a free lock entry.
+ */
+{
+	if (FreeLocks)
 	{
-		Platform *p = PTable + plat;
-	/*
-	 * We don't dump subplatforms.
-	 */
-		if (p->dp_flags & DPF_SUBPLATFORM)
-			continue;
-	/*
-	 * Create the dump file.
-	 */
-		sprintf (fname, "%s/.ds_cache", p->dp_dir);
-		if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0)
-		{
-			msg_ELog (EF_PROBLEM, "Error %d opening %s", errno,
-					fname);
-			continue;
-		}
-		msg_ELog (EF_DEBUG, "Cache %s opened", fname);
-	/*
-	 * Follow the chain.
-	 */
-	 	for (df = LOCALDATA (*p); df; df = DFTable[df].df_FLink)
-			write (fd, DFTable + df, sizeof (DataFile));
-		close (fd);
+		Lock *ret = FreeLocks;
+		FreeLocks = FreeLocks->l_Next;
+		return (ret);
 	}
+	return ((Lock *) malloc (sizeof (Lock)));
+}
+
+
+
+
+
+static void
+LockPlatform (who, which)
+char *who;
+PlatformId which;
+/*
+ * Lock platform WHICH for WHO.
+ */
+{
+	Lock *lp;
+	Platform *p = PTable + which;
+	struct dsp_PLock answer;
+/*
+ * Do some testing for a case we are not prepared to handle.  Multiple locks
+ * will work *most* of the time, so long as they unlock the same number of
+ * times.  But if the daemon is waiting for an unlock on this platform, 
+ * things will hang.
+ */
+	msg_ELog (EF_DEBUG, "Read lock on %s by %s", p->dp_name, who);
+	for (lp = p->dp_RLockQ; lp; lp = lp->l_Next)
+		if (! strcmp (who, lp->l_Owner))
+		{
+			msg_ELog (EF_PROBLEM, "Multiple lock on %s by %s",
+				p->dp_name, who);
+			break;
+		}
+/*
+ * Fill in the lock structure.  Avoid the overhead for the time field, at
+ * least until experience shows that we need it.
+ */
+	lp = GetLockEntry ();
+	strcpy (lp->l_Owner, who);
+	/* tl_Time (lp->l_When); */
+	lp->l_Next = p->dp_RLockQ;
+	p->dp_RLockQ = lp;
+/*
+ * Send an answer back to the process telling them to proceed.
+ */
+	answer.dsp_type = dpt_R_PLockGranted;
+	answer.dsp_pid = which;
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+static void
+UnlockPlatform (who, which, expect)
+char *who;
+PlatformId which;
+int expect;
+/*
+ * Release a lock on this platform.
+ */
+{
+	Lock *lp, *zap;
+	Platform *p = PTable + which;
+
+	msg_ELog (EF_DEBUG, "Lock on %s released by %s", p->dp_name, who);
+/*
+ * Find the structure for the lock held by this process and remove it.
+ */
+	if ((zap = p->dp_RLockQ) && ! strcmp (zap->l_Owner, who))
+		p->dp_RLockQ = zap->l_Next;
+	else
+	{
+		for (lp = p->dp_RLockQ; lp && lp->l_Next; lp = lp->l_Next)
+			if (! strcmp (lp->l_Next->l_Owner, who))
+				break;
+		if (! lp || ! lp->l_Next)
+		{
+			if (expect)
+				msg_ELog (EF_PROBLEM,
+					"Lock for %s on %s missing", who,
+					p->dp_name);
+			return;
+		}
+		zap = lp->l_Next;
+		lp->l_Next = zap->l_Next;
+	}
+/*
+ * Put the zapped entry onto the free list.
+ */
+	zap->l_Next = FreeLocks;
+	FreeLocks = zap;
+}
+
+
+
+
+void
+ClearLocks (p)
+Platform *p;
+/* 
+ * Wait until all locks on this platform are clear.
+ */
+{
+	while (p->dp_RLockQ)
+		msg_Search (MT_DATASTORE, AwaitUnlock, 0);
+}
+
+
+
+
+
+static int
+AwaitUnlock (msg, junk)
+Message *msg;
+int junk;
+/*
+ * Process another message in the hope that it will unlock something.
+ */
+{
+	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
+	int ret = 1;
+/*
+ * Essentially we pass through all of the data store protocol messages
+ * that we can safely service without threat of deadlock, and drop out 
+ * whenever we hit an unlock.
+ */
+	switch (dt->dsp_type)
+	{
+	   case dpt_ReleasePLock:
+	   	ret = 0;
+	   case dpt_NotifyRequest:
+	   case dpt_CancelNotify:
+	   case dpt_CopyNotifyReq:
+	   case dpt_MarkArchived:
+	   case dpt_GetNPlat:
+	   case dpt_GetPlatStruct:
+	   case dpt_GetFileStruct:
+	   	ds_message (msg->m_from, dt);
+		return (ret);
+
+	   default:
+	   	return (1);
+	}
+}
+
+
+
+
+
+static void
+DoLookup (who, plat)
+char *who, *plat;
+/*
+ * Look up this platform for somebody.
+ */
+{
+	Platform *p = dt_FindPlatform (plat, FALSE);
+	struct dsp_PID answer;
+
+	answer.dsp_type = dpt_R_PID;
+	answer.dsp_pid = p ? (p - PTable) : BadPlatform;
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+
+static void
+FindDF (who, req)
+char *who;
+struct dsp_FindDF *req;
+/*
+ * Find a data file entry based on time.
+ */
+{
+	int dfe = LOCALDATA (PTable[req->dsp_pid]);
+	struct dsp_R_DFI answer;
+/*
+ * Search the platform's local list first.
+ */
+	for (; req->dsp_src <= 0 && dfe; dfe = DFTable[dfe].df_FLink)
+		if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
+			break;
+/*
+ * If we didn't find the data locally, see if there's anything in the
+ * remote data table.
+ */
+	if (! dfe && (req->dsp_src == 1 || req->dsp_src == SRC_ALL))
+	{
+		for (dfe = REMOTEDATA (PTable[req->dsp_pid]); dfe;
+				dfe = DFTable[dfe].df_FLink)
+			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
+				break;
+	}
+/*
+ * Now return our answer.
+ */
+	answer.dsp_type = dpt_R_DFIndex;
+	answer.dsp_index = (dfe) ? dfe : -1;
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+
+void
+CacheInvalidate (index)
+int index;
+/*
+ * Invalidate cache entries for this index.
+ */
+{
+	struct dsp_CacheInvalidate msg;
+/*
+ * Nobody has a cache before the initial scan is done, so there is no
+ * point in creating unbelievable amounts of traffic.
+ */
+	if (! InitialScan)
+	{
+		msg.dsp_type = dpt_CacheInvalidate;
+		msg.dsp_dfe = DFTable[index];
+		msg_send ("DataStore", MT_DATASTORE, TRUE, &msg, sizeof (msg));
+	}
+}
+
+
+
+
+
+static int
+QueryHandler (who)
+char *who;
+/*
+ * Handle a zquery.
+ */
+{
+	char buf[120];
+
+	msg_AnswerQuery (who, "Zeb data store daemon");
+	sprintf (buf, "%d Platforms used of %d allocated", NPlatform,
+		PTableSize);
+	msg_AnswerQuery (who, buf);
+	sprintf (buf, "%d DataFile entries used of %d", NDTEUsed,
+		DFTableSize);
+	msg_AnswerQuery (who, buf);
+	msg_FinishQuery (who);
 }

@@ -19,12 +19,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 3.3 1992-11-24 00:14:28 granger Exp $";
+static char *rcsid = "$Id: GetList.c,v 3.4 1993-04-26 16:00:50 corbet Exp $";
 
 # include "defs.h"
 # include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
+# define NO_SHM
 # include "dslib.h"
 
 
@@ -38,7 +39,7 @@ static GetList	*dgl_GetEntry FP ((void));
 static void	dgl_ReturnEntry FP ((GetList *));
 static int	dgl_DoList FP ((int, GetList *));
 static int	dgl_Overlaps FP ((GetList *, DataFile *));
-static GetList	*dgl_FixList FP ((GetList *, DataFile *, int *));
+static GetList	*dgl_FixList FP ((GetList *, int, DataFile *, int *));
 
 
 
@@ -105,7 +106,8 @@ ZebTime *begin, *end;
  */
 {
 	GetList *list, *l, *zap;
-	Platform *p = PTable + pid;
+	Platform p;
+	int startdf;
 /*
  * Make an initial, unsatisfied entry.
  */
@@ -117,10 +119,11 @@ ZebTime *begin, *end;
 /*
  * Now try to satisfy it against the platform lists.
  */
-	dsm_ShmLock ();
-	if (! dgl_DoList (LOCALDATA (*p), list))
-		dgl_DoList (REMOTEDATA (*p), list);
-	dsm_ShmUnlock ();
+	ds_LockPlatform (pid);
+	ds_GetPlatStruct (pid, &p, TRUE);
+	if (! dgl_DoList (ds_FindDF (pid, end, 0), list))
+		dgl_DoList (ds_FindDF (pid, end, 1), list);
+	ds_UnlockPlatform (pid);
 /*
  * Remove any unsatisfied elements at the beginning of the list.
  */
@@ -163,6 +166,7 @@ GetList *list;
  */
 {
 	int ret = TRUE, dp;
+	DataFile dfe;
 
 	while (list)
 	{
@@ -182,9 +186,17 @@ GetList *list;
 	 * (Smarter means not passing over the files that we have already
 	 *  been over N times satisfying earlier getlist entries.)
 	 */
-	 	for (dp = data; dp; dp = DFTable[dp].df_FLink)
-			if (dgl_Overlaps (list, DFTable + dp))
+	 	for (dp = data; dp; dp = dfe.df_FLink)
+		{
+			ds_GetFileStruct (dp, &dfe);
+			if (dgl_Overlaps (list, &dfe))
 				break;
+			if (TC_Less (dfe.df_end, list->gl_begin))
+			{
+				dp = 0;	/* Never will find it here */
+				break;
+			}
+		}
 	/*
 	 * If we found nothing, this entry can not be satisfied, so we bail.
 	 */
@@ -197,7 +209,7 @@ GetList *list;
 	 * We found something.  Rework the list as appropriate.
 	 */
 	 	else
-			list = dgl_FixList (list, DFTable + dp, &ret);
+			list = dgl_FixList (list, dp, &dfe, &ret);
 	}
 	return (ret);
 }
@@ -232,10 +244,10 @@ DataFile *dp;
 
 
 static GetList *
-dgl_FixList (gp, dp, complete)
+dgl_FixList (gp, dfindex, dp, complete)
 GetList *gp;
 DataFile *dp;
-int *complete;
+int *complete, dfindex;
 /*
  * Fix up the getlist to reflect what this datafile can do for us.  The
  * current entry is split if necessary.  COMPLETE is set FALSE iff there
@@ -267,7 +279,7 @@ int *complete;
  * Mark it accordingly.  If we can go all the way back to the beginning, 
  * we're done.
  */
-	gp->gl_dfindex = dp - DFTable;
+	gp->gl_dfindex = dfindex;
 	gp->gl_dfuse = dp->df_use;
 	gp->gl_flags |= GLF_SATISFIED;
 	if (TC_LessEq (dp->df_begin, gp->gl_begin))

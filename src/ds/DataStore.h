@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.7 1993-02-26 22:58:42 burghart Exp $
+ * $Id: DataStore.h,v 3.8 1993-04-26 16:00:50 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -273,10 +273,64 @@ unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
 			RGrid *, int *, ScaleInfo *));
 
 
+/**************************************************************************
+ * Other structures used at the data store application interface level.
+ */
 
+/*
+ * The platform information structure for application queries.
+ */
+# define P_NAMELEN 80		/* Mirrors that in dsPrivate.h		*/
+
+typedef struct s_PlatformInfo
+{
+	char	pl_Name[P_NAMELEN];	/* Name of this platform	*/
+	int	pl_NDataSrc;		/* How many data sources	*/
+	bool	pl_Mobile;		/* Does it move?		*/
+	bool	pl_SubPlatform;		/* Is it a subplat?		*/
+	PlatformId pl_Parent;		/* Parent plat for subplats	*/
+} PlatformInfo;;
+
+/*
+ * Types of data sources.  This definition will move elsewhere some day 
+ * as the data source notion moves back.
+ */
+typedef enum
+{
+	dst_Local,		/* Local disk source	*/
+	dst_NFS,		/* Remotely mounted fs	*/
+} DataSrcType;
 
 
 /*
+ * The platform data source structure.
+ */
+typedef struct s_DataSrcInfo
+{
+	char	dsrc_Name[P_NAMELEN];	/* Name of the data source	*/
+	char	dsrc_Where[P_NAMELEN];	/* Where it lives		*/
+	DataSrcType dsrc_Type;		/* Type of this data source	*/
+	int	dsrc_FFile;		/* First file ID		*/
+} DataSrcInfo;
+
+
+/*
+ * The application-visible notion of a data file.
+ */
+typedef struct s_DataFileInfo
+{
+	char	dfi_Name[P_NAMELEN];	/* Name of this file		*/
+	ZebTime	dfi_Begin;		/* Begin time			*/
+	ZebTime dfi_End;		/* End time			*/
+	int	dfi_NSample;		/* How many samples		*/
+	PlatformId dfi_Plat;		/* It's platform		*/
+	bool	dfi_Archived;		/* Has been archived?		*/
+	int	dfi_Next;		/* Next file in chain		*/
+} DataFileInfo;
+
+
+
+/**************************************************************************
  * General data store application interface routines.
  */
 int		ds_Initialize FP ((void));
@@ -299,5 +353,11 @@ int		ds_GetObsTimes FP ((PlatformId, ZebTime *, ZebTime *, int,
 			char *));
 bool		ds_GetRgridParams FP ((PlatformId, ZebTime *, Location *,
 			RGrid *));
+int		ds_GetNPlat FP ((void));
+void		ds_GetPlatInfo FP ((PlatformId, PlatformInfo *));
+int		ds_GetDataSource FP ((PlatformId, int, DataSrcInfo *));
+void		ds_GetFileInfo FP ((int, DataFileInfo *));
+void		ds_LockPlatform FP ((PlatformId));
+void		ds_UnlockPlatform FP ((PlatformId));
 
 # endif  /* _DATACHUNK_H_ */

@@ -30,9 +30,10 @@
 # include "../include/message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
+# define KLUDGE_SHM
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: SharedMemory.c,v 2.3 1992-12-23 16:51:24 corbet Exp $")
+MAKE_RCSID ("$Id: SharedMemory.c,v 2.4 1993-04-26 16:00:50 corbet Exp $")
 
 
 /*

@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.9 1992-12-11 17:43:06 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.10 1993-04-26 16:00:50 corbet Exp $");
 
 
 /*
@@ -197,7 +197,7 @@ char **rtag;
 	hdr->znh_Free = -1;
 	hdr->znh_NFree = hdr->znh_NFreeB = hdr->znh_Len = 0;
 	hdr->znh_NSample = hdr->znh_NField = 0;
-	hdr->znh_Org = PTable[df->df_platform].dp_org;
+	hdr->znh_Org = ds_PlatformDataOrg (df->df_platform);
 	hdr->znh_OffLoc = -1;
 	hdr->znh_OffGlAttr = hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
@@ -592,9 +592,12 @@ WriteCode wc;
 	   case OrgScalar:
 	   	zn_WrScalar (tag, dc, fsample, sample, samp, wc, index,
 				fids, nfield);
+	   	break;
+
 	   case OrgFixedScalar:
 	   	zn_WrFixScalar (tag, dc, fsample, sample, samp, wc, index,
 				fids, nfield);
+		break;
 
 	   case OrgTransparent:
 	   	zn_WrTrans (tag, dc, fsample, sample, samp, wc);

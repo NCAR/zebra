@@ -32,11 +32,13 @@
 # include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
+# define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.7 1993-01-10 08:18:45 burghart Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.8 1993-04-26 16:00:50 corbet Exp $")
 
 
+void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
 
 /*
  * This is the structure which describes a format.
@@ -368,10 +370,9 @@ typedef struct _OpenFile
 	int	of_lru;			/* Access count			*/
 	void	*of_tag;		/* Format-specific tag		*/
 	int	of_dfindex;		/* DF structure index		*/
-	int	of_format;		/* Format type			*/
 	struct _OpenFile *of_next;	/* Next in chain		*/
-	long	of_rev;			/* Revision count		*/
 	int	of_write;		/* File open for write access	*/
+	DataFile of_dfe;		/* The data file entry		*/
 } OpenFile;
 
 static OpenFile *OpenFiles = 0;		/* Open file list head		*/
@@ -469,7 +470,12 @@ Location *locs;
  * Return sample info from this observation.
  */
 {
-	FileType ft = DFTable[dfile].df_ftype;
+	FileType ft;
+	DataFile dfe;
+
+	ds_GetFileStruct (dfile, &dfe);
+	ft = dfe.df_ftype;
+
 	return (Formats[ft].f_GetObsSamples ?
 		((*Formats[ft].f_GetObsSamples)(dfile, times, locs, max)) : 0);
 }
@@ -488,7 +494,11 @@ FieldId *flist;
  * Return the available fields.
  */
 {
-	FileType ft = DFTable[dfile].df_ftype;
+	FileType ft;
+	DataFile dfe;
+
+	ds_GetFileStruct (dfile, &dfe);
+	ft = dfe.df_ftype;
 
 	return (Formats[ft].f_GetFields ?
 		((*Formats[ft].f_GetFields) (dfile, t, nfld, flist)) : 0);
@@ -505,7 +515,11 @@ ZebTime *t;
  * Get the attributes for this time if we can.
  */
 {
-	FileType ft = DFTable[dfile].df_ftype;
+	FileType ft;
+	DataFile dfe;
+
+	ds_GetFileStruct (dfile, &dfe);
+	ft = dfe.df_ftype;
 
 	return (Formats[ft].f_GetAttrs ?
 		(*Formats[ft].f_GetAttrs) (dfile, t, len) : 0);
@@ -541,17 +555,13 @@ DataClass class;
  * Set up to grab the data described by this GetList entry.
  */
 {
-	DataFile *dp = DFTable + gl->gl_dfindex;
+	FileType ft;
+	DataFile dfe;
 
-	return ((*Formats[dp->df_ftype].f_Setup) (gl, fields, nfield, class));
+	ds_GetFileStruct (gl->gl_dfindex, &dfe);
+	ft = dfe.df_ftype;
 
-# ifdef notdef
-	if (dp->df_use != gl->gl_dfuse)
-		msg_ELog (EF_INFO, "File '%s' use change: %d %d", dp->df_name,
-			gl->gl_dfuse, dp->df_use);
-	else
-		(*Formats[dp->df_ftype].f_Setup) (gl);
-# endif
+	return ((*Formats[ft].f_Setup) (gl, fields, nfield, class));
 }
 
 
@@ -569,23 +579,12 @@ int ndetail;
  * Get the data from this getlist entry.
  */
 {
-	DataFile *dp = DFTable + gl->gl_dfindex;
+	DataFile dfe;
+	ds_GetFileStruct (gl->gl_dfindex, &dfe);
 /*
  * Do the snarf.
  */
-	(*Formats[dp->df_ftype].f_GetData) (dc, gl, details, ndetail);
-/*
- * For some orgs, get the location info.
- */
-# ifdef notdef
-	if (! gl->gl_next)	/* Kludge: last one only */
-		switch (gl->gl_dobj->do_org)
-		{
-		   case OrgIRGrid:
-		   	(*Formats[dp->df_ftype].f_GetIRGLoc) (gl->gl_dfindex,
-				gl->gl_dobj->do_desc.d_irgrid.ir_loc);
-		}
-# endif
+	(*Formats[dfe.df_ftype].f_GetData) (dc, gl, details, ndetail);
 }
 
 
@@ -615,8 +614,10 @@ WriteCode wc;
  * Add data to this file.
  */
 {
-	return ((*Formats[DFTable[dfile].df_ftype].f_PutSample)
-						(dfile, dc, sample,wc));
+	DataFile dfe;
+	ds_GetFileStruct (dfile, &dfe);
+
+	return ((*Formats[dfe.df_ftype].f_PutSample) (dfile, dc, sample,wc));
 }
 
 
@@ -628,10 +629,11 @@ int index;
  * Find out how many platforms are here.
  */
 {
-	DataFile *dp = DFTable + index;
+	DataFile dfe;
+	ds_GetFileStruct (index, &dfe);
 
-	if (Formats[dp->df_ftype].f_InqNPlat)
-		return ((*Formats[dp->df_ftype].f_InqNPlat) (index));
+	if (Formats[dfe.df_ftype].f_InqNPlat)
+		return ((*Formats[dfe.df_ftype].f_InqNPlat) (index));
 	return (1);
 }
 
@@ -647,10 +649,11 @@ RGrid *rg;
  * Get the rgrid params.
  */
 {
-	DataFile *dp = DFTable + index;
+	DataFile dfe;
+	ds_GetFileStruct (index, &dfe);
 
-	if (Formats[dp->df_ftype].f_InqRGrid)
-		return ((*Formats[dp->df_ftype].f_InqRGrid)
+	if (Formats[dfe.df_ftype].f_InqRGrid)
+		return ((*Formats[dfe.df_ftype].f_InqRGrid)
 					(index, origin, rg));
 	return (FALSE);
 }
@@ -664,12 +667,13 @@ int index, n;
 ZebTime *when, *dest;
 TimeSpec which;
 {
-	DataFile *dp = DFTable + index;
+	DataFile dfe;
+	ds_GetFileStruct (index, &dfe);
 /*
  * Get available data times.
  */
-	if (Formats[dp->df_ftype].f_DataTimes)
-		return ((*Formats[dp->df_ftype].f_DataTimes) (index, when,
+	if (Formats[dfe.df_ftype].f_DataTimes)
+		return ((*Formats[dfe.df_ftype].f_DataTimes) (index, when,
 					which, n, dest));
 	else
 		return (0);
@@ -688,20 +692,23 @@ ZebTime *t;
  */
 {
 	char *tag;
-	DataFile *dfp = DFTable + df;
+	DataFile dfe;
+	Platform p;
 /*
  * Make sure that it isn't somehow open now.  (Would be strange but 
  * can't hurt to be sure.)
  */
 	dfa_ForceClose (df);
+	ds_GetFileStruct (df, &dfe);
+	ds_GetPlatStruct (dfe.df_platform, &p, FALSE);
 /*
  * Try to open up the file.  If successful, do our accounting and return
  * our success.
  */
-	if (! (*Formats[dfp->df_ftype].f_CreateFile) (dfa_FilePath (dfp),
-								dfp, dc, &tag))
+	if (! (*Formats[dfe.df_ftype].f_CreateFile) (dfa_FilePath (&p, &dfe),
+							&dfe, dc, &tag))
 		return (FALSE);
-	dfa_AddOpenFile (df, TRUE, tag);
+	dfa_AddOpenFile (df, &dfe, TRUE, tag);
 	return (TRUE);
 }
 
@@ -716,9 +723,9 @@ ZebTime *t;
 
 
 void
-dfa_AddOpenFile (dfindex, write, tag)
-int dfindex;
-int write;
+dfa_AddOpenFile (dfindex, df, write, tag)
+DataFile *df;
+int write, dfindex;
 void *tag;
 /* 
  * Add an open file to the list.
@@ -729,12 +736,11 @@ void *tag;
  * Fill in the file structure and add it to the list.
  */
 	ofp->of_dfindex = dfindex;
-	ofp->of_format = DFTable[dfindex].df_ftype;
 	ofp->of_lru = OF_Lru++;
 	ofp->of_tag = tag;
 	ofp->of_next = OpenFiles;
-	ofp->of_rev = DFTable[dfindex].df_rev;
 	ofp->of_write = write;
+	ofp->of_dfe = *df;
 	OpenFiles = ofp;
 /*
  * If we have exceeded the maximum number of open files, we have to close
@@ -798,7 +804,7 @@ OpenFile *victim;
 		if (! prev->of_next)
 		{
 			msg_ELog (EF_PROBLEM, "OF entry 0x%x (%s) missing",
-				victim, DFTable[victim->of_dfindex].df_name);
+				victim, victim->of_dfe.df_name);
 			return;
 		}
 		prev->of_next = victim->of_next;
@@ -806,7 +812,7 @@ OpenFile *victim;
 /*
  * Get the actual file closed.
  */
-	(*Formats[victim->of_format].f_CloseFile) (victim->of_tag);
+	(*Formats[victim->of_dfe.df_ftype].f_CloseFile) (victim->of_tag);
 	OF_NOpen--;
 /*
  * Release the structure, and we're done.
@@ -861,7 +867,8 @@ int dfindex;
 
 
 void
-dfa_NoteRevision (dfindex)
+dfa_NoteRevision (p, dfindex)
+Platform *p;
 int dfindex;
 /*
  * Note that a revision has been signalled on this file.
@@ -870,7 +877,7 @@ int dfindex;
 	OpenFile *ofp = dfa_FileIsOpen (dfindex);
 
 	if (ofp)
-		ofp->of_rev = dfa_GetRevision (DFTable + dfindex);
+		ofp->of_dfe.df_rev = dfa_GetRevision (p, &ofp->of_dfe);
 		/* ofp->of_rev++; */
 }
 
@@ -886,11 +893,12 @@ void **tag;
  * and TAG has the tag value.
  */
 {
-	DataFile *dp = DFTable + dfindex;
+	DataFile df;
+	Platform p;
 	OpenFile *ofp;
 	int retv = TRUE;
 
-	dsm_ShmLock ();
+	ds_GetFileStruct (dfindex, &df);
 /*
  * If the file is open, check the revision and access and return the tag.
  */
@@ -901,28 +909,27 @@ void **tag;
 			dfa_CloseFile (ofp);
 		else
 		{
-			if (dp->df_rev > ofp->of_rev)
+			if (df.df_rev > ofp->of_dfe.df_rev)
 			{
 				msg_ELog (EF_DEBUG, "Out of rev file %s",
-					dp->df_name);
-				retv = (*Formats[dp->df_ftype].f_SyncFile)
+					df.df_name);
+				retv = (*Formats[df.df_ftype].f_SyncFile)
 						(*tag);
-				ofp->of_rev = dp->df_rev;
+				ofp->of_dfe.df_rev = df.df_rev;
 			}
-			dsm_ShmUnlock ();
 			return (retv);
 		}
 	}
 /*
  * Nope, open it now.
  */
-	if (! (*Formats[dp->df_ftype].f_OpenFile) (dfa_FilePath (dp), dp,
+	ds_GetPlatStruct (df.df_platform, &p, FALSE);
+	if (! (*Formats[df.df_ftype].f_OpenFile) (dfa_FilePath (&p, &df), &df,
 						write, tag))
 		retv = FALSE;
 	else 	/* success */
-		dfa_AddOpenFile (dfindex, write, *tag);
+		dfa_AddOpenFile (dfindex, &df, write, *tag);
 
-	dsm_ShmUnlock ();
 	return (retv);
 }
 
@@ -931,7 +938,8 @@ void **tag;
 
 
 char *
-dfa_FilePath (df)
+dfa_FilePath (p, df)
+Platform *p;
 DataFile *df;
 /*
  * Generate the full name of this data file.  The name is returned in
@@ -939,7 +947,6 @@ DataFile *df;
  */
 {
 	static char fname[512];
-	Platform *p = PTable + df->df_platform;
 
 	sprintf (fname, "%s/%s", (df->df_flags & DFF_Remote) ?
 		p->dp_rdir : p->dp_dir, df->df_name);
@@ -950,7 +957,8 @@ DataFile *df;
 
 
 long 
-dfa_GetRevision (df)
+dfa_GetRevision (p, df)
+Platform *p;
 DataFile *df;
 /*
  * Get a revision count for this file.
@@ -958,10 +966,10 @@ DataFile *df;
 {
 	struct stat sbuf;
 
-	if (stat (dfa_FilePath (df), &sbuf) < 0)
+	if (stat (dfa_FilePath (p, df), &sbuf) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno,
-				dfa_FilePath (df));
+				dfa_FilePath (p, df));
 		return (0);
 	}
 	return (sbuf.st_mtime);

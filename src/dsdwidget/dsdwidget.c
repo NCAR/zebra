@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: dsdwidget.c,v 1.11 1993-02-23 21:00:33 corbet Exp $";
+static char *rcsid = "$Id: dsdwidget.c,v 1.12 1993-04-26 16:00:50 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -38,8 +38,6 @@ static char *rcsid = "$Id: dsdwidget.c,v 1.11 1993-02-23 21:00:33 corbet Exp $";
 # include <message.h>
 # include <copyright.h>
 # include "DataStore.h"
-# include "dsPrivate.h"
-# include "dslib.h"
 
 
 # define MAXPLAT	1024
@@ -64,28 +62,13 @@ bool	DisplayUp = False;
  */
 FILE	*Fptr;
 char	Fname[30];
-static struct fname
-{
-	int	flag;
-	char	*name;
-} Flags[] =
-	{
-		{	DPF_MOBILE,	"mobile"	},
-		{	DPF_COMPOSITE,	"composite"	},
-		{	DPF_DISCRETE,	"discrete"	},
-		{	DPF_REGULAR,	"regular"	},
-		{	DPF_SUBPLATFORM, "subplatform"	},
-		{	DPF_REMOTE,	"remote-dir"	},
-	};
-
-# define NFLAG (sizeof (Flags)/sizeof (struct fname))
 
 static void	AddPlatforms FP((void));
 static void	CreateDSDWidget FP((void));
 static void	Die FP((void));
-static void	DumpPlatform FP((Platform *));
+static void	DumpPlatform FP((int, PlatformInfo *));
 static void	DumpChains FP((char *, int));
-static void	GetTimes FP((Platform *, ZebTime *, ZebTime *));
+static void	GetTimes FP((int, PlatformInfo *, ZebTime *, ZebTime *));
 static void	SetEntry FP((int, ZebTime *, ZebTime *));
 static int	MsgHandler FP((Message *));
 static void	MsgInput ();
@@ -200,14 +183,16 @@ Die ()
 
 
 static void
-DumpPlatform (p)
-Platform *p;
+DumpPlatform (pid, pi)
+int pid;
+PlatformInfo *pi;
 {
 	int i;
+	DataSrcInfo dsi;
 /*
  * Make sure this isn't a subplatform.
  */
-	if (p->dp_flags & DPF_SUBPLATFORM)
+	if (pi->pl_SubPlatform)
 		return;
 /*
  * Open the data file.
@@ -216,15 +201,16 @@ Platform *p;
 /*
  * Write platform name and info to the file.
  */
-	fprintf (Fptr, "Platform '%s', dir '%s'\n", p->dp_name, p->dp_dir);
+	fprintf (Fptr, "Platform '%s'\n", pi->pl_Name);
 /*
  * Write data times to the file.
  */
-	if (! (p->dp_flags & DPF_SUBPLATFORM))
+	ds_GetDataSource (pid, 0, &dsi);
+	DumpChain ("Local", dsi.dsrc_FFile);
+	if (pi->pl_NDataSrc >= 2)
 	{
-		DumpChain ("Local", p->dp_LocalData);
-		if (p->dp_flags & DPF_REMOTE)
-			DumpChain (RemoteName, p->dp_RemoteData);
+		ds_GetDataSource (pid, 1, &dsi);
+		DumpChain (RemoteName, dsi.dsrc_FFile);
 	}
 /*
  * Close the data file.
@@ -234,18 +220,22 @@ Platform *p;
 
 
 static void
-GetTimes (p, begin, end)
-Platform *p;
+GetTimes (index, pi, begin, end)
+int index;
+PlatformInfo *pi;
 ZebTime *begin, *end;
 /*
  * Get the begin and end data times for a platform.
  */
 {
-	int start = p->dp_LocalData;
-	DataFile *dp;
+	int start;
+	DataSrcInfo dsi;
+	DataFileInfo dfi;
 /*
  * Go through the local data list.
  */
+	ds_GetDataSource (index, 0, &dsi);
+	start = dsi.dsrc_FFile;
 	if (start == NULL)
 	{
 		end->zt_Sec = end->zt_MicroSec = 0;	
@@ -253,33 +243,37 @@ ZebTime *begin, *end;
 	}
 	else
 	{
-		dp = DFTable + start;
-		*end = dp->df_end;
+		ds_GetFileInfo (start, &dfi);
+		*end = dfi.dfi_End;
+		start = dfi.dfi_Next;
 		while (start)
 		{
-			dp = DFTable + start;
-			start = dp->df_FLink;
+			ds_GetFileInfo (start, &dfi);
+			start = dfi.dfi_Next;
 		}
-		*begin = dp->df_begin;		
+		*begin = dfi.dfi_Begin;
 	}
 /*
  * If there is no remote data, quit.
  */
-	if (! (start = p->dp_RemoteData))
+	if (pi->pl_NDataSrc < 2)
 		return;
+	ds_GetDataSource (index, 1, &dsi);
+	start = dsi.dsrc_FFile;
 /*
  * See if there is remote data on a wider scale.
  */
-	dp = DFTable + start;
-	if (end->zt_Sec == 0 || TC_Less (*end, dp->df_end))
-		*end = dp->df_end;
+	ds_GetFileInfo (start, &dfi);
+	if (end->zt_Sec == 0 || TC_Less (*end, dfi.dfi_End))
+		*end = dfi.dfi_End;
+	start = dfi.dfi_Next;
 	while (start)
 	{
-		dp = DFTable + start;
-		start = dp->df_FLink;
+		ds_GetFileInfo (start, &dfi);
+		start = dfi.dfi_Next;
 	}
-	if (begin->zt_Sec == 0 || TC_Less (dp->df_begin, *begin))
-		*begin = dp->df_begin;
+	if (begin->zt_Sec == 0 || TC_Less (dfi.dfi_Begin, *begin))
+		*begin = dfi.dfi_Begin;
 }
 
 
@@ -290,19 +284,21 @@ int start;
  * Dump out a datafile chain.
  */
 {
-	DataFile *dp;
+	DataFileInfo dfi;
 	char abegin[30], aend[30];
 
 	while (start)
 	{
-		dp = DFTable + start;
-		TC_EncodeTime (&dp->df_begin, TC_Full, abegin);
-		TC_EncodeTime (&dp->df_end, TC_TimeOnly, aend);
-		fprintf (Fptr, "%-8s '%s' %s", which, dp->df_name, abegin);
-		if (dp->df_nsample > 1)
-			fprintf (Fptr, " -> %s [%hu]", aend, dp->df_nsample);
+		ds_GetFileInfo (start, &dfi);
+		TC_EncodeTime (&dfi.dfi_Begin, TC_Full, abegin);
+		fprintf (Fptr, "%-8s '%s' %s", which, dfi.dfi_Name, abegin);
+		if (dfi.dfi_NSample > 1)
+		{
+			TC_EncodeTime (&dfi.dfi_End, TC_TimeOnly, aend);
+			fprintf (Fptr, " -> %s [%hu]", aend, dfi.dfi_NSample);
+		}
 		fprintf (Fptr, "\n");
-		start = dp->df_FLink;
+		start = dfi.dfi_Next;
 	}
 }
 
@@ -365,24 +361,23 @@ Rescan ()
  * Rescan the disk for new data and display the results.
  */
 {
-	int i, nplat = 0;
+	int i, nplat = 0, np;
 	ZebTime begin, end;
-	Platform *p;
+	PlatformInfo pi;
 
 	msg_ELog (EF_INFO, "Rescanning disk.");	
-	dsm_ShmLock ();
-	for (i = 0; i < SHeader->sm_nPlatform; i++)
+	np = ds_GetNPlat ();
+	for (i = 0; i < np; i++)
 	{
-		p = PTable + i;
-		if (p->dp_flags & DPF_SUBPLATFORM)
+		ds_GetPlatInfo (i, &pi);
+		if (pi.pl_SubPlatform)
 			continue;
 
-		GetTimes (p, &begin, &end);
+		GetTimes (i, &pi, &begin, &end);
 		msg_ELog (EF_DEBUG, "Setting entry %d", i);
 		SetEntry (nplat, &begin, &end);
 		nplat++;
 	}
-	dsm_ShmUnlock ();
 }
 
 
@@ -406,21 +401,10 @@ ZebTime *begin, *end;
 	}
 	else 
 	{
-# ifdef notdef
-		ud_format_date (end_date, (date *)end, UDF_FULL);
-		ud_format_date (begin_date, (date *)begin, UDF_FULL);
-# endif
 		TC_EncodeTime (end, TC_Full, end_date);
 		TC_EncodeTime (begin, TC_Full, begin_date);
 		sprintf (label, "%-17s     %20s -> %20s", Names[index],
 			begin_date, end_date);
-# ifdef notdef
-	    sprintf (label, "%-17s     %d %2d:%02d:%02d -> %d %2d:%02d:%02d",
-		Names[index], begin->ds_yymmdd, begin->ds_hhmmss/10000,
-                (begin->ds_hhmmss/100) % 100, begin->ds_hhmmss % 100,
-		end->ds_yymmdd, end->ds_hhmmss/10000,
-                (end->ds_hhmmss/100) % 100, end->ds_hhmmss % 100);
-# endif
 	}
 	msg_ELog (EF_DEBUG, "Entry %s", label);
 /*
@@ -437,23 +421,26 @@ AddPlatforms ()
  * Add platform names and data times to dsdwidget.
  */
 {
-	int i, nplat = 0;
-	Platform *p;
+	int i, nplat = 0, np;
+	PlatformInfo pi;
 	time begin, end;
 
-	dsm_ShmLock ();
-	for (i = 0; i < SHeader->sm_nPlatform; i++)
+	np = ds_GetNPlat ();
+	for (i = 0; i < np; i++)
 	{
-		p = PTable + i;
-		if (p->dp_flags & DPF_SUBPLATFORM)
+	/*
+	 * Get the platform info.  Don't bother with subplatforms, since
+	 * there is no info of interest there.
+	 */
+		ds_GetPlatInfo (i, &pi);
+		if (pi.pl_SubPlatform)
 			continue;
-
-	        Names[nplat] = usy_pstring (p->dp_name);
+	        Names[nplat] = usy_pstring (pi.pl_Name);
 	/*
 	 * Create a command button for a platform.
 	 */
-		GetTimes (p, (ZebTime *)&begin, (ZebTime *)&end);
-        	Entry[nplat] = XtCreateManagedWidget (p->dp_name, 
+		GetTimes (i, &pi, (ZebTime *)&begin, (ZebTime *)&end);
+        	Entry[nplat] = XtCreateManagedWidget (pi.pl_Name,
 			commandWidgetClass, Box, NULL, 0);
 		XtAddCallback (Entry[nplat], XtNcallback, 
 			(XtCallbackProc) PopupDisplay, (XtPointer) i);
@@ -461,7 +448,6 @@ AddPlatforms ()
 		SetEntry (nplat, (ZebTime *)&begin, (ZebTime *)&end);
 		nplat++;
 	}
-	dsm_ShmUnlock ();
 }
 
 
@@ -474,7 +460,7 @@ XtPointer val, junk;
  */
 {
 	int index = (int) val;
-	Platform *p;
+	PlatformInfo pi;
 	Arg arg;
 
 	if (! DisplayUp)
@@ -482,10 +468,8 @@ XtPointer val, junk;
 	/*
  	 * Fill in the data file.
 	 */
-		dsm_ShmLock ();
-		p = PTable + index;
-		DumpPlatform (p);
-		dsm_ShmUnlock ();
+		ds_GetPlatInfo (index, &pi);
+		DumpPlatform (index, &pi);
 	/*
 	 * Tell the widget about the data file.
 	 */

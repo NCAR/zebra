@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.3 1993-02-17 22:30:01 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.4 1993-04-26 16:00:50 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -25,7 +25,9 @@
  */
 Platform *PTable;
 DataFile *DFTable;
-
+int NDTEUsed;		/* How many data table entries used. */
+int DTFreeList;		/* The datafile free list		*/
+int NPlatform;		/* How many platforms			*/
 /*
  * The default data directory.
  */
@@ -40,6 +42,24 @@ char RemDataDir[DDIR_LEN];
  */
 extern int DisableRemote;
 
+/*
+ * Cache options.
+ */
+extern int LDirConst;	/* Nothing changes		*/
+extern int RDirConst;
+extern int LFileConst;	/* Files don't change (but they	*/
+extern int RFileConst;	/* can come and go)		*/
+extern int CacheOnExit;	/* Write cache on way out?	*/
+
+/*
+ * This variable is TRUE only during the initial file scan.
+ */
+extern bool InitialScan;
+
+/*
+ * Metadata space
+ */
+extern int PTableSize, PTableGrow, DFTableSize, DFTableGrow;
 
 /*
  * Internal functions.
@@ -61,3 +81,11 @@ void dap_Request FP ((char *, struct dsp_NotifyRequest *));
 void dap_Cancel FP ((char *, struct dsp_Template *));
 void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
 void dap_Copy FP ((char *));
+void ClearLocks FP ((Platform *));
+void CacheInvalidate FP ((int));
+/*
+ * Datascan.
+ */
+void	DataScan FP ((void));
+void	Rescan FP ((struct dsp_Rescan *));
+void	WriteCache FP ((void));

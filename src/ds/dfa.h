@@ -1,5 +1,5 @@
 /*
- * $Id: dfa.h,v 2.1 1991-09-26 23:00:46 gracio Exp $
+ * $Id: dfa.h,v 2.2 1993-04-26 16:00:50 corbet Exp $
  * Internal DFA declarations.
  */
 
@@ -21,12 +21,5 @@
  * maintenance or updates for its software.
  */
 
-# ifdef __STDC__
-	void	dfa_AddOpenFile (int, int, void *);
-	void	dfa_ForceClose (int);
-	int	dfa_OpenFile (int, int, void **);
-# else
-	void	dfa_AddOpenFile ();
-	void	dfa_ForceClose ();
-	int	dfa_OpenFile ();
-# endif
+void	dfa_ForceClose FP ((int));
+int	dfa_OpenFile FP ((int, int, void **));

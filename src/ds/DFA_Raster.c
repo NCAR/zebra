@@ -13,7 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.4 1992-08-10 17:30:54 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.5 1993-04-26 16:00:50 corbet Exp $")
 
 
 
@@ -297,6 +297,7 @@ void **rtag;
 	int fld, nfld;
 	PlatformId id = dc->dc_Platform;
 	FieldId *fids;
+	Platform p;
 /*
  * We gotta create a file before doing much of anything.
  */
@@ -310,9 +311,10 @@ void **rtag;
 /*
  * Start to fill in the header.
  */
+	ds_GetPlatStruct (id, &p, FALSE);
 	tag->rt_hdr.rf_Magic = RF_MAGIC;
-	strcpy (tag->rt_hdr.rf_Platform, PTable[id].dp_name);
-	tag->rt_hdr.rf_MaxSample = PTable[id].dp_maxsamp;
+	strcpy (tag->rt_hdr.rf_Platform, p.dp_name);
+	tag->rt_hdr.rf_MaxSample = p.dp_maxsamp;
 	tag->rt_hdr.rf_NSample = 0;
 	tag->rt_hdr.rf_Flags = (dp->df_ftype == FTCmpRaster) ? RFF_COMPRESS :0;
 /*
@@ -394,8 +396,7 @@ WriteCode wc;
  */
 	if (hdr->rf_NSample >= hdr->rf_MaxSample && wc != wc_Overwrite)
 	{
-		msg_ELog (EF_PROBLEM, "File %s overfull",
-					DFTable[dfile].df_name);
+		msg_ELog (EF_PROBLEM, "File %d overfull", dfile);
 		return (0);
 	}
 /*

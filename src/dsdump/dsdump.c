@@ -23,9 +23,10 @@
 # include "message.h"
 # include <copyright.h>
 # include "DataStore.h"
-# include "dsPrivate.h"
-# include "dslib.h"
-MAKE_RCSID ("$Id: dsdump.c,v 3.6 1992-11-18 23:38:35 granger Exp $")
+/* # include "dsPrivate.h" */
+/* # include "dslib.h" */
+
+MAKE_RCSID ("$Id: dsdump.c,v 3.7 1993-04-26 16:00:50 corbet Exp $")
 
 
 msg_handler ()
@@ -38,28 +39,39 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	int i, pid, np;
+	int i, pid, np, nplat;
 	static char *field = "velocity";
 	ZebTime begin, end, ts[5];
 	time kludge;
 	Location locs[5];
 	char atime[40];
+	PlatformInfo pi;
 
 	msg_connect (msg_handler, "DSDump");
 	usy_init ();
 	if (! ds_Initialize ())
 		exit (1);
-	dsm_ShmLock ();
-	dsm_Dump ();
-	for (i = 0; i < SHeader->sm_nPlatform; i++)
-		if (argc < 2 || ! strcmp (argv[1], PTable[i].dp_name))
-			dump_platform (PTable + i);
-	dsm_ShmUnlock ();
-	/* exit (0); */
+/*
+ * How many platforms?
+ */
+	nplat = ds_GetNPlat ();
+	printf ("We have %d platforms.\n", nplat);
+	for (i = 0; i < nplat; i++)
+	{
+		ds_GetPlatInfo (i, &pi);
+		if (argc < 2 || ! strcmp (argv[1], pi.pl_Name))
+		{
+			ds_LockPlatform (i);
+			dump_platform (i, &pi);
+			ds_UnlockPlatform (i);
+		}
+	}
+	exit (0);
 
 
 
 
+# ifdef notdef
 /*
  * Try a data get.
  */
@@ -69,13 +81,6 @@ char **argv;
 		exit (1);
 	}
 	ui_printf ("\ncp4 PID is %d\n", pid);
-#ifdef notdef
-	begin.ds_yymmdd = end.ds_yymmdd = 910312;
-	begin.ds_hhmmss = 73210;
-	end.ds_hhmmss = 73210;
-	data = ds_GetData (pid, &field, 1, &begin, &end, OrgImage,
-		0.0, 99.9);
-# endif
 /*
  * Get some sample info.
  */
@@ -107,43 +112,12 @@ char **argv;
 		ui_printf ("\t%d: %s\n", i, atime);
 	}
 	exit (0);
-/*
- * Print it out.
- */
-# ifdef notdef
-	ui_printf ("%d grid points\n", np = data->do_desc.d_irgrid.ir_npoint);
-	ui_printf ("%d plain points\n", data->do_npoint);
-	for (i = 0; i < 10; i++)
-		ui_printf ("pres[%02d] = %7.2f at %d %d\n", i,
-			data->do_data[0][i], data->do_times[i].ds_yymmdd,
-			data->do_times[i].ds_hhmmss);
-/*
- * Try times. 
- */
- 	pid = ds_LookupPlatform ("mesonet");
- 	begin.ds_hhmmss = 221000;
-	printf ("%d times: ", ds_DataTimes (pid, &begin, 5, DsBefore, ts));
-	for (i = 0; i < 5; i++)
-		printf ("%06d ", ts[i].ds_hhmmss);
-	printf ("\n");
-	field = "tdry";
-	data = ds_GetData (pid, &field, 1, ts, ts, Org2dGrid, 3.0, 99.9);
-
-	if ((pid = ds_LookupPlatform ("kingair")) == BadPlatform)
-		printf ("Kingair platform unknown\n");
-	else
-	{
-		field = "temperature";
-		begin.ds_hhmmss = 215000;
-		end.ds_hhmmss = 220000;
-		data = ds_GetData (pid, &field, 1, &begin, &end, OrgScalar,
-			0.0, 9999.9);
-	}
 # endif
 }
 
 
 
+# ifdef notdef
 static struct fname
 {
 	int	flag;
@@ -160,32 +134,71 @@ static struct fname
 
 # define NFLAG (sizeof (Flags)/sizeof (struct fname))
 
+# endif
 
 
-dump_platform (p)
-Platform *p;
+dump_platform (pid, pi)
+PlatformId pid;
+PlatformInfo *pi;
 {
-	int i;
-
-	if (p->dp_flags & DPF_SUBPLATFORM)
+	int i, index;
+	DataSrcInfo dsi;
+	DataFileInfo dfi;
+/*
+ * Don't dump subplats.
+ */
+	if (pi->pl_SubPlatform)
 		return;
 
-	ui_printf ("Platform '%s', dir '%s'\n\tFlags 0x%x ( ", p->dp_name,
-		p->dp_dir, p->dp_flags);
-	for (i = 0; i < NFLAG; i++)
-		if (p->dp_flags & Flags[i].flag)
-			ui_printf ("%s ", Flags[i].name);
-	ui_printf (")\n");
-	if (! (p->dp_flags & DPF_SUBPLATFORM))
+	ui_printf ("\nPlatform %s, %d data sources", pi->pl_Name,
+		pi->pl_NDataSrc);
+	if (pi->pl_Mobile)
+		ui_printf (" (MOBILE)");
+	ui_printf ("\n");
+/*
+ * Now we need to dump out each source.
+ */
+	for (i = 0; i < pi->pl_NDataSrc; i++)
 	{
-		dumpchain ("L", p->dp_LocalData, strlen (p->dp_dir) + 1);
-		if (p->dp_flags & DPF_REMOTE)
-			dumpchain ("R", p->dp_RemoteData, strlen(p->dp_dir)+1);
+		ds_GetDataSource (pid, i, &dsi);
+		ui_printf (" Data source '%s', in %s, type %d\n", 
+			dsi.dsrc_Name, dsi.dsrc_Where, dsi.dsrc_Type);
+		for (index = dsi.dsrc_FFile; index > 0; index = dfi.dfi_Next)
+		{
+			ds_GetFileInfo (index, &dfi);
+			PrintInfo (index, &dfi);
+		}
 	}
 }
 
 
 
+PrintInfo (index, dfi)
+int index;
+DataFileInfo *dfi;
+/*
+ * Dump out file info.
+ */
+{
+	char abegin[40], aend[20];
+
+/*
+ * Pull out the date information and encode it.
+ */
+	TC_EncodeTime (&dfi->dfi_Begin, TC_Full, abegin);
+	TC_EncodeTime (&dfi->dfi_End, TC_TimeOnly, aend);
+/*
+ * Now print.
+ */
+	ui_printf ("  %c %4d  %s  %s > %s [%hu]\n",
+		dfi->dfi_Archived ? 'A' : 'N',
+		index, dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
+}		
+
+
+
+
+# ifdef notdef
 
 dumpchain (which, start, dlen)
 char *which;
@@ -215,3 +228,5 @@ int start, dlen;
 		start = dp->df_FLink;
 	}
 }
+
+# endif

@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.2 1992-08-10 17:30:54 corbet Exp $"
+ * "$Id: dslib.h,v 3.3 1993-04-26 16:00:50 corbet Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -24,11 +24,13 @@
  * maintenance or updates for its software.
  */
 
+# ifdef KLUDGE_SHM
 int	Semaphore;		/* The semaphores		*/
 char	*ShmSegment;		/* The actual segment		*/
 struct ds_ShmHeader *SHeader;	/* The memory header		*/
 Platform *PTable;
 DataFile *DFTable;
+# endif
 
 /*
  * The platform lookup table.
@@ -77,8 +79,11 @@ void	dfa_MakeFileName FP ((Platform *, ZebTime *, char *));
 GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
 void	dgl_ReturnList FP ((GetList *));
 bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *));
-void	dfa_NoteRevision FP ((int));
+void	dfa_NoteRevision FP ((Platform *, int));
 char	*dfa_GetAttr FP ((int, ZebTime *, int *));
 int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
-char	*dfa_FilePath FP ((DataFile *));
-long	dfa_GetRevision FP ((DataFile *));
+char	*dfa_FilePath FP ((Platform *, DataFile *));
+long	dfa_GetRevision FP ((Platform *, DataFile *));
+void	ds_GetFileStruct FP ((int, DataFile *));
+void	ds_GetPlatStruct FP ((PlatformId, Platform *, int));
+int	ds_FindDF FP ((PlatformId, ZebTime *, int));
