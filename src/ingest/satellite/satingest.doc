@@ -7,7 +7,7 @@ SatIngest and GMSIngest
 
 The Zeb satellite ingest programs are called SatIngest and GMSIngest.  Both
 programs ingest MCIDAS format satellite images.  SatIngest ingests fields
-from the GOES satellites, usually visual and infrared radiation ('vis' and
+from the GOES satellites, usually visible and infrared radiation ('vis' and
 'ir').  GMSIngest ingests infrared data from GMS satellites, translating
 the image bytes into temperatures.  The source for both of the ingest
 programs, as well as the 'areadump' utility described in the next section,
@@ -24,7 +24,7 @@ image cells, which are stored as line/element pairs in the area file, into
 squares of a regularly-spaced kilometer grid.  The program must be told
 where on the earth the grid is located and the size of the grid cells.
 This information is specified in a UI command file using special commands.
-For example, the location and range of the grid is specified by the limits
+For example, the covered by the ingested image is specified by the limits
 command, which takes four arguments.
 
 	limits <south lat> <west lon> <north lat> <east lon>
@@ -35,22 +35,30 @@ looks like:
 
 	limits 34.6 -100.5 39 -92.5
 
-Note that the ideal range of the grid depends upon the range of the image
-and the area which needs to be viewed.  A satellite image with 16 kilometer
-resolution which spans the entire U.S. will not look that good if the area
-being concentrated on is Oklahoma.  Likewise, there is no sense translating
-a 1 kilometer image the size of Oklahoma into a grid the size of the U.S.
-The limits given above just span the range of the satellite image, so that
-the diagonal edges which follow the satellites path are visible when
-viewing the whole grid.  If a sufficiently small portion of the image is
-ingested, the image will fill the grid and appear square.
+Note that the area of the ingested image rarely corresponds exactly to the
+shape or size of the source image.  In fact, if there is no overlap between
+the area specified by the "limits" command and the area in the source
+image, an empty ingested image will result.  Ideally the ingested area is
+the smaller of: 1) the area of interest to the user and 2) the rough area
+of the source image.  For example, it would not make sense to choose an
+ingest area covering the whole U.S. if only Oklahoma is of interest, even
+if the source image covers the entire country.  At the other extreme, if
+the area of interest is the entire U.S., but the source image only covers
+Oklahoma, it would be a waste of space to generate an ingested image the
+size of the entire country, since most of the ingested image would be
+empty.
 
-To convert the latitude and longitude coordinates of the image cells to
-kilometers, the ingest program must know the latitude at which the image
-will be viewed.  The 'originLat' variable holds this latitude.  Use the UI
-'set' command to specify the latitude.
+Since Zeb's internal preference leans toward x/y space rather than lat/lon
+space, the ingest program must know the latitude at which the image
+will be viewed in order to do its conversions correctly.  The 'originLat' 
+variable holds this latitude.  Use the UI 'set' command to specify the 
+latitude.
 
 	set originLat <latitude>	! North latitudes are positive
+
+This latitude *MUST* correspond to the origin latitude used when Zeb displays
+are generated.  The origin latitude for displays is set with the 'origin-lat'
+plot description parameter, and is usually found in the 'defaults.pd' file.
 
 Next, the program needs the size of the grid squares.  This can be given two
 ways, either by the size of a square as a resolution in kilometers, or by
@@ -59,8 +67,8 @@ resolution is specified in the 'kmResolution' floating point variable.
 
 	set kmResolution <grid square edge size>
 
-The number of squares in each direction are given in the following two
-variables:
+Alternately, the number of squares in each direction may be given in the 
+following two variables:
 
 	set gridX <number of squares between west and east longitude of grid>
 	set gridY <number of squares between south and north latitude of grid>
@@ -85,12 +93,12 @@ specified in the 'platform' variable.  For example,
 
 	set platform "sgpgoesvis.tmp"
 
-Lastly, the ingest programs need to know which area files to ingest, as well
-as the field being ingested, such as 'vis' or 'ir'.  The filename can be
-any absolute or relative path, or just the name of the file if the file is
-in the current directory.  The field parameter can be any field name;
-usually, though, the graphics configuration expects a particular field name,
-so consistency is important.
+Lastly, the ingest programs need to know which area files to ingest, as
+well as field names to use when storing the ingested data, such as 'vis' or
+'ir'.  The filename can be any absolute or relative path, or just the name
+of the file if the file is in the current directory.  The field parameter
+can be any field name; usually, though, the graphics configuration expects
+a particular field name, so consistency is important.
 
 	file <filename> <field>
 
