@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.17 1994-12-09 16:19:52 granger Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.18 1994-12-09 17:07:41 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,6 +44,7 @@ static char *rcsid = "$Id: Skewt.c,v 2.17 1994-12-09 16:19:52 granger Exp $";
 # define T_K	273.15
 # define DEG_TO_RAD(x)	((x) * 0.017453292)
 # define RAD_TO_DEG(x)	((x) * 57.29577951)
+# define PI	3.141592654
 # define BUFLEN	1024
 
 /*
@@ -87,6 +88,11 @@ static XColor 	Tadefclr;
  */
 static bool	DoFeet = FALSE;
 
+/*
+ * Wind barbs or wind vectors?
+ */
+static bool	Do_vectors;
+
 # define C_BLACK	0
 # define C_WHITE	1
 # define C_BG1		2
@@ -125,7 +131,7 @@ bool	update;
 {
 	bool		ok;
 	int		plat, n, i, nplat, nwplat;
-	char		ctname[20], tadefcolor[30];
+	char		ctname[24], tadefcolor[32], style[16];
 	char		platforms[PlatformListLen];
 	char		windplats[PlatformListLen];
 	char		*pnames[MaxPlatforms], *wpnames[MaxPlatforms];
@@ -200,7 +206,12 @@ bool	update;
 		SYMT_BOOL))
 		DoFeet = FALSE;
 	msg_ELog (EF_DEBUG, "DoFeet %s", DoFeet ? "true" : "false");
-
+/*
+ * Vectors (default) or barbs?
+ */
+        Do_vectors = TRUE;
+        if (pda_Search (Pd, c, "wind-style", NULL, style, SYMT_STRING))
+                Do_vectors = strncmp (style, "barb", 4);
 /*
  * Plot every "skip" points
  */
@@ -282,12 +293,13 @@ sk_Background ()
 			12.0, 20.0, 30.0, 40.0, 50.0, 60.0, 0.0};
 	float step = Pstep;
 /*
- * ICAO standard atmosphere pressures for altitudes from 0 km to 16 km
+ * ICAO standard atmosphere pressures for altitudes from 0 km to 20 km
  * every 1 km
  */
 	static float	alt_pres[] = {1013.2, 898.8, 795.0, 701.2, 616.5,
 				540.3, 471.9, 410.7, 356.1, 307.6, 264.5,
-				226.3, 193.3, 165.1, 141.0, 120.4, 102.9};
+				226.3, 193.3, 165.1, 141.0, 120.4, 102.9,
+			        87.86, 75.05, 64.10, 54.75};
 /*
  * Draw the outside rectangle
  */
@@ -367,7 +379,7 @@ sk_Background ()
 	 * to get lines.
 	 */
 		if (p <= step)
-			step /= 5;
+			step /= 10;
 	}
 /*
  * Standard atmosphere altitude scale
@@ -381,7 +393,7 @@ sk_Background ()
 
 	x[0] = Xlo / 2.0;
 	x[1] = x[0] - 0.01;
-	for (i = 0; i <= 16; i++)  /* FIX THIS 16!! */
+	for (i = 0; alt_pres[i] > Pmin; i++)
 	{
 	/*
 	 * Tick mark
@@ -920,7 +932,7 @@ int	skip;
 {
 	float	xstart, xscale, yscale, xov[2], yov[2], badvalue;
 	float	*pres, *u, *v, wspd, wdir;
-	int	i, nfld, npts, nprev, ipts;
+	int	i, nfld, npts, nprev, ipts, shaftlen;
 	char	string[40];
 	bool	have_u, have_v, have_uv;
 	ZebTime	ptime;
@@ -1067,6 +1079,10 @@ int	skip;
 	yscale = fabs (xscale * 
 		(YPIX (1.0) - YPIX (0.0)) / (XPIX (1.0) - XPIX (0.0)));
 /*
+ * Shaft length (in pixels) for barbs
+ */
+	shaftlen = (XPIX (1.0 + (Xhi - 1.0) / 6.0) - XPIX (1.0));
+/*
  * Plot the winds
  */
 	sk_Clip (Xlo, Ylo, Xhi, Yhi);
@@ -1076,26 +1092,46 @@ int	skip;
 		if (pres[i] == badvalue || pres[i] < Pmin || pres[i] > Pmax)
 			continue;
 	/*
-	 * Get the starting point
+	 * Do vectors or barbs as requested
 	 */
-		xov[0] = xstart;
-		yov[0] = YPOS (pres[i]);
-	/*
-	 * Convert to the overlay coordinates
-	 */
-		if (u[i] != badvalue)
+		if (Do_vectors)
+		{
+		/*
+		 * Get the starting point
+		 */
+			xov[0] = xstart;
+			yov[0] = YPOS (pres[i]);
+		/*
+		 * Convert to the overlay coordinates
+		 */
+			if (u[i] == badvalue || v[i] == badvalue)
+				continue;
+			
 			xov[1] = xov[0] + u[i] * xscale;
-		else
-			continue;
-
-		if (v[i] != badvalue)
 			yov[1] = yov[0] + v[i] * yscale;
+		/*
+		 * Draw the wind line
+		 */
+			sk_Polyline (xov, yov, 2, L_solid, color);
+		}
 		else
-			continue;
-	/*
-	 * Draw the wind line
-	 */
-		sk_Polyline (xov, yov, 2, L_solid, color);
+		{
+			double	wspd, wdir;
+
+			if (u[i] == badvalue || v[i] == badvalue)
+				continue;
+		/*
+		 * Hacked in barb drawing
+		 */
+			wspd = hypot (u[i], v[i]);
+			wdir = atan2 (-v[i], -u[i]);
+			XSetForeground (XtDisplay (Graphics), Gcontext, 
+					color.pixel);
+			draw_barb (XtDisplay (Graphics), GWFrame (Graphics), 
+				   Gcontext, XPIX (xstart), 
+				   YPIX (YPOS (pres[i])), wdir, wspd, shaftlen,
+				   FALSE);
+		}
 	}
 /*
  * Draw the staff
@@ -1111,14 +1147,52 @@ int	skip;
 	{
 		sk_DrawText ("WINDS PROFILE", 1.0 + 0.5 * (Xhi - 1.0), -0.01, 
 			0.0, Tadefclr, 0.025, JustifyCenter, JustifyTop);
-		sk_DrawText (" = 10 M/S", 1.0 + 0.5 * (Xhi - 1.0), -0.06, 0.0, 
-			Tadefclr, 0.02, JustifyLeft, JustifyCenter); 
+		if (Do_vectors)
+		{
+			sk_DrawText (" = 10 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
+				     -0.06, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     JustifyCenter); 
 
-		xov[0] = 1.0 + 0.5 * (Xhi - 1.0) - (10.0 * xscale);
-		xov[1] = 1.0 + 0.5 * (Xhi - 1.0);
-		yov[0] = -0.06;
-		yov[1] = -0.06;
-		sk_Polyline (xov, yov, 2, L_solid, Tadefclr);
+			xov[0] = 1.0 + 0.5 * (Xhi - 1.0) - (10.0 * xscale);
+			xov[1] = 1.0 + 0.5 * (Xhi - 1.0);
+			yov[0] = -0.06;
+			yov[1] = -0.06;
+			sk_Polyline (xov, yov, 2, L_solid, Tadefclr);
+		}
+		else
+		{
+			sk_Clip (-9.0, -9.0, 9.0, 9.0);	/* Ugly kluge */
+		/*
+		 * Barb legend: 50 m/s, 10 m/s, 5 m/s
+		 */
+			XSetForeground (XtDisplay (Graphics), Gcontext,
+					Tadefclr.pixel);
+
+			sk_DrawText (" = 50 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
+				     -0.08, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     JustifyCenter); 
+			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
+				   Gcontext, XPIX (1.0 + 0.5 * (Xhi - 1.0)),
+				   YPIX (-0.08), 3.1416, 50.0, shaftlen, 
+				   FALSE);
+			
+			sk_DrawText (" = 10 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
+				     -0.13, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     JustifyCenter); 
+			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
+				   Gcontext, XPIX (1.0 + 0.5 * (Xhi - 1.0)),
+				   YPIX (-0.13), 3.1416, 10.0, shaftlen, 
+				   FALSE);
+			
+			sk_DrawText (" = 5 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
+				     -0.18, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     JustifyCenter); 
+			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
+				   Gcontext, XPIX (1.0 + 0.5 * (Xhi - 1.0)),
+				   YPIX (-0.18), 3.1416, 5.0, shaftlen, 
+				   FALSE);
+			
+		}
 	}
 /*
  * Done
