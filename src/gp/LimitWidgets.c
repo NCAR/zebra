@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 1.3 1991-04-19 17:38:21 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 1.4 1991-05-07 20:59:11 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -25,8 +25,11 @@ static char *rcsid = "$Id: LimitWidgets.c,v 1.3 1991-04-19 17:38:21 kris Exp $";
 typedef enum {
 	SingleFloatWidget = 0,
 	DoubleFloatWidget = 1,
+	SingleStringWidget = 2,
+	TimeSeriesWidget = 3,
+	SingleIntWidget = 4,
 } WidgetType;
-# define N_WIDGET_TYPES 2	/* Keep this updated!	*/
+# define N_WIDGET_TYPES 5	/* Keep this updated!	*/
 
 typedef char ParamStr[32];
 
@@ -73,6 +76,15 @@ typedef struct _WidgetDesc_
 	static Widget lw_DFCreate (char *, Widget, XtAppContext);
 	static void lw_DFSetup (WidgetQueue *, struct ui_command *);
 	static void lw_DFStore (Widget, WidgetQueue *, XtPointer);
+	static Widget lw_SSCreate (char *, Widget, XtAppContext);
+	static void lw_SSSetup (WidgetQueue *, struct ui_command *);
+	static void lw_SSStore (Widget, WidgetQueue *, XtPointer);
+	static Widget lw_TSCreate (char *, Widget, XtAppContext);
+	static void lw_TSSetup (WidgetQueue *, struct ui_command *);
+	static void lw_TSStore (Widget, WidgetQueue *, XtPointer);
+	static Widget lw_SICreate (char *, Widget, XtAppContext);
+	static void lw_SISetup (WidgetQueue *, struct ui_command *);
+	static void lw_SIStore (Widget, WidgetQueue *, XtPointer);
 	static Widget lw_OvCreate (char *, Widget, XtAppContext);
 # endif
 
@@ -84,6 +96,12 @@ static WidgetDesc WTable[N_WIDGET_TYPES] =
 	  lw_SFSetup,		0},
 	{ "DoubleFloat",	DoubleFloatWidget,	lw_DFCreate,
 	  lw_DFSetup,		0},
+	{ "SingleString",	SingleStringWidget,	lw_SSCreate,
+	  lw_SSSetup,		0},
+	{ "TimeSeries",		TimeSeriesWidget,	lw_TSCreate,
+	  lw_TSSetup,		0},
+	{ "SingleInt",		SingleIntWidget,	lw_SICreate,
+	  lw_SISetup,		0},
 };
 
 
@@ -243,8 +261,178 @@ WidgetQueue *w;
 }
 
 
+static Widget
+lw_SSCreate (tag, parent, actx)
+char *tag;
+Widget parent;
+XtAppContext actx;
+/*
+ * Create a SingleString widget.
+ */
+{
+	Widget form, w, above;
+	Arg args[20];
+	int n;
+	struct SFWData *wdata = ALLOC (struct SFWData);
+	WidgetQueue *wq = (WidgetQueue *) tag;
+/*
+ * There is the inevitable form to hold everything.
+ */
+	n = 0;
+ 	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	form = XtCreateManagedWidget ("SingleString", formWidgetClass, parent,
+		args, n);
+/*
+ * The label to describe this string.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Gimme something:   "); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	above = wdata->d_label = XtCreateManagedWidget ("SSLabel",
+		labelWidgetClass, form, args, n);
+/*
+ * Next, the text widget to hold the */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, wdata->d_label); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+	XtSetArg (args[n], XtNinsertPosition, 0); n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNheight, 20); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetArg (args[n], XtNlength, 40); n++;
+	XtSetArg (args[n], XtNstring, wdata->d_vstring); n++;
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
+	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	wdata->d_value = XtCreateManagedWidget ("SSValue",asciiTextWidgetClass,
+		form, args, n);
+	wq->wq_wdata = (void *) wdata;
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Store"); n++;
+	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_SSStore, wq);
+# ifdef notdef
+/*
+ * The "store local" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Store local"); n++;
+	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
+		args, n);
+	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+# endif
+/*
+ * The "cancel" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
+	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	return (form);
+}
 
 
+static Widget
+lw_SICreate (tag, parent, actx)
+char *tag;
+Widget parent;
+XtAppContext actx;
+/*
+ * Create a SingleInt widget.
+ */
+{
+	Widget form, w, above;
+	Arg args[20];
+	int n;
+	struct SFWData *wdata = ALLOC (struct SFWData);
+	WidgetQueue *wq = (WidgetQueue *) tag;
+/*
+ * There is the inevitable form to hold everything.
+ */
+	n = 0;
+ 	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	form = XtCreateManagedWidget ("SingleInt", formWidgetClass, parent,
+		args, n);
+/*
+ * The label to describe this string.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Gimme something:   "); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	above = wdata->d_label = XtCreateManagedWidget ("SILabel",
+		labelWidgetClass, form, args, n);
+/*
+ * Next, the text widget to hold the */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, wdata->d_label); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+	XtSetArg (args[n], XtNinsertPosition, 0); n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNheight, 20); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetArg (args[n], XtNlength, 40); n++;
+	XtSetArg (args[n], XtNstring, wdata->d_vstring); n++;
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
+	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	wdata->d_value = XtCreateManagedWidget ("SIValue",asciiTextWidgetClass,
+		form, args, n);
+	wq->wq_wdata = (void *) wdata;
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Store"); n++;
+	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_SIStore, wq);
+# ifdef notdef
+/*
+ * The "store local" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Store local"); n++;
+	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
+		args, n);
+	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+# endif
+/*
+ * The "cancel" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
+	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	return (form);
+}
 
 
 static Widget
@@ -451,6 +639,123 @@ XtAppContext actx;
 }
 
 
+static Widget
+lw_TSCreate (tag, parent, actx)
+char *tag;
+Widget parent;
+XtAppContext actx;
+/*
+ * Create a TimeSeries widget.
+ */
+{
+	Widget form, w, above;
+	Arg args[20];
+	int n;
+	struct DFWData *wdata = ALLOC (struct DFWData);
+	WidgetQueue *wq = (WidgetQueue *) tag;
+/*
+ * There is the inevitable form to hold everything.
+ */
+	n = 0;
+ 	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	form = XtCreateManagedWidget ("TimeSeries", formWidgetClass, parent,
+		args, n);
+/*
+ * The label to describe the first floating point quantity.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Gimme something:   "); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	above = wdata->d_label[0] = XtCreateManagedWidget ("TSLabel1",
+		labelWidgetClass, form, args, n);
+/*
+ * Next, the text widget to hold the 
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, wdata->d_label[0]); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+	XtSetArg (args[n], XtNinsertPosition, 0); n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNheight, 20); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetArg (args[n], XtNlength, 40); n++;
+	XtSetArg (args[n], XtNstring, wdata->d_vstring[0]); n++;
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
+	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	wdata->d_value[0] = XtCreateManagedWidget ("TSValue1",
+		asciiTextWidgetClass, form, args, n);
+/*
+ * The label to describe the second floating point quantity.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Gimme something:   "); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	wdata->d_label[1] = XtCreateManagedWidget ("TSLabel2",
+		labelWidgetClass, form, args, n);
+/*
+ * Next, the text widget to hold the 
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, wdata->d_label[1]); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+	XtSetArg (args[n], XtNinsertPosition, 0); n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNheight, 20); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetArg (args[n], XtNlength, 40); n++;
+	XtSetArg (args[n], XtNstring, wdata->d_vstring[1]); n++;
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
+	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	above = wdata->d_value[1] = XtCreateManagedWidget ("TSValue2",
+		asciiTextWidgetClass, form, args, n);
+	wq->wq_wdata = (void *) wdata;
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Store"); n++;
+	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_TSStore, wq);
+# ifdef notdef
+/*
+ * The "store local" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Store local"); n++;
+	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
+		args, n);
+	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+# endif
+/*
+ * The "cancel" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
+	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	return (form);
+}
+
+
 
 
 static void
@@ -483,6 +788,48 @@ WidgetQueue *wq;
 
 
 static void
+lw_SSStore (w, wq, junk)
+Widget w;
+WidgetQueue *wq;
+XtPointer junk;
+/*
+ * Store the value in our widget.
+ */
+{
+	char field[20], param[40];
+	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
+/*
+ * Get the string out of the widget and store it.
+ */
+	msg_ELog (EF_DEBUG, "New value is '%s'", wd->d_vstring);
+	parameter (wq->wq_comp, wq->wq_param, wd->d_vstring);
+	lw_Popdown (wq);
+	free (wq->wq_param);
+}
+
+
+static void
+lw_SIStore (w, wq, junk)
+Widget w;
+WidgetQueue *wq;
+XtPointer junk;
+/*
+ * Store the value in our widget.
+ */
+{
+	char field[20], param[40];
+	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
+/*
+ * Get the string out of the widget and store it.
+ */
+	msg_ELog (EF_DEBUG, "New value is '%s'", wd->d_vstring);
+	parameter (wq->wq_comp, wq->wq_param, wd->d_vstring);
+	lw_Popdown (wq);
+	free (wq->wq_param);
+}
+
+
+static void
 lw_SFStore (w, wq, junk)
 Widget w;
 WidgetQueue *wq;
@@ -505,7 +852,9 @@ XtPointer junk;
 	}
 	parameter (wq->wq_comp, wq->wq_param, wd->d_vstring);
 	lw_Popdown (wq);
+	free (wq->wq_param);
 }
+
 
 static void
 lw_DFStore (w, wq, junk)
@@ -529,13 +878,40 @@ XtPointer junk;
 	{
 		sprintf(param1, "%s-%s", field, wq->wq_param[0]);
 		sprintf(param2, "%s-%s", field, wq->wq_param[1]);
-		msg_ELog(EF_DEBUG, "param1 %s param2 %s", param1, param2);
 		pd_Store(Pd, "global", param1, wd->d_vstring[0], SYMT_STRING);
 		pd_Store(Pd, "global", param2, wd->d_vstring[1], SYMT_STRING);
 	}
 	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring[0]);
 	parameter (wq->wq_comp, wq->wq_param[1], wd->d_vstring[1]);
 	lw_Popdown (wq);
+	free (wq->wq_param);
+}
+
+
+static void
+lw_TSStore (w, wq, junk)
+Widget w;
+WidgetQueue *wq;
+XtPointer junk;
+/*
+ * Store the value in our widget.
+ */
+{
+	Arg args[2];
+	char field[20], param1[40], param2[40];
+	struct DFWData *wd = (struct DFWData *) wq->wq_wdata;
+/*
+ * Get the string out of the widget and store it.
+ */
+	msg_ELog (EF_DEBUG, "New value is '%s' '%s'", wd->d_vstring[0],
+		wd->d_vstring[1]);
+
+	pd_Store(Pd, "global", wq->wq_param[0], wd->d_vstring[0], SYMT_STRING);
+	pd_Store(Pd, "global", wq->wq_param[1], wd->d_vstring[1], SYMT_STRING);
+	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring[0]);
+	parameter (wq->wq_comp, wq->wq_param[1], wd->d_vstring[1]);
+	lw_Popdown (wq);
+	free (wq->wq_param);
 }
 
 
@@ -561,7 +937,76 @@ struct ui_command *cmds;
 }
 
 
+static void
+lw_SSSetup (wq, cmds)
+WidgetQueue *wq;
+struct ui_command *cmds;
+/*
+ * Set up a single string widget.
+ */
+{
+	Arg args[5];
+	int n;
+	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
+/*
+ *  Stash the parameter name.
+ */
+	if((wq->wq_param = (ParamStr *) malloc(sizeof(ParamStr))) == NULL)
+	{
+		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
+		return;
+	}
+	strcpy (wq->wq_param, UPTR (cmds[0]));
+/*
+ * Stash the label into the widget.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, UPTR (cmds[1]));		n++;
+	XtSetValues (wd->d_label, args, n);
+/*
+ * Set the initial value.
+ */
+	n = 0;
+	strcpy (wd->d_vstring, cmds[2].uc_text);
+	XtSetArg (args[n], XtNstring, wd->d_vstring);		n++;
+	XtSetValues (wd->d_value, args, n);
+}
 
+
+static void
+lw_SISetup (wq, cmds)
+WidgetQueue *wq;
+struct ui_command *cmds;
+/*
+ * Set up a single integer widget.
+ */
+{
+	Arg args[5];
+	int n;
+	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
+/*
+ *  Stash the parameter name.
+ */
+	if((wq->wq_param = (ParamStr *) malloc(sizeof(ParamStr))) == NULL)
+	{
+		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
+		return;
+	}
+	strcpy (wq->wq_param, UPTR (cmds[0]));
+/*
+ * Stash the label into the widget.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, UPTR (cmds[1]));		n++;
+	XtSetValues (wd->d_label, args, n);
+/*
+ * Set the initial value.
+ */
+	n = 0;
+	strcpy (wd->d_vstring, cmds[2].uc_text);
+	XtSetArg (args[n], XtNstring, wd->d_vstring);		n++;
+	XtSetValues (wd->d_value, args, n);
+}
 
 
 static void
@@ -598,6 +1043,7 @@ struct ui_command *cmds;
 	XtSetArg (args[n], XtNstring, wd->d_vstring);		n++;
 	XtSetValues (wd->d_value, args, n);
 }
+
 
 static void
 lw_DFSetup (wq, cmds)
@@ -644,6 +1090,85 @@ struct ui_command *cmds;
  */
 	n = 0;
 	strcpy (wd->d_vstring[1], cmds[5].uc_text);
+	XtSetArg (args[n], XtNstring, wd->d_vstring[1]);		n++;
+	XtSetValues (wd->d_value[1], args, n);
+}
+
+
+static void
+lw_TSSetup (wq, cmds)
+WidgetQueue *wq;
+struct ui_command *cmds;
+/*
+ * Set up a double float widget.
+ */
+{
+	Arg args[5];
+	int n, nfld;
+	struct DFWData *wd = (struct DFWData *) wq->wq_wdata;
+	char	fields[120], *fnames[120];
+/*
+ * Get the field names.
+ */
+	pd_Retrieve (Pd, wq->wq_comp, "field", fields, SYMT_STRING);
+	nfld = CommaParse (fields, fnames);
+/*
+ *  Stash the parameter name.
+ */
+	if((wq->wq_param = (ParamStr *) malloc(2 * sizeof(ParamStr))) == NULL)
+	{
+		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
+		return;
+	}
+	if (strcmp (UPTR (cmds[0]), "left") == 0)
+	{
+		sprintf (wq->wq_param[0], "%s-%s", fnames[0], UPTR (cmds[1]));
+		sprintf (wq->wq_param[1], "%s-%s", fnames[0], UPTR (cmds[3]));
+	}
+	else 
+		if (nfld >= 2)
+		{
+			sprintf (wq->wq_param[0], "%s-%s", fnames[1], 
+				UPTR (cmds[1]));
+			sprintf (wq->wq_param[1], "%s-%s", fnames[1], 
+				UPTR (cmds[3]));
+		}
+		else 
+		{
+			sprintf (wq->wq_param[0], "%s-%s", fnames[0], 
+				UPTR (cmds[1]));
+			sprintf (wq->wq_param[1], "%s-%s", fnames[0], 
+				UPTR (cmds[3]));
+		}
+/*
+ * Get the parameter values.
+ */
+	pd_Retrieve (Pd, wq->wq_comp, wq->wq_param[0], wd->d_vstring[0],
+		SYMT_STRING);
+	pd_Retrieve (Pd, wq->wq_comp, wq->wq_param[1], wd->d_vstring[1],
+		SYMT_STRING);
+/*
+ * Stash the label into the widget.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, UPTR (cmds[2]));		n++;
+	XtSetValues (wd->d_label[0], args, n);
+/*
+ * Set the initial value.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNstring, wd->d_vstring[0]);		n++;
+	XtSetValues (wd->d_value[0], args, n);
+/*
+ * Stash the label into the widget.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, UPTR (cmds[4]));		n++;
+	XtSetValues (wd->d_label[1], args, n);
+/*
+ * Set the initial value.
+ */
+	n = 0;
 	XtSetArg (args[n], XtNstring, wd->d_vstring[1]);		n++;
 	XtSetValues (wd->d_value[1], args, n);
 }
@@ -772,3 +1297,7 @@ time *t;
 	sprintf (cp, "%-15s%-11s%-12s%2d:%02d\n", comp, plat, fld,
 		t->ds_hhmmss/10000, (t->ds_hhmmss/100) % 100);
 }
+
+
+
+
