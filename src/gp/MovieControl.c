@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.13 1993-03-19 23:24:49 granger Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.14 1993-06-11 22:15:02 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -26,6 +26,10 @@ static char *rcsid = "$Id: MovieControl.c,v 2.13 1993-03-19 23:24:49 granger Exp
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Label.h>
+# include <X11/Xaw/SimpleMenu.h>
+# include <X11/Xaw/SmeLine.h>
+# include <X11/Xaw/SmeBSB.h>
+# include <X11/Xaw/MenuButton.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Scrollbar.h>
@@ -47,21 +51,42 @@ static char *rcsid = "$Id: MovieControl.c,v 2.13 1993-03-19 23:24:49 granger Exp
 # define MOVIE_NAME	"movie" /* Name of the movie controller widget  */
 
 /*
+ * Time units and table with unit names and their scaling factors
+ */
+typedef enum 
+{
+	tu_seconds = 0, tu_minutes, tu_hours, tu_days
+} t_units;
+
+struct _tu_table
+{
+	char	*units;
+	int	scale;
+} TUTable[] =
+{
+	{"seconds", 1},
+	{"minutes", 60},
+	{"hours", 60*60},
+	{"days", 60*60*24}
+};
+
+/*
  * Globals.
  */
-static char 	Minutes[ATSLEN], Endt[ATSLEN], Frate[ATSLEN], Fskip[ATSLEN];
+static char 	MovieLen[ATSLEN], Endt[ATSLEN], Frate[ATSLEN], Fskip[ATSLEN];
+static t_units	TimeUnits = tu_minutes;
 static Widget 	StatusLabel;	/* Where the current status goes	*/
 static Widget 	Indicator;
-static Widget 	WEndt, WMinutes, WFrate, WFskip;
+static Widget 	WEndt, WMovieLen, WUnits1, WUnits2, WFrate, WFskip;
 /*
  * The actual movie control parameters.
  */
 static ZebTime 	Mtimes[NCACHE];		/* The time of each frame	*/
 static int 	MovieSlot = -1;
 static int 	Nframes = 0;		/* Number of frames in the movie*/
-static int 	TimeSkip = 1;		/* Minutes between frames	*/
+static int 	TimeSkip = 1;		/* Time between frames		*/
 static int 	Rate;			/* Display Rate frames/second	*/
-static int 	OldFrameCount = 0;		/* FrameCount before movie  	*/
+static int 	OldFrameCount = 0;	/* FrameCount before movie  	*/
 static bool 	Now;			/* Should endtime track realtime*/
 static bool 	ReGenFrame = FALSE;
 static bool 	Notification = FALSE;
@@ -108,6 +133,7 @@ static void	mc_SetupPreGen FP ((void));
 static ZebTime	mc_FixTime FP ((ZebTime));
 static void	mc_Notification FP ((PlatformId, int, ZebTime *));
 static void	mc_MovieDismiss ();
+static void	mc_ChangeTimeUnits FP ((Widget, XtPointer, XtPointer));
 
 
 void
@@ -121,7 +147,7 @@ mc_DefMovieWidget ()
 	uw_def_widget (MOVIE_NAME, "Movie Control:", mc_MWCreate, 0, 0);
 	uw_NoHeader (MOVIE_NAME);
 	usy_c_indirect (vtbl, "movietime", Endt, SYMT_STRING, ATSLEN);
-	usy_c_indirect (vtbl, "movieminutes", Minutes, SYMT_STRING, ATSLEN);
+	usy_c_indirect (vtbl, "movielen", MovieLen, SYMT_STRING, ATSLEN);
 }
 
 
@@ -133,9 +159,13 @@ mc_LoadParams ()
 {
 	ZebTime t;
 
-	if (! pda_Search (Pd, "global", "movie-minutes", NULL, Minutes, 
+	if (! pda_Search (Pd, "global", "movie-minutes", NULL, MovieLen, 
 			SYMT_STRING))
-		strcpy (Minutes, "30");
+	{
+		strcpy (MovieLen, "30");
+		TimeUnits = tu_minutes;
+	}
+	
 	if (! pda_Search (Pd, "global", "movie-end-time", NULL, Endt, 
 			SYMT_STRING))
 	{
@@ -158,9 +188,10 @@ XtAppContext appc;
  * Create the movie widget.
  */
 {
-	Widget form, w, above, label;
+	Widget form, w, above, label, tumenu, entry;
 	Arg args[20];
-	int n;
+	char string[20];
+	int n, i;
 /*
  * Load some defaults.
  */
@@ -184,7 +215,7 @@ XtAppContext appc;
 	above = w = XtCreateManagedWidget ("movieLabel", labelWidgetClass,
 		form, args, n);
 /*
- * The movie control buttons.
+ * Help, Run, Stop, and Real Time buttons
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
@@ -215,6 +246,38 @@ XtAppContext appc;
 	w = XtCreateManagedWidget ("movieRT", commandWidgetClass, form,
 		args, n);
 	XtAddCallback (w, XtNcallback, mc_MovieRT, 0);
+/*
+ * Time units menu button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Time Units"); n++;
+	tumenu = XtCreatePopupShell ("TUMenu", simpleMenuWidgetClass, Top,
+				     args, n);
+
+	XtCreateManagedWidget ("TUMLine", smeLineObjectClass, tumenu, NULL, 0);
+
+	for (i = 0; i < sizeof (TUTable) / sizeof (struct _tu_table); i++)
+	{
+		n = 0;
+		XtSetArg (args[n], XtNlabel, TUTable[i].units); n++;
+		entry = XtCreateManagedWidget (TUTable[i].units, 
+					       smeBSBObjectClass, tumenu, 
+					       args, n);
+		XtAddCallback (entry, XtNcallback, 
+			       (XtCallbackProc) mc_ChangeTimeUnits, 
+			       (XtPointer) i);
+	}
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Time Units"); n++;
+	XtSetArg (args[n], XtNmenuName, "TUMenu"); n++;
+	w = XtCreateManagedWidget ("movieTUnits", menuButtonWidgetClass, form,
+		args, n);
+/*
+ * Dismiss button.
+ */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
@@ -233,7 +296,7 @@ XtAppContext appc;
 	label = w = XtCreateManagedWidget ("MovieFor", labelWidgetClass, form,
 		args, n);
 /*
- * Movie minutes.
+ * Movie length.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
@@ -244,81 +307,25 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 30); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
-	XtSetArg (args[n], XtNstring, Minutes); n++;
+	XtSetArg (args[n], XtNstring, MovieLen); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
 	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	WMinutes = XtCreateManagedWidget ("movieMin", asciiTextWidgetClass,
+	WMovieLen = XtCreateManagedWidget ("movieLen", asciiTextWidgetClass,
 		form, args, n);
 /*
  * More label.
  */
+	sprintf (string, "%s, every", TUTable[TimeUnits].units);
+
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, WMinutes); n++;
+	XtSetArg (args[n], XtNfromHoriz, WMovieLen); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNlabel, "minutes ending at"); n++;
+	XtSetArg (args[n], XtNlabel, string); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	w = XtCreateManagedWidget ("Movieend", labelWidgetClass, form, args,n);
-/*
- * End time.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
-	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
-	XtSetArg (args[n], XtNinsertPosition, 0); n++;
-	XtSetArg (args[n], XtNlength, ATSLEN); n++;
-	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 140); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
-	XtSetArg (args[n], XtNstring, Endt); n++;
-	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
-	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
-	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	WEndt = w = XtCreateManagedWidget ("movieendt", asciiTextWidgetClass,
-		form, args, n);
-/*
- * Next line: frame rate.
- */
-	above = label;
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
-	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNlabel, "Frames/Second:"); n++;
-	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	label = w = XtCreateManagedWidget ("Moviefr", labelWidgetClass, form,
-		args, n);
-/*
- * The frame rate text widget.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
-	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
-	XtSetArg (args[n], XtNinsertPosition, 0); n++;
-	XtSetArg (args[n], XtNlength, ATSLEN); n++;
-	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 30); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
-	XtSetArg (args[n], XtNstring, Frate); n++;
-	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
-	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
-	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	WFrate = XtCreateManagedWidget ("moviefr", asciiTextWidgetClass, form,
-		args, n);
-/*
- * More label.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, WFrate); n++;
-	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNlabel, "Frame Skip:"); n++;
-	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	w = XtCreateManagedWidget ("Movieskpl", labelWidgetClass, form,
-		args, n);
+	w = WUnits1 = XtCreateManagedWidget ("Movieend", labelWidgetClass, 
+					     form, args, n);
 /*
  * The frame skip text widget.
  */
@@ -341,12 +348,74 @@ XtAppContext appc;
 /*
  * More label.
  */
+	sprintf (string, "%s,", TUTable[TimeUnits].units);
+
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, WFskip); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNlabel, "minutes."); n++;
+	XtSetArg (args[n], XtNlabel, string); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	w = XtCreateManagedWidget ("Movieskpm", labelWidgetClass, form,
+	w = WUnits2 = XtCreateManagedWidget ("Movieskpm", labelWidgetClass, 
+					     form, args, n);
+/*
+ * Next line: end time and frame rate.
+ */
+	above = label;
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "ending at"); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	w = XtCreateManagedWidget ("Movieat", labelWidgetClass, form,
+		args, n);
+/*
+ * End time.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+	XtSetArg (args[n], XtNinsertPosition, 0); n++;
+	XtSetArg (args[n], XtNlength, ATSLEN); n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+	XtSetArg (args[n], XtNwidth, 140); n++;
+	XtSetArg (args[n], XtNheight, 20); n++;
+	XtSetArg (args[n], XtNstring, Endt); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
+	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	WEndt = w = XtCreateManagedWidget ("movieendt", asciiTextWidgetClass,
+		form, args, n);
+/*
+ * Frame rate.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, WEndt); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "    Frames/Second:"); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	label = w = XtCreateManagedWidget ("Moviefr", labelWidgetClass, form,
+		args, n);
+/*
+ * The frame rate text widget.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+	XtSetArg (args[n], XtNinsertPosition, 0); n++;
+	XtSetArg (args[n], XtNlength, ATSLEN); n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+	XtSetArg (args[n], XtNwidth, 30); n++;
+	XtSetArg (args[n], XtNheight, 20); n++;
+	XtSetArg (args[n], XtNstring, Frate); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
+	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	WFrate = XtCreateManagedWidget ("moviefr", asciiTextWidgetClass, form,
 		args, n);
 /*
  * The status line:
@@ -412,7 +481,7 @@ mc_UpdateWidgets ()
  */
 {
 	mc_DoOneWidget (WEndt, Endt);
-	mc_DoOneWidget (WMinutes, Minutes);
+	mc_DoOneWidget (WMovieLen, MovieLen);
 	mc_DoOneWidget (WFrate, Frate);
 	mc_DoOneWidget (WFskip, Fskip);
 }
@@ -488,7 +557,7 @@ mc_SetupParams ()
  * Set up everything for movie mode.
  */
 {
-	int minutes;
+	int movielen;
 	time temptime;
 	ZebTime t, t1, zt;
 	union usy_value v;
@@ -544,12 +613,13 @@ mc_SetupParams ()
 	}
 	msg_ELog(EF_DEBUG, "Now: %s.", Now ? "True" : "False");
 	msg_ELog(EF_DEBUG, "EndTime: %s.", EndTime);
-	if (! sscanf (Minutes, "%d", &minutes))
+	if (! sscanf (MovieLen, "%d", &movielen))
 	{
-		mc_SetStatus ("Unable to understand MINUTES value.");
+		mc_SetStatus ("Unable to understand MovieLen value.");
 		return (FALSE);
 	}
-	msg_ELog (EF_DEBUG, "Minutes %d", minutes);
+	msg_ELog (EF_DEBUG, "MovieLen %d %s", movielen, 
+		  TUTable[TimeUnits].units);
 	if (! sscanf (Frate, "%d", &Rate))
 	{
 		mc_SetStatus ("Unable to understand frame rate.");
@@ -565,7 +635,7 @@ mc_SetupParams ()
 /*
  * Store these values in the PD.
  */
-	pd_Store (Pd, "global", "movie-minutes", (char *) &minutes, SYMT_INT);
+	pd_Store (Pd, "global", "movie-minutes", (char *) &movielen, SYMT_INT);
 	if (! strcmp (Endt, "now"))
 		pd_Store (Pd, "global", "movie-end-time", "now", SYMT_STRING);
 	else
@@ -577,7 +647,7 @@ mc_SetupParams ()
  * Now calculate our frame times.
  */
 	TC_UIToZt (&v.us_v_date, &zt);
-	if (! mc_GetFrameTimes (&zt, minutes))
+	if (! mc_GetFrameTimes (&zt, movielen))
 		return (FALSE);
 	return (TRUE);
 }
@@ -632,7 +702,7 @@ int *which;
 /*
  * Update the message.
  */
-	sprintf (msg, "Generating frames: %d/%d.", *which + 1, Nframes);
+	sprintf (msg, "Generating frame %d of %d.", *which + 1, Nframes);
 	mc_SetStatus (msg);
 /*
  * Do the frame.
@@ -680,9 +750,9 @@ int *which;
 
 
 static bool
-mc_GetFrameTimes (end, minutes)
+mc_GetFrameTimes (end, movielen)
 ZebTime	*end;
-int	minutes;
+int	movielen;
 /*
  * Calculate the frame times for this movie.
  */
@@ -697,7 +767,7 @@ int	minutes;
 /*
  * Figure out how many frames we have.
  */
-	Nframes = minutes/TimeSkip + 1;
+	Nframes = movielen/TimeSkip + 1;
 	if (Nframes > MaxFrames)
 	{
 		sprintf(msg,"Too many frames (%i), maximum is %i",
@@ -708,7 +778,7 @@ int	minutes;
 /*
  * Go through and figure out each frame time.
  */
-	incr = TimeSkip * 60;
+	incr = TimeSkip * TUTable[TimeUnits].scale;
 	t = *end;
 	for (f = Nframes - 1; f >= 0; f--)
 	{
@@ -746,11 +816,12 @@ static ZebTime
 mc_FixTime(zt)
 ZebTime zt;
 {
+	int	timestep = TUTable[TimeUnits].scale;
 /*
  * Fix up the time.
  */
-	zt.zt_Sec -= zt.zt_Sec % 60;
-	zt.zt_Sec += 60;
+	zt.zt_Sec -= zt.zt_Sec % timestep;
+	zt.zt_Sec += timestep;
 	zt.zt_MicroSec = 0;
 	return (zt);
 }
@@ -1077,7 +1148,7 @@ mc_ReGenFrames()
  */
 	time	tmp;
 	ZebTime t, endtime;
-	int minutes, diff;
+	int movielen, diff;
 	float sec;
 /*
  *  See if enough time has elapsed.
@@ -1088,7 +1159,7 @@ mc_ReGenFrames()
 	TC_UIToZt (&tmp, &endtime);
 	endtime = mc_FixTime(endtime);
 	diff = t.zt_Sec - endtime.zt_Sec;
-	if (diff < (TimeSkip * 60))
+	if (diff < (TimeSkip * TUTable[TimeUnits].scale))
 		return;
 /*
  *  Cancel all timer events and event queue entries related to the movies.
@@ -1104,9 +1175,9 @@ mc_ReGenFrames()
  *  Convert stuff into the format we want.
  */
 	TC_EncodeTime (&t, TC_Full, EndTime);
-	if(! sscanf (Minutes, "%d", &minutes))
+	if(! sscanf (MovieLen, "%d", &movielen))
 	{
-		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
+		msg_ELog(EF_PROBLEM, "Unable to understand MovieLen value.");
 		return;
 	}
 /*
@@ -1209,7 +1280,7 @@ mc_ReGenFramesDS()
 {
 	time tmp;
 	ZebTime endtime;
-	int minutes, diff;
+	int movielen, diff;
 	float sec;
 /*
  *  See if enough time has elapsed.
@@ -1219,7 +1290,8 @@ mc_ReGenFramesDS()
 	TC_UIToZt (&tmp, &endtime);
 	endtime = mc_FixTime (endtime);
 	diff = NotTime.zt_Sec - endtime.zt_Sec;
-	if ((diff < TimeSkip * 60 * DAPERCENT) || (diff < 0)) 
+	if ((diff < TimeSkip * TUTable[TimeUnits].scale * DAPERCENT) || 
+	    (diff < 0)) 
 		return;
 
 /*
@@ -1237,9 +1309,9 @@ mc_ReGenFramesDS()
  */
 	TC_ZtToUI (&NotTime, &tmp);
 	TC_EncodeTime (&NotTime, TC_Full, EndTime);
-	if(! sscanf (Minutes, "%d", &minutes))
+	if(! sscanf (MovieLen, "%d", &movielen))
 	{
-		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
+		msg_ELog(EF_PROBLEM, "Unable to understand MovieLen value.");
 		return;
 	}
 /*
@@ -1255,3 +1327,25 @@ mc_ReGenFramesDS()
 		msg_ELog(EF_PROBLEM, "Movie won't re-start.");
 }
 
+
+static void
+mc_ChangeTimeUnits (w, entry, junk)
+Widget		w;
+XtPointer	entry, junk;
+/*
+ * Make the movie widget use the newly specified time units
+ */
+{
+	Arg	arg;
+	char	string[20];
+
+	TimeUnits = (t_units) entry;
+	
+	sprintf (string, "%s, every", TUTable[(int)TimeUnits].units);
+	XtSetArg (arg, XtNlabel, string);
+	XtSetValues (WUnits1, &arg, ONE);
+
+	sprintf (string, "%s,", TUTable[(int)TimeUnits].units);
+	XtSetArg (arg, XtNlabel, string);
+	XtSetValues (WUnits2, &arg, ONE);
+}
