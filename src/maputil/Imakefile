@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.11 2000-04-03 21:59:24 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.12 2000-08-23 16:51:30 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -30,7 +30,8 @@ SUBDIRS = fips123
 DISTSUBDIRS = $(SUBDIRS)
 
 SRCS = cbd2zebra.c dem2zebra.c dlg2zebra.c map_decimate.c \
-       ncar2zebra.c rect_filter.c sdtsdump.c tablet.c zmap.c
+       ncar2zebra.c rect_filter.c sdtsdump.c tablet.c zmap.c \
+       lobes.cc
 
 DISTSRCS = $(SRCS) drawmap.c
 
@@ -54,6 +55,7 @@ CompleteProgramTarget(zmap,zmap.o,$(DEPLIBS),$(LIBZEBRA),$(LIBMATH))
 CompleteProgramTarget(ncar2zebra,ncar2zebra.o,/**/,/**/,/**/)
 CompleteProgramTarget(rect_filter,rect_filter.o,/**/,/**/,/**/)
 CompleteProgramTarget(sdtsdump,sdtsdump.o,$(FIPSLIB),$(FIPSLIB),)
+CccProgramTarget(lobes,lobes.o,,$(LIBZEBRA),$(LIBMATH))
 
 # if defined(SunArchitecture)
 DEPEND_DEFINES=$(NETCDFINCLUDES) $(XINCLUDES)
