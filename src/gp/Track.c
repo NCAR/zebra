@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+# include "config.h"
+# if C_CAP_TRACKS		/* Skip everything if Tracks not desired */
+
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -29,16 +32,16 @@
 # include <string.h>
 # include <signal.h>
 # include <math.h>
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/message.h"
-# include <DataStore.h>
-# include "../include/GraphicsW.h"
+# include "defs.h"
+# include "pd.h"
+# include "message.h"
+# include "DataStore.h"
+# include "GraphicsW.h"
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.20 1993-02-03 21:20:34 martin Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.21 1993-02-17 19:02:30 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -868,3 +871,5 @@ GC Gcontext;
 	}
 }
 # endif
+
+# endif /* C_CAP_TRACKS */
