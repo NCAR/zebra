@@ -16,7 +16,7 @@ find_includes(filep, file, file_red, recursion, failOK)
 	register int	type;
 	boolean recfailOK;
 
-	while (line = getline(filep)) {
+	while (line = md_getline(filep)) {
 		switch(type = deftype(line, filep, file_red, file, TRUE)) {
 		case IF:
 		doif:
@@ -138,7 +138,7 @@ gobble(filep, file, file_red)
 	register char	*line;
 	register int	type;
 
-	while (line = getline(filep)) {
+	while (line = md_getline(filep)) {
 		switch(type = deftype(line, filep, file_red, file, FALSE)) {
 		case IF:
 		case IFFALSE:
