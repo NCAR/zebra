@@ -26,9 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.10 1992-12-15 00:58:05 granger Exp $")
-
-# define DEBUG
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.11 1992-12-18 12:40:12 granger Exp $")
 
 /*
  * Netcdf stuff.
