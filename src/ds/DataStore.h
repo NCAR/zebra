@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.2 1992-06-01 18:48:31 corbet Exp $
+ * $Id: DataStore.h,v 3.3 1992-06-09 19:23:30 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -194,6 +194,8 @@ void 		Dc_RawAdd FP((DataChunk *, int));
 void		dc_SetGlobalAttr FP ((DataChunk *, char *, char *));
 char *		dc_GetGlobalAttr FP ((DataChunk *, char *));
 int		dc_ProcessAttrs FP ((DataChunk *, char *, int (*) ()));
+void		*dc_GetGlAttrBlock FP ((DataChunk *, int *));
+void		dc_SetGlAttrBlock FP ((DataChunk *, void *, int));
 /*
  * Transparent class methods.
  */
@@ -207,6 +209,11 @@ void		dc_AdjustSample FP((DataChunk *, int, int));
 void		dc_SetStaticLoc FP((DataChunk *, Location *));
 void		dc_SetLoc FP((DataChunk *, int, Location *));
 void		dc_GetLoc FP((DataChunk *, int, Location *));
+void		dc_SetSampleAttr FP ((DataChunk *, int, char *, char *));
+char		*dc_GetSampleAttr FP ((DataChunk *, int, char *));
+void		*dc_GetSaAttrBlock FP ((DataChunk *, int, int *));
+void		dc_SetSaAttrBlock FP ((DataChunk *, int, void *, int));
+
 /*
  * Boundary class methods.
  */
