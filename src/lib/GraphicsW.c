@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.3 1991-11-22 20:54:52 kris Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.4 1991-12-07 18:05:07 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -54,6 +54,10 @@ static XtResource resources[] =
 	{XtNframeCount, XtCFrameCount, XtRInt, sizeof (int),
 		XtOffset (GraphicsWidget, graphics.frame_count), 
 		XtRString, "1"},
+	{XtNresizeCallback, XtCResizeCallback, XtRCallback, 
+		sizeof (XtCallbackList), 
+		XtOffset (GraphicsWidget, graphics.resize_callback), 
+		XtRPointer, NULL},
 };
 
 GraphicsClassRec graphicsClassRec =
@@ -352,6 +356,10 @@ GraphicsWidget	w;
 
 	XFillRectangle (XtDisplay (w), w->core.window, w->graphics.gc, 0, 0, 
 		w->core.width, w->core.height);
+/*
+ * If there is a resize callback routine, then call it.
+ */
+	XtCallCallbackList (w, w->graphics.resize_callback, NULL);
 }
 
 

@@ -44,6 +44,7 @@ extern GraphicsClassRec graphicsClassRec;
 typedef struct {
     /* resources */
 	unsigned int	frame_count;	/* How many frames? */
+	XtCallbackList	resize_callback;/* Routine to call on resize */
     /* private state */
 	GC		gc;		/* Graphics context */
 	Pixmap		*frames;	/* Pixmaps for the frames */

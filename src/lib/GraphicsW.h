@@ -38,10 +38,13 @@
  * width	     Width		Dimension	0
  * x		     Position		Position	0
  * y		     Position		Position	0
+ * resizeCallback    Callback           CallbackList    NULL
  */
 
 # define XtNframeCount	"frameCount"
 # define XtCFrameCount	"FrameCount"
+# define XtNresizeCallback "resizeCallback"
+# define XtCResizeCallback "ResizeCallback"
 
 /*
  * Convenience routines
