@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 1.3 1991-03-08 00:59:27 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 1.4 1991-06-14 22:20:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -9,6 +9,7 @@ static char *rcsid = "$Id: ConstAltPlot.c,v 1.3 1991-03-08 00:59:27 corbet Exp $
 # include <pd.h>
 # include <ui_date.h>
 # include <message.h>
+# include <DataStore.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "DrawText.h"
@@ -62,6 +63,9 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	CAP_Raster (char *, int);
 	void	CAP_LineContour (char *, int);
 	void	CAP_Contour (char *, contour_type, char *, float *, float *);
+	static float * CAP_ImageGrid (char *, time *, PlatformId, char *,
+		int *, int *, float *, float *, float *, float *, ScaleInfo *,
+		float *);
 # else
 	void	CAP_FContour ();
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
@@ -537,10 +541,13 @@ Boolean	update;
 	Boolean	ok;
 	float	*grid, x0, x1, y0, y1, alt;
 	float	min, max, bar_height, val, frac;
-	int	pix_x0, pix_x1, pix_y0, pix_y1;
+	int	pix_x0, pix_x1, pix_y0, pix_y1, image;
 	XRectangle	clip;
 	XColor	black;
 	time	t;
+	PlatformId pid;
+	DataOrganization org;
+	ScaleInfo scale;
 /*
  * Get necessary parameters from the plot description
  */
@@ -554,6 +561,23 @@ Boolean	update;
 
 	if (! ok)
 		return;
+/*
+ * Make sure the platform is other than bogus, and get its organization.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform: %s", platform);
+		return;
+	}
+	if ((org = ds_PlatformDataOrg (pid)) == OrgImage)
+		image = TRUE;
+	else if (org == Org3dGrid || org == Org2dGrid || org == OrgIRGrid)
+		image = FALSE;
+	else
+	{
+		msg_ELog (EF_PROBLEM, "Can't do raster plots of %s", platform);
+		return;
+	}
 /*
  * Get annotation information from the plot description
  */
@@ -579,16 +603,20 @@ Boolean	update;
  */
 	alt = Alt;
 	t = PlotTime;
-	grid = ga_GetGrid (&t, platform, name, &xdim, &ydim, &x0, &y0,
+	if (image)
+		grid = CAP_ImageGrid (c, &t, pid, name, &xdim, &ydim, &x0, &y0,
+			&x1, &y1, &scale, &alt);
+	else
+		grid = ga_GetGrid (&t, platform, name, &xdim, &ydim, &x0, &y0,
 			&x1, &y1, &alt);
-	if (Comp_index == 0)
-		Alt = alt;
 	if (! grid)
 	{
 		msg_ELog (EF_INFO, "Unable to get grid for %s at %d %d",
 			platform, PlotTime.ds_yymmdd, PlotTime.ds_hhmmss);
 		return;
 	}
+	if (Comp_index == 0)
+		Alt = alt;
 /*
  * Convert the grid limits to pixel coordinates
  */
@@ -606,7 +634,11 @@ Boolean	update;
  */
 	ct_GetColorByName ("black", &black);
 	RP_Init (Colors, Ncolors, black, clip, min, max);
-	if (! newrp)
+	if (image)
+		RasterImagePlot (Graphics, DrawFrame, grid, xdim,
+			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
+			scale.s_Offset);
+	else if (! newrp)
 		RasterPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1);
 	else
@@ -674,4 +706,119 @@ Boolean	update;
 			JustifyLeft, JustifyCenter);
 	}
 	An_SAUsed ((int) (Ncolors*bar_height + top + 1));
+}
+
+
+
+
+
+
+static float *
+CAP_ImageGrid (c, when, pid, field, xdim, ydim, x0, y0, x1, y1, scale, alt)
+char *c, *field;
+time *when;
+PlatformId pid;
+int *xdim, *ydim;
+float *x0, *y0, *x1, *y1, *alt;
+ScaleInfo *scale;
+/*
+ * Fetch an image grid from this platform.
+ */
+{
+	time realtime, stimes[60];
+	DataObject *dobj;
+	RGrid *rg;
+	float *ret, cdiff;
+	Location slocs[60];
+	int nsample, samp, csamp, all = 0;
+/*
+ * Find out when we can really get data.
+ */
+	if (! ds_DataTimes (pid, when, 1, DsBefore, &realtime))
+	{
+		msg_ELog (EF_INFO, "No data available at all for %s",
+			ds_PlatformName (pid));
+		return (0);
+	}
+	msg_ELog (EF_DEBUG, "Plot time %d %d -> %d %d", when->ds_yymmdd,
+		when->ds_hhmmss, realtime.ds_yymmdd, realtime.ds_hhmmss);
+/*
+ * Unless they have specified that they want all of the heights, we need
+ * to find the specific one of interest.
+ */
+	if (! pda_Search (Pd, c, "every-sweep", NULL, (char *) &all, SYMT_BOOL)
+			|| !all)
+	{
+		nsample = ds_GetObsSamples (pid, &realtime, stimes, slocs, 60);
+		cdiff = 99.9;
+		csamp = -1;
+		for (samp = 0; samp < nsample; samp++)
+			if (ABS (*alt - slocs[samp].l_alt) < cdiff)
+			{
+				csamp = samp;
+				cdiff = ABS (*alt - slocs[samp].l_alt);
+			}
+		if (csamp >= 0)
+			realtime = stimes[csamp];
+	}
+		
+/*
+ * Snarf it.
+ */
+	if ((dobj = ds_GetData (pid, &field, 1, &realtime, &realtime,
+				OrgImage, *alt, 0)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Get failed on %s/%s at %d %06d",
+			ds_PlatformName (pid), field, realtime.ds_yymmdd, 
+			realtime.ds_hhmmss);
+		return (0);
+	}
+	*alt = dobj->do_aloc->l_alt;
+/*
+ * Return the various pieces of info.
+ */
+	rg = dobj->do_desc.d_img.ri_rg;
+	*xdim = rg->rg_nX;
+	*ydim = rg->rg_nY;
+	cvt_ToXY (dobj->do_aloc->l_lat, dobj->do_aloc->l_lon, x0, y0);
+	*x1 = *x0 + (rg->rg_nX - 1)*rg->rg_Xspacing;
+	*y1 = *y0 + (rg->rg_nY - 1)*rg->rg_Yspacing;
+	*scale = *dobj->do_desc.d_img.ri_scale;
+/*
+ * Save the pointer to the data, tell DS not to free it, and dump the 
+ * data object.  The grid will be freed explicitly later.
+ */
+	ret = dobj->do_data[0];
+	dobj->do_flags &= ~(DOF_FREEDATA | DOF_FREEALLDATA);
+	ds_FreeDataObject (dobj);
+	*when = realtime;
+	return (ret);
+}
+
+
+
+
+
+void
+CAP_Finish (alt)
+float alt;
+/*
+ * Finish out CAP plots.
+ */
+{
+	char string[80];
+	int deg = 0;
+/*
+ * Kludge for fake CAP's where altitudes are really radar elevations.
+ */
+	if (pd_Retrieve (Pd, "global", "radar-space", (char *) &deg, SYMT_BOOL)
+			&& deg)
+		sprintf (string, "El %.1f\260", Alt);
+	else
+		sprintf (string, "Alt: %dm", (int) (Alt*1000.0));
+
+	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext,
+		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
+		string, 0.0, TOPANNOTHEIGHT, JustifyRight, JustifyBottom);
 }
