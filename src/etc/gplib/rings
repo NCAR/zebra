@@ -56,6 +56,7 @@ define widget #wname intmenu 'x'
 	submenu 'Ring color' 'simple-color'
 	submenu 'Line width' 'LineWidth'
 	submenu 'Label size' 'RingsLabelSize'
+	submenu 'Ring count' 'RingCount'
 endmenu
 
 define widget RingsLabelSize intmenu 'Label size'
@@ -67,4 +68,19 @@ define widget RingsLabelSize intmenu 'Label size'
 		(PDParam(icon_component, "label-size") = "20")
 	entry 'large' 'parameter #icon_component label-size 30' \
 		(PDParam(icon_component, "label-size") = "30")
+endmenu
+
+define widget RingCount intmenu 'ring count'
+	title 'Number of rings'
+	line
+	entry '4' 'parameter #icon_component num-rings 4' \
+		(PDParam(icon_component, "num-rings") = "4")
+	entry '8' 'parameter #icon_component num-rings 8' \
+		(PDParam(icon_component, "num-rings") = "8" or PDParam(icon_component, "num-rings") = "(Undefined)")
+	entry '12' 'parameter #icon_component num-rings 12' \
+		(PDParam(icon_component, "num-rings") = "12")
+	entry '16' 'parameter #icon_component num-rings 16' \
+		(PDParam(icon_component, "num-rings") = "16")
+	entry '20' 'parameter #icon_component num-rings 20' \
+		(PDParam(icon_component, "num-rings") = "20")
 endmenu
