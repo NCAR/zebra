@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.14 1994-02-10 21:09:18 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.15 1994-02-14 16:29:13 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -75,7 +75,8 @@ static struct FrameCache
 
 /*
  *  Table indicating which pixmaps are free and which are occupied by a
- *  frame.
+ *  frame.  For busy pixmaps, the value is the index of the frame which is
+ *  using it.
  */
 static int FreePixmaps[NCACHE];
 
@@ -102,6 +103,11 @@ static int	fc_GetFreeFrame FP ((void));
 static int	fc_GetFreePixmap FP ((void));
 static int	fc_SetPFPairs FP ((char **, PF_Pair **));
 static int	fc_ComparePairs FP ((PF_Pair *, int, PF_Pair *, int));
+static void	fc_CleanFrame FP ((struct FrameCache *));
+static void     fc_GetFrameInfo FP ((char **, char *, int *, PF_Pair **,
+			float *));
+
+
 
 
 void
@@ -123,6 +129,8 @@ fc_InitFrameCache ()
 }
 
 
+
+
 void
 fc_InvalidateCache ()
 /*
@@ -139,24 +147,8 @@ fc_InvalidateCache ()
  */
 	for (i = 0; i < NCACHE; i++)
 	{
-		FCache[i].fc_valid = FCache[i].fc_keep = FALSE;
-		if (FCache[i].fc_pairs)
-		{
-			free (FCache[i].fc_pairs);
-			FCache[i].fc_pairs = NULL;
-		}
-		if (FCache[i].fc_info)
-		{
-			free (FCache[i].fc_info);
-			FCache[i].fc_info = NULL;
-		}
-		if (FCache[i].fc_active)
-		{
-			aa_FreeList (FCache[i].fc_active);
-			FCache[i].fc_active = NULL;
-		}
+		fc_CleanFrame (FCache + i);
 		BufferTable[i] = FREE;
-		FreePixmaps[i] = InvalidEntry;
 	}
 /*
  *  Initialize all existing pixmaps to free.
@@ -164,7 +156,8 @@ fc_InvalidateCache ()
 	for (i = 0; i < FrameCount; i++)
 		FreePixmaps[i] = FREE;
 /*
- *  Re-create the FrameFile and open it for read/writing.
+ *  Re-create the FrameFile and open it for read/writing.  Truncation would
+ *  be more efficient -- someday.
  */
 	if (FrameFile >= 0)
 	{
@@ -178,7 +171,41 @@ fc_InvalidateCache ()
 }
 
 
-void fc_CreateFrameFile ()
+
+
+
+static void
+fc_CleanFrame (fc)
+struct FrameCache *fc;
+/*
+ * Clean out this frame.
+ */
+{
+	fc->fc_valid = fc->fc_keep = FALSE;
+	if (fc->fc_pairs)
+	{
+		free (fc->fc_pairs);
+		fc->fc_pairs = NULL;
+	}
+	if (fc->fc_info)
+	{
+		free (fc->fc_info);
+		fc->fc_info = NULL;
+	}
+	if (fc->fc_active)
+	{
+		aa_FreeList (fc->fc_active);
+		fc->fc_active = NULL;
+	}
+}
+
+
+
+
+
+
+void
+fc_CreateFrameFile ()
 /*
  *  Put together FileName and create the FrameFile for the first time.
  */
@@ -213,6 +240,9 @@ void fc_CreateFrameFile ()
 		unlink (FileName);
 	}
 }
+
+
+
 
 
 void
@@ -250,26 +280,11 @@ int number;
  */
 	findex = fc_GetFreeFrame();
 /*
- * Add the info.  Fill in the base field.
+ * Get the lookup info.
  */
-	FCache[findex].fc_base[0] = '\0';
-	(void) (pd_Retrieve (Pd, complist[1], "field", FCache[findex].fc_base,
-			SYMT_STRING) ||
-		pd_Retrieve (Pd, complist[1], "color-code-field",
-			FCache[findex].fc_base, SYMT_STRING) ||
-		pd_Retrieve (Pd, complist[1], "u-field",
-			FCache[findex].fc_base, SYMT_STRING));
-/*
- * Get altitude.
- */
-	FCache[findex].fc_alt = 0.0;
-	pd_Retrieve (Pd, "global", "altitude", (char *) &FCache[findex].fc_alt,
-		SYMT_FLOAT);
-/*
- * Platform field pairs.
- */
-	FCache[findex].fc_numpairs = fc_SetPFPairs (complist, 
-		&FCache[findex].fc_pairs);
+	fc_GetFrameInfo (complist, FCache[findex].fc_base,
+			&FCache[findex].fc_numpairs, &FCache[findex].fc_pairs,
+			&FCache[findex].fc_alt);
 /*
  * Get overlay time info from the overlay time widget
  */
@@ -290,6 +305,36 @@ int number;
 	FCache[findex].fc_active = CurrentAreas;
 	FreePixmaps[number] = findex;
 }
+
+
+
+
+static void
+fc_GetFrameInfo (complist, base, npair, pairs, alt)
+char **complist, *base;
+int *npair;
+PF_Pair **pairs;
+float *alt;
+{
+/*
+ * Get a suitable base field.
+ */
+	base[0] = '\0';
+	(void) (pd_Retrieve (Pd, complist[1], "field", base, SYMT_STRING) ||
+		pd_Retrieve (Pd, complist[1], "color-code-field", base,
+				SYMT_STRING) ||
+		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
+/*
+ * Get altitude.
+ */
+	*alt = 0.0;
+	pd_Retrieve (Pd, "global", "altitude", (char *) alt, SYMT_FLOAT);
+/*
+ * Platform field pairs.
+ */
+	*npair = fc_SetPFPairs (complist, pairs);
+}
+
 
 
 
@@ -376,6 +421,9 @@ PF_Pair	**fc_pairs;
 }
 
 
+
+
+
 static int
 fc_ComparePairs (p1, nump1, p2, nump2)
 PF_Pair	*p1, *p2;
@@ -404,6 +452,10 @@ int	nump1, nump2;
 }
 
 
+
+
+
+
 int
 fc_LookupFrame (when, info_return)
 ZebTime	*when;
@@ -427,19 +479,7 @@ char **info_return;
  */
 	if (!complist[1])
 		return (-1);
-	(void) (pd_Retrieve (Pd, complist[1], "field", base, SYMT_STRING) ||
-		pd_Retrieve (Pd, complist[1], "color-code-field", base,
-				SYMT_STRING) ||
-		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
-/*
- * Get the other fields from the PD.
- */
-	numpairs = fc_SetPFPairs (complist, &pairs);
-/*
- * Get the altitude.
- */
-	alt = 0.0;
-	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
+        fc_GetFrameInfo (complist, base, &numpairs, &pairs, &alt);
 /*
  * Now go searching.
  */
@@ -478,6 +518,8 @@ char **info_return;
 }
 
 
+
+
 int
 fc_GetFrame ()
 /*
@@ -487,6 +529,9 @@ fc_GetFrame ()
 {
 	return(fc_GetFreePixmap());
 }
+
+
+
 
 
 void
@@ -506,23 +551,7 @@ int	ntime;
  */
 	if (!complist[1])
 		return;
-/*
- * Get the current base field, and only mark those which match.
- */
-	base[0] = '\0';
-	(void) (pd_Retrieve (Pd, complist[1], "field", base, SYMT_STRING) ||
-		pd_Retrieve (Pd, complist[1], "color-code-field", base,
-				SYMT_STRING) ||
-		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
-/*
- *  Get the other fields fromthe PD.
- */
-	numpairs = fc_SetPFPairs (complist, &pairs);
-/*
- * Get the altitude.
- */
-	alt = 0.0;
-	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
+	fc_GetFrameInfo (complist, base, &numpairs, &pairs, &alt);
 /*
  * Now go through all frames.
  */
@@ -535,7 +564,8 @@ int	ntime;
 		{
 			if (fc->fc_time.zt_Sec == times[t].zt_Sec &&
 			    fc->fc_time.zt_MicroSec == times[t].zt_MicroSec &&
-			    fc->fc_alt == alt && 
+			    fc->fc_alt >= (alt - 0.1) &&
+			    fc->fc_alt <= (alt + 0.1) &&
 			    ! strcmp (fc->fc_base, base) &&
 			    fc_ComparePairs (fc->fc_pairs, fc->fc_numpairs,
 				pairs, numpairs))
@@ -545,8 +575,11 @@ int	ntime;
 			}
 		}
 	}
-	if (pairs) free (pairs);
+	if (pairs)
+		free (pairs);
 }
+
+
 
 
 void
@@ -563,6 +596,9 @@ fc_UnMarkFrames ()
 		if(FCache[i].fc_valid)
 			FCache[i].fc_keep = FALSE;
 }
+
+
+
 
 
 static int
@@ -607,34 +643,33 @@ int frame, pixmap;
 /*
  *  Make sure pixmap to be swapped into is available.
  */
-	if(FreePixmaps[pixmap] != FREE)
+	if (FreePixmaps[pixmap] != FREE)
 	{
-		msg_ELog(EF_PROBLEM,"Pixmap %d to be swapped into is not free.",
-			pixmap);
+		msg_ELog(EF_PROBLEM,
+				"Pixmap %d to be swapped into is not free.",
+				pixmap);
 		if(image) 
 			XDestroyImage (image);
 		return(FALSE);
 	}
-
 /*
  *  Move in the frame file up to the one we want.
  */
-	if(lseek(FrameFile, (long) framesize*FCache[frame].fc_index, 0) < 0)
+	if (lseek (FrameFile, (long) framesize*FCache[frame].fc_index, 0) < 0)
 	{
 		msg_ELog(EF_PROBLEM, "Can't lseek in %s.", FileName);
 		if(image) 
 			XDestroyImage (image);
 		return(FALSE);
 	}
-
 /*
  *  Transfer frame data from FrameFile to pixmap.
  */
 #ifdef SHM
 	if(GWFrameShared(Graphics, pixmap))
 	{
-		if(read(FrameFile, GWGetFrameAddr(Graphics, pixmap), 
-			framesize) != framesize)
+		if (read (FrameFile, GWGetFrameAddr (Graphics, pixmap), 
+				framesize) != framesize)
 		{
 			msg_ELog(EF_PROBLEM, "Can't read into pixmap (%d).",
 				 errno);
@@ -644,7 +679,7 @@ int frame, pixmap;
 	else
 #endif
 	{
-		if(read(FrameFile, image->data, framesize) != framesize)
+		if (read (FrameFile, image->data, framesize) != framesize)
 		{
 			msg_ELog(EF_PROBLEM, "Can't read into image (%d).", 
 				errno);
@@ -667,6 +702,9 @@ int frame, pixmap;
 	FreePixmaps[pixmap] = frame;
 	return(TRUE);
 }
+
+
+
 
 
 static int
@@ -700,22 +738,22 @@ int frame;
 		BytesPerLine = image->bytes_per_line;
 		framesize = GWHeight(Graphics) * image->bytes_per_line;
 	}
-	
-
 /*
  *  Find a free space in the file and move there. 
  */
 	if((offset = fc_GetFreeFile()) < 0)
 	{
 		msg_ELog(EF_PROBLEM, "Can't get space in %s.", FileName);
-		if(image) XDestroyImage(image);		
+		if (image)
+			XDestroyImage(image);		
 		return(FALSE);
 	}
-	msg_ELog(EF_DEBUG, "Moving frame %d to file offset %d.", frame, offset);
-	if(lseek(FrameFile, (long) framesize * offset, 0) < 0)
+	msg_ELog(EF_DEBUG, "Moving frame %d to file offset %d.", frame,offset);
+	if (lseek (FrameFile, (long) framesize * offset, 0) < 0)
 	{
 		msg_ELog(EF_PROBLEM, "Can't lseek in %s.", FileName);
-		if(image) XDestroyImage(image);		
+		if (image)
+			XDestroyImage(image);		
 		return(FALSE);
 	}
 /*  
@@ -776,6 +814,9 @@ fc_GetFreePixmap ()
 		if(FreePixmaps[i] == InvalidEntry)
 			msg_ELog(EF_PROBLEM, "Problem with FreePix table.");
 		index = FreePixmaps[i];
+	/*
+	 * Why would it not be inmem?
+	 */
 		if(FCache[index].fc_inmem)
 		{
 			if(FCache[index].fc_lru < minlru)
@@ -791,24 +832,17 @@ fc_GetFreePixmap ()
 			}
 		}
 	}
-	
+/*
+ * Try to dump this frame to disk and return the pixmap.
+ */
 	i = (kframe >= 0) ? kframe : minframe;
 	if (! fc_PixmapToFile (FreePixmaps[i]))
-	{
-		FCache[FreePixmaps[i]].fc_valid = FALSE;
-		if (FCache[FreePixmaps[i]].fc_pairs)
-		{
-			free (FCache[FreePixmaps[i]].fc_pairs);
-			FCache[FreePixmaps[i]].fc_pairs = NULL;
-		}
-		if (FCache[FreePixmaps[i]].fc_active)
-		{
-			aa_FreeList (FCache[FreePixmaps[i]].fc_active);
-			FCache[FreePixmaps[i]].fc_active = NULL;
-		}
-	}
+		fc_CleanFrame (FCache + FreePixmaps[i]);  /* oops */
 	return(i);
 }
+
+
+
 
 	
 static int
@@ -843,21 +877,16 @@ fc_GetFreeFrame ()
  * OK, we need to zap a frame.  Go for it.
  */
 	i = (kframe >= 0) ? kframe : minframe;
-	FCache[i].fc_keep = FCache[i].fc_valid = FALSE;
-	if (FCache[i].fc_pairs)
-	{
-		free (FCache[i].fc_pairs);
-		FCache[i].fc_pairs = NULL;
-	}
-	if (FCache[i].fc_active)
-		aa_FreeList (FCache[i].fc_active);
-	FCache[i].fc_active = NULL;
+	fc_CleanFrame (FCache + i);
 	if(FCache[i].fc_inmem)
 		FreePixmaps[FCache[i].fc_index] = FREE;
 	else
 		BufferTable[FCache[i].fc_index] = FREE;
 	return(i);
 }	
+
+
+
 
 
 void
@@ -868,33 +897,25 @@ int n;
  */
 {
 	int i;
-
+/*
+ * If we have added new frames enable the pixmaps.
+ */
 	for(i = 0; i < n; i++)
 		if (FreePixmaps[i] == InvalidEntry)
 			FreePixmaps[i] = FREE;
+/*
+ * Otherwise if we have reduced frames do some cleanup.
+ */
 	for(i = n; i < MaxFrames; i++)
 	{
 		if (FreePixmaps[i] >= 0)
-		{
-			int frame = FreePixmaps[i];
-			if(! fc_PixmapToFile (frame))
-			{
-				FCache[frame].fc_valid = FALSE;
-				if (FCache[frame].fc_pairs)
-				{
-					free (FCache[frame].fc_pairs);
-					FCache[frame].fc_pairs = NULL;
-				}
-				if (FCache[frame].fc_active)
-				{
-					aa_FreeList (FCache[frame].fc_active);
-					FCache[frame].fc_active = NULL;
-				}
-			}
-		}
+			fc_CleanFrame (FCache + FreePixmaps[i]);
 		FreePixmaps[i] = InvalidEntry;
 	}
 }
+
+
+
 
 
 void
@@ -915,6 +936,9 @@ fc_PrintCache ()
 }
 
 
+
+
+
 static int
 fc_GetFreeFile ()
 /*
@@ -923,13 +947,22 @@ fc_GetFreeFile ()
 {
 	int offset, index;
 	int minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
-
+/*
+ * Go through the cache looking for a frame we can hand back.
+ */
 	for(offset = 0; offset < MaxFrames; offset++)
 	{
+	/*
+	 * Maybe nobody is using this slot.
+	 */
 		if(BufferTable[offset] == FREE)
 			return(offset);
 		if(BufferTable[offset] < 0 || BufferTable[offset] >= MaxFrames)
 			msg_ELog(EF_PROBLEM, "Problem with BufferTable.");
+	/*
+	 * Hmm.. I guess it's busy.  Look at the LRU counts in case we end
+	 * up zapping somebody.
+	 */
 		index = BufferTable[offset];
 		if(! FCache[index].fc_inmem)
 		{
@@ -946,13 +979,12 @@ fc_GetFreeFile ()
 			}
 		}
 	}
+/*
+ * OK we gotta nail somebody.  Take a frame without keep set if possible,
+ * otherwise take what we can get.
+ */
 	offset = (kframe >= 0) ? kframe : minframe;
-	FCache[BufferTable[offset]].fc_valid = FALSE;
-	if (FCache[BufferTable[offset]].fc_pairs)
-	{
-		free (FCache[BufferTable[offset]].fc_pairs);
-		FCache[BufferTable[offset]].fc_pairs = NULL;
-	}
+	fc_CleanFrame (FCache + BufferTable[offset]);
 	BufferTable[offset] = FREE;
 	return(offset);
 }	
