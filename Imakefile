@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.27 1996-11-20 22:42:50 granger Exp $
+XCOMM $Id: Imakefile,v 1.28 1997-02-04 22:37:54 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -14,7 +14,6 @@ XCOMM distribution.
 #endif
         SUBDIRS = config $(RDSSSUBDIRS) src
     DISTSUBDIRS = config $(RDSSSUBDIRS) src
-     SRCSUBDIRS = config $(RDSSSUBDIRS) src
 
           ETAGS = etags
      ETAGSFLAGS = 
@@ -24,15 +23,10 @@ XCOMM distribution.
 
 XCOMM Note that for distributions, Makefile should be a copy of 
 XCOMM Makefile.ini and NOT the Makefile created by imake.  The tarfile
-XCOMM target copies Makefile.ini over Makefile automatically.
+XCOMM target copies Makefile.ini over Makefile automatically, and
+XCOMM adds Makefile to the distfiles target.
 
       DISTFILES = Imakefile Makefile.ini /*Makefile*/ ChangeLog
-#ifdef notdef
-       LINKDIRS = dist/zeb/doc dist/zeb/project
-      LINKNAMES = $(TARNAME)/doc $(TARNAME)/project
-#endif
-       LINKDIRS = /* docs and projects will be distributed separately */
-      LINKNAMES = 
 
 XCOMM From the top-level directory, the default behavior will be the same
 XCOMM as the "Everything" target, i.e. make sure all Makefiles are
@@ -160,59 +154,49 @@ distclean::
  * This option is compatible with Sun's make, but others...?
  * Since development is being done on Suns, this is not much of a concern.
  *
- * The tarfile (aka distfile) target packages the complete distribution,
- * including config, project, and document directories.
- * 
- * The srcfile target is intended for developers who only to
- * compile the source only.  This tar file will include only what
- * is necessary to compile and install all of the executables.
- * To further restrict what is packaged, set the DISTSUBDIRS
- * variable from the command line, e.g.
- *
- * 	make srcfile SRCNAME=pikes-copy \
- *		SRCSUBDIRS="imake config src/msg"
+ * The 'source' target packages the source distribution by default.
+ * The 'binary' target defaults to packaging the binary directories.
+ * To include other directories such as project, document, or
+ * binary directories, set DISTSUBDIRS and DISTFILES on the command line
+ * and use the 'tarfile' target.  See binary and source for examples.
+ * Setting DISTSUBDIRS to empty essentially disables the 'make distfiles'
+ * and tars only the files and whole directories given in DISTFILES.
+ * DISTFILES paths must be relative to the top directory.  Set TARDEST
+ * to write the tar file somewhere other than the top directory.
  */
-TARFILE = zebra-4.0
-SRCFILE = zebra-src
+TARFILE = zebra-4.x
+TARDEST = .
 
 tarfile:
-	@echo Making file $(TARFILE).tar.$(ZIPEXT) ; \
+	@echo Making file $(TARDEST)/$(TARFILE).tar.$(ZIPEXT) ; \
 	if mkdir $(TARFILE) ; then \
 	  (set -x; \
 	   cd $(TARFILE); \
-	        for f in $(DISTFILES) $(LINKDIRS) $(DISTSUBDIRS); do \
+	        for f in $(DISTFILES) $(DISTSUBDIRS); do \
 		  $(LN) ../$$f . ; \
 		done; \
 		rm -f Makefile ; \
 		cp ../Makefile.ini Makefile \
 	  ) ; \
 	  tar cvhf - $(LINKNAMES) \
-	     `$(MAKE) -s MAKE=$(MAKE) $(MFLAGS) DISTCURDIR=$(TARFILE) distfiles` | \
-		  $(ZIPPIPE) > $(TARFILE).tar.$(ZIPEXT) ; \
+	     `$(MAKE) -s MAKE=$(MAKE) $(MFLAGS) DISTFILES="$(DISTFILES)" \
+		DISTSUBDIRS="$(DISTSUBDIRS)" \
+		DISTCURDIR=$(TARFILE) distfiles` | \
+		  $(ZIPPIPE) > $(TARDEST)/$(TARFILE).tar.$(ZIPEXT) ; \
 	  rm -rf $(TARFILE) ; \
-	  echo Done making $(TARFILE).tar.$(ZIPEXT) ; \
+	  echo Done making $(TARDEST)/$(TARFILE).tar.$(ZIPEXT) ; \
 	else \
 	  echo "Cannot make directory '$(TARFILE)'!  Aborting."; \
 	  false ; \
 	fi
 
-srcfile:
-	@echo Making file $(SRCFILE).tar.$(ZIPEXT) ; \
-	if mkdir $(SRCFILE) ; then \
-	  (set -x; \
-	   cd $(SRCFILE); for f in $(DISTFILES) $(SRCSUBDIRS); do \
-		  $(LN) ../$$f . ; \
-	  done) ; \
-	  tar cvhf - \
-	     `$(MAKE) -s MAKE=$(MAKE) $(MFLAGS) DISTCURDIR=$(SRCFILE) \
-	      DISTSUBDIRS="$(SRCSUBDIRS)" distfiles ` | \
-		  $(ZIPPIPE) > $(SRCFILE).tar.$(ZIPEXT) ; \
-	  rm -rf $(SRCFILE) ; \
-	  echo Done making $(SRCFILE).tar.$(ZIPEXT) ; \
-	else \
-	  echo "Cannot make directory '$(SRCFILE)'!  Aborting."; \
-	  false ; \
-	fi
+binary:
+	$(MAKE) $(MFLAGS) MAKE=$(MAKE) tarfile TARFILE=$(TARFILE) \
+	DISTSUBDIRS= DISTFILES="ChangeLog bin lib include"
+
+source:
+	$(MAKE) $(MFLAGS) MAKE=$(MAKE) tarfile TARFILE=$(TARFILE) \
+	DISTSUBDIRS="$(DISTSUBDIRS)" DISTFILES="$(DISTFILES) Makefile"
 
 /*
  * Since the mf shortcut turns around and does a depend as well, we'll
@@ -226,7 +210,7 @@ mf:: Makefile
 
 XCOMM clean out link tree looking for stuff that should get checked in
 flushlinks::
-	make -k clean
+	$(MAKE) -k clean
 	find . -type l -exec rm {} \;
 	find . \( \! \( -type d -o -name Makefile \) \) -print
 
