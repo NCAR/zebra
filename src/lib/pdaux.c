@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.10 1994-01-28 21:31:19 granger Exp $ */
+/* $Id: pdaux.c,v 1.11 1995-04-15 00:36:43 granger Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -32,6 +32,10 @@ static stbl Pd_table = 0;
 
 
 
+/*
+ * Prototypes
+ */
+static int pda_FreePD FP ((char *name, int type, union usy_value *v, int));
 
 
 
@@ -96,6 +100,37 @@ char *name;
 }
 
 
+
+
+void
+pda_ReleaseAll ()
+/*
+ * Release all known plot descriptions and the symbol table itself.
+ */
+{
+	if (Pd_table)
+	{
+		usy_traverse (Pd_table, pda_FreePD, 0, FALSE);
+		usy_z_stbl (Pd_table);
+	}
+	Pd_table = 0;
+}
+
+
+
+
+static int
+pda_FreePD (name, type, v, param)
+char *name;
+int type;
+union usy_value *v;
+int param;
+{
+	plot_description pd = (plot_description) v->us_v_ptr;
+
+	pd_Release (pd);
+	usy_z_symbol (Pd_table, name);
+}
 
 
 
