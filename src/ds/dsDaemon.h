@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.11 1994-04-15 22:28:12 burghart Exp $ */
+/* $Id: dsDaemon.h,v 3.12 1994-04-18 14:49:13 burghart Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -108,10 +108,6 @@ void	DataScan FP ((void));
 void	Rescan FP ((PlatformId platid, int all));
 void	WriteCache FP ((struct ui_command *));
 void	ReadCacheFile FP ((char *, int));
-<<<<<<< dsDaemon.h
 void	RescanPlat FP ((Platform *));
-||||||| 3.9.2.1
-=======
 
 #endif /* ! _zeb_dsDaemon_h_ */
->>>>>>> /tmp/T4a06562
