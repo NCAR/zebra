@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.16 1992-09-15 16:32:37 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.17 1992-09-22 20:12:07 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -66,6 +66,11 @@ extern int	PlotType;
 extern float	Xlo, Xhi, Ylo, Yhi;
 extern float	Alt;		/* CAP plot altitude			*/
 
+/*
+ * The "altitude control" component -- that which regulates the altitude
+ * at which CAP plots are done.
+ */
+extern int	AltControlComp;
 /*
  *  Maximum number of frames in the frame cache.
  */

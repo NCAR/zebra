@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.14 1992-09-18 16:26:06 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.15 1992-09-22 20:12:07 corbet Exp $")
 
 
 /*
@@ -292,7 +292,7 @@ float	*center, *step;
 
 	else 
 		return ;
-	if (Comp_index == 0)
+	if (Comp_index == AltControlComp)
 		Alt = alt;
 	if (! rgrid)
 	{
@@ -460,7 +460,7 @@ Boolean	update;
 				&rg, &len);
 		else
 			return;
-		if (Comp_index == 0)
+		if (Comp_index == AltControlComp)
 			Alt = alt;
 		if (! rgrid)
 		{
@@ -870,7 +870,7 @@ Boolean	update;
 		msg_ELog (EF_INFO, "Unable to get grid for %s.", platform);
 		return;
 	}
-	if (Comp_index == 0)
+	if (Comp_index == AltControlComp)
 		Alt = alt;
 /*
  * Convert the grid limits to pixel coordinates

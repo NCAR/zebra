@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.12 1992-08-06 21:26:31 barrett Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.13 1992-09-22 20:12:07 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -145,31 +145,20 @@ static void	(*EOPHandler) () = 0;
 /*
  * Forward declarations
  */
-# ifdef __STDC__
-	int	px_NameToNumber (char *, name_to_num *);
-	char *	px_NumberToName (int, name_to_num *);
-	void	px_Init ();
-	void	px_AddComponent (char *, int);
+int	px_NameToNumber FP ((char *, name_to_num *));
+char *	px_NumberToName FP ((int, name_to_num *));
+void	px_Init FP ((void));
+void	px_AddComponent FP ((char *, int));
 # if C_PT_CAP
-	void	CAP_FContour (char *, int);
-	void	CAP_Vector (char *, int);
-	void	CAP_Raster (char *, int);
-	void	CAP_LineContour (char *, int);
-	void	CAP_Init (time *);
+	void	CAP_FContour FP ((char *, int));
+	void	CAP_Vector FP ((char *, int));
+	void	CAP_Raster FP ((char *, int));
+	void	CAP_LineContour FP ((char *, int));
+	void	CAP_Init FP ((time *));
 # endif
-	void	px_AdjustCoords (float *, float *, float *, float *);
-	static bool px_GetCoords (void);
-# else
-	int	px_NameToNumber ();
-	char *	px_NumberToName ();
-	void	px_Init (), px_AddComponent ();
-# if C_PT_CAP
-	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
-	void	CAP_FContour (), CAP_Init ();
-# endif
-	void	px_AdjustCoords ();
-	static bool px_GetCoords ();
-# endif
+void	px_AdjustCoords FP ((float *, float *, float *, float *));
+static bool px_GetCoords FP ((void));
+static	void px_GetAltitude FP ((void));
 
 /*
  * Other routines.
@@ -200,6 +189,7 @@ static void	(*EOPHandler) () = 0;
  */
 static int	Ncomps;
 int	Comp_index;
+int	AltControlComp = 1;	/* Index of altitude control component */
 
 
 /*
@@ -414,7 +404,7 @@ ZebTime *cachetime;
  */
 	for (i = 1; comps[i]; i++)
 	{
-		Comp_index = i - 1;
+		Comp_index = i;
 		px_AddComponent (comps[i], False);
 	}
 
@@ -475,9 +465,12 @@ px_GetCoords ()
  */
 	if (! pd_Retrieve (Pd, "global", "radar-space", CPTR (rs), SYMT_BOOL))
 		rs = FALSE;
+# ifdef notdef
 	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
 				SYMT_FLOAT))
 		Alt = 0;
+# endif
+	px_GetAltitude ();
 # ifdef notdef
 /*
  * Assume that we are not yet dealing with space-based platforms.  If we're
@@ -602,6 +595,74 @@ ZebTime	*t;
 		TC_UIToZt (&temptime, t);
 }
 
+
+
+
+static void
+px_GetAltitude ()
+/*
+ * Return the altitude that this overlay should use, and figure out which
+ * component controls it.
+ */
+{
+	char altcomp[120], **comps = pd_CompList (Pd), plat[80];
+	int i, control;
+/*
+ * Start by simply looking up the altitude in the global component.
+ */
+	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
+				SYMT_FLOAT))
+		Alt = 0;
+/*
+ * Algorithm for finding the control component:
+ *
+ * (1) See if it is simply specified in the global area.  If so, see 
+ *     further that it exists, and is not disabled.
+ */
+	if (pda_Search (Pd, "global", "altitude-control", NULL, altcomp,
+			SYMT_STRING))
+	{
+		for (i = 0; comps[i]; i++)
+			if (! strcmp (comps[i], altcomp))
+				break;
+		if (comps[i])	/* Disabled? */
+		{
+			int disabled = 0;
+			if (! pda_Search (Pd, comps[i], "disable", NULL, 
+				CPTR (disabled), SYMT_BOOL) || ! disabled)
+			{
+				AltControlComp = i;
+				return;
+			}
+		}
+		else
+			msg_ELog (EF_PROBLEM,
+				"Altitude control comp %d missing", comps[i]);
+	}
+/*
+ * That didn't work out, so:
+ *
+ * (2) Search each component for an "altitude control" parameter.  If we 
+ *     find it, that component takes over.  "altitude-control" is qualified
+ *     by the platform name.
+ */
+	for (i = 1; comps[i]; i++)
+	{
+		if (! pda_Search (Pd, comps[i], "platform", NULL, plat,
+					SYMT_STRING))
+			continue;	/* No plat?? */
+		if (pda_Search (Pd, comps[i], "altitude-control", plat,
+				CPTR (control), SYMT_BOOL))
+		{
+			AltControlComp = i;
+			return;
+		}
+	}
+/*
+ * (3) Just use the base, like things used to be in the good olde days.
+ */
+	AltControlComp = 1;
+}
 
 
 

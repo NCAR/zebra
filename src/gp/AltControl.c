@@ -1,7 +1,7 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 2.2 1992-05-27 16:39:12 kris Exp $";
+static char *rcsid = "$Id: AltControl.c,v 2.3 1992-09-22 20:12:07 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -62,7 +62,8 @@ int nstep;
  * space or not.
  */
 	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
-	if (! pd_Retrieve (Pd, comps[1], "platform", platform, SYMT_STRING))
+	if (! pd_Retrieve (Pd, comps[AltControlComp], "platform", platform,
+			SYMT_STRING))
 		return;
 	if (! pd_Retrieve (Pd, "global", "radar-space", (char *) &rspace,
 				SYMT_BOOL))
