@@ -21,6 +21,9 @@
 
 # include <math.h>
 # include <sys/time.h>
+# include <string.h>
+# include <ctype.h>
+
 # include "defs.h"
 # include "config.h"
 # include "message.h"
@@ -29,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.37 1994-12-03 07:22:41 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.38 1995-01-18 00:56:36 granger Exp $")
 #endif
 
 # include <netcdf.h>
@@ -100,10 +103,9 @@ typedef struct _nctag
 	int             nc_id;		/* netCDF ID value		 */
 	long            nc_base;	/* Base time value		 */
 	int             nc_vTime;	/* Time variable ID		 */
-	int             nc_dTime;	/* The time dimension		 */
+	int             nc_dTime;	/* The time dimension ID	 */
 	double         *nc_times;	/* The time offset array	 */
-	int		nc_timeIsFloat; /* Float or double time?	 */
-	int             nc_dTOffset;	/* The dimension of time_offset	 */
+	nc_type		nc_timeType;	/* Type of time or time_offset	 */
 	int             nc_ntime;	/* The number of time records	 */
 	int             nc_nrec;	/* How many records in the file	 */
 	DataOrganization nc_org;	/* The purported organization	 */
@@ -921,6 +923,118 @@ NCTag *tag;
 
 
 
+static void
+strtolower (c)
+char *c;
+{
+	while (*c)
+	{
+		*c = (int) tolower ((int)*c);
+		++c;
+	}
+}
+
+
+
+#ifndef TEST_TIME_UNITS
+static
+#endif
+int
+dnc_TimeUnits (zt, time_units)
+ZebTime *zt;
+const char *time_units;
+/*
+ * Convert the udunits-style time_units string into a GMT time.
+ * Return non-zero on success, zero otherwise.
+ */
+{
+	char units[256], ref[256], zone[256];
+	int year, month, day, hour, minute;
+	float fsecond;
+	char *colon;
+	int second, msec;
+	int nscan;
+
+	nscan = sscanf (time_units, "%s %s %d-%d-%d %d:%d:%f %s",
+			units, ref, &year, &month, &day, &hour, &minute, 
+			&fsecond, zone);
+	if (nscan != 1 && nscan != 9)
+	{
+		msg_ELog (EF_PROBLEM, "bad syntax in time units");
+		return (FALSE);
+	}
+	/*
+	 * Can only accept seconds for now
+	 */
+	strtolower (units);
+	if (strcmp (units, "seconds"))
+	{
+		msg_ELog (EF_PROBLEM, "time units must be 'seconds'");
+		return (FALSE);
+   	}
+	/*
+	 * If all we got was a unit and no reference time, assume epoch
+	 */
+	if (nscan == 1)
+	{
+		msg_ELog (EF_DEBUG, "no reference time in units, assuming %s",
+			  "01-Jan-1970 00:00:00 GMT");
+		zt->zt_Sec = 0;
+		zt->zt_MicroSec = 0;
+		return (TRUE);
+	}
+	strtolower (ref);
+	if (strcmp (ref, "@") && strcmp (ref, "since") &&
+	    strcmp (ref, "from") && strcmp (ref, "after") &&
+	    strcmp (ref, "ref"))
+	{
+		msg_ELog (EF_PROBLEM, "unknown reference string '%s'", ref);
+		return (FALSE);
+	}
+	/*
+	 * Convert our float seconds into integer seconds and microseconds
+	 */
+	second = (int) fsecond;
+	msec = (int) ((fsecond - (float)second) * 1e+6);
+	TC_ZtAssemble (zt, year, month, day, hour, minute, second, msec);
+	/*
+	 * Translate to UTC: negative is west of prime meridian.
+	 * Accept hh:mm, hh, hmm, or hhmm.
+	 */
+	if ((colon = strchr (zone, ':')) != NULL)
+	{
+		if (sscanf (zone, "%d:%d", &hour, &minute) != 2)
+		{
+			msg_ELog(EF_PROBLEM, "could not understand time zone");
+			return (FALSE);
+		}
+		zt->zt_Sec -= (hour * 3600) + 
+			(minute * 60 * (hour < 0 ? -1 : 1));
+	}
+	else
+	{
+		if (sscanf (zone, "%d", &hour) != 1)
+		{
+			msg_ELog(EF_PROBLEM, "could not understand time zone");
+			return (FALSE);
+		}
+		if (hour < 100)
+		{
+			zt->zt_Sec -= hour * 3600;
+		}
+		else
+		{
+			int sign = (hour < 0 ? -1 : 1);
+			hour = (hour < 0 ? -1*hour : hour);
+			zt->zt_Sec -= sign * ((hour / 100) * 3600);
+			zt->zt_Sec -= sign * ((hour % 100) * 60);
+		}
+	}
+	return (TRUE);
+}
+
+
+
 
 static int
 dnc_OFTimes (tag)
@@ -930,39 +1044,88 @@ NCTag *tag;
  */
 {
 	int ndim, dims[MAX_VAR_DIMS], natt, vbase;
-	nc_type dtype;
+	int use_time_offset;	/* use time_offset variable rather than time */
+	char time_units[256];
+	int alen;
+	ZebTime zt;
+	nc_type dtype, atype;
 /*
- * Get the base time.
+ * Get the base time, either from a base_time variable or from the units
+ * of a time variable.
  */
-	if ((vbase = ncvarid (tag->nc_id, "base_time")) < 0)
+	use_time_offset = 1;
+	if ((vbase = ncvarid (tag->nc_id, "base_time")) >= 0)
 	{
-		dnc_NCError ("base_time variable");
+		ncvarget1 (tag->nc_id, vbase, 0, &tag->nc_base);
+	}
+	else if ((vbase = ncvarid (tag->nc_id, "time")) >= 0)
+	{
+		use_time_offset = 0;
+		if (ncattinq (tag->nc_id, vbase, "units", &atype, &alen) < 0)
+		{
+			dnc_NCError ("no 'units' attribute for 'time'");
+			return (FALSE);
+		}
+		if ((atype != NC_CHAR) || (alen >= sizeof(time_units)))
+		{
+			dnc_NCError ("invalid units for 'time' variable");
+			return (FALSE);
+		}
+		ncattget (tag->nc_id, vbase, "units", (void *)time_units);
+		/*
+		 * Now try to parse the units string
+		 */
+		if (! dnc_TimeUnits (&zt, time_units))
+			return (FALSE);
+		/*
+		 * Convert to a long base time, noting any precision loss
+		 */
+		if (zt.zt_MicroSec)
+			msg_ELog (EF_PROBLEM, "%i microseconds dropped %s",
+				  zt.zt_MicroSec,
+				  "converting ref time to long base time");
+		tag->nc_base = (long) zt.zt_Sec;
+	}
+	else	/* failure to find any time variables */
+	{
+		dnc_NCError ("no base_time or time variable");
 		return (FALSE);
 	}
-	ncvarget1 (tag->nc_id, vbase, 0, &tag->nc_base);
 /*
- * There better be a time offset field.  Determine whether we're dealing
- * with a file with float or double times.
+ * There's either a time_offset field or a time field.  The use of the
+ * field is the same, only the name is different.  Also determine whether
+ * we're dealing with float, double, or long times.
  */
-	if ((tag->nc_vTime = ncvarid (tag->nc_id, "time_offset")) < 0)
+	if (! use_time_offset)
+	{
+		tag->nc_vTime = vbase;	/* one variable gives base and times */
+	}
+	else if ((tag->nc_vTime = ncvarid (tag->nc_id, "time_offset")) < 0)
 	{
 		dnc_NCError ("time_offset variable");
 		return (FALSE);
 	}
 	if (ncvarinq (tag->nc_id, tag->nc_vTime, (char *) 0, &dtype,
-		     &ndim, dims, &natt) < 0)
+		      &ndim, dims, &natt) < 0)
 	{
-		dnc_NCError ("time_offset varinq");
+		dnc_NCError ("time_offset or time varinq");
 		return (FALSE);
 	}
 	if (ndim != 1 /* || dims[0] != tag->nc_dTime */ )
 	{
-		msg_ELog (EF_PROBLEM, "Bad time_offset var");
+		msg_ELog (EF_PROBLEM, "time variable must have one dimension");
 		return (FALSE);
 	}
 	tag->nc_dTime = dims[0];
-	tag->nc_dTOffset = tag->nc_dTime;
-	tag->nc_timeIsFloat = (dtype == NC_FLOAT);
+/*
+ * We only handle certain time types
+ */
+	if (dtype != NC_FLOAT && dtype != NC_DOUBLE && dtype != NC_LONG)
+	{
+		msg_ELog (EF_PROBLEM, "time must be float, double, or long");
+		return (FALSE);
+	}
+	tag->nc_timeType = dtype;
 /*
  * Pull in the time array, and we're done.
  */
@@ -982,12 +1145,13 @@ NCTag *tag;
 {
 	long ntime, zero = 0;
 	float *ftime;
+	long *ltime;
 	int status, i;
 /*
  * If the number of times available exceeds the space allocated,
  * start over.
  */
-	if (ncdiminq (tag->nc_id, tag->nc_dTOffset, (char *) 0, &ntime) < 0)
+	if (ncdiminq (tag->nc_id, tag->nc_dTime, (char *) 0, &ntime) < 0)
 	{
 		dnc_NCError ("time_offset dim inq");
 		return (FALSE);
@@ -1005,7 +1169,12 @@ NCTag *tag;
  * should be a bit more careful and not read the entire array -- it
  * could be expensive.
  */
-	if (tag->nc_timeIsFloat)
+	if (tag->nc_timeType == NC_DOUBLE)
+	{
+		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
+			tag->nc_times);
+	}
+	else if (tag->nc_timeType == NC_FLOAT)
 	{
 	/*
 	 * Read the time as floats, then move it to the double array.
@@ -1020,9 +1189,20 @@ NCTag *tag;
 
 		free (ftime);
 	}
-	else
+	else /* tag->nc_timeType == NC_LONG */
+	{
+	/*
+	 * Read the time as longs, then move it to the double array.
+	 */
+		ltime = (long *) malloc (ntime * sizeof (long));
 		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
-			tag->nc_times);
+				   ltime);
+		if (status >= 0)
+			for (i = 0; i < ntime; i++)
+				tag->nc_times[i] = (double) ltime[i];
+
+		free (ltime);
+	}
 
 	if (status < 0)
 	{
@@ -1353,7 +1533,7 @@ FieldId *fids;
 			ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, 
 				  dims, &natts);
 			is_static = ((ndims == 0) || 
-				     (dims[0] != tag->nc_dTOffset));
+				     (dims[0] != tag->nc_dTime));
 		}
 		nsdims = 0;
 		for (j = (is_static ? 0 : 1); j < ndims; ++j)
@@ -2568,8 +2748,13 @@ ZebTime *zt;
 	date t;
 
 	TC_ZtToUI (zt, &t);
+#ifndef TEST_TIME_UNITS
 	sprintf (dest, "%s.%06d.%06d.cdf", platform, t.ds_yymmdd,
 		t.ds_hhmmss);
+#else
+	sprintf (dest, "%s.%06d.%06d.cdf", "test", t.ds_yymmdd,
+		t.ds_hhmmss);
+#endif
 }
 
 
@@ -2591,13 +2776,13 @@ int ndetail;
 	NCTag *tag = ALLOC(NCTag);
 	int ndim, dims[6], vbase;
 	ZebTime t;
-	SValue sval;
-	int time_is_float = FALSE;
+	nc_type time_type;
 	char full_time[50];
 	int year, month, day, hour, minute, second;
 #	define BT_LONGNAME "Base time in Epoch"
 #	define BT_UNITS	   "seconds since 1970-1-1 0:00:00 0:00"
 #	define OT_LONGNAME "Time offset from base_time"
+#	define TIME_LONGNAME "Time"
 /*
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
@@ -2611,16 +2796,20 @@ int ndetail;
 /*
  * Check for details which we handle here
  */
-	if (ds_GetDetail(DD_NC_TIME_FLOAT, details, ndetail, &sval))
-		time_is_float = TRUE;
-	if (ds_GetDetail(DD_NC_TIME_DOUBLE, details, ndetail, &sval))
-		time_is_float = FALSE;
+	if (ds_GetDetail(DD_NC_TIME_DOUBLE, details, ndetail, NULL))
+		time_type = NC_DOUBLE;
+	else if (ds_GetDetail(DD_NC_TIME_FLOAT, details, ndetail, NULL))
+		time_type = NC_FLOAT;
+	else if (ds_GetDetail(DD_NC_TIME_LONG, details, ndetail, NULL))
+		time_type = NC_LONG;
+	else
+		time_type = NC_DOUBLE;
 /*
  * Fill in some basic tag info.
  */
 	tag->nc_times = (double *) 0;
 	tag->nc_ntime = tag->nc_nrec = 0;
-	tag->nc_timeIsFloat = time_is_float;
+	tag->nc_timeType = time_type;
 	tag->nc_org = ds_PlatformDataOrg (dc->dc_Platform);
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
@@ -2644,7 +2833,6 @@ int ndetail;
 		tag->nc_dTime = ncdimdef(tag->nc_id, "time", plat->dp_maxsamp);
 # endif
 	tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
-	tag->nc_dTOffset = tag->nc_dTime;
 /*
  * Create the other dimensions that we need for variables.
  */
@@ -2654,31 +2842,43 @@ int ndetail;
 /*
  * Make the time variables.  The time_offset field is now stored as a double
  * so we have sufficient precision to represent reasonable time offsets down
- * to the microsecond.
+ * to the microsecond.  The DD_NC_ONE_TIME detail tells us to use a single
+ * 'time' variable and no 'base_time'.  Put the base time in the units 
+ * attribute of 'time'.
  */
-	vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
-	tag->nc_vTime = ncvardef (tag->nc_id, "time_offset",
-				  (tag->nc_timeIsFloat) ? NC_FLOAT : NC_DOUBLE,
-				  1, &tag->nc_dTime);
 	dc_GetTime (dc, 0, &t);
 	tag->nc_base = t.zt_Sec;
 	t.zt_MicroSec = 0;
-	TC_EncodeTime (&t, TC_Full, full_time);
-	strcat (full_time, " GMT");
-	ncattput (tag->nc_id, vbase, "string", NC_CHAR,
-		  strlen(full_time)+1, full_time);
-	ncattput (tag->nc_id, vbase, VATT_LONGNAME, NC_CHAR,
-		  strlen(BT_LONGNAME)+1, BT_LONGNAME);
-	ncattput (tag->nc_id, vbase, VATT_UNITS, NC_CHAR,
-		  strlen(BT_UNITS)+1, BT_UNITS);
+	if (ds_GetDetail (DD_NC_ONE_TIME, details, ndetail, NULL))
+	{
+		vbase = -1;
+		tag->nc_vTime = ncvardef (tag->nc_id, "time",
+					  tag->nc_timeType, 1, &tag->nc_dTime);
+		ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
+			  strlen(TIME_LONGNAME)+1, TIME_LONGNAME);
+	}
+	else
+	{
+		vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
+		tag->nc_vTime = ncvardef (tag->nc_id, "time_offset",
+					  tag->nc_timeType, 1, &tag->nc_dTime);
+		TC_EncodeTime (&t, TC_Full, full_time);
+		strcat (full_time, " GMT");
+		ncattput (tag->nc_id, vbase, "string", NC_CHAR,
+			  strlen(full_time)+1, full_time);
+		ncattput (tag->nc_id, vbase, VATT_LONGNAME, NC_CHAR,
+			  strlen(BT_LONGNAME)+1, BT_LONGNAME);
+		ncattput (tag->nc_id, vbase, VATT_UNITS, NC_CHAR,
+			  strlen(BT_UNITS)+1, BT_UNITS);
+		ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
+			  strlen(OT_LONGNAME)+1, OT_LONGNAME);
+	}
 	TC_ZtSplit (&t, &year, &month, &day, &hour, &minute, &second, 0);
 	sprintf (full_time, 
 		 "seconds since %4i-%02i-%02i %02i:%02i:%02i 0:00",
 		 year+1900, month, day, hour, minute, second);
 	ncattput (tag->nc_id, tag->nc_vTime, VATT_UNITS, NC_CHAR,
 		  strlen(full_time)+1, full_time);
-	ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
-		  strlen(OT_LONGNAME)+1, OT_LONGNAME);
 
 	dnc_DefineVars(tag, dc, ndim, dims);
 	dnc_PutGlobalAttributes(tag, dc);
@@ -2689,7 +2889,8 @@ int ndetail;
  */
 	dnc_CFMakeVars (tag, dc);
 	dnc_LoadFields (tag);
-	ncvarput1 (tag->nc_id, vbase, 0, &tag->nc_base);
+	if (vbase >= 0)
+		ncvarput1 (tag->nc_id, vbase, 0, &tag->nc_base);
 	*rtag = tag;
 	return (TRUE);
 }
@@ -2860,6 +3061,11 @@ DataChunk *dc;
 	attarg.varid = NC_GLOBAL;
 	dc_ProcessAttrArrays (dc, NULL, dnc_PutAttribute, (void *)&attarg);
 
+#ifndef TEST_TIME_UNITS
+	/*
+	 * Skip time- and platform- specific info so that files can be
+	 * compared for testing.
+	 */
 	attr = ds_PlatformName(dc->dc_Platform);
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
 		       NC_CHAR, strlen(attr)+1, attr);
@@ -2867,9 +3073,10 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.37 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.38 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
+#endif /* TEST_TIME_UNITS */
 }
 
 
@@ -3375,6 +3582,7 @@ long *start;
 {
 	int status;
 	float *ftime = NULL;
+	long *ltime = NULL;
 	unsigned long i;
 	ZebTime t;
 	unsigned long nsample = (unsigned long)count;
@@ -3424,19 +3632,29 @@ long *start;
 /*
  * Flush out the new TOC entries.
  */
-	if (tag->nc_timeIsFloat)
+	if (tag->nc_timeType == NC_DOUBLE)
 	{
-		ftime = (float *)malloc(nsample * sizeof(float));
+		status = ncvarput (tag->nc_id, tag->nc_vTime, start,
+				   (long *) &nsample, tag->nc_times + *start);
+	}
+	else if (tag->nc_timeType == NC_FLOAT)
+	{
+		ftime = (float *) malloc (nsample * sizeof(float));
 		for (i = 0; i < nsample; i++)
 			ftime[i] = (float)tag->nc_times[*start + i];
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
-				   (long *) &nsample, ftime);
-		free(ftime);
+				   (long *) &nsample, (void *) ftime);
+		free (ftime);
 	}
-	else
-		status = ncvarput (tag->nc_id, tag->nc_vTime, start,
-				   (long *) &nsample, tag->nc_times + *start);
-
+	else /* tag->nc_timeType == NC_LONG */
+	{
+		ltime = (long *) malloc (nsample * sizeof(long));
+		for (i = 0; i < nsample; i++)
+			ltime[i] = (long)tag->nc_times[*start + i];
+		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
+				   (long *) &nsample, (void *) ltime);
+		free (ltime);
+	}
 	if (status < 0)
 		dnc_NCError("New times write");
 
@@ -3650,6 +3868,7 @@ char *const fld;
 		"lat",
 		"lon",
 		"platform",
+		"time",
 		"time_offset",
 		"x_spacing",
 		"y_spacing",
