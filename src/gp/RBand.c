@@ -38,7 +38,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: RBand.c,v 2.17 1999-10-26 22:26:22 burghart Exp $")
+RCSID("$Id: RBand.c,v 2.18 2000-05-20 21:38:58 burghart Exp $")
 
 /*
  * Types of things we can rubber band
@@ -220,18 +220,22 @@ rb_MakeGC ()
 	XGCValues gcv;
 	int fg, lwidth;
 /*
- * Figure out which value to use for XORing.  For monochrome, use 1;
- * otherwise we look in the PD.
+ * Figure out which value to use for XORing.  
+ *	For monochrome, use 1
+ * 	For pseudo-color (8-bit), check the PD
+ *	For true color (> 8-bit), XOR all bits
  */
 	if (GWDepth (Graphics) == 1)
 		gcv.foreground = 1;
-	else
+	else if (GWDepth (Graphics) == 8)
 	{
-		if (! pda_Search (Pd, "global", "xorvalue", NULL,
-					(char *) &fg, SYMT_INT))
-			fg = 0x1F;
-		gcv.foreground = fg;
+	    fg = 0x1F;	/* good default for 8-bit PseudoColor */
+	    pda_Search (Pd, "global", "xorvalue", NULL, (char *) &fg, 
+			SYMT_INT);
+	    gcv.foreground = fg;
 	}
+	else
+	    gcv.foreground = 0xFFFFFFFF;
 /*
  * Maybe make the lines fatter.
  */
