@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.12 1990-09-13 09:41:43 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.13 1990-11-08 09:49:23 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -46,11 +46,14 @@ char Ourname[40];	/* What is our process name?	*/
  */
 Widget Top;				/* The top level widget		*/
 Widget Graphics, GrShell;		/* The graphics widget		*/
+Display *Disp;				/* Our display			*/
 int FrameCount = 1;			/* Number of frames		*/
 int DisplayFrame = 0;			/* Frame being displayed	*/
 int DrawFrame = 0;			/* Frame to draw next		*/
 XtAppContext Actx;			/* The application context	*/
 bool Abort = FALSE;			/* Has the current plot been stopped*/
+bool HoldProcess = FALSE;		/* Plotting on hold?		*/
+stbl Vtable;				/* The variable table		*/
 plot_description Pd = 0, Defaults = 0;	/* Plot description info	*/
 time PlotTime;				/* The current plot time.	*/
 enum pmode PlotMode = NoMode;
@@ -75,6 +78,7 @@ int xtEvent ();
 static void DMButton (), UiErrorReport (), UiPfHandler ();
 
 extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
+extern void Ue_MotionEvent ();
 /*
  * Routines called through the event queue mechanism.
  */
@@ -119,7 +123,7 @@ char **argv;
  */
 	ui_init ("../lib/graphproc.lf", FALSE, TRUE);
 	Argc = argc;  Argv = argv;
-	ui_setup ("Graphproc", &Argc, Argv, Resources);
+	ui_setup ("Graphproc", &Argc, Argv, (char *) Resources);
 /*
  * Now we have to go into the UI, and finish our setup later.  This is
  * essentially a kludge designed to keep UI from trying to open tty
@@ -147,6 +151,7 @@ finish_setup ()
 		{ "ue_key_event",	Ue_KeyEvent	},
 		{ "ue_button_up",	Ue_ButtonUp	},
 		{ "ue_el",		Ue_el		},
+		{ "ue_motion",		Ue_MotionEvent	},
 	};
 	int type[4], pd_defined (), pd_param ();
 	char *initfile, perf[80];
@@ -154,7 +159,7 @@ finish_setup ()
  * Force a shift into window mode, so we can start with the fun stuff.
  */
 	uw_ForceWindowMode ((char *) 0, &Top, &Actx);
-	XtAppAddActions (Actx, actions, FOUR);
+	XtAppAddActions (Actx, actions, FIVE);
 # ifdef notdef
 	XtRegisterGrabAction (Ue_PointerEvent, True,
 	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
@@ -167,7 +172,7 @@ finish_setup ()
 		initfile = Argv[1];
 	else
 		initfile = "../gp/Widgets";
-	msg_ELog (EF_DEBUG, "Init file is '%s'", initfile);
+	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
@@ -184,8 +189,9 @@ finish_setup ()
 /*
  * Cursors.
  */
-	NormalCursor = XCreateFontCursor (XtDisplay (Top), XC_trek);
-	BusyCursor = XCreateFontCursor (XtDisplay (Top), XC_watch);
+	Disp = XtDisplay (Top);
+	NormalCursor = XCreateFontCursor (Disp, XC_trek);
+	BusyCursor = XCreateFontCursor (Disp, XC_watch);
 /*
  * Module initializations.
  */
@@ -200,7 +206,7 @@ finish_setup ()
  * Set up our event handlers.
  */
 	lle_AddFD (msg_get_fd (), msg_incoming);
-	lle_AddFD (XConnectionNumber (XtDisplay (Top)), xtEvent);
+	lle_AddFD (XConnectionNumber (Disp), xtEvent);
 /*
  * Command line functions.
  */
@@ -218,10 +224,13 @@ finish_setup ()
 	mc_DefMovieWidget ();		/* Movie control	*/
 	fc_InvalidateCache ();		/* Clear frame cache	*/
 /*
+ * Indirect variables.
+ */
+	usy_c_indirect (Vtable, "ourname", Ourname, SYMT_STRING, 40);
+	usy_c_indirect (Vtable, "holdprocess", &HoldProcess, SYMT_BOOL, 0);
+/*
  * Pull in the widget definition file.
  */
-	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "ourname",
-		Ourname, SYMT_STRING, 40);
 	sprintf (perf, "read %s", initfile);
 	ui_perform (perf);
 }
@@ -390,6 +399,25 @@ struct ui_command *cmds;
 		else
 			mc_MovieStop ();
 		break;
+	/*
+	 * Box drawing.
+	 */
+	   case GPC_DRAWBOX:
+	   	rb_Box (cmds + 1);
+		break;
+	/*
+	 * Push a new set of coords.
+	 */
+	   case GPC_PUSHCOORDS:
+	   	pc_PushCoords (cmds + 1);
+		break;
+
+	/*
+	 * Pop them off again.
+	 */
+	   case GPC_POPCOORDS:
+	   	pc_PopCoords ();
+		break;
 
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
@@ -424,7 +452,7 @@ struct dm_msg *dmsg;
 	 * Ribbit.
 	 */
 	   case DM_DIE:
-	   	msg_ELog (EF_INFO, "DM decreed shutdown");
+	   	msg_ELog (EF_DEBUG, "DM decreed shutdown");
 		GPShutDown ();
 	/*
 	 * Suspend.
@@ -521,6 +549,13 @@ int len;
  */
 {
 	Arg args[10];
+	bool schanged, wchanged;
+/*
+ * Figure out if anything really important has changed.
+ */
+	schanged = (dmsg->dmm_dx != GWWidth (Graphics)) ||
+			(dmsg->dmm_dy != GWHeight (Graphics));
+	wchanged = (WindowState == DOWN);
 /*
  * Go through and set the new values for the shell.
  */
@@ -535,11 +570,17 @@ int len;
  */
 	if (WindowState == DOWN)
 		ChangeState (UP);
-	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), NormalCursor);
+	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
 /*
- * Invalidate the frame cache.
+ * If nothing drastic has changed, we can quit now and not redraw everything.
  */
-	fc_InvalidateCache ();
+	if (! schanged && ! wchanged)
+		return;
+/*
+ * Invalidate the frame cache if the window size has changed.
+ */
+	if (schanged)
+		fc_InvalidateCache ();
 /*
  * Force the window to the bottom.
  */
@@ -550,7 +591,10 @@ int len;
  * Force a redisplay.
  */
 	if (Pd)
+	{
+		Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
 		Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
+	}
 	/* ...... */
 }
 
@@ -585,7 +629,7 @@ eq_sync ()
  * Synchronize with the window system.
  */
 {
-	XSync (XtDisplay (Top), False);
+	XSync (Disp, False);
 }
 
 
