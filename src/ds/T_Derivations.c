@@ -7,7 +7,7 @@
 # include "DataStore.h"
 # include "apple.h"
 
-RCSID("$Id: T_Derivations.c,v 3.1 1997-11-21 20:36:36 burghart Exp $")
+RCSID("$Id: T_Derivations.c,v 3.2 1997-12-18 21:01:39 burghart Exp $")
 
 # define NTIMES 100
 
@@ -59,10 +59,24 @@ T_Derivations ()
 	return (1);
     }
 /*
- * Get the (derived) theta_e data
+ * Get the (derived) theta_e data.  If we fail to get the data chunk, one
+ * possible problem is that the project directory is not correctly set, 
+ * since the derivation we want to do requires the platform-specific 
+ * derivations file <project>/derivs/sgpaerich1C1.a1, which in turn
+ * should contain the following:
+ *
+ *	[T][degC] = thermistor0;
+ *	[P][hPa] = pressure;
+ *	[rh][%] = humidity_relative;
  */
-    dc = ds_Fetch (pid, DCC_NSpace, &(times[NTIMES - 1]), &(times[0]), 
-		   &want_fld, 1, NULL, 0);
+    if (! dc = ds_Fetch (pid, DCC_NSpace, &(times[NTIMES - 1]), &(times[0]), 
+			 &want_fld, 1, NULL, 0))
+    {
+	msg_ELog (EF_PROBLEM, "Error fetching data for %s/%s\n",
+		  ds_PlatformName (pid), F_GetFullName (want_fld));
+	return (1);
+    }
+    
     data = (float*) dc_GetScalarData (dc, 0, want_fld);
 /*
  * Compare to our precomputed values
