@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.35 1998-07-12 22:50:04 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.36 1998-07-12 23:19:39 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -113,12 +113,12 @@ XCOMM --- Auto-binary distribution
  * Sweepfile stuff is in flux, and depends on the architecture
  */
 # ifndef HasSweepFiles
-#   if SolarisArchitecture
+#   ifdef SolarisArchitecture
 #     define HasSweepFiles YES
 #     define SweepFileIncDir /usr/local/spol/include
 #     define SweepFileLibrary /usr/local/spol/lib/ddmlib.a
 #   endif
-#   if LinuxArchitecture
+#   ifdef LinuxArchitecture
 #     define HasSweepFiles YES
 #     define SweepFileIncDir /zebra/include
 #     define SweepFileLibrary /zebra/lib/ddmlib.a
