@@ -34,13 +34,16 @@
 # include <X11/Xaw/SmeLine.h>
 # include <X11/Xaw/Cardinals.h>
 # include "defs.h"
-# include "../include/message.h"
-# include "../include/dm.h"
-# include "../include/config.h"
+# include "message.h"
+# include "timer.h"
+# include "dm.h"
+# include "config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.14 1993-03-19 22:22:42 burghart Exp $")
+# ifndef lint
+MAKE_RCSID ("$Id: EventLogger.c,v 2.15 1993-05-13 09:48:13 granger Exp $")
+# endif
 
-
+# define EL_NAME "EventLogger"
 
 /*
  * Event mask info.
@@ -74,7 +77,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.14 1993-03-19 22:22:42 burghart Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.15 1993-05-13 09:48:13 granger Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -96,7 +99,11 @@ XtAppContext Appc;
 bool Visible = FALSE;
 bool Override = TRUE;
 
-
+/*
+ * Currently active entry from timestamp periods menu
+ */
+# define DEFAULT_PERIOD 	300 	/* 5 minutes */
+Widget TimestampEntry = NULL;
 
 static String Resources[] = 
 {
@@ -130,13 +137,18 @@ char *Mother = 0;
  * Forwards.
  */
 void	SendToMother FP((struct msg_elog *, char *));
-void	MakeDbgButton FP ((Widget));
+Widget	MakeDbgButton FP ((Widget));
 void	NewProc FP ((char *));
 void	DeadProc FP ((char *));
 void	ToggleProc FP ((Widget, XtPointer, XtPointer));
 int	SendDbgMask FP ((char *, int, SValue *, long));
 int	PassDebug FP ((int, char *));
-
+static void AppendToLog FP ((char *buf));
+static Widget MakeTimestampButton FP ((Widget left, int default_period));
+static void TimestampSetup FP ((int period));
+static void Timestamp FP ((ZebTime *t, void *param));
+static void TimestampCallback FP ((Widget w, XtPointer client_data, 
+				   XtPointer call_data));
 
 
 
@@ -147,6 +159,7 @@ char **argv;
 	Arg args[20];
 	Widget w, label;
 	int xevent (), msg_event (), clearbutton (), wm (), n;
+	int ts_secs = -1;
 	char *fname;
 /*
  * Initialize.
@@ -173,10 +186,14 @@ char **argv;
 				fname);
 	}
 /*
- * Get the event mask, if any
+ * Get the event mask, if any, and the timestamp interval, if any
  */
 	if (getenv ("EVENT_MASK"))
 		Emask = atoi (getenv ("EVENT_MASK"));
+	if (getenv ("EVENT_TIMESTAMP"))
+		ts_secs = atoi (getenv ("EVENT_TIMESTAMP"));
+	else
+		ts_secs = DEFAULT_PERIOD;
 /*
  * Get set up with the toolkit.
  */
@@ -255,7 +272,11 @@ char **argv;
 /*
  * The debug button.
  */
-	MakeDbgButton (w);
+	w = MakeDbgButton (w);
+/*
+ * The timestamp interval button
+ */
+	w = MakeTimestampButton (w, ts_secs);
 /*
  * Now the big, hairy, text widget.
  */
@@ -282,10 +303,14 @@ char **argv;
  * Tell msglib about our X connection.
  */
 	msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
-/*
- * Now we just wait.
- */
 	reconfig (625, 600, 500, 150);
+/*
+ * Now we start our timestamp callbacks and wait.
+ */
+	if (! TimestampEntry)
+		TimestampSetup (ts_secs);
+	else
+		XtCallCallbacks (TimestampEntry, XtNcallback, 0);
 	sync ();
 	xevent ();
 	msg_await ();
@@ -295,7 +320,7 @@ char **argv;
 
 
 
-void
+Widget
 MakeDbgButton (left)
 Widget left;
 /*
@@ -328,6 +353,61 @@ Widget left;
 /*
  * The actual entries will be created as the connect notifications arrive.
  */
+	return (button);
+}
+
+
+
+static Widget
+MakeTimestampButton (left, deflt)
+Widget left;
+int deflt;
+/*
+ * Create the menu button to control the timestamp period.
+ */
+{
+	Widget button, menu, entry;
+	Arg args[10];
+	int n, i;
+	static int periods[10] = { 0, 5, 10, 30, 60, 300, 600, 1800 };
+	static char *pnames[10] = { "None", "5 seconds", "10 seconds",
+				   "30 seconds", "1 minute",
+				   "5 minutes", "10 minutes", "30 minutes" };
+/*
+ * Create the menu button to start with.
+ */
+	n = 0;
+	XtSetArg (args[0], XtNfromHoriz, left);		n++;
+	XtSetArg (args[1], XtNfromVert, NULL);		n++;
+	XtSetArg (args[2], XtNtop, XtChainTop);		n++;
+	XtSetArg (args[3], XtNbottom, XtChainTop);	n++;
+	XtSetArg (args[4], XtNleft, XtChainLeft);	n++;
+	XtSetArg (args[5], XtNright, XtChainLeft);	n++;
+	XtSetArg (args[6], XtNmenuName, "Timestamps");	n++;
+	button = XtCreateManagedWidget ("Timestamps ->", menuButtonWidgetClass,
+					Form, args, n);
+/*
+ * The menu that goes with it.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Period");	n++;
+	menu = XtCreatePopupShell ("Timestamps", simpleMenuWidgetClass,
+				   Top, args, n);
+	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
+	XtSetArg (args[0], XtNleftMargin, check_width + 7);
+	for (i = 0; i < 8; ++i)
+	{
+		n = 1;
+		XtSetArg (args[n], XtNlabel, pnames[i]); ++n;
+		XtSetArg (args[n], XtNleftBitmap, None); ++n;
+		entry = XtCreateManagedWidget ("entry", smeBSBObjectClass,
+					       menu, args, n);
+		if (periods[i] == deflt)
+			TimestampEntry = entry;
+		XtAddCallback (entry, XtNcallback, 
+			       TimestampCallback, (XtPointer)periods[i]);
+	}
+	return (button);
 }
 
 
@@ -339,7 +419,7 @@ Widget w;
  * Add the event popup to this widget.
  */
 {
-	Widget pulldown, sme;
+	Widget pulldown;
 	int i, ev_popup_cb ();
 	Arg args[2];
 /*
@@ -367,6 +447,7 @@ Widget w;
 
 
 
+/*ARGSUSED*/
 ev_popup_cb (w, index, junk)
 Widget w;
 int index, junk;
@@ -395,8 +476,7 @@ int index, junk;
 
 
 
-xevent (fd)
-int fd;
+xevent ()
 /*
  * Deal with an Xt event.
  */
@@ -533,13 +613,66 @@ struct message *msg;
 do_log (code, from, msg)
 char code, *from, *msg;
 {
-	Arg args[10];
-	XawTextBlock tb;
 	static char fmtbuf[300];
+	static char last_msg[300];
+	static int repeat_count = 0;
 /*
  * Format the message to be logged.
  */
 	sprintf (fmtbuf, "%c %-14s%s\n", code, from, msg);
+
+/*
+ * See if we've seen this message before: if so, print the repeat count
+ * at regular intervals; otherwise reset repeat count and proceed as usual.
+ * Note that repeat_count will always be at least one except for the first
+ * time this function is entered.
+ */
+	if ((repeat_count > 0) && !strcmp (fmtbuf, last_msg))
+	{
+		++repeat_count;
+		if ((repeat_count == 5) ||
+		    ((repeat_count < 50) && !(repeat_count % 10)) ||
+		    (!(repeat_count % 50)))
+		{
+			sprintf (fmtbuf,"%c %-14s%s, repeated %d times\n",
+				 'R', from, msg, repeat_count);
+		}
+		else if (repeat_count > 5)
+		{
+			return;
+		}
+		/*
+		 * Else leave fmtbuf unchanged
+		 */
+	}
+	else
+	{
+		strcpy (last_msg, fmtbuf);
+	/*
+	 * If messages were previously being skipped, make a note about the
+	 * final number of repeats.
+	 */
+		if (repeat_count > 5)
+			sprintf (fmtbuf, 
+				 "R %-14sLast message repeated %d times\n%s",
+				 EL_NAME, repeat_count, last_msg);
+		repeat_count = 1;
+	}
+
+	AppendToLog (fmtbuf);
+}
+
+
+
+static void
+AppendToLog (fmtbuf)
+char *fmtbuf;
+/*
+ * Actually append the text to the log file and to the text widget buffer
+ */
+{
+	Arg args[10];
+	XawTextBlock tb;
 
 	if (Log_file)
 	{
@@ -582,11 +715,12 @@ char code, *from, *msg;
 
 clearbutton ()
 /*
- * Clear the window.
- */
+ * Clear log message buffer, then clear text window.
+ */	
 {
 	Arg args[2];
 
+	do_log (' ',"","");
 	XtSetArg (args[0], XtNstring, "");
 	XtSetValues (Text, args, 1);
 	XawTextDisplay (Text);
@@ -762,6 +896,7 @@ SendEMask ()
 
 
 
+/*ARGSUSED*/
 int 
 SendDbgMask (proc, type, v, junk)
 char *proc;
@@ -873,6 +1008,7 @@ char *name;
 
 
 
+/*ARGSUSED*/
 void
 ToggleProc (w, proc, xpinfo)
 Widget w;
@@ -933,4 +1069,74 @@ char *name;
  */
 	pinfo = (ProcInfo *) v.us_v_ptr;
 	return (pinfo->pi_enabled);
+}
+
+
+
+static void
+TimestampSetup(period)
+int period;		/* timestamp interval, in seconds, 0 to disable */
+{
+	static slot = -1;
+	ZebTime t;
+
+	if (slot >= 0)
+	{
+		tl_Cancel (slot);
+		slot = -1;
+	}
+/*
+ * Set up our timestamp, start timestamp on multiple of the period
+ */
+	if (period > 0)
+	{
+		tl_Time (&t);
+		t.zt_MicroSec = 0;
+		t.zt_Sec = ((t.zt_Sec / period) + 1) * period;
+		slot = tl_AbsoluteReq (Timestamp, 0, &t, period*INCFRAC);
+	}
+}
+
+
+
+/*ARGSUSED*/
+static void
+Timestamp (t, param)
+ZebTime *t;
+void *param;
+/*
+ * Append a timestamp message to the log
+ */
+{
+	char buf[100];
+
+	sprintf (buf, "T %-14sTimestamp: ", EL_NAME);
+#ifdef notdef
+	TC_EncodeTime (t, (t->zt_Sec % 3600 == 0) ? TC_Full : TC_TimeOnly,
+		       buf + strlen(buf));
+#endif
+	TC_EncodeTime (t, TC_Full, buf + strlen(buf));
+	strcat(buf,"\n");
+	AppendToLog (buf);
+}
+
+
+
+/*ARGSUSED*/
+static void
+TimestampCallback (entry, client_data, call_data)
+Widget entry;
+XtPointer client_data;
+XtPointer call_data;
+{
+	int period = (int)client_data;
+	Arg args[2];
+
+	TimestampSetup (period);
+	XtSetArg (args[0], XtNleftBitmap, None);
+	if (TimestampEntry)
+		XtSetValues (TimestampEntry, args, 1);
+	XtSetArg (args[0], XtNleftBitmap, Check);
+	XtSetValues (entry, args, 1);
+	TimestampEntry = entry;
 }
