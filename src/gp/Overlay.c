@@ -20,6 +20,9 @@
  */
 
 # include <config.h>
+# include <defs.h>
+
+RCSID("$Id: Overlay.c,v 2.42 1995-06-09 17:01:59 granger Exp $")
 
 /* 
  * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
@@ -37,7 +40,6 @@
 # include <X11/Intrinsic.h>
 # include <math.h>
 # include <string.h>
-# include <defs.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <message.h>
@@ -49,7 +51,7 @@
 # include "DrawText.h"
 # include "gp_cmds.h"
 
-RCSID("$Id: Overlay.c,v 2.41 1995-05-12 16:29:36 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.42 1995-06-09 17:01:59 granger Exp $")
 
 /*
  * Stuff for locations and other things needing icons.
@@ -87,7 +89,7 @@ typedef enum
  */
 #define WidthPixPerInch(screen) \
 	WidthOfScreen(screen)/(WidthMMOfScreen(screen)/25.4)
-#define HieghtPixPerInch(screen) \
+#define HeightPixPerInch(screen) \
 	(HeightOfScreen(screen)/(HeightMMOfScreen(screen)/25.4))
 /*
  * Modulus operation which is always positive given any a and some b > 0
@@ -216,24 +218,49 @@ static struct overlay_table
 /*
  * Return the next greater float which is a multiple of the given interval
  */
+#ifdef notdef
 #define FloatTrunc(v, interval) (((v) < 0) ? \
 				 (-(interval) * (int)((-(v))/(interval))) : \
 				 ((interval) * ((int)((v)/(interval) + 1))))
+#endif
 
-#ifdef notdef
+static inline int
+Round (x)
+float x;
+{
+	return ((x<0) ? -(int)(-x+0.5) : (int)(x+0.5));
+}
+
+
+static inline int 
+DegreesInterval (deg, iv)
+float deg;
+float iv;
+{
+/*
+ * Convert and round to seconds and compare as ints
+ */
+	return ((Round (deg * 3600) % Round (iv * 3600)) == 0);
+}
+	
+
 static inline float
 FloatTrunc (v, interval)
 float v, interval;
 {
+	float ret;
+
 	if (v < 0)
 	{
-		float ret = interval * (int) ((-v)/interval);
+		ret = interval * (int) ((-v)/interval);
 		return (-ret);
 	}
 	else
-		return (interval * (int) (v/interval));
+	{
+		ret = interval * (int) (v/interval);
+		return ( (ret >= interval) ? (ret) : (ret + interval) );
+	}
 }
-#endif
 
 
 
@@ -761,36 +788,6 @@ bool update;
 }
 
 
-static int
-ov_Intersects (x0, y0, x1, y1)
-float x0, y0, x1, y1;
-/*
- * Return non-zero if the line (x0, y0) <-> (x1, y1) intersects the plot's
- * grid in the kilometer domain.
- */
-{
-	float m;
-	int set;
-	int intersects;
-#	define XOR(a,b) ((!(a) && (b)) || ((a) && !(b)))
-
-	if (fabs (x1 - x0) < 0.0001)
-	{
-		return ((Xlo <= x0) && (x0 <= Xhi));
-	}
-	m = (y1 - y0) / (x1 - x0);
-	/*
-	 * The line intersects the region if at least one of the corners
-	 * is in the set { (x,y): y < m * (x - x0) + y0 } 
-	 * while one other is not.
-	 */
-	set = (Ylo <= (m * (Xlo - x0) + y0));
-	intersects = XOR((Ylo <= (m * (Xhi - x0) + y0)), set);
-	intersects |= XOR((Yhi <= (m * (Xlo - x0) + y0)), set);
-	intersects |= XOR((Yhi <= (m * (Xhi - x0) + y0)), set);
-	return (intersects);
-}
-
 
 static void
 ov_DrawMap (points)
@@ -810,7 +807,7 @@ const MapPoints * points;
 	 * Pass through each point.
 	 */
 		xp = 0;
-	 	for (pt = 0; pt < points->mp_npt; pt++)
+		for (pt = 0; pt < points->mp_npt; ++pt)
 		{
 		/*
 		 * Convert the point into pixel space.
@@ -821,11 +818,12 @@ const MapPoints * points;
 		/*
 		 * Lest we get some bogus pixel coords when we're zoomed
 		 * really close, don't draw segments which don't intersect
-		 * the user coordinates.
+		 * the user coordinates and don't have at least one end point
+		 * within the user window.
 		 */
-			if ((xp >= 2 && ! ov_Intersects (points->mp_x[pt - 1],
-	                        points->mp_y[pt - 1], points->mp_x[pt], 
-				points->mp_y[pt])))
+			if (xp >= 2 && (! Intersects (points->mp_x[pt - 1],
+				      points->mp_y[pt - 1], points->mp_x[pt], 
+				      points->mp_y[pt])))
 			{
 			/*
 			 * Skip this segment.  Draw what we've got and start
@@ -1110,7 +1108,8 @@ int update;
 	XPoint *xpts;
 	XColor xc;
 	LabelOpt opt;
-	float x, y, asize;
+	float x, y, x0, y0;
+	float asize;
 	int ix = 0, iy = 0;
 	char *penup;
 	float penup_pt = 0; /* The x OR y lat-lon value indicating a break */
@@ -1196,8 +1195,21 @@ int update;
 			  pnames[i], npt);
 		for (total_pts = 0; total_pts < npt; total_pts++)
 		{
+			int skip = 0;
+		/*
+		 * Convert lat/lon to x,y and hold it in xpts[]
+		 */
 			if (penup /* The penup-point attr existed */ &&
-			  ((lp->l_lat == penup_pt) || (lp->l_lon == penup_pt)))
+			    ((lp->l_lat == penup_pt) ||
+			     (lp->l_lon == penup_pt)))
+				skip = 1;
+			else
+				cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
+		/*
+		 * Break the line if penup point detected or the next segment
+		 * does not intersect the plot region
+		 */
+			if (skip || (pt > 1 && !Intersects (x0, y0, x, y)))
 			{
 				/* Draw all points from 0 to pt-1
 				 */
@@ -1210,13 +1222,9 @@ int update;
 					    	CoordModeOrigin);
 				}
 				pt = 0;
-				lp ++;
+				lp++;
 				continue;
 			}
-		/*
-		 * Otherwise we convert lat/lon to x,y and hold it in xpts[]
-		 */
-			cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
 			xpts[pt].x = XPIX (x);
 			xpts[pt].y = YPIX (y);
 		/*
@@ -1240,8 +1248,10 @@ int update;
 		/*
 		 * Increment the location pointer and xpts[] index
 		 */
-			lp ++;
+			lp++;
 			pt++;
+			x0 = x;
+			y0 = y;
 		}
 	/* 
 	 * Draw whatever is left in xpts[]:
@@ -1823,10 +1833,9 @@ int update;
 	right = XPIX (Xhi);
 /* 
  * If this is a lat/lon grid, the x/y-spacing parameters are interpreted as
- * minutes, and the annotation interval is specified in degrees.  If this
- * is a km grid, they are in kilometers.  The calculation of aint is
- * different for each type of grid.  We want no more than one label per
- * inch.  If x/y-spacing is less than one per inch, label every
+ * minutes.  If this is a km grid, they are in kilometers.  The calculation
+ * of aint is different for each type of grid.  We want no more than one
+ * label per inch.  If x/y-spacing is less than one per inch, label every
  * x/y-spacing interval.
  */
 	if (ll)			/* set xskm to xs in km rather than minutes */
@@ -2007,10 +2016,10 @@ float *blat, *blon, xs, ys;
  * Put everything into easy integer increments.
  */
 	cvt_ToLatLon (Xlo, Ylo, blat, blon);
-	iblat = (int) (*blat * 3600.0 + 0.5);
-	iblon = (int) (*blon * 3600.0 + 0.5);
-	ixs = (int) (xs * 60.0 + 0.5);
-	iys = (int) (ys * 60.0 + 0.5);
+	iblat = Round (*blat * 3600.0);
+	iblon = Round (*blon * 3600.0);
+	ixs = Round (xs * 60.0);
+	iys = Round (ys * 60.0);
 /*
  * Now truncate things accordingly.  Longitude set to 1st multiple of ixs
  * greater than iblon, since labels are on left.
@@ -2055,12 +2064,14 @@ float aint;
 	ov_CGFixLL (&blat, &blon, xs, ys);
 	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
 /*
- * NOTE: maxlon will be LESS THAN blon if maxlon is actually across the
- * Intl Date Line.  We must take this into account and make maxlon positive
- * by adding a full circle to it, and then subtracting the circle when it's
- * time to determine the actual longitude label.
+ * NOTE: maxlon will be more than 90 degrees LESS THAN blon if maxlon is
+ * actually across the Intl Date Line.  We must take this into account and
+ * make maxlon positive by adding a full circle to it, and then subtracting
+ * the circle when it's time to determine the actual longitude label.  
+ * Requiring a 90 degree difference avoids situations where maxlon < blon
+ * because of precision errors.
  */
-	if (maxlon < blon)
+	if (maxlon + 90.0 < blon)
 		maxlon += 360.0;
 	xs /= 60.0;			/* convert minutes to degrees */
 	ys /= 60.0;
@@ -2092,30 +2103,31 @@ float aint;
 		/*
 		 * Annotate if this is the first time through.
 		 */
-			if (!nx && (fabs(fmod(ypos,aint)) < TOLERANCE))
+			if (!nx && (DegreesInterval (ypos,aint)))
 			{
-				sprintf (label, "%d  ", (int) ypos);
+				sprintf (label, "%d  ", Round(ypos*60)/60);
 				DrawText (Graphics, frame, Gcontext, left - 1,
-					yp, label, 0.0, theight, JustifyRight, 
-					JustifyBottom);
-				sprintf (label, "%d' %d\"", (int) (ypos*60)%60,
-					(int) (fabs(ypos)*3600)%60);
+					  yp, label, 0.0, theight, 
+					  JustifyRight, JustifyBottom);
+				sprintf (label, "%d' %d\"", 
+					 Round(fabs(ypos)*60)%60,
+					 Round(fabs(ypos)*3600)%60);
 				DrawText (Graphics, frame, Gcontext, left - 1,
-					yp, label, 0.0, theight, JustifyRight,
-					JustifyTop);
+					  yp, label, 0.0, theight, 
+					  JustifyRight, JustifyTop);
 			}
 		}
 	/*
 	 * Bottom annotation.
 	 */
-		if (blat <= maxlat && fabs(fmod(xpos,aint)) < TOLERANCE)
+		if (DegreesInterval (xpos,aint))
 		{
 			sprintf (label, "%d", 
-				 (int)((xpos>180)?(xpos-360):(xpos)));
+				 Round(((xpos>180)?(xpos-360):(xpos))*60)/60);
 			DrawText (Graphics, frame, Gcontext, xp, top + 1,
 				  label,0.0,theight,JustifyCenter,JustifyTop);
-			sprintf (label, "%d' %d\"", (int)(xpos*60)%60,
-					(int) (fabs(xpos)*3600)%60);
+			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
+				 Round(fabs(xpos)*3600)%60);
 			DrawText (Graphics, frame, Gcontext, xp, top + 14,
 				  label,0.0,theight,JustifyCenter,JustifyTop);
 		}
@@ -2148,7 +2160,7 @@ float aint;
 	ov_CGFixLL (&blat, &blon, xs, ys);
 	cvt_ToLatLon (Xlo, Ylo, &minlat, &minlon);
 	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
-	if (maxlon < blon)		/* see note in LLTicGrid */
+	if (maxlon + 90.0 < blon)		/* see note in LLTicGrid */
 		maxlon += 360.0;
 	xs /= 60.0;
 	ys /= 60.0;
@@ -2168,14 +2180,14 @@ float aint;
 		cvt_ToXY (ypos, maxlon, &xkm, &ykm);
 		xe = XPIX (xkm);
 		ye = YPIX (ykm);
-		if (fabs(fmod(ypos,aint)) < TOLERANCE)
+		if (DegreesInterval (ypos,aint))
 		{
-			sprintf (label, "%d  ", (int) ypos);
+			sprintf (label, "%d  ", Round(ypos*60)/60);
 			DrawText (Graphics, frame, Gcontext, left - 1,
 				  yp, label, 0.0, theight/1.2,
 				  JustifyRight, JustifyBottom);
-			sprintf (label, "%d' %d\"", (int) (ypos*60)%60,
-				 (int) (fabs(ypos)*3600)%60);
+			sprintf (label, "%d' %d\"", Round(fabs(ypos)*60)%60,
+				 Round(fabs(ypos)*3600)%60);
 			DrawText (Graphics, frame, Gcontext, left - 1,
 				  yp, label, 0.0, theight, JustifyRight,
 				  JustifyTop);
@@ -2201,23 +2213,22 @@ float aint;
 	/*
 	 * Bottom annotation.  Adjust end point to allow text to fit.
 	 */
-		if (fabs(fmod(xpos,aint)) < TOLERANCE)
+		if (DegreesInterval (xpos,aint))
 		{
 			sprintf (label, "%d", 
-				 (int)((xpos>180)?(xpos-360):(xpos)));
+				 Round(((xpos>180)?(xpos-360):(xpos))*60)/60);
 			DrawText (Graphics, frame, Gcontext, xp, top + 1,
 				  label, 0.0, theight,JustifyCenter, 
 				  JustifyTop);
-			sprintf (label, "%d' %d\"", (int)(xpos*60)%60,
-				 (int) (fabs(xpos)*3600)%60);
+			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
+				 Round(fabs(xpos)*3600)%60);
 			DrawText (Graphics, frame, Gcontext, xp, 
 				  (int) (top + theight * GWHeight(Graphics)),
 				  label, 0.0, theight, JustifyCenter,
 				  JustifyTop);
 			yp = top - 1;
 		}
-		XDrawLine (Disp, frame, Gcontext, 
-			   xp, yp, xe, ye);
+		XDrawLine (Disp, frame, Gcontext, xp, yp, xe, ye);
 	}
 }
 
