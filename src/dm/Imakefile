@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.7 1995-05-24 21:47:25 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1995-06-29 21:23:25 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -17,7 +17,7 @@ MFVERSION="$Id: Imakefile,v 1.7 1995-05-24 21:47:25 granger Exp $"
  * maintenance or updates for its software.
  */
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBHDF) $(LIBRDSS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 LIBGCC = "/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a"
