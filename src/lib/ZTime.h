@@ -1,6 +1,6 @@
 // Some -*- C++ -*- goodies for dealing with ZebraTimes.
 //
-// $Id: ZTime.h,v 2.2 2000-05-24 19:42:02 granger Exp $
+// $Id: ZTime.h,v 2.3 2000-05-25 15:40:16 granger Exp $
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -213,7 +213,7 @@ private:
 
 
 class ostream;
-inline ostream & operator<< (ostream &out, const ZebraTime &t);
+ostream & operator<< (ostream &out, const ZebraTime &t);
 
 
 inline
