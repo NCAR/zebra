@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$ID$";
+static char *rcsid = "$Id: dsdump.c,v 2.2 1992-01-09 21:54:48 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -54,7 +54,7 @@ main ()
 	exit (0);
 
 
-
+#ifdef notdef
 
 
 /*
@@ -111,6 +111,7 @@ main ()
 		data = ds_GetData (pid, &field, 1, &begin, &end, OrgScalar,
 			0.0, 9999.9);
 	}
+# endif
 }
 
 
@@ -149,32 +150,43 @@ Platform *p;
 	ui_printf (")\n");
 	if (! (p->dp_flags & DPF_SUBPLATFORM))
 	{
-		dumpchain ("L", p->dp_LocalData);
+		dumpchain ("L", p->dp_LocalData, strlen (p->dp_dir) + 1);
 		if (p->dp_flags & DPF_REMOTE)
-			dumpchain ("R", p->dp_RemoteData);
+			dumpchain ("R", p->dp_RemoteData, strlen(p->dp_dir)+1);
 	}
 }
 
 
 
 
-dumpchain (which, start)
+dumpchain (which, start, dlen)
 char *which;
-int start;
+int start, dlen;
 /*
  * Dump out a datafile chain.
  */
 {
 	DataFile *dp;
-
+	ZebTime begin, end;
+	char abegin[40], aend[20];
 
 	while (start)
 	{
 		dp = DFTable + start;
-		ui_printf ("  %s %2d/%d '%s' %d %d -> %d [%d]\n", which,
-			start, dp->df_use, dp->df_name,
-			dp->df_begin.ds_yymmdd, dp->df_begin.ds_hhmmss,
-			dp->df_end.ds_hhmmss, dp->df_nsample);
+	/*
+	 * Pull out the date information and encode it.
+	 */
+		TC_UIToZt (&dp->df_begin, &begin);
+		TC_UIToZt (&dp->df_end, &end);
+		TC_EncodeTime (&begin, TC_Full, abegin);
+		TC_EncodeTime (&end, TC_TimeOnly, aend);
+	/*
+	 * Do the print.
+	 */
+		ui_printf ("  %s%c %2d/%d '%s' %s -> %s [%d]\n", which,
+			dp->df_archived ? 'A' : 'N',
+			start, dp->df_use, dp->df_name + dlen,
+			abegin, aend, dp->df_nsample);
 		start = dp->df_FLink;
 	}
 }
