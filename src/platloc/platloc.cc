@@ -125,7 +125,7 @@ usage(const char* progname)
     printf("printed and a zero status code is returned.  The output looks\n");
     printf("like:\n\n");
     printf("\t32.1234/-103.4567 at 1052174285\n\n");
-    printf("On error, an error message will be printed to standard error,\n");
+    printf("On error, a message will be printed to standard error,\n");
     printf("and a non-zero status code will be generated\n");
 }
 
@@ -137,4 +137,3 @@ msg_handler(Message *msg)
     fprintf(stderr, "Dropping unexpected message!\n");
     return 0;
 }
-
