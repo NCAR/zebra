@@ -314,6 +314,8 @@ ZebTime *now;
  * Look up this platform and find out when data last appeared.
  */
 	pid = ds_LookupPlatform (name);
+	/* ignore unknown platform */
+	if ( pid < 0 ) return;
 	ntime = ds_DataTimes (pid, now, 1, DsBefore, &t);
 	YThresh[NPlat] = yellow;
 	RThresh[NPlat] = red;
