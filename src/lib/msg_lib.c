@@ -20,7 +20,7 @@
  */
 # include <stdio.h>
 # include <unistd.h>
-# include <varargs.h>
+# include <stdarg.h>
 # include <errno.h>
 # include <signal.h>
 # include <string.h>
@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.48 1997-02-14 07:32:01 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.49 1998-02-26 00:23:00 burghart Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -129,7 +129,7 @@ static int msg_write FP ((struct message *msg));
 static int msg_echo FP ((struct message *msg, void *param));
 static void msg_abort FP ((void));
 static int msg_xf_ack FP ((struct message *msg));
-static void msg_PError FP ((/* char *s, ... */));
+static void msg_PError (char *fmt, ... );
 static void msg_SendLog FP ((struct msg_elog *el));
 static int msg_netwrite FP ((int, void *, int));
 static int msg_FullSearch FP ((char *from, int proto, int (*)(), void *));
@@ -1830,20 +1830,17 @@ int mask;
 
 
 static void
-msg_PError (va_alist)
-va_dcl
+msg_PError (char *fmt, ...)
 /*
  * Log an error message without sending it.  Meant for within msg_send, 
  * since using msg_ELog might lead to infinite recursion.
  */
 {
 	va_list args;
-	char *fmt;
 /*
  * Format and print the message to stderr.
  */
- 	va_start (args);
-	fmt = va_arg (args, char *);
+ 	va_start (args, fmt);
 	vsprintf (EL->el_text, fmt, args);
 	va_end (args);
 	fprintf (stderr, "%s: %s\n", Identity, EL->el_text);
@@ -1853,21 +1850,18 @@ va_dcl
 
 
 void
-msg_log (va_alist)
-va_dcl
+msg_log (char *fmt, ...)
 /*
  * Send a message to the event logger with a default mask of EF_INFO.
  */
 {
 	struct msg_elog *el = EL;
 	va_list args;
-	char *fmt;
 /*
  * Print up our message.
  */
 	el->el_flag = EF_INFO;
-	va_start (args);
-	fmt = va_arg (args, char *);
+	va_start (args, fmt);
 	vsprintf (el->el_text, fmt, args);
 	va_end (args);
 	msg_SendLog (el);
@@ -1876,21 +1870,18 @@ va_dcl
 
 
 void
-msg_ELog (va_alist)
-va_dcl
+msg_ELog (int flag, char *fmt, ...)
 /*
  * Extended message logging interface.
  */
 {
 	struct msg_elog *el = EL;
 	va_list args;
-	char *fmt;
 /*
  * Get and/or use all of our arguments from the va_alist first
  */
-	va_start (args);
-	el->el_flag = va_arg (args, int);
-	fmt = va_arg (args, char *);
+	va_start (args, fmt);
+	el->el_flag = flag;
 	vsprintf (el->el_text, fmt, args);
 	va_end (args);
 	msg_SendLog (el);

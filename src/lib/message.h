@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.33 1997-08-04 20:03:30 burghart Exp $ */
+/* $Id: message.h,v 2.34 1998-02-26 00:22:59 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -325,11 +325,11 @@ void msg_disconnect FP ((void));
 void msg_send FP ((char *, int, int, void *, int));
 void msg_join FP ((char *));
 void msg_quit FP ((char *));
-void msg_log FP ((/* char *, ... */));
+void msg_log (char *fmt, ...);
 # ifdef __cplusplus
 void msg_ELog (int flag, char *s ...);
 # else
-void msg_ELog FP ((/* int flag, char *s, ... */));
+void msg_ELog (int flag, char *fmt, ...);
 # endif /* __cplusplus */
 void msg_LogCallback FP ((int mask, int (*fn) (), void *arg));
 int msg_ELSendMask FP ((int mask));
