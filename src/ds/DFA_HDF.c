@@ -51,19 +51,18 @@
 
  */
 
-#ifndef HDF_INTERFACE 	/* Conditional compilation of HDF interface */
-
-static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE NOT Compiled $",
-				   (char *)hdfopt };
-
-# else
-static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
-				   (char *)hdfopt };
-
 # include <math.h>
 # include <sys/time.h>
 # include <string.h>
 # include <ctype.h>
+
+#ifndef HDF_INTERFACE 	/* Conditional compilation of HDF interface */
+
+static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE NOT Compiled $",
+				   (char *)hdfopt };
+# else
+static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
+				   (char *)hdfopt };
 
 /*
  * The HDF interface typedef's bool to int, which conflicts with UI char
@@ -74,20 +73,19 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <hdf.h>
 # undef bool
 
+#endif /* HDF_INTERFACE */
+
 # include <defs.h>
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.8 1996-03-18 16:54:17 granger Exp $")
-
-#ifdef HDF_TEST
-#define ds_PlatformDataOrg(id) Org2dGrid
-#endif
+RCSID ("$Id: DFA_HDF.c,v 3.9 1996-11-19 08:36:00 granger Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
+# include "DataFormat.h"
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define RAD_TO_DEG(x)	((x)*57.29577951)
@@ -115,6 +113,13 @@ static const double D_PI = 3.14159265358979323846;
 #define FILL_VALUE	"_FillValue"	/* TDF sets this one	   */
 
 /*
+ * The minimum size of a time list before it's worthwhile to do a binary
+ * search.
+ */
+#define MINTIME 10
+
+#ifdef HDF_INTERFACE
+/*
  * This is our tag structure.
  */
 typedef struct _htag
@@ -132,71 +137,118 @@ typedef struct _htag
 
 } Htag;
 
-/*
- * The class/organization compatibility table.  If the desired class
- * and the given file organization appear together here, we can do it.
- */
-static struct CO_Compat
-{
-	DataOrganization	c_org;
-	DataClass		c_class;
-} COCTable [] =
-{
- 	{ OrgImage,		DCC_Image },	/* only for bytes so far */
-	{ Org2dGrid,		DCC_RGrid },
-};
-# define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
+#define HTAGP(ofp) (&((HDFOpenFile *)ofp)->hdf_tag)
 
-/*
- * The minimum size of a time list before it's worthwhile to do a binary
- * search.
- */
-#define MINTIME 10
-
-#ifdef HDF_TEST
-Htag *OpenTag = NULL;
 #endif
 
+typedef struct _HDFOpenFile
+{
+	OpenFile	open_file;
+#ifdef HDF_INTERFACE
+	Htag		hdf_tag;
+#endif
+} 
+HDFOpenFile;
+
+
+static CO_Compat COCTable [] =
+{
+ 	{ OrgImage,		DCC_Image },	/* only for bytes so far */
+	{ Org2dGrid,		DCC_RGrid }
+};
+
+
+#ifdef HDF_INTERFACE
 /*
  * Semi-public routines (DFA methods)
  */
-int dh_CloseFile FP ((Htag *tag));
-int dh_OpenFile FP ((char *fname, DataFile *dp, int write, Htag **rtag));
-int dh_SyncFile FP ((Htag *tag));
-int dh_QueryTime FP ((char *file, ZebTime *begin, ZebTime *end, int *nsamp));
-DataChunk *dh_Setup FP ((GetList *gp, FieldId *fields, int nfield, DataClass));
-int dh_GetData FP ((DataChunk *dc, GetList *gp, dsDetail *, int ndetail));
-int dh_DataTimes FP ((int df, ZebTime *, TimeSpec which, int n, ZebTime *));
-int dh_GetFields FP ((int dfile, ZebTime *t, int *nfld, FieldId *flist));
-int dh_CreateFile FP ((char *fname, DataFile *, DataChunk *dc, char **rtag));
-int dh_MakeFileName FP ((char *dir, char *platform, ZebTime *zt, char *dest));
+P_CloseFile (dh_CloseFile);
+P_OpenFile (dh_OpenFile);
+P_SyncFile (dh_SyncFile);
+P_QueryTime (dh_QueryTime);
+P_Setup (dh_Setup);
+P_GetData (dh_GetData);
+P_GetFields (dh_GetFields);
+P_GetTimes (dh_GetTimes);
 
-#ifdef notdef
 /*
  * The HDF format.
  */
-    {
-	"HDF",	".hdf",
+static DataFormat hdfFormatRec =
+{
+	"HDF",
+	FTHDF,
+	".hdf",
+
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(HDFOpenFile),		/* open file instance size	*/
+	TRUE,				/* read-only 			*/
+
+	FORMAT_INIT,
+
 	dh_QueryTime,			/* Query times			*/
+	___,				/* Make file name		*/
+
 	dh_Setup,			/* setup			*/
 	dh_OpenFile,			/* Open				*/
 	dh_CloseFile,			/* Close			*/
-	dh_SynFile,			/* Synchronize			*/
-	___,				/* Inquire platforms		*/
+	dh_SyncFile,			/* Synchronize			*/
 	dh_GetData,			/* Get the data			*/
-	___,				/* Get IRGrid locations		*/
 	___,				/* Get altitude info		*/
-	dh_DataTimes,			/* Get data times		*/
+	fmt_DataTimes,			/* Get data times		*/
 	___,				/* Get forecast times		*/
-	dh_MakeFileName,		/* Make file name		*/
-	dh_CreateFile,			/* Create a new file		*/
+	___,				/* Create a new file		*/
 	___,				/* Write to file		*/
 	___,				/* Write block to a file	*/
 	___,				/* Get observation samples	*/
 	dh_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-    },
-#endif
+	dh_GetTimes			/* Get times			*/
+};
+
+#else /* ! HDF_INTERFACE */
+
+#include "NoFormat.h"
+
+static DataFormat hdfFormatRec =
+{
+	"HDF-uncompiled",
+	FTHDF,
+	".hdf",
+
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(HDFOpenFile),
+	TRUE,				/* read-only 			*/
+
+	FORMAT_INIT,
+
+	fmt_QueryNotCompiled,		/* Query times			*/
+	___,				/* Make file name		*/
+
+	___,				/* setup			*/
+	fmt_OpenNotCompiled,		/* Open				*/
+	___,				/* Close			*/
+	___,				/* Synchronize			*/
+	___,				/* Get the data			*/
+	___,				/* Get altitude info		*/
+	___,				/* Get data times		*/
+	___,				/* Get forecast times		*/
+	___,				/* Create a new file		*/
+	___,				/* Write to file		*/
+	___,				/* Write block to a file	*/
+	___,				/* Get observation samples	*/
+	___,				/* Get fields			*/
+	___,				/* Get Attributes		*/
+	___				/* Get times			*/
+};
+
+#endif /* HDF_INTERFACE */
+
+DataFormat *hdfFormat = (DataFormat *) &hdfFormatRec;
+
+#ifdef HDF_INTERFACE
 
 /*
  * Private prototypes
@@ -218,7 +270,6 @@ static int32 dh_VgroupClass FP ((int32 fid, const char *name));
 static char *dh_GetStringAtt FP ((int fid, int varid, const char *att_name,
 				  char *att_val, int len));
 static void dh_FreeFields FP ((Htag *tag));
-static int dh_OrgClassCompat FP ((DataOrganization org, DataClass class));
 static DC_ElemType dh_ElemType FP ((int32 type));
 static void dh_ReadVgroupAtts FP((DataChunk *dc, Htag *, int32 vgid, FieldId));
 static void dh_ReadGlobalAtts FP((DataChunk *dc, Htag *tag));
@@ -232,6 +283,7 @@ static void dh_SetImageFields FP ((Htag *tag, DataChunk *dc, int nfield,
 static void dh_ReadImage FP ((DataChunk *dc, Htag *tag, FieldId *fields,
 			      int nfield));
 static void dh_Origin FP ((Htag *tag, RGrid *info, Location *origin));
+static int dh_SyncTag FP ((Htag *tag));
 
 
 
@@ -518,13 +570,14 @@ const char *name;
 
 
 
-int
+static int
 dh_QueryTime (file, begin, end, nsamp)
 char *file;
 ZebTime *begin, *end;
 int *nsamp;
 /*
- * Query the times on this file.  */
+ * Query the times on this file.
+ */
 {
 	int32 fid;
 	int32 vgid;
@@ -563,59 +616,25 @@ int *nsamp;
 
 
 
-/* ARGSUSED */
-int
-dh_MakeFileName (dir, platform, zt, dest)
-char *dir, *platform;
-ZebTime *zt;
-char *dest;
-/*
- * Generate a file name.
- */
-{
-	msg_ELog (EF_PROBLEM, "dh_MakeFileName: Can't create HDF files yet!");
-	return (FALSE);
-}
 
-
-
-int
-dh_CreateFile (fname, dfile, dc, rtag)
-char *fname;
-DataFile *dfile;
-DataChunk *dc;
-char **rtag;
-/*
- * Create an HDF file.
- */
-{
-	msg_ELog (EF_PROBLEM, "dh_CreateFile: Can't create HDF files yet!");
-	return (FALSE);
-}
-
-
-
-
-int
-dh_OpenFile (fname, dp, write, rtag)
+static int
+dh_OpenFile (ofp, fname, dp, write)
+OpenFile *ofp;
 char *fname;
 DataFile *dp;
 int write;
-Htag **rtag;
 /*
  * Try to open this file.
  */
 {
-	Htag *tag = ALLOC (Htag);
+	Htag *tag = HTAGP (ofp);
 	int32 fid;
 /*
  * Try to open the file.
  */
-	*rtag = NULL;
 	if ((fid = Hopen (fname, DFACC_READ, 0)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "hdf: Hopen(%s) failed.", fname);
-		free (tag);
 		return (FALSE);
 	}
 	Vstart (fid);
@@ -629,20 +648,30 @@ Htag **rtag;
 	tag->h_Vids = NULL;
 	tag->h_nVar = 0;
 	tag->h_pixel = -1;	/* Don't know pixel spacing yet */
-	if (! dh_SyncFile (tag))
+	if (! dh_SyncTag (tag))
 	{
-		msg_ELog (EF_PROBLEM, "hdf: dh_Sync(%s) failed.", fname);
-		dh_CloseFile (tag);
+		msg_ELog (EF_PROBLEM, "hdf: dh_SyncTag(%s) failed.", fname);
+		dh_CloseFile (ofp);
 		return (FALSE);
 	}
-	*rtag = tag;
 	return (TRUE);
 }
 
 
 
-int
-dh_SyncFile (tag)
+static int
+dh_SyncFile (ofp)
+OpenFile *ofp;
+{
+	Htag *tag = HTAGP (ofp);
+
+	return (dh_SyncTag (tag));
+}
+
+
+
+static int
+dh_SyncTag (tag)
 Htag *tag;
 /* 
  * Sync our internal structures with the changed file on disk.  Essentially
@@ -712,18 +741,18 @@ Htag *tag;
 
 
 
-int
-dh_CloseFile (tag)
-Htag *tag;
+static void
+dh_CloseFile (ofp)
+OpenFile *ofp;
 /*
  * Close this file.
  */
 {
+	Htag *tag = HTAGP (ofp);
+
 	dh_FreeFields (tag);
 	Vend (tag->h_fid);
 	Hclose (tag->h_fid);
-	free (tag);
-	return (0);
 }
 
 
@@ -924,29 +953,9 @@ Htag *tag;
 
 
 
-static int
-dh_OrgClassCompat (org, class)
-DataOrganization org;
-DataClass class;
-/*
- * Return TRUE iff these two are compatible.
- */
-{
-	int i;
-/*
- * Go through and see if we find the combination in the table.
- */
-	for (i = 0; i < N_COC; i++)
-		if (class == COCTable[i].c_class && org == COCTable[i].c_org)
-			return (TRUE);
-	return (FALSE);
-}
-
-
-
-DataChunk *
-dh_Setup (gp, fields, nfield, class)
-GetList *gp;
+static DataChunk *
+dh_Setup (ofp, fields, nfield, class)
+OpenFile *ofp;
 FieldId *fields;
 int nfield;
 DataClass class;
@@ -954,30 +963,12 @@ DataClass class;
  * Get set up for this piece of data access.
  */
 {
-	Htag *tag;
+	Htag *tag = HTAGP (ofp);
 	DataChunk *dc;
-/*
- * Start by opening the first file.  We'll need it soon.
- */
-#ifndef HDF_TEST
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (NULL);
-#else
-	tag = OpenTag;
-#endif
-/*
- * Make sure this is a combination we can do.
- */
-	if (! dh_OrgClassCompat (tag->h_org, class))
-	{
-		msg_ELog (EF_PROBLEM, "hdf: file org/class mismatch");
-		return (NULL);
-	}
 /*
  * Create a data chunk with the desired organization.
  */
 	dc = dc_CreateDC (class);
-	dc->dc_Platform = tag->h_plat;
 /*
  * Now we try to get everything together.
  */
@@ -1147,30 +1138,20 @@ int nfield;
 
 
 
-int
-dh_GetData (dc, gp, details, ndetail)
+static int
+dh_GetData (ofp, dc, begin, nsample, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
-GetList *gp;
+int begin, nsample;
 dsDetail *details;
 int ndetail;
-/*
- * Actually get the data that all that work has been done for.
- */
 {
-	Htag *tag;
+	Htag *tag = HTAGP (ofp);
 	int nfield;
 	FieldId *fids;
 	SValue v;
 	float badval = 0;
-/*
- * Open the data file.
- */
-#ifndef HDF_TEST
-	if (!dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);
-#else
-	tag = OpenTag;
-#endif
+
 	fids = dc_GetFields (dc, &nfield);
 /*
  * Figure out what bad value flag they want, and make sure it is stored
@@ -1183,11 +1164,12 @@ int ndetail;
 		dc_SetBadval (dc, badval);
 	}
 /*
- * Verify we're at the right time
+ * We can have only one sample, so make sure that's all that's requested.
  */
-	if (! TC_LessEq (gp->gl_begin, tag->h_time) ||
-	    ! TC_LessEq (tag->h_time, gp->gl_end))
-		return (FALSE);
+	if (begin != 0 || nsample != 1)
+	{
+		msg_ELog (EF_PROBLEM, "hdf: getdata on more than sample 0");
+	}
 /*
  * Now we have to split out based on the class they want.
  */
@@ -1725,63 +1707,22 @@ FieldId *fields;
 
 
 
-int
-dh_DataTimes (index, when, which, n, dest)
-int index;
-ZebTime *when;
-TimeSpec which;
-int n;
-ZebTime *dest;
-/*
- * Find out when data is available.
- */
-{
-	Htag *tag;
-/*
- * Get the file open.
- */
-	if (! dfa_OpenFile (index, FALSE, (void *) &tag))
-		return (0);
-/*
- * Copy out the info.
- */
-	if (which == DsBefore)
-	{
-		if (TC_LessEq (tag->h_time, *when))
-			*dest = tag->h_time;
-		return (1);
-	}
-	else if (which == DsAfter)
-	{
-		if (TC_LessEq (*when, tag->h_time))
-			*dest = tag->h_time;
-		return (1);
-	}
-	return (0);
-}
-
-
-
 
 /* ARGSUSED */
-int
-dh_GetFields (dfile, t, nfld, flist)
-int dfile;
-ZebTime *t;
+static int
+dh_GetFields (ofp, sample, nfld, flist)
+OpenFile *ofp;
+int sample;
 int *nfld;
 FieldId *flist;
 /*
  * Return the list of available fields.
  */
 {
-	Htag *tag;
+	Htag *tag = HTAGP (ofp);
 	int max = *nfld, fld;
-/*
- * Open the file.
- */
+
 	*nfld = 0;
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Pass through the fields.
  */
@@ -1944,6 +1885,18 @@ int nfield;
 
 
 
+static ZebTime *
+dh_GetTimes (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	Htag *tag = HTAGP (ofp);
+
+	*ntime = 1;
+	return (&tag->h_time);
+}
+
+
 #ifdef NOT_FINISHED
 
 
@@ -2054,135 +2007,7 @@ void *values;
 	}
 }
 
-
-
 #endif /* NOT_FINISHED */
-
-
-#ifdef HDF_TEST
-/*
- * Test the HDF interface routines
- */
-
-static void
-dh_DumpTag (fname, tag)
-char *fname;
-Htag *tag;
-{
-	int i;
-# 	define Show(fld,fmt) \
-	printf ("%15s: " fmt, #fld, tag->h_##fld )
-
-	printf ("Tag '%s'\n", fname);
-	Show (fid,"%d");
-	Show (vgid,"%d");
-	Show (plat,"%d");
-	printf ("\n");
-	printf ("%15s: %s\n", "time", TC_AscTime (&tag->h_time, TC_Full));
-	Show (center.l_lat,"%6.2f");
-	Show (center.l_lon,"%6.2f");
-	Show (center.l_alt,"%6.2f");
-	printf ("\n");
-	Show (nVar,"%d");
-	Show (org,"%d");
-	Show (pixel,"%f");
-	printf ("\n");
-	for (i = 0; i < tag->h_nVar; ++i)
-	{
-		printf ("%15s: '%s' (%s)", F_GetName (tag->h_Fids[i]),
-		   F_GetDesc (tag->h_Fids[i]), F_GetUnits (tag->h_Fids[i]));
-		if (i % 2) printf ("\n");
-	}
-	printf ("\n");
-#	undef Show
-}
-
-
-int
-main (argc, argv)
-int argc;
-char *argv[];
-{
-	int i;
-	ZebTime begin, end;
-	char ctime[64];
-	int nsamp;
-	int ret = 0;
-	DataFile df;
-	GetList gl;
-	DataChunk *dc;
-	Htag *tag;
-
-	df.df_rev = 0;
-	df.df_inode = 0;
-	df.df_index = 0;
-	df.df_flags = 0;
-	df.df_ftype = 42;
-	df.df_FLink = 0;
-	df.df_BLink = 0;
-
-	msg_connect (NULL, "hdftest");
-	usy_init ();
-	F_Init ();
-	/*
-	 * Expect a list of HDF files to test on the command line.
-	 * Query each for a time and print the results, then open
-	 * each and dump the tag before closing them.
-	 */
-	for (i = 1; i < argc; ++i)
-	{
-		ret |= dh_QueryTime (argv[i], &begin, &end, &nsamp);
-		TC_EncodeTime (&begin, TC_Full, ctime);
-		printf ("%s (%d samples): %s to %s\n", argv[i],
-			nsamp, ctime, TC_AscTime (&end, TC_Full));
-		/*
-		 * Create a dummy datafile structure
-		 */
-		df.df_platform = 1234;
-		strcpy (df.df_name, argv[i]);
-		df.df_nsample = nsamp;
-		df.df_begin = begin;
-		df.df_end = end;
-
-		/*
-		 * Now try to open the file
-		 */
-		if (! dh_OpenFile (df.df_name, &df, /*write*/ 0, &tag))
-		{
-			printf ("%s: open failed.\n", df.df_name);
-			continue;
-		}
-		/*
-		 * Dump the tag
-		 */
-		dh_DumpTag (argv[i], tag);
-
-		/*
-		 * Test the setup and getdata methods and dump the datachunk
-		 */
-		OpenTag = tag;
-		gl.gl_begin = tag->h_time;
-		gl.gl_end = tag->h_time;
-		dc = dh_Setup (&gl, tag->h_Fids, tag->h_nVar, DCC_RGrid);
-		if (! dc)
-		{
-			msg_ELog (EF_PROBLEM, "setup failed");
-		}
-		else
-		{
-			dh_GetData (dc, &gl, NULL, 0);
-			dc_DumpDC (dc);
-			dc_DestroyDC (dc);
-		}
-		dh_CloseFile (tag);	
-		OpenTag = NULL;
-	}
-	return (ret);
-}
-
-
-
-#endif /* HDF_TEST */
 
 
 #endif /* HDF_INTERFACE */

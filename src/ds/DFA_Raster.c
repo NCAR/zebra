@@ -9,16 +9,16 @@
 
 # include <defs.h>
 # include <message.h>
+# include <byteorder.h>
+
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
 # include "RasterFile.h"
-# include <byteorder.h>
+# include "DataFormat.h"
 
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.13 1995-11-20 20:22:43 granger Exp $")
-
-
+RCSID ("$Id: DFA_Raster.c,v 3.14 1996-11-19 08:36:31 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -29,8 +29,113 @@ typedef struct _RFTag
 	RFToc		*rt_toc;	/* The table of contents	*/
 	int		rt_fd;		/* The associated file descr	*/
 	FieldId		*rt_fids;	/* Translated fields		*/
+	ZebTime		*rt_times;	/* Handy stash of ZebTimes	*/
 } RFTag;
 
+
+typedef struct _RasterOpenFile
+{
+	OpenFile	open_file;
+	RFTag		rf_tag;
+} 
+RasterOpenFile;
+
+#define RFTAGP(ofp) (&((RasterOpenFile *)ofp)->rf_tag)
+
+static CO_Compat COCTable [] =
+{
+	{ OrgImage,		DCC_Image	}
+};
+
+
+/* 
+ * Raster file format methods
+ */
+P_OpenFile (drf_OpenFile);
+P_CloseFile (drf_CloseFile);
+P_QueryTime (drf_QueryTime);
+P_PutSample (drf_PutSample);
+P_CreateFile (drf_CreateFile);
+P_SyncFile (drf_Sync);
+P_GetData (drf_GetData);
+P_GetObsSamples (drf_GetObsSamples);
+P_GetFields (drf_GetFields);
+P_Setup (drf_Setup);
+P_GetAttrs (drf_GetAttrs);
+P_GetTimes (drf_GetTimes);
+
+static DataFormat rasterFormatRec =
+{
+    	"Raster",
+	FTRaster,
+	".rf",
+
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(RasterOpenFile),
+	FALSE,				/* read-only 			*/
+
+	FORMAT_INIT,			/* dynamic data			*/
+
+	drf_QueryTime,			/* Query times			*/
+	fmt_MakeFileName,		/* Make file name		*/
+
+	drf_Setup,			/* setup			*/
+	drf_OpenFile,			/* Open				*/
+	drf_CloseFile,			/* Close			*/
+	drf_Sync,			/* Synchronize			*/
+	drf_GetData,			/* Get the data			*/
+	___,				/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
+	drf_CreateFile,			/* Create a new file		*/
+	drf_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
+	drf_GetObsSamples,		/* Get observation samples	*/
+	drf_GetFields,			/* Get fields			*/
+	drf_GetAttrs,			/* Get Attributes		*/
+	drf_GetTimes			/* Get times 			*/
+};
+
+DataFormat *rasterFormat = (DataFormat *) &rasterFormatRec;
+
+/*
+ * Raster files in compressed mode.
+ */
+static DataFormat cmpRasterFormatRec =
+{
+    	"CmpRaster",
+	FTCmpRaster,
+	".rf",
+
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(RasterOpenFile),
+	FALSE,				/* read-only			*/
+
+	FORMAT_INIT,			/* dynamic class data		*/
+
+	drf_QueryTime,			/* Query times			*/
+	fmt_MakeFileName,		/* Make file name		*/
+
+	drf_Setup,			/* setup			*/
+	drf_OpenFile,			/* Open				*/
+	drf_CloseFile,			/* Close			*/
+	drf_Sync,			/* Synchronize			*/
+	drf_GetData,			/* Get the data			*/
+	___,				/* Get altitude info		*/
+	fmt_DataTimes, /* drf_DataTimes */ /* Get data times		*/
+	___,				/* Get forecast times		*/
+	drf_CreateFile,			/* Create a new file		*/
+	drf_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
+	drf_GetObsSamples,		/* Get observation samples	*/
+	drf_GetFields,			/* Get fields			*/
+	drf_GetAttrs,			/* Get Attributes		*/
+	drf_GetTimes			/* Get array of times		*/
+};
+
+DataFormat *cmpRasterFormat = (DataFormat *) &cmpRasterFormatRec;
 
 /*
  * Scratch buffer used for compression/decompression.
@@ -51,7 +156,6 @@ static int AttrLen;
 static void	drf_WSync FP ((RFTag *));
 static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
 static int	drf_FldOffset FP ((RFTag *, FieldId));
-static int	drf_TimeIndex FP ((const RFTag * const, const ZebTime *const));
 static void	drf_GetField FP ((const RFTag * const, const RFToc *const,
 			        const int));
 static void	drf_ReadOldToc FP ((RFTag *));
@@ -60,6 +164,7 @@ static void	drf_ClearToc FP ((RFHeader *, RFToc *));
 static void	drf_FindSpace FP ((RFTag *, RFToc *, int, int, int));
 static int	drf_ProcAttr FP ((char *, char *));
 static void	drf_WriteAttrs FP ((RFTag *, RFToc *, DataChunk *, int, int));
+static void	drf_SyncTimes FP ((RFTag *tag));
 
 # ifdef LITTLE_ENDIAN
 static void	drf_SwapHeader FP ((RFHeader *));
@@ -97,25 +202,24 @@ int size;
 
 
 
-int
-drf_OpenFile (fname, dp, write, rtag)
+static int
+drf_OpenFile (ofp, fname, dp, write)
+OpenFile *ofp;
 char *fname;
 DataFile *dp;
 bool write;
-void **rtag;
 /*
  * Open up a raster file.
  */
 {
-	RFTag *tag = ALLOC (RFTag);
+	RFTag *tag = RFTAGP(ofp);
 	int fld;
 /*
  * Open up the actual disk file.
  */
 	if ((tag->rt_fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno, fname);
-		free (tag);
+		msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
 		return (FALSE);
 	}
 /*
@@ -127,7 +231,6 @@ void **rtag;
                 msg_ELog (EF_PROBLEM, "Error %d reading RF hdr on %s", errno,
                         fname);
                 close (tag->rt_fd);
-                free (tag);
                 return (FALSE);
         }
 /*
@@ -144,7 +247,6 @@ void **rtag;
 	{
 		msg_ELog (EF_PROBLEM, "Bad ID in file %s", fname);
 		close (tag->rt_fd);
-		free (tag);
 		return (FALSE);
 	}
 /*
@@ -176,9 +278,14 @@ void **rtag;
 		tag->rt_fids[fld] =
 				F_Lookup (tag->rt_hdr.rf_Fields[fld].rff_Name);
 /*
- * Good enough.  Return the tag info and we're done.
+ * Setup our contiguous copy of ZebTimes
  */
-	*rtag = (void *) tag;
+	tag->rt_times = (ZebTime *) 
+		malloc(tag->rt_hdr.rf_MaxSample*sizeof(ZebTime));
+	drf_SyncTimes (tag);
+/*
+ * Good enough.
+ */
 	return (TRUE);
 }
 
@@ -214,25 +321,26 @@ RFTag *tag;
 
 
 
-
-void
-drf_CloseFile (tag)
-RFTag *tag;
+static void
+drf_CloseFile (ofp)
+OpenFile *ofp;
 /*
  * Close an open file.
  */
 {
+	RFTag *tag = RFTAGP (ofp);
+
 	close (tag->rt_fd);
 	free (tag->rt_toc);
 	free (tag->rt_fids);
-	free (tag);
+	free (tag->rt_times);
 }
 
 
 
 
 
-int
+static int
 drf_QueryTime (file, begin, end, nsample)
 char *file;
 ZebTime *begin, *end;
@@ -286,10 +394,6 @@ int *nsample;
  * Return the info, clean up, and we're done.
  */
 	*nsample = hdr.rf_NSample;
-# ifdef notdef
-	*begin = toc[0].rft_Time;
-	*end = toc[*nsample - 1].rft_Time;
-# endif
 	TC_UIToZt (&toc[0].rft_Time, begin);
 	TC_UIToZt (&toc[*nsample - 1].rft_Time, end);
 	free (toc);
@@ -300,40 +404,26 @@ int *nsample;
 
 
 
-
-void
-drf_MakeFileName (dir, name, t, dest)
-char *dir, *name, *dest;
-ZebTime *t;
-/*
- * Generate a file name.
- */
-{
-	UItime ut;
-	
-	TC_ZtToUI (t, &ut);
-	sprintf (dest, "%s.%06ld.%06ld.rf", name, ut.ds_yymmdd, ut.ds_hhmmss);
-}
-
-
-
-
-int
-drf_CreateFile (fname, dp, dc, rtag)
+static int
+drf_CreateFile (ofp, fname, dp, dc, details, ndetail)
+OpenFile *ofp;
 char *fname;
 DataFile *dp;
 DataChunk *dc;
-void **rtag;
+dsDetail *details;
+int ndetail;
 /*
  * Create a new raster file to contain this data chunk.
  */
 {
-	RFTag *tag = ALLOC (RFTag);
+	RFTag *tag = RFTAGP(ofp);
 	ScaleInfo scale;
 	int fld, nfld;
 	PlatformId id = dc->dc_Platform;
 	FieldId *fids;
+#ifdef notdef
 	ClientPlatform p;
+#endif
 /*
  * We gotta create a file before doing much of anything.
  */
@@ -341,16 +431,18 @@ void **rtag;
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
 				fname);
-		free (tag);
 		return (FALSE);
 	}
 /*
  * Start to fill in the header.
  */
+#ifdef notdef
 	ds_GetPlatStruct (id, &p, FALSE);
-	tag->rt_hdr.rf_Magic = RF_MAGIC;
-	strcpy (tag->rt_hdr.rf_Platform, p.cp_name);
 	tag->rt_hdr.rf_MaxSample = p.cp_maxsamp;
+#endif
+	tag->rt_hdr.rf_Magic = RF_MAGIC;
+	strcpy (tag->rt_hdr.rf_Platform, ds_PlatformName (id));
+	tag->rt_hdr.rf_MaxSample = ds_MaxSamples (id);
 	tag->rt_hdr.rf_NSample = 0;
 	tag->rt_hdr.rf_Flags = (dp->df_ftype == FTCmpRaster) ? RFF_COMPRESS :0;
 /*
@@ -371,11 +463,12 @@ void **rtag;
  * Get a table of contents.
  */
 	tag->rt_toc = (RFToc *) malloc(tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
+	tag->rt_times = (ZebTime *) 
+		malloc(tag->rt_hdr.rf_MaxSample*sizeof(ZebTime));
 /*
  * Sync everything out to disk, and we are done.
  */
 	drf_WSync (tag);
-	*rtag = (void *) tag;
 	return (TRUE);
 }
 
@@ -411,32 +504,48 @@ RFTag *tag;
 # ifdef LITTLE_ENDIAN
 	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
 # endif
+/*
+ * Update internal array of times with new table of contents
+ */
+	drf_SyncTimes (tag);
 }
 
 
 
 
+static void
+drf_SyncTimes (tag)
+RFTag *tag;
+/*
+ * Sync the ZebTimes in the tag with the TOC entries
+ */
+{
+	int i;
 
-int
-drf_PutSample (dfile, dc, sample, wc)
-int dfile, sample;
+	for (i = 0; i < tag->rt_hdr.rf_NSample; ++i)
+		TC_UIToZt (&tag->rt_toc[i].rft_Time, tag->rt_times+i);
+}
+
+
+
+
+static int
+drf_PutSample (ofp, dc, sample, wc, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
+int sample;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Write some data to the file.
  */
 {
-	RFTag *tag;
-	RFToc *toc;
-	RFHeader *hdr;
+	RFTag *tag = RFTAGP(ofp);
+	RFToc *toc = NULL;
+	RFHeader *hdr = &tag->rt_hdr;
 	int soffset, i, ret;
 	ZebTime t;
-/*
- * Open the file for write access.
- */
-	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
-		return (FALSE);
-	hdr = &tag->rt_hdr;
 /*
  * No writing old format files.
  */
@@ -450,7 +559,7 @@ WriteCode wc;
  */
 	if (hdr->rf_NSample >= hdr->rf_MaxSample && wc != wc_Overwrite)
 	{
-		msg_ELog (EF_PROBLEM, "File %d overfull", dfile);
+		msg_ELog (EF_PROBLEM, "File %d overfull", ofp->of_dfindex);
 		return (0);
 	}
 /*
@@ -472,7 +581,7 @@ WriteCode wc;
 	 */
 	   case wc_Overwrite:
 		dc_GetTime (dc, sample, &t);
-	   	soffset = drf_TimeIndex (tag, &t);
+	   	soffset = dfa_TimeIndex (ofp, &t, 0);
 		toc = tag->rt_toc + soffset;
 		break;
 	/*
@@ -480,7 +589,7 @@ WriteCode wc;
 	 */
 	   case wc_Insert:
 	   	dc_GetTime (dc, sample, &t);
-	   	soffset = drf_TimeIndex (tag, &t);
+	   	soffset = dfa_TimeIndex (ofp, &t, 0);
 		for (i = hdr->rf_NSample - 1; i > soffset; i--)
 			tag->rt_toc[i + 1] = tag->rt_toc[i];
 		toc = tag->rt_toc + soffset;
@@ -707,13 +816,14 @@ FieldId fid;
 
 
 
-void
-drf_Sync (tag)
-RFTag *tag;
+static int
+drf_Sync (ofp)
+OpenFile *ofp;
 /*
  * Catch up with changes in this file.
  */
 {
+	RFTag *tag = RFTAGP(ofp);
 /*
  * Simply reread the header and table of contents.
  */
@@ -726,14 +836,19 @@ RFTag *tag;
 # ifdef LITTLE_ENDIAN
 	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_NSample);
 # endif
+/*
+ * Update internal copy of times with new TOC enties
+ */
+	drf_SyncTimes (tag);
+	return (1);
 }
 
 
 
 
-DataChunk *
-drf_Setup (gp, fields, nfield, class)
-GetList *gp;
+static DataChunk *
+drf_Setup (ofp, fields, nfield, class)
+OpenFile *ofp;
 FieldId *fields;
 int nfield;
 DataClass class;
@@ -741,33 +856,17 @@ DataClass class;
  * Initialize for a data snarf.
  */
 {
-	RFTag *tag;
+	RFTag *tag = RFTAGP(ofp);
 	RFHeader *hdr;
 	DataChunk *dc;
 	ScaleInfo *sc;
 	int ufield, ffield;
-/*
- * Verify that the class makes sense,
- * and create a nice, empty data chunk for it.
- */
-	if (class != DCC_Image)
-	{
-		msg_ELog (EF_PROBLEM, "Non-image fetch from raster fmt");
-		return (NULL);
-	}
-	dc = dc_CreateDC (DCC_Image);
-/*
- * Now we need to find the first file so we can pull out the scale info.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-	{
-		dc_DestroyDC (dc);
-		return (FALSE);
-	}
+
+	dc = dc_CreateDC (class);
 	hdr = &tag->rt_hdr;
 	sc = (ScaleInfo *) malloc (nfield * sizeof (ScaleInfo));
 /*
- * Pass through each user field and field the equivalent file field.
+ * Pass through each user field and find the equivalent file field.
  */
 	for (ufield = 0; ufield < nfield; ufield++)
 	{
@@ -794,60 +893,30 @@ DataClass class;
 
 
 
-static int
-drf_TimeIndex (tag, zbegin)
-const RFTag * const tag;
-const ZebTime * const zbegin;
-/*
- * Find the index of this sample.
- */
-{
-	int offset;
-	RFToc *toc = tag->rt_toc;
-	UItime begin;
-/*
- * Yet another dumb sequential search loop.
- */
-	TC_ZtToUI (zbegin, &begin);
-	for (offset = tag->rt_hdr.rf_NSample - 1; offset >= 0; offset--)
-		if (DLE (toc[offset].rft_Time, begin))
-			return (offset);
-	return (-1);
-}
 
-
-
-
-
-int 
-drf_GetData (dc, gp)
+static int 
+drf_GetData (ofp, dc, begin, nsample, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
-const GetList *gp;
+int begin;
+int nsample;
+dsDetail *details;
+int ndetail;
 /*
  * Retrieve the data called for here.
  */
 {
+	RFTag *tag = RFTAGP(ofp);
 	RFToc *toc;
-	RFTag *tag;
 	RFHeader *hdr;
-	/* RastImg *rip = &dobj->do_desc.d_img; */
-	int tbegin, tend, sample, fld, rfld;
+	int sample, fld, rfld;
 	int fieldmap[MAXFIELD], nfield;
 	int dcsamp = dc_GetNSample (dc);
 	FieldId *fids = dc_GetFields (dc, &nfield);
 	ZebTime t_hack;
-/*
- * Open the file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);
+
 	hdr = &tag->rt_hdr;
-/*
- * Sample offsets, again.
- */
-	tbegin = drf_TimeIndex (tag, &gp->gl_begin);
-	tend = drf_TimeIndex (tag, &gp->gl_end);
-	dc_AddMoreSamples (dc, tend - tbegin + 1, 0);
+	dc_AddMoreSamples (dc, nsample, 0);
 /*
  * Go through and map the fields.  Ugly.  If this proves to take a lot
  * of time, we may have to go to an stbl or something, but I don't think
@@ -875,7 +944,7 @@ const GetList *gp;
 /*
  * Now we plow through and pull in the data.
  */
-	for (sample = tbegin; sample <= tend; sample++)
+	for (sample = begin; sample < begin + nsample; sample++)
 	{
 		toc = tag->rt_toc + sample;
 		TC_UIToZt (&toc->rft_Time, &t_hack);
@@ -1011,66 +1080,19 @@ const int field;
 
 
 
-int 
-drf_DataTimes (dfindex, t, which, ntime, dest)
-int dfindex, ntime;
-ZebTime *t, *dest;
-TimeSpec which;
-/*
- * Return a list of available times.
- */
-{
-	int begin, i;
-	RFTag *tag;
-	UItime uit;
-/*
- * Open the file, as always.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (0);
-/*
- * Now find the offset to the desired time, and copy out the info.
- */
-	TC_ZtToUI (t, &uit);
-	begin = drf_TimeIndex (tag, t);
-	if (which == DsBefore)
-	{
-		for (i = 0; begin >= 0 && i < ntime; i++)
-			TC_UIToZt (&tag->rt_toc[begin--].rft_Time, dest++);
-	}
-	else if (which == DsAfter)
-	{
-		if (begin < 0)
-			begin = 0;
-		else if (DLT (tag->rt_toc[begin].rft_Time, uit))
-			++begin;
-		for (i = 0; begin < tag->rt_hdr.rf_NSample && i < ntime; i++)
-			TC_UIToZt (&tag->rt_toc[begin++].rft_Time, dest++);
-	}
-	return (i);
-}
-
-
-
-
-
-int
-drf_GetObsSamples (dfile, times, locs, max)
-int dfile, max;
+static int
+drf_GetObsSamples (ofp, times, locs, max)
+OpenFile *ofp;
 ZebTime *times;
 Location *locs;
+int max;
 /*
  * Return sample info.
  */
 {
-	RFTag *tag;
+	RFTag *tag = RFTAGP(ofp);
 	RFToc *toc;
 	int i;
-/*
- * Open the file.
- */
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
 /*
  * Now we blast through and copy out as many as we can.
  */
@@ -1087,67 +1109,107 @@ Location *locs;
 
 
 
-int
-drf_GetFields (dfile, t, nfld, flist)
-int dfile, *nfld;
-ZebTime *t;
+static int
+drf_GetFields (ofp, sample, nfld, flist)
+OpenFile *ofp;
+int sample;
+int *nfld;
 FieldId *flist;
 /*
  * Return a list of fields available from this file at this time.
  */
 {
-	RFTag *tag;
-	RFHeader *hdr;
+	RFTag *tag = RFTAGP(ofp);
+	RFHeader *hdr = &tag->rt_hdr;
 	int f;
-/*
- * Open up the file first of all.
- */
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
-	hdr = &tag->rt_hdr;
 /*
  * Now copy.
  */
-	*nfld = hdr->rf_NField;
-	for (f = 0; f < hdr->rf_NField; f++)
+	for (f = 0; f < hdr->rf_NField && f < *nfld; f++)
 		flist[f] = F_Lookup (hdr->rf_Fields[f].rff_Name);
+	*nfld = f;
 	return (*nfld);
 }
 
 
 
 
-
-char *
-drf_GetAttrs (dfile, t, len)
-int dfile, *len;
-ZebTime *t;
+#ifndef NO_GETATTR
+/*
+ * Now obsolete in favor of returning sample attributes in a datachunk
+ */
+static char *
+drf_GetAttrs (of, sample, len)
+OpenFile *of;
+int sample;
+int *len;
 /*
  * Pull out the attributes, if any.
  */
 {
-	RFTag *tag;
-	int tindex;
+	RFTag *tag = RFTAGP(of);
 	char *ret;
-/*
- * Open the file and find our time.
- */
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
-	tindex = drf_TimeIndex (tag, t);
 /*
  * Just pull out the attribute table if there is one.
  */
-	if ((*len = tag->rt_toc[tindex].rft_AttrLen) <= 0)
+	if ((*len = tag->rt_toc[sample].rft_AttrLen) <= 0)
 		return (0);
 	ret = malloc (*len);
-	lseek (tag->rt_fd, tag->rt_toc[tindex].rft_AttrOffset, SEEK_SET);
+	lseek (tag->rt_fd, tag->rt_toc[sample].rft_AttrOffset, SEEK_SET);
 	if (read (tag->rt_fd, ret, *len) < *len)
 		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
 	return (ret);
 }
+#endif
 
 
+#ifdef NO_GETATTR
+static void
+drf_GetAttrs (tag, ix, dc, sample)
+RFTag *tag;
+int ix;		/* sample index into file */
+DataChunk *dc;
+int sample;	/* sample being added in datachunk */
+/*
+ * Pull out the attributes for this sample and add them to the datachunk.
+ */
+{
+	char *ret, **pattr;
+	int len;
+
+	if ((len = tag->rt_toc[sample].rft_AttrLen) <= 0)
+		return;
+	ret = (char *) malloc (len);
+	pattr = (char **) malloc (len);
+	lseek (tag->rt_fd, tag->rt_toc[ix].rft_AttrOffset, SEEK_SET);
+	if (read (tag->rt_fd, ret, len) < len)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
+	}
+	else
+	{
+		/* Add attributes one by one */
+		len = CommaParse (ret, pattr);
+		for (i = 0; i < len; i++)
+			dc_SetSampleAttr (dc, sample, pattr[i], pattr[i]);
+	}
+	free (pattr);
+	free (ret);
+}
+#endif
+
+
+
+static ZebTime *
+drf_GetTimes (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	RFTag *tag = RFTAGP(ofp);
+
+	*ntime = tag->rt_hdr.rf_NSample;
+	return (tag->rt_times);
+}
 
 
 

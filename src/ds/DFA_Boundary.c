@@ -33,8 +33,9 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.10 1995-06-12 23:08:47 granger Exp $")
+# include "DataFormat.h"
 
+RCSID ("$Id: DFA_Boundary.c,v 3.11 1996-11-19 08:35:45 granger Exp $")
 
 
 /*
@@ -45,18 +46,80 @@ typedef struct s_BFTag
 	int		bt_fd;		/* File descriptor		*/
 	struct BFHeader	bt_hdr;		/* The file header		*/
 	struct BFBTable *bt_BTable;	/* The boundary table		*/
+	ZebTime		*bt_times;	/* Stash of ZebTime's		*/
 } BFTag;
 
 
+typedef struct _BoundaryOpenFile
+{
+	OpenFile	open_file;
+	BFTag		bf_tag;
+}
+BoundaryOpenFile;
+
+#define BF_TAGP(ofp)	(&((BoundaryOpenFile *)(ofp))->bf_tag)
+
+/*
+ * Boundary format methods
+ */
+P_OpenFile (bf_OpenFile);
+P_CloseFile (bf_CloseFile);
+P_SyncFile (bf_ReadSync);
+P_QueryTime (bf_QueryTime);
+P_PutSample (bf_PutSample);
+P_CreateFile (bf_CreateFile);
+P_GetData (bf_GetData);
+P_GetFields (bf_GetFields);
+P_Setup (bf_Setup);
+P_GetTimes (bf_GetTimes);
+
+static CO_Compat COCTable[] =
+{
+	{ OrgOutline,		DCC_Boundary	}
+};
+
+static DataFormat boundaryFormatRec =
+{
+	"Boundary",
+	FTBoundary,
+	".bf",
+	COCTable,       		/* org/class compatibility table*/
+	N_COC (COCTable),
+	sizeof (BoundaryOpenFile),
+	FALSE,				/* readonly */
+
+	FORMAT_INIT,			/* dynamic members */
+
+	bf_QueryTime,			/* Query times			*/
+	fmt_MakeFileName,		/* Make file name		*/
+
+	bf_Setup,			/* setup			*/
+	bf_OpenFile,			/* Open				*/
+	bf_CloseFile,			/* Close			*/
+	bf_ReadSync,			/* Synchronize			*/
+	bf_GetData,			/* Get the data			*/
+	___,				/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
+	bf_CreateFile,			/* Create a new file		*/
+	bf_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
+	___,				/* Get observation samples	*/
+	bf_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	bf_GetTimes			/* Get times			*/
+};
+
+
+DataFormat *boundaryFormat = (DataFormat *) &boundaryFormatRec;
 
 
 /*
  * Local routines.
  */
-static void 	bf_Sync FP ((BFTag *));
 static void 	bf_WriteBoundary FP ((BFTag *, int, Location *,ZebTime *,int));
-static int 	bf_TimeIndex FP ((BFTag *, ZebTime *));
-
+static void	bf_SyncTimes FP ((BFTag *tag));
+static void	bf_WriteSync FP ((OpenFile *ofp));
 
 
 /*
@@ -67,7 +130,7 @@ static int 	bf_TimeIndex FP ((BFTag *, ZebTime *));
 
 
 
-int
+static int
 bf_QueryTime (file, begin, end, nsample)
 char *file;
 ZebTime *begin, *end;
@@ -112,39 +175,23 @@ int *nsample;
 
 
 
-
-void
-bf_MakeFileName (dir, name, zt, string)
-ZebTime *zt;
-char *dir, *name, *string;
-/*
- * Generate a new file name.
- */
-{
-	UItime t;
-	
-	TC_ZtToUI (zt, &t);
-	sprintf (string, "%s.%06ld.%04ld.bf", name, t.ds_yymmdd,
-		t.ds_hhmmss/100);
-}
-
-
-
-
-
-int
-bf_CreateFile (fname, dfile, dc, rtag)
+static int
+bf_CreateFile (ofp, fname, dfile, dc, details, ndetail)
+OpenFile *ofp;
 char *fname;
 DataFile *dfile;
 DataChunk *dc;
-char **rtag;
+dsDetail *details;
+int ndetail;
 /*
  * Create a new boundary file.
  */
 {
-	BFTag *tag = ALLOC (BFTag);
+	BFTag *tag = BF_TAGP(ofp);
 	PlatformId id = dc->dc_Platform;
+#ifdef notdef
 	ClientPlatform p;
+#endif
 /*
  * Start by trying to create the file.
  */
@@ -152,7 +199,7 @@ char **rtag;
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
 			fname);
-		free (tag);
+		/* free (tag); */
 		return (FALSE);
 	}
 /*
@@ -160,19 +207,24 @@ char **rtag;
  */
 	tag->bt_hdr.bh_Magic = BH_MAGIC;
 	strcpy (tag->bt_hdr.bh_Platform, ds_PlatformName (id));
+#ifdef notdef
 	ds_GetPlatStruct (id, &p, FALSE);
 	tag->bt_hdr.bh_MaxBoundary = p.cp_maxsamp;
+#endif
+	tag->bt_hdr.bh_MaxBoundary = ds_MaxSamples (id);
 	tag->bt_hdr.bh_NBoundary = 0;
 /*
- * Allocate the boundary table.
+ * Allocate the boundary and times tables.
  */
 	tag->bt_BTable = (struct BFBTable *)
 		malloc (tag->bt_hdr.bh_MaxBoundary * sizeof (struct BFBTable));
+	tag->bt_times = (ZebTime *) 
+		malloc (tag->bt_hdr.bh_MaxBoundary * sizeof (ZebTime));
 /*
  * Now synchronize the whole thing and return.
  */
-	bf_Sync (tag);
-	*rtag = (char *) tag;
+	bf_ReadSync (ofp);
+	/* *rtag = (char *) tag; */
 	return (TRUE);
 }
 
@@ -182,32 +234,39 @@ char **rtag;
 
 
 static void
-bf_Sync (tag)
-BFTag *tag;
+bf_WriteSync (ofp)
+OpenFile *ofp;
 /*
- * Write out changes to the header info.
+ * Write out changes to the header info, including our internal array of
+ * ZebTimes.
  */
 {
+	BFTag *tag = BF_TAGP(ofp);
+
 	lseek (tag->bt_fd, 0, SEEK_SET);
 	write (tag->bt_fd, &tag->bt_hdr, sizeof (struct BFHeader));
 	write (tag->bt_fd, tag->bt_BTable,
 			tag->bt_hdr.bh_MaxBoundary*sizeof (struct BFBTable));
+	bf_SyncTimes (tag);
 }
 
 
 
 
 
-int
-bf_PutSample (dfile, dc, sample, wc)
-int dfile, sample;
+static int
+bf_PutSample (ofp, dc, sample, wc, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
+int sample;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Put data into this file.
  */
 {
-	BFTag *tag;
+	BFTag *tag = BF_TAGP(ofp);
 	struct BFHeader *hdr;
 	int offset, npt, i;
 	ZebTime t;
@@ -215,8 +274,6 @@ WriteCode wc;
 /*
  * Open up the file.
  */
-	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
-		return (FALSE);
 	hdr = &tag->bt_hdr;
 /*
  * Get the info on this boundary.
@@ -228,7 +285,8 @@ WriteCode wc;
  */
 	if (hdr->bh_NBoundary >= hdr->bh_MaxBoundary && wc != wc_Overwrite)
 	{
-		msg_ELog (EF_PROBLEM, "Too many samples in df %d", dfile);
+		msg_ELog (EF_PROBLEM, "Too many samples in df %d", 
+			  fmt_FileIndex (ofp));
 		return (FALSE);
 	}
 /*
@@ -246,7 +304,7 @@ WriteCode wc;
 	 * For an insert we need to open up a hole in the toc.
 	 */
 	   case wc_Insert:
-	   	offset = bf_TimeIndex (tag, &t);
+	   	offset = dfa_TimeIndex (ofp, &t, 0);
 		for (i = hdr->bh_NBoundary - 1; i > offset; i--)
 			tag->bt_BTable[i + 1] = tag->bt_BTable[i];
 		offset++;
@@ -256,14 +314,14 @@ WriteCode wc;
 	 * For overwrites we find the unluck sample and we are done.
 	 */
 	   case wc_Overwrite:
-	   	offset = bf_TimeIndex (tag, &t);
+	   	offset = dfa_TimeIndex (ofp, &t, 0);
 		if (offset < 0)
 			offset = 0;
 		break;
 	/*
 	 * Shouldn't happen, but just to satisfy compiler checks...
 	 */
-	   case wc_NewFile:
+	   default:
 		offset = hdr->bh_NBoundary++;
 		break;
 	}
@@ -274,7 +332,7 @@ WriteCode wc;
 /*
  * Synchronize and we're done.
  */
-	bf_Sync (tag);
+	bf_WriteSync (ofp);
 	return (TRUE);
 }
 
@@ -303,6 +361,7 @@ int len, sample;
  */
 	bt->bt_NPoint = len;
 	TC_ZtToUI (t, &bt->bt_Time);
+	tag->bt_times[sample] = *t;
 	/* bt->bt_Time = *t; */
 /*
  * Tweak times.
@@ -317,17 +376,17 @@ int len, sample;
 
 
 
-int
-bf_OpenFile (fname, dp, write, rtag)
+static int
+bf_OpenFile (ofp, fname, dp, write)
+OpenFile *ofp;
 char *fname;
 DataFile *dp;
 bool write;
-char **rtag;
 /*
  * Open this file and return a tag.
  */
 {
-	BFTag *tag = ALLOC (BFTag);
+	BFTag *tag = BF_TAGP(ofp);
 	int btlen;
 /*
  * See if we can really open the file.
@@ -335,7 +394,7 @@ char **rtag;
 	if ((tag->bt_fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno,fname);
-		free (tag);
+		/* free (tag); */
 		return (FALSE);
 	}
 /*
@@ -347,7 +406,7 @@ char **rtag;
 		msg_ELog (EF_PROBLEM, "Error %d reading BF hdr on %s", errno,
 			fname);
 		close (tag->bt_fd);
-		free (tag);
+		/* free (tag); */
 		return (FALSE);
 	}
 	if (tag->bt_hdr.bh_Magic != BH_MAGIC)
@@ -359,72 +418,84 @@ char **rtag;
 	btlen = tag->bt_hdr.bh_MaxBoundary * sizeof (struct BFBTable);
 	tag->bt_BTable = (struct BFBTable *) malloc (btlen);
 	read (tag->bt_fd, tag->bt_BTable, btlen);
-
-	*rtag = (char *) tag;
+	tag->bt_times = (ZebTime *) 
+		malloc (tag->bt_hdr.bh_MaxBoundary * sizeof (ZebTime));
+	bf_SyncTimes (tag);
+	/* *rtag = (char *) tag; */
 	return (TRUE);
 }
 
 
 
 
-void
-bf_CloseFile (tag)
-BFTag *tag;
+static void
+bf_CloseFile (ofp)
+OpenFile *ofp;
 /*
  * Close this file.
  */
 {
+	BFTag *tag = BF_TAGP(ofp);
+
 	close (tag->bt_fd);
 	free (tag->bt_BTable);
-	free (tag);
+	free (tag->bt_times);
+	/* free (tag); */
 }
 
 
 
 
-int
-bf_SyncFile (tag)
-BFTag *tag;
+static int
+bf_ReadSync (ofp)
+OpenFile *ofp;
 /*
  * Catch up with changes in this file.
  */
 {
+	BFTag *tag = BF_TAGP(ofp);
+
 	lseek (tag->bt_fd, 0, SEEK_SET);
 	read (tag->bt_fd, &tag->bt_hdr, sizeof (tag->bt_hdr));
 	read (tag->bt_fd, tag->bt_BTable,
 		tag->bt_hdr.bh_MaxBoundary*sizeof (struct BFBTable));
+	bf_SyncTimes (tag);
 	return (TRUE);
 }
 
 
 
 
-DataChunk *
-bf_Setup (gp, fields, nfield, class)
-GetList *gp;
-char **fields;
+static void
+bf_SyncTimes (tag)
+BFTag *tag;
+/*
+ * Sync the ZebTimes in the tag with the boundary table entries
+ */
+{
+	int i;
+
+	for (i = 0; i < tag->bt_hdr.bh_NBoundary; ++i)
+		TC_UIToZt (&tag->bt_BTable[i].bt_Time, tag->bt_times+i);
+
+}
+
+
+
+
+/* ARGSUSED */
+static DataChunk *
+bf_Setup (ofp, fields, nfield, dclass)
+OpenFile *ofp;
+FieldId *fields;
 int nfield;
-DataClass class;
+DataClass dclass;
 /*
  * Get set up to do this data grab.
  */
 {
-	BFTag *tag;
-/*
- * Do some sanity checking.
- */
-	if (class != DCC_Boundary)
-	{
-		msg_ELog (EF_PROBLEM, "Non-boundary fetch from boundary file");
-		return (NULL);
-	}
 	if (nfield > 0)
 		msg_ELog (EF_PROBLEM, "Fields in a boundary get?");
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (NULL);
 /*
  * Simply create and return a data chunk.
  */
@@ -434,32 +505,26 @@ DataClass class;
 
 
 
-int
-bf_GetData (dc, gp)
+static int
+bf_GetData (ofp, dc, tbegin, nsample, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
-GetList *gp;
+int tbegin, nsample;
+dsDetail *details;
+int ndetail;
 /*
- * Get the data from this GetList entry.
+ * Get the data from these sample indices.
  */
 {
-	BFTag *tag;
-	int tbegin, tend, sample;
+	BFTag *tag = BF_TAGP(ofp);
+	int tend, sample;
 	Location locs[MAX_BOUNDARY];
-	ZebTime zt;
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);
-/*
- * Find the offsets for the desired times.
- */
-	tbegin = bf_TimeIndex (tag, &gp->gl_begin);
-	tend = bf_TimeIndex (tag, &gp->gl_end);
+
+	tend = tbegin + nsample - 1;
 /*
  * Get the information.
  */
-	dc_AddMoreSamples (dc, tend - tbegin + 1, 0);
+	dc_AddMoreSamples (dc, nsample, 0);
 	for (sample = tbegin; sample <= tend; sample++)
 	{
 		struct BFBTable *bt = tag->bt_BTable + sample;
@@ -472,8 +537,8 @@ GetList *gp;
 	/*
 	 * Add it to the data chunk.
 	 */
-		TC_UIToZt (&bt->bt_Time, &zt);
-	 	dc_BndAdd (dc, &zt, dc->dc_Platform, locs, bt->bt_NPoint);
+	 	dc_BndAdd (dc, tag->bt_times + sample, dc->dc_Platform, 
+			   locs, bt->bt_NPoint);
 	}
 	return (TRUE);
 }
@@ -481,87 +546,24 @@ GetList *gp;
 
 
 
+static ZebTime *
+bf_GetTimes (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	BFTag *tag = BF_TAGP(ofp);
+
+	*ntime = tag->bt_hdr.bh_NBoundary;
+	return (tag->bt_times);
+}
+
+
+
 
 static int
-bf_TimeIndex (tag, zt)
-BFTag *tag;
-ZebTime *zt;
-/*
- * Find the offset into this file for the first entry before or equal to
- * the given time.
- */
-{
-	int offset;
-	struct BFBTable *bt = tag->bt_BTable;
-	UItime t;
-/*
- * Just search back from the end until we find the first entry before the
- * one we want.  There will generally not be all that many boundaries in
- * a given file, so we can get away with a dumb search here.  Famous last 
- * words if I ever heard them.
- */
-	TC_ZtToUI (zt, &t);
-	for (offset = tag->bt_hdr.bh_NBoundary - 1; offset >= 0; offset--)
-		if (DLE (bt[offset].bt_Time, t))
-			return (offset);
-	return (-1);
-}
-
-
-
-
-int
-bf_DataTimes (dfindex, t, which, n, dest)
-int dfindex, n;
-ZebTime *t, *dest;
-TimeSpec which;
-/*
- * Return the times for which data is available.
- */
-{
-	BFTag *tag;
-	struct BFBTable *bt;
-	int toff, i;
-	UItime uit;
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (0);
-	bt = tag->bt_BTable;
-	TC_ZtToUI (t, &uit);
-/*
- * Find the offset to the time, and copy out info.
- */
-	toff = bf_TimeIndex (tag, t);
-	if (which == DsBefore)
-	{
-		for (i = 0; toff >= 0 && i < n; i++)
-			TC_UIToZt (&bt[toff--].bt_Time, dest++);
-	}
-	else if (which == DsAfter)
-	{
-	/*
-	 * If the time at toff is off the edge or the time just before
-	 * the one we're after, set toff accordingly.
-	 */
-		if (toff < 0)
-			toff = 0;
-		else if (DLT (bt[toff].bt_Time, uit))
-			++toff;
-		for (i = 0; i < n && toff < tag->bt_hdr.bh_NBoundary; i++)
-			TC_UIToZt (&bt[toff++].bt_Time, dest--);
-	}
-	return (i);
-}
-
-
-
-
-int
-bf_GetFields (dfile, t, nfld, flist)
-int dfile;
-UItime *t;
+bf_GetFields (ofp, sample, nfld, flist)
+OpenFile *ofp;
+int sample;
 int *nfld;
 FieldId *flist;
 /*

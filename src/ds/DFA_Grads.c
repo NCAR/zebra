@@ -12,15 +12,14 @@
 
 # include <defs.h>
 # include <message.h>
+# include <byteorder.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-# include <byteorder.h>
+# include "DataFormat.h"
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.9 1995-11-20 20:22:40 granger Exp $")
-
-
+RCSID ("$Id: DFA_Grads.c,v 3.10 1996-11-19 08:35:47 granger Exp $")
 
 
 /*
@@ -55,28 +54,98 @@ typedef struct _GradsTag
 	int	gt_ntime;		/* Number of times		*/
 	int	gt_tincr;		/* Time increment 		*/
 	TIType	gt_itype;		/* Type increment type		*/
+	ZebTime *gt_times;		/* Internal array of ZebTimes	*/
 	int	gt_nfield;		/* How many fields do we have?	*/
 	FieldId *gt_fids;		/* The field ID's		*/
 	int	*gt_nlevels;		/* How many levels/field	*/
 } GradsTag;
 
 
+typedef struct _GradsOpenFile 
+{
+	OpenFile	open_file;
+	GradsTag	grads_tag;
+}
+GradsOpenFile;
+
+#define TAGP(ofp) (&((GradsOpenFile *)(ofp))->grads_tag)
+
+static CO_Compat COCTable [] =
+{
+	{ OrgNSpace,		DCC_NSpace	},
+	{ Org2dGrid,		DCC_NSpace	},
+	{ Org3dGrid,		DCC_NSpace	}
+};
+
+/*
+ * Grads format methods.
+ */
+P_OpenFile (dgr_OpenFile);
+P_CloseFile (dgr_CloseFile);
+P_QueryTime (dgr_QueryTime);
+P_GetData (dgr_GetData);
+P_GetObsSamples (dgr_GetObsSamples);
+P_GetFields (dgr_GetFields);
+P_Setup (dgr_Setup);
+P_GetAlts (dgr_GetAlts);
+P_GetTimes (dgr_GetTimes);
+
+
+
+/*
+ * GRADS.
+ */
+static DataFormat gradsFormatRec =
+{
+	"GRADS",
+	FTGrads,
+	".ctl",				/* hope ".ctl" covers it 	*/
+
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof (GradsOpenFile),
+	TRUE,				/* read-only			*/
+
+	FORMAT_INIT,			/* dynamic class members	*/
+
+	dgr_QueryTime,			/* Query times			*/
+	___,				/* Make file name		*/
+
+	dgr_Setup,			/* setup			*/
+	dgr_OpenFile,			/* Open				*/
+	dgr_CloseFile,			/* Close			*/
+	___,				/* Synchronize			*/
+	dgr_GetData,			/* Get the data			*/
+	dgr_GetAlts,			/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
+	___,				/* Create a new file		*/
+	___,				/* Write to file		*/
+	___,				/* Write block to a file	*/
+	dgr_GetObsSamples,		/* Get observation samples	*/
+	dgr_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	dgr_GetTimes			/* Get times			*/
+};
+
+
+DataFormat *gradsFormat = (DataFormat *) &gradsFormatRec;
 
 
 /*
  * Forwards.
  */
-static void	dgr_FreeTag FP ((GradsTag *));
-static GradsTag *dgr_DoOpen FP ((char *, int));
+static void	dgr_CleanTag FP ((GradsTag *));
+static int	dgr_DoOpen FP ((GradsTag *tag, char *, int));
 static void	dgr_HandleDDef FP ((GradsTag *, char **, int, FILE *));
 static void	dgr_HandleTDef FP ((GradsTag *, char **, int));
 static int	dgr_GetCtlLine FP ((FILE *, char **, int *));
 static void	dgr_HandleVars FP ((GradsTag *, int, FILE *));
 static int	dgr_OpenData FP ((GradsTag *, char *, char *));
 static void	dgr_CalcTime FP ((GradsTag *, int, ZebTime *));
+static void	dgr_SetTimes FP ((GradsTag *tag));
 static int	dgr_FindIndex FP ((GradsTag *, FieldId));
 static off_t	dgr_FOffset FP ((GradsTag *, int, int, int));
-static int	dgr_TimeIndex FP  ((GradsTag *, ZebTime *));
 # ifdef LITTLE_ENDIAN
 static void	dgr_SwapFloats FP ((float *, int));
 # endif
@@ -86,16 +155,16 @@ static void	dgr_SwapFloats FP ((float *, int));
  * OK, time to get into some real code.
  */
 
-static GradsTag *
-dgr_DoOpen (file, opendata)
+static int
+dgr_DoOpen (tag, file, opendata)
+GradsTag *tag;
 char *file;
 bool opendata;
 /*
  * Actually open the given file; only open the associated data file if
- * OPENDATA is TRUE.  Returns a file tag if the open succeeds.
+ * OPENDATA is TRUE.  Returns non-zero iff the open succeeds.
  */
 {
-	GradsTag *tag = ALLOC (GradsTag);
 	FILE *cfile;
 	char *cfwords[32];
 	int nw;
@@ -105,13 +174,13 @@ bool opendata;
 	if ((cfile = fopen (file, "r")) == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Error opening %s, %d", file, errno);
-		free (tag);
 		return (0);
 	}
 /*
  * Now we blast through it and see what we get.
  */
 	memset (tag, 0, sizeof (GradsTag));
+	tag->gt_dfd = -1;
 	while (dgr_GetCtlLine (cfile, cfwords, &nw))
 	{
 		char fc = cfwords[0][0];
@@ -133,9 +202,9 @@ bool opendata;
 		{
 			if (opendata && ! dgr_OpenData (tag, cfwords[1], file))
 			{
-				dgr_FreeTag (tag);
+				dgr_CleanTag (tag);
 				fclose (cfile);
-				return (NULL);
+				return (0);
 			}
 		}
 		else
@@ -143,7 +212,7 @@ bool opendata;
 					cfwords[0]);
 	}
 	fclose (cfile);
-	return (tag);
+	return (1);
 }
 
 
@@ -270,7 +339,7 @@ int *nw;
 
 
 static void
-dgr_FreeTag (tag)
+dgr_CleanTag (tag)
 GradsTag *tag;
 /*
  * Get rid of this tag.
@@ -284,14 +353,15 @@ GradsTag *tag;
 		free (tag->gt_zc);
 	if (tag->gt_fids)
 		free (tag->gt_fids);
-	free (tag);
+	if (tag->gt_times)
+		free (tag->gt_times);
+	/* free (tag); */
 }
 
 
 
 static char *Months[] = { "jan", "feb", "mar", "apr", "may", "jun",
 			  "jul", "aug", "sep", "oct", "nov", "dec" };
-
 
 
 static void
@@ -475,36 +545,38 @@ char *dfname, *cfname;
 
 
 
-int
-dgr_OpenFile (fname, dp, write, rtag)
+/* ARGSUSED */
+static int
+dgr_OpenFile (of, fname, dp, write)
+OpenFile *of;
 char *fname;
 DataFile *dp;
 bool write;
-void **rtag;
 /*
  * The DFA open routine.
  */
 {
-	GradsTag *tag;
-/*
- * For now we refuse to do writes so just bail now.
- */
-	if (write)
-		return (FALSE);
+	GradsTag *tag = TAGP(of);
 /*
  * Just open the file.
  */
-	if (! (tag = dgr_DoOpen (fname, TRUE)))
+	if (dgr_DoOpen (tag, fname, TRUE))
+	{
+		dgr_SetTimes (tag);
+		return (TRUE);
+	}
+	else
+	{
+		dgr_CleanTag (tag);
 		return (FALSE);
-	*rtag = (void *) tag;
-	return (TRUE);
+	}
 }
 
 
 
 
 
-int
+static int
 dgr_QueryTime (file, begin, end, nsample)
 char *file;
 ZebTime *begin, *end;
@@ -514,14 +586,19 @@ int *nsample;
  */
 {
 	GradsTag *tag;
+	int ret;
 
-	if (! (tag = dgr_DoOpen (file, FALSE)))
-		return (FALSE);
-	*begin = tag->gt_begin;
-	*nsample = tag->gt_ntime;
-	dgr_CalcTime (tag, tag->gt_ntime - 1, end);
-	dgr_FreeTag (tag);
-	return (TRUE);
+	tag = (GradsTag *) malloc (sizeof(GradsTag));
+	ret = dgr_DoOpen (tag, file, FALSE);
+	if (ret)
+	{
+		*begin = tag->gt_begin;
+		*nsample = tag->gt_ntime;
+		dgr_CalcTime (tag, tag->gt_ntime - 1, end);
+	}
+	dgr_CleanTag (tag);
+	free (tag);
+	return (ret);
 }
 
 
@@ -568,39 +645,44 @@ ZebTime *zt;
 
 
 
+static void
+dgr_SetTimes (tag)
+GradsTag *tag;
+/*
+ * Calculate our private array of ZebTimes for each sample according
+ * to the regular interval.
+ */
+{
+	int i;
 
-void
-dgr_CloseFile (tag)
-void *tag;
+	tag->gt_times = (ZebTime *) malloc (tag->gt_ntime * sizeof(ZebTime));
+	for (i = 0; i < tag->gt_ntime; ++i)
+		dgr_CalcTime (tag, i, tag->gt_times+i);
+}
+
+
+
+
+static void
+dgr_CloseFile (ofp)
+OpenFile *ofp;
 /*
  * Close this file.
  */
 {
-	dgr_FreeTag ((GradsTag *) tag);
+	GradsTag *tag = TAGP(ofp);
+
+	if (tag->gt_dfd >= 0)
+		close (tag->gt_dfd);
+	dgr_CleanTag (tag);
 }
 
 
 
 
-int
-dgr_CreateFile (fname, dp, dc, rtag)
-char *fname;
-DataFile *dp;
-DataChunk *dc;
-void **rtag;
-/*
- * Stub for the DFA create routine.
- */
-{
-	return (FALSE);
-}
-
-
-
-
-DataChunk *
-dgr_Setup (gp, fields, nfield, class)
-GetList *gp;
+static DataChunk *
+dgr_Setup (ofp, fields, nfield, class)
+OpenFile *ofp;
 FieldId *fields;
 int nfield;
 DataClass class;
@@ -608,24 +690,10 @@ DataClass class;
  * The DFA setup routine.
  */
 {
-	GradsTag *tag;
+	GradsTag *tag = TAGP(ofp);
 	DataChunk *dc;
 	FieldId dims[3];
-	int f, findex;
-/*
- * Only return NSPACE chunks for now.  Eventually there's no real reason
- * why we can't do 2dgrids too...
- */
-	if (class != DCC_NSpace)
-	{
-		msg_ELog (EF_PROBLEM, "Non-nspace fetch from GRADS");
-		return (NULL);
-	}
-/*
- * Time to open up the file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (NULL);
+	int f, findex = -1;
 /*
  * Find a field that we actually have; we will use that to set the
  * number of levels.
@@ -688,28 +756,25 @@ FieldId fid;
 
 
 
-int
-dgr_GetData (dc, gp, details, ndetail)
+static int
+dgr_GetData (ofp, dc, begin, nsample, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
-GetList *gp;
+int begin;
+int nsample;
 dsDetail *details;
 int ndetail;
 /*
  * The DFA get data routine.
  */
 {
-	GradsTag *tag;
+	GradsTag *tag = TAGP(ofp);
 	FieldId lat, lon, alt, fids[10];
-	int nfield, sample, field, index, lvlsize, begin, end, level = -1, i;
+	int nfield, sample, field, index, lvlsize, level = -1, i;
 	off_t offset;
 	float *grid, alttarget;
 	SValue v;
-	ZebTime zt;
-/*
- * Open up our file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);		/* weird bummer */
+	int start;	/* where to start adding samples to dc */
 /*
  * Find the dimensions first.
  */
@@ -763,11 +828,10 @@ int ndetail;
 /*
  * Time to blast through the samples and store the data.
  */
-	begin = dgr_TimeIndex (tag, &gp->gl_begin);
-	end = dgr_TimeIndex (tag, &gp->gl_end);
-	for (sample = begin; sample <= end; sample++)
+	start = dc_GetNSample (dc);
+	for (sample = begin; sample < begin + nsample; sample++)
 	{
-		dgr_CalcTime (tag, sample, &zt);
+		/* dgr_CalcTime (tag, sample, &zt); */
 		for (field = 0; field < nfield; field++)
 		{
 			int nlev;
@@ -790,7 +854,8 @@ int ndetail;
 # ifdef LITTLE_ENDIAN
 			dgr_SwapFloats (grid, (lvlsize*nlev)/sizeof (float));
 # endif
-			dc_NSAddSample (dc, &zt, sample, fids[field], grid);
+			dc_NSAddSample (dc, tag->gt_times+sample, 
+					start+sample-begin, fids[field], grid);
 		}
 	}
 	free (grid);
@@ -857,107 +922,24 @@ int sample, index, level;
 
 
 static int
-dgr_TimeIndex (tag, zt)
-GradsTag *tag;
-ZebTime *zt;
-/*
- * Return the sample offset for this time.
- */
-{
-	int sample;
-	ZebTime samptime;
-
-	for (sample = tag->gt_ntime - 1; sample >= 0; sample--)
-	{
-		dgr_CalcTime (tag, sample, &samptime);
-		if (TC_LessEq (samptime, *zt))
-			return (sample);
-	}
-	return (-1);
-}
-
-
-
-
-
-int
-dgr_DataTimes (dfindex, zt, which, ntime, dest)
-int dfindex, ntime;
-ZebTime *zt, *dest;
-TimeSpec which;
-/*
- * The DataTimes DFA routine.
- */
-{
-	GradsTag *tag;
-	int sample, i;
-/*
- * The usual file open.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void **) &tag))
-		return (FALSE);
-/*
- * Find the place to start and copy.
- */
-	sample = dgr_TimeIndex (tag, zt);
-	switch (which)
-	{
-	    case DsBefore:
-		for (i = 0; sample >= 0 && i < ntime; i++)
-			dgr_CalcTime (tag, sample--, dest++);
-		break;
-
-	    case DsAfter:
-		/* 
-		 * Fill times array with more recent times towards front
-		 */
-		if (sample < 0)
-			sample = 0;
-		else
-		{
-			ZebTime samptime;
-
-			dgr_CalcTime (tag, sample, &samptime);
-			if (TC_Less (samptime, *zt))
-				++sample;
-		}
-		for (i = 0; sample < tag->gt_ntime && i < ntime; i++)
-			dgr_CalcTime (tag, sample++, dest--);
-		break;
-
-	    default:
-		msg_ELog (EF_PROBLEM, "Funky TimeSpec (%d) for grads", which);
-		return (0);
-	}
-	return (i);
-}
-
-
-
-
-
-int
-dgr_GetObsSamples (dfindex, times, locs, max)
-int dfindex, max;
+dgr_GetObsSamples (ofp, times, locs, max)
+OpenFile *ofp;
 ZebTime *times;
 Location *locs;
+int max;
 /*
  * Tell about this observation.
  */
 {
-	GradsTag *tag;
+	GradsTag *tag = TAGP(ofp);
 	int i;
-/*
- * Open sesame.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void **) &tag))
-		return (0);	/* Open barley?? */
 /*
  * Give them as many as they have room for.
  */
 	for (i = 0; i < tag->gt_ntime && i < max; i++)
 	{
-		dgr_CalcTime (tag, i, times++);
+		/* dgr_CalcTime (tag, i, times++); */
+		*times++ = tag->gt_times[i];
 		*locs++ = tag->gt_origin;
 	}
 	return (i);
@@ -966,21 +948,17 @@ Location *locs;
 
 
 
-int
-dgr_GetFields (dfindex, zt, nfld, fids)
-int dfindex, *nfld;
-ZebTime *zt;
+static int
+dgr_GetFields (ofp, sample, nfld, fids)
+OpenFile *ofp;
+int sample;
+int *nfld;
 FieldId *fids;
 /*
  * Return a list of available fields.
  */
 {
-	GradsTag *tag;
-/*
- * Open the file.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void **) &tag))
-		return (0);
+	GradsTag *tag = TAGP(ofp);
 /*
  * Just copy over the info and we're set.
  */
@@ -992,23 +970,21 @@ FieldId *fids;
 
 
 
-int
-dgr_GetAlts (dfindex, fid, offset, alts, nalts, units)
-int dfindex, offset, *nalts;
+static int
+dgr_GetAlts (ofp, fid, offset, alts, nalts, units)
+OpenFile *ofp;
 FieldId fid;
+int offset;
 float *alts;
+int *nalts;
 AltUnitType *units;
 /*
  * The GetAlts DFA routine.
  */
 {
-	GradsTag *tag;
+	GradsTag *tag = TAGP(ofp);
 	int index;
-/*
- * Open the file, as always.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void **) &tag))
-		return (FALSE);
+
 	if ((index = dgr_FindIndex (tag, fid)) < 0)
 		return (FALSE);
 /*
@@ -1034,3 +1010,21 @@ AltUnitType *units;
 				tag->gt_nlevels[index]*sizeof (float));
 	return (TRUE);
 }
+
+
+
+
+static ZebTime *
+dgr_GetTimes (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	GradsTag *tag = TAGP(ofp);
+
+	*ntime = tag->gt_ntime;
+	if (!tag->gt_times)
+		dgr_SetTimes (tag);
+	return (tag->gt_times);
+}
+
+
