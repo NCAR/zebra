@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.18 1992-01-30 21:58:18 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.19 1992-08-04 22:19:35 burghart Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -592,7 +592,11 @@ bool exec;
 	 * Throw a widget on the screen.
 	 */
 	   case UIC_POPUP:
-	   	uw_popup (UPTR (cmds[1]));
+		if (cmds[2].uc_ctype != UTT_END)
+		   	uw_GeomPopup (UPTR (cmds[1]), UPTR (cmds[2]));
+		else
+			uw_GeomPopup (UPTR (cmds[1]), NULL);
+
 		return (TRUE);
 	/*
 	 * Take it off again.
