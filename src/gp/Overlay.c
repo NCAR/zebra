@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.9 1992-05-29 14:48:10 kris Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.10 1992-06-24 20:43:19 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,12 +27,11 @@ static char *rcsid = "$Id: Overlay.c,v 2.9 1992-05-29 14:48:10 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <math.h>
 # include <string.h>
-# include "defs.h"
-# include "pd.h"
-# include "message.h"
-# include "dm.h"
-# include "DataStore.h"
-# include <DataChunk.h>
+# include <defs.h>
+# include <pd.h>
+# include <message.h>
+# include <dm.h>
+# include <DataStore.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
@@ -126,7 +125,7 @@ static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
 static int 	ov_FindWBReply FP ((struct message *, struct dm_rp_wbounds *));
 static void 	ov_Boundary FP ((char *, int));
 static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, int *,
-			LabelOpt *, char *,float *));
+			LabelOpt *, char *, float *, int *, char *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
 			float *));
@@ -293,7 +292,7 @@ bool update;
  * Check into age limits.
  */
 	TC_ZtToUI (&zt, &t);
- 	if (! AgeCheck (comp, &zt))
+ 	if (! AgeCheck (comp, plat, &zt))
 	{
 		msg_ELog (EF_INFO, "Az limits %s too old %d %d", plat,
 			t.ds_yymmdd, t.ds_hhmmss);
@@ -970,23 +969,25 @@ int update;
  *	annotation
  */
 {
-	char platform[40], label[20], *pnames[40];
+	char platform[500], label[20], *pnames[40];
+	char iconname[40], *lat, *lon;
 	PlatformId pid;
 	int lwidth, pt, npt, closed, nplats, i;
+	int showicon;
 	ZebTime t, target;
 	DataChunk *dc;
 	XPoint *xpts;
 	XColor xc;
 	LabelOpt opt;
 	float x, y, asize;
-	Location *lp;
+	Location *lp, c;
 
 	target = PlotTime;
 /*
  * Get the various parameters that control boundary drawing.
  */
 	if (! ov_GetBndParams (comp, platform, &xc, &lwidth, &closed, &opt, 
-		label, &asize))
+		label, &asize, &showicon, iconname))
 		return;
 /*
  * Loop through the platforms.
@@ -998,24 +999,24 @@ int update;
 		{
 			msg_ELog (EF_PROBLEM, "Unknown boundary platform %s",
 				pnames[i]);
-			return;
+			continue;
 		}
 	/*
 	 * Find out when there is something available.
 	 */
 		if (! ds_DataTimes (pid, &target, 1, DsBefore, &t))
 		{
-			msg_ELog (EF_INFO, "No %s boundary available", 
+			msg_ELog (EF_DEBUG, "No %s boundary available", 
 				pnames[i]);
-			return;
+			continue;
 		}
 	/*
 	 * Check into age limits.
 	 */
- 		if (! AgeCheck (comp, &t))
+ 		if (! AgeCheck (comp, pnames[i], &t))
 		{
-			msg_ELog (EF_INFO, "Boundary %s too old", pnames[i]);
-			return;
+			msg_ELog (EF_DEBUG, "Boundary %s too old", pnames[i]);
+			continue;
 		}
 	/*
 	 * Snarf it.
@@ -1025,7 +1026,7 @@ int update;
 		{
 			msg_ELog (EF_PROBLEM, "Get failed on %s boundary", 
 				pnames[i]);
-			return;
+			continue;
 		}
 		lp = dc_BndGet (dc, 0, &npt);
 	/*
@@ -1071,14 +1072,45 @@ int update;
 	 */
 		XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, npt,
 				CoordModeOrigin);
-		lw_TimeStatus (comp, &t);
+		lw_TimeStatus (comp, pnames[i], &t);
+	/*
+	 * Add an icon if necessary.
+	 */
+		if (showicon)
+		{
+		/*
+		 * Where to put the icon?
+		 */
+		    if (((lat = dc_GetSampleAttr (dc, 0, "center_lat")) == NULL)
+			 || ((lon = dc_GetSampleAttr (dc, 0, "center_lon")) 
+				== NULL))
+			{
+				x = xpts[0].x;
+				y = xpts[0].y;
+			}
+			else
+			{
+				c.l_lat = (float) atof (lat);
+				c.l_lon = (float) atof (lon);
+				cvt_ToXY (c.l_lat, c.l_lon, &x, &y);
+				x = XPIX (x);
+				y = YPIX (y);
+			}
+		/*
+		 * Put it there.
+		 */
+			I_PositionIcon (comp, pnames[i], t, iconname, x, y, 
+				xc.pixel); 
+		}
+	/*
+	 * Free the data chunk and memory.
+	 */
+		if (dc)
+			dc_DestroyDC (dc);
+		if (xpts)
+			free (xpts);
 	}
 	XSetLineAttributes (Disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
-	free (xpts);
-/*
- * Free the data chunk.
- */
-	dc_DestroyDC (dc);
 }
 
 
@@ -1093,17 +1125,19 @@ int update;
 
 
 static bool
-ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize)
-char *comp, *platform, *label;
+ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize,
+	showicon, iconname)
+char *comp, *platform, *label, *iconname;
 XColor *xc;
-int *lwidth, *closed;
+int *lwidth, *closed, *showicon;
 LabelOpt *opt;
 float *asize;
 /*
  * Get all of the parameters which control boundary drawing.
  */
 {
-	char color[40];
+	char color[40], eplat[500];
+	char *ptr;
 /*
  * Look up our platform.
  */
@@ -1115,7 +1149,7 @@ float *asize;
 /*
  * Get the color that we will use to draw this boundary.
  */
-	if (! pda_Search (Pd, comp, "color", platform, color, SYMT_STRING))
+	if (! pda_Search (Pd, comp, "color", "boundary", color, SYMT_STRING))
 		strcpy (color, "white");
 	if (! ct_GetColorByName (color, xc))
 	{
@@ -1131,7 +1165,7 @@ float *asize;
 /*
  * See if they want the boundary drawn open or closed.
  */
-	if (! pda_Search (Pd, comp, "closed-boundary", platform,
+	if (! pda_Search (Pd, comp, "closed-boundary", "boundary",
 			(char *) closed, SYMT_BOOL))
 		*closed = TRUE;
 /*
@@ -1147,6 +1181,16 @@ float *asize;
 	if (*opt != NoLabel && ! pda_Search(Pd, comp, "label-size","boundary", 
 			(char *) asize, SYMT_FLOAT))
 		*asize = 0.015;
+/*
+ * Get the icon information.
+ */
+	*showicon = TRUE;
+	pda_Search (Pd, comp, "show-icon", "boundary", (char *) showicon,
+		SYMT_INT);
+	if (*showicon && (! pda_Search (Pd, comp, "position-icon", "boundary",
+			iconname, SYMT_STRING)))
+		*showicon = FALSE;
+
 	return (TRUE);
 }
 
