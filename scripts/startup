@@ -25,13 +25,14 @@ setenv XAPPLRESDIR $libdir/resources
 # and the display on the local machine 
 #
 zstart -n -dshost $ZEBRA_MASTER -dsonly $ZEBRA_PROJDIR
+if ($status != 0) exit $status
 $execdir/newdisplay &
 
 #
 # Run some extra stuff if we're on the master machine and an
 # instance of Archiver is not running
 #
-if (#?SKIP_EXTRAS) exit 0
+if ($?SKIP_EXTRAS) exit 0
 
 mstatus | fgrep Archiver >& /dev/null
 @ need_extras = $status
