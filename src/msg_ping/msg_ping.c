@@ -1,7 +1,7 @@
 /*
  * Exercise the "ping" feature.
  */
-static char *rcsid = "$Id: msg_ping.c,v 1.1 1991-04-30 23:10:41 corbet Exp $";
+static char *rcsid = "$Id: msg_ping.c,v 1.2 1991-05-30 17:40:45 corbet Exp $";
 
 # include "../include/defs.h"
 # include "message.h"
@@ -47,17 +47,26 @@ char *host;
  */
 {
 	char to[60];
+	int proto = MT_PING;
 /*
  * Figure out who this is going to.
  */
 	if (host)
-		sprintf (to, "%s@%s", MSG_MGR_NAME, host);
+	{
+		if (strchr (host, '@'))
+		{
+			strcpy (to, host);
+			proto = MT_CPING;
+		}
+		else
+			sprintf (to, "%s@%s", MSG_MGR_NAME, host);
+	}
 	else
 		strcpy (to, MSG_MGR_NAME);
 /*
  * Send it.
  */
-	msg_send (to, MT_PING, FALSE, to, 0);
+	msg_send (to, proto, FALSE, to, 0);
 	NSent++;
 }
 
