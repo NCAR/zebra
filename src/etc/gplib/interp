@@ -1,0 +1,111 @@
+!
+! A nifty widget for tweaking irgrid gridding params.
+!
+define widget InterpParams form "Surface interpolation parameters"
+	popup IPSetup
+	noheader
+!
+! Title line.
+!
+	label l0 'Surface interpolation parameters'
+	label comp 'comp' color gray95 width 1
+	newline
+	button help 'Help' command 'help interpmethods'
+	button apply 'Apply' command IPApply
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+!
+! Methods.
+!
+	newline
+	label l1 'Interpolation method: '
+	pulldown method 'rgrid' width 120 menu int-methods
+	newline
+!
+! Params for the barnes method.
+!
+	label l2 'Barnes parameters:'
+	newline
+	label l3 '  Grid resolution: '
+	blank gx '20' width 50
+	label l4 '(x)'
+	blank gy '20' width 50
+	label l5 '(y)'
+	newline
+	label l6 '  Radius of influence:'
+	blank radius '2.0' width 50
+	label l7 'Max fill: '
+	blank fill '3.0' width 50
+!	newline
+!	label gripe ' ' color red width 200
+enddef
+
+
+define widget int-methods intmenu 'interp methods'
+	title 'Interpolation methods'
+	line
+	entry 'Triangulation (RGRID)' 'IPSetMethod rgrid'
+	entry 'Barnes analysis' 'IPSetMethod barnes'
+	entry 'Closest point' 'IPSetMethod closest-point'
+endmenu
+
+define widget int-grid-params intmenu 'params'
+	title 'Interpolation parameters'
+	line
+	entry 'Popup interpolation parameters widget' 'popup InterpParams'
+endmenu
+!
+! The popup procedure.
+!
+procedure IPSetup
+	local f ui$form
+	local plat pd_param(icon_component,'platform','string')
+	formtext #f comp #icon_component
+
+	local method pd_paramsearch(icon_component,'grid-method',platform,'string')
+	if (method <> '(Undefined)')
+		formtext #f method #method
+	endif
+
+	local gx pd_paramsearch(icon_component,'x-points',platform,'string')
+	if (gx <> '(Undefined)')
+		formtext #f gx #gx
+	endif
+	local gy pd_paramsearch(icon_component,'y-points',platform,'string')
+	if (gy <> '(Undefined)')
+		formtext #f gy #gy
+	endif
+	local rad pd_paramsearch(icon_component,'radius',platform,'string')
+	if (rad <> '(Undefined)')
+		formtext #f radius #rad
+	endif
+	local fill pd_paramsearch(icon_component,'max-fill',platform,'string')
+	if (fill <> '(Undefined)')
+		formtext #f fill #fill
+	endif
+endprocedure
+
+
+!
+! Apply changes.
+!
+procedure IPApply
+	local f ui$form
+	local c getftext(f,'comp')
+	local method getftext(f,'method')
+	parameter #c 'grid-method' #method
+
+	local gx getftext(f,'gx')
+	parameter #c 'x-points' #gx
+	local gy getftext(f,'gy')
+	parameter #c 'y-points' #gy
+	local radius getftext(f,'radius')
+	parameter #c 'radius' #radius
+	local fill getftext(f,'fill')
+	parameter #c 'max-fill' #fill
+endprocedure
+
+
+
+procedure IPSetMethod method string
+	formtext #ui$form 'method' #method
+endprocedure

@@ -1,0 +1,51 @@
+!
+! Range rings support.
+!
+
+!
+! Default placeholder origin menu in case they haven't defined one of their
+! own.
+!
+set wname 'rings-origin'
+if (defined (concat ('ui$widget_table:', wname)))
+	set wname concat('default-',wname)
+endif
+define widget #wname intmenu 'x'
+	title 'DEFAULT rings origin'
+	line
+	entry 'No origins have been defined' 'dm "beep"'
+	entry 'for this configuration.' 'dm "beep"'
+	entry 'Sorry!' 'dm "beep"'
+endmenu
+
+!
+! Right button menu.
+!
+define widget rings-right intmenu 'x'
+	title 'Range ring options'
+	line
+	entry '10 km rings' 'parameter #icon_component ring-interval 10' \
+		(PDParam (icon_component, "ring-interval") = '10')
+	entry '20 km rings' 'parameter #icon_component ring-interval 20' \
+		(PDParam (icon_component, "ring-interval") = '20')
+	entry '30 km rings' 'parameter #icon_component ring-interval 30' \
+		(PDParam (icon_component, "ring-interval") = '30')
+	entry '40 km rings' 'parameter #icon_component ring-interval 40' \
+		(PDParam (icon_component, "ring-interval") = '40')
+	line
+	entry '10 degree lines' \
+		'parameter #icon_component azimuth-interval 10' \
+		(PDParam(icon_component, "azimuth-interval") = '10')
+	entry '30 degree lines' \
+		'parameter #icon_component azimuth-interval 30' \
+		(PDParam(icon_component, "azimuth-interval") = '30')
+	entry '45 degree lines' \
+		'parameter #icon_component azimuth-interval 45' \
+		(PDParam(icon_component, "azimuth-interval") = '45')
+	entry '90 degree lines' \
+		'parameter #icon_component azimuth-interval 90' \
+		(PDParam(icon_component, "azimuth-interval") = '90')
+	line
+	submenu 'Ring color' 'simple-color'
+	submenu 'Line width' 'LineWidth'
+endmenu

@@ -1,0 +1,7 @@
+!
+! Just a little adjuster for the simple track pd.
+!
+procedure simple-track-adjust comp string
+	local time PDParamSearch(comp, 'time-period', 'track')
+	activate singlestring #comp 'time-period' 'Time Period:' #time
+endprocedure

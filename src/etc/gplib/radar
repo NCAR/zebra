@@ -1,0 +1,35 @@
+!
+! Support for the p_radar PD component.
+!
+
+define widget radar-middle intmenu 'radar middle'
+	title 'Radar options'
+	line
+!	submenu 'Display field' 'FieldMenu'
+	entry 'Reflectivity' 'param #icon_component field reflectivity' \
+		(PDParam (icon_component, 'field') = 'reflectivity')
+	entry 'Velocity' 'param #icon_component field velocity' \
+		(PDParam (icon_component, 'field') = 'velocity')
+	entry 'Surveillance only mode' 'toggle_sur' \
+		(PDParam ("global", "cp4-filter-attribute") = "sur")
+	entry 'Single fixed angle mode' 'ToggleBoolean every-sweep' \
+		(PDParam (icon_component, "every-sweep") = "false")
+	line
+	entry 'Raster representation' \
+		'param #icon_component representation raster'
+	entry 'Contour representation' \
+		'param #icon_component representation contour'
+	entry 'Filled contour representation' \
+		'param #icon_component representation filled-contour'
+endmenu
+
+
+
+procedure toggle_sur
+	set param concat(PDParam(icon_component,'platform'), '-filter-attribute')
+	if (PDParam ("global", param) = "sur")
+		param global #param "radar"
+	else
+		param global #param "sur"
+	endif
+endprocedure

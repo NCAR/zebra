@@ -1,0 +1,181 @@
+!
+! Widgets for controlling spatial offsets.
+!
+define widget Offsets form 'Spatial offsets'
+	noheader
+	popup offset_form_popup
+	label l1 "Spatial offset control"
+	label comp "COMPONENT" color gray95 width 1
+	newline
+	label l2 "Spatial offsets are currently:"
+	button GlobalEnable "Enabled" command 'ToggleEnable GlobalEnable' \
+		width 80
+	newline
+	!
+	! Constant offset stuff.
+	!
+	label l3 "     X offset:"
+	blank xoff "WEIRD" width 40
+	!pulldown const_units "km" width 60 menu units
+	label const_units_x "km"
+	newline
+	label l4 "     Y offset:"
+	blank yoff "WEIRD" width 40
+	label const_units_y "km"
+	!
+	! Advection stuff.
+	!
+	newline
+	label l5 'Advection for'
+	label platform 'WEIRD' width 80
+	label l6 'is'
+	button AdvEnable 'Enabled' command 'ToggleEnable AdvEnable' width 80
+	!
+	! Advection parameters.
+	!
+	newline
+	label l7 "      Advection speed:    "
+	blank advspeed "0.0"
+	!pulldown adv_units "m/s" width 60 menu speedunits
+	label adv_units "m/s"
+	newline
+	label l8 "      Advection direction:"
+	blank advdir "0.0"
+	label l9 "degrees"
+	!
+	! Buttons to get out.
+	!
+	newline
+	button help "Help" command 'help spatialoffset'
+	button apply "Apply" command 'offset_apply false'
+	button apply "Apply and dismiss" command 'offset_apply true'
+	button cancel "Dismiss" command 'popdown #ui$form' color red
+endform
+
+
+
+procedure offset_apply dismiss bool
+!
+! Apply the offsets.
+!
+	local xoff getftext(ui$form,"xoff")
+	local yoff getftext(ui$form,"yoff")
+	local comp getftext(ui$form,"comp")
+!
+! Store the parameters.
+!
+	parameter #comp "x-shift" #xoff
+	parameter #comp "y-shift" #yoff
+!
+! Deal with the global enable flag.
+!
+	local genable getftext(ui$form,'GlobalEnable')
+	if (genable = "Enabled")
+		parameter 'global' 'enable-spatial-shift' 'true'
+	else
+		parameter 'global' 'enable-spatial-shift' 'false'
+	endif
+!
+! Deal with advection enable.
+!
+	local aenable getftext(ui$form,'AdvEnable')
+	if (aenable = "Enabled")
+		parameter #comp 'enable-advection' 'true'
+	else
+		parameter #comp 'enable-advection' 'false'
+	endif
+!
+! And advection parameters.
+!
+	local adir getftext(ui$form,'advdir')
+	local aspeed getftext(ui$form,'advspeed')
+	parameter #comp "advection-direction" #adir
+	parameter #comp "advection-speed" #aspeed
+!
+! Get rid of the widget if that is what they want.
+!
+	if (dismiss)
+		popdown #ui$form
+	endif
+endprocedure
+
+
+
+
+!define widget units intmenu "units"
+!	title "Offset units (IGNORED!)"
+!	line
+!	entry "Kilometers" "ConstUnits km"
+!	entry "Miles" "ConstUnits miles"
+!	entry "Nautical miles" "ConstUnits 'n. mi'"
+!endmenu
+
+
+!procedure ConstUnits units string
+!	local qunits quote(units)
+!	formtext #ui$form const_units #qunits
+!endprocedure
+
+
+
+procedure offset_form_popup
+!
+! Initialize an offset form.
+!
+	formtext #ui$form 'comp' #icon_component
+!
+! Figure out the current enable status of offsets.
+!
+	local enabled pd_paramsearch('global','spatial-shift','enable','string')
+	if (enabled = 'true')
+		formtext #ui$form GlobalEnable "Enabled"
+	else
+		formtext #ui$form GlobalEnable "Disabled"
+	endif
+!
+! Put in the offsets.
+!
+	local xoff pd_param(icon_component,"x-shift","string")
+	local yoff pd_param(icon_component,"y-shift","string")
+	if (xoff = "(Undefined)")
+		formtext #ui$form xoff "0"
+	else
+		formtext #ui$form xoff #xoff
+	endif
+	if (yoff = "(Undefined)")
+		formtext #ui$form yoff "0"
+	else
+		formtext #ui$form yoff #yoff
+	endif
+!
+! Stuff in the platform name.
+!
+	local platform pd_param(icon_component,'platform','string')
+	formtext #ui$form platform #platform
+!
+! Advection enable.
+!
+	local enabled \
+	    pd_paramsearch(icon_component,'enable-advection',platform,'string')
+	if (enabled = 'true')
+		formtext #ui$form AdvEnable 'Enabled'
+	else
+		formtext #ui$form AdvEnable 'Disabled'
+	endif
+!
+! Advection params.
+!
+	local aspeed pd_param(icon_component,'advection-speed','string')
+	local adir pd_param(icon_component,'advection-direction','string')
+	if (aspeed = '(Undefined)')
+		formtext #ui$form advspeed "0"
+	else
+		formtext #ui$form advspeed #aspeed
+	endif
+	if (adir = '(Undefined)')
+		formtext #ui$form advdir "0"
+	else
+		formtext #ui$form advdir #adir
+	endif
+endprocedure
+

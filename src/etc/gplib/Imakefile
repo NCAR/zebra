@@ -1,0 +1,15 @@
+/*
+ * GP library files.
+ */
+
+LFILES = color-table contour ctr-step form-color grid interp irg_winds \
+	offsets radar range raster rings simple-color simple-track \
+	station track
+
+DISTFILES = $(LFILES) Imakefile
+
+all::	/* nothing */
+
+InstallLibFile ($(LFILES), gplib, ..)
+
+DistfilesTarget ($(DISTFILES))

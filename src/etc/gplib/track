@@ -1,0 +1,298 @@
+!
+! Lotsa track support stuff.
+!
+
+!
+! Limit adjuster:
+!
+procedure gnarly-track-adjust comp string
+!	popup track-adjust
+	require ctr-step
+	popup center-step
+endprocedure
+
+!
+! Track adjuster widget -- not currently used.
+!
+define widget track-adjust form 'Track adjust'
+	popup track-adjust-popup
+	noheader
+	label title 'Track limit adjustment'
+	label comp 'comp' width 1 color gray95
+	newline
+	label l1 'Color code center: '
+	blank center 'funky' width 60
+	label l2 ' step: '
+	blank step 'FuNkY' width 60
+	newline
+	label l3 'Track time period: '
+	blank time '????' width 60
+	label l4 '(h = hours, m = minutes, s = sec)'
+	newline
+	button apply 'Apply' command 'track-adj-apply'
+	button applyd 'Apply and dismiss' \
+		command 'track-adj-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form' color red
+enddef
+
+
+procedure track-adjust-popup
+	local f ui$form
+	set comp icon_component
+	local field PDParam(comp, 'field')
+	formtext #f comp #comp
+!
+! Center and step.
+!
+	local center PDSearch(comp, concat (field, '-center'), 'track')
+	formtext #f center #center
+	local step PDSearch(comp, concat (field, '-step'), 'track')
+	formtext #f step #step
+!
+! Gotta throw in the time period too.
+!
+	local plat PDParam(comp, 'platform')
+	local time PDSearch(comp, 'time-period', plat)
+	formtext #f time #time
+endprocedure
+
+procedure track-adj-apply
+	local f ui$form
+	local comp getftext(f, 'comp')
+	local field PDParam(comp, 'field')
+
+	local center getftext(f, 'center')
+	local pname concat(field, '-center')
+	parameter #comp #pname #center
+	local step getftext(f, 'step')
+	local pname concat(field, '-step')
+	parameter #comp #pname #step
+	local time getftext(f, 'time')
+	parameter #comp 'time-period' #time
+endprocedure
+
+
+!
+! The field selecter procedure.  This guy allows the inclusion of the "mono"
+! pseudo-field.
+!
+procedure track-field-select field string
+	if (field = 'mono')
+		local junk pd_removeparam(icon_component,'field')
+	else
+		parameter #icon_component field #field
+	endif
+endprocedure
+
+
+
+!
+! The right-button menu for tracks.
+!
+define widget track-right intmenu 'x'
+	title 'Track options'
+	line
+	entry 'Show platform location' 'ToggleBoolean show-position' \
+		(PDParam (icon_component, 'show-position') = 'true')
+	submenu 'Track color (when mono)' 'simple-color'
+	submenu 'Line width' LineWidth
+	entry 'Other track parameters...' 'popup track-parameters'
+endmenu
+
+
+
+!
+! This here's a big, nasty form widget to let them tweak lots and lots
+! of track parameters.
+!
+define widget track-parameters form 'Track parameters'
+	popup tp-popup
+	noheader
+	label title 'Track parameters   '
+	label comp 'funky' color gray95 width 1
+!
+! options to actually do something.
+!
+	button apply 'Apply' command tp-apply
+	button applyd 'Apply and dismiss' command 'tp-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form' color red
+	newline
+!
+! The time period covered by the track.
+!
+	label ltime 'Time period:'
+	blank time 'Funky' width 80
+	label ltime2 '(s = seconds, m = minutes, h = hours)'
+	newline
+!
+! arrows.
+!
+	label tarrow 'Arrows on tracks are'
+	button arrow-enab 'Funky' command 'tp-toggle-enable  arrow-enab' \
+			 width 70
+	label tac 'arrow color: '
+	button arrow-color 'mauve' command tp-acolor width 80 color black
+	newline
+	label tad '     Draw arrows every'
+	blank arrowtime 'Funky' width 50
+	label tad1 'with scale factor'
+	blank arrowscale 'Funky' width 60
+	newline
+	label lu '     U field for arrows:'
+	blank u 'funky' width 60
+	label lv 'V field:'
+	blank v 'funky' width 60
+	newline
+!
+! Annotation.
+!
+	label ttime 'Time annotations on tracks are'
+	button time-enab 'Funky' command \
+			'tp-toggle-enable  time-enab' width 70
+	label ttime1 'every'
+	blank annot-int 'funky' width 50
+	newline
+	label tfont '     font size'
+	blank annot-scale 'funk' width 40
+	label tpix 'pixels.  Annotation color: '
+	button annotation-color 'x'  command tp-anncolor width 80 color black
+	newline
+enddef
+
+!
+! The popup initialization routine.
+!
+procedure tp-popup
+	local f ui$form
+	local c icon_component
+	local plat PDParam(c, 'platform')
+	formtext #f comp #c
+!
+! Get the time period figured out.
+!
+	local time PDParam(c, 'time-period')
+	formtext #f time #time
+!
+! Arrow enable.
+!
+	local arrow PDSearch(c, 'arrow', plat)
+	if (arrow = 'true')
+		formtext #f arrow-enab 'Enabled'
+	else
+		formtext #f arrow-enab 'Disabled'
+	endif
+	local acolor PDSearch(c, 'arrow-color', plat)
+	formtext #f arrow-color #acolor
+!
+! arrow spacing
+!
+	local atime PDSearch(c, 'arrow-interval', plat)
+	formtext #f arrowtime #atime
+	local ascale PDSearch(c, 'arrow-scale', plat)
+	formtext #f arrowscale #ascale
+!
+! Arrow fields.
+!
+	local u PDSearch(c, 'x-field', plat)
+	formtext #f u #u
+	local v PDSearch(c, 'y-field', plat)
+	formtext #f v #v
+!
+! Annotation.
+!
+	local aen PDParam(c, 'annot-time')
+	if (aen = 'true')
+		formtext #f time-enab 'Enabled'
+	else
+		formtext #f time-enab 'Disabled'
+	endif
+	local int PDParam(c, 'annot-time-interval')
+	formtext #f annot-int #int
+	local fsize PDParam(c, 'annot-time-scale')
+	formtext #f annot-scale #fsize
+	local fcolor PDParam(c, 'annot-time-color')
+	formtext #f annotation-color #fcolor
+endprocedure
+
+
+
+!
+! Apply all the changes.
+!
+procedure tp-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+!
+! Time period.
+!
+	local time getftext(f, 'time')
+	parameter #c time-period #time
+!
+! Arrows.
+!
+	local enab getftext(f, 'arrow-enab')
+	if (enab = 'Enabled')
+		parameter #c 'arrow' 'true'
+	else
+		parameter #c 'arrow' 'false'
+	endif
+	local color getftext(f, 'arrow-color')
+	parameter #c arrow-color #color
+	local atime getftext(f, 'arrowtime')
+	parameter #c arrow-interval #atime
+	local ascale getftext(f, 'arrowscale')
+	parameter #c arrow-scale #ascale
+	local u getftext(f, 'u')
+	parameter #c x-field #u
+	local v getftext(f, 'v')
+	parameter #c y-field #v
+!
+! Annotation.
+!
+	local aen getftext(f, 'time-enab')
+	if (aen = 'Enabled')
+		parameter #c 'annot-time' 'true'
+	else
+		parameter #c 'annot-time' 'false'
+	endif
+	local aint getftext(f, 'annot-int')
+	parameter #c annot-time-interval #aint
+	local ascale getftext(f, 'annot-scale')
+	parameter #c annot-time-scale #ascale
+	local acolor getftext(f, 'annotation-color')
+	parameter #c annot-time-color #acolor
+endprocedure
+
+
+
+
+procedure tp-toggle-enable param string 
+	local state getftext(ui$form, param)
+	if (state = 'Enabled')
+		formtext #ui$form #param 'Disabled'
+	else
+		formtext #ui$form #param 'Enabled'
+	endif
+endprocedure
+
+
+!
+! Get the form-color widget up to tweak the arrow color.
+!
+procedure tp-acolor
+	set fcParent ui$form
+	set fcField 'arrow-color'
+	require form-color
+	popup form-color
+endprocedure
+
+!
+! Get the form-color widget up to tweak the arrow color.
+!
+procedure tp-anncolor
+	set fcParent ui$form
+	set fcField 'annotation-color'
+	require form-color
+	popup form-color
+endprocedure
+

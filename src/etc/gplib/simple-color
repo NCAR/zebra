@@ -1,0 +1,39 @@
+!
+! Simple color menus.
+!
+!
+! A color menu for components with a simple "color" component.
+!
+define widget simple-color intmenu 'simple colors'
+	title 'Change Color'
+	line
+	entry 'white' 'do_simple_color white'
+	entry 'black' 'do_simple_color black'
+	entry 'lavender' 'do_simple_color lavender'
+	entry 'blue' 'do_simple_color blue'
+	entry 'cyan' 'do_simple_color cyan'
+	entry 'green' 'do_simple_color green'
+	entry 'khaki' 'do_simple_color khaki'
+	entry 'yellow' 'do_simple_color yellow'
+	entry 'tan' 'do_simple_color tan'
+	entry 'brown' 'do_simple_color brown'
+	entry 'orange' 'do_simple_color orange'
+	entry 'red' 'do_simple_color red'
+	entry 'pink' 'do_simple_color "HotPink"'
+	entry 'violet' 'do_simple_color violet'
+	submenu 'Gray scales' 'simple-gray'
+endmenu
+
+define widget simple-gray intmenu 'Grayscale submenu for simple color'
+	title 'Gray scale colors'
+	line
+	entry '10-Percent' 'do_simple_color gray10'
+	entry '20-Percent' 'do_simple_color gray20'
+	entry '30-Percent' 'do_simple_color gray30'
+	entry '40-Percent' 'do_simple_color gray40'
+	entry '50-Percent' 'do_simple_color gray50'
+	entry '60-Percent' 'do_simple_color gray60'
+	entry '70-Percent' 'do_simple_color gray70'
+	entry '80-Percent' 'do_simple_color gray80'
+	entry '90-Percent' 'do_simple_color gray90'
+endmenu

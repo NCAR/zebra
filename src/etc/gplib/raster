@@ -1,0 +1,120 @@
+!
+! Raster display support
+!
+
+!
+! The limit proc is easy -- just another one of these dudes calling up
+! center-step
+!
+procedure raster-limit-proc junk string
+	require ctr-step
+	popup center-step
+endprocedure
+
+!
+! The right button menu.
+!
+define widget raster-right intmenu 'x'
+	title 'Raster image options'
+	line
+	entry 'Highlighting' 'popup highlight'
+	submenu 'Color tables' Color-tables
+	line
+	entry 'Raster representation' 'raster-rep raster' \
+		(PDParam (icon_component, 'representation') = 'raster')
+	entry 'Contour representation' 'raster-rep contour' \
+		(PDParam (icon_component, 'representation') = 'contour')
+	entry 'Filled contour representation' 'raster-rep filled-contour' \
+		(PDParam (icon_component, 'representation') = 'filled-contour')
+endmenu
+
+!
+! A widget to control highlighting.
+!
+define widget highlight form 'Highlight'
+	noheader
+	popup hl-popup
+!
+! First line boilerplate.
+!
+	label title 'Highlighting'
+	label comp 'comp' width 1 color gray95
+	button apply 'Apply' command hl-apply
+	button applyd 'Apply and Dismiss' command 'hl-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form'
+	newline
+!
+! Center and range options.
+!
+	label hc 'Highlight center:'
+	blank center 'center' width 60
+	label r 'range:'
+	blank range 'range' width 60
+	label c 'color:'
+	button highlight-color 'color' command hl-color width 80
+	newline
+	label clue 'Set range to 0 to disable highlighting'
+enddef
+
+
+procedure hl-popup
+	local f ui$form
+	local c icon_component
+	local field PDParam(c, 'field')
+	formtext #f comp #c
+!center
+	local param concat(field, '-highlight')
+	local center PDSearch(c, param, 'raster')
+	if (center = "(Undefined)")
+		local center "0.0"
+	endif
+	formtext #f center #center
+!range
+	local param concat(field, '-highlight-range')
+	local range PDSearch(c, param, 'raster')
+	if (range = "(Undefined)")
+		local range '0.0'
+	endif
+	formtext #f range #range
+!color
+	local param concat(field, '-highlight-color')
+	local color PDSearch(c, param, 'raster')
+	if (color = "(Undefined)")
+		local color "white"
+	endif
+	formtext #f highlight-color #color
+endprocedure
+
+
+
+procedure hl-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+	local field PDParam(c, 'field')
+
+	local center getftext(f, 'center')
+	local param concat(field, '-highlight')
+	parameter #c #param #center
+
+	local range getftext(f, 'range')
+	local param concat(field, '-highlight-range')
+	parameter #c #param #range
+
+	local color getftext(f, 'highlight-color')
+	local param concat(field, '-highlight-color')
+	parameter #c #param #color
+endprocedure
+
+
+procedure hl-color
+	set fcParent ui$form
+	set fcField 'highlight-color'
+	require form-color
+	popup form-color
+endprocedure
+
+procedure raster-rep rep string
+	parameter #icon_component representation #rep
+endprocedure
+
+require color-table

@@ -1,0 +1,94 @@
+!
+! Cartesian grid support.
+!
+
+define widget llgrid-right intmenu 'x'
+	title 'Latitude/longitude grid options'
+	line
+	submenu 'Grid color' 'simple-color'
+	submenu 'Grid spacing' 'llgrid-spacing'
+	submenu 'Line width' 'linewidth'
+	entry 'Solid grid lines' 'ToggleBoolean solid' \
+		(PDParam(icon_component, 'solid') = 'true')
+endmenu
+
+!
+! A menu for grid spacing.  Maybe eventually we want to add a "custom"
+! entry?  Note we make an effort to not wipe out an existing menu if the
+! project configuration has already made one.
+!
+set wname 'llgrid-spacing'
+if (defined (concat ('ui$widget_table:', wname)))
+	set wname 'default-llgrid-spacing'
+endif
+
+define widget #wname intmenu 'llgrid-spacing'
+	title 'Grid spacing'
+	line
+	entry '5 minute lines' 'GridSpacing 5' (PDParam(icon_component,'x-spacing') = '5')
+	entry '15 minute lines' 'GridSpacing 15' (PDParam(icon_component,'x-spacing') = '15')
+	entry '30 minute lines' 'GridSpacing 30' (PDParam(icon_component,'x-spacing') = '30')
+	entry '1 degree lines' 'GridSpacing 60' (PDParam(icon_component,'x-spacing') = '60')
+	entry '5 degree lines' 'GridSpacing 300' (PDParam(icon_component,'x-spacing') = '300')
+endmenu
+
+
+
+!
+! KM grid stuff below.
+!
+define widget kmgrid-right intmenu 'x'
+	title 'km grid options'
+	line
+	submenu 'Grid color' 'simple-color'
+	submenu 'Grid spacing' 'kmgrid-spacing'
+	submenu 'Line width' 'linewidth'
+	entry 'Solid grid lines' 'ToggleBoolean solid' \
+		(PDParam(icon_component, 'solid') = 'true')
+endmenu
+
+!
+! Spacings for KM grids.
+!
+set wname 'kmgrid-spacing'
+if (defined (concat ('ui$widget_table:', wname)))
+	set wname concat('default-',wname)
+endif
+
+define widget #wname intmenu 'kmgrid-spacing'
+	title 'Grid spacing'
+	line
+	entry '5 km lines' 'GridSpacing 5' (PDParam(icon_component,'x-spacing') = '5')
+	entry '10 km lines' 'GridSpacing 10' (PDParam(icon_component,'x-spacing') = '10')
+	entry '25 km lines' 'GridSpacing 25' (PDParam(icon_component,'x-spacing') = '25')
+	entry '50 km lines' 'GridSpacing 50' (PDParam(icon_component,'x-spacing') = '50')
+	entry '100 km lines' 'GridSpacing 100' (PDParam(icon_component,'x-spacing') = '100')
+endmenu
+
+
+
+
+!
+! A placeholder menu for origins so that things don't die.  There is no way
+! we can provide a reasonable default, though.
+!
+set wname 'kmgrid-origins'
+if (defined (concat ('ui$widget_table:', wname)))
+	set wname concat('default-',wname)
+endif
+define widget #wname intmenu 'x'
+	title 'DEFAULT origin menu'
+	line
+	entry 'No origins have been defined' 'dm "beep"'
+	entry 'for this configuration.' 'dm "beep"'
+	entry 'Sorry!' 'dm "beep"'
+endmenu
+
+
+!
+! Tweak grid spacing.  We enforce equal X and Y spacing.
+!
+procedure GridSpacing spacing string
+	parameter #icon_component x-spacing #spacing
+	parameter #icon_component y-spacing #spacing
+endprocedure

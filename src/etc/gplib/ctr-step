@@ -1,0 +1,102 @@
+!
+! A simple widget for setting center and step values, as well as controlling
+! the use of autoscaling.  Expects icon_component to be set on popup.
+!
+
+define widget center-step form 'Center and step adjustment'
+	popup ctr-step-popup
+	noheader
+!
+! title/zeb line.
+!
+	label l1 'Adjust center and step limits'
+	button apply 'Apply' command 'ctr-step-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	newline
+!
+! Scale mode.
+!
+	label lmode 'Mode: '
+	button mode 'FUNKY' command 'ToggleMode' width 70
+	label comp 'comp' color gray95 
+	newline
+!
+! The actual center and step if they want to tweak it.
+!
+	label lcenter 'Center: '
+	blank center '0.0' width 60 
+	label lstep ' Step: '
+	blank step '0.0' width 60
+enddef
+
+
+!
+! The popup procedure for the center/step form.
+!
+procedure ctr-step-popup
+!
+! Pull some basic info.
+!
+	local f ui$form
+	local rep pd_param(icon_component,'representation','string')
+	if (rep = 'filled-contour')
+		local rep 'contour'
+	endif
+	local field pd_param(icon_component,'field','string')
+	local plat pd_param(icon_component, 'platform', 'string')
+!
+! Stash aside the component name, we will want it later.
+!
+	formtext #f 'comp' #icon_component
+!
+! Now see if they have auto scaling turned on.
+!
+	local mode pd_ParamSearch(icon_component, 'scale-mode', plat, 'string')
+	if (mode = 'auto' or mode = 'autoscale')
+		formtext #f mode 'auto'
+	else
+		formtext #f mode 'manual'
+	endif
+!
+! Pull in the center and step values.
+!
+	local param concat(field, '-center')
+	local value pd_ParamSearch(icon_component, param, rep, 'string')
+	formtext #f center #value
+	local param concat(field, '-step')
+	local value pd_ParamSearch(icon_component, param, rep, 'string')
+	formtext #f step #value
+endprocedure
+
+
+
+!
+! Apply all the junk they just put in.
+!
+procedure ctr-step-apply
+	local f ui$form
+	local comp getftext(f, 'comp')
+	local mode getftext(f, 'mode')
+	parameter #comp 'scale-mode' #mode
+	local center getftext(f, 'center')
+	local field pd_param(comp, 'field', 'string')
+	local param concat(field, '-center')
+	parameter #comp #param #center
+	local step getftext(f, 'step')
+	local param concat(field, '-step')
+	parameter #comp #param #step
+endprocedure
+
+
+
+!
+! Tweak autoscale mode.
+!
+procedure ToggleMode
+	local current getftext(ui$form, 'mode')
+	if (current = 'manual')
+		formtext #ui$form 'mode' 'auto'
+	else
+		formtext #ui$form 'mode' 'manual'
+	endif
+endprocedure

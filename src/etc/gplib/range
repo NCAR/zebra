@@ -1,0 +1,80 @@
+!
+! Tweak range limits
+!
+
+define widget range-limits form 'Range limit adjustment'
+	popup rl-popup
+	noheader
+!
+! title/zeb line.
+!
+	label l1 'Adjust max and min range limits'
+	button apply 'Apply' command 'rl-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	label comp 'comp' color gray95 
+	newline
+!
+! The values.
+!
+	label llower 'Lower limit: '
+	blank lower '0.0' width 60
+	label lupper ' Upper limit: '
+	blank upper '0.0' width 60
+enddef
+
+
+!
+! The popup procedure for the range limit
+!
+procedure rl-popup
+!
+! Pull some basic info.
+!
+	local f ui$form
+	local field pd_param(icon_component,'field','string')
+!
+! Stash aside the component name, we will want it later.
+!
+	formtext #f 'comp' #icon_component
+!
+! Pull in the center and step values.
+!
+	local value pd_ParamSearch(icon_component, 'range-min', field,'string')
+	if (value = "(Undefined)")
+		formtext #f lower 'none'
+	else
+		formtext #f lower #value
+	endif
+	local value pd_ParamSearch(icon_component, 'range-max', field,'string')
+	if (value = "(Undefined)")
+		formtext #f upper 'none'
+	else
+		formtext #f upper #value
+	endif
+endprocedure
+
+
+
+!
+! Apply all the junk they just put in.
+!
+procedure rl-apply
+	local f ui$form
+	local comp getftext(f, 'comp')
+	local field pd_param(comp, 'field', 'string')
+!
+! This is not quite right -- we need to somehow zap out the range limits
+! if they say 'none'
+!
+	local lower getftext(f, 'lower')
+	local param concat(field, '-range-min')
+	if (lower <> 'none')
+		parameter 'global' #param #lower
+	endif
+	local upper getftext(f, 'upper')
+	local param concat(field, '-range-max')
+	if (upper <> 'none')
+		parameter 'global' #param #upper
+	endif
+endprocedure
+

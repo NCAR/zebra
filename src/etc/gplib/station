@@ -1,0 +1,109 @@
+!
+! Useful stuff for station plots.
+!
+
+
+!
+! Toggle quadrants on a station plot.  Intended to be called out of the
+! field menu.
+!
+procedure p_toggle_quadrant field string
+!
+! Start by seeing if this field is on display.
+!
+	foreach quad 1 2 3 4
+		local pname concat("quad",quad)
+		if (pd_param (icon_component, pname, "string") = field)
+			parameter #icon_component #pname "none"
+			return
+		endif
+	endfor
+!
+! Nope not there.  Look for a spot to put it.
+!
+	foreach quad 1 2 3 4
+		local pname concat("quad",quad)
+		local value pd_param(icon_component, pname, "string")
+		if (value = "none" or value = "(Undefined)")
+			parameter #icon_component #pname #field
+			return
+		endif
+	endfor
+! No such luck -- they have to delete something first.   ...or should we
+! just overwrite some quad?
+	dm "beep"
+endprocedure
+
+!
+! The right button menu for station plots.
+!
+define widget p-station-right intmenu 'meaningless title here'
+	title 'Station Plot Options'
+	line
+	entry "Spatial filtering..." 'popup SpaceFilter'
+	submenu 'Annotation Size' 'side-annot-scale'
+	submenu 'Color' 'simple-color'
+	submenu	'Arrow line width' 'linewidth'
+endmenu
+
+
+!
+! Control over spatial filtering.
+!
+define widget Spacefilter form "Adjust Spatial Filters"
+	popup space-popup
+	noheader
+!!first line
+	label l0 "Adjust Spatial Filtering"
+	label comp "comp" color gray95 width 1
+	newline
+!!second line
+	button help "Help" command 'help spatialfilter'
+	button apply "Apply" command space-adjust
+	button cancel "Dismiss" color red command 'popdown #ui$form'
+	newline
+!!third line
+	label l1 "Spatial Filter is "
+	button SpaceEnable "wrong" command 'ToggleEnable SpaceEnable' width 80
+!!fourth line
+	newline
+	label l2 "Spatial Filter:"
+	blank space "space" width 50
+!	label l3 "pixels between stations"
+!	newline
+!	label gripe ' ' color red width 200
+enddef
+
+procedure space-adjust
+	local c getftext(ui$form,'comp')
+	local space getftext(ui$form,'space')
+	parameter #c 'filter-resolution' #space
+	local spaceenable getftext(ui$form,'SpaceEnable')
+	if (spaceenable = "Enabled")
+		parameter #c 'spatial-filter' 'true'
+	else
+		parameter #c 'spatial-filter' 'false'
+	endif
+endprocedure
+
+!
+! Popup procedure to initialize the spatial filter widget.
+!
+procedure space-popup
+	local f ui$form
+	local plat pd_param(icon_component,'platform','string')
+	formtext #f comp #icon_component
+!deal with whether filter is enabled
+	local enabled pd_paramsearch(icon_component,'spatial-filter','platform','string')
+	if (enabled='true')
+		formtext #f SpaceEnable "Enabled"
+	else
+		formtext #f SpaceEnable "Disabled"
+	endif
+!deal with filter
+	local space pd_param(icon_component,'filter-resolution','string')
+	if (space = '(Undefined)')
+		local space '50'
+	endif
+	formtext #f space #space
+endprocedure

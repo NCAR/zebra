@@ -1,0 +1,14 @@
+!
+! Procedures and such for irgrid winds
+!
+require simple-color
+!
+! The right button menu for station plots.
+!
+define widget irg-winds-right intmenu ' '
+	title 'Winds Options'
+	line
+	entry 'Adjust interpolation' 'require interp; popup InterpParams'
+	submenu 'Color' 'simple-color'
+	submenu	'Arrow line width' 'linewidth'
+endmenu

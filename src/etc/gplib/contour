@@ -1,0 +1,56 @@
+!
+! Definitions for p_contour.pd
+!
+
+
+!
+! The right button menu.
+!
+define widget contour-right intmenu 'contour right'
+	title 'Contour plot options'
+	line
+	submenu 'Contour type' 'contour-types'
+	submenu 'Label options' 'contour-label-options'
+	entry 'Color-coded contours' 'ToggleBoolean color-mono' \
+		(PDParam(icon_component,'color-mono') <> 'true')
+	submenu 'Contour color (when mono)' 'simple-color'
+	submenu 'Line width' linewidth
+	entry 'Interpolation method...' 'require interp; popup InterpParams'
+	entry 'Adjust range limits...' 'require range; popup range-limits'
+endmenu
+
+!
+! Various right button submenus
+!
+define widget contour-types intmenu 'contour types'
+	title 'Contour representation'
+	line
+	entry 'Line contours' 'ContourType "contour"' \
+	     (PDParam(icon_component,'representation') = 'contour')
+	entry 'Solid contours' 'ContourType "filled-contour"' \
+	     (PDParam(icon_component,'representation') = 'filled-contour')
+endmenu
+
+
+procedure ContourType type string
+	parameter #icon_component representation #type
+endprocedure
+
+
+define widget contour-label-options intmenu 'label options'
+	title 'Contour labelling'
+	line
+	entry 'Label contours' 'ToggleBoolean do-labels' \
+		(PDParam(icon_component,'do-labels') <> 'false')
+	entry 'Blank data under labels' 'ToggleBoolean label-blanking' \
+		(PDParam(icon_component,'label-blanking') <> 'false')
+endmenu
+
+
+!
+! A procedure to put up the center/step adjuster.
+!
+procedure contour-putup-adj comp string
+	require ctr-step
+	popup center-step
+endprocedure
