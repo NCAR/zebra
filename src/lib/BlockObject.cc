@@ -6,7 +6,7 @@
 #include <defs.h>
 #undef bool
 
-RCSID("$Id: BlockObject.cc,v 1.3 1997-12-17 03:45:53 granger Exp $")
+RCSID("$Id: BlockObject.cc,v 1.4 1998-02-25 22:17:25 burghart Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -201,7 +201,7 @@ SyncBlock::~SyncBlock ()
 int
 TranslateBlock::encode (SerialBuffer &buf)
 {
-	buf.Need (this->size (buf));
+	buf.Need (this->encodedSize (buf));
 	this->translate (*(buf.encodeStream ()));
 	return (0);
 }
@@ -218,7 +218,7 @@ TranslateBlock::decode (SerialBuffer &buf)
 
 
 long
-TranslateBlock::size (SerialBuffer &buf)
+TranslateBlock::encodedSize (SerialBuffer &buf)
 {
 	SerialCountStream *cs = buf.countStream ();
 	this->translate (*cs);

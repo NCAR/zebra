@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.3 1997-12-17 03:45:55 granger Exp $
+/* $Id: BlockObject.hh,v 1.4 1998-02-25 22:17:26 burghart Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -261,7 +261,7 @@ public:
 		// Be careful to size and allocate before encoding, in
 		// case the object changes (e.g., FreeList) when allocated
 		SerialBuffer *sbuf = bf->writeBuffer (block.length);
-		unsigned long growth = size (*sbuf);
+		unsigned long growth = encodedSize (*sbuf);
 		sbuf->Need (growth);
 
 		// Now make sure we have space, then write into it
@@ -303,7 +303,7 @@ public:
 
 	int encode (SerialBuffer &buf);
 	int decode (SerialBuffer &buf);
-	long size (SerialBuffer &buf);
+	long encodedSize (SerialBuffer &buf);
 
 	virtual void translate (SerialStream &ss) = 0;
 

@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.5 1997-12-17 03:42:02 granger Exp $
+ * $Id: AuxBlock.hh,v 1.6 1998-02-25 22:17:24 burghart Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -130,7 +130,7 @@ public:
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);
 	int decode (SerialBuffer &sbuf);
-	long size (SerialBuffer &sbuf);
+	long encodedSize (SerialBuffer &sbuf);
 
 	// Inherit the growth allocation method
 
@@ -193,7 +193,7 @@ public:
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);
 	int decode (SerialBuffer &sbuf);
-	long size (SerialBuffer &sbuf);
+	long encodedSize (SerialBuffer &sbuf);
 
 	// Don't grow; our queue size is fixed
 	BlkSize grow (BlkSize need)

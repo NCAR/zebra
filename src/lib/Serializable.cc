@@ -5,7 +5,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: Serializable.cc,v 1.1 1997-11-24 10:11:11 granger Exp $")
+RCSID ("$Id: Serializable.cc,v 1.2 1998-02-25 22:17:29 burghart Exp $")
 
 #include "Serializable.hh"
 #include "SerialBuffer.hh"
@@ -14,7 +14,7 @@ RCSID ("$Id: Serializable.cc,v 1.1 1997-11-24 10:11:11 granger Exp $")
 int
 Translatable::encode (SerialBuffer &buf)
 {
-	buf.Need (this->size (buf));
+	buf.Need (this->encodedSize (buf));
 	this->translate (*(buf.encodeStream ()));
 	return (0);
 }
@@ -29,7 +29,7 @@ Translatable::decode (SerialBuffer &buf)
 
 
 long
-Translatable::size (SerialBuffer &buf)
+Translatable::encodedSize (SerialBuffer &buf)
 {
 	SerialCountStream *cs = buf.countStream ();
 	this->translate (*cs);

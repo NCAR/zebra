@@ -1,5 +1,5 @@
 /*
- * $Id: Serializable.hh,v 1.1 1997-11-24 10:11:12 granger Exp $
+ * $Id: Serializable.hh,v 1.2 1998-02-25 22:17:30 burghart Exp $
  *
  * The abstract class which defines the methods (interface) which a
  * serializable class must implement.
@@ -31,17 +31,17 @@ public:
 	virtual int decode (SerialBuffer &buf) = 0;
 
 	/// Return the encoded size of yourself
-	virtual long size (SerialBuffer &buf) = 0;
+	virtual long encodedSize (SerialBuffer &buf) = 0;
 };
 
 
 ///
 /** Translatable objects can use a single translate() method to serialize
     themselves to and from a SerialStream, and they can take advantage of a
-    default implementation of the size() method which uses a counting
+    default implementation of the encodedSize() method which uses a counting
     stream.  Perhaps a better name for this interface would be
     "serial-stream-able".  The default implementations of the encode(),
-    decode(), and size() methods call the object's translate() method on
+    decode(), and encodedSize() methods call the object's translate() method on
     the appropriate stream from the serial buffer.
     */
 class Translatable : public Serializable
@@ -70,11 +70,11 @@ public:
 	virtual void translate (SerialStream &ss) = 0;
 
 	///
-	/** The default size() implementation for a translatable
+	/** The default encodedSize() implementation for a translatable
 	    object simply translates the object onto a special counting
 	    stream, which does not actually move any data.
 	    */
-	virtual long size (SerialBuffer &buf);
+	virtual long encodedSize (SerialBuffer &buf);
 
 	/*
 	 * Classes which want to use their own SerialStream subclasses

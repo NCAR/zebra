@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: Journal.cc,v 1.4 1997-12-17 03:51:15 granger Exp $");
+RCSID ("$Id: Journal.cc,v 1.5 1998-02-25 22:17:27 burghart Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -136,7 +136,7 @@ Journal::decode (SerialBuffer &sbuf)
 
 
 long
-Journal::size (SerialBuffer &sbuf)
+Journal::encodedSize (SerialBuffer &sbuf)
 {
 
 	if (! serialSize)

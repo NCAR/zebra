@@ -4,7 +4,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: SerialStream.cc,v 1.1 1997-11-24 10:11:07 granger Exp $")
+RCSID ("$Id: SerialStream.cc,v 1.2 1998-02-25 22:17:29 burghart Exp $")
 
 #include "SerialStream.hh"
 #include "SerialBuffer.hh"
@@ -278,6 +278,6 @@ int
 SerialCountStream::translate (Serializable &object)
 {
 	// Add this object's encoded size to the count
-	count += object.size (*sbuf);
+	count += object.encodedSize (*sbuf);
 	return (0);
 }

@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: FreeList.cc,v 1.6 1997-12-17 03:42:04 granger Exp $");
+RCSID ("$Id: FreeList.cc,v 1.7 1998-02-25 22:17:27 burghart Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -231,7 +231,7 @@ FreeList::Remove (int x)
 
 
 long
-FreeList::size (SerialBuffer &sbuf)
+FreeList::encodedSize (SerialBuffer &sbuf)
 {
 	long s = serialCount (sbuf, n);
 	s += serialCount (sbuf, stats);

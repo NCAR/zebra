@@ -1,5 +1,5 @@
 /*
- * $Id: SerialBuffer.hh,v 1.2 1997-12-28 05:57:42 granger Exp $
+ * $Id: SerialBuffer.hh,v 1.3 1998-02-25 22:17:28 burghart Exp $
  *
  * A simple Buffer subclassed and complicated with methods to help
  * serialize and deserialize objects to/from the buffer.
@@ -62,9 +62,9 @@ public:
 	}
 
 	/// Compute the serialized size of this object on this buffer
-	long size (Serializable &obj)
+	long encodedSize (Serializable &obj)
 	{
-		return (obj.size (*this));
+		return (obj.encodedSize (*this));
 	}
 
 	/// Return a counting stream on this buffer
