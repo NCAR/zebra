@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.1.1.1 1993-05-04 21:35:56 granger Exp $
+ * $Id: nstest.c,v 1.2 1993-05-18 21:29:28 granger Exp $
  */
 
 #include <defs.h>
@@ -17,7 +17,7 @@ struct message *msg;
 	return (0);
 }
 
-#define NSPACE
+#define SCALAR
 
 static float test_data[10000];
 
@@ -62,6 +62,41 @@ main (argc, argv)
 	plat_id = ds_LookupPlatform("t_nspace");
 #endif
 
+#if defined(SCALAR)	/* Use only scalar chunks, for testing znf */
+	{
+		FieldId fid;
+		float value;
+
+		usy_init();
+		F_Init();
+		msg_connect (msg_handler, "ZNF Test");
+		ds_Initialize();
+		plat_id = ds_LookupPlatform("t_scalar");
+		dc = dc_CreateDC (DCC_Scalar);
+		dc->dc_Platform = plat_id;
+		fid = F_DeclareField ("scalar","Test field for ZNF", "none");
+		dc_SetScalarFields (dc, 1, &fid);
+		dc_SetBadval (dc, -999.0);
+		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+		dc_SetGlobalAttr (dc, "date", "today");
+		value = 1.0;
+		dc_AddScalar (dc, &when, 0, fid, &value); ++when.zt_Sec;
+		value *= 2.0;
+		dc_AddScalar (dc, &when, 1, fid, &value); ++when.zt_Sec;
+		value *= 2.0;
+		dc_AddScalar (dc, &when, 2, fid, &value); ++when.zt_Sec;
+		value *= 2.0;
+		dc_AddScalar (dc, &when, 3, fid, &value); ++when.zt_Sec;
+		value *= 2.0;
+		dc_AddScalar (dc, &when, 4, fid, &value); ++when.zt_Sec;
+		dc_SetSampleAttr (dc, 0, "key", "first sample");
+		dc_SetSampleAttr (dc, 3, "sample_number", "3");
+		dc_SetSampleAttr (dc, 3, "median", "middle");
+		ds_StoreBlocks (dc, TRUE, 0, 0);
+		dc_DestroyDC (dc);
+	}
+#endif
+
 #ifdef NSPACE
 	printf("----------------------------------------------------test1\n");
 	{	/* an empty NSpace data chunk */
@@ -91,10 +126,14 @@ main (argc, argv)
 
 		dc_NSAddSample (dc, &when, 0, sfield, test_data+1000);
 		dc_NSAddSample (dc, &when, 0, field, test_data+1000);
+		dc_SetSampleAttr (dc, 0, "test_key", "test_value");
+		dc_SetSampleAttr (dc, 0, "test_key2", "test_value2");
+		dc_SetSampleAttr (dc, 1, "sample_number", "0");
 		dc_NSAddStatic (dc, field, test_data);
 		dc_NSAddStatic (dc, sfield, test_data);
 		++when.zt_Sec;
 		dc_NSAddSample (dc, &when, 1, field, test_data+1005);
+		dc_SetSampleAttr (dc, 1, "sample_number", "1");
 		dc_DumpDC (dc);
 
 		/* retrieve data and compare */
@@ -105,6 +144,7 @@ main (argc, argv)
 
 		T_NSGetField(dc, field);
 		T_NSGetAllDimensions(dc, field);
+
 
 		printf("Storing... "); fflush(stdout);
 		ds_Store (dc, TRUE, 0, 0);
