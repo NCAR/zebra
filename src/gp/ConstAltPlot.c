@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.60 1995-09-21 21:00:56 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.61 1995-09-23 02:32:59 granger Exp $")
 
 
 /*
@@ -849,7 +849,7 @@ bool quadstn[4];
 		else
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
 				   Gcontext, x0, y0, 
-				   atan2 (vgrid[pt], ugrid[pt]), 
+				   ATAN2 (vgrid[pt], ugrid[pt]), 
 				   hypot (vgrid[pt], ugrid[pt]), unitlen, 
 				   FALSE);
 	}

@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
-RCSID ("$Id: PositionWidget.c,v 1.21 1995-09-20 20:45:04 burghart Exp $")
+RCSID ("$Id: PositionWidget.c,v 1.22 1995-09-23 02:33:09 granger Exp $")
 
 # define PI 3.141592654
 # define MAXORG 20
@@ -396,7 +396,7 @@ pw_PosDisplay ()
 		strcpy (units, "Nm");
 	}
 		
-	azimuth =  atan2 (suby, subx);
+	azimuth =  ATAN2 (suby, subx);
 	azimuth = 90.0 - (azimuth * 180.0 / PI) - offset;
 	if (azimuth < 0.0)
 		azimuth += 360.0;

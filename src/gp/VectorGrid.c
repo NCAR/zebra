@@ -29,7 +29,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: VectorGrid.c,v 2.9 1995-08-03 21:00:31 corbet Exp $")
+RCSID ("$Id: VectorGrid.c,v 2.10 1995-09-23 02:33:11 granger Exp $")
 
 /*
  * Angle in radians between vector and lines for arrow head
@@ -127,7 +127,7 @@ int	degrade, vector;
 					     ypos, u, v, unitlen);
 			else
 				draw_barb (XtDisplay (w), d, gc, xpos, 
-					   ypos, atan2 (-v, -u), hypot (u, v),
+					   ypos, ATAN2 (-v, -u), hypot (u, v),
 					   shaftlen, FALSE);
 		}
 	}
@@ -220,7 +220,7 @@ Pixel color;
 						unitlen);
 			else
 				draw_barb (Disp, d, Gcontext, px, py,
-						atan2 (-u, -v), hypot (u, v),
+						ATAN2 (-u, -v), hypot (u, v),
 						shaftlen, FALSE);
 		}
 	}

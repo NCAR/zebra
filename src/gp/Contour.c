@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.15 1995-09-13 17:07:21 granger Exp $")
+RCSID("$Id: Contour.c,v 2.16 1995-09-23 02:33:03 granger Exp $")
 
 typedef short	cbool;
 
@@ -906,7 +906,7 @@ CO_DrawContour ()
 			if (del_x == 0.0 && del_y == 0.0)
 				continue;
 
-			angle = atan2 (-del_y, del_x);
+			angle = ATAN2 (-del_y, del_x);
 
 			if (angle > PI/2)
 			{
@@ -933,13 +933,13 @@ CO_DrawContour ()
 		 * We use the fudge factor in the test because text_box returns
 		 * values which are rounded to the nearest pixel location
 		 */
-			test1 = atan2 ((float)(y0 - Pl[i].y), 
-				(float)(Pl[i].x - x0)) - angle;
+			test1 = ATAN2 ((double)(y0 - Pl[i].y), 
+				(double)(Pl[i].x - x0)) - angle;
 			while (test1 < 0.0)
 				test1 += 2 * PI;
 
-			test2 = atan2 ((float)(y1 - Pl[i].y), 
-				(float)(Pl[i].x - x1)) - angle - PI;
+			test2 = ATAN2 ((double)(y1 - Pl[i].y), 
+				(double)(Pl[i].x - x1)) - angle - PI;
 			while (test2 < 0.0)
 				test2 += 2 * PI;
 

@@ -42,7 +42,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.10 1995-06-29 23:29:35 granger Exp $")
+RCSID("$Id: PlotPrim.c,v 1.11 1995-09-23 02:33:07 granger Exp $")
 
 
 
@@ -315,7 +315,7 @@ int		doKnot;
 	    upt = (double)u[i].val.f;
 	    vpt = (double)v[i].val.f;
 	    radius = sqrt(upt*upt + vpt*vpt);
-	    radians = atan2 ( vpt, upt ) ;
+	    radians = ATAN2 ( vpt, upt ) ;
 	}
 
 	level = doKnot ? (int)((radius/.5148)/cstep): (int)(radius/cstep);

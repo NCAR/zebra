@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.52 1995-09-21 20:15:58 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.53 1995-09-23 02:33:05 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -165,6 +165,18 @@ extern int TriggerGlobal;
 #else
 #define FINITE(x)	(!isinf(x) && !isnan(x))
 #endif
+
+/*
+ * Try to avoid those annoying domain error messages from atan2 by
+ * checking for dual zero arguments.  For some reason using an inline
+ * static function breaks things.
+ */
+#ifdef notdef
+static inline double ATAN2(y,x) double y, x;
+{ return ((y==0.0 && x==0.0)?(0.0):atan2(y,x)); }
+#endif
+# define ATAN2(y,x) ((((y)==0.0) && ((x)==0.0)) ? ((double)0.0) : \
+		     (atan2((double)(y),(double)(x))))
 
 /*
  * The attribute used to store original lat/lon spacing into data chunks

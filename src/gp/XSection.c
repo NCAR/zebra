@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.32 1995-09-21 21:12:43 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.33 1995-09-23 02:33:16 granger Exp $")
 
 /*
  * General definitions
@@ -1818,8 +1818,8 @@ ZebTime	*times;
 		 * the trace for this sounding
 		 */
 			hlen = hypot (xpos[pt] - X0, ypos[pt] - Y0) *
-				cos (atan2 (ypos[pt]-Y0, xpos[pt]-X0) -
-				atan2 (Y1-Y0, X1-X0));
+				cos (ATAN2 (ypos[pt]-Y0, xpos[pt]-X0) -
+				ATAN2 (Y1-Y0, X1-X0));
 
 			xs_ExtendTrace (hlen, zpos);
 		/*
@@ -2243,7 +2243,7 @@ int	hdim;
  * of the given point onto the plane.
  */
 	pos = hypot (xdat - X0, ydat - Y0) * 
-		cos (atan2 (ydat-Y0, xdat-X0) - atan2 (Y1-Y0, X1-X0));
+		cos (ATAN2 (ydat-Y0, xdat-X0) - ATAN2 (Y1-Y0, X1-X0));
 /*
  * Step through the array and use a distance weighting scheme to apply 
  * the given point.  The point is projected onto the plane before distances
@@ -3277,7 +3277,7 @@ bool	update;
 	zt = PlotTime;
 	if (image)
 	{
-		wanted_azim = 90.0 - RAD_TO_DEG (atan2 (Y1-Y0, X1-X0));
+		wanted_azim = 90.0 - RAD_TO_DEG (ATAN2 (Y1-Y0, X1-X0));
 
 		if (! ClosestRHI (c, pid, wanted_azim, &zt, &azim))
 			return;
@@ -3323,9 +3323,9 @@ bool	update;
  * Project the endpoints of the raster grid onto our plane
  */
 	d_left = hypot (xleft-X0, yleft-Y0) *
-		cos (atan2 (yleft-Y0, xleft-X0) - atan2 (Y1-Y0, X1-X0));
+		cos (ATAN2 (yleft-Y0, xleft-X0) - ATAN2 (Y1-Y0, X1-X0));
 	d_right = hypot (xright-X0, yright-Y0) *
-		cos (atan2 (yright-Y0, xright-X0) - atan2 (Y1-Y0, X1-X0));
+		cos (ATAN2 (yright-Y0, xright-X0) - ATAN2 (Y1-Y0, X1-X0));
 /*
  * If everything's off the screen, we're done.
  */
