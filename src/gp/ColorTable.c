@@ -1,7 +1,7 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 2.3 1993-11-15 20:00:41 corbet Exp $";
+static char *rcsid = "$Id: ColorTable.c,v 2.4 1994-11-17 07:33:56 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,10 +24,10 @@ static char *rcsid = "$Id: ColorTable.c,v 2.3 1993-11-15 20:00:41 corbet Exp $";
 # include <X11/Intrinsic.h>
 # include <ui.h>
 
-# include "../include/defs.h"
-# include "../include/dm.h"
-# include "../include/pd.h"
-# include "../include/message.h"
+# include <defs.h>
+# include <dm.h>
+# include <pd.h>
+# include <message.h>
 # include "GraphProc.h"
 
 
@@ -138,6 +138,7 @@ int *ncolor;
 	union usy_value v;
 	int type;
 	CTable *ct;
+	static XColor white;
 /*
  * Try to find this table in our cache.
  */
@@ -147,17 +148,33 @@ int *ncolor;
  * Otherwise go and get it.
  */
 	else if (! (ct = ct_AskDMForTable (name)))
+	{
+	/*
+	 * At the very least, return a single white color.
+	 */
+		white.pixel = WhitePixelOfScreen (XtScreen(Graphics));
+		*colors = &white;
+		*ncolor = 1;
 		return (FALSE);
+	}
 /*
  * If we need to go and do an alloc on this table, do it now.
  */
 	if (! ct->ct_alloc)
 		ct_DoAlloc (ct);
 /*
- * Return the info.
+ * Return info.  If we found a table, we can at least return the number of
+ * slots asked for, even if not all the slots were allocated.
  */
 	*colors = ct->ct_colors;
 	*ncolor = ct->ct_ncolor;
+/*
+ * If we couldn't alloc the whole table, we can't claim success, even
+ * though some callers will not bother to check.
+ */
+	if (! ct->ct_alloc)
+		return (FALSE);
+
 	return (TRUE);
 }
 
@@ -271,13 +288,26 @@ CTable *ct;
  * already cleared all of these color values, so there should be no
  * problem with this.
  */
+	ct->ct_alloc = TRUE;  /* successful unless errors prove otherwise */
 	for (color = 0; color < ct->ct_ncolor; color++)
 	{
-		if (! XAllocColor (disp, cm, ct->ct_colors + color))
+		if (XAllocColor (disp, cm, ct->ct_colors + color))
+		{
+			ct_MarkColor (ct->ct_colors[color].pixel);
+		}
+		else
+		{
 			msg_ELog (EF_PROBLEM, "Color alloc failure");
-		ct_MarkColor (ct->ct_colors[color].pixel);
+			ct->ct_alloc = FALSE;
+		/*
+		 * Set a pixel value anyway for those routines which ignore
+		 * our return value and the ct_alloc member.  Don't call
+		 * ct_MarkColor though since it isn't actually allocated.
+		 */
+			ct->ct_colors[color].pixel = 
+				WhitePixelOfScreen (XtScreen(Graphics));
+		}
 	}
-	ct->ct_alloc = TRUE;
 }
 
 
