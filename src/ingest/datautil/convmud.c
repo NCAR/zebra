@@ -35,17 +35,34 @@ char **argv;
 	time t;
 	CoordInfo xi, yi, zi;
 	int nfld;
-	char *cdfname, *malloc ();
+	char *cdfname;
 	int i, btime, level, nx, ny, toff = 0;
 	float *grid, lat, lon, zero = 0, alt;
-
+/*
+ * Quick arg check
+ */
+	if (argc < 3)
+	{
+		printf ("Usage: %s [-old_mud] mudfile cdfdir ifld ofld...\n", 
+			argv[0]);
+		exit (1);
+	}
+/*
+ * Look for -old_mud flag
+ */
+	if (! strncmp (argv[1], "-o", 2))
+	{
+		CrayMudrasMode (FALSE);	/* Cray-type MUDRAS is the default */
+		printf ("Using old MUDRAS mode.\n");
+		argv++;
+		argc--;
+	}
 /*
  * Deal with file names.
  */
-	if (argc < 5 || ! (argc & 0x1))
-		usage ();
 	if (! MudOpen (argv[1], &t, &origin, &xi, &yi, &zi, &nfld))
 		exit (1);
+
 	printf ("MUDRAS date: %d %d\n", t.ds_yymmdd, t.ds_hhmmss);
 	cdfname = argv[2];
 	argv += 3;
@@ -53,6 +70,12 @@ char **argv;
 /*
  * Now deal with field names.
  */
+	if (argc % 2)
+	{
+		printf ("In/out field names must be in pairs!\n");
+		exit (1);
+	}
+	
 	for (Nfield = 0; argc > 0; Nfield++)
 	{
 	/*
@@ -210,8 +233,6 @@ int nx, ny, nz;
 
 usage ()
 {
-	printf ("Usage: mudtocdf mudfile cdfdir mudfld cdffld...\n");
-	exit (1);
 }
 
 
