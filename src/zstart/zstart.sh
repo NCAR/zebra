@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zeb startup script.
 #
-# $Id: zstart.sh,v 1.3 1995-01-31 16:35:09 burghart Exp $
+# $Id: zstart.sh,v 1.4 1995-02-03 18:09:52 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -25,9 +25,10 @@
 #
 	if ( $?XFILESEARCHPATH ) then
 		setenv XFILESEARCHPATH \
-			$XFILESEARCHPATH:$ZEB_TOPDIR/lib/resources/%N
+			${XFILESEARCHPATH}:$ZEB_TOPDIR/lib/resources/%N
 	else
 		setenv XFILESEARCHPATH $ZEB_TOPDIR/lib/resources/%N
+	endif
 
 #
 # Make pointers to all of our executables so that somebody can
