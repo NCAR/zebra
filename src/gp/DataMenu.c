@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.15 1995-09-20 20:44:48 burghart Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.16 1995-09-21 20:14:53 burghart Exp $")
 
 
 /*
@@ -128,8 +128,10 @@ XtPointer xwhich, junk;
 		qual = NULL;
 # endif
 	qual = EPlats[which];
-	if (! pda_Search (Pd, IComp, "data-available-command", qual, 
-			cbuf, SYMT_STRING))
+	if (! pda_Search (Pd, IComp, "data-available-command", qual, cbuf,
+			  SYMT_STRING)  &&
+	    ! pda_Search (Pd, IComp, "data-available-command", NULL, cbuf,
+			  SYMT_STRING))
 	{
 		msg_ELog (EF_PROBLEM, "No command for dataAvailable");
 		return;
