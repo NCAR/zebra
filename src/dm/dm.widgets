@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.15 1994-06-29 20:19:48 case Exp $
+! $Id: dm.widgets,v 1.16 1994-07-14 19:49:56 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -439,6 +439,24 @@ procedure PutScalar platform string field string
 	ShipScalar #platform #field #target_win
 endprocedure
 
+
+!
+! Code to connect PutScalar to skewt windows.
+!
+procedure sk-add-data platform string field string target string
+!
+! ISS compatibility: see if we need to append a "/omega" here.
+!
+	if (RealPlatform (concat (platform, '/omega')))
+		local platform concat(platform, '/omega')
+	endif
+!
+! Find the name of the second component (i.e. what we assume is the real
+! data component) and tweak it.
+!
+	local comp NthComp(target, 1)
+	parameter #target #comp platform #platform
+endprocedure
 
 
 
