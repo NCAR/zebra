@@ -503,11 +503,11 @@ sub clear
     }
 
     close PLOG;
-    $cmd = "elm -s \"zplotd $status, log $plog\" " .
-	" $image_mail_list >/dev/null";
+    $cmd = "(echo \"Subject: zplotd $status, log $plog\"; echo \" \"; cat -)"
+	. " | /bin/mail $image_mail_list";
     print "$cmd\n";
 #   if ($debug < $D_NoEmail && ! open (MAIL, "| cat - $plog | $cmd"))
-    if ($debug < $D_NoEmail && ! open (MAIL, "| cat - | $cmd"))
+    if ($debug < $D_NoEmail && ! open (MAIL, "| $cmd"))
     {
 	print "*** Mail failed! ***\n";
     }
