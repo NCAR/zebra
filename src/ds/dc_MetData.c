@@ -31,7 +31,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.14 1995-06-09 16:49:15 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.15 1995-06-12 18:48:01 burghart Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -1310,7 +1310,7 @@ DataPtr data;
  */
 {
 	FldInfo *finfo;
-	int findex;
+	int findex, samp;
 /*
  * The usual sanity checking.
  */
@@ -1339,6 +1339,13 @@ DataPtr data;
 				field);
 		return;
 	}
+/*
+ * Set the time here, since dc_AddUniform(), dc_AddFixedField(), and 
+ * dc_AddNonUniform() only tweak the data portion of the data chunk when
+ * the sample already exists
+ */
+	for (samp = 0; samp < nsamp; samp++)
+		dc_SetTime (dc, samp, t + samp - start);
 /*
  * Uniform and non-uniform data are handled differently, and hence separately.
  */
@@ -1525,10 +1532,7 @@ DataPtr data;
 			++finfo->fi_NSample;
 		}
 		else
-		{
-			dc_SetTime (dc, samp, t + samp - start);
 			dest = dc_GetSample (dc, samp, NULL);
-		}
 	/*
 	 * This absolutely, undubitably, definately, certainly, without
 	 * fail should never, ever happen, not even in a million years.
