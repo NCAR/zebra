@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.8 1994-05-19 19:59:18 granger Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.9 1994-11-20 22:40:45 granger Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -30,6 +30,7 @@ static char *rcsid = "$Id: dm_pick.c,v 2.8 1994-05-19 19:59:18 granger Exp $";
  */
 struct wpick
 {
+	int	wp_found;	/* A dm window was found */
 	Window	wp_id;		/* The id of the picked window	*/
 	char	wp_name[40];	/* The window name. */
 };
@@ -38,11 +39,12 @@ struct wpick
 static int dm_CmpPickWin ();
 
 
-void
+int
 PickWin (winname)
 char *winname;
 /*
- * Choose a window and store its name into "winname".
+ * Choose a window and store its name into "winname".  Return nonzero
+ * if successful, otherwise return zero and leave winname unchanged.
  */
 {
 	int status, done = False;
@@ -63,7 +65,7 @@ char *winname;
 	if (status != GrabSuccess)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to grab pointer for pick");
-		return;
+		return (FALSE);
 	}
 /*
  * Now wait until we get something.
@@ -101,23 +103,28 @@ char *winname;
 	XUngrabPointer (Dm_Display, CurrentTime);
 	XSync (Dm_Display, False);
 	msg_ELog (EF_DEBUG, "Pick got win 0x%x", win);
-/*
- * Establish a default answer, in case our search fails
+/* 
+ * Make sure the window chosen was not the root window,
+ * in which case there is no subwindow and we just return.
  */
-	strcpy (wp.wp_name, DM_PICKWIN_NONE);
-	strcpy (winname, DM_PICKWIN_NONE);
-	/* 
-	 * Make sure the window chosen was not the root window,
-	 * in which case there is no subwindow and we just return.
-	 */
 	if (win == None)
-		return;
+		return (FALSE);
 /*
- * Pass through the current config, trying to find the window.
+ * Initialize the search
+ */
+	wp.wp_found = FALSE;
+/*
+ * Pass through the current config, trying to find the window.  Don't copy
+ * the returned window name unless the search was successful.
  */
 	wp.wp_id = win;
 	usy_traverse (Current, dm_CmpPickWin, (long) &wp, FALSE);
-	strcpy (winname, wp.wp_name);
+	if (wp.wp_found)
+	{
+		strcpy (winname, wp.wp_name);
+		return (TRUE);
+	}
+	return (FALSE);
 }
 
 
@@ -132,7 +139,7 @@ union usy_value *v;
 struct wpick *wp;
 /*
  * Check out this window.  The *wp structure must NOT be modified
- * unless a match is found, since contains a default value for PickWin()
+ * unless a match is found, since it contains a default value for PickWin()
  */
 {
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
@@ -156,6 +163,7 @@ struct wpick *wp;
 			if (wp->wp_id == win->cfw_win)
 			{
 				strcpy (wp->wp_name, win->cfw_name);
+				wp->wp_found = TRUE;
 				return (FALSE);
 			}
 		}
@@ -177,6 +185,7 @@ struct wpick *wp;
 			if (wp->wp_id == parent)
 			{
 				strcpy (wp->wp_name, win->cfw_name);
+				wp->wp_found = TRUE;
 				return (FALSE);
 			}
 		/*
@@ -191,6 +200,7 @@ struct wpick *wp;
 			if (wp->wp_id == parent && parent != root)
 			{
 				strcpy (wp->wp_name, win->cfw_name);
+				wp->wp_found = TRUE;
 				return (FALSE);
 			}
 

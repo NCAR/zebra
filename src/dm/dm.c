@@ -47,7 +47,7 @@
 static void CallXHelp ();
 static bool UseXHelp = TRUE;
 
-MAKE_RCSID ("$Id: dm.c,v 2.54 1994-11-20 19:28:14 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.55 1994-11-20 22:40:41 granger Exp $")
 
 
 /*
@@ -356,10 +356,15 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_PICKWIN:
-	   	PickWin (winname);
-		nv.us_v_ptr = winname;
-		usy_s_symbol (usy_g_stbl ("ui$variable_table"), 
-			UPTR (cmds[1]), SYMT_STRING, &nv);
+		/*
+		 * Don't change the variable unless PickWin() succeeds
+		 */
+	   	if (PickWin (winname))
+		{
+			nv.us_v_ptr = winname;
+			usy_s_symbol (usy_g_stbl ("ui$variable_table"), 
+				      UPTR (cmds[1]), SYMT_STRING, &nv);
+		}
 		break;
 
 	   case DMC_SHUTDOWN:
@@ -1402,9 +1407,7 @@ int control_all;
 /*
  * See what window(s) to deal with.
  */
-	if (! control_all)
-		PickWin (winname);
-	if (! strcmp (winname, DM_PICKWIN_NONE))
+	if (! control_all && ! PickWin (winname))
 	{
 		msg_ELog (EF_PROBLEM,
 			  "Invalid window chosen for time widget. Ignoring.");
