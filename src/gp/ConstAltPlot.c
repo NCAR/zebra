@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.57 1995-08-28 21:39:38 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.58 1995-09-06 18:13:43 granger Exp $")
 
 
 /*
@@ -1843,6 +1843,7 @@ int datalen, begin, space;
 	int bar_height;
 	float step_height;
 	int highlight;
+	int bpl;
 	XColor *colors, xc;
 /*
  * Get annotation parameters.
@@ -1885,11 +1886,13 @@ int datalen, begin, space;
  * Do the numeric labels.  Keep the step height as float to place it
  * accurately rather than just evenly.  Figure the height using the actual
  * span of the color bar, which may be different than the available space
- * because of the truncation above. 
+ * because of the truncation above.  Calculate the minimum number of steps
+ * per label which will keep the labels uncrowded and legible.
  */
 	space = bar_height * ncolors; 
 	step_height = (float) space / (float) nsteps;
-	for (i = 0; step_height > 0 && i <= nsteps; i++)
+	bpl = (int)((used - 1) / step_height) + 1;
+	for (i = 0; i <= nsteps; i += bpl)
 	{
 		val = center + (nsteps/2.0 - i) * step;
 		sprintf (string, "%.1f", val);
