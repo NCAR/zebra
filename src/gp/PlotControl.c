@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.13 1992-11-03 16:39:54 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.14 1992-11-10 04:27:09 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -320,15 +320,30 @@ int index;
 {
 	int seconds;
 	PlatformId pid;
+	char platform[80];
 /*
  * Try to interpret the trigger as a time.
  */
 	if (seconds = pc_TimeTrigger (trigger))
+	{
 		pc_SetTimeTrigger (seconds, comp);
+		return;
+	}
 /*
- * Then as a platform name.
+ * Allow "platform" as a trigger, meaning it should look at the
+ * platform in this component.
  */
-	else if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
+	if (! strcmp (trigger, "platform"))
+	{
+		if (! pda_ReqSearch (Pd, comp, "platform", NULL, platform,
+				SYMT_STRING))
+			return;
+		trigger = platform;
+	}
+/*
+ * Now look up our platform and request notifications.
+ */
+	if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
 		ds_RequestNotify (pid, index, pc_Notification);
 	else
 		msg_log ("Funky trigger time '%s' in component %s", trigger, 
@@ -436,8 +451,7 @@ time *t;
 {
 	char **comps;
 	char rep[40];
-	int reroute;
-	bool global;
+	int reroute, global;
 /*
  * Look at times and components.  Florida change: Use the current time
  * for the plot, instead of the data time -- that way things like boundaries
