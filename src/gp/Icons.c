@@ -25,11 +25,12 @@ static char *rcsid = "$id$";
 # include <X11/Xaw/MenuButton.h>
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/message.h"
-# include "../include/DataStore.h"
+# include "defs.h"
+# include "pd.h"
+# include "message.h"
+# include "DataStore.h"
 # include "GraphProc.h"
+# include "config.h"
 
 
 # ifdef notdef
@@ -55,13 +56,20 @@ XtTranslations MBTranslations;	/* The parsed version.	*/
  * constantly deleting and recreating them.
  */
 # define MAXNAME 40
+struct IconData
+{
+	char	id_platform[40];		/* Platform name	*/
+	date	id_time;			/* Data time		*/
+};
+
 struct IconList
 {
-	Widget	il_icon;		/* The actual icon	*/
-	struct IconList *il_next;	/* Next list entry	*/
+	Widget	il_icon;		/* The actual icon		*/
+	struct IconList *il_next;	/* Next list entry		*/
 	/* Used in button callbacks */
-	char	il_component[MAXNAME]; /* The component with this icon */
-	char	il_menus[3][MAXNAME];	/* Menus to pop up. 	*/
+	char	il_component[MAXNAME];	/* The component with this icon */
+	char	il_menus[3][MAXNAME];	/* Menus to pop up. 		*/
+	struct IconData	*il_data;	/* Pointer to IconData struct	*/
 };
 static struct IconList *AvailIcons = NULL; /* Which icons are available	*/
 static struct IconList *UsedIcons = NULL; /* Which are in use		*/
@@ -78,11 +86,15 @@ static stbl IconTable = 0;
 /*
  * Forwards.
  */
-static Pixmap I_GetIcon FP ((char *, int *, int *, int));
-static struct IconList *I_PutIcon FP ((Pixmap, int *, int, int));
-static struct IconList *I_GetWidget FP ((struct IconList **,
-		struct IconList **));
-static void I_MenuPopup FP ((Widget, XEvent *, String *, Cardinal *));
+static Pixmap 	I_GetIcon FP ((char *, int *, int *, int));
+static struct 	IconList *I_PutIcon FP ((Pixmap, int *, int, int));
+static struct 	IconList *I_GetWidget FP ((struct IconList **,
+			struct IconList **));
+static void 	I_MenuPopup FP ((Widget, XEvent *, String *, Cardinal *));
+static void	I_Clear FP ((struct IconList **, struct IconList **));
+void		I_PositionIcon FP ((char *, char *, ZebTime, char *, int, 
+			int, int));
+void		I_ClearPosIcons FP (());
 
 
 /*
@@ -125,7 +137,8 @@ I_init ()
 
 
 static void
-I_clear ()
+I_Clear (avail, used)
+struct IconList	**avail, **used;
 /*
  * Clear out all of the icons that are currently in use.
  */
@@ -133,44 +146,60 @@ I_clear ()
 /*
  * Go through and make each one free.
  */
-	while (UsedIcons)
+	while (*used)
 	{
 		struct IconList *ilp;
 	/*
 	 * Unmanage this one.
 	 */
-	 	XtUnmanageChild (UsedIcons->il_icon);
+	 	XtUnmanageChild ((*used)->il_icon);
 	/*
 	 * Move it to the available list.
 	 */
-	 	ilp = UsedIcons;
-		UsedIcons = UsedIcons->il_next;
-		ilp->il_next = AvailIcons;
-		AvailIcons = ilp;
+	 	ilp = *used;
+		*used = (*used)->il_next;
+		ilp->il_next = *avail;
+		*avail = ilp;
 	}
 }
 
 
 void
-I_PositionIcon (name, x, y, fg)
+I_ClearPosIcons ()
+/*
+ * Clear the position icons.
+ */
+{
+	I_Clear (&AvailPos, &UsedPos);
+}
+
+
+void
+I_PositionIcon (comp, platform, zt, name, x, y, fg)
+char	*comp, *platform;
+ZebTime	zt;
 char	*name;
 int	x, y, fg;
+/*
+ * Place a position icon named 'name' at the location (x,y), color fg.
+ */
 {
 	union usy_value	v;
-	int		type, xh, yh, junk;
+	int		n, type, xh, yh, junk;
 	unsigned int	w, h, ujunk;
+	date		t;
 	char		fname[120];
 	Pixmap		pmap;
 	Display		*disp = XtDisplay (Graphics);
 	Window		root = RootWindow (disp, 0);
 	Arg		args[5];
 	struct IconList	*ilp;
-
-	msg_ELog (EF_DEBUG, "Position Icon %s %d %d", name, x, y);
+/*
+ * Get the pixmap for this icon.
+ */
 	if (! usy_g_symbol (IconTable, name, &type, &v))
 	{
-		strcpy (fname, "../lib/icons");
-		strcat (fname, name);
+		sprintf (fname, "%s/icons/%s", LIBDIR, name);
 		if (XReadBitmapFile(disp, root, fname, &w, &h, &pmap, &xh, &yh)
 			!= BitmapSuccess)
 		{
@@ -181,17 +210,48 @@ int	x, y, fg;
 		v.us_v_ptr = (char *) pmap;
 		usy_s_symbol (IconTable, name, SYMT_POINTER, &v);
 	}
-
 	pmap = (Pixmap) v.us_v_ptr;
+/*
+ * Get a label widget.
+ */
 	ilp = I_GetWidget (&AvailPos, &UsedPos);
-
+/*
+ * Store the component name.
+ */
+	strcpy (ilp->il_component, comp);
+/*
+ * Get the dimensions of the pixmap.
+ */
 	XGetGeometry (disp, pmap, &root, &junk, &junk, &w, &h, &ujunk, &ujunk);
-
-	XtSetArg (args[0], XtNbitmap, pmap);
-	XtSetArg (args[1], XtNx, x);
-	XtSetArg (args[2], XtNy, y);
-	XtSetArg (args[3], XtNforeground, fg);
-	XtSetValues (ilp->il_icon, args, 4);
+/*
+ * Get menus.
+ */
+	if (! pda_Search (Pd, comp, "posicon-left-menu", platform, 
+			ilp->il_menus[0], SYMT_STRING))
+		strcpy (ilp->il_menus[0], "");
+	if (! pda_Search (Pd, comp, "posicon-middle-menu", platform, 
+			ilp->il_menus[1], SYMT_STRING))
+		strcpy (ilp->il_menus[1], "");
+	if (! pda_Search (Pd, comp, "posicon-right-menu", platform, 
+			ilp->il_menus[2], SYMT_STRING))
+		strcpy (ilp->il_menus[2], "");
+/*
+ * Store the data.
+ */
+	ilp->il_data = ALLOC (struct IconData);
+	strcpy (ilp->il_data->id_platform, platform);
+	TC_ZtToUI (&zt, &t);
+	ilp->il_data->id_time = t;
+/*
+ * Store all necessary values.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNbitmap, pmap);			n++;
+	XtSetArg (args[n], XtNx, x);				n++;
+	XtSetArg (args[n], XtNy, y);				n++;
+	XtSetArg (args[n], XtNforeground, fg);			n++;
+	XtSetArg (args[n], XtNshapeStyle, XmuShapeRectangle);	n++;
+	XtSetValues (ilp->il_icon, args, n);
 }
 
 
@@ -210,7 +270,7 @@ I_DoIcons ()
  * Clear out the old ones.
  */
 	msg_ELog (EF_DEBUG, "Update icons");
-	I_clear ();
+	I_Clear (&AvailIcons, &UsedIcons);
 /*
  * Go through each component.
  */
@@ -314,8 +374,11 @@ int *fg, *bg, disable;
 /*
  * Otherwise we gotta go dig it up.
  */
+	sprintf (fname, "%s/icons/%s", LIBDIR, iname);
+# ifdef notdef
 	strcpy (fname, "../lib/icons/");	/* XXX */
 	strcat (fname, iname);
+# endif
 	if (XReadBitmapFile (disp, root, fname, &w, &h, &pmap, &xh, &yh) !=
 		BitmapSuccess)
 	{
@@ -417,6 +480,7 @@ struct IconList	**avail, **used;
  * Put it onto the used list, and return it.
  */
 	/* XtOverrideTranslations (ilp->il_icon, MBTranslations); */
+	ilp->il_data = NULL;
 	ilp->il_next = *used;
 	*used = ilp;
 	return (ilp);
@@ -445,6 +509,11 @@ Cardinal *cardjunk;
 	for (ilp = UsedIcons; ilp; ilp = ilp->il_next)
 		if (ilp->il_icon == w)
 			break;
+
+	if (! ilp)
+		for (ilp = UsedPos; ilp; ilp = ilp->il_next)
+			if (ilp->il_icon == w)
+				break;
 	if (! ilp)
 	{
 		msg_ELog (EF_PROBLEM, "Weird button event on 0x%x", w);
@@ -461,6 +530,13 @@ Cardinal *cardjunk;
  */
 	v.us_v_ptr = ilp->il_component;
 	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
+	if (ilp->il_data != NULL)
+	{
+		v.us_v_ptr = ilp->il_data->id_platform;
+		usy_s_symbol (Vtable, "icon_platform", SYMT_STRING, &v);
+		v.us_v_date = ilp->il_data->id_time;
+		usy_s_symbol (Vtable, "icon_time", SYMT_DATE, &v);
+	}
 /*
  * Throw it up onto the screen, and let it handle things from here.
  */
