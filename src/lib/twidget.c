@@ -45,7 +45,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.21 1998-12-17 17:18:07 burghart Exp $")
+RCSID ("$Id: twidget.c,v 2.22 2001-01-19 04:51:39 granger Exp $")
 
 
 # define LABELWIDTH	65
@@ -521,11 +521,11 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
 	XtSetArg (args[n], XtNwidth, 140);		n++;
-	XtSetArg (args[n], XtNheight, 20);		n++;
-	XtSetArg (args[n], XtNlength, 80);		n++;
+	XtSetArg (args[n], XtNlength, sizeof(Ahistdate)-1);	n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True);	n++;
-	XtSetArg (args[n], XtNstring, "history date");	n++;
+	strcpy (Ahistdate, "history date");
+	XtSetArg (args[n], XtNstring, Ahistdate);	n++;
 	XtSetArg (args[n], XtNleftMargin, 5);		n++;
 	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
 	Htext = XtCreateManagedWidget ("entertime", asciiTextWidgetClass,
@@ -602,7 +602,6 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
 	XtSetArg (args[n], XtNwidth, 35);		n++;
-	XtSetArg (args[n], XtNheight, 20);		n++;
 	XtSetArg (args[n], XtNlength, 80);		n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True);	n++;
@@ -704,7 +703,6 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
 	XtSetArg (args[n], XtNwidth, 150);		n++;
-	XtSetArg (args[n], XtNheight, 20);		n++;
 	XtSetArg (args[n], XtNlength, 80);		n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
 	XtSetArg (args[n], XtNuseStringInPlace, False);	n++;
