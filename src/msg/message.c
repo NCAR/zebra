@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.51 1997-03-27 00:31:03 granger Exp $")
+RCSID ("$Id: message.c,v 2.52 1997-05-13 23:55:55 granger Exp $")
 
 /*
  * Symbol tables.
@@ -2808,7 +2808,7 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
  * Send statistics back to this guy.
  */
 {
-	char buffer[1024];
+	char buffer[2048];
 	char *text;
 	char *username;
 	struct message msg;
