@@ -24,12 +24,13 @@
 # include <errno.h>
 
 # include <defs.h>
+# include <zl_symbol.h>
 # include <copyright.h>
 # include <config.h>
 # include <message.h>
 # include <timer.h>
 
-RCSID("$Id: Sound.c,v 2.4 1995-04-19 14:42:02 granger Exp $")
+RCSID("$Id: Sound.c,v 2.5 1996-11-19 07:06:28 granger Exp $")
 
 int IMessage ();
 int Enabled = FALSE;
