@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.22 2002-05-25 00:19:13 burghart Exp $
+# $Id: zplotbatch,v 1.23 2002-05-25 17:08:57 burghart Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -89,9 +89,9 @@ fi
 # 'unix') to force network socket since unix socket may have failed. (see
 # above.)
 #
-$xvfb $display </dev/null >/dev/null 2>&1 &
+$xvfb $display </dev/null &
 x=$!
-sleep 5
+sleep 10
 DISPLAY=localhost${display}.0 ; export DISPLAY
 
 # Make sure we have a datastore running; we don't need the event logger
@@ -139,7 +139,7 @@ while read when config windows; do
 
     if [ x$config != x$lastconfig ]; then
 	(set -x; zrun $DM "display $config")
-	sleep 20
+	sleep 10
 	lastconfig="$config";
     fi
     if [ $when = "now" ]; then
@@ -152,7 +152,7 @@ while read when config windows; do
     # actually respond to an imgdump command before it has received or
     # acted on the time change, so we must delay here until the time
     # takes effect.
-    sleep 20
+    sleep 10
 
     # Get a list of the graphics processes appearing in this display
     # mstatus
@@ -193,10 +193,12 @@ while read when config windows; do
 	    images="$images ${name}.png"
 	    (set -x; zrun $plot "imgdump xwd \"${name}.xwd\"" ; \
 	     set +x ; sleep 5 ; \
-	     zquery -t 30 $plot >/dev/null ; \
-	     convert "${name}.xwd" "${name}.png" ; \
-	     /bin/rm -f "${name}.xwd" ; \
-	     disclaim "${name}.png" ) &
+	     zquery -t 15 $plot >/dev/null ; \
+	     convert -fill black -box white \
+		-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*' \
+		-draw 'text 20,-20 "REAL-TIME DATA, NOT CHECKED FOR QUALITY"' \
+		"${name}.xwd" "${name}.png" ; \
+	     /bin/rm -f "${name}.xwd" ) &
 	    queryprocs="$queryprocs $plot"
 
 	fi
@@ -204,7 +206,7 @@ while read when config windows; do
     done
     # Now make sure each imgdump has finished before possibly switching
     # to another display configuration.  This is our re-synch or rendezvous
-    # of all the background parallel image dumps.  disclaim may still be
+    # of all the background parallel image dumps.  convert may still be
     # running on the images, but we're through with those files.  The sleep
     # is to give the windows time to actually start the dumps, so that
     # our query doesn't succeed *before* the imgdump command is received.
@@ -222,7 +224,7 @@ if [ -f "$temp" ]; then
 fi
 
 # Exit the window manager, give it a little time to shutdown before
-# outrightly killing it
+# killing it outright
 (set -x; zrun $DM 'shutdown')
 sleep 10
 kill $dm
@@ -243,7 +245,4 @@ echo Images: `(for img in $images DONE ; do
 		fi
 	       done) | sort`
 
-# The shell will automatically 'wait' for its background jobs
-# to finish before exiting, which means all the disclaimers should
-# be done.
 exit 0
