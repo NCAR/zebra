@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.21 1998-10-28 21:22:30 corbet Exp $";
+static char    *rcsid = "$Id: is.c,v 1.22 1999-11-22 23:04:18 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -36,7 +36,9 @@ static char    *rcsid = "$Id: is.c,v 1.21 1998-10-28 21:22:30 corbet Exp $";
 #include <ui.h>
 #include <ui_error.h>
 #include <dirent.h>
+#ifdef IS_WINDOW_MODE
 #include <X11/Intrinsic.h>
+#endif
 
 #include "is_vars.h"
 #include "is_cmds.h"
@@ -57,6 +59,8 @@ void            cfg_done();
 
 #endif
 
+int is_exit FP((int exitcode));
+
 /*
  * Definitions of globals.
  */
@@ -71,6 +75,20 @@ char           *redirect = "none";	/* where to redirect stdout and
 zbool		Batch = FALSE;	/* Continue after user input is done?*/
 						
 
+int
+is_CPHandler (char *cmd)
+/*
+ * Perform the command, then make sure the output makes it out.
+ */
+{
+	ui_perform (cmd);
+	fflush (stdout);
+	fflush (stderr);
+	return 0;
+}
+
+
+int
 main(argc, argv)
 	int             argc;
 	char          **argv;
@@ -79,10 +97,13 @@ main(argc, argv)
 	int             is_list();
 	void            sigchldHandler();
 
+	int		exitcode = 0;
 	int		i;
 	char            loadfile[100];
 	stbl            vtable;
+#ifdef IS_WINDOW_MODE
 	Widget          top;
+#endif
 	char           *lfdir = NULL;	/* points to user specified location of the .lf file */
 #ifdef SVR4
 	struct sigaction act;
@@ -116,6 +137,7 @@ main(argc, argv)
 	/*
 	 * Look for -lfdir in the arg list; capture argument, remove both
 	 */
+	lfdir = GetLibDir();
 	for (i = 1; i < argc; i++)
 	{
 		if (! strcmp (argv[i], "-lfdir"))
@@ -129,7 +151,7 @@ main(argc, argv)
 		      msg_ELog(EF_PROBLEM, 
 			       "usage: is [-batch] [-lfdir lf_library_path] [file]");
 		      ui_printf("usage: is [-batch] [-lfdir lf_library_path] [file]");
-		      is_shutdown();
+		      is_exit(2);
 		    }
 		    break;
 		}
@@ -137,13 +159,19 @@ main(argc, argv)
 	/*
 	 * Get the interface set up.
 	 */
+	ERRORCATCH
+		fixdir_t ("ISLOADFILE", lfdir, "is.lf", loadfile, ".lf");
+		ui_init (loadfile, ! Batch, FALSE);
+		ui_setup ("is", &argc, argv, (char *) 0);
+	ON_ERROR
+		exit (3);
+	ENDCATCH
 
-	if (!lfdir)
-	  fixdir_t("ISLOADFILE", GetLibDir(), "is.lf", loadfile, ".lf");
-	else
-	  fixdir_t("ISLOADFILE", lfdir, "is.lf", loadfile, ".lf");
-	ui_init(loadfile, ! Batch, FALSE);
-	ui_setup("is", &argc, argv, (char *) 0);
+	/* ui_OutputRoutine (uio_print, uio_nfprint);
+	ui_ErrorOutputRoutine (uio_ErrorOut);
+	ui_ErrorHook (uio_EHook); */
+	cp_SetupCmdHandler (is_CPHandler);
+	/* cp_SetupCmdProto ();*/
 
 	/*
 	 * Create our symbol tables.
@@ -159,19 +187,26 @@ main(argc, argv)
 	 */
 	tty_watch(msg_get_fd(), (void (*) ()) msg_incoming);
 
+#ifdef IS_WINDOW_MODE
 	/*
 	 * force into window mode, since mode window followed by popup
 	 * doesn't seem to work from a command file
 	 */
 	if (! Batch)
 		uw_ForceWindowMode((char *) 0, &top, (XtAppContext *) 0);
+#endif
 
 	/*
 	 * If a file appears on the command line, open it.
 	 */
 	if (argc > 1)
-		ut_open_file(argv[1], TRUE);
-
+	{
+		ERRORCATCH
+			ut_open_file(argv[1], TRUE);
+		ON_ERROR
+			is_exit (9);
+		ENDCATCH
+	}
 	/*
 	 * catch the SIGCHLD signals so that we can keep track of spawned
 	 * process status
@@ -202,19 +237,25 @@ sigaction()  SVR4           Y                  Y                 optional
 	/*
 	 * Interpret commands.
 	 */
+	ERRORCATCH
+	{
+		ui_get_command("is-initial", "IS>", is_initial, 0);
 
-	ui_get_command("is-initial", "IS>", is_initial, 0);
+		/*
+		 * For batch mode, continue running after input is done,
+		 * otherwise quit when there's no more input
+		 */
+		if (Batch)
+		{
+			while (TRUE)
+				msg_await ();
+		}
+	}
+	ON_ERROR
+		exitcode = 1;
+	ENDCATCH
 
-	/*
-	 * For batch mode, continue running after input is done, otherwise 
-	 * quit when there's no more input
-	 */
-
-	if (Batch)
-		while (TRUE)
-			msg_await ();
-	else
-		is_shutdown();
+	is_exit(exitcode);
 }
 
 
@@ -314,12 +355,9 @@ mh_message(msg)
 	}
 }
 
-int
-is_shutdown()
-/*
- * Shutdown the ingest scheduler.
- */
 
+int 
+is_exit (int exitcode)
 {
 	int             stop();
 	/*
@@ -332,7 +370,18 @@ is_shutdown()
 	usy_traverse(Configs, stop, TRUE, FALSE);
 	msg_ELog(EF_INFO, "is terminated");
 	ui_finish();
-	exit(0);
+	exit (exitcode);
+}
+
+
+int
+is_shutdown()
+/*
+ * Shutdown the ingest scheduler.
+ */
+
+{
+	is_exit (0);
 }
 
 
@@ -712,6 +761,7 @@ do_config(cfg, cmds)
 is_redirect(cmds)
 	struct ui_command *cmds;
 {
+	char *check_redirect;
 
 	/*
 	 * set the place to send stdout and stderr when ingest process is
@@ -728,10 +778,15 @@ is_redirect(cmds)
 		break;
 
 	default:
-		redirect = usy_string(UPTR(cmds[0]));
-
-		if (access(redirect, (int) (W_OK | F_OK))) {
-			ui_error("access not available for %s, redirect ignored\n", redirect);
+		check_redirect = usy_string(UPTR(cmds[0]));
+		if (access(check_redirect, (int) (W_OK | F_OK)))
+		{
+			ui_nf_printf("access not available for %s, "
+				     "redirect ignored\n", check_redirect);
+		}
+		else
+		{
+			redirect = check_redirect;
 		}
 		break;
 	}
@@ -901,12 +956,12 @@ cfg_go(cfg)
 				close(1);
 				close(2);
 				if ((fd = open(redirect, O_WRONLY)) < 0) {
-					msg_ELog("cannot open %s, errno = %d\n", redirect, errno);
+					msg_ELog(EF_PROBLEM, "cannot open %s, errno = %d\n", redirect, errno);
 				} else {
 					dup2(fd, 1);
 				}
 				if ((fd = open(redirect, O_WRONLY)) < 0) {
-					msg_ELog("cannot open %s, errno = %d\n", redirect, errno);
+					msg_ELog(EF_PROBLEM, "cannot open %s, errno = %d\n", redirect, errno);
 				} else {
 					dup2(fd, 2);
 				}

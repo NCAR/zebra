@@ -1,4 +1,4 @@
-/* $Id: is_cmds.h,v 1.6 1992-08-28 23:36:16 barrett Exp $ */
+/* $Id: is_cmds.h,v 1.7 1999-11-22 23:04:18 granger Exp $ */
 /*
  * Keyword numbers for ingest scheduler commands.
  */

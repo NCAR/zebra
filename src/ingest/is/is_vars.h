@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.9 1995-01-07 23:57:32 martin Exp $
+ * $Id: is_vars.h,v 1.10 1999-11-22 23:04:19 granger Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
