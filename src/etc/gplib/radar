@@ -10,21 +10,18 @@ define widget radar-middle intmenu 'radar middle'
 		(PDParam (icon_component, 'field') = 'reflectivity')
 	entry 'Velocity' 'param #icon_component field velocity' \
 		(PDParam (icon_component, 'field') = 'velocity')
-!	entry 'Surveillance only mode' 'toggle_sur' \
-!		(PDParam (icon_component, "filter-attribute") = "sur")
-!	entry 'Single fixed angle mode' 'ToggleBoolean every-sweep' \
-!		(PDParam (icon_component, "every-sweep") = "false")
 	line
-	entry 'Fixed angle mode' 'ToggleBoolean every-sweep' \
+	entry 'Surveillance Scans' 'scan_mode sur' \
+		(PDParam (icon_component, "radar-mode") = "sur")
+	entry 'RHI Scans' 'scan_mode rhi' \
+		(PDParam (icon_component, "radar-mode") = "rhi")
+	entry 'PPI Scans' 'scan_mode ppi' \
+		(PDParam (icon_component, "radar-mode") = "ppi")
+	entry 'Any Scan' 'scan_mode any' \
+		(PDParam (icon_component, "radar-mode") = "any")
+	line
+	entry 'Hold angle mode' 'ToggleBoolean every-sweep' \
 		(PDParam (icon_component, "every-sweep") = "false")
-	entry 'Fixed volume mode' 'ToggleBoolean every-volume' \
-		(PDParam (icon_component, "every-volume") = "false")
-	entry 'Show data available by scan' \
-		'param #icon_component data-available-times samples' \
-		(PDParam (icon_component, 'data-available-times') = 'samples')
-	entry 'Show data available by volume' \
-		'param #icon_component data-available-times obs' \
-		(PDParam (icon_component, 'data-available-times') <> 'samples')
 	line
 	entry 'Raster representation' \
 		'param #icon_component representation raster'
@@ -36,22 +33,26 @@ define widget radar-middle intmenu 'radar middle'
 	submenu 'Color tables' Color-tables
 endmenu
 
-procedure toggle_sur
-	set param concat(PDParam(icon_component,'platform'), '-filter-attribute')
-	if (PDParam ("global", param) = "sur")
-		param global #param "radar"
-	else
-		param global #param "sur"
-	endif
+
+procedure scan_mode mode string
+	param #icon_component radar-mode #mode
 endprocedure
 
+
+!
+! We want this to turn angle hold off, since the user is picking a specific
+! time, scan, and angle from the data menu and we want to use that time
+! regardless of the current angle.
+!
 procedure RadarDataAvailable platform string when string
-	param #icon_component every-sweep false
+	param #icon_component every-sweep true
 	DefaultDataAvail #platform #when
 endprocedure
+
 
 procedure RadarRealTime
 	param #icon_component every-sweep true
 endprocedure
+
 
 require color-table
