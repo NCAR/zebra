@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.14 1989-10-27 16:09:47 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.15 1990-02-08 10:40:15 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -150,7 +150,6 @@ struct device *dev;
 	template.class = PseudoColor;
 	vlist = XGetVisualInfo (tag->x_display,
 		VisualScreenMask | VisualClassMask, &template, &nmatch);
-	printf ("We have %d visual matches\n", nmatch);
 	tag->x_mono = ! nmatch;
 	if (nmatch)
 	{
@@ -168,7 +167,13 @@ struct device *dev;
  */
 	attr.background_pixel = BlackPixel (tag->x_display, screen);
 	attr.border_pixel = WhitePixel (tag->x_display, screen);
-	attr.backing_store = WhenMapped;
+	if (! strncmp ("Ardent", ServerVendor (tag->x_display), 6))
+	/*
+	 * Ardent server backing store sucks (is LessThanUseful)
+	 */
+		attr.backing_store = NotUseful;
+	else
+		attr.backing_store = WhenMapped;
 	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
@@ -238,7 +243,7 @@ struct device *dev;
 	printf ("Waiting for expose..."); fflush (stdout);
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
 	XClearWindow (tag->x_display, tag->x_window);
-	printf ("Done.\n");
+	printf ("got it.\r\n");
 /*
  * Initialize zoom stuff.
  */
