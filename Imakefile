@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.3 1993-05-26 19:11:05 corbet Exp $
+XCOMM $Id: Imakefile,v 1.4 1993-05-26 22:00:16 corbet Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -25,7 +25,7 @@ XCOMM Note that only the SUBDIRS variable is conditional.  All known
 XCOMM directories and source files will be distributed whether or
 XCOMM not they are configured to be compiled.
 
-        SUBDIRS = config src lib 
+        SUBDIRS = config src 
 
       DISTFILES = Imakefile Makefile.ini README 
        LINKDIRS = dist/zeb/doc dist/zeb/cape
