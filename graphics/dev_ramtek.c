@@ -377,7 +377,11 @@ int nword;
  * flushing it out if necessary.
  */
 {
-	if (nword > (RM_BUFLEN - (tag->rm_bufp - tag->rm_buf)))
+/*
+ * KLUGE: Use (nword + 10) here since rm_flush () puts a few commands
+ * into the buffer.
+ */
+	if (nword + 10 > (RM_BUFLEN - (tag->rm_bufp - tag->rm_buf)))
 		rm_flush (tag);
 }
 
