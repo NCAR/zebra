@@ -34,6 +34,14 @@ in this Software without prior written authorization from the X Consortium.
 # ifndef SVR4
 # define SVR4
 # endif
+/*
+ * gg: For Solaris x86, cc uses i386 and does not define sun, but many
+ *     source files and Imakefiles rely on 'sun', not the least of which is
+ *     the location of cpp defined below ...
+ */
+# ifndef sun
+# define sun
+# endif
 # endif
 /* 
  * This file contains machine-dependent constants for the imake utility.
