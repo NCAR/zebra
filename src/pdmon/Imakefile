@@ -1,11 +1,14 @@
 
 SRCS = pdmon.c
 OBJS = pdmon.o
+HEADERS = pdmon.h
+ELISPFILES = pd-utils.el
+ECOMPILE = emacs -batch -f batch-byte-compile
 
 LIBS = $(LIBZEB) $(LIBRDSS)
+DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
 
-
-NormalProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+NormalProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
 BuildIncludes (pdmon.h,.,.)
 
 /*
@@ -13,8 +16,15 @@ BuildIncludes (pdmon.h,.,.)
  */
 all::	pd-utils.elc
 
-pd-utils.elc:	pd-utils.el bcomp.el
-	emacs -batch -l bcomp.el
+pd-utils.elc:	pd-utils.el
+	$(ECOMPILE) `pwd`/pd-utils.el
+
+clean::
+	$(RM) pd-utils.elc
 
 install:: pd-utils.elc
-	install -m 0444 pd-utils.elc LibDir
+	install -m 0444 pd-utils.elc $(LIBDIR)
+
+DependTarget()
+LintTarget()
+DistfilesTarget($(DISTFILES))
