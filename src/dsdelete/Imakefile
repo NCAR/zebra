@@ -5,7 +5,7 @@
 SRCS = dsdelete.c
 OBJS = dsdelete.o
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(LIBREGEXP)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 DISTFILES = $(SRCS) Imakefile
 

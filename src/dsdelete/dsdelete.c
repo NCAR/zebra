@@ -18,10 +18,11 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdelete.c,v 2.4 1993-08-04 17:16:07 granger Exp $";
+static char *rcsid = "$Id: dsdelete.c,v 2.5 1993-08-05 18:14:27 corbet Exp $";
 
 # include "defs.h"
 # include "message.h"
+# include "ui_expr.h"
 # include <copyright.h>
 # include "DataStore.h"
 
@@ -34,13 +35,16 @@ int argc;
 char **argv;
 {
 	PlatformId plat;
-	int leave;
+	int type;
+	SValue v;
+	ZebTime zaptime;
+	struct parse_tree *pt;
 /*
  * Check args.
  */
 	if (argc != 3)
 	{
-		printf ("Usage: %s platform leave-seconds\n", argv[0]);
+		printf ("Usage: %s platform zap-time\n", argv[0]);
 		exit (1);
 	}
 /*
@@ -57,7 +61,30 @@ char **argv;
 		printf ("Unknown platform: '%s'\n", argv[1]);
 		exit (1);
 	}
-	leave = atoi (argv[2]);
-	ds_DeleteData (plat, leave);
+/*
+ * See which format of zap time they give.
+ */
+	if (! (pt = ue_parse (argv[2], 0, FALSE)))
+	{
+		printf ("Funky date: '%s'\n", argv[2]);
+		exit (1);
+	}
+	ue_eval (pt, &v, &type);
+	if (type == SYMT_INT)
+	{
+		tl_Time (&zaptime);
+		zaptime.zt_Sec -= v.us_v_int;
+	}
+	else if (type == SYMT_DATE)
+		TC_UIToZt (&v.us_v_date, &zaptime);
+	else
+	{
+		printf ("Bad date: %s\n", argv[2]);
+		exit (1);
+	}
+/*
+ * Now do it.
+ */
+	ds_DeleteData (plat, &zaptime);
 	exit (0);
 }
