@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.2 1990-07-08 12:51:42 corbet Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.3 1990-11-29 16:49:17 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -19,7 +19,7 @@ struct FrameCache
 {
 	time	fc_time;	/* The time of this entry		*/
 	char	fc_base[BFLEN];	/* Base field				*/
-	int	fc_alt;		/* Altitude (for now) of this frame	*/
+	float	fc_alt;		/* Altitude (for now) of this frame	*/
 	int	fc_lru;		/* LRU counter				*/
 	bool	fc_keep;	/* Save this frame if possible.		*/
 	bool	fc_valid;	/* Is this frame valid?			*/
@@ -81,12 +81,12 @@ int number;
 		pd_Retrieve (Pd, complist[1], "u-field",
 			FCache[number].fc_base, SYMT_STRING));
 	pd_Retrieve (Pd, "global", "altitude", (char *) &FCache[number].fc_alt,
-		SYMT_INT);
+		SYMT_FLOAT);
 	FCache[number].fc_lru = ++Lru;
 	FCache[number].fc_valid = TRUE;
 	FCache[number].fc_keep = FALSE;
 
-	msg_ELog (EF_DEBUG, "Cache %d, fld '%s' alt %d at %d %d, lru %d",
+	msg_ELog (EF_DEBUG, "Cache %d, fld '%s' alt %.2f at %d %d, lru %d",
 		number, FCache[number].fc_base, FCache[number].fc_alt,
 		when->ds_yymmdd, when->ds_hhmmss, FCache[number].fc_lru);
 
@@ -104,7 +104,8 @@ time *when;
  * Try to find a cache entry that matches PD at this time.
  */
 {
-	int i, alt;
+	int i;
+	float alt;
 	char **complist, base[BFLEN];
 /*
  * Get the base field from the PD.
@@ -114,7 +115,7 @@ time *when;
 		pd_Retrieve (Pd, complist[1], "color-code-field", base,
 				SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
-	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_INT);
+	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 /*
  * Now go searching.
  */
@@ -184,7 +185,8 @@ int ntime;
  * Go through and mark all frames that match one of these times to be kept.
  */
 {
-	int frame, t, alt;
+	int frame, t;
+	float alt;
 	char base[BFLEN], **complist = pd_CompList (Pd);
 /*
  * Get the current base field, and only mark those which match.
@@ -193,7 +195,7 @@ int ntime;
 		pd_Retrieve (Pd, complist[1], "color-code-field", base,
 				SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
-	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_INT);
+	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 /*
  * Now go through all frames.
  */
