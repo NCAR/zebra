@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.4 1997-12-14 23:50:10 granger Exp $
+ * $Id: AuxBlock.hh,v 1.5 1997-12-17 03:42:02 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -74,6 +74,34 @@ public:
 SERIAL_STREAMABLE(FreeBlock);
 
 
+struct FreeStats
+{
+	long nfree;		// Number of free blocks in the list
+	long bytesfree;		// Number of bytes in free blocks
+	long nrequest;		// Number of block requests
+	long bytesrequest; 	// Number of bytes requested
+	long bytesalloc;	// Number of bytes allocated
+	long bytesfreed;	// Number of bytes freed altogether
+
+	FreeStats () :
+		nfree(0),
+		bytesfree(0),
+		nrequest(0),
+		bytesrequest(0),
+		bytesalloc(0),
+		bytesfreed(0)
+	{ }
+
+	void translate (SerialStream &ss)
+	{
+		ss << nfree << bytesfree << nrequest;
+		ss << bytesrequest << bytesalloc << bytesfreed;
+	}
+};
+
+SERIAL_STREAMABLE(FreeStats);
+
+
 //
 // Package free list memory management into a convenient structure
 //
@@ -94,6 +122,11 @@ public:
 	 */
 	BlkOffset Request (BlkSize length, BlkSize *ret_length);
 
+	FreeStats Stats ()
+	{
+		return (stats);
+	}
+
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);
 	int decode (SerialBuffer &sbuf);
@@ -105,6 +138,9 @@ private:
 	int ncache;	/* Number of free blocks allocated space in array */
 	int n;		/* Actual number of free blocks in use in array */
 	FreeBlock *blocks; /* The actual array of free blocks */
+
+	// Statistics
+	FreeStats stats;
 
 	void Remove (int);
 	void Add (BlkOffset offset, BlkSize length);

@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: FreeList.cc,v 1.5 1997-12-14 23:50:12 granger Exp $");
+RCSID ("$Id: FreeList.cc,v 1.6 1997-12-17 03:42:04 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -20,12 +20,13 @@ RCSID ("$Id: FreeList.cc,v 1.5 1997-12-14 23:50:12 granger Exp $");
 // Constructor
 
 FreeList::FreeList (BlockFile &bf, Block &b, SyncBlock *parent) : 
-	SyncBlock (bf, b), RefBlock (b, parent)
+	SyncBlock (bf, b), RefBlock (b, parent),
+	ncache(0),
+	n(0),
+	blocks(0),
+	stats()
 {
 	cout << "Constructing Freelist" << endl;
-	ncache = 0;
-	n = 0;
-	blocks = 0;
 }
 
 
@@ -34,27 +35,29 @@ FreeList::FreeList (BlockFile &bf, Block &b, SyncBlock *parent) :
 FreeList::~FreeList (void)
 {
 	if (blocks)
-		free (blocks);
+		::free (blocks);
 }
 
 
 
 void
-FreeList::Free (BlkOffset offset, BlkSize length)
+FreeList::Free (BlkOffset offset, BlkSize _length)
 /*
  * Add a freed block to the list.  If the block can just be appended and/or
  * prepended to an existing block, do so.
- *
- * Still need to add logic to recover free space at the end of the file.
  */ 
 {
+	BlkSize length = _length;
+	stats.bytesfreed += _length;
+	mark ();
+
 	int remove = -1;
 	int i;
 	for (i = 0; i < n; ++i)
 	{
-		if (offset + length == blocks[i].offset)	/* prepend */
+		if (offset + length == blocks[i].offset)
 		{
-			blocks[i].offset = offset;
+			blocks[i].offset = offset;		/* prepend */
 			blocks[i].length += length;
 		}
 		else if (offset == blocks[i].offset + blocks[i].length)
@@ -64,40 +67,69 @@ FreeList::Free (BlkOffset offset, BlkSize length)
 		else
 			continue;
 
-		// Now we're looking to free a larger block
+		// Now we're looking to free a larger, combined block
 		offset = blocks[i].offset;
 		length = blocks[i].length;
 		if (remove < 0)		// first contiguity found
+		{
+			// Freed space absorbed by an existing block
+			stats.bytesfree += _length;
 			remove = i;
+		}
 		else			// 2nd: freed block is in the middle
+		{
 			break;
+		}
 	}
-	if (remove >= 0 && i < n)	// 3 blocks became 1, remove 1 of them
+
+	// At this point we have a contiguous, non-adjoininng free block
+	// at (offset, length).  If i < n, the block is at i, else if
+	// remove >= 0, the block is at index remove, else the block
+	// has not been inserted yet.
+
+	if (remove >= 0 && i < n)
 	{
+		// 3 blocks became 1, remove 1 of them
 		Remove (remove);
 	}
 
-	// Now see if we can recover the freed block from the end of the file
+	// Now see if we can recover this free space from the end of the file
 	if (offset + length >= bf->header->bf_length)
 	{
 		bf->recover (offset);
-		// If we merged with an existing block, remove that block,
-		// otherwise we just don't add the freed block
-		if (remove >= 0 && i <= n)
+
+		// We may have absorbed the freed space into this larger
+		// block, but now this whole block can be forgotten.
+		// Otherwise, we just ignore the block and the free list
+		// does not change.
+		if (remove >= 0)
 		{
-			if (i > remove)
-				--i;		// moved back by first remove
-			Remove (i);		// block @ remove already gone
+			stats.bytesfree -= length;
+
+			// If we merged with an existing block, remove it
+			if (i <= n)
+			{
+				// moved back by first remove	
+				if (i > remove)
+					--i;
+				// block @ remove already gone
+				Remove (i);
+			}
+			else
+			{
+				Remove (remove);
+			}
 		}
-		else if (remove >= 0)
-			Remove (remove);
 	}
 	else if (remove < 0)
 	{
 		// No choice but to add the freed block by itself
 		Add (offset, length);
 	}
-	mark ();
+	else
+	{
+		// The freed space was absorbed into an existing block
+	}
 }
 
 
@@ -110,23 +142,32 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 {
 	FreeBlock ret;
 
+	++stats.nrequest;
+	stats.bytesrequest += length;
+	mark ();
+
+	// Calculate the block size to allocate for the request
+	// Allocate in 64-byte increments
+	BlkSize size = (((length-1) >> 6) + 1) << 6;
+	ret.length = size;
+
 	/* Search the free list for the closest match to this request.
 	   If found, decide whether to return the whole block or split it. */
 	int closest = -1;
 	for (int i = 0 ; i < n ; ++i)
 	{
-		if (blocks[i].length >= length &&
+		if (blocks[i].length == size)
+		{
+			closest = i;
+			break;
+		}
+		if (blocks[i].length >= size &&
 		    (closest == -1 || 
 		     blocks[closest].length < blocks[i].length))
 		{
 			closest = i;
 		}
 	}
-
-	// Calculate the block size to allocate for the request
-	// Allocate in 64-byte increments
-	int size = (((length-1) >> 6) + 1) << 6;
-	ret.length = size;
 
 	if (closest < 0)
 	{
@@ -135,16 +176,25 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 	else
 	{
 		mark();
+		// Just use the whole block if within 1/8 of needed length
+		if (ret.length + (ret.length >> 3) >= blocks[closest].length)
+			ret.length = blocks[closest].length;
 		ret.offset = blocks[closest].offset + blocks[closest].length;
 		ret.offset -= ret.length;
 		if (ret.offset == blocks[closest].offset)
+		{
 			Remove (closest);
+		}
 		else
+		{
 			blocks[closest].length -= ret.length;
+		}
+		stats.bytesfree -= ret.length;
 	}
 	if (ret_length)
 		*ret_length = ret.length;
 
+	stats.bytesalloc += ret.length;
 	return (ret.offset);
 }
 
@@ -154,6 +204,8 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 void
 FreeList::Add (BlkOffset offset, BlkSize length)
 {
+	stats.nfree++;
+	stats.bytesfree += length;
 	if (!blocks || n >= ncache)
 	{
 		growCache (n+1);
@@ -168,6 +220,7 @@ FreeList::Add (BlkOffset offset, BlkSize length)
 void
 FreeList::Remove (int x)
 {
+	stats.nfree--;
 	n--;
 	for (int i = x ; i < n ; ++i)
 		blocks[i] = blocks[i+1];
@@ -181,6 +234,7 @@ long
 FreeList::size (SerialBuffer &sbuf)
 {
 	long s = serialCount (sbuf, n);
+	s += serialCount (sbuf, stats);
 	if (n > 0)
 	{
 		long b = serialCount (sbuf, blocks[0]);
@@ -195,6 +249,8 @@ int
 FreeList::encode (SerialBuffer &sbuf)
 {
 	sbuf << n;
+	sbuf << stats;
+
 	bf->log->Debug ("Writing free list blocks:");
 	for (int i = 0; i < n; ++i)
 	{
@@ -211,6 +267,7 @@ int
 FreeList::decode (SerialBuffer &sbuf)
 {
 	sbuf >> n;
+	sbuf >> stats;
 
 	/*
 	 * Make sure we have room in our array.
