@@ -6,9 +6,8 @@ extern "C"
 {
 # endif
     
-# include <time.h>
-
 # include <python2.2/Python.h>
+# include <time.h>
 
 # include <message.h>
 # include <defs.h>
