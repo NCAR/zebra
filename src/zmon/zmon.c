@@ -12,7 +12,7 @@
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: zmon.c,v 1.3 1995-06-29 22:38:43 granger Exp $")
+MAKE_RCSID ("$Id: zmon.c,v 1.4 1996-03-12 02:48:25 granger Exp $")
 
 typedef enum { S_OK, S_DEAD } State;
 
@@ -399,12 +399,21 @@ Message *msg;
  * Deal with incoming stuff.
  */
 {
+	struct mh_template *mt;
 	char *at;
 /*
  * Make sure this is what we expect.
  */
-	if (msg->m_proto != MT_PING)
+	switch (msg->m_proto)
 	{
+	   case MT_MESSAGE:
+	   	mt = (struct mh_template *) msg->m_data;
+		if (mt->mh_type == MH_SHUTDOWN)
+			exit (0);
+		break;
+	   case MT_PING:
+		break;
+	   default:
 		msg_ELog (EF_PROBLEM, "Strange proto %d", msg->m_proto);
 		return (0);
 	}
