@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.13 1993-04-12 17:34:56 burghart Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.14 1993-09-09 19:52:50 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -274,6 +274,7 @@ char *name;
 	menu->mbm_title[0] = '\0';
 	strcpy (menu->mbm_name, name);
 	menu->mbm_button = 0;
+	menu->mbm_selector = 0;
 /*
  * Deal with the actual entries now.
  */
