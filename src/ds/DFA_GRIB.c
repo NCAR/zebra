@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.12 1994-08-01 20:42:05 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.13 1994-09-12 22:04:29 granger Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -1162,13 +1162,11 @@ TimeSpec	which;
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (0);
 /*
- * Find the index to the time
+ * Find the index to the time.  Returns -1 if no times before *t.  Ask for
+ * the first grid at a time if we're looking for times before or at that
+ * time.  For DsAfter we must have the last grid before or at the time.
  */
-	ndx = grb_TimeIndex (tag, t, TRUE);
-#ifdef notdef
-	if ((ndx = grb_TimeIndex (tag, t, TRUE)) == -1)
-		return (0);
-#endif
+	ndx = grb_TimeIndex (tag, t, /*first*/ (which == DsBefore));
 /*
  * Get as many times as requested (or as many as we have)
  */
@@ -1177,7 +1175,8 @@ TimeSpec	which;
 	{
 		for ( ; ndx >= 0 && tcount < n; ndx--)
 		{
-			if (! TC_Eq (tag->gt_grib[ndx].gd_time, *dest))
+			if ((tcount == 0) ||
+			    ! TC_Eq (tag->gt_grib[ndx].gd_time, *(dest-1)))
 			{
 				*dest++ = tag->gt_grib[ndx].gd_time;
 				tcount++;
@@ -1190,13 +1189,14 @@ TimeSpec	which;
 	 * Most recent times always come first in the times array, so we
 	 * have to make sure to fill the array backwards.
 	 */
-		if (ndx < 0)	/* there was no sample at the target time */
+		if (ndx < 0)	/* there was no grid at the target time */
 			ndx = 0;
 		else if (TC_Less (tag->gt_grib[ndx].gd_time, *t))
 			++ndx;
 		for ( ; ndx < tag->gt_ngrids && tcount < n; ndx++)
 		{
-			if (! TC_Eq (tag->gt_grib[ndx].gd_time, *dest))
+			if ((tcount == 0) ||
+			    ! TC_Eq (tag->gt_grib[ndx].gd_time, *(dest+1)))
 			{
 				*dest-- = tag->gt_grib[ndx].gd_time;
 				tcount++;
