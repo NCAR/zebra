@@ -34,8 +34,8 @@ T_TransparentAdd (dc, start, nsample, is_mobile, addatts)
 DataChunk *dc;
 ZebTime *start;
 int nsample;
-bool is_mobile;		/* Set locations 		*/
-bool addatts;		/* per-sample atts only 	*/
+zbool is_mobile;	/* Set locations 		*/
+zbool addatts;		/* per-sample atts only 	*/
 /*
  * Just adds variable length text as opaque samples of varying sizes.
  * Tests the hint functions.
@@ -90,7 +90,7 @@ ZebTime *now;
 	char *data = "Transparent chunk holding text and newline\n";
 	char buf[128];
 	ZebTime when;
-	bool atts = FALSE;
+	zbool atts = FALSE;
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	int errors = 0;
 

@@ -35,7 +35,7 @@ typedef struct TestPlatform {
 	FileType ftype;
 	DataOrganization org;
 	int maxsamples;
-	bool mobile;
+	zbool mobile;
 	PlatformId platid;
 } TestPlatform;
 
@@ -93,7 +93,7 @@ PlatformId DefinePlatform FP ((struct TestPlatform *tp));
 void CleanPlatform FP ((PlatformId pid));
 int T_TrHints FP ((DataChunk *dc, int *ns, int *nsa, int *hns,
 		   int *hss, int *no));
-bool T_Store FP ((DataChunk *dc, int newfile, dsDetail *details,
+zbool T_Store FP ((DataChunk *dc, int newfile, dsDetail *details,
 		  int ndetail));
 DataChunk *T_FetchObs FP ((PlatformId pid, DataClass c, ZebTime *when,
 			   FieldId *fields, int nfield, dsDetail *details,
@@ -109,7 +109,7 @@ DataChunk *T_Fetch FP ((PlatformId pid, DataClass c, ZebTime *begin,
 #define ds_FetchObs(pid,c,when,fields,nfield,det,ndet) \
 	T_FetchObs(pid,c,when,fields,nfield,det,ndet)
 #endif
-bool TP_Store FP ((DataChunk *dc, int newfile, dsDetail *details,
+zbool TP_Store FP ((DataChunk *dc, int newfile, dsDetail *details,
 		   int ndetail));
 DataChunk *TP_FetchObs FP ((PlatformId pid, DataClass c, ZebTime *when,
 			    FieldId *fields, int nfield, dsDetail *details,

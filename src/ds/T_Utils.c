@@ -303,7 +303,7 @@ T_CatchNotify ()
 #undef ds_FetchObs
 #endif
 
-bool
+zbool
 T_Store (dc, newfile, details, ndetail)
 DataChunk *dc;
 int newfile;
@@ -374,7 +374,7 @@ int ndetail;
 
 
 
-bool
+zbool
 TP_Store (dc, newfile, details, ndetail)
 DataChunk *dc;
 int newfile;
