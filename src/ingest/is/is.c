@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.12 1992-07-06 17:29:21 issadmin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.13 1992-07-06 18:18:08 issadmin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -909,10 +909,15 @@ terminating. If it does matche, do the following:
 			} else {
 
 				/*
-				 * sometime (I don't know why), a child
-				 * process's signal is not received, and then
-				 * when we do a wait on it, we get an ECHILD
-				 * error. Just assume that the process
+				 * sometimes our wait4() does not find the
+				 * ingest pid, and we get an ECHILD error. I
+				 * think this happens because the pclose()
+				 * call assocaited with file searches has
+				 * reported the ingestor rather than the
+				 * popen() job (A trace on a simple program
+				 * using popen() and pclose() shows that
+				 * pclose() calls wait4() with pid == 0!).
+				 * Just assume that the ingest process has
 				 * terminated, and handle normally. Put out
 				 * an error message, of course
 				 */
