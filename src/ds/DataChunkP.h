@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.11 1996-12-06 00:40:12 granger Exp $ */
+/* $Id: DataChunkP.h,v 1.12 1997-02-12 08:55:02 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -341,6 +341,8 @@ int		dca_PrintAttrArray FP ((char *key, void *value, int nval,
 void		dc_DumpAttrArrays FP ((DataChunk *dc));
 void		dc_DumpFieldAttributes FP ((DataChunk *, FieldId *, int n));
 
+void		dc_StoreFieldDefs FP ((DataChunk *dc));
+FieldId		dc_RestoreFieldDef FP ((DataChunk *dc, int i));
 
 /*
  * Transparent class space optimizations

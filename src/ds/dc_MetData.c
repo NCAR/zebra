@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.21 1996-12-06 00:40:43 granger Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.22 1997-02-12 08:55:08 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -52,8 +52,10 @@ DataPtr DC_FillValues = (DataPtr)&FillValuePointer;
 /*
  * Class method prototypes
  */
-static DataChunk *md_Create FP((DataChunk *));
-static void	md_Dump FP((DataChunk *));
+static DataChunk *md_Create (DataChunk *);
+static void	md_Dump (DataChunk *);
+static void	md_Serialize (DataChunk *dc);
+static void	md_Localize (DataChunk *dc);
 
 RawClass MetDataMethods =
 {
@@ -66,8 +68,8 @@ RawClass MetDataMethods =
 	0,			/* Add				*/
 	md_Dump,		/* Dump				*/
 
-	0,			/* Serialize			*/
-	0,			/* Localize			*/
+	md_Serialize,		/* Serialize			*/
+	md_Localize,		/* Localize			*/
 
 	sizeof (MetDataChunk)
 };
@@ -159,6 +161,18 @@ FieldId field;
 
 
 
+static void
+dc_ClearHash (finfo)
+FldInfo *finfo;
+{
+	int i;
+
+	for (i = 0; i < HASH_SIZE; ++i)
+		finfo->fi_HashIndex[i] = -1;
+}
+
+
+
 int
 dc_ClearFields (dc)
 DataChunk *dc;
@@ -173,8 +187,7 @@ DataChunk *dc;
 	if ((finfo = dc_ChangeInfo (dc, "ClearFields")) && finfo->fi_NField)
 	{
 		/* empty the hash and reset the count */
-		for (i = 0; i < HASH_SIZE; ++i)
-			finfo->fi_HashIndex[i] = -1;
+		dc_ClearHash (finfo);
 		finfo->fi_NField = 0;
 	}
 	return (finfo != NULL);
@@ -1558,4 +1571,35 @@ DataChunk *dc;
 	dc_DumpFieldAttributes (dc, finfo->fi_Fields, finfo->fi_NField);
 }
 
+
+
+
+static void
+md_Serialize (DataChunk *dc)
+/*
+ * Store information about our fields into our private attributes.
+ */
+{
+	dc_StoreFieldDefs (dc);
+}
+
+
+
+static void
+md_Localize (DataChunk *dc)
+/*
+ * Define new field ids using information stored in our private attributes,
+ * then rebuild the hash table with the new ids.
+ */
+{
+	int i;
+	FldInfo *finfo = FIP(dc);
+
+	dc_ClearHash (finfo);
+	for (i = 0; i < finfo->fi_NField; ++i)
+	{
+		finfo->fi_Fields[i] = dc_RestoreFieldDef (dc, i);
+	}
+	dc_BuildIndexHash (finfo, 0, finfo->fi_NField);
+}
 

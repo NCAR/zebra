@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.6 1996-12-09 17:55:58 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.7 1997-02-12 08:55:07 granger Exp $")
 
 
 /*
@@ -335,6 +335,15 @@ int *natts;
 # define PK_BADVAL	"z-bad-value"
 # define PK_MISSINGVAL	"z-missing-value"
 # define PK_FILLVAL	"z-fill-value"
+# define PK_F_NAME	"z-field-name"
+# define PK_F_DESC	"z-field-desc"
+# define PK_F_UNITS	"z-field-units"
+
+/*
+ * The base value for private field attribute id's, to which the field
+ * index is added.
+ */
+# define PF_BASE 4000
 
 /*
  * The default bad value flag
@@ -357,7 +366,7 @@ FieldId fid;
 
 	if ((st = dc_GetFieldIndex (dc, fid)) >= 0)
 	{
-		st += 4000;
+		st += PF_BASE;
 	}
 	return (st);
 }
@@ -655,4 +664,65 @@ int nfield;
 	}
 }
 
+
+
+/* =======================================================================
+ * Serializing and localizing field definitions
+ * ======================================================================= */
+
+
+void
+dc_StoreFieldDefs (DataChunk *dc)
+/* 
+ * In tribute to that historical and infamous FieldDefs file...
+ * Loop through the fields in this metdata chunk setting the 
+ * name, desc, and units as private attributes, from whence
+ * they can be retrieved and assigned id numbers on the other
+ * side.  Though public, it is really only meant to be called within
+ * the metdata serialize method.
+ */
+{
+	int i;
+	int nfield;
+	FieldId *fids = dc_GetFields (dc, &nfield);
+
+	for (i = 0; i < nfield; ++i)
+	{
+		dcp_SetFieldAttrArray (dc, fids[i], PK_F_NAME,
+				       DCT_String, 1, F_GetName(fids[i]));
+		dcp_SetFieldAttrArray (dc, fids[i], PK_F_DESC,
+				       DCT_String, 1, F_GetDesc(fids[i]));
+		dcp_SetFieldAttrArray (dc, fids[i], PK_F_UNITS,
+				       DCT_String, 1, F_GetUnits(fids[i]));
+	}
+}
+
+
+
+FieldId
+dc_RestoreFieldDef (DataChunk *dc, int i)
+/*
+ * Define an id for the field in this datachunk with index i.
+ */
+{
+	char *name, *desc, *units;
+	FieldId fid = BadField;
+
+	name = dca_GetAttrArray (dc, DCP_MetData, i+PF_BASE,
+				 PK_F_NAME, NULL, NULL);
+	desc = dca_GetAttrArray (dc, DCP_MetData, i+PF_BASE,
+				 PK_F_DESC, NULL, NULL);
+	units = dca_GetAttrArray (dc, DCP_MetData, i+PF_BASE,
+				  PK_F_UNITS, NULL, NULL);
+	if (! name || ! desc || ! units)
+	{
+		msg_ELog (EF_PROBLEM, "%s for field index %i", 
+			  "missing private defn atts", i);
+	}
+	else
+	{
+		fid = F_DeclareField (name, desc, units);
+	}
+	return (fid);
+}
 
