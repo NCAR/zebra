@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.5 1991-01-29 16:51:01 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 1.6 1991-04-30 16:22:31 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <sys/types.h>
@@ -54,9 +54,13 @@ ProtoHandlers[MAXPROTO] = { 0 };
 # ifdef __STDC__
 	static struct mqueue *msg_NewMq (struct message *);
 	static void msg_RemQueue (struct mqueue *);
+	static int msg_SrchAck (struct message *, struct mh_ack *);
+	static int msg_ELHandler (struct message *);
 # else
 	static struct mqueue *msg_NewMq ();
 	static void msg_RemQueue ();
+	static int msg_SrchAck ();
+	static int msg_ELHandler ();
 # endif
 
 /*
@@ -140,7 +144,7 @@ char *ident;
 		return (FALSE);
 	}
 /*
- * Done!
+ * Get our I/O situation together.
  */
 	FD_ZERO (&Fd_list);
 	FD_SET (Msg_fd, &Fd_list);
@@ -148,6 +152,10 @@ char *ident;
 	Msg_handler = handler;
 	if (Msg_fd > Max_fd)
 		Max_fd = Msg_fd;
+/*
+ * Establish the event logger handler, and we're done.
+ */
+	msg_AddProtoHandler (MT_ELOG, msg_ELHandler);
  	return (TRUE);
 }
 
@@ -187,26 +195,35 @@ struct message *msg;
 	iov[1].iov_base = msg->m_data;
 	iov[1].iov_len = msg->m_len;
 /*
- * Send it, and get the response back.  We assume that ACK's take no
- * extra data.  We also assume, for the moment, that no other messages
- * intervene -- a bad assumption.
+ * Send it, and get the response back.
  */
  	if (! writev (Msg_fd, iov, 2))
 		return (FALSE);
-	if (msg_netread (Msg_fd, &ret, sizeof (struct message)) <= 0)
-		return (FALSE);
-/*
- * Make sure we got an ACK.
- */
- 	if (ret.m_proto != MT_MESSAGE || ret.m_len != sizeof (ack))
-	{
-		printf ("Got %d when expecting ACK!\n", ret.m_len);
-		return (FALSE);
-	}
-	msg_netread (Msg_fd, &ack, sizeof (ack));
-
+	msg_Search (MT_MESSAGE, msg_SrchAck, &ack);
 	return (TRUE);
 }
+
+
+
+
+
+static int
+msg_SrchAck (msg, ack)
+struct message *msg;
+struct mh_ack *ack;
+/*
+ * Search out an ack.
+ */
+{
+	if (msg->m_len == sizeof (struct mh_ack))
+	{
+		*ack = * (struct mh_ack *) msg->m_data;
+		return (0);
+	}
+	return (1);
+}
+
+
 
 
 
@@ -537,6 +554,11 @@ va_dcl
 
 
 
+/*
+ * Event logger info.  We assume that we send all messages until told
+ * otherwise.
+ */
+static int EMask = 0xff;
 
 
 void
@@ -549,6 +571,11 @@ va_dcl
 	struct msg_elog el;
 	va_list args;
 	char *fmt;
+/*
+ * If this message won't get logged, don't even send it.
+ */
+	if (! (flags & EMask))
+		return;
 /*
  * Print up our message.
  */
@@ -563,6 +590,28 @@ va_dcl
 	msg_send ("Event logger", MT_ELOG, 0, &el, sizeof (el));
 }
 
+
+
+
+static int
+msg_ELHandler (msg)
+struct message *msg;
+/*
+ * Intercept extended logger protocol messages and see if somebody is
+ * trying to set the event mask.  Otherwise we pass them through the
+ * default handler for compatibility.
+ */
+{
+	struct msg_elog *el = (struct msg_elog *) msg->m_data;
+
+	if (el->el_flag & EF_SETMASK)
+	{
+		EMask = el->el_flag & ~EF_SETMASK;
+		return (0);
+	}
+	else
+		return ((*Msg_handler) (msg));
+}
 
 
 
