@@ -5,17 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.9 1990-05-13 11:09:01 corbet Exp $";
-/*
- * Declare all globals here
- */
-# ifdef VMS
-#	define var globaldef
-# 	include <string.h>
-# else
-#	define var
-# endif
-
+static char *Rcsid = "$Id: ui.c,v 1.10 1990-09-07 11:27:43 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
