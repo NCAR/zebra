@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.11 1990-09-11 14:27:21 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.12 1990-09-11 15:54:51 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -692,7 +692,7 @@ long arg;
  */
 	do
 	{
-	 	cmds = uip_parse (initial, prompt);
+	 	cmds = uip_parse (initial, prompt, TRUE, TRUE);
 		if (! cmds)
 			continue;	/* assume still cmode for now */
 		ERRORCATCH
