@@ -33,7 +33,8 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.22 1993-02-22 21:15:14 corbet Exp $")
+# include <xhelp.h>
+MAKE_RCSID ("$Id: dm.c,v 2.23 1993-02-23 19:41:12 corbet Exp $")
 
 
 /*
@@ -45,7 +46,11 @@ stbl Current;
 char Cur_config[MAXNAME];
 stbl Bmaps;
 ButtonMap *Default_map;	/* The default button map	*/
+/*
+ * Top level widget and display.
+ */
 Display *Dm_Display;
+static Widget Top;
 
 char ConfigDir[200];	/* Default directory for display configs */
 char ConfigPD[200];	/* Where to save plot descriptions	*/
@@ -97,7 +102,6 @@ char **argv;
 	int msg_incoming (), get_pd ();
 	int is_active (), type[4], pd_param (), pd_defined (), tw_cb ();
 	char loadfile[100];
-	Widget top;
 	stbl vtable;
 /*
  * Hook into the message handler.
@@ -169,8 +173,8 @@ char **argv;
 /*
  * Push into window mode, and get our display.
  */
- 	uw_ForceWindowMode ((char *) 0, &top, (XtAppContext *) 0);
-	Dm_Display = XtDisplay (top);
+ 	uw_ForceWindowMode ((char *) 0, &Top, (XtAppContext *) 0);
+	Dm_Display = XtDisplay (Top);
 /*
  * If a file appears on the command line, open it.
  */
@@ -197,7 +201,7 @@ struct ui_command *cmds;
  * Deal with a display manager command.
  */
 {
-	char winname[40];
+	char winname[40], helpfile[120], topic[40];
 	union usy_value nv;
 
 	switch (UKEY (*cmds))
@@ -324,7 +328,22 @@ struct ui_command *cmds;
 	   case DMC_ENTER:
 	   	EnterPosition (cmds + 1);
 		break;
-
+	/*
+	 * Fire up xhelp.
+	 */
+	   case DMC_HELP:
+		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
+		if (cmds[1].uc_ctype == UTT_END)
+			strcpy (topic, XHELP_INTRO_ID);
+		else
+		{
+			strcpy (topic, UPTR (cmds[1]));
+			/* strcat (topic, "             "); */
+			/* topic[13] = '\0'; */
+		}
+		XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
+		break;
+	   	
 	   default:
 	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
 	}

@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.4 1992-11-22 22:52:32 corbet Exp $ */
+/* $Id: dm_cmds.h,v 2.5 1993-02-23 19:41:12 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -67,3 +67,4 @@
  * Other stuff.
  */
 # define DMC_ENTER	43
+# define DMC_HELP	44

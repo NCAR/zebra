@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.15 1992-11-22 22:46:42 corbet Exp $
+! $Id: dm.state,v 1.16 1993-02-23 19:41:12 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -101,6 +101,9 @@ define state dm-initial
 	endinput
 	input 'enter' 43
 		next dm-enter-plat
+	endinput
+	input 'help' 44
+		next dm-help-topic
 	endinput
 enddef
 
@@ -622,5 +625,15 @@ define state dm-enter-overwrite
 	endinput
 	input EOS
 		done
+	endinput
+enddef
+
+
+define state dm-help-topic
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
 	endinput
 enddef
