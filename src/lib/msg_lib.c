@@ -1,17 +1,16 @@
 /*
  * Library routines for the message system.
  */
-/* $Id: msg_lib.c,v 1.1 1990-03-19 11:30:02 corbet Exp $ */
+static char *rcsid = "$Id: msg_lib.c,v 1.2 1990-06-04 14:09:05 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <sys/un.h>
 # include <sys/uio.h>
+# include "../include/defs.h"
 # include "message.h"
 
-# define TRUE 1
-# define FALSE 0
 /*
  * The array of functions linked with file descriptors.
  */
@@ -31,6 +30,33 @@ static int Msg_fd;
  */
 static int Seq = 0;
 
+/*
+ * The queue used for holding messages while looking for something specific.
+ */
+static struct mqueue
+{
+	struct message mq_msg;		/* The actual message		*/
+	struct mqueue *mq_next;		/* Next queue entry		*/
+} *Mq = 0, *Mq_free = 0, *Mq_tail;
+
+/*
+ * Forward routines.
+ */
+# ifdef __STDC__
+	static struct mqueue *msg_NewMq (struct message *);
+	static void msg_RemQueue (struct mqueue *);
+# else
+	static struct mqueue *msg_NewMq ();
+	static void msg_RemQueue ();
+# endif
+
+
+/*
+ * Ardent doesn't provide writev!  Berkeley my ass...
+ */
+# ifdef titan
+# define writev fcc_writev
+# endif
 
 
 msg_connect (handler, ident)
@@ -158,7 +184,7 @@ struct message *msg;
 
 
 
-
+void
 msg_join (group)
 char *group;
 /*
@@ -185,7 +211,7 @@ char *group;
 /*
  * Send it out.
  */
-	return (msg_xf_ack (&msg));
+	msg_xf_ack (&msg);
 }
 
 
@@ -193,7 +219,7 @@ char *group;
 
 
 
-
+int
 msg_await ()
 /*
  * Wait for something to happen.
@@ -204,6 +230,10 @@ msg_await ()
 
 	for (;;)
 	{
+	/*
+	 * Clean out the queue.
+	 */
+		msg_DispatchQueued ();
 	/*
 	 * Wait for something.
 	 */
@@ -240,35 +270,134 @@ msg_get_fd ()
 
 
 
-msg_incoming (fd)
+struct message *
+msg_read (fd)
 int fd;
 /*
- * Get an incoming message and dispatch it.
+ * Read one message directly from the pipe.  The message is returned in
+ * static storage -- copy it if need be!
  */
 {
-	struct message msg;
-	char data[2048];	/* XXX */
+	static struct message msg;
+	static char data[2048];	/* XXX */
 /*
  * Read in the message, and possibly any extra text.
  */
  	if (read (Msg_fd, &msg, sizeof (struct message)) <= 0)
 	{
 		printf ("Message handler disconnect\n");
-		return (1);
+		return (0);
 	}
 	if (msg.m_len > 0)
 		read (Msg_fd, data, msg.m_len);
 	msg.m_data = data;
+	
+	return (&msg);
+}
+
+
+
+
+int
+msg_incoming (fd)
+int fd;
 /*
- * Dispatch it to the handler.
+ * Get an incoming message and dispatch it.
  */
-	return ((*Msg_handler) (&msg));
+{
+	struct message *msg;
+/*
+ * If there is something waiting in the deferred queue, dispatch it.
+ */
+	if (Mq)
+		msg_DispatchQueued ();
+/*
+ * Otherwise read in a message and dispatch that.
+ */
+	else
+	{
+		if (! (msg = msg_read (fd)))
+			return (1);
+		return ((*Msg_handler) (msg));
+	}
+}
+
+
+
+
+int
+msg_Search (proto, func, param)
+int proto;
+int (*func) ();
+void *param;
+/*
+ * Look for a specific message in the incoming stream.
+ * Entry:
+ *	PROTO	Is the protocol type of interest.
+ *	FUNC	is a function to call with the message,
+ *	PARAM	is an extra parameter for FUNC.
+ * 
+ * msg_search will wait for the next message with the given PROTO type,
+ * then pass it to FUNC.  If FUNC returns zero, msg_search will also
+ * return zero.  Otherwise the message is queued, and the cycle happens
+ * again with the next message with the given PROTO type.
+ */
+{
+	struct mqueue *queue = 0, *tail = 0;
+	struct message *msg;
+/*
+ * First search the queue for this protocol type.
+ */
+	for (queue = Mq; queue; queue = queue->mq_next)
+		if (queue->mq_msg.m_proto == proto &&
+			(*func) (&queue->mq_msg, param) == 0)
+		{
+			msg_RemQueue (queue);
+			return (0);
+		}
+/*
+ * No such luck there.  We'll have to start reading stuff.
+ */
+	queue = 0;
+	for (;;)
+	{
+	/*
+	 * Get a message.
+	 */
+		if (! (msg = msg_read (Msg_fd)))
+			return (1);
+	/*
+	 * If it's the desired type, call the handler.
+	 */
+		if (msg->m_proto == proto && (*func) (msg, param) == 0)
+			break;
+	/*
+	 * For whatever reason, we don't want it.  Stash it for later.
+	 */
+		if (! queue)
+			queue = tail = msg_NewMq (msg);
+		else
+		{
+			tail->mq_next = msg_NewMq (msg);
+			tail = tail->mq_next;
+		}
+		tail->mq_next = 0;
+	}
+/*
+ * We finally got out.  Add this stuff to the end of the message queue.
+ */
+	if (! Mq)
+		Mq = queue;
+	else
+		Mq_tail->mq_next = queue;
+	Mq_tail = tail;
 }
 
 
 
 
 
+void
 msg_add_fd (fd, handler)
 int fd;
 ifptr handler;
@@ -286,9 +415,10 @@ ifptr handler;
 
 
 
-
+void
 msg_send (to, type, broadcast, data, datalen)
-char *to, *data;
+char *to;
+void *data;
 int type, broadcast, datalen;
 /*
  * Send out a message.
@@ -333,6 +463,8 @@ int type, broadcast, datalen;
 
 
 
+
+void
 msg_log (va_alist)
 va_dcl
 /*
@@ -354,3 +486,113 @@ va_dcl
 	msg_send ("Event logger", MT_LOG, 0, mbuf, strlen (mbuf) + 1);
 }
 
+
+
+
+
+/*
+ * Message queue routines.
+ */
+
+static struct mqueue *
+msg_NewMq (msg)
+struct message *msg;
+/*
+ * Get a new message queue entry, with this stuff in it.
+ */
+{
+	struct mqueue *new;
+/*
+ * If there is something in the free list, use it.
+ */
+	if (Mq_free)
+	{
+		new = Mq_free;
+		Mq_free = Mq_free->mq_next;
+	}
+/*
+ * Otherwise we have to allocate a new one.
+ */
+	else
+		new = ALLOC (struct mqueue);
+/*
+ * Copy over the message.  We always allocate space for the message data.
+ */
+	new->mq_msg = *msg;
+	new->mq_msg.m_data = malloc (msg->m_len);
+	memcpy (new->mq_msg.m_data, msg->m_data, msg->m_len);
+/*
+ * Return the stuff.
+ */
+	return (new);
+}
+
+
+
+
+static void
+msg_RemQueue (zap)
+struct mqueue *zap;
+/*
+ * Remove this entry from the message queue.
+ */
+{
+	struct mqueue *qp, *last;
+/*
+ * If this one is at the beginning of the queue, life is easy.
+ */
+	if (zap == Mq)
+		Mq = Mq->mq_next;
+/*
+ * Otherwise we have to find it.
+ */
+	else
+	{
+	/*
+	 * Search it out.
+	 */
+		last = Mq;
+		for (qp = Mq->mq_next; qp; qp = qp->mq_next)
+			if (qp == zap)
+				break;
+			else
+				last = qp;
+		if (! qp)
+		{
+			msg_log ("RemQueue on missing entry 0x%x", zap);
+			return;
+		}
+	/*
+	 * Remove it from the list.
+	 */
+	 	last->mq_next = qp->mq_next;
+	}
+/*
+ * Free up the data area, and put this entry on the free list.
+ */
+	free (zap->mq_msg.m_data);
+	zap->mq_next = Mq_free;
+	Mq_free = zap;
+}
+
+
+
+
+
+
+int
+msg_DispatchQueued ()
+/*
+ * Dispatch all of the queued up messages.
+ */
+{
+	int ret;
+
+	while (Mq)
+	{
+		ret = (*Msg_handler) (&Mq->mq_msg);
+		msg_RemQueue (Mq);
+		if (ret)
+			return (ret);
+	}
+}
