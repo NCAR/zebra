@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.6 1991-04-12 19:07:56 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.7 1991-05-03 21:27:13 corbet Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -23,6 +23,7 @@ static char *rcsid = "$Id: PlotControl.c,v 1.6 1991-04-12 19:07:56 kris Exp $";
 	static void pc_Plot (char *);
 	static void pc_NextFrame ();
 	static void pc_Notification (PlatformId, int, time *);
+	static void pc_DoTrigger (char *, char *, int);
 # else
 	int pc_TimeTrigger ();
 	static void pc_SetTimeTrigger ();
@@ -31,6 +32,7 @@ static char *rcsid = "$Id: PlotControl.c,v 1.6 1991-04-12 19:07:56 kris Exp $";
 	static void pc_Plot ();
 	static void pc_NextFrame ();
 	static void pc_Notification ();
+	static void pc_DoTrigger ();
 # endif
 
 
@@ -258,19 +260,23 @@ pc_SetUpTriggers ()
 	if (! pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
 		msg_ELog (EF_INFO, "No global trigger specified!");
 	else
-		pc_DoTrigger (trigger, "global");
+		pc_DoTrigger (trigger, "global", 0);
 /*
  * Now go through and find the minor updates for each component.
  */
 	comps = pd_CompList (Pd);
 	for (i = 1; comps[i]; i++)
 		if (pd_Retrieve (Pd, comps[i], "trigger", trigger,SYMT_STRING))
-			pc_DoTrigger (trigger, comps[i]);
+			pc_DoTrigger (trigger, comps[i], i);
 }
 
 
-pc_DoTrigger (trigger, comp)
+
+
+static void
+pc_DoTrigger (trigger, comp, index)
 char *trigger, *comp;
+int index;
 /*
  * Cope with a trigger condition.
  */
@@ -286,7 +292,7 @@ char *trigger, *comp;
  * Then as a platform name.
  */
 	else if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
-		ds_RequestNotify (pid, 0, pc_Notification);
+		ds_RequestNotify (pid, index, pc_Notification);
 	else
 		msg_log ("Funky trigger time '%s' in component %s", trigger, 
 			comp);
@@ -376,10 +382,12 @@ char *comp;
 }
 
 
+
+
 static void
-pc_Notification (pid, global, t)
+pc_Notification (pid, index, t)
 PlatformId pid;
-int global;
+int index;
 time *t;
 /*
  * A data available notification has arrived.  Only do global updates for
@@ -387,11 +395,33 @@ time *t;
  * the PARAM field....
  */
 {
+	char **comps;
+	char rep[40];
+	int reroute;
+/*
+ * Look at times and components.
+ */
 	PlotTime = *t;
-	msg_ELog (EF_DEBUG, "Data available on %s at %d %d", 
-		ds_PlatformName (pid), t->ds_yymmdd, t->ds_hhmmss);
-	Eq_AddEvent (PDisplay, pc_Plot, "global", 7, Override);
+	comps = pd_CompList (Pd);
+	msg_ELog (EF_DEBUG, "Data available on %s (c: sd) at %d %d", 
+		ds_PlatformName (pid), comps[index], t->ds_yymmdd,
+		t->ds_hhmmss);
+/*
+ * Look for cases in which global triggers should be rerouted into updates;
+ * this is to make time series plots work right.
+ */
+	if (pd_Retrieve (Pd, "global", "plot-type", rep, SYMT_STRING) &&
+		pda_Search (Pd, "global", "reroute-global-updates",
+				rep, (char *) &reroute, SYMT_INT))
+	{
+		index = reroute;
+		msg_ELog (EF_DEBUG, " (reroute to %d)", index);
+	}
+	Eq_AddEvent (PDisplay, pc_Plot, comps[index],
+			strlen (comps[index]) + 1, Override);
 }
+
+
 
 
 static void
