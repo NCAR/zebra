@@ -1,0 +1,48 @@
+GriddedGOES is a trimmed-down version of SatIngest, which will remap a
+McIDAS GOES area file onto a lat/lon grid and write the data to stdout.  
+It does not use any of the Zebra services required by SatIngest.
+
+Usage:
+
+	GriddedGOES <cmdfile> <areafile>
+
+where "cmdfile" is the name of a two line command file describing the
+limits and size of the desired lat/lon grid.  The first line of the file
+has the lat and lon of the SW and NE corners of the grid to generate, and
+the second line number of points in the grid in the x and y directions.
+
+Example: To generate a 1000x1000 grid from 35.5 to 40.5 in latitude and
+-125.0 to -118.0 in longitude (W longitudes should be negative) from McIDAS
+area file "area1.dat" and put the grid in "area1.grid":
+
+	$ cat > cmdfile
+	35.5 -125.0 40.5 -118.0
+	1000 1000
+	^D
+	$ GriddedGOES cmdfile area1.dat > area1.grid
+	
+
+The process can take a while for large destination grids, but messages will
+be written occasionally to show the progress of the program.
+
+The format of the output is a 4 line description header followed by
+the (nX x nY) bytes of gridded data.  The four description lines
+contain the following information:
+
+	1) Source, date, and time for the image
+	2) Image size (nx x ny)
+	3) NW corner latitude and longitude
+	4) latitude and longitude step for the grid
+
+The header can be easily viewed using the Unix "head" program and can be
+stripped from the file using the "tail" program.  After the above example, 
+the following would display the header and create a file "justdata" containing
+only the image data with no header:
+
+	$ head -4 area1.grid
+	GOES visr image 930726 150100
+	1000 x 1000
+	NW corner lat: 40.50000  lon: -125.00000
+	latstep: 0.00501  lonstep: 0.00701
+	$ tail +5 area1.grid > justdata
+
