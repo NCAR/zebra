@@ -33,7 +33,10 @@ sumplot_fillrows() # destdir brightness [numcolumns]
 {
 i=0
 destdir="$1"
-brightness="$2"
+brightness=""
+if [ "$2" -ne 0 ]; then
+    brightness="+contrast +contrast +contrast"
+fi
 ncol=4;
 if [ $# -ge 3 ]; then
     ncol="$3"
@@ -48,7 +51,7 @@ while read path ; do
     image=`basename $path`
     destimage="$destdir/tn_$image"
     /bin/test $destimage -nt $path || \
-	(set -x; convert -modulate $brightness -geometry 140x140 $path $destimage) 1>&2
+	(set -x; convert -geometry 140x140 $brightness $path $destimage) 1>&2
     echo '<td align=center bgcolor="#f0f0f0">'
     echo "<font size=-1><strong>$image<strong></font><br><a href=$path><img src=tn_$image></a>"
     echo "</td>"
@@ -73,7 +76,7 @@ cat <<EOF
 <HR SIZE=6 NOSHADE ALIGN=LEFT>
 <FONT SIZE=1>&copy;
 NCAR/Atmospheric Technology Division<br>
-Email: <a href="mailto:granger@atd.ucar.edu">granger@atd.ucar.edu</a>
+<a href="http://www.atd.ucar.edu/~granger">Gary Granger</a>
 <br><HR WIDTH="100%"><BR>
 <P><FONT SIZE=-2>
 Created `date`

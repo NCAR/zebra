@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.15 2002-01-17 04:41:08 granger Exp $
+# $Id: sumplot,v 1.16 2002-06-30 05:05:36 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -17,12 +17,14 @@ fi
 
 if [ $# -ne 4 -a $# -ne 5 ]; then
 
-    echo "Usage: $0 [-bright %] <project> <pattern> <basedir> <destdir> [<htmlfile>]"
+    echo "Usage: $0 [-bright N] <project> <pattern> <basedir> <destdir> [<htmlfile>]"
     echo "Finds all image files of the given <pattern> under <basedir>,"
     echo "creates thumbnails in <destdir> and a html table <htmlfile>."
     echo "If <htmlfile> not given, a default is created using the pattern."
     echo "Any text on standard input is inserted onto the page under the"
-    echo "title."
+    echo "title.  If bright argument N is non-zero, then contrast will be"
+    echo "increased in the generated image; used when reducing plot images"
+    echo "with dark backgrounds.  Brightening is enabled by default."
     exit 1
 
 fi
