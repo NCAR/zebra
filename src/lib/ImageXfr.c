@@ -1,7 +1,7 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 2.3 1993-08-16 17:00:09 burghart Exp $";
+static char *rcsid = "$Id: ImageXfr.c,v 2.4 1993-08-17 14:54:04 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -250,11 +250,13 @@ SetOwner owner;
 
 
 int
-IX_GetWriteFrame (desc, frames)
+IX_GetWriteFrame (desc, frames, verbose)
 ix_desc *desc;
 char **frames;
+int verbose;
 /*
- * Get a frame for write access.
+ * Get a frame for write access.  If "verbose" is true, failures should be
+ * logged.
  */
 {
 	int set, frame;
@@ -268,7 +270,7 @@ char **frames;
 			break;
 	if (set >= desc->id_hdr->ixh_NSet)
 	{
-		if (! Failed)
+		if (! Failed && verbose)
 		{
 			msg_ELog (EF_PROBLEM,"No image segs (of %d) available",
 				desc->id_hdr->ixh_NSet);

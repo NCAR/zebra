@@ -22,7 +22,7 @@
 # ifdef __STDC__
 	struct _ix_desc * IX_HookIn (int, char *, int *, int *, int *,char **);
 	struct _ix_desc * IX_Create (int, int, int, int, int, char **);
-	int	IX_GetWriteFrame (struct _ix_desc *, char **);
+	int	IX_GetWriteFrame (struct _ix_desc *, char **, int);
 	void	IX_SendFrame (struct _ix_desc *, int, UItime *, RGrid *,
 			Location *, ScaleInfo *, int, int, int, int, char *);
 	int	IX_GetReadFrame (struct _ix_desc *, int, char **, UItime *,
