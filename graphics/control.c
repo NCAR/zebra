@@ -12,7 +12,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.12 1990-03-30 13:23:29 corbet Exp $";
+static char *rcsid = "$Id: control.c,v 1.13 1990-04-09 16:01:51 corbet Exp $";
 static int Trace = 0;
 
 /*
@@ -624,7 +624,7 @@ char *text;
 		((ov->ov_flags & OVF_PIXMAP) || ! (dev->gd_flags & GDF_TEXT) ||
 		! (*dev->gd_qtext) (ov->ov_ws->ws_tag, pixheight, rot)))
 	{
-		font = (pixheight > 10) ? GTF_STROKE : GTF_MINSTROKE;
+		font = (pixheight > 30) ? GTF_STROKE : GTF_MINSTROKE;
 		ftype = GFT_STROKE;
 		scale = ((float) pixheight) / ((float) gt_f_height (font));
 	}
@@ -1390,7 +1390,7 @@ float *x0, *y0, *x1, *y1;
 		((ov->ov_flags & OVF_PIXMAP) || ! (dev->gd_flags & GDF_TEXT) ||
 		! (*dev->gd_qtext) (ov->ov_ws->ws_tag, pixheight, rot)))
 	{
-		font = (pixheight > 10) ? GTF_STROKE : GTF_MINSTROKE;
+		font = (pixheight > 30) ? GTF_STROKE : GTF_MINSTROKE;
 		ftype = GFT_STROKE;
 		scale = ((float) pixheight) / ((float) gt_f_height (font));
 	}
