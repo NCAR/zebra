@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.44 2000-01-04 23:15:31 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.45 2000-05-17 19:49:05 burghart Exp $")
 
 /*
  * Issues:
@@ -404,6 +404,13 @@ main (int argc, char **argv)
 		fprintf(stderr,"Archiver: could not connect to message\n");
 		Die();
 	}
+
+	if (!ds_Initialize ())
+	{
+		fprintf(stderr,"Archiver: DataStore initialization failed\n");
+		Die();
+	}
+
 	InitArchiver (&argc,argv);
 	// Join group after init in case we just send a reveal and exit
 	msg_join (ARCHIVER_GROUP);
@@ -427,11 +434,6 @@ main (int argc, char **argv)
 	model->setBytes ("0 Bytes in 0 files             ");
 	SetStatus (FALSE, "Opening database");
 
-	if (!ds_Initialize ())
-	{
-		fprintf(stderr,"Archiver: DataStore initialization failed\n");
-		Die();
-	}
 	chdir ( GetProjDir() );
 	if (db_Open (Database) != 0)
 	{
@@ -1376,7 +1378,7 @@ SaveFiles (int all)
 		/*
 		 * Update the widget too.
 		 */
-		    sprintf (string, "%.2f MBytes in %d files.",
+		    sprintf (string, "%.3f GBytes in %d files.",
 			     (float)BytesWritten / (1024 * 1024), 
 			     FilesWritten);
 		    model->setBytes (string);
