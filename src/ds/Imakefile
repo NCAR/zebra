@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.29 1995-06-29 21:43:08 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.30 1995-07-06 10:21:23 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -35,11 +35,11 @@ DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
-DSLIBOBJS = Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o ingest.o \
-	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o \
+DSLIBOBJS = Appl.o DFA_Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o \
+	ingest.o GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o \
 	DFA_Grads.o GRIB.o d_Notify.o DFA_HDF.o
-DSLIBSRCS = Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c ingest.c \
-	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c \
+DSLIBSRCS = Appl.c DFA_Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c \
+	ingest.c GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c \
 	DFA_Grads.c GRIB.c d_Notify.c DFA_HDF.c
 
 /* 
@@ -66,7 +66,7 @@ SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
-		  GRIB.h
+		  GRIB.h Appl.h
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
