@@ -1,8 +1,8 @@
 #!/bin/csh -f
 #
-# This is an attempt at a generalized zeb startup script.
+# This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.6 1995-04-21 16:27:58 granger Exp $
+# $Id: zstart.sh,v 1.7 1995-09-11 15:39:14 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -21,7 +21,7 @@
 
 #
 # The base directory must be right.  We need to either fix things up to
-# substitute it during a zeb install, or this script needs to be edited.
+# substitute it during a zebra install, or this script needs to be edited.
 #
 	if (! $?ZEB_TOPDIR ) setenv ZEB_TOPDIR ##TOPDIRHERE
 #
@@ -166,42 +166,42 @@ ddir_again:
 
 #
 # Do everything possible to insure that we start clean.  That means either
-# stopping a running Zeb or setting ZEB_SOCKET to a unique name. 'mstatus'
+# stopping a running Zebra or setting ZEB_SOCKET to a unique name. 'mstatus'
 # exits with 0 status when message is running, 1 otherwise.  Use the -u
 # option to get the name of the user.
 #
 	set someone=`mstatus -u`
 	if ($status == 0) then
-		echo "User $someone is already running Zeb.  Enter"
+	   echo "User $someone is already running Zebra.  Enter"
 restart_prompt:
-		echo "  1) to stop the current Zeb session and start over, or"
-		echo "  2) to run an additional, separate session of Zeb, or"
-		echo "  3) to start a display manager for this session."
-		echo -n "Please enter 1, 2, 3, or [Qq]uit: "
-		set ans=$<
-		if ( "$ans" =~ [Qq]* ) then
-		  exit 1
-		else if ("$ans" == "1") then
-		  echo "Stopping the current Zeb session."
-		else if ("$ans" == "2") then
-		  echo "Starting a new Zeb session."
-		  if (! $?USER) then
+	   echo "  1) to stop the current Zebra session and start over, or"
+	   echo "  2) to run an additional, separate session of Zebra, or"
+	   echo "  3) to start a display manager for this session."
+	   echo -n "Please enter 1, 2, 3, or [Qq]uit: "
+	   set ans=$<
+	   if ( "$ans" =~ [Qq]* ) then
+		exit 1
+	   else if ("$ans" == "1") then
+		echo "Stopping the current Zebra session."
+	   else if ("$ans" == "2") then
+		echo "Starting a new Zebra session."
+	 	if (! $?USER) then
 			setenv ZEB_SOCKET /tmp/zeb.socket.$$
-		  else
+	   	else
 			setenv ZEB_SOCKET /tmp/zeb.$USER.$$
-		  endif
-		  echo "This Zeb session will use the socket $ZEB_SOCKET"
-		  echo "Enter 'setenv ZEB_SOCKET $ZEB_SOCKET' at the C-shell"
-		  echo "prompt to run Zeb programs from that shell."
-		else if ("$ans" == "3") then
-		  echo "Starting a display manager."
-		  goto start_dm
-		else
-		  goto restart_prompt
-		endif
+	   	endif
+		echo "This Zebra session will use the socket $ZEB_SOCKET"
+		echo "Enter 'setenv ZEB_SOCKET $ZEB_SOCKET' at the C-shell"
+		echo "prompt to run Zebra programs from that shell."
+	   else if ("$ans" == "3") then
+		echo "Starting a display manager."
+		goto start_dm
+	   else
+		goto restart_prompt
+	   endif
 	endif
 #
-# Now try to start clean, whether deliberately killing an existing Zeb
+# Now try to start clean, whether deliberately killing an existing Zebra
 # or just cleaning a leftover socket file
 #
 	zstop >& /dev/null
@@ -216,7 +216,7 @@ restart_prompt:
 # for it to background itself.  Use eval, though, in case someone wants to
 # redefine it (such as to a debugger or testcenter) and use an explicit '&'.
 #
-	echo 'Starting core zeb processes: '
+	echo 'Starting core zebra processes: '
 	echo '	message daemon'
 	eval $ZEB_MESSAGE
 
