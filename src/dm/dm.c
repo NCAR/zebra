@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.64 1995-06-29 21:29:19 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.65 1995-07-18 19:05:13 granger Exp $")
 
 
 /*
@@ -757,12 +757,15 @@ char *pcname;
 /*
  * Tell the window to die, and flag it to receive a brand new process whence
  * we receive its last words.  Optionally change the window's process class.
+ * Lastly, don't count this death towards eternal damnation.
  */
 {
 	DieWindow (win);
 	win->cfw_force_exec = TRUE;
+	if (win->cfw_ncroak > 0)
+		--win->cfw_ncroak;
 /*
- * Take note of a requested change in process class.
+ * Take note of a requested change in the process class.
  */
 	if (pcname)
 	{
@@ -858,27 +861,20 @@ char *client;
 		win->cfw_force_exec = FALSE;
 		RestartWin (win, force);
 	}
-	else
+	else if (active)
 	{
 		/*
-		 * We are not restarting the process; the window is doomed.
-		 * Delete the process and remove the window from the 
-		 * current configuration.
+		 * We won't be restarting the process; the window is doomed.
+		 * Remove the window from the current configuration.
 		 */
-		if (active && Restart)
-		{
+		if (Restart)
 			msg_ELog (EF_PROBLEM,
 			  "Process %s: window %s died %d times -- I give up", 
 			  client, win->cfw_name, MAX_DEATHS);
-		}
 		else
-		{
-			msg_ELog (EF_INFO,
-				  "Process %s: [window %s] deceased, %s",
-				  client, win->cfw_name,
-				  (active) ? "and restarts disabled" :
-				  "but was not active");
-		}
+			msg_ELog (EF_PROBLEM,
+			  "Process %s: restarts disabled, window %s deleted",
+			  client, win->cfw_name);
 		/*
 		 * Need to map the window to its config so that we can
 		 * delete the window from the config.
@@ -890,6 +886,20 @@ char *client;
 			dg_DeleteWindow (cfg, win);
 		}
 		dt_SetWindowNames ();
+	}
+	else
+	{
+		/*
+		 * The window was not active or restarting is disabled.
+		 * The process has already been deleted, but we'll keep
+		 * the window in the configuration so that it can
+		 * be assigned a process later.
+		 */
+		msg_ELog (EF_INFO,
+			  "Process %s: [window %s] deceased, %s",
+			  client, win->cfw_name,
+			  (active) ? "and restarts disabled" :
+			  "but was not active");
 	}
 }
 
