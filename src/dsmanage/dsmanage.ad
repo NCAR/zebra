@@ -1,6 +1,7 @@
 !
 ! App defaults for the ds manager.
 !
+*font:  *-courier-bold-r-normal--12-*
 *.quit.foreground:	red
 *.delete.foreground:	red
 *.cancel.foreground:	red
