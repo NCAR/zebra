@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.13 1993-03-05 15:46:26 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.14 1993-09-15 18:07:54 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -897,7 +897,7 @@ An_GetLeft ()
  * Return the left side of the side annotation space.
  */
 {
-	return (F_X1 *GWWidth (Graphics));
+	return (F_X1 * GWWidth (Graphics) + 2);
 }
 
 
