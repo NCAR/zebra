@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.16 1992-10-14 16:35:14 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.17 1992-10-14 16:38:54 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -896,4 +896,3 @@ px_ClearEOPHandler ()
 {
 	EOPHandler = 0;
 }
-                                                                                 
