@@ -1,6 +1,6 @@
 #!/bin/tcsh
 #
-# Get the whole mess going.
+# Real-time Zebra startup for S-Pol
 #
 echo $0 started at `date`
 set execdir = $0:h
@@ -12,6 +12,12 @@ if (! $?ZEBRA_MASTER || ! $?ZEBRA_PROJDIR) then
     echo "${0}: ZEBRA_MASTER and ZEBRA_PROJDIR must be set!"
     exit 1
 endif
+
+#
+# Subset the RHIs presented to Zebra in real-time 
+# (this environment variable is tested in ds.config)
+#
+setenv ZEBRA_SUBSET_RHI
 
 #
 # Make a good guess for XAPPLRESDIR
