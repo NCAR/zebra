@@ -1,4 +1,4 @@
-/* $Id: ui_date.h,v 1.2 1990-09-11 16:12:51 corbet Exp $ */
+/* $Id: ui_date.h,v 1.3 1998-10-28 21:23:02 corbet Exp $ */
 /*
  * Date stuff.
  */
@@ -10,6 +10,7 @@
  */
 # ifdef __STDC__
 	char *ud_format_date (char *, struct date_st *, int);
+	void ud_y2k_date (struct date_st *);
 # else
 	char * ud_format_date ();
 # endif

@@ -4,17 +4,18 @@
  *
  * 6/2/87 cb	Routines which had been pmu_get_* were renamed to pmu_g_*
  *		so they would work on the CRAY
+ *
+ * 10/9/98 jc	(Only 11 years after that last comment...) y2k stuff.
+ *		Also hacked out VMS and Cray stuff, don't think we'll need it.
+ *
  */
 
 # include <stdio.h>
 # include <ctype.h>
-/* # include "pmu:param.h" */
 # define TRUE 1
 # define FALSE 0
 
-# ifdef UNIX
 # include <time.h>
-# endif
 
 /*
  * Table for conversion from time zones to offsets from greenwich.
@@ -88,8 +89,11 @@ char *string;
  * Take the numeric date/time, and encode it into the given string.
  */
 {
+	int year;
+	if ((year = date/10000) < 1000)
+		year += 1900;
 	sprintf (string, "%2d-%s-%4d %2d:%02d:%02d (GMT)", date % 100,
-		Month_names[(date/100) % 100], date/10000 + 1900,
+		Month_names[(date/100) % 100], year,
 		time/10000, (time/100) % 100, time % 100);
 }
 
@@ -222,6 +226,7 @@ int *date;
 	year = 0;
 	while (*cp && isdigit (*cp))
 		year = year*10 + *cp++ - '0';
+# ifdef WHY_DID_I_EVER_THINK_THIS_WAS_A_GOOD_IDEA
 	if (year > 1900)
 		year -= 1900;
 	if (year < 70 || year > 99)
@@ -229,6 +234,11 @@ int *date;
 		ui_error ("Bad year number: %d", year);
 		return (FALSE);
 	}
+# endif
+	if (year < 10)	/* Early 2000's? */
+		year += 2000;
+	else if (year < 100) /* Late 1900's */
+		year += 1900;
 /*
  * Wow!  We actually made it through all that.  Return the date.
  */
@@ -335,39 +345,14 @@ int *date;
  * The the day/month/year values for today, in greenwich.
  */
 {
-	int dtime, offset, hour, minute, d, m, y;
-	char stime[18];
 /*
  * Get today's date, here.
+ * jc y2k: tm_year is defined as "number of years since 1900".
  */
-# ifdef VMS
-	for$jdate (&m, &d, &y);
-	for$time (stime);
-	stime[8] = 0;
-	sscanf (stime, "%d:%d", &hour, &minute);
-# endif
-# ifdef CRAY
-		datime (stime);
-		sscanf (stime, "%d/%d/%d %d:%d", &m, &d, &y, &hour, &minute);
-# endif
-
-# ifdef UNIX
 	time_t clk = time ((long) 0);
 	struct tm *t = gmtime (&clk);
-	*date = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
+	*date = (t->tm_year + 1900)*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
 	return (1);
-# else
-/*
- * Get the offset to greenwich time, in hours.
- */
-	offset = pmu_g_gmt_offset ();
-/*
- * Convert the local date/time to greenwich.
- */
-	*date = y*10000 + m*100 + d;
-	dtime = hour*10000 + minute*100;
-	pmu_dadd (date, &dtime, offset*10000);
-# endif
 }
 
 
@@ -651,12 +636,8 @@ pmu_g_gmt_offset ()
 /*
  * See if the logical name PAM_TIMEZONE is defined.
  */
-# ifdef CRAY
-	tz = "MST";	/* No getenv () under COS */
-# else
 	if ((tz = getenv ("PAM_TIMEZONE")) == 0)
 		tz = "MST";	/* Nope, assume standard time */
-# endif
 /*
  * Now look at the timezone.
  */
@@ -677,40 +658,14 @@ int *date, *rtime;
  * Return today's date/time, in greenwich.
  */
 {
-	int m, d, y, h, min, s, offset;
-	char stime[20];
 /*
  * Get today's date, here.
  */
-# ifdef VMS
-	for$jdate (&m, &d, &y);
-	for$time (stime);
-	stime[8] = 0;
-	sscanf (stime, "%d:%d", &h, &min);
-	s = 0; /* 6/11/87 jc -- this is important! */
-# endif
-# ifdef CRAY
-		datime (stime);
-		sscanf (stime, "%d/%d/%d %d:%d:%d", &m, &d, &y, &h, &min, &s);
-# endif
-# ifdef UNIX
 	time_t clk = time ((long) 0);
 	struct tm *t = gmtime (&clk);
-	*date = t->tm_year*10000 + (t->tm_mon+1)*100 + t->tm_mday;
+	*date = (t->tm_year + 1900)*10000 + (t->tm_mon+1)*100 + t->tm_mday;
 	*rtime = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
 	return (1);
-# else
-/*
- * Get the offset to greenwich time, in hours.
- */
-	offset = pmu_g_gmt_offset ();
-/*
- * Put the date/time into normal format, then adjust by the offset.
- */
-	*date = y*10000 + m*100 + d;
-	*rtime = h*10000 + min*100 + s;
-	pmu_dadd (date, time, offset*10000);
-# endif
 }
 
 

@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.11 1998-02-27 14:43:39 burghart Exp $ */
+/* $Id: ui_expr.c,v 1.12 1998-10-28 21:23:03 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -1919,6 +1919,8 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = v1->us_v_float > v2->us_v_float;
 		break;
 	   case SYMT_DATE:
+	        ud_y2k_date (&v1->us_v_date);
+		ud_y2k_date (&v2->us_v_date);
 		result->us_v_int =
 			(v1->us_v_date.ds_yymmdd > v2->us_v_date.ds_yymmdd) ||
 			((v1->us_v_date.ds_yymmdd == v2->us_v_date.ds_yymmdd)&&
@@ -1951,6 +1953,8 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = v1->us_v_float >= v2->us_v_float;
 		break;
 	   case SYMT_DATE:
+	        ud_y2k_date (&v1->us_v_date);
+		ud_y2k_date (&v2->us_v_date);
 		result->us_v_int =
 			(v1->us_v_date.ds_yymmdd >= v2->us_v_date.ds_yymmdd) ||
 			((v1->us_v_date.ds_yymmdd == v2->us_v_date.ds_yymmdd)&&
@@ -1983,6 +1987,8 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = v1->us_v_float < v2->us_v_float;
 		break;
 	   case SYMT_DATE:
+	        ud_y2k_date (&v1->us_v_date);
+		ud_y2k_date (&v2->us_v_date);
 		result->us_v_int =
 			(v1->us_v_date.ds_yymmdd < v2->us_v_date.ds_yymmdd) ||
 			((v1->us_v_date.ds_yymmdd == v2->us_v_date.ds_yymmdd)&&
@@ -2015,6 +2021,8 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = v1->us_v_float <= v2->us_v_float;
 		break;
 	   case SYMT_DATE:
+	        ud_y2k_date (&v1->us_v_date);
+		ud_y2k_date (&v2->us_v_date);
 		result->us_v_int =
 			(v1->us_v_date.ds_yymmdd < v2->us_v_date.ds_yymmdd) ||
 			((v1->us_v_date.ds_yymmdd == v2->us_v_date.ds_yymmdd)&&
@@ -2049,6 +2057,8 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = v1->us_v_float == v2->us_v_float;
 		break;
 	   case SYMT_DATE:
+	        ud_y2k_date (&v1->us_v_date);
+		ud_y2k_date (&v2->us_v_date);
 		result->us_v_int =
 			(v1->us_v_date.ds_yymmdd == v2->us_v_date.ds_yymmdd) &&
 			(v1->us_v_date.ds_hhmmss == v2->us_v_date.ds_hhmmss);
@@ -2081,6 +2091,8 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = v1->us_v_float != v2->us_v_float;
 		break;
 	   case SYMT_DATE:
+	        ud_y2k_date (&v1->us_v_date);
+		ud_y2k_date (&v2->us_v_date);
 		result->us_v_int =
 			(v1->us_v_date.ds_yymmdd != v2->us_v_date.ds_yymmdd) ||
 			(v1->us_v_date.ds_hhmmss != v2->us_v_date.ds_hhmmss);

@@ -29,6 +29,24 @@ void ud_dayn_to_date (long daynum, long year, long *month, long *day);
 
 
 
+void
+ud_y2k_date (struct date_st *d)
+/*
+ * Rationalize a date structure.
+ */
+{
+	int y = d->ds_yymmdd/10000;
+	
+	if (y <= 0)
+		return; /* Relative date */
+	if (y < 10)
+		d->ds_yymmdd += 20000000;
+	else if (y < 100)
+		d->ds_yymmdd += 19000000;
+}
+
+
+
 char *
 ud_format_date (buffer, dte, opts)
 char *buffer;
@@ -44,6 +62,7 @@ int opts;
  *	The date has been formatted into BUFFER.
  */
 {
+	ud_y2k_date (dte);
 	switch (opts)
 	{
 	   case UDF_FULL:
@@ -51,7 +70,7 @@ int opts;
 			sprintf (buffer, "%2d-%s-%4d,%02d:%02d:%02d",
 				dte->ds_yymmdd % 100,
 				Month_names[(dte->ds_yymmdd/100) % 100],
-				dte->ds_yymmdd/10000 + 1900,
+				dte->ds_yymmdd/10000,
 				dte->ds_hhmmss/10000,
 				(dte->ds_hhmmss/100) % 100,
 				dte->ds_hhmmss % 100);
@@ -81,6 +100,8 @@ date *d1, *d2, *result;
 /*
  * At least one of our date values needs to be an offset, or we have trouble.
  */
+	ud_y2k_date (d1);
+	ud_y2k_date (d2);
 	if (d1->ds_yymmdd > 10000 && d2->ds_yymmdd > 10000)
 		ui_error ("Attempt to add two ABSOLUTE dates");
 /*
@@ -99,7 +120,7 @@ date *d1, *d2, *result;
  	year = d1->ds_yymmdd/10000;
 	if (year == 0)
 		year = d2->ds_yymmdd/10000;
-	leap = (year % 4) == 0;
+	leap = (year % 4) == 0;  /* Screws up in 2100 */
 /*
  * Time to add up the seconds, and carry over the day if necessary.
  */
@@ -214,6 +235,9 @@ date *d1, *d2, *result;
 {
 	long sec1, sec2, day1 = 0, day2 = 0, month, year, day, year2;
 	bool leap;
+
+	ud_y2k_date (d1);
+	ud_y2k_date (d2);
 /*
  * Convert everything into seconds and days.
  */
