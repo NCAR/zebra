@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.10 1992-08-24 21:57:53 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.11 1993-07-23 19:54:48 case Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -9,12 +9,17 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.10 1992-08-24 21:57:53 corbet Exp $";
 # ifdef BSD
 # include <string.h>
 # endif
+# ifdef SVR4
+# include <libgen.h>
+# endif
+
 # include <ctype.h>
 # include "ui_error.h"
 # include "ui_param.h"
 # include "ui_symbol.h"
 # include "ui_date.h"
 # include "ui_globals.h"
+
 
 /*
  * Make sure we won't get into trouble with "const".
@@ -167,7 +172,6 @@ union usy_value *ov, *nv;
 	ui_nf_printf ("    -- to --\n");
 	usy_list_symbol (symbol, nt, nv, 0);
 }
-
 
 
 
@@ -565,6 +569,7 @@ union usy_value *v;
  */
 {
 	char *ip = sym->ste_v.us_v_ptr;
+        int i;
 	
 	switch (sym->ste_type)
 	{
@@ -576,7 +581,7 @@ union usy_value *v;
 		break;
 	   case SYMT_STRING:
 	   	strncpy (ip, v->us_v_ptr, sym->ste_length);
-		if (strlen (v->us_v_ptr) > sym->ste_length)
+		if ((i = strlen (v->us_v_ptr)) > sym->ste_length)
 			ip[sym->ste_length - 1] = '\0';
 		break;
 	   case SYMT_DATE:
@@ -856,7 +861,9 @@ char *re;
 {
 	struct symbol_table *table = (struct symbol_table *) stable;
 	int slot = 0, ret, nsy = 0, i;
+#ifndef SVR4 
 	char *re_comp (), *re_exec ();
+#endif
 	struct ste *sp;
 	struct ste **list =
 		(struct ste **) getvm (table->st_nsym * sizeof (struct ste *));
@@ -871,9 +878,16 @@ char *re;
  */
 	if (re)
 	{
+#ifndef SVR4 
 		char *stat = re_comp (re);
-		if (stat)
-			ui_error ("(BUG) RE comp error: %s", stat);
+                if (stat)
+                        ui_error ("(BUG) RE comp error: %s", stat);
+
+#else
+                char *stat = regcmp(re, (char*)0);
+                if (!stat)
+                        ui_error ("(BUG) RE comp error: %s", stat);
+#endif
 	}
 /*
  * Go through, and build up a list of all entries in this table.
@@ -882,7 +896,11 @@ char *re;
  	for (; slot < HASH_MOD; slot++)
 		for (sp = table->st_ste[slot]; sp; )
 		{
+#ifndef SVR4 
 			if (! re || re_exec (sp->ste_sym))
+#else
+                        if (! re ||  ! regex (re, sp->ste_sym)) 
+#endif
 				list[nsy++] = sp;
 			sp = sp->ste_next;
 		}
