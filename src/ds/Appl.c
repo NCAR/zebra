@@ -25,7 +25,7 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.3 1992-06-29 16:46:05 kris Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.4 1992-07-15 17:12:51 corbet Exp $")
 
 
 /*
@@ -45,7 +45,7 @@ static int	ds_GetNDFResp FP ((struct message *,
 				struct dsp_R_CreateFile *));
 static void	ds_AbortNewDF FP ((PlatformId, int));
 static int	ds_AwaitAck FP ((Message *, int));
-
+static void 	ds_FProcGetList FP ((DataChunk *, GetList *, dsDetail *, int));
 
 /*
  * The application notification table.
@@ -201,16 +201,24 @@ ZebTime *when;
 {
 	int ret = LOCALDATA (PTable[pid]);
 
+	dsm_ShmLock ();
 	for (; ret; ret = DFTable[ret].df_FLink)
 		if (TC_LessEq (DFTable[ret].df_begin, *when))
+		{
+			dsm_ShmUnlock ();
 			return (ret);
+		}
 /*
  * If we didn't find the data locally, see if there's anything in the
  * remote data table.
  */
-	for (ret = REMOTEDATA(PTable[pid]); ret; ret = DFTable[ret].df_FLink)
+	for (ret = REMOTEDATA (PTable[pid]); ret; ret = DFTable[ret].df_FLink)
 		if (TC_LessEq (DFTable[ret].df_begin, *when))
+		{
+			dsm_ShmUnlock ();
 			return (ret);
+		}
+	dsm_ShmUnlock ();
 	return (-1);
 }
 
@@ -237,6 +245,7 @@ char *attr;
 /*
  * Now return some times.
  */
+	dsm_ShmLock ();
 	for (i = 0; i < ntime && df;)
 	{
 		if (!attr || ds_AttrCheck (df, attr))
@@ -246,6 +255,7 @@ char *attr;
 		}
 		df = DFTable[df].df_FLink;
 	}
+	dsm_ShmUnlock ();
 	return (i);
 }
 
@@ -335,12 +345,14 @@ TimeSpec which;
 	 * Now we plow through datafile entries until we have all we
 	 * want.
 	 */
+		dsm_ShmLock ();
 		while (index && ndone < n)
 		{
 			ndone += dfa_DataTimes (index, when, which, n - ndone,
 					       rettimes + ndone);
 			index = DFTable[index].df_FLink;
 		}
+		dsm_ShmUnlock ();
 		return (ndone);
 /*
  * We now do DsAfter too.
@@ -350,6 +362,7 @@ TimeSpec which;
 	 * Scan down the datafile list until we find the first entry
 	 * which does not end after the time of interest.
 	 */
+		dsm_ShmLock ();
 		for (index = LOCALDATA(PTable[platform]); index;
 					index = DFTable[index].df_FLink)
 		{
@@ -374,14 +387,18 @@ TimeSpec which;
 	 */
 		if (index)
 			index = DFTable[index].df_BLink;
-		else if (!(index = last))
+		else if (! (index = last))
+		{
+			dsm_ShmUnlock ();
 			return (0);
+		}
 	/*
 	 * Now we move forward filling the array.
 	 */
 		for (; index && ndone < n; index = DFTable[index].df_BLink)
 			ndone += dfa_DataTimes(index, when, which, n - ndone,
 					       rettimes + n - ndone - 1);
+		dsm_ShmUnlock ();
 	/*
 	 * If we couldn't do it all, copy what we could do forward.
 	 */
@@ -501,7 +518,7 @@ struct message *msg;
 
 
 void
-ds_DeleteData(platform, leave)
+ds_DeleteData (platform, leave)
 PlatformId platform;
 int leave;
 /*
@@ -513,8 +530,29 @@ int leave;
 	del.dsp_type = dpt_DeleteData;
 	del.dsp_plat = platform;
 	del.dsp_leave = leave;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &del, sizeof(del));
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &del, sizeof (del));
 }
+
+
+
+
+
+void
+ds_ForceRescan (platform, all)
+PlatformId platform;
+int all;
+/*
+ * Force a rescan of this platform, or all of them if ALL is TRUE.
+ */
+{
+	struct dsp_Rescan req;
+
+	req.dsp_type = dpt_Rescan;
+	req.dsp_pid = platform;
+	req.dsp_all = all;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof (req));
+}
+
 
 
 
@@ -652,12 +690,38 @@ dsDetail *details;
 	dc->dc_Platform = pid;
 /*
  * Pass through the get list, snarfing data for each entry.
+ *
+ * Hmm...the getlist is returned in the usual reverse-time order, which 
+ * was never a problem in the past.  Now we need to reverse things again.
  */
+# ifdef notdef
 	for (gp = get; gp; gp = gp->gl_next)
 		dfa_GetData (dc, gp, details, ndetail);
+# endif
+	ds_FProcGetList (dc, get, details, ndetail);
 	dgl_ReturnList (get);
 	return (dc);
 }
+
+
+
+
+
+static void
+ds_FProcGetList (dc, gp, details, ndetail)
+DataChunk *dc;
+GetList *gp;
+dsDetail *details;
+int ndetail;
+/*
+ * Process the getlist in reverse order.
+ */
+{
+	if (gp->gl_next)
+		ds_FProcGetList (dc, gp->gl_next, details, ndetail);
+	dfa_GetData (dc, gp, details, ndetail);
+}
+
 
 
 
@@ -832,7 +896,7 @@ WriteCode *wc;
 		if (! newfile &&
 			 dp->df_nsample < PTable[dp->df_platform].dp_maxsamp &&
 			 ds_SameDay (&when, &dp->df_end) &&
-			 ! dp->df_archived)
+			 (dp->df_flags & DFF_Archived) == 0)
 			*wc = wc_Append;
 		else
 			*wc = wc_NewFile;
