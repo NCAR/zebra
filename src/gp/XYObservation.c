@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.1 1992-08-10 18:06:06 barrett Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.2 1992-11-10 22:07:01 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -69,6 +69,7 @@ typedef struct _Obs
  * Color array and indices
  */
 extern XColor 	Tadefclr;
+extern void An_ColorScale FP ((char *, char *, int, int, int));
 
 
 void
@@ -82,7 +83,7 @@ bool	update;
 	bool	ok;
 	int	i,  plat, nplat,ii,jj;
 	int	xrescale = 0, yrescale = 0;
-	int	npts[MAX_PLAT], ns, gridsize;
+	int	npts[MAX_PLAT], ns;
 	ObsRec	obs[MAX_PLAT][MAX_OBS];
 	ZebTime	ztimes[MAX_OBS];
 	int	nobs[MAX_PLAT], no;
@@ -90,14 +91,12 @@ bool	update;
 	int	count;
 	int 	nPlotted;
 	char	platforms[80], tadefcolor[30];
-	char	ctname[20];
 	char	dataNames[3][80];
 	ZebTime    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
 	ZebTime    eTimeReq,bTimeReq;
 	ZebTime	zt;
 	char	valLabel[32];
 	char	stime1[80],stime2[80];
-	int	change;
 	long	autoTime;
 	char	*pnames[MAX_PLAT];
 	char	*fnames[3][MAX_PLAT];
@@ -118,19 +117,18 @@ bool	update;
 	DataValRec	oldxmin,oldxmax,oldymin,oldymax;
 	DataValRec	xpos[2],ypos[2];
 	float		loc,pos;
-	int		zi,si,ei;
+	int		si,ei;
 	float		zScale;
 	unsigned short	xscalemode,yscalemode;
 	char	xtype = 'f', ytype = 'f',ztype = 'f';
 	int	fcount;
         int	xdim,ydim,zdim;
-	int	saveConfig;
 	int	dmode ;
 	char	style[80];
 	char	datalabel[80];
 	char	timelabel[80];
-	int	annotLoc;
-	int	sideAnnot;
+	bool	annotLoc;
+	bool	sideAnnot;
 	char	zJustify[10];
 	float	fscale;
 /*
@@ -213,6 +211,8 @@ bool	update;
 	xmax = oldxmax;
 	ymin = oldymin;
 	ymax = oldymax;
+	/* Make sure coordinate system is initialized */
+	lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
         xy_GetDataDescriptors(Pd, c, update, 
 			      &bTimeTarget,&eTimeTarget, 
 			      &bTimeOld,&eTimeOld,
@@ -382,8 +382,7 @@ bool	update;
 		    nobs[plat] = 0;
 		    for (n = 0; n < fcount; n++)
 		    {
-			data[n] = (float *) malloc (npts[plat] *
-					sizeof (float));
+			data[n] = (float *)malloc (npts[plat] * sizeof (float));
 			for (m = 0; m < npts[plat]; m++)
 			{
 		    	    dc_GetTime (dc, m, &zt );
@@ -502,11 +501,15 @@ bool	update;
 			pnames[plat], fnames[0][plat],
 			fnames[1][plat], linecolor[plat]);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
-		strlen(datalabel)+1,25, FALSE,FALSE);
-		    TC_EncodeTime ( &eTimeReq, TC_Full, timelabel );
-		    sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
-		    An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
+		TC_EncodeTime ( &eTimeReq, TC_Full, timelabel );
+		sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
+		An_AddAnnotProc ( An_ColorString, c, datalabel,
+		    strlen(datalabel)+1,25, FALSE,FALSE);
+		sprintf(datalabel, "%f %d %s %s", 
+		    zScale, F_PIX_WIDTH,linecolor[plat],fnames[2][plat]);
+		An_AddAnnotProc ( An_ColorScale, c, 
+		    datalabel, strlen(datalabel)+1,35,FALSE,FALSE);
 	    }
 	}
 /*
@@ -586,9 +589,6 @@ bool	update;
                     if ( ei - si > 0 )
 		    {
 			xy_GetDataMinMax (0,&zmin,&zmax,zdata[plat]+si, ei-si);
-	        	msg_ELog ( EF_DEBUG, 
-			    "X-Y Observation data range %f - %f, position %f",
-			    zmin.val.f, zmax.val.f, pos );
 			switch ( xtype )
 			{
 			    case 't':
