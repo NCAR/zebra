@@ -33,7 +33,7 @@ static float vpres (float);
 static PyMethodDef WDerMethods[] = {
 	{ "TempHumToDp", wder_TempHumToDp, 1},
 	{ "ThetaE", wder_ThetaE, 1},
-	{ "PresDpToMr", wder_PresTempToMr, 1 },
+	{ "PresDpToMr", wder_PresDpToMr, 1 },
 	{ NULL, NULL },
 };
 
