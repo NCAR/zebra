@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.28 1997-01-14 21:44:40 case Exp $
+/**/# $Id: site-def.h.template,v 1.29 1997-03-11 16:14:57 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -304,9 +304,15 @@
  *
  *        # define TermcapLibrary -L/usr/ccs/lib -ltermcap
  *
- * Some Linux users may need to change this to:
+ * Linux users must have either the curses or termcap development libraries
+ * installed.  Check /usr/lib for libtermcap.a or libncurses.a.  If neither 
+ * file exists, one or the other must be installed from your linux 
+ * distribution media.  Consult your linux documentation for directions to
+ * install additional packages to your system.  If /usr/lib/libtermcap.a 
+ * exists, do not edit TermcapLibrary below.  If you don't have libtermcap.a
+ * but do have libncurses.a, modify the line below to read:
+ *  
  *	  # define TermcapLibrary -lncurses
- *
  */
 
 # define TermcapLibrary -ltermcap
@@ -326,8 +332,9 @@
  */
 
 /*
- * Byte ordering flag.  Do not change this unless you are attempting a
- * port to another machine which has "little endian" byte ordering.
+ * Byte ordering flag.  Do not change this unless you are installing
+ * SOLO on a linux machine or attempting a port to another system
+ * which has "little endian" byte ordering.
  *
  */
 
