@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.7 1993-05-18 20:43:27 granger Exp $
+/* $Id: ingest.c,v 1.8 1993-06-10 22:31:22 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -31,6 +31,7 @@
  * defining your own protocol handlers with the message library functions.
  */
 
+#include <varargs.h>
 #include "ingest.h"
 
 /*
@@ -41,7 +42,7 @@
 #undef ds_DeleteData
 
 #ifndef lint
-MAKE_RCSID("$Id")
+MAKE_RCSID("$Id: ingest.c,v 1.8 1993-06-10 22:31:22 granger Exp $")
 #endif
 
 
@@ -86,8 +87,7 @@ short DumpDataChunks = 0;	/* Dump data chunks as ds_Store'd */
 
 
 void
-IngestLog(flags, va_alist)
-int flags;
+IngestLog(va_alist) 
 va_dcl
 /*
  * Send messages to the event logger and to stdout, according
@@ -95,10 +95,15 @@ va_dcl
  */
 {
 	va_list args;
+	int flags;
 	struct msg_elog *el;
 	static char cbuf[1024];
 	char *fmt;
 	char note; 	/* Signifies what type of message being logged */
+
+	va_start(args);
+	flags = va_arg(args, int);
+	fmt = va_arg(args, char *);
 
 	if (flags & EF_EMERGENCY)
 		note = 'E';
@@ -115,23 +120,29 @@ va_dcl
 	else
 		note = '-';
 
-	va_start(args);
-	fmt = va_arg(args, char *);
-
 	/*
 	 * First check our local debug flag, which indicates which events
 	 * should get sent to stderr
 	 */
 	if (IngestLogFlags & flags)
 	{
-		fprintf(stderr,"%c",note);
+		sprintf(cbuf,"%c",note);
 		if (ShowIngestName)
-			fprintf(stderr," %s: ",IngestName);
+			sprintf(cbuf+strlen(cbuf)," %s: ",IngestName);
 		else
-			fprintf(stderr,": ");
-		vfprintf(stderr,fmt, args);
-		fprintf(stderr,"\n");
+			sprintf(cbuf+strlen(cbuf),": ");
+		vsprintf(cbuf+strlen(cbuf), fmt, args);
+		strcat(cbuf, "\n");
+		fprintf(stderr, cbuf);
 	}
+
+	/*
+	 * Now create the message to the event logger, so that we can
+	 * end the varargs list before returning
+	 */
+	el = (struct msg_elog *) cbuf;
+	vsprintf(el->el_text, fmt, args);
+	va_end(args);
 
 	/*
 	 * Remove the EF_DEVELOP flag, and if no flag remains, don't
@@ -142,12 +153,8 @@ va_dcl
 		return;
 
 	/*
-	 * Now create the message to the event logger, and send it
-	 * iff NoEventLogger == 0
+	 * Send the message iff NoEventLogger == 0
 	 */
-	el = (struct msg_elog *) cbuf;
-	vsprintf(el->el_text, fmt, args);
-	va_end(args);
 	if (!NoEventLogger)
 	{
 		/*
@@ -341,7 +348,8 @@ IngestInitialize(name)
 	char *name;		/* Message name of this ingest module */
 {
 
-	IngestName = name;
+	IngestName = (char *)malloc(strlen(name)+1);
+	strcpy (IngestName, name);
 
 	usy_init ();
 	if (!DryRun)
