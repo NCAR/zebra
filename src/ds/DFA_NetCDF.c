@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.2 1992-06-09 20:30:33 burghart Exp $")
 
 # include "netcdf.h"
 
@@ -45,8 +45,9 @@ typedef struct _nctag
 	long            nc_base;	/* Base time value		 */
 	int             nc_vTime;	/* Time variable ID		 */
 	int             nc_dTime;	/* The time dimension		 */
-	float          *nc_times;	/* The time offset array	 */
-	int             nc_dTOffset;	/* The dimension of time_offset */
+	double         *nc_times;	/* The time offset array	 */
+	int		nc_timeIsFloat; /* Float or double time?	 */
+	int             nc_dTOffset;	/* The dimension of time_offset	 */
 	int             nc_ntime;	/* The number of time records	 */
 	int             nc_nrec;	/* How many records in the file	 */
 	DataOrganization nc_org;	/* The purported organization	 */
@@ -132,7 +133,7 @@ static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, int, int));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
 static void	dnc_ApplyBadval FP ((NCTag *, int, double, float *, int));
-static float	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
+static double	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
 static void	dnc_DoWriteCoords FP ((NCTag *, DataChunk *, int, long *,
 			long *));
 
@@ -151,12 +152,15 @@ char *file;
 ZebTime *begin, *end;
 int *nsamp;
 /*
- * Query the times on this file.
+ * Query the time1s on this file.
  */
 {
 	int id, ndim, nvar, natt, rdim, tvar, btime;
+	nc_type dtype;
+	int dims[MAX_VAR_DIMS];
 	long base, maxrec, index;
-	float offset;
+	float foffset;
+	double offset;
 /*
  * Try opening the file.
  */
@@ -171,16 +175,36 @@ int *nsamp;
 	btime = ncvarid (id, "base_time");
 	tvar = ncvarid (id, "time_offset");
 /*
+ * Find out whether the time offsets are float (old files) or double (newer
+ * files)
+ */
+	ncvarinq (id, tvar, (char *) 0, &dtype, &ndim, dims, &natt);
+/*
  * Now pull out the times.
  */
 	ncvarget1 (id, btime, 0, &base);
+
 	index = 0;
-	ncvarget1 (id, tvar, &index, &offset);
+	if (dtype == NC_FLOAT)
+	{
+		ncvarget1 (id, tvar, &index, &foffset);
+		offset = (double) foffset;
+	}
+	else
+		ncvarget1 (id, tvar, &index, &offset);
+
 	begin->zt_Sec = base + (int) offset;
 	begin->zt_MicroSec = offset - aint (offset);
 
 	index = maxrec - 1;
-	ncvarget1 (id, tvar, &index, &offset);
+	if (dtype == NC_FLOAT)
+	{
+		ncvarget1 (id, tvar, &index, &foffset);
+		offset = (double) foffset;
+	}
+	else
+		ncvarget1 (id, tvar, &index, &offset);
+
 	end->zt_Sec = base + (int) offset;
 	end->zt_MicroSec = offset - aint (offset);
 /*
@@ -578,8 +602,8 @@ NCTag *tag;
 	}
 	ncvarget1 (tag->nc_id, vbase, 0, &tag->nc_base);
 /*
- * There better be a time offset field.  We will assume that it is a
- * float field for now.
+ * There better be a time offset field.  Determine whether we're dealing
+ * with a file with float or double times.
  */
 	if ((tag->nc_vTime = ncvarid (tag->nc_id, "time_offset")) < 0)
 	{
@@ -598,6 +622,7 @@ NCTag *tag;
 		return (FALSE);
 	}
 	tag->nc_dTOffset = dims[0];
+	tag->nc_timeIsFloat = (dtype == NC_FLOAT);
 /*
  * Pull in the time array, and we're done.
  */
@@ -616,6 +641,8 @@ NCTag *tag;
  */
 {
 	long ntime, zero = 0;
+	float *ftime;
+	int status, i;
 /*
  * If the number of times available exceeds the space allocated,
  * start over.
@@ -629,7 +656,7 @@ NCTag *tag;
 	{
 		if (tag->nc_ntime)
 			free (tag->nc_times);
-		tag->nc_times = (float *) malloc (ntime * sizeof (float));
+		tag->nc_times = (double *) malloc (ntime * sizeof (double));
 	}
 	tag->nc_ntime = ntime;
 	msg_ELog (EF_DEBUG, "cdf times: %d samps", ntime);
@@ -638,8 +665,26 @@ NCTag *tag;
  * should be a bit more careful and not read the entire array -- it
  * could be expensive.
  */
-	if (ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime,
-					tag->nc_times) < 0)
+	if (tag->nc_timeIsFloat)
+	{
+	/*
+	 * Read the time as floats, then move it to the double array.
+	 */
+		ftime = (float *) malloc (ntime * sizeof (float));
+		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
+			ftime);
+
+		if (status >= 0)
+			for (i = 0; i < ntime; i++)
+				tag->nc_times[i] = (double) ftime[i];
+
+		free (ftime);
+	}
+	else
+		ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
+			tag->nc_times);
+
+	if (status < 0)
 	{
 		dnc_NCError ("time_offset get");
 		return (FALSE);
@@ -1237,9 +1282,9 @@ ZebTime *dest;
 
 	for (i = 0; i < nsamp; i++)
 	{
-		float t = tag->nc_times[begin + i];
+		double t = tag->nc_times[begin + i];
 		dest->zt_Sec = tag->nc_base + (long) t;
-		dest->zt_MicroSec = (long) ((t - aint (t))/1000000.0);
+		dest->zt_MicroSec = (long) ((t - aint (t)) * 1000000);
 		dest++;
 	}
 }
@@ -1387,7 +1432,7 @@ ZebTime *t;
  * Figure out how far into this file we have to go to get to this time.
  */
 {
-	float offset;
+	double offset;
 	int i;
 /*
  * Find out the time offset from the beginning of the file.
@@ -1525,7 +1570,7 @@ TimeSpec which;
 {
 	NCTag *tag;
 	int t, i;
-	float offset;
+	double offset;
 /*
  * Get the file open.
  */
@@ -1625,8 +1670,9 @@ NCTag **rtag;
 /*
  * Fill in some basic tag info.
  */
-	tag->nc_times = (float *) 0;
+	tag->nc_times = (double *) 0;
 	tag->nc_ntime = tag->nc_nrec = 0;
+	tag->nc_timeIsFloat = FALSE;
 	tag->nc_org = plat->dp_org;
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
@@ -1651,10 +1697,12 @@ NCTag **rtag;
 	dims[0] = tag->nc_dTime;
 	dnc_CFMakeDims (tag, dc, &ndim, dims);
 /*
- * Make the time variables.
+ * Make the time variables.  The time_offset field is now stored as a double
+ * so we have sufficient precision to represent reasonable time offsets down
+ * to the microsecond.
  */
 	vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
-	tag->nc_vTime = ncvardef (tag->nc_id, "time_offset", NC_FLOAT,
+	tag->nc_vTime = ncvardef (tag->nc_id, "time_offset", NC_DOUBLE,
 					 1, &tag->nc_dTime);
 	dc_GetTime (dc, 0, &t);
 	tag->nc_base = t.zt_Sec;
@@ -1945,7 +1993,7 @@ DataChunk *dc;
 
 
 
-static float
+static double
 dnc_ZtToOffset (tag, zt)
 NCTag *tag;
 ZebTime *zt;
@@ -1970,7 +2018,9 @@ long *fsample;
  * Figure out just where this sample is supposed to go.
  */
 {
+	int status;
 	long one = 1;
+	float ftime;
 /*
  * It all depends on the write code.
  */
@@ -1983,10 +2033,10 @@ long *fsample;
 	 */
 	   case wc_Append:
 		if (tag->nc_ntime)
-			tag->nc_times = (float *) realloc (tag->nc_times,
-				    (tag->nc_ntime + 1) * sizeof(float));
+			tag->nc_times = (double *) realloc (tag->nc_times,
+				    (tag->nc_ntime + 1) * sizeof(double));
 		else
-			tag->nc_times = (float *) malloc (sizeof(float));
+			tag->nc_times = (double *) malloc (sizeof(double));
 		tag->nc_times[tag->nc_ntime] = dnc_ZtToOffset (tag, t);
 		*fsample = tag->nc_ntime++;
 		break;
@@ -2009,9 +2059,19 @@ long *fsample;
 /*
  * Flush out the new TOC entry.
  */
-	if (ncvarput (tag->nc_id, tag->nc_vTime, fsample, &one,
-			    tag->nc_times + *fsample) < 0)
+	if (tag->nc_timeIsFloat)
+	{
+		ftime = (float) tag->nc_times[*fsample];
+		status = ncvarput (tag->nc_id, tag->nc_vTime, fsample, &one, 
+			&ftime);
+	}
+	else
+		status = ncvarput (tag->nc_id, tag->nc_vTime, fsample, &one,
+			    tag->nc_times + *fsample);
+
+	if (status < 0)
 		dnc_NCError("New time write");
+
 	return (TRUE);
 }
 
