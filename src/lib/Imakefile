@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.21 1997-01-14 22:07:49 granger Exp $ */
+/* $Id: Imakefile,v 1.22 1997-02-10 20:18:07 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -26,6 +26,10 @@ WRITEVSRC=writev.c
 #else
 WRITEVOBJ=
 WRITEVSRC=
+#endif
+
+#ifdef notdef
+INCLUDES = -I.		/* so that <> includes can be found */
 #endif
 
 /*
@@ -41,7 +45,8 @@ SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c cmd_proto.c cmd_exec.c \
 	msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c pdaux.c \
 	RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
 	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS) \
-	location.c version.c zl_symbol.c zl_string.c T_Expect.c T_Profile.c
+	location.c version.c zl_symbol.c zl_string.c T_Expect.c T_Profile.c \
+	zebra_xdr.c map.c map_xdr.c
 
 XOBJS = Bitmaps.o barb.o vector.o Buttons.o
 XUIOBJS = alarmwidget.o twidget.o dm_lib.o 
@@ -54,21 +59,30 @@ OBJS = $(SPECIAL_OBJS) altunits.o cmd_exec.o \
 	convert.o GraphicsW.o ImageXfr.o \
 	msg_BCast.o msg_lib.o netread.o Parse.o \
 	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o \
-	$(WRITEVOBJ) FindFile.o zl_regex.o \
+	$(WRITEVOBJ) FindFile.o zl_regex.o zebra_xdr.o map_xdr.o map.o \
 	location.o version.o zl_symbol.o zl_string.o T_Expect.o T_Profile.o
 
 TESTOBJS = cvt_test.o re_test.o msg_test.o
 
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
-	draw.h version.h zl_symbol.h zl_param.h Test.h
+	draw.h version.h zl_symbol.h zl_param.h Test.h zebra.h map.h
+
+RPCZEBRA = zebra.h zebra_xdr.c
+ZEBRA.x = zebra.x
+
+RPCMAP = map.h map_xdr.c
+MAP.x = map.x
+
+RPCTARGETS = $(RPCZEBRA) $(RPCMAP)
+SOURCES.x = $(ZEBRA.x) $(MAP.x)
 
 /*
  * Private internal header files
  */
-PRIVATE_HEADERS = setup.h
+PHEADERS = setup.h
 
-DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PRIVATE_HEADERS)
+DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PHEADERS) $(SOURCES.x)
 
 NormalLibraryTarget (Zebra, $(OBJS))
 
@@ -77,6 +91,19 @@ SpecialObjectRule($(XOBJS),/**/,$(XINCLUDES))
 SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
 SpecialObjectRule($(CFGOBJS),/**/,$(DIRDEFINES) $(RDSSINCLUDES))
 SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
+
+/*
+ * rpcgen rules
+ */
+$(RPCZEBRA): $(ZEBRA.x)
+	@for x in $(ZEBRA.x); do \
+	(set -x; rpcgen $(RPCGENFLAGS) $$x); done
+
+$(RPCMAP): $(MAP.x)
+	@for x in $(MAP.x); do \
+	(set -x; rpcgen $(RPCGENFLAGS) $$x); done
+
+depend:: $(RPCTARGETS)
 
 InstallLibrary (Zebra, $(LIBDIR))
 

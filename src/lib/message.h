@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.28 1996-12-13 18:27:27 granger Exp $ */
+/* $Id: message.h,v 2.29 1997-02-10 20:18:11 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -19,8 +19,8 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# ifndef _ZEB_MESSAGE_H_
-# define _ZEB_MESSAGE_H_
+# ifndef _ZEBRA_MESSAGE_H_
+# define _ZEBRA_MESSAGE_H_
 
 # include <sys/types.h>		/* To get fd_set */
 
@@ -380,4 +380,4 @@ int msg_netread FP ((int fd, char *dest, int len));
 
 # endif /* MESSAGE_MANAGER || MESSAGE_LIBRARY */
 
-# endif /* ! _ZEB_MESSAGE_H_ */
+# endif /* ! _ZEBRA_MESSAGE_H_ */

@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.34 1996-12-06 21:24:30 granger Exp $ */
+/* $Id: defs.h,v 2.35 1997-02-10 20:18:08 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,8 +19,8 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# ifndef _zeb_defs_h_
-# define _zeb_defs_h_
+# ifndef _zebra_defs_h_
+# define _zebra_defs_h_
 
 /*
  * This at least seems safe enough 
@@ -54,15 +54,9 @@ typedef struct date_st UItime;	/* Different from UI "date" so we can
 
 enum pmode { NoMode, History, RealTime };
 
-/*
- * Here is the new zebra time format.  This looks suspiciously like the
- * BSD timeval structure....
- */
-typedef struct _ZebTime
-{
-	long	zt_Sec;		/* Seconds since 1/1/70		*/
-	long	zt_MicroSec;	/* Microseconds added to zt_Sec */
-} ZebTime, ZebraTime;
+#include "zebra.h"		/* Library types and XDR interfaces */
+
+extern const Location LOC_NONE;
 
 extern const ZebraTime ZT_NONE;
 extern const ZebraTime ZT_ALPHA;
@@ -80,53 +74,6 @@ typedef enum
 	TC_Full,		/* The whole works		*/
 	TC_FullUSec		/* Full with microseconds	*/
 } TimePrintFormat;
-
-/*
- * Locations.
- */
-typedef struct s_Location
-{
-	float	l_lat;
-	float	l_lon;
-	float	l_alt;
-} Location;
-
-extern const Location LOC_NONE;
-
-/*
- * Scale and bias info for integer-encoded fields.
- */
-typedef struct _ScaleInfo
-{
-	float	s_Scale;		/* real value = data/s_scale	*/
-	float	s_Offset;		/*   + s_Offset			*/
-} ScaleInfo;
-
-/*
- * Regularly-spaced grids in geographical coordinates
- */
-typedef struct _RGrid
-{
-	float	rg_Xspacing;		/* X dimension spacing		*/
-	float	rg_Yspacing;		/* Y (north/south) spacing	*/
-	float	rg_Zspacing;		/* Vertical spacing		*/
-	int	rg_nX, rg_nY, rg_nZ;	/* Dimensions			*/
-} RGrid;
-
-/*
- * Altitude units.  If you add new units here, be sure to add associated
- * units strings and formats to altunits.c.
- */
-typedef enum 
-{
-	AU_kmMSL,	/* km MSL */
-	AU_mMSL,	/* m MSL */
-	AU_kmAGL,	/* km AGL */
-	AU_mAGL,	/* m AGL */
-	AU_mb,		/* mb (pressure altitude) */
-	AU_sigma,	/* sigma level (unitless) */
-	AU_level	/* unknown, unitless level */
-} AltUnitType;
 
 /*
  * Functions.
@@ -230,4 +177,4 @@ void cvt_ShowOrigin FP ((void));
  */
 # define MAKE_RCSID(id) RCSID(id)
 
-# endif /* !_zeb_defs_h_ */
+# endif /* !_zebra_defs_h_ */

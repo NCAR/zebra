@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.46 1996-12-20 00:15:34 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.47 1997-02-10 20:18:12 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -1920,9 +1920,10 @@ struct msg_elog *el;
 		return;
 /*
  * If this message won't get logged, don't bother sending it.
+ * Development logs get printed if requested but never sent.
  */
-	el->el_flag &= ~EF_DEVELOP;
-	if (! (el->el_flag & SendMask) && ! (el->el_flag & PrintMask))
+	if (! (el->el_flag & SendMask & ~EF_DEVELOP) &&
+	    ! (el->el_flag & PrintMask))
 		return;
 /*
  * Determine the character code for our message.
@@ -1945,19 +1946,20 @@ struct msg_elog *el;
  * Print the message if we're shutting down or the message matches the 
  * print mask.
  */
-	if ((ShuttingDown && (el->el_flag & SendMask)) || 
+	if ((ShuttingDown && (el->el_flag & SendMask & ~EF_DEVELOP)) || 
 	    (el->el_flag & PrintMask))
 	{
-		printf ("%s[%c] %s%s\n", Identity, code, 
-			(el->el_flag & EF_EMERGENCY) ? "EMERGENCY: " :
-			((el->el_flag & EF_PROBLEM) ? "PROBLEM: " : ""),
-			el->el_text);
+		fprintf (stderr, "%s[%c] %s%s\n", Identity, code, 
+			 (el->el_flag & EF_EMERGENCY) ? "EMERGENCY: " :
+			 ((el->el_flag & EF_PROBLEM) ? "PROBLEM: " : ""),
+			 el->el_text);
 	}
 /*
  * Actually send the message only if it's in the send mask, we're not
  * shutting down, and we're connected.
  */
-	if (! ShuttingDown && (el->el_flag & SendMask) && ! NoConnection)
+	if (! ShuttingDown && ! NoConnection &&
+	    (el->el_flag & SendMask & ~EF_DEVELOP))
 	{
 		msg_send (EVENT_LOGGER_GROUP, MT_ELOG, TRUE, el,
 			  sizeof (*el) + strlen (el->el_text));
