@@ -62,6 +62,7 @@ char *url, *realurl;
  */
 {
 	char temp[CFG_FILEPATH_LEN], *sharp, *strchr ();
+	char section[CFG_FILEPATH_LEN];
 /*
  * If this is some sort of network URL we don't mess with it.
  */
@@ -76,16 +77,23 @@ char *url, *realurl;
  */
 	strcpy (temp, url);
 	if (sharp = strchr (temp, '#'))
+	{
 		*sharp = '\0';
+		strcpy (section, sharp + 1);
+	}
 /*
  * The crux: can we find a file?
  */
 	if (! FindFile (temp, HelpPath, realurl))
-		return (FALSE);
+	{
+		strcat (temp, ".html");
+		if (! FindFile (temp, HelpPath, realurl))
+			return (FALSE);
+	}
 	if (sharp)
 	{
-		*sharp = '#';
-		strcat (realurl, sharp);
+		strcat (realurl, "#");
+		strcat (realurl, section);
 	}
 	return (TRUE);
 }
