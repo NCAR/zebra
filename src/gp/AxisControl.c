@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.18 1993-12-22 22:08:58 corbet Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.19 1994-02-10 23:18:12 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -290,9 +290,10 @@ AxisSide	side;
 		    {
 			XSetForeground (Disp, Gcontext, gridPix.pixel);
 			XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
-				   Gcontext, 
-				   xloc, (1.0 - FY0) * GWHeight (Graphics), 
-				   xloc, (1.0 - FY1) * GWHeight (Graphics));
+				   Gcontext, xloc,
+				   (int) ((1.0 - FY0) * GWHeight (Graphics)), 
+				   xloc,
+				   (int) ((1.0 - FY1) * GWHeight (Graphics)));
 			XSetForeground (Disp, Gcontext, mainPix.pixel);
 		    }
 		    /*
@@ -410,8 +411,9 @@ AxisSide	side;
 		    {
 			XSetForeground (Disp, Gcontext, gridPix.pixel);
 			XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
-				   Gcontext, FX0 * GWWidth (Graphics), yloc, 
-				   FX1 * GWWidth (Graphics), yloc);
+				   Gcontext, (int) (FX0 * GWWidth (Graphics)),
+				   yloc, (int) (FX1 * GWWidth (Graphics)),
+				   yloc);
 			XSetForeground (Disp, Gcontext, mainPix.pixel);
 		    }
 		    /*
