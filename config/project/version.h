@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 1.6 1995-04-14 23:52:38 granger Exp $
+ * $Id: version.h,v 1.7 1995-05-25 00:07:14 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -73,7 +73,9 @@ static char cppsyms[] = "@(#)$Symbols: "
 " AutoBuild "
 #endif
 " $";
+#ifdef __GNUC__
 static const char *use_cppsyms = (0, use_cppsyms, cppsyms);
+#endif
 #else
 static char cppsyms[] = "@(#)$Symbols: __STDC__ not defined$";
 #endif /* __STDC__ */
@@ -101,6 +103,7 @@ static char cppsyms[] = "@(#)$Symbols: __STDC__ not defined$";
 #else
 #if __STDC__
 
+#ifdef __GNUC__
 #define RCSID(id) \
 static const char i_sccsid[4] = { '@', '(', '#', ')' }; \
 static const char rcs_id[] = "@(#)" id ;			  \
@@ -117,6 +120,23 @@ static const char *use_rcs_author = (0, use_rcs_author, rcs_author);
 #define RCSSTATE(id) \
 static const char rcs_state[] = "@(#)" id ; \
 static const char *use_rcs_state = (0, use_rcs_state, rcs_state);
+
+#else /* !__GNUC__ */
+
+#define RCSID(id) \
+static const char i_sccsid[4] = { '@', '(', '#', ')' }; \
+static const char rcs_id[] = "@(#)" id ;			  \
+static const char compileid[] = 			  \
+	"@(#)" "$Compiled: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
+
+#define RCSAUTHOR(id) \
+static const char rcs_author[] = "@(#)" id ;
+
+
+#define RCSSTATE(id) \
+static const char rcs_state[] = "@(#)" id ;
+
+#endif /* __GNUC__ */
 
 #else /* not lint and not __stdc__ */
 /*
@@ -144,12 +164,14 @@ static const char rcs_author[] = id ;
 
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.6 1995-04-14 23:52:38 granger Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.7 1995-05-25 00:07:14 granger Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
+#ifdef __GNUC__
 static const char *use_V_sccsid = (0, use_V_sccsid, V_sccsid);
 static const char *use_V_rcs_id = (0, use_V_rcs_id, V_rcs_id);
 static const char *use_V_compileid = (0, use_V_compileid, V_compileid);
+#endif
 #endif /* __STDC__ */
 
 /*
@@ -159,20 +181,20 @@ static const char *use_V_compileid = (0, use_V_compileid, V_compileid);
  * well as updating the ChangeLog and this file.
  */
 static const char zeb_version_id1[] = 
-"@(#)$ZebVersion: 4.1 $";
+"@(#)$ZebVersion: 4.2-alpha $";
 static const char zeb_version_id2[] = 
 "@(#)$ZebVersion: Research Data Program, NCAR $";
 static const char zeb_version_id3[] = 
 "@(#)$Copyright: University Corporation for Atmospheric Research, 1994 $";
 
-#if __STDC__
+#if __GNUC__
 static const char *use_zeb_version_id1 = 
 	(0, use_zeb_version_id1, zeb_version_id1);
 static const char *use_zeb_version_id2 = 
 	(0, use_zeb_version_id2, zeb_version_id2);
 static const char *use_zeb_version_id3 = 
 	(0, use_zeb_version_id3, zeb_version_id3);
-#endif /* __STDC__ */
+#endif /* __GNUC__ */
 
 #endif /* lint, LINT, and SABER */
 
