@@ -351,7 +351,7 @@ char	*platform, *fname;
 
 
 
-void
+static void
 swapfour (array, count)
 int	*array, count;
 /*
@@ -375,7 +375,7 @@ int	*array, count;
 
 
 
-void
+static void
 ll_limits ()
 {
 	float	fline, felem, dummy, lat, lon;
