@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.19 1992-11-02 22:04:30 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.20 1992-11-03 22:19:54 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -50,7 +50,7 @@ extern bool MovieMode;		/* Movie mode?				*/
 /*
  * Post processing stuff.
  */
-extern int PostProcMode;	/* Post processing mode?		*/
+extern bool PostProcMode;	/* Post processing mode?		*/
 extern ZebTime PostProcTime;	/* Post processing mode history time	*/
 /*
  * Needed for opening the FrameFile.

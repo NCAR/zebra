@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.21 1992-09-28 17:08:19 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.22 1992-11-03 22:19:30 burghart Exp $")
 
 /*
  * Default resources.
@@ -97,7 +97,7 @@ float	Alt;
 /*
  * Post processing mode stuff.
  */
-int	PostProcMode = FALSE;
+bool	PostProcMode = FALSE;
 ZebTime	PostProcTime;
 
 /*
