@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.8 1990-09-19 08:49:42 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.9 1992-01-29 21:49:55 corbet Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -16,6 +16,8 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.8 1990-09-19 08:49:42 corbet Exp $";
 # include "ui_date.h"
 # include "ui_globals.h"
 
+
+extern char *usy_pstring (), *usy_string ();
 
 /*
  * This is the format of a single symbol table entry.
