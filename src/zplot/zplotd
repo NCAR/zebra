@@ -1,7 +1,7 @@
 #! /usr/local/bin/perl5
 #
-# Sit and wait for notifications on platforms, and send a plot
-# to JOSS for each notification.
+# Sit and wait for notifications on platforms, generate images, and
+# optionally ftp them to a remote host.
 #
 
 # Use an associative array to give the config and window to plot
@@ -17,7 +17,7 @@ $FAIL = "ZPLOTD_FAILED";	# failure string
 
 # Some option variables we need
 $image_mail_list = " $ENV{'IMAGE_MAIL_LIST'} ";
-$enable_ftpjoss = $ENV{'JOSS_ENABLE_FTP'};
+$enable_ftp = $ENV{'PLOT_FTP_ENABLE'};
 
 # Top zebra directory
 $ztop=$ENV{'ZEB_TOPDIR'};
@@ -89,7 +89,7 @@ while ($pattern = shift @ARGV)
 	print "matching the regexp name from the command line will be\n";
 	print "checked for new data and plotted.\n";
 	print "\n";
-	print "This script and the scripts it calls (batch-plot and others)\n";
+	print "This script and the scripts it calls (zplotbatch and others)\n";
 	print "need configuration information from the project's proj_env\n";
 	print "file, so it probably needs to be run with zconfig.\n";
 	print "\n";
@@ -327,7 +327,7 @@ sub clear
     $oldfh = select(PLOG); $| = 1; select($oldfh);
 
     # Finally, we can plot each config and its windows.
-    # Open batch-plot and pipe our plot entries to it.
+    # Open zplotbatch and pipe our plot entries to it.
 
     $images = "";
     $status="ok";
@@ -336,7 +336,6 @@ sub clear
     foreach $entry (@Queue)
     {
 	($platform, $time, $config, @window) = split(/\s+/,$entry);
-	# if ($fixtime) { $time = $fixend; }
 	$Configs{"$time $config"} .= " " . join(" ",@window) . " ";
     }
     print "Opening $batch...\n" if $debug;
@@ -354,12 +353,12 @@ sub clear
 	print BATCH "$plot\n";
     }
     close BATCH;
-    print "Running: batch-plot - < $batch\n";
+    print "Running: zplotbatch - < $batch\n";
     if ($debug < $D_NoPlot)
     {
-	if (! open (BP, "batch-plot - < $batch 2>&1 |"))
+	if (! open (BP, "zplotbatch - < $batch 2>&1 |"))
 	{
-	    $status="$FAIL batch-plot: $!";
+	    $status="$FAIL zplotbatch: $!";
 	    print "$status" if $debug;
 	    return 0;
 	}
@@ -376,15 +375,15 @@ sub clear
 	$status = "$FAIL" if ($?);
     }
     unlink("$batch");
-    if (! $enable_ftpjoss)
+    if (! $enable_ftp)
     {
-	print "ftpjoss.pl not enabled.\n";
+	print "ftpplots not enabled.\n";
     }
     elsif ($debug >= $D_NoFtp)
     {
-	print "Disabled by debug level: ftpjoss.pl $images\n";
+	print "Disabled by debug level: ftpplots\n";
     }
-    elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
+    elsif (open (FTP, "ftpplots $images 2>&1 |"))
     {
 	while (<FTP>)
 	{
