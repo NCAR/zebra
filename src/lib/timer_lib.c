@@ -22,7 +22,7 @@
 # include "defs.h"
 # include "timer.h"
 # include "message.h"
-MAKE_RCSID ("$Id: timer_lib.c,v 2.6 1993-08-04 17:17:12 granger Exp $");
+MAKE_RCSID ("$Id: timer_lib.c,v 2.7 1995-04-15 00:33:23 granger Exp $");
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 
@@ -37,7 +37,7 @@ static struct Tevent
 	sstatus	te_status;		/* This stuff in use		*/
 	bool	te_recurring;		/* Does this one recurr?	*/
 	bool	te_BCompat;		/* Backward compatible fmt?	*/
-} Events[MAXEVENT] = { 0 };
+} Events[MAXEVENT] = { { 0, 0, 0, 0, 0 } };
 
 static bool First = TRUE;
 
@@ -54,7 +54,7 @@ static int tl_ProtoHandler FP ((struct message *));
 
 
 
-static void inline
+inline static void
 tl_Init ()
 /*
  * Initialize the timer library.
@@ -70,7 +70,7 @@ tl_Init ()
 
 
 
-static void inline
+inline static void
 tl_SendToTimer (data, len)
 void *data;
 int len;
