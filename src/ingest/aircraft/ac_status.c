@@ -10,6 +10,7 @@
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/AsciiText.h>
+# include <X11/Xaw/Toggle.h>
 # include <string.h>
 # include <signal.h>
 
@@ -17,17 +18,17 @@
 
 # define ATSLEN		80	/* Length for AsciiText strings.	*/
 
-static char	MyAircraft[MAXOURS][STRLEN];
-static int	NumAc = 0;
 static char	New_Trans[ATSLEN];
-static bool	DoFeet = FALSE;
+static bool	DoFeet = TRUE, DoVOR = FALSE;
 
 static bool	SWMade = FALSE;
-static Widget	AltButton, StatusLabel, TransLabel, TransText;
+static Widget	PosButton, AltButton, StatusLabel, TransLabel, TransText;
+static Widget	ClrButton;
 static char	Platform[STRLEN];
 static Ac_Data	Aircraft;
 static time	AcTime;
 static char	TitleStr[200], StatusStr[MAXOURS][200], AcIngestName[STRLEN];
+static char	AcPlatforms[200];
 static Widget	Top;
 XtAppContext	Actx;
 
@@ -42,12 +43,16 @@ XtAppContext	Appc;
 	static int Die (void);
 	static int Dispatcher (int, struct ui_command *);
 	static void Notification (PlatformId, int, time *);
-	static void SetStatus(int);
+	static void SetStatus(int, int);
 	static void SetLabel(Widget, char *);
 	static void SetupIndirect ();
+	static void SetupNotify ();
 	static void Go ();
 	static int DoXevent ();
 	static void ChangeAlt ();
+	static void ChangePos ();
+	static void ClearStatus ();
+	int MsgDispatcher (struct message *);
 # else
 	static Widget MakeStatusWidget ();
 	static void StatusWindow ();
@@ -60,9 +65,13 @@ XtAppContext	Appc;
 	static void SetStatus();
 	static void SetLabel();
 	static void SetupIndirect ();
+	static void SetupNotify ();
 	static void Go ();
 	static int DoXevent ();
 	static void ChangeAlt ();
+	static void ChangePos ();
+	static void ClearStatus ();
+	int MsgDispatcher ();
 # endif
 
 
@@ -72,8 +81,9 @@ char	**argv;
 {
 	SValue	v;
 
-	msg_connect (Die, "Ac_Status");
+	msg_connect (MsgDispatcher, "Ac_Status");
 
+	msg_ELog (EF_DEBUG, "Ac_Status begins...");
 	if (argc > 1)
 	{
 		ui_init ("/fcc/lib/ac_status.lf", FALSE, TRUE);
@@ -103,8 +113,37 @@ SetupIndirect ()
 {
 	stbl vtable = usy_g_stbl ("ui$variable_table");
 
+	usy_c_indirect (vtable, "ac_platforms", &AcPlatforms, SYMT_STRING, 200);
 	usy_c_indirect (vtable, "ac_ingest_name", &AcIngestName, SYMT_STRING,
 		STRLEN);
+}
+
+
+static void
+SetupNotify ()
+/*
+ * Arrange for data notifications for all aircraft platforms.
+ */
+{
+	PlatformId	pid;
+	char		platforms[200], *pnames[20];
+	int		i, nplat;
+
+	strcpy (platforms, AcPlatforms);
+	msg_ELog (EF_DEBUG, "Aircraft platforms %s", platforms);
+	nplat = CommaParse (platforms, pnames);
+	msg_ELog (EF_DEBUG, "nplat = %d", nplat);
+	for (i = 0; i < nplat; i++)
+	{
+		if ((pid = ds_LookupPlatform (pnames[i])) == BadPlatform)
+		{
+			msg_ELog (EF_DEBUG, "Bad platform '%s'.", pnames[i]);
+			continue;
+		}
+		msg_ELog (EF_DEBUG, "Requesting notification for %s.",
+			pnames[i]);
+		ds_RequestNotify (pid, 0, Notification);
+	}
 }
 
 
@@ -118,26 +157,28 @@ time		*t;
  */
 {
 	DataObject	*dobj;
-	char		*fields[1];
-	int		i, itsat = -1, numfields;
+	char		*fields[1], platforms[200], *pnames[20];
+	int		i, itsat = -1, numfields, nplat;
 
-	msg_ELog (EF_DEBUG, "***************************************");
 	strcpy (Platform, ds_PlatformName (pid));
 	msg_ELog (EF_DEBUG, "Data available on %s at %d %d.", Platform,
 		t->ds_yymmdd, t->ds_hhmmss);
 /*
  * Make sure its a platform we're still interested in.
  */
-	for (i = 0; i < NumAc; i++)
-		if (strcmp (Platform, MyAircraft[i]) == 0)
+	strcpy (platforms, AcPlatforms);
+	nplat = CommaParse (platforms, pnames);
+	for (i = 0; i < nplat; i++)
+		if (strcmp (Platform, pnames[i]) == 0)
 		{
 			itsat = i;
 			break;
 		}
+	msg_ELog (EF_DEBUG, "itsat = %d", itsat);
 /*
  * If it is then set the status label.
  */
-	if ((itsat >= 0) && (itsat < NumAc))
+	if ((itsat >= 0) && (itsat < nplat))
 	{
 		AcTime = *t;
 		fields[0] = "trans";
@@ -155,7 +196,7 @@ time		*t;
 		Aircraft.latitude = dobj->do_aloc->l_lat;
 		Aircraft.longitude = dobj->do_aloc->l_lon;
 		Aircraft.transponder = (int) dobj->do_data[0][0];
-		SetStatus(itsat);
+		SetStatus(itsat, nplat);
 	}
 }
 
@@ -194,6 +235,9 @@ Go ()
 
 	Disp = XtDisplay (Top);
 	fd = XConnectionNumber (Disp);
+
+	SetupNotify ();
+
 	msg_add_fd (fd, DoXevent);
 
 	msg_await ();
@@ -283,10 +327,19 @@ Widget	parent;
 	XtSetArg (args[n], XtNlabel, DoFeet ? "Ft" : "Km");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
-	above = AltButton = XtCreateManagedWidget ("FtKm", commandWidgetClass, 
+	AltButton = XtCreateManagedWidget ("FtKm", commandWidgetClass, 
 		parent, args, n);
-	XtAddCallback (above, XtNcallback, ChangeAlt, 0);	
+	XtAddCallback (AltButton, XtNcallback, ChangeAlt, 0);	
 /*
+ * Clear button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Clear");		n++;
+	XtSetArg (args[n], XtNfromHoriz, AltButton);	n++;
+	XtSetArg (args[n], XtNfromVert, above);		n++;
+	above = ClrButton = XtCreateManagedWidget ("clear", commandWidgetClass, 
+		parent, args, n);
+	XtAddCallback (ClrButton, XtNcallback, ClearStatus, 0);	
 /*
  * The instructions line.
  */
@@ -361,6 +414,34 @@ ChangeAlt ()
 
 
 static void
+ClearStatus ()
+/*
+ * Clear the status display.
+ */
+{
+	int i;
+
+	for (i = 0; i < MAXOURS; i++)
+		StatusStr[i][0] = '\0';
+	SetLabel (StatusLabel, "");
+}
+
+
+static void
+ChangePos ()
+/*
+ * Change position status display between lat/lon and VOR.
+ */
+{
+	Arg	args[2];
+
+	DoVOR = ! DoVOR;
+	XtSetArg (args[0], XtNlabel, DoVOR ? "VOR" : "Lat/Lon");
+	XtSetValues (PosButton, args, 1);
+}
+
+
+static void
 Add_Trans()
 /*
  * Add a new platform and its transponder code the the ones we are
@@ -386,26 +467,11 @@ Add_Trans()
 		return;
 	}
 /*
- * Add it to our list.
+ * Tell ac_ingest about the addition.
  */
-	for (i = 0; i < NumAc; i++)
-		if (strcmp (MyAircraft[i], pname[0]) == 0)
-		{
-			msg_ELog (EF_PROBLEM, "Can't add platform %s.",
-				pname[0]);
-			SetLabel (TransLabel, "Can't add:  Platform already added.");
-			return;
-		}			
-	strcpy (MyAircraft[NumAc], pname[0]);
-	NumAc++;
-/*
- * Tell ac_ingest and the data store about the addition.
- */
-	ds_RequestNotify (pid, 0, Notification);
 	sprintf (sendstr, "a %s,%s", pname[0], pname[1]);
 	msg_send (AcIngestName, MT_ACINGEST, FALSE, sendstr, 
 		sizeof (sendstr));
-	SetLabel (TransLabel, "Added.");
 }
 
 
@@ -435,24 +501,10 @@ Change_Trans ()
 		return;
 	}
 /*
- * Check to make sure we can change it.
- */
-	for (i = 0; i < NumAc; i++)
-		if (strcmp (MyAircraft[i], pname[0]) == 0)
-			break;
-	if (i >= NumAc)
-	{
-		msg_ELog (EF_PROBLEM, "Can't find platform %s to change.",
-			pname[0]);
-		SetLabel (TransLabel, "Can't change:  Platform not added.");
-		return;
-	}
-/*
  * Tell ac_ingest about the change.
  */
 	sprintf (sendstr, "c %s,%s", pname[0], pname[1]);
 	msg_send (AcIngestName, MT_ACINGEST, FALSE, sendstr, sizeof (sendstr));
-	SetLabel (TransLabel, "Changed.");
 }
 
 
@@ -483,31 +535,11 @@ Del_Trans ()
 		return;
 	}
 /*
- * Delete it from our list.
- */
-	for (i = 0; i < NumAc; i++)
-		if (strcmp (MyAircraft[i], pname[0]) == 0)
-		{
-			itsat = i;
-			break;
-		}
-	if (itsat < 0)
-	{
-		msg_ELog (EF_PROBLEM, "Can't find platform %s to delete.",
-			pname[0]);
-		SetLabel (TransLabel, "Can't delete:  Platform not added.");
-		return;
-	}
-	for (i = itsat; i < NumAc - 1; i++)
-		strcpy (MyAircraft[i], MyAircraft[i+1]);
-	NumAc--;
-/*
  * Tell ac_ingest about the deletion.
  */
 	sprintf (sendstr, "d %s,%s", pname[0], pname[1]);
 	msg_send (AcIngestName, MT_ACINGEST, FALSE, sendstr, 
 		sizeof (sendstr));
-	SetLabel (TransLabel, "Deleted.");
 }
 
 
@@ -528,7 +560,7 @@ char	*label;
 
 
 void
-SetStatus (itsat)
+SetStatus (itsat, nplat)
 int	itsat;
 /*
  * Set the status widget.
@@ -540,13 +572,14 @@ int	itsat;
 	if (! SWMade)
 		return;
 
-	sprintf (string, "%-11s%-6o%-12.2f%-12.2f%-12.2f%2d:%02d\n", 
+	sprintf (string, "%-11s%-6o%-12.2f%-12.2f%-12.2f %2d:%02d:%02d\n", 
 		Platform, Aircraft.transponder, Aircraft.altitude, 
 		Aircraft.latitude, Aircraft.longitude, 
-		AcTime.ds_hhmmss/10000, (AcTime.ds_hhmmss/100) % 100);
+		AcTime.ds_hhmmss/10000, (AcTime.ds_hhmmss/100) % 100,
+		AcTime.ds_hhmmss % 100);
 	strncpy (StatusStr[itsat], string, strlen (string));
 	sendstr[0] = '\0';
-	for (i = 0; i < NumAc; i++)
+	for (i = 0; i < nplat; i++)
 		strcat (sendstr, StatusStr[i]);
 	SetLabel (StatusLabel, sendstr);
 	DoXevent ();
@@ -568,3 +601,57 @@ DoXevent ()
 	}
 	return (0);
 }
+
+
+int
+MsgDispatcher (msg)
+struct message	*msg;
+/*
+ * Deal with a message.
+ */
+{
+	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
+
+	switch (msg->m_proto)
+	{
+		case MT_MESSAGE:
+			if (tmpl->mh_type == MH_DIE)
+				Die ();
+			break;
+		case MT_ACINGEST:
+			switch (msg->m_data[0])
+			{
+				case 'a':
+					SetLabel (TransLabel, "Added.");
+					break;
+				case 'c':
+					SetLabel (TransLabel, "Changed.");
+					break;
+				case 'd':
+					SetLabel (TransLabel,"Deleted.");
+					break;
+				case 'n':
+					SetLabel (TransLabel,
+						"Can't add: Already added.");
+					break;
+				case 'm':
+					SetLabel (TransLabel,
+						"Can't change: Not added.");
+					break;
+				case 'o':
+					SetLabel (TransLabel,
+						"Can't delete: Not added.");
+					break;
+				default:
+					msg_ELog (EF_PROBLEM, 
+					"Unknown transponder command.");
+					break;
+			}
+			break;
+		default:
+			msg_ELog (EF_DEBUG, "What's this %d?", msg->m_proto);
+			break;
+	}
+	return (0);
+}
+
