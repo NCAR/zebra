@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.53 1995-09-23 02:33:05 granger Exp $ */
+/* $Id: GraphProc.h,v 2.54 1995-10-31 04:08:43 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -116,6 +116,13 @@ extern enum wstate WindowState;
  * of a user event -- preferably a pointer event -- or they may fool you.
  */
 extern int	Event_X, Event_Y;
+
+/*
+ * To avoid conflicts with the exported UI symbol Top, define the gp Top
+ * symbol to a unique variable name.
+ */
+# define Top	_gp_Top_
+
 /*
  * Window specific stuff.  We protect it in an ifdef so that not all the
  * code has to include all those files.
