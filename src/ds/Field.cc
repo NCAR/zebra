@@ -31,7 +31,7 @@ extern "C"
 
 	
 
-RCSID("$Id: Field.cc,v 3.6 2002-09-17 20:00:18 granger Exp $")
+RCSID("$Id: Field.cc,v 3.7 2002-12-02 22:12:09 granger Exp $")
 
 //
 // The predefined field types.  Shared via Field.h.
@@ -136,9 +136,11 @@ Field::FullName( void ) const
 
 
     
-const Field&
+Field&
 Field::operator =( const Field& src )
 {
+  if (this == &src)
+    return *this;
 //
 // name, type, units, and desc are cached strings, so we can copy directly
 //
@@ -160,7 +162,7 @@ Field::operator =( const Field& src )
     else
 	ud_units = 0;
 
-    return src;
+    return *this;
 }
 
 

@@ -1,6 +1,6 @@
 //
 // The Zebra data store field class
-// $Id: Field.h,v 3.6 2002-09-17 20:00:18 granger Exp $
+// $Id: Field.h,v 3.7 2002-12-02 22:12:09 granger Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research
@@ -54,7 +54,7 @@ public:
 		   double *intercept = 0) const;
     std::ostream& PutTo( std::ostream& s ) const;  
     int CompareTo( const Field& f ) const;
-    const Field& operator =( const Field& src );
+    Field& operator =( const Field& src );
     int operator ==( const Field& f ) const;
     inline int operator !=( const Field& f ) const 
     { 
