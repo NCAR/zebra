@@ -22,7 +22,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Archiver.cc,v 1.3 1991-09-26 15:38:27 gracio Exp $";
+static char *rcsid = "$Id: Archiver.cc,v 1.4 1991-09-26 15:45:27 gracio Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -468,8 +468,8 @@ Platform *p;
 	while (findex && DLT (last, DFTable[findex].df_end))
 	{
 		char *fname = DFTable[findex].df_name;
-		if (! strncmp (fname, "/fcc/data/", 10))
-			fname += 10;
+		if (! strncmp (fname, "DATADIR", strlen (DATADIR)))
+			fname += (strlen (DATADIR) + 1);
 		printf ("Dumping file '%s'\n", fname);
 		strcat (Tarbuf, fname);
 		strcat (Tarbuf, " ");
