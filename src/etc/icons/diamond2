@@ -1,0 +1,6 @@
+#define diamond2_width 7
+#define diamond2_height 9
+#define diamond2_x_hot 3
+#define diamond2_y_hot 4
+static unsigned char diamond2_bits[] = {
+   0x08, 0x1c, 0x1c, 0x3e, 0x7f, 0x3e, 0x1c, 0x1c, 0x08};

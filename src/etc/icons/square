@@ -1,0 +1,6 @@
+#define square_width 7
+#define square_height 7
+#define square_x_hot 3
+#define square_y_hot 3
+static unsigned char square_bits[] = {
+   0x7f, 0x41, 0x41, 0x41, 0x41, 0x41, 0x7f};

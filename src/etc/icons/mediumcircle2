@@ -1,0 +1,6 @@
+#define mediumcircle2_width 7
+#define mediumcircle2_height 7
+#define mediumcircle2_x_hot 3
+#define mediumcircle2_y_hot 3
+static unsigned char mediumcircle2_bits[] = {
+   0x1c, 0x3e, 0x63, 0x63, 0x63, 0x3e, 0x1c};

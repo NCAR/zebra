@@ -1,0 +1,6 @@
+#define diamond_width 7
+#define diamond_height 9
+#define diamond_x_hot 3
+#define diamond_y_hot 4
+static unsigned char diamond_bits[] = {
+   0x08, 0x14, 0x14, 0x22, 0x41, 0x22, 0x14, 0x14, 0x08};

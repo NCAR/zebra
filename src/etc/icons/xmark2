@@ -1,0 +1,6 @@
+#define xmark2_width 5
+#define xmark2_height 5
+#define xmark2_x_hot 2
+#define xmark2_y_hot 2
+static unsigned char xmark2_bits[] = {
+   0x1b, 0x1f, 0x0e, 0x1f, 0x1b};
