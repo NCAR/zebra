@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.11 1995-02-24 22:53:47 burghart Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.12 1995-04-17 22:37:37 granger Exp $")
 #endif
 
 /*
@@ -840,8 +840,7 @@ dc_NSGetDimension (dc, dimn, name, size)
 
 /*----------------------------------------- begin: dc_NSFixedDimension() --*/
 int 
-dc_NSFixedDimension (dc, details, ndetail, name, dindex)
-	DataChunk *dc;
+dc_NSFixedDimension (details, ndetail, name, dindex)
 	dsDetail *details;
 	int ndetail;
 	char *name;
@@ -875,7 +874,7 @@ dc_NSFixedDimension (dc, details, ndetail, name, dindex)
 
 
 
-/*----------------------------------------- begin: dc_NSFixedDimension() --*/
+/*----------------------------------------- begin: dc_NSFixedDetails() --*/
 void
 dc_NSFixedDetails (list, details, ndetail)
 char *list;		/* comma-separated list of dimensions and indices*/
