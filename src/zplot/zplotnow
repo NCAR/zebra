@@ -43,10 +43,15 @@ h1=99
 h2=99
 hlast=0
 hfirst=$1
+doplot2=0
 for h in $*; do
 
-    if [ $h -le $currenthour ]; then
+    if [ $h -lt $currenthour ]; then
 	h1=$h
+	doplot2=1
+    elif [ $h -eq $currenthour ]; then
+	h1=$h
+	doplot2=0
     elif [ $h2 -eq 99 ]; then
 	h2=$h
     fi
@@ -58,9 +63,12 @@ done
 # the plot hour given by h1.
 # If h1 is not set, then the first plot time is the
 # last plot hour on the previous day, which we find by shifting timezone.
+# Also, unset h1 means the current hour does not equal the plot hour,
+# so we're more than one hour into the second plot period and should plot it.
 if [ $h1 -ne 99 ]; then
     plot1=`date -u +"%d-%h-%Y,$h1:00:00"`
 else
+    doplot2=1
     plot1=`TZ=GMT+24 date +"%d-%h-%Y,$hlast:00:00"`
 fi
 
@@ -73,9 +81,11 @@ else
 fi
 
 # Any reason this can't be run in parallel?  Leaving serial for now...
-# For that matter, just arbitrarily decide to only plot data for the
-# full prior period, rather than try to plot partial periods which almost
-# always will be empty.
 echo zplotd -period $plot1 $zplotdargs
-exec zplotd -period $plot1 $zplotdargs
-# zplotd -period $plot2 $zplotdargs
+zplotd -period $plot1 $zplotdargs
+
+# Run the second plot if the current hour is not also the plot hour.
+if [ $doplot2 -ne 0 ]; then
+    echo zplotd -period $plot2 $zplotdargs
+    zplotd -period $plot2 $zplotdargs
+fi
