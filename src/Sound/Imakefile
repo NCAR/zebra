@@ -1,0 +1,8 @@
+
+SRCS = Sound.c
+OBJS = Sound.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(Sound, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
