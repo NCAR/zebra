@@ -25,13 +25,14 @@
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Label.h>
-# include <X11/Xaw/SimpleMenu.h>
-# include <X11/Xaw/SmeLine.h>
-# include <X11/Xaw/SmeBSB.h>
-# include <X11/Xaw/MenuButton.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Scrollbar.h>
+
+# include <RdssMenu.h>
+# include <X11/Xaw/SmeLine.h>
+# include <X11/Xaw/SmeBSB.h>
+# include <X11/Xaw/MenuButton.h>
 
 # include <ui.h>
 # include <ui_date.h>
@@ -46,7 +47,7 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.32 2001-06-19 22:23:54 granger Exp $")
+RCSID ("$Id: MovieControl.c,v 2.33 2001-11-30 21:29:28 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		60	/* Length of a field string		*/
@@ -123,7 +124,7 @@ static char PGComp[FLEN];		/* Component which wants pregen.*/
 /*
  * Forward definitions.
  */
-static Widget	mc_MWCreate FP ((int, Widget, XtAppContext));
+Widget	mc_MWCreate FP ((int, Widget, XtAppContext));
 static zbool	mc_SetupParams FP ((void));
 static void	mc_SetStatus FP ((char *));
 static zbool	mc_GetFrameTimes FP ((ZebTime *, int));
@@ -214,7 +215,8 @@ mc_LoadParams ()
 }
 
 
-static Widget
+
+Widget
 mc_MWCreate (junk, parent, appc)
 int junk;
 Widget parent;
@@ -286,7 +288,7 @@ XtAppContext appc;
  */
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "Time Units"); n++;
-	tumenu = XtCreatePopupShell ("TUMenu", simpleMenuWidgetClass, Top,
+	tumenu = XtCreatePopupShell ("TUMenu", rdssMenuWidgetClass, Top,
 				     args, n);
 
 	XtCreateManagedWidget ("TUMLine", smeLineObjectClass, tumenu, NULL, 0);
@@ -310,16 +312,19 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNmenuName, "TUMenu"); n++;
 	w = XtCreateManagedWidget ("movieTUnits", menuButtonWidgetClass, form,
 		args, n);
-/*
- * Dismiss button.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
-	XtSetArg (args[n], XtNfromVert, NULL); n++;
-	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
-	w = XtCreateManagedWidget ("movieDismiss", commandWidgetClass, form,
-		args, n);
-	XtAddCallback (w, XtNcallback, mc_MovieDismiss, 0);
+	if (! Dock)
+	{
+	    /*
+	     * Dismiss button.
+	     */
+	    n = 0;
+	    XtSetArg (args[n], XtNfromHoriz, w); n++;
+	    XtSetArg (args[n], XtNfromVert, NULL); n++;
+	    XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
+	    w = XtCreateManagedWidget ("movieDismiss", commandWidgetClass, 
+				       form, args, n);
+	    XtAddCallback (w, XtNcallback, mc_MovieDismiss, 0);
+	}
 /*
  * Next line: times.
  */

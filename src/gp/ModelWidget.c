@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID("$Id: ModelWidget.c,v 2.13 1999-07-21 17:01:35 burghart Exp $")
+RCSID("$Id: ModelWidget.c,v 2.14 2001-11-30 21:29:28 granger Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -83,7 +83,7 @@ static int 	CurrentFrame, DisplayedFrame;
 /*
  * Forward definitions.
  */
-static Widget	mw_MWCreate FP ((int, Widget, XtAppContext));
+Widget	mw_MWCreate FP ((int, Widget, XtAppContext));
 static void	mw_SetStatus FP ((char *));
 static void	mw_GetFrameOffsets FP ((void));
 static void	mw_StartLoop FP ((Widget, XtPointer, XtPointer));
@@ -115,7 +115,7 @@ mw_DefModelWidget ()
 
 
 
-static Widget
+Widget
 mw_MWCreate (junk, parent, appc)
 int junk;
 Widget parent;
@@ -435,16 +435,20 @@ XtAppContext appc;
 				   args, n);
 	XtAddCallback (w, XtNcallback, HelpCallback, 
 		       (XtPointer)GP_HELP_MODEL);
-/*
- * Dismiss button.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
-	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
-	w = XtCreateManagedWidget ("modelDismiss", commandWidgetClass, form,
-				   args, n);
-	XtAddCallback (w, XtNcallback, mw_Dismiss, 0);
+
+	if (! Dock)
+	{
+	    /*
+	     * Dismiss button.
+	     */
+	    n = 0;
+	    XtSetArg (args[n], XtNfromHoriz, w); n++;
+	    XtSetArg (args[n], XtNfromVert, above); n++;
+	    XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
+	    w = XtCreateManagedWidget ("modelDismiss", commandWidgetClass, 
+				       form, args, n);
+	    XtAddCallback (w, XtNcallback, mw_Dismiss, 0);
+	}
 /*
  * Apply current PD information
  */

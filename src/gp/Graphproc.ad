@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.23 2001-01-16 22:27:35 granger Exp $
+! $Id: Graphproc.ad,v 1.24 2001-11-30 21:29:28 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -30,8 +30,8 @@ Graphproc.?.form.background:	gray95
 ! Changing these lines affects the type of window the graphics process
 ! runs in as well as the limit widgets.
 !
-*overrideRedirect:	False
-*transient:		True
+*TopLevelShell*overrideRedirect:	False
+*TopLevelShell*transient:		True
 *UIForm*overrideRedirect:	False
 *UIForm*transient:		False
 !
@@ -55,6 +55,8 @@ Graphproc.?.form.background:	gray95
 *MenuButton*borderColor:	gray60
 *MenuButton*foreground:		black
 *MenuButton*background:		gray80
+*MenuButton.translations:	#override \n\
+	<BtnDown>:	reset() PositionAndPopupRdssMenu()
 *Graphics.translations: #override \n\
 	Shift<Btn1Down>:	ue_pointer_event(mb-s-left) \n\
 	Shift<Btn2Down>:	ue_pointer_event(mb-s-middle) \n\
@@ -75,6 +77,11 @@ Graphproc.?.form.background:	gray95
 *graphics.Cursor:	left_ptr
 *graphics.cursor:	left_ptr
 *cursor:		left_ptr
+!
+! Paned constraints for graphics
+!
+*graphics.min: 100
+*graphics.allowResize: true
 !
 ! Stuff for the overlay widget.  Needs a monospace font for the table.
 !
@@ -100,6 +107,24 @@ Graphproc.?.form.background:	gray95
 *overlay*OverlayTimes*font: -*-lucidatypewriter-medium-r-*-*-14-140-*-*-*-*-*-*
 *overlay*Text*resizable: True
 !
+! Paned constraints for tabs
+!
+*dock.allowResize: true
+*dock.min: 150
+*dock.max: 300
+!
+! Tabs constraints for "docked" children
+!
+*overlay.tabLabel: Overlays
+*overlay.resizable: true
+*position.tabLabel: Get Position
+*position.resizable: true
+*movie.tabLabel: Movie Control
+*movie.resizable: true
+*model.tabLabel: Model Control
+*model.resizable: true
+
+!
 ! Data insertion widget.
 !
 *insert*background:		gray90
@@ -111,7 +136,7 @@ Graphproc.?.form.background:	gray95
 ! UIForm stuff.
 !
 *UIForm*foreground:	black
-*UIForm*Text*translations: #override \n\
+*UIForm*Text.translations: #override \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
 *UIForm.defaultDistance: 8
@@ -465,3 +490,5 @@ Graphproc.?.form.background:	gray95
 *FieldSelect.borderWidth:		1
 *FieldSelect.borderColor:		MidnightBlue
 *FieldSelect*Label.background:	gray95
+!
+*XcgLiteClue*background: ivory

@@ -20,9 +20,10 @@
  */
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
-# include <X11/Xaw/SimpleMenu.h>
-# include <X11/Xaw/SmeBSB.h>
 # include <X11/Shell.h>
+
+# include <RdssMenu.h>
+# include <X11/Xaw/SmeBSB.h>
 # include <X11/Xaw/SmeLine.h>
 
 # include <ui.h>
@@ -34,7 +35,7 @@
 # include <ui_date.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: DataMenu.c,v 2.22 2001-06-19 22:32:24 granger Exp $")
+RCSID ("$Id: DataMenu.c,v 2.23 2001-11-30 21:29:28 granger Exp $")
 
 
 /*
@@ -74,8 +75,8 @@ InitDataMenu ()
  * Create a shell for the thing.
  */
 	XtSetArg (args[0], XtNlabel, "Data available menu");
-	Menu = XtCreatePopupShell ("DataAvailable", simpleMenuWidgetClass,
-		Top, args, 1);
+	Menu = XtCreatePopupShell ("DataAvailable", rdssMenuWidgetClass,
+				   Top, args, 1);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
  * Real time mode.
@@ -103,10 +104,25 @@ InitDataMenu ()
 
 
 char *
-SetupDataMenu (char *spec)
+CheckDataMenu (char *spec, char *title)
 {
     static char *datamenu = "DataAvailable";
     if (strcmp (spec, datamenu) == 0)
+    {
+	if (title)
+	    strcpy (title, "Data available");
+	return datamenu;
+    }
+    return 0;
+}
+
+
+
+char *
+SetupDataMenu (char *spec)
+{
+    char *datamenu = CheckDataMenu (spec, 0);
+    if (datamenu)
     {
 	PopupCallback (0, 0, 0);
 	return datamenu;

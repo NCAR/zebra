@@ -33,7 +33,7 @@
 # include "ActiveArea.h"
 # include "PixelCoord.h"
 
-RCSID("$Id: UserEvent.c,v 2.13 1998-10-28 21:22:12 corbet Exp $")
+RCSID("$Id: UserEvent.c,v 2.14 2001-11-30 21:29:28 granger Exp $")
 
 /*
  * The structure which defines the response to a user event, such as a
@@ -137,7 +137,6 @@ struct dm_ebchange *dmsg;
 
 		   case AC_PopupMenu:
 			uw_IWRealize (bind->dmm_adata, Graphics);
-			/* Ue_FixTransl (bind->dmm_adata, "<Btn3Down>"); */
 		   	resp->er_handler = Ue_EMenu;
 			strcpy (resp->er_data, bind->dmm_adata);
 			break;
@@ -153,37 +152,6 @@ struct dm_ebchange *dmsg;
 		usy_s_symbol (EventHandlers, bind->dmm_code, SYMT_POINTER, &v);
 	}
 }
-
-
-
-
-#ifdef notdef
-static void
-Ue_FixTransl (menu, button)
-char *menu, *button;
-/*
- * Fix up the translations for this button to call this menu.
- */
-{
-	char trbuf[200];
-	XtTranslations ttable;
-/*
- * Generate the translation string.
- */
-	sprintf (trbuf, "%s:	XawPositionSimpleMenu(%s)MenuPopup(%s)",
-		button, menu, menu);
-/*
- * Parse it, and add it to our graphics widget.
- */
-	ttable = XtParseTranslationTable (trbuf);
-	XtOverrideTranslations (Graphics, ttable);
-/*
- * Now we return and throw away the ttable memory.  There doesn't seem to be
- * a way around it.
- */
-}
-#endif /* notdef */
-
 
 
 
@@ -269,11 +237,9 @@ char *data;
  * Pop up this menu.
  */
 {
-/*	uw_IWPopup (data); */
 	Widget w = uw_IWWidget (data);
 
-	XtCallActionProc (w, "XawPositionSimpleMenu", event, &data, 1);
-	XtCallActionProc (w, "MenuPopup", event, &data, 1);
+	XtCallActionProc (w, "PositionAndPopupRdssMenu", event, &data, 1);
 }
 
 

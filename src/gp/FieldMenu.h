@@ -1,4 +1,4 @@
-/* $Id: FieldMenu.h,v 2.1 2000-12-01 23:13:11 granger Exp $ */
+/* $Id: FieldMenu.h,v 2.2 2001-11-30 21:29:28 granger Exp $ */
 		
 /* maximum number of extra entries */
 # define FM_MAXEXTRA 20
@@ -41,6 +41,12 @@ struct fm_Callback
 void fm_Init ();
 int fm_GetContext (fm_Context *fmc, char *spec);
 void fm_StoreContext (fm_Context *fmc);
+/**
+ * Check if @p spec specifies a FieldMenu.  If so, and if @p title
+ * is non-null, copy the menu title into @p title and return the
+ * menu name; otherwise return null.
+ **/
+char *fm_CheckFieldMenu (char *spec, char *title);
 char *fm_SetupFieldMenu (char *spec);
 int fm_NumEntries (fm_Context *fmc);
 Widget fm_CreateFieldChooser (fm_Context *fmc, Widget parent, 

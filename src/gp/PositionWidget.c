@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
-RCSID ("$Id: PositionWidget.c,v 1.24 2001-01-16 22:27:36 granger Exp $")
+RCSID ("$Id: PositionWidget.c,v 1.25 2001-11-30 21:29:28 granger Exp $")
 
 # ifndef PI
 # define PI 3.141592654
@@ -91,7 +91,6 @@ pw_InitPos ()
  * Tell UI about the position widget, and register our actions
  */
 {
-	XtAppAddActions (Actx, pw_Actions, XtNumber(pw_Actions));
 	uw_def_widget ("position", "Get Position", pw_PosCreate, 0, 0);
 }
 
@@ -109,6 +108,8 @@ XtAppContext 	actx;
 	Arg	args[20];
 	char	units[16];
 	int	n;
+
+	XtAppAddActions (Actx, pw_Actions, XtNumber(pw_Actions));
 /*
  * Determine the distance units we'll start with.  We default to "km", and
  * will accept "km" or "nm" (any case)

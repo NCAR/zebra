@@ -25,14 +25,15 @@
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
-# include <X11/Xaw/SimpleMenu.h>
-# include <X11/Xaw/SmeBSB.h>
 # include <X11/Shell.h>
 # include <X11/Xaw/SmeLine.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Viewport.h>
+
+# include <RdssMenu.h>
+# include <X11/Xaw/SmeBSB.h>
 
 # include <ui.h>
 # include <ui_date.h>
@@ -46,7 +47,7 @@
 # include "GraphProc.h"
 # include "FieldMenu.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.26 2001-06-19 22:32:24 granger Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.27 2001-11-30 21:29:28 granger Exp $")
 
 /*
  * Establish a single interface style for dynamic field selection
@@ -160,6 +161,25 @@ fm_ParseMenuSpec (fm_Context *fmc, const char *inspec)
 
 
 /*
+ * Parse a menu string and check whether it's one of our menus.  If so,
+ * return the canonical menu name and copy the title if 'title' is
+ * non-zero.
+ */
+char *
+fm_CheckFieldMenu (char *spec, char *title)
+{
+    static char *fieldmenu = "FieldMenu";
+    if (strncmp (spec, fieldmenu, 9) == 0)
+    {
+	if (title)
+	    strcpy (title, "Field selection");
+	return fieldmenu;
+    }
+    return 0;
+}
+
+
+/*
  * Parse a menu string and check whether it's one of our menus.  Store
  * the spec parameters in case the menu gets popped up, and return the
  * canonical menu name which should be used to pop up the menu.
@@ -167,12 +187,11 @@ fm_ParseMenuSpec (fm_Context *fmc, const char *inspec)
 char *
 fm_SetupFieldMenu (char *spec)
 {
-    if (strncmp (spec, "FieldMenu", 9))
-	return 0;
-    if (fm_GetContext (&FieldMenuContext, spec+9))
+    char *fieldmenu = fm_CheckFieldMenu (spec, 0);
+    if (fieldmenu && fm_GetContext (&FieldMenuContext, spec+9))
     {
 	PopupCallback (0, 0, 0);
-	return "FieldMenu";
+	return fieldmenu;
     }
     return 0;
 }
@@ -220,8 +239,8 @@ InitFieldMenu ()
  * Create a shell for the thing.
  */
 	XtSetArg (args[0], XtNlabel, "Field selection menu");
-	Menu = XtCreatePopupShell ("FieldMenu", simpleMenuWidgetClass,
-		Top, args, 1);
+	Menu = XtCreatePopupShell ("FieldMenu", rdssMenuWidgetClass,
+				   Top, args, 1);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
  * Always have an entry to popup the field selector on the current context.

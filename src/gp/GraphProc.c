@@ -25,6 +25,8 @@
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
 # include <X11/Xaw/Cardinals.h>
+# include <X11/Xaw/Paned.h>
+# include <X11/Xaw/Form.h>
 # include <X11/cursorfont.h>
 # include <fcntl.h>
 
@@ -48,7 +50,13 @@
 # include "LLEvent.h"
 # include "FieldMenu.h"
 
-RCSID ("$Id: GraphProc.c,v 2.76 2001-06-19 23:48:29 granger Exp $")
+#define DOCKED 0
+
+#if DOCKED
+# include <Tabs.h>
+#endif
+
+RCSID ("$Id: GraphProc.c,v 2.77 2001-11-30 21:29:28 granger Exp $")
 
 /*
  * Default resources.
@@ -65,11 +73,13 @@ static String Resources[] = {
 	0,
 };
 
+
 /*
  * Definition of globals referenced in GraphProc.h
  */
 Widget	Top;				/* The top level widget		*/
 Widget	Graphics, GrShell;		/* The graphics widget		*/
+Widget Dock = 0;
 Display	*Disp;				/* Our display			*/
 char 	FrameFilePath[PathLen];		/* Path to FrameFile		*/
 int	FrameFileFlag = 0;		/* True when file should be opened */
@@ -376,11 +386,21 @@ finish_setup ()
 	XtSetArg (args[4], XtNtitle, dm_WindowName());
 	GrShell = XtCreatePopupShell (msg_myname(), 
 			      applicationShellWidgetClass, Top, args, 5);
-/*
- * Inside this shell goes the graphics widget itself.
- */
-	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
-		GrShell, NULL, 0);
+#if DOCKED
+	{
+	    Widget pane = XtCreateManagedWidget ("pane", panedWidgetClass,
+						 GrShell, NULL, 0);
+	    Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
+					      pane, NULL, 0);
+	    Dock = XtCreateManagedWidget("dock", tabsWidgetClass, 
+					 pane, NULL, 0);
+	}
+#else
+	{
+	    Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
+					      GrShell, NULL, 0);
+	}
+#endif
 /*
  * Add the resize callback procedure.
  */
@@ -405,10 +425,8 @@ finish_setup ()
 	Ue_Init ();		/* User event handling		*/
 	I_init ();		/* Icons			*/
 	lw_InitWidgets ();	/* Limit widgets		*/
-	ot_Init ();		/* Overlay times widget		*/
 	InitDataMenu ();	/* Data available menu		*/
 	fm_Init ();		/* Field selection		*/
-	pw_InitPos ();		/* Position Widget		*/
 	iw_Initialize ();	/* Data insertion widget	*/
 	aw_InitAnnot ();	/* Annotation widget		*/
 	lc_Init ();		/* Layout control		*/
@@ -455,8 +473,13 @@ finish_setup ()
 /*
  * More initialization
  */
-	mc_DefMovieWidget ();		/* Movie control		*/
-	mw_DefModelWidget ();		/* Model widget			*/
+	if (! Dock)
+	{
+	    pw_InitPos ();		/* Position Widget		*/
+	    ot_Init ();			/* Overlay times widget		*/
+	    mc_DefMovieWidget ();	/* Movie control		*/
+	    mw_DefModelWidget ();	/* Model widget			*/
+	}
 	fc_InitFrameCache ();		/* Initialize the frame cache	*/
 	tl_ChangeHandler (NewTime);
 	cp_SetupCmdProto ();		/* Command protocol		*/
@@ -491,6 +514,35 @@ finish_setup ()
 	ReadInitFiles (Argc, Argv);
 }
 
+
+
+static void
+CreateDockWidgets ()
+{
+    static int done = 0;
+
+    /* Populate the dock pane with control widgets. */
+    if (Dock && ! done)
+    {
+	Widget form;
+	form = XtCreateManagedWidget ("overlay", formWidgetClass, 
+				      Dock, NULL, 0);
+	ot_Create (0, form, Actx);
+
+	form = XtCreateManagedWidget ("movie", formWidgetClass, 
+				      Dock, NULL, 0);
+	mc_MWCreate (0, form, Actx);
+
+	form = XtCreateManagedWidget ("position", formWidgetClass, 
+				      Dock, NULL, 0);
+	pw_PosCreate (0, form, Actx);
+
+	form = XtCreateManagedWidget ("model", formWidgetClass, 
+				      Dock, NULL, 0);
+	mw_MWCreate (0, form, Actx);
+	done = 1;
+    }
+}
 
 
 static void
@@ -1302,6 +1354,10 @@ struct dm_pdchange *dmp;
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
 	pdm_ScheduleUpdate ();
+/*
+ * Now that we have a pd, we can also make sure the dock widgets are up.
+ */
+	CreateDockWidgets();
 }
 
 

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.75 2001-06-19 23:48:29 granger Exp $ */
+/* $Id: GraphProc.h,v 2.76 2001-11-30 21:29:28 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -135,6 +135,7 @@ extern int	Event_X, Event_Y;
 extern GC Gcontext;			/* A global graphics context	*/
 extern Widget Top;			/* The top level widget		*/
 extern Widget Graphics, GrShell;	/* The graphics widget		*/
+extern Widget Dock;
 extern Display *Disp;			/* The display we use		*/
 extern XtAppContext Actx;		/* The application context	*/
 extern Cursor BusyCursor, NormalCursor;	/* Our cursors		*/
@@ -349,6 +350,7 @@ extern void iw_Initialize FP ((void));
 /* DataMenu */
 extern void InitDataMenu FP ((void));
 extern char *SetupDataMenu (char *spec);
+extern char *CheckDataMenu (char *spec, char *title);
 
 /* Annotation widget */
 extern void aw_InitAnnot FP ((void));

@@ -33,7 +33,7 @@
 # include <dm.h>
 # include "GraphProc.h"
 
-RCSID("$Id: OverlayTimes.c,v 2.7 2001-01-16 22:27:36 granger Exp $")
+RCSID("$Id: OverlayTimes.c,v 2.8 2001-11-30 21:29:28 granger Exp $")
 
 static Widget	OTWidget = NULL;
 static char	OTString[1024];
@@ -41,7 +41,7 @@ static char	OTString[1024];
 /*
  * Prototypes
  */
-static Widget	ot_Create FP ((char *junk, Widget parent, XtAppContext appc));
+Widget	ot_Create FP ((char *junk, Widget parent, XtAppContext appc));
 static void	ot_Update FP ((void));
 
 
@@ -74,7 +74,7 @@ ot_Dismiss ()
 
 
 
-static Widget
+Widget
 ot_Create (junk, parent, appc)
 char *junk;
 Widget parent;
@@ -131,20 +131,24 @@ XtAppContext appc;
 		args, n);
 	XtAddCallback (w, XtNcallback, HelpCallback, 
 		       (XtPointer)GP_HELP_OVERLAYS);
-/*
- * Dismiss button.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
-	XtSetArg (args[n], XtNfromVert, NULL); n++;
-	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
-	XtSetArg (args[n], XtNbottom, XtChainTop); n++;
-	XtSetArg (args[n], XtNtop, XtChainTop); n++;
-	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
-	XtSetArg (args[n], XtNright, XtChainLeft); n++;
-	w = XtCreateManagedWidget ("overlayDismiss", commandWidgetClass, form,
-		args, n);
-	XtAddCallback (w, XtNcallback, (XtCallbackProc) ot_Dismiss, 0);
+
+	if (! Dock)
+	{
+	    /*
+	     * Dismiss button.
+	     */
+	    n = 0;
+	    XtSetArg (args[n], XtNfromHoriz, w); n++;
+	    XtSetArg (args[n], XtNfromVert, NULL); n++;
+	    XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
+	    XtSetArg (args[n], XtNbottom, XtChainTop); n++;
+	    XtSetArg (args[n], XtNtop, XtChainTop); n++;
+	    XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	    XtSetArg (args[n], XtNright, XtChainLeft); n++;
+	    w = XtCreateManagedWidget ("overlayDismiss", commandWidgetClass, 
+				       form, args, n);
+	    XtAddCallback (w, XtNcallback, (XtCallbackProc) ot_Dismiss, 0);
+	}
 /*
  * Create an AsciiText widget to hold our info.  The "resizable" resource
  * is a constraint resource available to us because our parent is a Form

@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.44 2001-04-24 22:49:11 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.45 2001-11-30 21:29:28 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -29,7 +29,7 @@ SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 INCLUDES = $(XINCLUDES) $(RDSSINCLUDES)
 
-DEPLIBS = $(LIBZEBDS) $(LIBZEB) 
+DEPLIBS = $(LIBZEBDS) $(ZLIBS)
 
 #if UseOpenWindows && (OpenWindowsVersion < 3)
    LABELOBJS=Label.o

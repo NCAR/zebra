@@ -23,7 +23,6 @@
 # include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/MenuButton.h>
-# include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
 # include <X11/extensions/shape.h>
 
@@ -38,12 +37,15 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.33 2001-06-19 22:32:25 granger Exp $")
+RCSID("$Id: Icons.c,v 2.34 2001-11-30 21:29:28 granger Exp $")
 
 # include "GraphProc.h"
 # include "FieldMenu.h"
 # include "ActiveArea.h"
 
+#include "LiteClue.h"
+
+static Widget liteClue = 0;
 
 # ifdef notdef
 /*
@@ -140,6 +142,9 @@ I_init ()
 	XtRegisterGrabAction (I_MenuPopup, True,
 		ButtonPressMask|ButtonReleaseMask, GrabModeAsync,
 		GrabModeAsync);
+
+	liteClue = XtVaCreatePopupShell( "LiteClue_shell",
+					 xcgLiteClueWidgetClass, Top, NULL);
 }
 
 
@@ -267,6 +272,36 @@ I_PutContext (char *comp, char *atype, char *icon_platform, UItime *icon_time)
 }
 
 
+
+bool
+I_CheckMenu (char *menu, char *title)
+/*
+ * Check that this menu name is valid and can be realized when needed,
+ * and copy the title into 'title'.  This is similar to code in 
+ * I_PutMenu().
+ */
+{
+    char *mp = fm_CheckFieldMenu (menu, title);
+    if (mp)
+    {
+	/* Done. */
+    }
+    else if ((mp = CheckDataMenu (menu, title)) != 0)
+    {
+	/* Done. */
+    }
+    else
+    {
+ 	/* Try as a normal UI menu widget.   */
+	mp = uw_menu_title (menu);
+	if (mp && title)
+	    strcpy (title, mp);
+    }
+    return mp != 0;
+}
+
+
+
 static void
 I_PutMenu (char *menu, XEvent *ev)
 {
@@ -350,6 +385,8 @@ I_DoIcons ()
 	zbool disable = FALSE;
 	Pixmap icon;
 	struct IconList *ilp;
+	int i;
+	char buf[1024];
 /* 
  * Clear out the old ones.
  */
@@ -401,6 +438,28 @@ I_DoIcons ()
 		msg_ELog (EF_DEBUG, "Menus: '%s', '%s', '%s'",
 			ilp->il_menus[0], ilp->il_menus[1], ilp->il_menus[2]);
 # endif
+ 	/* 
+	 * Try to realize all the menus now, partly so that there is
+	 * an immediate and complete verification of which menus can be 
+	 * found.  Also, get a title for each menu to add to the tooltop.
+	 */
+		buf[0] = '\0';
+		for (i = 0; i < 3; ++i)
+		{
+		    char title[256];
+		    char *menu = ilp->il_menus[i];
+		    strcpy (title, "    ");
+		    if (menu[0] && ! I_CheckMenu (menu, title))
+		    {
+			msg_ELog (EF_PROBLEM, "menu could not be found: %s",
+				  menu);
+			//strcpy (menu, "");
+			strcpy (title, menu);
+		    };
+		    sprintf (buf+strlen(buf), " %s %s ", title,
+			     (i < 2) ? "|" : "");
+		}
+		XcgLiteClueAddWidget(liteClue, ilp->il_icon, buf, 0, 0);
 	}
 }
 
