@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.32 2004-07-17 05:36:51 granger Exp $
+# $Id: zplotbatch,v 1.33 2004-07-19 19:36:40 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -172,6 +172,9 @@ while read when config windows; do
 	    problem "Error changing display config with zrun."
 	    continue
 	fi
+	# There is no (easy) way to know if a config change has
+	# completed, so all we can do is wait a little and hope
+	# things settle down in time.
 	sleep 2
 	lastconfig="$config";
     fi
@@ -183,10 +186,8 @@ while read when config windows; do
 	problem "Failed to set time: $when"
 	continue
     fi
-    # We only wait long enough to presume that the windows have received
-    # their display and time change events.  The imgdump below will be
-    # enqueued rather than executed directly, so it should not run until
-    # the display and time changes have finished.
+    # Likewise give the windows a little time to receive the time change,
+    # but in this case we'll actually verify the time change further down.
     sleep 2
 
     # Get a list of the graphics processes appearing in this display
@@ -247,7 +248,8 @@ while read when config windows; do
 	    while [ "`ztsplit $wtime`" != "`ztsplit $when`" ]; do
 		[ $count -gt 4 ] && break
 		count=`expr $count + 1`
-		echo "+++ plot does not have correct time yet, waiting..."
+		echo "+++ $win ($plot) still has the wrong plot time..."
+		(set -x; zrun $DM "history all $when")
 		sleep 2
 		wtime=`zquery -t 10 $plot | egrep 'plot-time:' | sed 's/^.*plot-time:[^0-9]*//'`
 	    done
