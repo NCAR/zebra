@@ -1,7 +1,7 @@
 /* -*- C -*- */
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.15 1997-08-29 17:00:05 ishikawa Exp $
+/**/# $Id: Project.tmpl,v 1.16 1997-09-16 16:51:32 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -340,7 +340,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 #endif
 
-#ifdef  AIXArchitecture
+#ifdef AIXArchitecture
+# define FortranCompiler f77
+#endif
+
+#ifdef AIXArchitecture
 # ifndef TermcapLibrary
 # define TermcapLibrary LoaderLibPrefix -lcurses
 # endif
