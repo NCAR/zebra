@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.10 1995-04-18 22:18:53 granger Exp $
+ * $Id: dm_vars.h,v 2.11 1995-04-27 15:11:12 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -94,6 +94,7 @@ struct cf_window
 	int	cfw_x, cfw_y;		/* The location of the window	*/
 	int	cfw_dx, cfw_dy;		/* The size of the window	*/
 	short	cfw_ncroak;		/* No. of processes its killed  */
+	bool	cfw_force_exec;		/* One-time force a new process */
 	struct cf_graphic *cfw_graphic; /* Graphic info if graphic      */
 	Process *cfw_process;		/* Process assigned to this window */
 };
@@ -157,7 +158,7 @@ struct config
  */
 
 /*
- * While in the currently display configuration, a window name appears
+ * While in the currently displayed configuration, a window name appears
  * in the Current symbol table.  The name of the current config is in
  * Cur_config.  These are defined in dm_config.c.
  */
@@ -245,11 +246,13 @@ void dg_List FP ((char *name));
 void dg_SendPD FP ((struct cf_window *win));
 struct cf_window *dg_CurrentWindow FP ((char *name));
 struct cf_window *dg_AnyWindow FP ((char *name));
-void dg_SyncWindow FP ((struct config *cfg, struct cf_window *newwin));
+void dg_SyncWindow FP ((struct config *cfg, struct cf_window *newwin, 
+			bool force));
 void dg_ConfigWindow FP ((struct cf_window *win));
 void dg_PutNewWindow FP ((char *pcname, struct ui_command *cmds));
 void dg_PutConfigAs FP ((char *name, char *template));
 struct config *dg_LookupConfig FP ((char *name));
+struct config *dg_CurrentConfig FP ((void));
 struct config *dg_NewConfig FP ((char *name));
 void dg_TableAdd FP ((struct config *cfg));
 struct cf_window *dg_NewWindow FP ((struct config *, WinClass, char *name));
@@ -275,6 +278,7 @@ void dmsg_Show FP ((char *who, void *msg, int len, char *context));
 void dt_Init FP ((void));
 void dt_SetTime FP ((UItime *when));
 void dt_Realtime FP ((struct ui_command *cmds));
+void dt_SetWindowNames FP ((void));
 void dt_History FP ((struct ui_command *cmds));
 void dt_SendTime FP ((struct cf_window *win));
 

@@ -14,7 +14,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.1 1995-04-18 22:18:50 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.2 1995-04-27 15:11:10 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
@@ -32,7 +32,8 @@ static char TimeFile[TIME_FILE_LEN];
  */
 static void dt_SetTimeMode FP ((struct cf_window *who, int history, 
 				ZebTime *when));
-static int dt_TWCallback FP ((int mode, ZebTime *t, int control_all));
+static int dt_TWCallback FP ((int mode, ZebTime *t, int control_all,
+			      char *window_name));
 static void dt_TWHelp FP ((void));
 static void dt_TWPopupCallback FP ((void));
 static void dt_WriteTimeFile FP ((void));
@@ -128,9 +129,9 @@ dt_WriteTimeFile ()
 static void
 dt_TWPopupCallback ()
 /*
- * The time widget is being created, so we get a chance to set the
- * hot times.  If a time file has been specified, read it and send the
- * times to the time widget.
+ * The time widget is being created, so we get a chance to set the hot
+ * times and the window names.  If a time file has been specified, read it
+ * and send the times to the time widget. 
  */
 {
 	dt_ReadTimeFile ();
@@ -139,12 +140,37 @@ dt_TWPopupCallback ()
 	 */
 	tw_AddHTAddCallback (dt_WriteTimeFile);
 	tw_AddHTDeleteCallback (dt_WriteTimeFile);
+	dt_SetWindowNames ();
 	/*
 	 * We only want to be called back the first time.
 	 */
 	tw_AddPopupCallback (NULL);
 }
 
+
+
+void
+dt_SetWindowNames ()
+/*
+ * Send the time widget a list of the windows in the current
+ * configuration.
+ */
+{
+	struct config *cfg;
+	char *names[MAXWIN];
+	int i, nwin;
+
+	nwin = 0;
+	cfg = dg_CurrentConfig ();
+	for (i = 0; cfg && (i < cfg->c_nwin); ++i)
+	{
+		if (IsGraphic (cfg->c_wins[i]))
+		{
+			names[nwin++] = cfg->c_wins[i]->cfw_name;
+		}
+	}
+	tw_SetWindowNames (nwin, names);
+}
 
 
 
@@ -240,28 +266,25 @@ struct ui_command *cmds;
 
 
 static int
-dt_TWCallback (mode, t, control_all)
+dt_TWCallback (mode, t, control_all, window)
 int mode;
 ZebTime *t;
 int control_all;
+char *window;		/* NULL for all, else the window name */
 {
-	char winname[40];
-	struct cf_window *win;
-/*
- * See what window(s) to deal with.
- */
-	if (! control_all && (!PickWin(winname) || 
-			      !(win = dg_CurrentWindow (winname))))
+	struct cf_window *win = NULL;
+
+	if (! window || ((win = dg_CurrentWindow (window))))
 	{
-		msg_ELog (EF_PROBLEM,
-			  "Invalid window chosen for time widget. Ignoring.");
+		dt_SetTimeMode (win, (mode == History), t);
+		return (1);
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "%s: window '%s' not in current config",
+			  "time control", window);
 		return (0);
 	}
-/*
- * Now do it.
- */
-	dt_SetTimeMode (control_all ? 0 : win, mode == History, t);
-	return (1);
 }
 
 
@@ -270,18 +293,6 @@ static void
 dt_TWHelp ()
 {
 	ui_perform ("help historytime");
-}
-
-
-
-void
-dt_HTChangeCallback ()
-/*
- * Just sync the times file (if specified) with the new list of hot times
- */
-{
-	
-
 }
 
 

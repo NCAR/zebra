@@ -1,4 +1,4 @@
-/* $Id: dm_process.h,v 2.1 1995-04-18 22:18:49 granger Exp $
+/* $Id: dm_process.h,v 2.2 1995-04-27 15:11:09 granger Exp $
  *
  * Define the ProcessClass and Process structures, and the public interface
  */
@@ -68,6 +68,7 @@ Process;
  * Public interface prototypes
  */
 void dp_Init FP ((void));
+void dp_UseWindowNames FP ((int));
 Process *dp_LookupProcess FP ((char *name));
 Process **dp_ProcessList FP ((int *n));
 ProcessClass **dp_ClassList FP ((int *n));
@@ -80,7 +81,6 @@ ProcessClass *dp_MatchArgs FP ((char *exec, int narg, char **args));
 Process *dp_ExecProcess FP ((ProcessClass *pc, char *name, char *group));
 void dp_DeleteProcess FP ((Process *proc));
 void dp_DeleteClass FP ((ProcessClass *pc));
-int dp_NGraphic FP ((void));
 void dp_FreeAll FP ((void));
 
 #endif /* ndef _zeb_dm_process_h_ */

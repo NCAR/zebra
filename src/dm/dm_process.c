@@ -36,7 +36,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-MAKE_RCSID ("$Id: dm_process.c,v 2.1 1995-04-18 22:18:48 granger Exp $")
+MAKE_RCSID ("$Id: dm_process.c,v 2.2 1995-04-27 15:11:08 granger Exp $")
 
 /*
  * Private symbol tables containing ProcessClass structures indexed by 
@@ -57,6 +57,8 @@ static int NProcess;
 
 static char ExecPath[CFG_SEARCHPATH_LEN];	/* path for executables */
 
+static int UseWindowNames = 0;	/* use window name for process name */
+
 /*
  * Prototypes for private functions
  */
@@ -69,7 +71,6 @@ static ProcessClass *dp_NewClass FP ((char *name));
 static char **dp_BuildArgs FP ((ProcessClass *pc, char *name, char *window,
 				char *group));
 static char *dp_NextHandle FP ((ProcessClass *pc, char *window));
-static int count_graphic FP ((char *symbol, int type, union usy_value *, int));
 static void dp_LogExec FP ((char *context, char *prog, char *argv[]));
 static void dp_TestProcess FP ((char *argv[]));
 
@@ -96,6 +97,15 @@ dp_Init ()
 	strcpy (ExecPath, GetBinDir ());
 	usy_c_indirect (vtable, "execpath", ExecPath, SYMT_STRING,
 			CFG_SEARCHPATH_LEN);
+}
+
+
+
+void
+dp_UseWindowNames (flag)
+int flag;
+{
+	UseWindowNames = (flag) ? 1 : 0;
 }
 
 
@@ -433,7 +443,10 @@ char *window;
 	static int next_id = 1;
 	static char name[ PROC_NAME_LEN ];
 
-	sprintf (name, "%s-%s-%d", window, msg_myname(), next_id++);
+	if (UseWindowNames)
+		strcpy (name, window);
+	else
+		sprintf (name, "%s-%s-%d", window, msg_myname(), next_id++);
 	return (name);
 }
 
@@ -749,37 +762,6 @@ char *name;
 	return (proc);
 }
 
-
-
-int
-dp_NGraphic ()
-/*
- * Count the number of graphic windows associated with processes.
- */
-{
-	int count;
-
-	count = 0;
-	usy_traverse (ProcessTable, count_graphic, (int)&count, FALSE);
-	return (count);
-}
-
-
-
-/* ARGSUSED */
-static int
-count_graphic (symbol, type, value, arg)
-char *symbol;
-int type; 
-union usy_value *value;
-int arg;
-{
-	Process *proc = (Process *) value->us_v_ptr;
-
-	if (proc->p_cfw && IsGraphic (proc->p_cfw))
-		*(int *)arg += 1;
-	return (TRUE);
-}
 
 
 

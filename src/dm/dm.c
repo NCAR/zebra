@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.59 1995-04-18 22:18:31 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.60 1995-04-27 15:11:03 granger Exp $")
 
 
 /*
@@ -72,6 +72,13 @@ ButtonMap *Default_map;	/* The default button map	*/
  * have been sent.
  */
 int TestMode = 0;
+
+/*
+ * Non-zero when running in "backwards compatible" singleton mode.
+ * Process and window names are identical and map 1-1, and the names
+ * are only unique while a single display manager is running.
+ */
+int SingletonMode = 0;
 
 /*
  * Our unique group name for graphics processes
@@ -118,12 +125,13 @@ static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
 static void mh_message FP ((struct message *msg));
 static void EnterPosition FP ((struct ui_command *));
+static void DieWindow FP ((struct cf_window *win));
 static void KillWindow FP ((char *));
-static void RestartWin FP ((struct cf_window *win));
+static void RestartWin FP ((struct cf_window *win, int force));
 static void ProcessDeath FP ((char *client));
 static int dm_shutdown FP ((void));
 static int dm_cycle FP ((void));
-static int WaitForDeaths FP ((struct message *msg, void *param));
+static int WaitForDeath FP ((struct message *msg, void *param));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void MakeWindowList FP ((char *));
 static void MakeDefaultMap FP ((void));
@@ -145,12 +153,18 @@ static void
 usage (prog)
 char *prog;
 {
-	printf ("usage: %s [-name <name>] [-test] [-help]\n", prog);
-	printf ("where <name> is the message handle to use, and\n");
-	printf ("      -test enters test mode\n");
-	printf ("      -help shows this message\n");
-	printf ("options can be abbreviated to any length\n");
+	printf ("usage: %s [options] [config-file]\n", prog);
+	printf ("options:  [-name <name>] [-test] [-help] [-single]\n");
+	printf ("where <name> is the message handle to use;\n");
+	printf ("      -test enters test mode;\n");
+	printf ("      -help shows this message;\n");
+	printf ("      -single forces singleton mode, where process and\n");
+	printf ("         window names are identical and only unique while\n");
+	printf ("         a single display manager is running;\n");
+	printf ("      and <config-file> is a UI config file.\n");
+	printf ("Options can be uniquely abbreviated to any length.\n");
 }
+
 
 
 static char *
@@ -203,6 +217,10 @@ char *msgname;
 			usage (argv[0]);
 			exit (0);
 		}
+		else if (! strncmp (argv[i], "-single", optlen))
+		{
+			SingletonMode = 1;
+		}
 		else
 		{
 			printf ("unrecognized option: %s\n", argv[i]);
@@ -211,7 +229,7 @@ char *msgname;
 		}
 		++i;
 	}
-	if (! buf[0])
+	if (! buf[0] && !SingletonMode)
 	{
 		char *number, *period;
 
@@ -238,8 +256,16 @@ char *msgname;
 		if (TestMode)
 			sprintf (buf+strlen(buf), "-%d", getpid());
 	}
-	strcpy (msgname, buf);
-	sprintf (GroupName, "group-%s", msgname);
+	if (! SingletonMode)
+	{
+		strcpy (msgname, buf);
+		sprintf (GroupName, "group-%s", msgname);
+	}
+	else
+	{
+		strcpy (msgname, "Displaymgr");
+		strcpy (GroupName, "Graphproc");
+	}
 	return (config);
 }
 
@@ -320,6 +346,8 @@ char *argv[];
 	dt_Init ();	/* time handling */
 	dc_Init ();	/* color tables */
 	dp_Init ();	/* processes */
+	if (SingletonMode)
+		dp_UseWindowNames (TRUE);
 	dg_Init ();	/* configurations */
 	dm_Init ();	/* help */
 /*
@@ -384,6 +412,7 @@ struct ui_command *cmds;
 
 	   case DMC_DISPLAY:
 	   	dg_Display (cmds + 1);
+		dt_SetWindowNames ();
 		break;
 
 	   case DMC_LIST:
@@ -528,9 +557,11 @@ struct ui_command *cmds;
 
 	   case DMC_NEWWINDOW:
 	   	dg_PutNewWindow (DEFAULT_PROCESS, cmds + 1);
+		dt_SetWindowNames ();
 		break;
 	   case DMC_NEWGRAPHIC:
 	   	dg_PutNewWindow (UPTR(cmds[1]), cmds + 2);
+		dt_SetWindowNames ();
 		break;
 	   case DMC_PROTOTYPE:
 		Prototype (cmds + 1);
@@ -558,6 +589,7 @@ struct ui_command *cmds;
 	 */
 	   case DMC_KILL:
 	   	KillWindow (UPTR (cmds[1]));
+		dt_SetWindowNames ();
 		break;
 	/*
 	 * Write a named plot description to the terminal as ASCII
@@ -687,24 +719,37 @@ struct message *msg;
 
 
 
+static void
+DieWindow (win)
+struct cf_window *win;
+/*
+ * Tell a window's process to die.  There may still be hope for the window,
+ * but we don't care about that here.
+ */
+{
+	struct dm_msg dmsg;
+/*
+ * Send a DIE message to this window.
+ */
+	dmsg.dmm_type = DM_DIE;
+	dmsg_SendWindow (win, &dmsg, sizeof (dmsg));
+}
+
+
 
 static void
 ForceRestart (win, pcname)
 struct cf_window *win;
 char *pcname;
 /*
- * Force this window to quit and restart.
+ * Tell the window to die, and flag it to receive a brand new process whence
+ * we receive its last words.  Optionally change the window's process class.
  */
 {
-	struct dm_msg dmsg;
+	DieWindow (win);
+	win->cfw_force_exec = TRUE;
 /*
- * Send a DIE message to the affected process.  The auto restart mechanism
- * should take care of the rest.
- */
-	dmsg.dmm_type = DM_DIE;
-	dmsg_SendWindow (win, &dmsg, sizeof (dmsg));
-/*
- * When it comes time to restart its process, we may want a different class
+ * Take note of a requested change in process class.
  */
 	if (pcname)
 	{
@@ -720,7 +765,8 @@ KillWindow (who)
 char *who;
 /*
  * Terminate this poor process who is just trying to do his job make pictures
- * feed his child processes and all that stuff.
+ * feed his child processes and all that stuff.  And don't let it ever
+ * come back.
  */
 {
 	struct cf_window *win = dg_CurrentWindow (who);
@@ -736,12 +782,12 @@ char *who;
 	else
 	{
 	/*
-	 * Send it the restart message so that it goes away, but remove it
-	 * from the current configuration so that it won't really restart.
-	 * When ProcessDeath gets called, the process will have no window
-	 * and its death will be ignored.
+	 * Tell the window to die, but remove it from the current
+	 * configuration so that it won't really restart.  When
+	 * ProcessDeath gets called, the process will have no window and
+	 * its death will be ignored. 
 	 */
-		ForceRestart (win, NULL);
+		DieWindow (win);
 		usy_z_symbol (Current, who);
 		dg_DeleteWindow (cfg, win);
 	}
@@ -763,6 +809,7 @@ char *client;
 	struct cf_window *win;
 	Process *proc;
 	int active;
+	int force;
 
 	if (! (proc = dp_LookupProcess (client)))
 		return;
@@ -789,9 +836,14 @@ char *client;
 	++win->cfw_ncroak;
 	if (active && Restart && win->cfw_ncroak < MAX_DEATHS)
 	{
+		/*
+		 * Find another process for the window.
+		 */
 		msg_ELog (EF_PROBLEM, 
 			  "Win '%s' died -- restarting", win->cfw_name);
-		RestartWin (win);
+		force = win->cfw_force_exec;
+		win->cfw_force_exec = FALSE;
+		RestartWin (win, force);
 	}
 	else
 	{
@@ -824,6 +876,7 @@ char *client;
 				usy_z_symbol (Current, win->cfw_name);
 			dg_DeleteWindow (cfg, win);
 		}
+		dt_SetWindowNames ();
 	}
 }
 
@@ -831,17 +884,19 @@ char *client;
 
 
 static void
-RestartWin (win)
+RestartWin (win, force)
 struct cf_window *win;
+int force;
 /*
- * Give this window a new lease on life.
+ * Give this window a new lease on life, but not necessarily a whole
+ * new process.
  */
 {
 	struct config *cfg = dg_FindOwner (win);
 
 	if (IsGraphic (win))
 		win->cfw_graphic->g_tmpforce = TRUE;
-	dg_SyncWindow (cfg, win);
+	dg_SyncWindow (cfg, win, force);
 }
 	
 
@@ -1002,18 +1057,21 @@ dm_shutdown ()
 
 
 
-/*ARGSUSED*/
 static int
-WaitForDeaths (msg, param)
+WaitForDeath (msg, param)
 struct message *msg;
 void *param;
 /*
- * Search for client messages and process them
+ * Search for an obituary notice for a particular client and process it.
+ * Other messages and obituary notices get left in the message queue.
  */
 {
-	struct mh_template *tm = (struct mh_template *) msg->m_data;
+	struct mh_template *tm;
 	struct mh_client *client;
+	char *cname = (char *) param; /* name of client expecting obituary */
+	int found = 0;
 
+	tm = (struct mh_template *) msg->m_data;
 	switch (tm->mh_type)
 	{
 	   case MH_SHUTDOWN:
@@ -1024,23 +1082,16 @@ void *param;
 	 * Our real interest is here
 	 */
 	   case MH_CLIENT:
-		if (client->mh_evtype == MH_CE_DISCONNECT)
+		client = (struct mh_client *) msg->m_data;
+		if (client->mh_evtype == MH_CE_DISCONNECT &&
+		    !strcmp (cname, client->mh_client))
 		{
-			client = (struct mh_client *) msg->m_data;
-#ifdef notdef
-			usy_z_symbol (Windows, client->mh_client);
-#endif
-			ui_printf ("Client '%s' finished.\n", 
-				   client->mh_client);
-		/*
-		 * If our table is now empty, our search is now over.
-		 */
-			if (dp_NGraphic() == 0)
-				return (MSG_DONE);
+			found = 1;
+			ProcessDeath (client->mh_client);
 		}
 		break;
 	}
-	return (MSG_ENQUEUE);
+	return (found ? MSG_DONE : MSG_ENQUEUE);
 }
 
 
@@ -1056,7 +1107,7 @@ recycle ()
 	ui_printf ("Shutting down and starting over.\n");
 	ui_finish ();
 	XCloseDisplay (Dm_Display);
-	close (msg_get_fd());
+	msg_disconnect ();
 	execvp (Argv[0], Argv);
 	perror ("execvp");
 	exit (1);
@@ -1071,6 +1122,7 @@ dm_cycle ()
  */
 {
 	struct dm_msg dmsg;
+	Process **pp;
 /*
  * Send a DIE message to all of the graphics processes, and wait for them
  * to finish.  If we don't hear from them within 15 seconds, we cycle
@@ -1080,13 +1132,16 @@ dm_cycle ()
 	dm_ExitHelp ();
 	dmsg.dmm_type = DM_DIE;
 	dmsg_Broadcast (GroupName, &dmsg, sizeof(dmsg));
-	if (dp_NGraphic() > 0)
-	{
-		signal (SIGALRM, recycle);
-		alarm (15);
-		msg_Search (MT_MESSAGE, WaitForDeaths, NULL);
-		alarm (0);
-	}
+	signal (SIGALRM, recycle);
+	alarm (15);
+	do {
+		pp = dp_ProcessList (NULL);
+		while (*pp && ( !(*pp)->p_cfw || ! IsGraphic((*pp)->p_cfw)))
+			++pp;
+		if (*pp)
+			msg_Search (MT_MESSAGE, WaitForDeath, (*pp)->p_name);
+	} while (*pp);
+	alarm (0);
 	recycle ();
 	return (0);	/* never reached */
 }

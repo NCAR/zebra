@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.20 1995-04-18 22:18:42 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.21 1995-04-27 15:11:06 granger Exp $")
 
 /*
  * Exported variables
@@ -90,13 +90,16 @@ static void dg_DeleteConfig FP ((struct config *cfg));
 static struct cf_graphic *dg_NewGraphic FP ((void));
 static struct config *dg_TryConfigDir FP ((char *dir, char *name));
 static struct config *dg_CopyConfig FP ((struct config *copy, char *name));
+static void dg_AssignWindow FP ((Process *proc, struct cf_window *wp));
 static void dg_DisplayWidget FP ((struct cf_window *wp));
 static int dg_DisplayProcess FP ((struct cf_window *wp));
-static int dg_DisplayGraphic FP ((struct cf_window *wp));
-static bool dg_DisplayWindow FP ((struct cf_window *));
-static void dg_AssignWindow FP ((Process *proc, struct cf_window *wp));
+static int dg_DisplayGraphic FP ((struct config *cfg, 
+				  struct cf_window *wp, bool force));
+static bool dg_DisplayWindow FP ((struct config *cfg, 
+				  struct cf_window *wp, bool force));
 static void dg_SyncStates FP ((void));
-static Process *dg_FindExisting FP ((ProcessClass *pc, char *name));
+static Process *dg_FindExisting FP ((ProcessClass *pc, struct config *cfg, 
+				     struct cf_window *wp, char *name));
 static struct config *dg_LoadedConfig FP ((char *name));
 static Widget UWShell FP ((char *name));
 
@@ -234,14 +237,7 @@ int update;	/* do an update if nonzero */
 			 (IsGraphic (wp)) ? "graphic" : "process",
 			 wp->cfw_name,
 			 wp->cfw_x, wp->cfw_y, wp->cfw_dx, wp->cfw_dy);
-		fprintf (fp, "%s\n", wp->cfw_pcname);
-#ifdef notdef
-		pc = dp_LookupClass (wp->cfw_pcname);
-		fprintf (fp, " %s", pc->pc_exec);
-		for (i = 1; i < pc->pc_argc; i++)
-			fprintf (fp, " %s", pc->pc_argv[i]);
-		fprintf (fp, "\n");
-#endif
+		fprintf (fp, "'%s'\n", wp->cfw_pcname);
 	/*
 	 * If this is a graphic window, note plot description and button map
 	 * info; otherwise we mark it nongraphic.
@@ -256,13 +252,6 @@ int update;	/* do an update if nonzero */
 				fprintf (fp, "\t\tforcepd\n");
 			fprintf (fp, "\tendgraphic\n");
 		}
-#ifdef notdef
-		else
-		{
-			fprintf (fp, "\t\tnongraphic\n");
-		}
-		fprintf (fp, "\tendwindow\n");
-#endif
 	}
 /*
  * Close out the display config definition
@@ -581,7 +570,7 @@ struct config *cfg;
 	 * trying to hook into the X server at once.  Of course, we don't
 	 * need to sleep after the last window is displayed.
 	 */
-		new = dg_DisplayWindow (wp);
+		new = dg_DisplayWindow (cfg, wp, /*force*/ FALSE);
 		newcount += new ? 1 : 0;
 
 		if (new && ((newcount % SleepAfter) == 0) && 
@@ -894,43 +883,96 @@ struct cf_window *win;
 
 
 static Process *
-dg_FindExisting (pc, name)
+dg_FindExisting (pc, cfg, wp, name)
 ProcessClass *pc;
+struct config *cfg;
+struct cf_window *wp;
 char *name;
 /*
  * This is the crux of mapping a new window to display to an existing
  * process.  Either return a pointer to the chosen process, or NULL if
  * no match could be found.
+ *
+ * The search looks for a match among unassigned processes of the desired
+ * class in this order of priority:
+ *  1.  A process already attached to the given window.
+ *  2.  A process whose name is identical to the name of the given window.
+ *	This will only have an effect when running in singleton mode.
+ *  3.  A process already attached to a window of the same name.
+ *  4.  An active, unassigned process.
+ *  5.  An inactive process.
+ *
+ * Use the config to make sure we don't appropriate a process which has
+ * higher priority for another (yet-to-be-assigned) window in the config.
  */
 {
 	Process *proc, **pp;
-	Process *active, *inactive;
-/*
- * If there is already a process, active or inactive, assigned a window with
- * the desired name, use that one.  Of course, the process cannot already
- * be marked ASSIGNED.
- */
+	Process *queue[4] = { 0, 0, 0, 0 };
+	int i, n;
+
+	/* 1. */
+	proc = (wp && wp->cfw_process) ? wp->cfw_process : NULL;
+	if (proc && proc->p_state != P_ASSIGNED && proc->p_class == pc)
+		return (proc);
+
 	pp = dp_ProcessList (NULL);
-	active = inactive = NULL;
 	while ((proc = *pp++))
 	{
+		/* prerequisite for any process */
 		if (proc->p_class != pc || proc->p_state == P_ASSIGNED)
 			continue;
-		if (proc->p_cfw && !strcmp(proc->p_cfw->cfw_name, name))
+
+		/* 2. takes precedence over everything else */
+		if (! strcmp (proc->p_name, name))
+		{
+			queue[0] = proc;
 			break;
-		/*
-		 * Next check for an active process of the right class
-		 */
-		if (!active && proc->p_state == P_ACTIVE)
-			active = proc;
-		if (!inactive)
-			inactive = proc;
+		}
+
+		/* 3. */
+		if (! queue[1] && proc->p_cfw && 
+		    ! strcmp(proc->p_cfw->cfw_name, name))
+			queue[1] = proc;
+
+		/* 4. */
+		if (! queue[2] && proc->p_state == P_ACTIVE)
+			queue[2] = proc;
+
+		/* 5. */
+		if (! queue[3])
+			queue[3] = proc;
 	}
 	/*
-	 * Take the best we could find 
+	 * Take the best we could find which does not violate rule #2
 	 */
-	if (!proc)
-		proc = (active) ? active : inactive;
+	for (i = 1; (! queue[0]) && (i < 4); ++i)
+	{
+		proc = queue[i];
+		if (! proc)
+			continue;
+		if (! cfg)	/* only use config info if we have it */
+			break;
+		/*
+		 * Look for a window which would take this process by rule #2.
+		 */
+		for (n = 0; n < cfg->c_nwin; ++n)
+		{
+			struct cf_window *win = cfg->c_wins[n];
+			if (win != wp && IsGraphic(win) &&
+			    ! strcmp (win->cfw_pcname, pc->pc_name) &&
+			    (! win->cfw_process || 
+			     win->cfw_process->p_state != P_ASSIGNED) &&
+			    ! strcmp(win->cfw_name, proc->p_name))
+				break;
+		}
+		/*
+		 * If none found, then its ok to use this process
+		 */
+		if (n >= cfg->c_nwin)
+			break;
+		else
+			proc = NULL;
+	}
 	return (proc);
 }
 
@@ -981,7 +1023,7 @@ char *name;
 
 
 
-static void
+void
 dg_AssignWindow (proc, wp)
 Process *proc;
 struct cf_window *wp;
@@ -1016,11 +1058,14 @@ struct cf_window *wp;
 
 
 static int
-dg_DisplayGraphic (wp)
+dg_DisplayGraphic (cfg, wp, force)
+struct config *cfg;
 struct cf_window *wp;
+bool force;
 /*
- * Try to find an existing process for this graphic window, or create
- * a new one.  Return non-zero if we must create a new process.
+ * Set this graphic window up to be displayed, which means finding it a
+ * process and tinkering with its pd.  Return non-zero if we must create a
+ * new process. 
  */
 {
 	bool created = FALSE;
@@ -1030,7 +1075,10 @@ struct cf_window *wp;
 	struct cf_graphic *g = wp->cfw_graphic;
 
 	pc = dp_LookupClass (wp->cfw_pcname);
-	proc = dg_FindExisting (pc, wp->cfw_name);
+	if (! force)
+		proc = dg_FindExisting (pc, cfg, wp, wp->cfw_name);
+	else
+		proc = NULL;
 
 	if (proc)
 	{
@@ -1089,8 +1137,8 @@ struct cf_window *wp;
 	g->g_tmpforce = TRUE;
 	
 	/*
-	 * Configure an existing process now, but wait for a new process
-	 * to say hello before sending its configuration to it.
+	 * Configure existing processes now, but new processes must first
+	 * say hello before we'll send them their configuration.
 	 */
 	if (exist)
 		dg_ConfigWindow (wp);
@@ -1143,10 +1191,11 @@ static void
 dg_DisplayWidget (wp)
 struct cf_window *wp;
 {
+#ifdef notdef
 	Widget shell;
 	Arg args[5];
 	int n;
-
+#endif
 	/*
 	 * We want the popup shell to have static gravity, hopefully
 	 * preventing the window manager from moving it around all
@@ -1170,26 +1219,35 @@ struct cf_window *wp;
 
 
 static bool
-dg_DisplayWindow (wp)
+dg_DisplayWindow (cfg, wp, force)
+struct config *cfg;
 struct cf_window *wp;
+bool force;
 /*
  * Get this window onto the screen.  Existing processes need to be
- * send their new config, while new processes will get their config
+ * sent their new config, while new processes will get their config
  * once they have said hello.  Return TRUE iff we executed a new process.
  */
 {
 	bool created = FALSE;
 	SValue v;
 /*
- * Deal with window classes separately.
+ * Deal with window classes separately.  Forcing a new process is only
+ * applicable to graphic windows.
  */
 	msg_ELog (EF_DEBUG, "displaying window '%s' [class '%s']",
 		  wp->cfw_name, WinClassName (wp));
 	if (IsWidget (wp))
+		/* IsWidget */
 		dg_DisplayWidget (wp);
 	else if (IsGraphic (wp))
-		created = dg_DisplayGraphic (wp);
-	else /* IsProcess */
+		/* IsGraphic:
+		 * Pass the config as well to allow some more intelligent
+		 * mapping of processes to windows.
+		 */
+		created = dg_DisplayGraphic (cfg, wp, force);
+	else
+		/* IsProcess */
 		created = dg_DisplayProcess (wp);
 /*
  * Add it to the current config table
@@ -1386,15 +1444,16 @@ struct ui_command *cmds;
 	 	else if (UKEY(*cmds) != DMC_REUSE && UKEY(*cmds) != DMC_RENAME)
 			ui_warning ("Weird kw %d", UKEY (*cmds));
 	}
-	dg_SyncWindow (cfg, newwin);
+	dg_SyncWindow (cfg, newwin, /*force*/ FALSE);
 }
 
 
 
 void
-dg_SyncWindow (cfg, newwin)
+dg_SyncWindow (cfg, newwin, force)
 struct config *cfg;
 struct cf_window *newwin;
+bool force;	/* force the exec of a new process */
 /*
  * Realize this window in the current config.  Mark processes in use in the
  * current config as ASSIGNED, then display the window, and then sync the
@@ -1417,7 +1476,7 @@ struct cf_window *newwin;
 			wp->cfw_process->p_state = P_ASSIGNED;
 		}
 	}
-	dg_DisplayWindow (newwin);
+	dg_DisplayWindow (cfg, newwin, force);
 	dg_SyncStates ();
 }
 
@@ -1589,6 +1648,13 @@ char *name;
 
 
 
+struct config *
+dg_CurrentConfig ()
+{
+	return (dg_LoadedConfig (Cur_config));
+}
+
+
 
 struct config *
 dg_LookupConfig (name)
@@ -1756,18 +1822,6 @@ char *name;
 {
 	struct cf_window *win;
 
-#ifdef notdef
-	win = cfg->c_wins + cfg->c_nwin++;
-#endif
-#ifdef notdef
-	if (! cfg->c_wins)
-		cfg->c_wins = (struct cf_window **) 
-			malloc ( sizeof (struct cf_window *) );
-	else
-		cfg->c_wins = (struct cf_window **)
-			realloc (cfg->c_wins, cfg->c_nwin *
-				 sizeof (struct cf_window *) );
-#endif
 	win = NEW (struct cf_window);
 	cfg->c_wins[cfg->c_nwin++] = win;
 	cfg->c_wins[cfg->c_nwin] = NULL;
@@ -1777,6 +1831,7 @@ char *name;
 	win->cfw_x = win->cfw_y = 0;
 	win->cfw_dx = win->cfw_dy = 0;
 	win->cfw_ncroak = 0;
+	win->cfw_force_exec = 0;
 	win->cfw_graphic = NULL;
 	win->cfw_process = NULL;
 	/*
