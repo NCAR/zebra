@@ -2,6 +2,11 @@
  * Test the block interfaces.
  */
 
+// Little sense running the test if asserts not on
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include <iostream.h>
 #include <fstream.h>
 #include <assert.h>
@@ -10,12 +15,13 @@
 #include "Logger.hh"
 #include "Format.hh"
 
-//RCSID ("$Id: T_Block.cc,v 1.7 1998-08-27 22:44:51 granger Exp $")
+//RCSID ("$Id: T_Block.cc,v 1.8 2000-06-08 16:29:37 granger Exp $")
 
 static int TestStore (char *name);
 
 int main (int, char *[])
 {
+    int errors = 0;
 {
 	ofstream lf("tblocks.log");
 	StreamLogger log(lf);
@@ -55,16 +61,17 @@ int main (int, char *[])
 	assert (B.Status() == BlockFile::NOT_OPEN);
 
 	log.Info ("Testing storage on second block file:");
-	TestStore ("test.bf");
+	errors += TestStore ("test.bf");
 
 }
-exit (0);
+ return errors;
 }
 
 
 int
 TestStore (char *name)
 {
+    	int errors = 0;
 	BlockFile *store = new BlockFile (name);
 
 #	define N 50
@@ -118,6 +125,7 @@ TestStore (char *name)
 			     << "no change since revision " << old << endl;
 			cout << "Current file revision: " 
 			     << store->Revision() << endl;
+			++errors;
 		}
 	}
 
@@ -138,6 +146,7 @@ TestStore (char *name)
 			     << "changed since revision " << old << endl;
 			cout << "Current file revision: " 
 			     << store->Revision() << endl;
+			++errors;
 		}
 	}
 
@@ -171,111 +180,8 @@ TestStore (char *name)
 
 	delete store;
 	free (data);
-	return (0);
+	return errors;
 }
 
-
-
-
-
-#ifdef notdef
-static int
-TestStore (BlockFile *store)
-{
-	const int ndata = 200;
-	const int size = ndata * sizeof(int);
-	int *data = (int *) malloc (size);
-	for (int i = 0; i < 200; ++i)
-	{
-		data[i] = 200 - i;
-	}
-
-	BlkOffset buf = store->Alloc (size);
-	store->Write (buf, data, size);
-	memset (data, 0, size);
-
-	int *more = (int *) store->Read (data, buf, size);
-	assert (more == data);
-	for (int i = 0; i < 200; ++i)
-	{
-		assert (data[i] == 200 - i);
-	}
-
-	store->Free (buf);
-
-
-	BlkOffset blocks[10];
-	// BlockAddr addr[10];
-	
-	// Allocate several blocks
-	for (int i = 0; i < 10; ++i)
-	{
-		blocks[i] = store->Alloc (2 << (i+3));
-		// addr[i] = blocks[i]->Address();	// Preserve the addr
-		// assert (blocks[i]->Store() == store);
-	}
-
-	// Free half of them
-
-	for (int i = 0; i < 10; i += 2)
-	{
-		store->Free (blocks[i]);
-	}
-
-
-	// Put data into each block's buffer
-	for (int i = 0; i < 8; ++i)
-	{
-		int size;
-		 *buf = blocks[i]->GetBuffer (&size);
-		int *data = (int *)buf;
-		assert (buf != NULL);
-		assert (size == 2^(i+3));
-		for (int j = 0; j < size/sizeof(int); ++j)
-		{
-			data[j] = size;
-		}
-		blocks[i]->Write();
-	}
-
-	// Delete the original blocks
-	for (int i = 0; i < 8; ++i)
-	{
-		delete blocks[i];
-	}
-
-	// Try to read the blocks using the block addresses
-	for (int i = 0; i < 8; ++i)
-	{
-		int size = 2^(i+3);
-		blocks[i] = store->Read (addr[i], size);
-		assert (blocks[i]->Store() == store);
-	}
-
-	// Verify the data in each block's buffer
-	for (int i = 0; i < 8; ++i)
-	{
-		int size;
-		Buffer *buf = blocks[i]->GetBuffer (&size);
-		int *data = (int *)buf;
-		assert (buf != NULL);
-		assert (size == 2^(i+3));
-		for (int j = 0; j < size/sizeof(int); ++j)
-		{
-			assert (data[j] == size);
-		}
-	}
-
-	// Finally deallocate all the blocks
-	for (int i = 0; i < 8; ++i)
-	{
-		assert (blocks[i]->Store() == store);
-		blocks[i]->Free();
-		delete blocks[i];
-	}
-
-	return (0);
-}
-#endif /* notdef */
 
 

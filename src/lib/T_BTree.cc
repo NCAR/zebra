@@ -20,10 +20,9 @@
 #include "Logger.hh"
 #include "BTreeFile.hh"
 #include "SerialZTime.hh"
-//#include "BTreeStats.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.27 1998-10-21 14:17:57 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.28 2000-06-08 16:29:37 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,ZTime> TimeFileTree;
@@ -44,17 +43,6 @@ typedef long test_key;
 typedef BTreeFile<test_key,test_key> default_tree;
 
 static const int Debug = 0;
-
-#ifdef notdef
-#ifdef linux
-extern "C" { int __getfpucw (); }
-
-int __getfpucw ()
-{
-	return 0;
-}
-#endif
-#endif
 
 
 // ----------------------------------------------------------------------
@@ -721,7 +709,8 @@ int main (int argc, char *argv[])
 	// When both number and order given, test that combo once
 	// with the compiled test_key type.
 	if (argc > 2)
-	{{
+	{
+	    {
 		default_tree tree(order);
 		//TreeTest<default_tree> test;
 		//err += test.T_Traversal (tree, 1);
@@ -729,10 +718,10 @@ int main (int argc, char *argv[])
 		if (Debug) tree.Print(cout);
 		err += TestTree (tree, "default", N);
 		tree.Destroy();
-	}
-	if (err) cout << "***** ";
-	cout << err << " errors." << endl;
-	exit (err);
+	    }
+	    if (err) cout << "***** ";
+	    cout << err << " errors." << endl;
+	    exit (err);
 	}
 
 	// Perform the tests on trees of various types and orders, 
