@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.25 1992-12-18 09:10:14 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.26 1992-12-21 16:24:29 kris Exp $")
 
 
 /*
@@ -404,14 +404,14 @@ bool update;
  */
 {
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
-	char	quadrants[120], *quads[6], quadclr[30], string[10], data[100];
+	char	quadrants[4][20], *quads[6], quadclr[30], string[10], data[100];
 	char	*strchr ();
 	static const int offset_x[4] = { -15, -15, 15, 15 };
 	static const int offset_y[4] = { -10, 10, -10, 10 };
 	PlatformId pid, *platforms;
 	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
 	int linewidth, numquads = 0, shifted, npts, i, j, pix_x0, pix_y0;
-	bool	filter = FALSE, tacmatch, stationname = FALSE;
+	bool	filter = FALSE, tacmatch, stationname = FALSE, quad = FALSE;
 	ZebTime zt;
 	XColor	color, qcolor;
 	FieldId	fields[6];
@@ -444,8 +444,21 @@ bool update;
 /*
  * Look up quadrant info.
  */
-	if (pd_Retrieve (Pd, c, "quadrants", quadrants, SYMT_STRING))
+	for (i = 0; i < 4; i++)
+		quadrants[i][0] = '\0';
+
+	numquads = 0;
+
+	quad |= pd_Retrieve (Pd, c, "quad1", quadrants[0], SYMT_STRING);
+	quad |= pd_Retrieve (Pd, c, "quad2", quadrants[1], SYMT_STRING);
+	quad |= pd_Retrieve (Pd, c, "quad3", quadrants[2], SYMT_STRING);
+	quad |= pd_Retrieve (Pd, c, "quad4", quadrants[3], SYMT_STRING);
+
+	if (quad)
 	{
+	/*
+	 * Get a color for the quadrants.
+	 */
 		if (!pd_Retrieve (Pd, c, "quad-color", quadclr, SYMT_STRING))
 		{
 			strcpy (quadclr, cname);
@@ -456,9 +469,16 @@ bool update;
 			strcpy (quadclr, cname);
 			qcolor = color;
 		}
-		numquads = CommaParse (quadrants, quads);
-		if (numquads > 4)
-			numquads = 4;
+	/*
+	 * How many quadrants?  And store them.
+	 */
+		for (i = 0; i < 4; i++)
+			if (quadrants[i][0] != '\0')
+			{
+				quads[numquads] = quadrants[i];
+				numquads++;
+			}
+		msg_ELog (EF_INFO, "numquads = %d", numquads);
 	}
 /*
  * Kludge of sorts...see if any of the quadrants is "station".  If so,
