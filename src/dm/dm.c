@@ -47,7 +47,7 @@
 static void CallXHelp ();
 static bool UseXHelp = TRUE;
 
-MAKE_RCSID ("$Id: dm.c,v 2.55 1994-11-20 22:40:41 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.56 1994-11-20 23:26:57 granger Exp $")
 
 
 /*
@@ -119,6 +119,8 @@ static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
 static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
+static void RestartWin FP ((struct cf_window *win));
+static void ProcessDeath FP ((char *client));
 static struct config *TryConfigDir FP ((char *, char *));
 static int dm_cycle FP ((void));
 static int WaitForDeaths FP ((struct message *msg, void *param));
@@ -538,7 +540,7 @@ struct message *msg;
 	 */
 	   case MH_CLIENT:
 		client = (struct mh_client *) msg->m_data;
-		if (client->mh_evtype == MH_CE_DISCONNECT && Restart)
+		if (client->mh_evtype == MH_CE_DISCONNECT)
 			ProcessDeath (client->mh_client);
 		break;
 
@@ -595,7 +597,6 @@ char *who;
 	ForceRestart (who);
 	usy_z_symbol (Current, who);	/* So it won't really restart */
 /*
- * Now that this window is no longer with us, take it out of the will.
  * If other configurations want this window, they'll have to restart it.
  */
 	usy_z_symbol (Windows, who);
@@ -622,8 +623,7 @@ char *who;
 
 
 
-
-
+static void
 ProcessDeath (client)
 char *client;
 /*
@@ -632,9 +632,10 @@ char *client;
 {
 	struct cf_window *win = lookup_win (client, TRUE);
 /*
- * If this was a currently active window, let us simply restart it now.
+ * If this was a currently active window, let us simply restart it now,
+ * unless restarts have been turned off.
  */
-	if (win)
+	if (win && Restart)
 	{
 		if (++win->cfw_ncroak < 10)
 			RestartWin (win);
@@ -646,14 +647,14 @@ char *client;
  * Otherwise, if this is an existing window, but not in the current config,
  * we need to just mark it as being dead.
  */
-	else if (win = lookup_win (client, FALSE))
+	else if ((win) || (win = lookup_win (client, FALSE)))
 		usy_z_symbol (Windows, client);
 }
 
 
 
 
-
+static void
 RestartWin (win)
 struct cf_window *win;
 /*
