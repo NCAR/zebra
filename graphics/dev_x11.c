@@ -2,7 +2,7 @@
 /*
  * Graphics driver for the X window system, version 11.3
  */
-static char *rcsid = "$Id: dev_x11.c,v 1.34 2002-07-11 22:59:23 burghart Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.35 2002-08-23 22:43:56 burghart Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -113,10 +113,10 @@ struct device *dev;
 {
 	struct xtag *tag = (struct xtag *) getvm (sizeof (struct xtag));
 	XSetWindowAttributes attr;
+	unsigned long attrmask;
 	XGCValues gcontext;
-	XVisualInfo template, *vlist;
 	XWMHints hints;
-	int screen, pv[2], pm, nmatch, depth, i;
+	int screen, depth, i;
 	XEvent ev;
 	char* default_dev;
 /*
@@ -170,65 +170,45 @@ struct device *dev;
 	tag->x_xtgt = -1;
 	tag->x_ytgt = -1;
 /*
- * Look for a good visual.  Try for a TrueColor one first, and if that
- * fails then get a PseudoColor visual with depth >= 8.
+ * Use the default visual so we don't have to deal with creating
+ * a custom Colormap for our window.
  */
-	tag->x_visual = 0;
-	
-	template.screen = screen;
-	template.class = TrueColor;
-	vlist = XGetVisualInfo (tag->x_display,
-				VisualScreenMask | VisualClassMask, 
-				&template, &nmatch);
-	if (nmatch)
+	tag->x_visual = DefaultVisual(tag->x_display, screen);
+	depth = DefaultDepth(tag->x_display, screen);
+	switch (tag->x_visual->class)
 	{
-	    /*
-	     * Good, we got a TrueColor visual
-	     */
-	    tag->x_visual = vlist[0].visual;
-	    depth = vlist[0].depth;
+	  case TrueColor:
 	    tag->x_pseudocolor = FALSE;
-	}
-	else
-	{
-	    /*
-	     * Try to find a PseudoColor visual.
-	     */
-	    template.class = PseudoColor;
-	    vlist = XGetVisualInfo (tag->x_display,
-				    VisualScreenMask | VisualClassMask, 
-				    &template, &nmatch);
-	    if (nmatch)
-	    {
-		/*
-		 * Take the first one with at least a depth of 8.
-		 */ 
-		for (i = 0; i < nmatch; i++)
-                {
-                    if (vlist[i].depth >= 8){
-		        tag->x_visual = vlist[i].visual;
-		        depth = vlist[i].depth;
-			tag->x_pseudocolor = TRUE;
-		        XFree ((char *) vlist);
-                        break;
-                    }
-                }
-	    }
-	}
-	
-	if (!tag->x_visual)
+	    break;
+	  case PseudoColor:
+	    tag->x_pseudocolor = TRUE;
+	    break;
+	  default:
 	    return GE_DEVICE_UNABLE;
+	}
 /*
  * Create the window to exist on that display.
  */
+	attrmask = 0;
+
 	attr.background_pixel = BlackPixel (tag->x_display, screen);
+	attrmask |= CWBackPixel;
+
 	attr.border_pixel = WhitePixel (tag->x_display, screen);
+	attrmask |= CWBorderPixel;
+
 	attr.backing_store = WhenMapped;
+	attrmask |= CWBackingStore;
+
 	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
-	tag->x_window = XCreateWindow (tag->x_display,
-		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
-		tag->x_yres, 0, depth, InputOutput, tag->x_visual,
-		CWBackPixel|CWBorderPixel|CWBackingStore|CWEventMask, &attr);
+	attrmask |= CWEventMask;
+
+	tag->x_window = 
+	    XCreateWindow (tag->x_display,
+			   RootWindow (tag->x_display, screen), 10, 10, 
+			   tag->x_xres, tag->x_yres, 0, 
+			   DefaultDepth (tag->x_display, screen), InputOutput, 
+			   tag->x_visual, attrmask, &attr);
 /*
  * Set the input flag for difficult window managers.
  */
