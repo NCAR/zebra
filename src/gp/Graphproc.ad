@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.18 1995-09-23 02:41:00 granger Exp $
+! $Id: Graphproc.ad,v 1.19 1996-02-05 16:52:24 burghart Exp $
 !
 ! The Graphics process resource file.
 !
@@ -239,6 +239,38 @@ Graphproc.?.form.background:	gray95
 *simple-gray*80-Percent.foreground:	gray80
 *simple-gray*90-Percent.foreground:	gray90
 *simple-gray*background:		Midnight Blue
+
+*form-color-menu*background:		black
+*form-color-menu*red.foreground:	red
+*form-color-menu*lavender.foreground:	lavender
+*form-color-menu*magenta.foreground:	magenta
+*form-color-menu*orchid.foreground:	MediumOrchid
+*form-color-menu*sky.foreground:	DeepSkyBlue
+*form-color-menu*gray.foreground:	DarkSlateGray1
+*form-color-menu*spring.foreground:	SpringGreen1
+*form-color-menu*blue.foreground:	blue
+*form-color-menu*cyan.foreground:	cyan
+*form-color-menu*green.foreground:	green
+*form-color-menu*khaki.foreground:	khaki
+*form-color-menu*yellow.foreground:	yellow
+*form-color-menu*tan.foreground:	tan
+*form-color-menu*brown.foreground:	brown
+*form-color-menu*orange.foreground:	orange
+*form-color-menu*pink.foreground:	DeepPink
+*form-color-menu*violet.foreground:	violet
+*form-color-menu*olive.foreground:	DarkOliveGreen1
+*form-color-menu*foreground:		white
+*form-gray-menu*10-Percent.foreground:	gray10
+*form-gray-menu*20-Percent.foreground:	gray20
+*form-gray-menu*30-Percent.foreground:	gray30
+*form-gray-menu*40-Percent.foreground:	gray40
+*form-gray-menu*50-Percent.foreground:	gray50
+*form-gray-menu*60-Percent.foreground:	gray60
+*form-gray-menu*70-Percent.foreground:	gray70
+*form-gray-menu*80-Percent.foreground:	gray80
+*form-gray-menu*90-Percent.foreground:	gray90
+*form-gray-menu*background:		black
+
 *arrow-color*background:	black
 *arrow-color*red.foreground:	red
 *arrow-color*lavender.foreground:	lavender
