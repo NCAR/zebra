@@ -1,7 +1,7 @@
 /*
- * Skew-t plotting module
+ * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.9 1992-04-09 18:30:37 granger Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.10 1992-07-31 19:17:26 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,14 +42,14 @@ static char *rcsid = "$Id: AxisControl.c,v 1.9 1992-04-09 18:30:37 granger Exp $
 /*
  *  Static functions -- function prototypes
  */
-static void ac_GetAxisDescriptors FP(( plot_description, char*, int, int,
-                       int*, int*,int*, int*,
-                       int*, float*,DataValPtr,float*, char*, char*,float*));
-static void ac_SetPrivateAxisDescriptors FP(( plot_description, char*, int,
-                int,  int*, DataValPtr,int*,int*,int*, float*));
-static void ac_FormatLabel FP(( DataValPtr, char*[], int*, int ));
-static void ac_ComputeAxisDescriptors FP(( plot_description, char*, int, int ));
-static int ac_DrawAxis FP((plot_description,char*,int,int,int));
+static void ac_GetAxisDescriptors FP((plot_description, char*, int, int,
+                       int*, int*,int*, int*, int*, float*, DataValPtr, 
+			float*, char*, char*, float*));
+static void ac_SetPrivateAxisDescriptors FP((plot_description, char*, int,
+                int,  int*, DataValPtr, int*, int*, int*, float*));
+static void ac_FormatLabel FP((DataValPtr, char*[], int*, int ));
+static void ac_ComputeAxisDescriptors FP((plot_description, char*, int, int));
+static int ac_DrawAxis FP((plot_description, char*, int, int, int));
 
 int 
 ac_DisplayAxes ()
@@ -57,8 +57,7 @@ ac_DisplayAxes ()
  * Display all axes of plot, fitting into allocated space on each side.
  */
 {
-    int 		ic,i,h;
-    int			ok;
+    int 		ic,i;
     char		side;
     int 	        fitAxes = 0;
     int			nextoffset = 0;
@@ -159,7 +158,7 @@ int		dim;
 }
 
 static void
-ac_ComputeAxisDescriptors(pd,c, side, datatype )
+ac_ComputeAxisDescriptors (pd, c, side, datatype )
 plot_description	pd;
 char			*c;
 char			side;
@@ -260,7 +259,7 @@ static int
 ac_DrawAxis(pd,c,side,datatype,mode)
 plot_description	pd;
 char			*c;
-char			side,datatype;
+char			side, datatype;
 unsigned short		mode;
 {
     DataValRec	min,max;
@@ -271,7 +270,7 @@ unsigned short		mode;
     char	color[80],label[80];
     float	fscale;
     char	*ticLabel[2];
-    int		nlab;
+    int		nlab, even;
     int		maxDim = 80;
     int		labelExtent;
     int		kk;
@@ -279,10 +278,8 @@ unsigned short		mode;
     int		fit = 1;
     int		xloc,yloc;
     DataValRec	savemin, savemax;
-    unsigned int	saveConfig;
     int		axisSpaceHeight;
     float	center;
-    int		even;
     int		axisSpaceWidth;
     DataValRec	yOrig,xOrig;
     int		direction;
@@ -637,7 +634,7 @@ vertical:
 }
 
 int
-ac_QueryAxisState(pd,c,side,datatype)
+ac_QueryAxisState (pd,c,side,datatype)
 plot_description	pd; /* input */
 char			*c; /* input */
 char			side; /* input */
@@ -677,8 +674,7 @@ char	side;
 char	*datatype;
 int	*computed;
 {
-    int axid = 0;
-    char	keyword[20];
+    char	keyword[80];
     char	dtype[3];
 
     if ( computed )
@@ -770,6 +766,7 @@ float   *drawGrid;
 {
     char        keyword[80];
     char        string[80];
+    ZebTime	zt;
     /*
      * Get the user-settable axis descriptors
      */
@@ -883,11 +880,12 @@ float   *drawGrid;
         {
             case 't':
                 if (! pda_Search (pd, c, keyword, NULL,
-                    (char *)&(baseTic->val.t), SYMT_DATE))
+                    (char *) &(zt), SYMT_DATE))
                 {
                     baseTic->val.t.ds_yymmdd = 0;
                     baseTic->val.t.ds_hhmmss = 0;
                 }
+		else TC_ZtToUI (&zt, &baseTic->val.t);
             break;
             case 'f':
                 if (! pda_Search (pd, c, keyword, NULL,
@@ -946,9 +944,8 @@ int     *tlabelHeight,*tlabelWidth;
 int     *nticLabel;
 float   *ticInterval;
 {
-    char        mode[80];
     char        keyword[80];
-    char	tstring[3];
+    ZebTime	zt;
 
     if ( offset )
     {
@@ -968,7 +965,8 @@ float   *ticInterval;
         switch( datatype )
         {
             case 't':
-                pd_Store (pd, c, keyword, (char *)&(baseTic->val.t), SYMT_DATE);
+		TC_UIToZt (&baseTic->val.t, &zt);
+                pd_Store (pd, c, keyword, (char *) &(zt), SYMT_DATE);
             break;
             case 'f':
                 pd_Store (pd, c, keyword,(char *)&(baseTic->val.f), SYMT_FLOAT);
