@@ -21,10 +21,8 @@
  *
  * Either UseXWindows or UseOpenWin should be defined to get windows support.
  * Defining both will default to OpenWindows libraries.  If you are not
- * using OpenWindows 3.0, you may have to define XWindowsFlag to nothing,
- * as follows:
- *
- *	  # define XWindowsFlag
+ * using OpenWindows 3.0, you may have to define OldOpenWin to Yes later
+ * in this file where UseOpenWin is defined.
  *
  * To change the default math library from -lm, use MathLib, as in
  *
@@ -33,8 +31,6 @@
  * 	  # define MathLib -L/usr/local/lib -lm
  */
  
-
-
 # define UseXWindows Yes
 
 # if UseXWindows
@@ -50,9 +46,11 @@
 # define OldX11 No
 
 /*
- * If you have OpenWindows, set UseOpenWin to Yes.
+ * If you have OpenWindows, either 2.0 or 3.0, set UseOpenWin to Yes.
+ * If you are only using OpenWindows 2.0, set OldOpenWin to Yes.
  */
 # define UseOpenWin No
+# define OldOpenWin Yes
 
 
 /*
@@ -93,6 +91,10 @@
  */
 # define UseGcc No 
 
+/*
+ * The math library to use.  This will rarely need to be changed.
+ */
+#define MathLib -lm
 
 
 /*

@@ -67,6 +67,13 @@
 # endif	
 
 /*
+ * Default to using OldOpenWin, version 2.0
+ */
+# ifndef OldOpenWin
+# define OldOpenWin Yes
+# endif
+
+/*
  * Do we have X11 Release 3 or older?
  */
 # ifndef Old_X11
@@ -103,7 +110,10 @@
 
 # ifndef XToolkitLibs		/* What else for Xt appls	*/
 # if (UseXWindows || UseOpenWin)
-# define XToolkitLibs -lXaw -lXmu -lXt -lXext 
+# ifdef OldOpenWin
+#   define XToolkitLibs
+# else
+#   define XToolkitLibs -lXaw -lXmu -lXt -lXext 
 # else
 # define XToolkitLibs          /* Nothing */
 # endif
@@ -200,10 +210,12 @@
 # define SunviewFlag   /* Nothing */
 # endif
 
-# if (UseXWindows || UseOpenWin)
-# define XWindowsFlag -DXSUPPORT
-# else
-# define XWindowsFlag   /* Nothing */
+# ifndef XWindowsFlag
+#    if ((UseXWindows || UseOpenWin) && !OldOpenWin)
+#       define XWindowsFlag -DXSUPPORT
+#    else
+#       define XWindowsFlag   /* Nothing */
+#    endif
 # endif
 
 # if UseGcc
