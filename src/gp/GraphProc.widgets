@@ -4,19 +4,15 @@
 ! Most widgets have now been moved out of here, finding their home instead
 ! in the library directory and brought in through the require mechanism.
 !
-! $Id: GraphProc.widgets,v 1.7 1993-11-29 17:04:14 corbet Exp $
+! $Id: GraphProc.widgets,v 1.8 1993-11-30 16:00:50 burghart Exp $
 !
 set ui$initial_state 'initial'
 
 
-
-
-
-
-procedure ToggleEnable button string
 !
 ! Toggle an enable button.
 !
+procedure ToggleEnable button string
 	local current getftext(ui$form,button)
 	if (current = "Enabled")
 		formtext #ui$form #button "Disabled"
@@ -24,28 +20,6 @@ procedure ToggleEnable button string
 		formtext #ui$form #button "Enabled"
 	endif
 endprocedure
-
-
-
-!
-! Speed unit selection.
-!
-!define widget SpeedUnits intmenu "units"
-!	title "Speed units (IGNORED!)"
-!	line
-!	entry "Meters/second" "SpeedUnits m/s"
-!	entry "Miles/hour" "SpeedUnits mph"
-!	entry "Furlongs/fortnight" "SpeedUnits f/f"
-!endmenu
-
-
-!procedure SpeedUnits units string
-!	local qunits quote(units)
-!	formtext #ui$form adv_units #qunits
-!endprocedure
-
-
-
 
 !
 ! The standard left button menu, which should get used for most data
@@ -77,12 +51,14 @@ define widget minimal-cap-left-menu intmenu "leftmenu"
 	entry 'Remove' 'i_remove_component'
 endmenu
 
+
 !
 ! Remove a component.
 !
 procedure i_remove_component
 	dm concat4('remove ', ourname, ' ', icon_component)
 endprocedure
+
 
 !
 ! Adjust the limits on a component.
@@ -97,28 +73,6 @@ procedure i_adjust procparam string
 	endif
 endprocedure
 
-
-!
-! Useful procedures.
-!
-
-procedure ToggleEnable button string
-!
-!Toggle an enable button.
-!
-	local current getftext(ui$form,button)
-	if (current = "Enabled")
-		formtext #ui$form #button "Disabled"
-	else
-		formtext #ui$form #button "Enabled"
-	endif
-endprocedure
-
-
-
-!
-! Adjust procedures.
-!
 
 !
 ! The arrow scale adjuster.
@@ -143,7 +97,6 @@ procedure ToggleBoolean param string
 endprocedure
 
 
-
 !
 ! Line width menu for maps and such.
 !
@@ -158,6 +111,17 @@ define widget LineWidth intmenu 'line width'
 	entry 'Super-thick lines' 'parameter #icon_component line-width 3' \
 		(pd_param (icon_component, "line-width", "string") = "3")
 endmenu
+
+
+!
+! Set the constant altitude plot limits to the given values.
+!
+procedure DoZoom xmin string xmax string ymin string ymax string
+	parameter global x-min #xmin
+	parameter global x-max #xmax
+	parameter global y-min #ymin
+	parameter global y-max #ymax
+endprocedure
 
 
 !
