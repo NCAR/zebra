@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.4 1989-06-05 16:05:01 corbet Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.5 1989-07-14 10:50:51 burghart Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -643,7 +643,10 @@ int *type;
  */
  	ue_rel_tree (tree);
 	if (state->sta_vptype != SYMT_UNDEFINED && *type != state->sta_vptype)
+	{
 		uit_coerce (v, *type, state->sta_vptype);
+		*type = state->sta_vptype;
+	}
 	*action = &state->sta_vpact;
 	return (TRUE);
 }
