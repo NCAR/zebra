@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.3 1993-09-07 21:21:04 burghart Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.4 1993-09-10 19:22:29 burghart Exp $"
  "The RCS id")
 
 ;
@@ -752,8 +752,9 @@ lat-lon is TRUE; kilometers otherwise.")
 ;;
 
 (defun pd::ck-float (stuff junk) "Check to see that this is a float"
-    (if (not (string-match "^-?[0-9]+\.?[0-9]*$" stuff))
-    	(pd::gripe "This parameter must be a floating-point number"))
+    (if (not (or (string-match "^-?[0-9]+\.?[0-9]*$" stuff)
+		 (string-match "^-?\.[0-9]+$" stuff)))
+	     (pd::gripe "This parameter must be a floating-point number"))
 )
 
 
