@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.41 1994-04-20 21:57:56 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.42 1994-05-24 00:22:01 granger Exp $")
 
 /*
  * Default resources.
@@ -149,6 +149,7 @@ void eq_reconfig (), eq_sync ();
 
 static void NewTime FP ((ZebTime *));
 static int AnswerQuery FP ((char *));
+static void SendGeometry FP((struct dm_msg *dmm));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void Enqueue FP ((EQpriority, char *));
 
@@ -419,6 +420,7 @@ finish_setup ()
 }
 
 
+
 XtCallbackProc
 WMResize (w, junk, stuff)
 Widget w;
@@ -480,6 +482,7 @@ struct message *msg;
 	}
 	return (0);
 }
+
 
 
 
@@ -770,6 +773,12 @@ struct dm_msg *dmsg;
 			Override);
 		break;
 	/*
+	 * Geometry query.
+	 */
+	   case DM_GEOMETRY:
+		SendGeometry (dmsg);
+		break;
+	/*
 	 * Ribbit.
 	 */
 	   case DM_DIE:
@@ -837,6 +846,35 @@ struct dm_msg *dmsg;
 
 
 
+static void
+SendGeometry (dmm)
+struct dm_msg *dmm;
+{
+	struct dm_msg reply;
+	Dimension width, height;
+	Position x, y;
+	Arg args[5];
+	int n;
+
+	reply.dmm_type = DM_R_GEOMETRY;
+
+	n = 0;
+	XtSetArg (args[n], XtNx, (XtArgVal)&x);	n++;
+	XtSetArg (args[n], XtNy, (XtArgVal)&y);	n++;
+	XtSetArg (args[n], XtNwidth, (XtArgVal)&width);	n++;
+	XtSetArg (args[n], XtNheight, (XtArgVal)&height); n++;
+	XtGetValues (GrShell, args, n);
+	reply.dmm_x = x;
+	reply.dmm_y = y;
+	reply.dmm_dx = width;
+	reply.dmm_dy = height;
+
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+}
+
+
+
+
 /* ARGSUSED */
 void
 eq_reconfig (dmsg, len)
@@ -855,21 +893,23 @@ int len;
 			(dmsg->dmm_dy != GWHeight (Graphics));
 	wchanged = (WindowState == DOWN);
 /*
- * Go through and set the new values for the shell.
+ * Make sure the window is popped up first, and THEN change the geometry,
+ * since olwm insists on ignoring the setvalues change otherwise.
+ * Unfortunately, this will usually generate two expose events, but no
+ * kludge is perfect...
  */
+	ChangeState (UP);
+
 	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
 	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
-	XtSetValues (Graphics, args, TWO);
+	XtSetValues (Graphics, args, (Cardinal)2);
 
  	XtSetArg (args[0], XtNx, dmsg->dmm_x);
 	XtSetArg (args[1], XtNy, dmsg->dmm_y);
-	XtSetValues (GrShell, args, TWO);
+	XtSetValues (GrShell, args, (Cardinal)2);
 /*
- * If we are not currently on-screen, put it there.  Also set the cursor 
- * to our normal value.
+ * Set the cursor to our normal value.
  */
-	if (WindowState == DOWN)
-		ChangeState (UP);
 	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
 /*
  * If nothing drastic has changed, we can quit now and not redraw everything.
