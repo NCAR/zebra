@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.4 1990-11-15 14:50:09 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.5 1990-11-19 13:44:16 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -37,12 +37,14 @@ typedef struct
  */
 # define PT_CAP		0
 # define PT_SKEWT	1
-# define N_PTYPES	2	/* Increase this as plot types are added */
+# define PT_XSECT	2
+# define N_PTYPES	3	/* Increase this as plot types are added */
 
 name_to_num Pt_table[] =
 {
 	{"CAP",		PT_CAP		},
 	{"skewt", 	PT_SKEWT	},
+	{"xsect",	PT_XSECT	},
 	{NULL,		0		}
 };
 
@@ -111,7 +113,7 @@ typedef enum {LineContour, FilledContour} contour_type;
 /*
  * Other routines.
  */
-extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
+extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt (), xs_XSect ();
 
 # ifdef titan
 #	define do_rgrid DO_RGRID
@@ -425,6 +427,8 @@ px_Init ()
 	Plot_routines[PT_CAP][RT_OVERLAY] = ov_CAPOverlay;
 
 	Plot_routines[PT_SKEWT][RT_SKEWT] = sk_Skewt;
+
+	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_XSect;
 /*
  * Done
  */
