@@ -18,16 +18,17 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.6 $ $Date: 1994-10-11 16:27:04 $";
+char *Version = "$Revision: 2.7 $ $Date: 1994-11-17 06:42:22 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
 # include <signal.h>
 # include <errno.h>
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "timer.h"
-MAKE_RCSID ("$Id: timer.c,v 2.6 1994-10-11 16:27:04 corbet Exp $")
+
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+MAKE_RCSID ("$Id: timer.c,v 2.7 1994-11-17 06:42:22 granger Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -75,7 +76,10 @@ int Status FP ((char *));
 	((t1)->tv_sec == (t2)->tv_sec && (t1)->tv_usec < (t2)->tv_usec))
 
 
-main ()
+int
+main (argc, argv)
+int argc;
+char *argv[];
 {
 	struct timeval timeout;
 	fd_set fds;
@@ -84,7 +88,11 @@ main ()
  * Connect to the message handler.  Hook into the client events group so
  * that we can zap requests for clients that die.
  */
-	msg_connect (msg_handler, TIMER_PROC_NAME);
+	if (! msg_connect (msg_handler, TIMER_PROC_NAME))
+	{
+		printf ("%s: unable to connect to message handler\n", argv[0]);
+		exit (1);
+	}
 	msg_join ("Client events");
 	msg_SetQueryHandler (Status);
 /*
