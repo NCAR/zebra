@@ -31,7 +31,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.5 1994-11-19 00:30:56 burghart Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.6 1995-07-06 05:14:38 granger Exp $");
 
 //
 // Internal structures
@@ -63,7 +63,7 @@ private:
 //
 // Forwards.
 //
-static int ZapPlat (const char *name, int type, const SValue *v, long junk);
+int ZapPlat (const char *name, int type, const SValue *v, long junk);
 static int ZapDirList (const char *name, int type, const SValue *v, long junk);
 static int WritePlat (const char *name, int type, const SValue *v, long lfp);
 
@@ -391,7 +391,7 @@ PlatformIndex::~PlatformIndex ()
 
 
 
-static int
+int
 ZapPlat (const char *name, int type, const SValue *v, long junk)
 //
 // Get rid of this platform by deleting all of the dynamic structures.
