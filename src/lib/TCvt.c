@@ -27,7 +27,7 @@
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.27 2000-01-04 23:17:55 granger Exp $")
+RCSID ("$Id: TCvt.c,v 2.28 2000-01-24 18:31:05 burghart Exp $")
 
 /*
  * Public time constants
@@ -78,9 +78,16 @@ const UItime *fcc;
  */
 {
 	struct tm t;
-
+    /*
+     * Get t.tm_year, defined as years since 1900
+     */
 	if ((t.tm_year = fcc->ds_yymmdd/10000) > 1000)
-		t.tm_year -= 1900;  /* Defined as years since 1900 */
+	    t.tm_year -= 1900;
+	else if (t.tm_year < 70) /* kluge for a >= 2000 2-digit year */
+	    t.tm_year += 100;
+    /*
+     * And get the rest
+     */
 	t.tm_mon = (fcc->ds_yymmdd/100) % 100 - 1;
 	t.tm_mday = fcc->ds_yymmdd % 100;
 	t.tm_hour = fcc->ds_hhmmss/10000;
