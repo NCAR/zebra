@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.21 1993-06-24 20:36:11 barrett Exp $
+! $Id: GraphProc.state,v 1.22 1993-09-27 21:22:28 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -87,6 +87,9 @@ define state initial
 	endinput
 	input 'unzoom' 25
 		next ust$no_more
+	endinput
+	input 'require' 26
+		next ust$final_unmunged_string
 	endinput
 enddef
 

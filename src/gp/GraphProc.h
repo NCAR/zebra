@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.24 1993-08-26 20:18:26 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.25 1993-09-27 21:22:27 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -237,9 +237,14 @@ extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
 extern void tr_InitAcWidget FP ((void));
 extern char *lw_Status FP ((void));
+extern void Require FP ((char *));
+extern void DoRequires FP ((void));
+extern void GetRange FP ((float *, int, double, float *, float *));
+extern void CalcCenterStep FP ((double, double, int, float *, float *));
 
 # ifdef _DATACHUNK_H_
-	extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
+extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
+extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 # endif
 
 /* This stuff contains window system oriented stuff, so is only brought

@@ -3,7 +3,7 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.6 1993-07-20 20:48:38 corbet Exp $";
+static char *rcsid = "$Id: DrawText.c,v 2.7 1993-09-27 21:22:23 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -117,7 +117,7 @@ float	rot, scale;
 	if (scale > 1.0)
 	{
 		cheight = (int) scale;
-		scale = ((int) scale)/geom.height;
+		scale /= geom.height;
 	}
 	else
 		cheight = (int)(scale * geom.height);
@@ -416,7 +416,16 @@ int	*sx, *sy, *ex, *ey;
 /*
  * If we can draw the text using X fonts, we treat it specially
  */
-	cheight = (int)(scale * geom.height);
+/*
+ * Desired character height (in pixels)
+ */
+	if (scale > 1.0)
+	{
+		cheight = (int) scale;
+		scale /= geom.height;
+	}
+	else
+		cheight = (int)(scale * geom.height);
 	if (rot == 0.0 && DT_HaveXFont (w, cheight,&actual))
 	{
 		int	hoffset, voffset, w;

@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.24 1993-05-27 10:45:56 granger Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.25 1993-09-27 21:22:37 corbet Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -52,7 +52,7 @@ MAKE_RCSID ("$Id: Track.c,v 2.24 1993-05-27 10:45:56 granger Exp $")
  * Forwards.
  */
 static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
-		int *, float *, float *, XColor *, float *, float *));
+		int *, float *, float *, XColor *, float *, float *, bool *));
 static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
 		int *, char *, XColor *, char *, char *, char *));
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
@@ -94,7 +94,7 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[30], ccfield[30], positionicon[40];
+	char platform[30], ccfield[30], positionicon[40], param[40];
 	char mtcolor[20], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30], a_type[30];
 	int period, nc, lwidth, pid, index;
@@ -106,7 +106,7 @@ bool update;
 	int npt;   	/* number pts read so far, for data-skipping */
 	int a_lwidth, nsamp;
 	bool arrow, showposition, annot_time;
-	bool mono, shifted, a_invert;
+	bool mono, shifted, a_invert, autoscale;
 	ZebTime begin, zt;
 	float *data, base, incr, a_scale;
 	float unitlen, center, step;
@@ -128,7 +128,8 @@ bool update;
  */
 	if (! mono)
 		mono = ! tr_CCSetup (comp, platform, ccfield, ctable, &colors,
-				&nc, &base, &incr, &outrange, &center, &step);
+				     &nc, &base, &incr, &outrange, &center,
+				     &step, &autoscale);
 /*
  * Put together the field list.
  */
@@ -152,69 +153,93 @@ bool update;
 /*
  * Figure the begin time and fetch data.
  */
-	if (period) {
-
+	if (period)
+	{
 	  /* time-period type plot */
 
-	    begin = PlotTime;
-	    begin.zt_Sec -= period;
-	    dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
-			   &PlotTime, fields, numfields, 0, 0);
-	  } else {
-
-	    /* observation type plot */
-
-	    if (update) {
-
-	      /* update, get data since last plot */
-
-	      if (!pda_Search ( Pd, comp, "data-end-time", NULL, 
-			       (char*) &begin, SYMT_DATE)){
 		begin = PlotTime;
-	      }
-	      msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
-		       begin.zt_Sec, PlotTime.zt_Sec);
-	      dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
-			     &begin, &PlotTime, fields, numfields, 0, 0);
+		begin.zt_Sec -= period;
+		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
+			       &begin, &PlotTime, fields, numfields, 0, 0);
+	}
+	else
+	{
+	    /* observation type plot */
+		if (update)
+		{
+			/* update, get data since last plot */
 
-	    } else {
-	      
-	      /* global, get whole observation */
+			if (!pda_Search ( Pd, comp, "data-end-time", NULL, 
+					 (char*) &begin, SYMT_DATE))
+				begin = PlotTime;
 
-	      begin = PlotTime;
+			msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
+				 begin.zt_Sec, PlotTime.zt_Sec);
+			dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
+				       &begin, &PlotTime, fields, numfields,
+				       0, 0);
+		}
+		else
+		{
+	      	      /* global, get whole observation */
+			begin = PlotTime;
 	      
-	      if (!ds_GetObsTimes(pid, &PlotTime, &begin, 1, NULL)) {
-		dc = NULL;
-	      } else {
-		msg_ELog(EF_DEBUG,"global, FetchObs for %d", begin.zt_Sec);
-		dc = ds_FetchObs(pid, numfields ? DCC_Scalar : DCC_Location,
-				 &begin, fields, numfields, 0, 0);
+			if (!ds_GetObsTimes(pid, &PlotTime, &begin, 1, NULL)) {
+				dc = NULL;
+			} else {
+				msg_ELog(EF_DEBUG,"global, FetchObs for %d", begin.zt_Sec);
+				dc = ds_FetchObs(pid,
+					numfields ? DCC_Scalar : DCC_Location,
+					 &begin, fields, numfields, 0, 0);
 	      }
 	    }
-
-	    if (dc) {
-	      nsamp = dc_GetNSample (dc);
-	      msg_ELog(EF_DEBUG,
-		       "%d points returned in observation mode", nsamp);
-	      dc_GetTime (dc, nsamp-1, &zt);
-	      
-	      /* remember end of this data span */
-	      msg_ELog(EF_DEBUG,
-		       "storing zt as data-end-time of %d", zt.zt_Sec);
-	      pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
-
-	    }
-
-	  }
-      
+        }
+/*
+ * Well, if we can't get any data, there is no point in going any further
+ * with this whole thing.
+ */
 	if (! dc)
 	{
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
+/*
+ * Stash away the data end time for use with updates later.
+ */
+	nsamp = dc_GetNSample (dc);
+	msg_ELog(EF_DEBUG,
+		 "%d points returned in observation mode", nsamp);
+	dc_GetTime (dc, nsamp-1, &zt);
+	      
+	/* remember end of this data span */
+	msg_ELog(EF_DEBUG, "storing zt as data-end-time of %d", zt.zt_Sec);
+	pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
+
+/*
+ * Do some initial loooking over the data.
+ */
 	shifted = ApplySpatialOffset (dc, comp, &PlotTime);
 	nsamp = dc_GetNSample (dc);
 	badvalue = tr_GetBadval (dc);
+/*
+ * If they want autoscaling figure out how it goes now.
+ */
+	if (autoscale && ! mono)
+	{
+		FindCenterStep (dc, fields[0], nc, &center, &step);
+		sprintf (param, "%s-center", ccfield);
+		pd_Store (Pd, comp, param, (char *) &center, SYMT_FLOAT);
+		sprintf (param, "%s-step", ccfield);
+		pd_Store (Pd, comp, param, (char *) &step, SYMT_FLOAT);
+	}
+
+/*
+ * Fix up the parameters to make coding a little easier.
+ */
+	if ((nc & 0x1) == 0)
+		nc--;
+	base = center - (nc/2)*step - step/2;
+	incr = step;
 /*
  * Fix up some graphics info.
  */
@@ -495,33 +520,6 @@ int *justify;
 
 
 
-#ifdef notdef
-static float
-tr_FigureRot (x0, y0, x1, y1)
-float	x0, y0, x1, y1;
-/*
- * Figure a rotation factor (in degrees) which is perpendicular to the 
- * line defined by (x0, y0) and (x1, y1).
- */
-{
-	float	sub_x = (x1 - x0), sub_y = (y1 - y0);
-	float	degrees;
-	double	radians, temp, sine;
-
-	temp = (double) (sub_x * sub_x + sub_y * sub_y);
-	sine = 
-	if ((temp == 0.0) ||
-	    (fabs((float)((double) sub_y / sqrt (temp))) > 1.0))
-		radians = 0.0;
-	else
-		radians = asin ((double) sub_y / sqrt (temp));
-	degrees = (float) radians * 180.0 / M_PI;
-	if (degrees >= 0.0) degrees -= 90.0;
-	else degrees += 90.0;
-	if (degrees < 0.0) degrees += 360.0;
-	return (degrees); 
-}
-#endif
 
 
 
@@ -890,16 +888,17 @@ bool *mono, *showposition;
 
 static bool
 tr_CCSetup (comp, platform, ccfield, ctable, colors, nc, base, incr, outrange,
-	center, step)
+	center, step, autoscale)
 char *comp, *platform, *ccfield, *ctable;
 XColor **colors, *outrange;
 int *nc;
 float *base, *incr, *center, *step;
+bool *autoscale;
 /*
  * Get everything set up to color-code a track.
  */
 {
-	char orc[20], param1[50], param2[50];
+	char orc[20], param1[50], param2[50], mode[32];
 /*
  * Get the color table.
  */
@@ -915,15 +914,29 @@ float *base, *incr, *center, *step;
 		return (FALSE);
 	}
 /*
+ * Autoscaling?
+ */
+	if (pda_Search (Pd, comp, "scale-mode", "track", mode, SYMT_STRING))
+		*autoscale = strcmp (mode, "manual");
+	else
+		*autoscale = FALSE;
+/*
  * Get our color coding parameters.
  */
-	sprintf (param1, "%s-center", ccfield);
-	sprintf (param2, "%s-step", ccfield);
-	if (! pda_ReqSearch (Pd, comp, param1, "track", (char *) center, 
-			SYMT_FLOAT) ||
-	    ! pda_ReqSearch (Pd, comp, param2, "track", (char *) step,
-	    	SYMT_FLOAT))
-		return (FALSE);
+	if (! *autoscale)
+	{
+		sprintf (param1, "%s-center", ccfield);
+		sprintf (param2, "%s-step", ccfield);
+		if (! pda_ReqSearch (Pd, comp, param1, "track", (char *)center,
+				     SYMT_FLOAT) ||
+		    ! pda_ReqSearch (Pd, comp, param2, "track", (char *) step,
+				     SYMT_FLOAT))
+			return (FALSE);
+	}
+/*
+ * Something for completely funky colors too.  Red is probably a bad
+ * choice but that's what we have for now.
+ */
 	if (! tr_GetParam (comp, "out-of-range-color", ccfield, orc,
 		SYMT_STRING))
 		strcpy (orc, "red");
@@ -932,13 +945,6 @@ float *base, *incr, *center, *step;
 		msg_ELog (EF_PROBLEM, "Bad out of range color: %s", orc);
 		ct_GetColorByName ("red", outrange); /* assume this works */
 	}
-/*
- * Fix up the parameters to make coding a little easier.
- */
-	if ((*nc & 0x1) == 0)
-		(*nc)--;
-	*base = *center - (*nc/2)*(*step) - *step/2;
-	*incr = *step;
 
 	return (TRUE);
 }

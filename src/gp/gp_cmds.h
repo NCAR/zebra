@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 2.6 1993-06-24 20:36:31 barrett Exp $ */
+/* $Id: gp_cmds.h,v 2.7 1993-09-27 21:22:41 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,3 +44,4 @@
 # define GPC_USERANNOT	23
 # define GPC_ZOOM	24
 # define GPC_UNZOOM	25
+# define GPC_REQUIRE	26

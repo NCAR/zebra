@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.31 1993-07-01 20:14:17 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.32 1993-09-27 21:22:20 corbet Exp $")
 
 
 /*
@@ -263,7 +263,7 @@ int *shifted;
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, linewidth;
-	bool	labelflag, dolabels, ok;
+	bool	labelflag, dolabels, ok, autoscale;
 	ZebTime	zt;
 	XColor	black;
 	XRectangle	clip;
@@ -277,16 +277,30 @@ int *shifted;
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
-	sprintf (param, "%s-center", fname);
-	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
-		SYMT_FLOAT);
-	sprintf (param, "%s-step", fname);
-	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
-		SYMT_FLOAT);
+/*
+ * Make a beginning at center/step too.
+ */
+	if (pda_Search (Pd, c, "scale-mode", platform, param, SYMT_STRING))
+		autoscale = ! strncmp (param, "auto", 4);
+	else
+		autoscale = FALSE;
+	if (! autoscale)
+	{
+		sprintf (param, "%s-center", fname);
+		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
+				     SYMT_FLOAT);
+		sprintf (param, "%s-step", fname);
+		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
+				     SYMT_FLOAT);
+	}
+/*
+ * color coding info.
+ */
 	Monocolor = FALSE;
-	pda_Search(Pd, c, "color-mono", "contour", (char *) &Monocolor,
-		SYMT_BOOL);
-	if(Monocolor)
+	if (type == LineContour)
+		pda_Search(Pd, c, "color-mono", "contour", (char *) &Monocolor,
+			   SYMT_BOOL);
+	if (Monocolor)
 	{
 		ok &= pda_Search(Pd, c, "color", "contour", ctcolor,
 			SYMT_STRING);
@@ -300,6 +314,9 @@ int *shifted;
 	}
 	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctable, 
 		SYMT_STRING);
+/*
+ * Labelling.
+ */
 	labelflag = TRUE;
 	pda_Search(Pd, c, "label-blanking", "contour", (char *) &labelflag,
 		SYMT_BOOL);
@@ -348,6 +365,19 @@ int *shifted;
  * Get the badvalue flag.
  */
 	badvalue = dc_GetBadval (dc);
+/*
+ * If we are autoscaling get the scale parameters now.  Stash them back into
+ * the PD so they will be found later if wanted.
+ */
+	if (autoscale)
+	{
+		FindCenterStep (dc, F_Lookup (fname), Monocolor ? 10 : Ncolors,
+				center, step);
+		sprintf (param, "%s-center", fname);
+		pd_Store (Pd, c, param, (char *) center, SYMT_FLOAT);
+		sprintf (param, "%s-step", fname);
+		pd_Store (Pd, c, param, (char *) step, SYMT_FLOAT);
+	}
 /*
  * Kludge: rotate the grid into the right ordering.
  */
@@ -484,7 +514,6 @@ bool update;
 				quads[numquads] = quadrants[i];
 				numquads++;
 			}
-		msg_ELog (EF_INFO, "numquads = %d", numquads);
 	}
 /*
  * Kludge of sorts...see if any of the quadrants is "station".  If so,
@@ -1121,8 +1150,8 @@ bool	update;
 	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (step), 
 		SYMT_FLOAT);
 	sprintf (param, "%s-nsteps", name);
-	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (nsteps), 
-		SYMT_INT);
+	if (! pda_ReqSearch (Pd, c, param, "raster", CPTR (nsteps), SYMT_INT))
+		nsteps = 11;
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);
 

@@ -2,6 +2,7 @@
  * The available field menu.  This is a carved up version of the data 
  * available menu....
  */
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,10 +30,11 @@
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
+# include <ds_fields.h>
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.2 1993-07-16 17:04:15 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.3 1993-09-27 21:22:24 corbet Exp $")
 
 
 /*
@@ -42,7 +44,8 @@ MAKE_RCSID ("$Id: FieldMenu.c,v 2.2 1993-07-16 17:04:15 corbet Exp $")
 static Widget Menu, Entries[MAXENTRY];
 static char Platform[40];	/* Platform of interest	*/
 static FieldId Fields[MAXENTRY];
-static int NManaged;
+static int NManaged, NField, NExtra;
+static char Extras[256], *PExtras[20];
 
 static stbl VTable;
 
@@ -129,27 +132,28 @@ XtPointer xwhich, junk;
  */
 {
 	int which = (int) xwhich;
-	char cbuf[200];
+	char cbuf[200], *fname;
 	UItime uitime;
+/*
+ * See which field name we should use.
+ */
+	fname = (which < NField) ? F_GetName (Fields[which]) :
+		PExtras[which - NField];
 /*
  * Here we just put together the command and go.  Start by searching for
  * a command to execute.
  */
-# ifdef notdef
-	if (! pd_Retrieve (Pd, IComp, "platform", plat, SYMT_STRING))
-		qual = NULL;
-# endif
 	if (! pda_Search (Pd, IComp, "field-select-command", Platform, 
 			cbuf, SYMT_STRING))
 	{
-		parameter (IComp, "field", F_GetName (Fields[which]));
+		parameter (IComp, "field", fname);
 		return;
 	}
 /*
  * Now format the rest of the command with the field.
  */
 	strcat (cbuf, " ");
-	strcpy (cbuf + strlen (cbuf), F_GetName (Fields[which]));
+	strcpy (cbuf + strlen (cbuf), fname);
 
 	msg_ELog (EF_DEBUG, "FMenu cmd '%s'", cbuf);
 	ui_perform (cbuf);
@@ -174,7 +178,7 @@ XtPointer junk, junk1;
 /*
  * Get the platforms set.
  */
-	nentry = SetupFields ();
+	NField = nentry = SetupFields ();
 /*
  * If we don't have the star pixmap, get it now.
  */
@@ -206,6 +210,40 @@ XtPointer junk, junk1;
 			XtManageChild (Entries[i]);
 			NManaged++;
 		}
+	}
+/*
+ * If they have additional junk to add, do it now.
+ */
+	if (pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
+			SYMT_STRING))
+	{
+		NExtra = CommaParse (Extras, PExtras);
+		for (i = 0; i < NExtra; i++)
+		{
+			char *bar = strchr (PExtras[i], '|');
+		/*
+		 * Set up the entry text.
+		 */
+			if (bar)
+			{
+				*bar++ = '\0';
+				sprintf (string, "%s (%s)", bar, PExtras[i]);
+			}
+			else
+				strcpy (string, PExtras[i]);
+			XtSetArg (args[0], XtNlabel, string);
+			XtSetArg (args[1], XtNleftBitmap, None);
+			XtSetValues (Entries[i + nentry], args, 2);
+		/*
+		 * If this one isn't managed yet, make it so now.
+		 */
+			if ((i + nentry) >= NManaged)
+			{
+				XtManageChild (Entries[i + nentry]);
+				NManaged++;
+			}
+		}
+		nentry += NExtra;
 	}
 /*
  * Clean out extras if need be.

@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.29 1993-08-26 20:18:22 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.30 1993-09-27 21:22:26 corbet Exp $")
 
 /*
  * Default resources.
@@ -119,6 +119,12 @@ char MapPath[PathLen];
  */
 static int Argc;
 static char **Argv;
+
+/*
+ * A symbol table for require's and the path to search them out in.
+ */
+static stbl RequireTable = 0;
+static char RequirePath[PathLen];
 
 /*
  * Forward routine definitions.
@@ -288,6 +294,10 @@ finish_setup ()
 	NormalCursor = XCreateFontCursor (Disp, XC_draft_small);
 	BusyCursor = XCreateFontCursor (Disp, XC_watch);
 /*
+ * Get the require table set up just in case anybody needs it.
+ */
+	RequireTable = usy_c_stbl ("RequireTable");
+/*
  * Module initializations.
  */
 	SetupConfigVariables ();/* Configuration info		*/
@@ -321,7 +331,9 @@ finish_setup ()
  */
 	type[0] = type[1] = type[2] = type[3] = type[4] = SYMT_STRING;
 	uf_def_function ("pd_param", 3, type, pd_param);
+	uf_def_function ("pdparam", 2, type, pd_param);
 	uf_def_function ("pd_paramsearch", 4, type, pd_paramsearch);
+	uf_def_function ("pdsearch", 3, type, pd_paramsearch);
 	uf_def_function ("pd_defined", 2, type, pd_defined);
 	uf_def_function ("pd_removeparam", 2, type, pd_removeparam);
 	uf_def_function ("substr_remove", 2, type, substr_remove);
@@ -345,6 +357,8 @@ finish_setup ()
 	usy_c_indirect (Vtable, "holdprocess", &HoldProcess, SYMT_BOOL, 0);
 	usy_c_indirect (Vtable, "iconpath", IconPath, SYMT_STRING, PathLen);
 	usy_c_indirect (Vtable, "mappath", MapPath, SYMT_STRING, PathLen);
+	usy_c_indirect (Vtable, "requirepath", RequirePath, SYMT_STRING,
+			PathLen);
 /*
  * Default values for the path variables.
  */
@@ -354,7 +368,8 @@ finish_setup ()
 	{
 		strcat (MapPath, ",");
 		strcat (MapPath, getenv ("GP_MAP_DIR"));
-	}		
+	}
+	sprintf (RequirePath, "%s/gp", GetLibDir ());
 /*
  * Pull in the widget definition file.
  */
@@ -662,6 +677,12 @@ struct ui_command *cmds;
 		pc_UnZoom();
                 break;
 	/*
+	 * Deal with a require.
+	 */
+	   case GPC_REQUIRE:
+		Require (UPTR (cmds[1]));
+		break;
+	/*
 	 * "Should never happen"
 	 */
 	   default:
@@ -938,12 +959,12 @@ struct dm_pdchange *dmp;
  * Load Zoom coordinates
  */
 	lc_LoadZoom ();
-
 /*
  * Now we need to set up to display the new PD, and also to redo icons.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
+	Eq_AddEvent (PWhenever, DoRequires, 0, 0, Bounce);
 	pdm_ScheduleUpdate ();
 }
 
@@ -1221,11 +1242,22 @@ union usy_value *argv, *retv;
  * the pd_removeparam CLF.
  *
  *	pd_removeparam (comp, param)
+ *
+ * Why this thing is a function I will never know.
  */
 {
+/*
+ * Zap out the parameter.
+ */
 	*rett = SYMT_BOOL;
 	pd_RemoveParam (Pd, argv[0].us_v_ptr, argv[1].us_v_ptr);
 	retv->us_v_int = TRUE;
+/*
+ * Force a replot.
+ */
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
+
 }
 
 
@@ -1244,7 +1276,12 @@ union usy_value *argv, *retv;
  */
 {
 	char tmp[500];
-	int type = uit_int_type (argv[2].us_v_ptr);
+	int type;
+/*
+ * Look at the return type for the answer.  The newer version of the call
+ * doesn't require "string" to be specified explicitly.
+ */
+	type = (narg == 3) ? uit_int_type (argv[2].us_v_ptr) : SYMT_STRING;
 
 	*rett = SYMT_STRING;
 	if (! Pd)
@@ -1276,7 +1313,7 @@ union usy_value *argv, *retv;
  */
 {
 	char tmp[500];
-	int type = uit_int_type (argv[3].us_v_ptr);
+	int type = (narg == 4) ? uit_int_type (argv[3].us_v_ptr) : SYMT_STRING;
 
 	*rett = SYMT_STRING;
 	if (! Pd)
@@ -1515,3 +1552,67 @@ XtPointer call_data;
 	fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
 	XhCallXHelp (Graphics, helpfile, full_topic, "Welcome to Zeb");
 }
+
+
+
+
+void
+Require (module)
+char *module;
+/*
+ * Make sure that we have loaded this module.
+ */
+{
+	int t;
+	SValue v;
+	char fname[PathLen];
+/*
+ * See if the module has been loaded already.
+ */
+	if (usy_g_symbol (RequireTable, module, &t, &v))
+		return;	/* Got it already */
+/*
+ * Nope.  We need to look for it.
+ */
+	strcpy (fname, "read ");
+	if (! FindFile (module, RequirePath, fname + 5))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to find module %s", module);
+		return;
+	}
+/*
+ * Now load the module and make a note of it.
+ */
+	msg_ELog (EF_INFO, "Loading module %s", module);
+	ui_perform (fname);
+	usy_s_symbol (RequireTable, module, SYMT_BOOL, &v);
+}
+
+
+
+
+
+void
+DoRequires ()
+/*
+ * Pass through the plot description and make sure that we have all of our
+ * requires in place.
+ */
+{
+	char **comps = pd_CompList (Pd), rqs[256], *module;
+	int comp;
+/*
+ * Pass through each component, including the global one, and see if there
+ * is a require parameter therein.
+ */
+	for (comp = 0; comps[comp]; comp++)
+	{
+		if (! pd_Retrieve (Pd, comps[comp], "require", rqs,
+				   SYMT_STRING))
+			continue;
+		for (module = strtok (rqs, ", \t"); module;
+		     module = strtok (NULL, ", \t"))
+			Require (module);
+	}
+}
+		    

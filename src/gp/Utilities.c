@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.11 1993-08-04 17:16:49 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.12 1993-09-27 21:22:38 corbet Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -507,3 +507,127 @@ ZebTime *plottime, *datatime;
  */
 	ApplyConstOffset (loc, xoff, yoff);
 }
+
+
+
+
+void
+CalcCenterStep (bottom, top, nstep, center, step)
+float top, bottom, *center, *step;
+int nstep;
+/*
+ * Find appropriate center and step values for the display of data that
+ * ranges between TOP and BOTTOM, where NSTEP steps are desired.
+ */
+{
+	double range = fabs (top - bottom), nominal, ordermag = 1.0;
+/*
+ * Find the nominal step, then go through some gymnastics to turn it into
+ * a "nice" value.  This could be done more elegantly with logarithms, but,
+ * given the ranges of data we see, this should really be faster.
+ */
+	nominal = range/nstep;
+	while (nominal > 10.0)
+	{
+		nominal /= 10.0;
+		ordermag *= 10.0;
+	}
+	while (nominal < 1.0)
+	{
+		nominal *= 10.0;
+		ordermag /= 10.0;
+	}
+	*step = ((float) ((int) (nominal + 0.9)))*ordermag;
+/*
+ * Now find a nice center.
+ */
+	*center = (top + bottom)/2.0;
+	*center = ((int) (*center/ordermag)) * ordermag;
+}
+
+
+
+
+
+void
+FindCenterStep (dc, field, nstep, center, step)
+DataChunk *dc;
+FieldId field;
+int nstep;
+float *center, *step;
+/*
+ * Find appropriate center and step values for this DC.
+ */
+{
+	int samp, nsamp = dc_GetNSample (dc), freedata = FALSE, np;
+	float max = -99999.9, min = 99999.9, badval = dc_GetBadval (dc);
+	float *data;
+	RGrid rg;
+/*
+ * Pull out the data.
+ * We are organization-dependent here...
+ */
+	switch (dc->dc_Class)
+	{
+	   case DCC_Scalar:
+		data = (float *) malloc (nsamp * sizeof (float));
+		np = nsamp;
+		freedata = TRUE;
+		for (samp = 0; samp < nsamp; samp++)
+			data[samp] = dc_GetScalar (dc, samp, field);
+		break;
+
+	   case DCC_IRGrid:
+		data = dc_IRGetGrid (dc, 0 /* kludge */, field);
+		np = dc_IRGetNPlatform (dc);
+		break;
+
+	   case DCC_RGrid:
+		data = dc_RGGetGrid (dc, 0, field, 0, &rg, 0);
+		np = rg.rg_nX * rg.rg_nY * rg.rg_nZ;
+		break;
+
+	   default:
+		msg_ELog (EF_PROBLEM, "FindCenterStep on unsupported org");
+		*center = 0;
+		*step = 1;
+		return;
+	}
+/*
+ * Get the range of the data, then calculate the values.
+ */
+	GetRange (data, np, badval, &min, &max);
+	CalcCenterStep (min, max, nstep, center, step);
+	if (freedata)
+		free (data);
+}
+
+
+
+
+void
+GetRange (data, np, badval, min, max)
+float *data, badval, *min, *max;
+int np;
+/*
+ * Find the data range covered by this data.
+ */
+{
+	*min = 99999.9;
+	*max = -99999.9;
+/*
+ * Just pass through and figure it out.  Someday we may want to do something
+ * fancier, like skipping outliers or some such.
+ */
+	for (; np > 0; np--)
+	{
+		float dv = *data++;
+		if (dv == badval)
+			continue;
+		if (dv < *min)
+			*min = dv;
+		if (dv > *max)
+			*max = dv;
+	}
+}
+	

@@ -1,10 +1,11 @@
-! $Id: Graphproc.ad,v 1.10 1993-06-12 22:22:45 burghart Exp $
+! $Id: Graphproc.ad,v 1.11 1993-09-27 21:22:31 corbet Exp $
 !
 ! The Graphics process resource file.
 !
 *Graphics.background:		black
 *header.zap.label:		Dismiss
 *header.zap.borderColor:	red
+*UIForm.fccbutton.background:	black
 Graphproc.?.form.background:	gray95
 !
 ! Don't change these first couple of lines.  They make things like

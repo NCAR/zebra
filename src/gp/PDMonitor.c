@@ -30,7 +30,7 @@ typedef int Window;	/* XXX avoid X baggage */
 
 
 
-MAKE_RCSID ("$Id: PDMonitor.c,v 1.2 1992-09-15 16:32:37 corbet Exp $")
+MAKE_RCSID ("$Id: PDMonitor.c,v 1.3 1993-09-27 21:22:32 corbet Exp $")
 
 
 /*
@@ -168,6 +168,7 @@ pdm_MonUpdate ()
 	if (Suppress)
 	{
 		Suppress = FALSE;
+		pd_RPDRelease (rpd);
 		return;
 	}
 /*
@@ -182,6 +183,7 @@ pdm_MonUpdate ()
  */
 	msg_send (MonitorProc, MT_PDMON, FALSE, ppd, len);
 	free (ppd);
+	pd_RPDRelease (rpd);
 }
 
 

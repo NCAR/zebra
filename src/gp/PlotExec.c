@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.30 1993-09-20 17:16:05 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.31 1993-09-27 21:22:35 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -487,7 +487,7 @@ ZebTime *cachetime;
 static bool
 px_GetCoords ()
 {
-	bool ok, expand, rs = FALSE, cvt_Origin ();
+	bool ok, expand, cvt_Origin ();
 	float lat, lon;
 	int axisSpace;
 /*
@@ -510,23 +510,7 @@ px_GetCoords ()
 /*
  * Get the altitude too.  Default it to ground level if all else fails.
  */
-	if (! pd_Retrieve (Pd, "global", "radar-space", CPTR (rs), SYMT_BOOL))
-		rs = FALSE;
-# ifdef notdef
-	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
-				SYMT_FLOAT))
-		Alt = 0;
-# endif
 	px_GetAltitude ();
-# ifdef notdef
-/*
- * Assume that we are not yet dealing with space-based platforms.  If we're
- * not in radar-space kludge mode, and the altitude is stratospheric, assume
- * that they give it in meters.
- */
-	if (Alt > 10 && ! rs)
-		Alt /= 1000.0;
-# endif
 /*
  * Save the origin
  */

@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.19 1993-07-29 16:56:24 corbet Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.20 1993-09-27 21:22:40 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -126,7 +126,8 @@ bool	update;
 	nplat = CommaParse (platforms, pnames);
 	nxfield = CommaParse (dataNames[0], fnames[0]);
 	nyfield = CommaParse (dataNames[1], fnames[1]);
-	if ( nxfield != nplat && nyfield != nplat  )
+	if (nxfield != nplat && nxfield != 1 &&
+	    nyfield != nplat && nyfield != 1)
 	{
 	    msg_ELog ( EF_PROBLEM, 
 		"X/Y Graph: number of fields of doesn't correspond to number of platforms.");
@@ -291,12 +292,14 @@ bool	update;
 	    if ( xtype != 't' )
 	    {
 		xdim = fcount;
-		fids[fcount] = F_Lookup (fnames[0][plat]); fcount++;
+		fids[fcount] = F_Lookup (fnames[0][nxfield > 1 ? plat : 0]);
+		fcount++;
 	    }
 	    if ( ytype != 't' )
 	    {
 		ydim = fcount;
-		fids[fcount] = F_Lookup (fnames[1][plat]); fcount++;
+		fids[fcount] = F_Lookup (fnames[1][nyfield > 1 ? plat : 0]);
+		fcount++;
 	    }
 	/*
  	 * Determine times of data to request.
@@ -450,8 +453,8 @@ bool	update;
 	    if ( sideAnnot && npts[plat] > 0 && !update )
 	    {
 		sprintf(datalabel, "%s-%s:%s %s", 
-			pnames[plat], fnames[0][plat],
-			fnames[1][plat], linecolor[plat]);
+			pnames[plat], fnames[0][nxfield > 1 ? plat : 0],
+			fnames[1][nyfield > 1 ? plat : 0], linecolor[plat]);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
 

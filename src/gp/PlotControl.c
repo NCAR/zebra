@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.19 1993-07-01 20:14:37 granger Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.20 1993-09-27 21:22:33 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -100,6 +100,7 @@ static struct ParamAction PActions[] =
 	{ "plot-mode",		F_ICONS					},
 	{ "movie-end-time",	F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
 	{ "movie-minutes",	F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
+	{ "require",		F_NOREDRAW | F_NOINVALIDATE		},
 	{ "trigger",		F_NOINVALIDATE				},
 	{ "xorvalue",		F_NOREDRAW | F_NOINVALIDATE },
 	{ 0, 0 }
@@ -118,8 +119,8 @@ pc_PlotHandler ()
 /*
  * Cancel all existing timer requests.
  */
- 		tl_AllCancel ();
-		ds_CancelNotify ();
+ 	tl_AllCancel ();
+	ds_CancelNotify ();
 /*
  * Get the plot mode
  */
@@ -231,6 +232,9 @@ pc_PlotHandler ()
 }
 
 
+
+
+
 void
 pc_ParamChange (param)
 char	*param;
@@ -279,6 +283,11 @@ char	*param;
 	}
 	if(MovieMode)
 		mc_ParamChange();
+/*
+ * If it's a require, set up to do the load now.
+ */
+	if (! strcmp (pa->pa_param, "require"))
+		Eq_AddEvent (PWhenever, DoRequires, 0, 0, Bounce);
 }
 
 
