@@ -1,5 +1,5 @@
 /*
- * $XConsortium: SimpleMenu.h,v 1.20 91/02/17 13:18:55 rws Exp $
+ * $Id: RdssMenu.h,v 1.3 1993-04-12 18:40:16 granger Exp $
  *
  * Copyright 1989 Massachusetts Institute of Technology
  *

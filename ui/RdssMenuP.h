@@ -1,5 +1,5 @@
 /*
- * $XConsortium: SimpleMenP.h,v 1.12 89/12/11 15:01:39 kit Exp $
+ * $Id: RdssMenuP.h,v 1.3 1993-04-12 18:42:19 granger Exp $
  *
  * Copyright 1989 Massachusetts Institute of Technology
  *
@@ -22,7 +22,8 @@
  *
  */
 
-/*
+/* Original source before being cannibalized and hacked to death
+ *----------------------------------------------------------------
  * SimpleMenuP.h - Private Header file for SimpleMenu widget.
  *
  * Date:    April 3, 1989
@@ -30,6 +31,8 @@
  * By:      Chris D. Peterson
  *          MIT X Consortium
  *          kit@expo.lcs.mit.edu
+ *
+ * Now its RdssMenuP.h, circa April 12, 1993
  */
 
 #ifndef _RdssMenuP_h
