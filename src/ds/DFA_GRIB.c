@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.32 1997-08-13 21:21:06 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.33 1997-08-22 14:19:48 burghart Exp $")
 
 
 /*
@@ -70,7 +70,7 @@ typedef struct s_GFTag
 	int		gt_maxgrids;	/* how many grids can we hold?	*/
 	GRIBdesc	*gt_grib;	/* Descriptors for each grid	*/
 	ZebTime		*gt_times;	/* Times for each grid		*/
-	GRB_TypeInfo	*gt_ginfo255;	/* grid type 255 info		*/
+	GRB_TypeInfo	*gt_ginfoGDS;	/* grid type info built from GDS*/
 } GFTag;
 
 
@@ -230,6 +230,9 @@ static struct s_GRB_FList
 	{ 13, ANY, "pt", "Potential temperature", "K", 1.0, 0.0 },
 	/* Dew point temperature (K) */
 	{ 17, ANY, "dp", "Dew point temperature", "K", 1.0, -273.15 },
+	/* Dew point depression (K) */
+	{ 18, ANY, "dp_depression", "Dew point depression", "K", 1.0, 
+	  -273.15 },
 	/* Wind direction (deg. true) */
 	{ 31, ANY, "wdir", "Wind direction", "deg", 1.0, 0.0 },
 	/* Wind speed (m/s) */
@@ -251,6 +254,10 @@ static struct s_GRB_FList
 	{ 41, ANY, "vort", "Absolute vorticity", "1/s", 1.0, 0.0 },
 	/* Absolute divergence (1/s) */
 	{ 42, ANY, "dvrg", "Absolute divergence", "1/s", 1.0, 0.0 },
+	/* Relative vorticity (1/s) */
+	{ 43, ANY, "rel_vort", "Relative vorticity", "1/s", 1.0, 0.0 },
+	/* Relative divergence (1/s) */
+	{ 44, ANY, "rel_dvrg", "Relative divergence", "1/s", 1.0, 0.0 },
 	/* Specific humidity */
 	{ 51, ANY, "sph", "Specific humidity", "kg/kg", 1.0, 0.0 },
 	/* Relative humidity (%) */
@@ -322,13 +329,10 @@ static struct s_GRB_FList
 	{ 168, ANY, "dp_2m", "dewpoint at 2m", "deg C", 1.0, -273.15 },
 	/* land/sea (0/1)			*/
 	{ 172, ANY, "land/sea", "land/sea (0/1)", "none", 1.0, 0.0 },
-/*
- * More MM5 fields
- */
-	/* 176 */
-	{ 176, MM5, "mm5_176", "mm5_176", "unknown", 1.0, 0.0 },
-	/* 177 */
-	{ 177, MM5, "mm5_177", "mm5_177", "unknown", 1.0, 0.0 },
+	/* latitude */
+	{ 176, ANY, "latitude", "latitude", "deg", 1.0, 0.0 },
+	/* longitude */
+	{ 177, ANY, "longitude", "longitude", "deg", 1.0, 0.0 },
 };
 
 static int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
@@ -398,6 +402,18 @@ static Regular Regular2 =
     2.5,	/* lon_spacing */
     -90.0,	/* s_lat */
     0.0		/* w_lon */
+};
+
+
+static Regular RegularBogus = 
+/*
+ * 0.5 degree spacing in both directions
+ */
+{
+    0.5,	/* lat_spacing */
+    0.5,	/* lon_spacing */
+    28.0,	/* s_lat */
+    -95.0	/* w_lon */
 };
 
 
@@ -525,13 +541,35 @@ static PolarStereo Transform150 =
 	/* ypole */	3412.31689
 };
 
+
+/*
+ * Lambert conformal grids use this structure to pass transformation
+ * parameters to the transformation functions.
+ */
+typedef struct s_LambertConformal
+{
+	float lambda0;	/* longitude of projection origin (radians) */
+	float xspacing;	/* grid spacing (km) in x, at (phi1,lambda0) */
+	float yspacing;	/* grid spacing (km) in x, at (phi1,lambda0) */
+	float x0;	/* x (km) at grid point (0,0) */
+	float y0;	/* y (km) at grid point (0,0) */
+	float rho0;	/* projection constant	*/
+	float n;	/* projection constant	*/
+	float f;	/* projection constant */
+} LambertConformal;
+
+
+static void	grb_RegularIndex FP ((GRB_TypeInfo *gg, 
+		  double lat, double lon, float *ifloat, float *jfloat));
+static void	grb_RegularLatLon FP ((GRB_TypeInfo *gg, 
+		  double idouble, double jdouble, float *lat, float *lon));
 static void	grb_PolarStereoIndex FP ((GRB_TypeInfo *gg, 
 		  double lat, double lon, float *ifloat, float *jfloat));
 static void	grb_PolarStereoLatLon FP ((GRB_TypeInfo *gg, 
 		  double idouble, double jdouble, float *lat, float *lon));
-static void	grb_RegularIndex FP ((GRB_TypeInfo *gg, 
+static void	grb_LambertConfIndex FP ((GRB_TypeInfo *gg, 
 		  double lat, double lon, float *ifloat, float *jfloat));
-static void	grb_RegularLatLon FP ((GRB_TypeInfo *gg, 
+static void	grb_LambertConfLatLon FP ((GRB_TypeInfo *gg, 
 		  double idouble, double jdouble, float *lat, float *lon));
 
 /*
@@ -637,7 +675,9 @@ static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *,
 static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
 static void	grb_InitGInfo FP ((GRB_TypeInfo *));
 static GRB_TypeInfo *grb_GridTypeInfo FP ((GFTag *, GFpds *, GFgds *));
-static GRB_TypeInfo *grb_Build255GInfo FP ((GFgds *));
+static GRB_TypeInfo *grb_LLGridInfo FP ((GDSLatLon *));
+static GRB_TypeInfo *grb_PStereoGridInfo FP ((GDSPolarStereo *));
+static GRB_TypeInfo *grb_LambertGridInfo FP ((GDSLambertConformal *));
 
 
 
@@ -1229,7 +1269,6 @@ AltUnitType	*altunits;
     ZebTime	t;
     AltUnitType units;
 /*
-
  * Find the first usable grid for the chosen field and forecast offset.
  */
     for (i = 0; i < tag->gt_ngrids; i++)
@@ -1581,6 +1620,27 @@ GFTag	*tag;
 		free (tag->gt_grib);
 	if (tag->gt_times)
 		free (tag->gt_times);
+/*
+ * If we built a custom GRB_TypeInfo from the GDS, release it now.
+ */
+	if (tag->gt_ginfoGDS)
+	{
+	    GRB_TypeInfo *ginfo = tag->gt_ginfoGDS;
+	/*
+	 * Destroy the extra mapping arrays if we ever got far enough to have
+	 * grb_InitGInfo() create them.
+	 */
+	    if (ginfo->gg_dsi)
+	    {
+		free (ginfo->gg_dsi);
+		free (ginfo->gg_dsj);
+		free (ginfo->gg_slatang);
+		free (ginfo->gg_slonang);
+	    }
+
+	    free (ginfo->gg_transform);
+	    free (ginfo);
+	}
 }
 
 
@@ -1788,9 +1848,9 @@ GFTag	*tag;
 		}
 	}
 /*
- * Grid type 255 info may be added later, but it starts out empty.
+ * Grid info built from a GDS may be added later, but it starts out empty.
  */
-	tag->gt_ginfo255 = NULL;
+	tag->gt_ginfoGDS = NULL;
 /*
  * Complain if we exited on anything other than an EOF
  */
@@ -2207,6 +2267,7 @@ float	*ifloat, *jfloat;
  */
 	k = 2 / (1 + sin (ps->phi1) * sin (phi) + 
 		 cos (ps->phi1) * cos (phi) * cos (lambda - ps->lambda0));
+
 /*
  * Formulas 21-2 and 21-3
  */
@@ -2267,6 +2328,90 @@ float	*lat, *lon;
  */
 	*lat = RAD_TO_DEG (phi);
 	*lon = RAD_TO_DEG (lambda);
+}
+
+
+
+
+static void
+grb_LambertConfIndex (gg, lat, lon, ifloat, jfloat)
+GRB_TypeInfo *gg;
+double	lat, lon;
+float	*ifloat, *jfloat;
+/*
+ * Return the (floating point) array indices for a GRIB Lambert conformal
+ * grid, given a latitude and longitude, and some parameters particular to
+ * the grid type.  The formulas used here come from Section 15
+ * (Lambert Conformal) of "Map Projections--A Working Manual", USGS
+ * Professional Paper 1395.  Parameter names, members of the LambertConformal
+ * structure, have been chosen to correspond to those used in the book, and
+ * equation numbers from the book are referenced in the comments.
+ */
+{
+    LambertConformal *lc = (LambertConformal *) gg->gg_transform;
+    float phi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
+    float theta, rho, x, y;
+
+    rho = R_Earth * lc->f / pow (tan (M_PI / 4 + phi / 2), lc->n); /* 15-1 */
+    theta = lc->n * (lambda - lc->lambda0);			   /* 14-4 */
+
+    x = rho * sin (theta);		/* 14-1 */
+    y = lc->rho0 - rho * cos (theta);	/* 14-2 */
+/*
+ * Now turn x and y into grid coordinates based on the north pole, which is
+ * the only reference point for which we have grid coordinates.
+ */
+    *ifloat = (x - lc->x0) / lc->xspacing;
+    *jfloat = (y - lc->y0) / lc->yspacing;
+}
+
+
+
+
+static void
+grb_LambertConfLatLon (gg, idouble, jdouble, lat, lon)
+GRB_TypeInfo *gg;
+double	idouble, jdouble;
+float	*lat, *lon;
+/*
+ * Turn the (double precision) indices of a GRIB Lambert conformal grid
+ * into a latitude and longitude.  The formulas used here come from Section
+ * 15 (Lambert Conformal Projection) of "Map Projections--A Working Manual",
+ * USGS Professional Paper 1395.  Parameter names, members of the
+ * LambertConformal structure, have been chosen to correspond to the variable
+ * names in the book, and equation numbers from the book are referenced in
+ * the comments. 
+ */
+{
+    LambertConformal *lc = (LambertConformal *) gg->gg_transform;
+    float x, y, rho, theta, phi, lambda;
+/*
+ * First turn our indices into x and y in km.
+ */
+    x = lc->x0 + lc->xspacing * idouble;
+    y = lc->y0 + lc->yspacing * jdouble;
+/*
+ * Intermediates
+ */
+    rho = hypot (x, (lc->rho0 - y));	/* 14-10 */
+    theta = atan2 (x, lc->rho0 - y);	/* 14-11 */
+
+    if (lc->n < 0)
+    {
+	rho *= -1;
+	theta += M_PI;
+    }
+/*
+ * Phi and lambda
+ */
+    phi = 2 * atan (pow (R_Earth * lc->f / rho, 1 / lc->n)) - 
+	M_PI / 2;						/* 15-5 */
+    lambda = theta / lc->n + lc->lambda0;			/* 14-9 */
+/*
+ * Now convert to degrees and we're done
+ */
+    *lat = RAD_TO_DEG (phi);
+    *lon = RAD_TO_DEG (lambda);
 }
 
 
@@ -2688,126 +2833,133 @@ GFgds	*gds;
  * with the given PDS.  If we don't understand this grid type, return NULL.
  */
 {
-	int	i;
-	GRB_TypeInfo	*grbinfo = NULL;
+    int	i;
+    GRB_TypeInfo	*grbinfo;
 /*
- * Special handling for 255 type grids.  We make the assumption that all 
- * 255 grids in a file will be similar.  Of course, somebody's bound to
- * violate this assumption at some point...
+ * First, check our list of types with prebuilt GRB_TypeInfo structures.
  */
-	if (pds->grid_id == 255)
-	{
-		if (! tag->gt_ginfo255)
-			tag->gt_ginfo255 = grb_Build255GInfo (gds);
-
-		return (tag->gt_ginfo255);
-	}
+    for (i = 0; i < GRB_NTypes; i++)
+    {
+	if (GRB_Types[i].gg_type == pds->grid_id)
+	    return (GRB_Types + i);
+    }
+/* 
+ * Not in our prebuilt list.  If our tag has a non-null gt_ginfoGDS (i.e.,
+ * a GRB_TypeInfo built from a GDS), return that.  This makes the assumption
+ * that all GDSs in a file will be the same.  Of course, somebody's
+ * bound to violate this assumption at some point... 
+ */
+    if (tag->gt_ginfoGDS)
+	return (tag->gt_ginfoGDS);
 /*
- * Otherwise, check our list of types we understand
+ * No info already built from a GDS either.  If we got a GDS, try to unpack 
+ * it and build a GRB_TypeInfo structure from it.
  */
-	for (i = 0; i < GRB_NTypes; i++)
+    grbinfo = NULL;
+    
+    if (gds)
+    {
+	switch (gds->data_type)
 	{
-		if (GRB_Types[i].gg_type == pds->grid_id)
-		{
-			grbinfo = GRB_Types + i;
-			break;
-		}
+	/*
+	 * lat/lon grid and Gaussian lat/lon grid
+	 */
+	  case 0:
+	  case 4:
+	    grbinfo = grb_LLGridInfo ((GDSLatLon*) gds);
+	    break;
+	/*
+	 * Lambert conformal grid
+	 */
+	  case 3:
+	    grbinfo = grb_LambertGridInfo ((GDSLambertConformal*) gds);
+	    break;
+# ifdef notdef
+	/*
+	 * Polar stereographic grid
+	 */
+	  case 5:
+	    grbinfo = grb_PStereoGridInfo ((GDSPolarStereo*) gds);
+	    break;
+# endif
+	  default:
+	    msg_ELog (EF_PROBLEM, 
+		      "grb_GridTypeInfo: Cannot unpack GDS of type %d",
+		      gds->data_type);
+	    grbinfo = NULL;
 	}
 
-	return (grbinfo);
+	if (grbinfo)
+	    grbinfo->gg_type = pds->grid_id;
+    /*
+     * Stash it in the tag.  We'll assume that all GDSs in this file are
+     * the same so we only have to build this struct once.
+     */
+	tag->gt_ginfoGDS = grbinfo;
+    }
+	    
+    return (grbinfo);
 }
 
 
 
 static GRB_TypeInfo *
-grb_Build255GInfo (gds)
-GFgds	*gds;
+grb_LLGridInfo (gds)
+GDSLatLon *gds;
 /*
- * Check the gds data type and if it is one that we know, set up the fields
- * in grbinfo using info from the gds.  Set grbinfo to NULL if it is an 
- * unknown data type.
+ * Try to build a GRB_TypeInfo using the given lat/lon grid GDS.
  */
 {
-	int	nlat, nlon, j, i;
-	float	lat1, lat2, lon1, lon2, latstep, lonstep, *fi, *fj;
-	GRB_TypeInfo	*grbinfo;
-/*
- * For now we only know how to build a latitude/longitude grid
- *  (data type 0 or 4 in GDS byte 6)
- */
-	if ((gds->data_type != 0) && (gds->data_type != 4))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "grb_Build255GInfo: Unknown data type %d",
-			  gds->data_type);
-		return (NULL);
-	}
+	float lat1, lat2, lon1, lon2, latstep, lonstep;
+	int nlat, nlon;
+	GRB_TypeInfo *grbinfo;
+	Regular	*transform;
 /*
  * Allocate a GRB_TypeInfo structure
  */
 	grbinfo = (GRB_TypeInfo *) malloc (sizeof (GRB_TypeInfo));
-	grbinfo->gg_type = 255;
 /*
- * Extract info from the GDS
+ * Use the already-defined index and lat/lon modules
  */
-	nlon = grbinfo->gg_snx = grbinfo->gg_dnx = 
-		grb_TwoByteInt (&gds->gd_ni);
-	nlat = grbinfo->gg_sny = grbinfo->gg_dny = 
-		grb_TwoByteInt (&gds->gd_nj);
+	grbinfo->gg_ndx_module = grb_RegularIndex;
+	grbinfo->gg_ll_module = grb_RegularLatLon;
+/*
+ * The big arrays are allocated and built later, if we actually end up
+ * unpacking a grid of this type.
+ */
+	grbinfo->gg_slatang = grbinfo->gg_slonang = NULL;
+	grbinfo->gg_dsi = grbinfo->gg_dsj = NULL;
+/*
+ * Simple stuff here.  Just make our destination grid match the source grid.
+ */
+	nlon = grbinfo->gg_snx = grbinfo->gg_dnx = grb_TwoByteInt (gds->gd_ni);
+	nlat = grbinfo->gg_sny = grbinfo->gg_dny = grb_TwoByteInt (gds->gd_nj);
 
-	lat1 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_1lat);
-	lon1 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_1lon);
+	lat1 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lat1);
+	lon1 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lon1);
 
-	lat2 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_2lat);
-	lon2 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_2lon);
+	lat2 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lat2);
+	lon2 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lon2);
 
 	latstep = (lat2 - lat1) / (nlat - 1);
 	lonstep = (lon2 - lon1) / (nlon - 1);
-/*
- * Set our destination grid origin and steps
- */
+
 	grbinfo->gg_dlat = (lat1 < lat2) ? lat1 : lat2;
 	grbinfo->gg_dlatstep = fabs (latstep);
 
 	grbinfo->gg_dlon = (lon1 < lon2) ? lon1 : lon2;
 	grbinfo->gg_dlonstep = fabs (lonstep);
 /*
- * Make the GRB_TypeInfo translation arrays now, since we won't have the 
- * GDS (which we need for this) later.
+ * Allocate and build our transform structure
  */
-/*
- * Build arrays mapping destination grid indices into equivalent floating 
- * point source grid indices.
- */
-	fi = grbinfo->gg_dsi = (float *) malloc (nlat * nlon * sizeof (float));
-	fj = grbinfo->gg_dsj = (float *) malloc (nlat * nlon * sizeof (float));
+	transform = (Regular*) malloc (sizeof (Regular));
 
-	for (j = 0; j < nlat; j++)
-	{
-		for (i = 0; i < nlon; i++)
-		{
-			*fi++ = (float)((lonstep > 0) ? i : (nlon - i - 1));
-			*fj++ = (float)((latstep > 0) ? j : (nlat - j - 1));
-		}
-	}
-/*
- * Build arrays of local angles for lines of constant lat and lon through
- * source grid points.  Since our source is a rectangular grid, the latangs
- * are all zero, and the lonangs are all pi/2.
- */
-	fi = grbinfo->gg_slonang = 
-		(float *) malloc (nlat * nlon * sizeof (float));
-	fj = grbinfo->gg_slatang = 
-		(float *) malloc (nlat * nlon * sizeof (float));
+	transform->lat_spacing = latstep;
+	transform->lon_spacing = lonstep;
+	transform->s_lat = (latstep < 0) ? lat2 : lat1;
+	transform->w_lon = (lonstep < 0) ? lon2 : lon1;
 
-	for (j = 0; j < nlat; j++)
-	{
-		for (i = 0; i < nlon; i++)
-		{
-			*fi++ = 1.5707963;	/* PI/2 */
-			*fj++ = 0.0;
-		}
-	}
+	grbinfo->gg_transform = (void*) transform;
 /*
  * Done
  */
@@ -2815,3 +2967,174 @@ GFgds	*gds;
 }
 
 
+
+static GRB_TypeInfo *
+grb_PStereoGridInfo (gds)
+GDSPolarStereo *gds;
+/*
+ * Try to build a GRB_TypeInfo using the given polar stereographic grid GDS.
+ */
+{
+	GRB_TypeInfo *grbinfo;
+	PolarStereo *transform;
+/*
+ * Allocate a GRB_TypeInfo structure
+ */
+	grbinfo = (GRB_TypeInfo *) malloc (sizeof (GRB_TypeInfo));
+/*
+ * Use the already-defined index and lat/lon modules
+ */
+	grbinfo->gg_ndx_module = grb_PolarStereoIndex;
+	grbinfo->gg_ll_module = grb_PolarStereoLatLon;
+/*
+ * Source grid size comes straight from the GDS
+ */
+	grbinfo->gg_snx = grb_TwoByteInt (gds->gd_nx);
+	grbinfo->gg_sny = grb_TwoByteInt (gds->gd_ny);
+/*
+ * The big arrays are allocated and built later, if we actually end up
+ * unpacking a grid of this type.
+ */
+	grbinfo->gg_slatang = grbinfo->gg_slonang = NULL;
+	grbinfo->gg_dsi = grbinfo->gg_dsj = NULL;
+
+/* The rest is in progress... */
+# ifdef notdef
+/*
+ * Allocate and build our transform structure
+ */
+	transform = (PolarStereo*) malloc (sizeof (PolarStereo));
+
+	transform.phi1 = DEG_TO_RAD (60.0); /* implied in documentation... */
+	transform.lambda0 = grb_ThreeByteSignInt (&gds->gd_lov) * 0.001;
+	transform.scale = ??;
+	transform.ipole = ??;
+	transform.jpole = ??;
+	transform.xpole = ??;
+	transform.ypole = ??;
+
+	grbinfo->gg_transform = (void*) transform;
+# endif
+/*
+ * Done
+ */
+	return (grbinfo);
+}
+
+
+
+static GRB_TypeInfo *
+grb_LambertGridInfo (gds)
+GDSLambertConformal *gds;
+/* 
+ * Try to build a GRB_TypeInfo using the given Lambert conformal grid GDS.
+ * Formula numbers in comments refer to section 15 (Lambert Conformal
+ * Projection) of "Map Projections--A Working Manual", USGS Professional
+ * Paper 1395.  
+ */
+{
+    float phi1, phi2, n, f, rho0, lambda0, lambda, phi, theta, rho, dx, dy;
+    float centerlat, centerlon, lat, lon;
+    int nsi, nsj, ndi, ndj;
+    GRB_TypeInfo *ginfo;
+    LambertConformal *transform;
+/*
+ * Allocate a GRB_TypeInfo structure
+ */
+    ginfo = (GRB_TypeInfo *) malloc (sizeof (GRB_TypeInfo));
+/*
+ * Use the already-defined index and lat/lon modules
+ */
+    ginfo->gg_ndx_module = grb_LambertConfIndex;
+    ginfo->gg_ll_module = grb_LambertConfLatLon;
+/*
+ * Source grid size comes straight from the GDS
+ */
+    ginfo->gg_snx = nsi = grb_TwoByteInt (gds->gd_nx);
+    ginfo->gg_sny = nsj = grb_TwoByteInt (gds->gd_ny);
+/*
+ * The big arrays are allocated and built later, if we actually end up
+ * unpacking a grid of this type.
+ */
+    ginfo->gg_slatang = ginfo->gg_slonang = NULL;
+    ginfo->gg_dsi = ginfo->gg_dsj = NULL;
+/*
+ * Allocate and build our transform structure
+ */
+    transform = (LambertConformal*) malloc (sizeof (LambertConformal));
+
+    transform->lambda0 = lambda0 = 
+	DEG_TO_RAD (grb_ThreeByteSignInt (gds->gd_lov) * 0.001);
+    phi1 = DEG_TO_RAD (grb_ThreeByteSignInt (gds->gd_latin1) * 0.001);
+    phi2 = DEG_TO_RAD (grb_ThreeByteSignInt (gds->gd_latin2) * 0.001);
+
+    dx = grb_ThreeByteSignInt (gds->gd_dx) * 0.001;	/* km */
+    if (gds->gd_scanmode & (1 << 7))
+	dx *= -1;
+    transform->xspacing = dx;
+
+    dy = grb_ThreeByteSignInt (gds->gd_dy) * 0.001;	/* km */
+    if (! (gds->gd_scanmode & (1 << 6)))
+	dy *= -1;
+    transform->yspacing = dy;
+/* 
+ * Calculate transform constants using equations 15-3, 15-2, and 15-1a 
+ * (abitrarily choosing zero for phi0 to simplify calculation of rho0)
+ */
+    if (phi1 == phi2)
+	n = sin (phi1);
+    else
+	n = log (cos (phi1) / cos (phi2)) / 
+	    log (tan (M_PI / 4 + phi2 / 2) / 
+		 tan (M_PI / 4 + phi1 / 2));	/* 15-3 */
+    transform->n = n;
+
+    transform->f = f = 
+	cos (phi1) * pow (tan (M_PI / 4 + phi1 / 2), n) / n;	/* 15-2 */
+
+    transform->rho0 = rho0 = R_Earth * f;			/* 15-1a */
+/*
+ * Figure out x and y for the first point of the grid using equations 15-1,
+ * 14-4, 14-1 and 14-2.
+ */
+    phi = DEG_TO_RAD (grb_ThreeByteSignInt (gds->gd_lat1) * 0.001);
+    lambda = DEG_TO_RAD (grb_ThreeByteSignInt (gds->gd_lon1) * 0.001);
+
+    rho = R_Earth * f / pow (tan (M_PI / 4 + phi / 2), n);	/* 15-1 */
+    theta = n * (lambda - lambda0);				/* 14-4 */
+
+    transform->x0 = rho * sin (theta);			/* 14-1 */
+    transform->y0 = rho0 - rho * cos (theta);		/* 14-2 */
+/*
+ * Stash our transform in ginfo.
+ */
+    ginfo->gg_transform = (void*) transform;
+/*
+ * Destination grid info.  Choice of parameters here is somewhat arbitrary,
+ * but the goal is to cover most of the area in the source grid, and have
+ * roughly the same resolution (at least at the grid centers).
+ *
+ * We use a few more points in the destination grid than in the source grid.
+ */
+    ginfo->gg_dnx = ndi = (int)(1.3 * nsi);
+    ginfo->gg_dny = ndj = (int)(1.3 * nsj);
+/*
+ * Use the center of the source (Lambert conformal) grid as the center of our 
+ * destination lat/lon grid, and choose destination grid lat/lon spacing 
+ * to roughly match those at the center of the source grid.
+ */
+    grb_LambertConfLatLon (ginfo, 0.5 * (nsi - 1), 0.5 * (nsj - 1),
+			   &centerlat, &centerlon);
+    grb_LambertConfLatLon (ginfo, 0.5 * (nsi - 1) + 1, 0.5 * (nsj - 1) + 1,
+			   &lat, &lon); /* (center_i + 1, center_j + 1) */
+
+    ginfo->gg_dlatstep = fabs (lat - centerlat);
+    ginfo->gg_dlonstep = fabs (lon - centerlon);
+
+    ginfo->gg_dlat = centerlat - 0.5 * (ndj - 1) * ginfo->gg_dlatstep;
+    ginfo->gg_dlon = centerlon - 0.5 * (ndi - 1) * ginfo->gg_dlonstep;
+/*
+ * That's all folks...
+ */
+    return (ginfo);
+}

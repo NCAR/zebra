@@ -32,6 +32,8 @@
 # include "GRIB.h"
 
 static void ShowGDS FP ((GFgds *gds_in));
+static void ShowGDS_PS FP ((GDSPolarStereo *gds_in));
+static void ShowGDS_LC FP ((GDSLambertConformal *gds_in));
 static int DumpFile FP ((char *file));
 static void DumpGrid FP ((int ng, GFgds *gds, GFpds *pds));
 
@@ -338,7 +340,33 @@ GFgds *gds_in;
  */
 {
 	GDSPolarStereo *gds;
-	int Nx, Ny;
+
+	printf ("-----\nGrid Description Section\n");
+	printf ("Data Representation Type: %s\n", grb_GDSRepName (gds_in));
+
+	switch (gds_in->data_type)
+	{
+	  case 5:
+	    ShowGDS_PS ((GDSPolarStereo *)gds_in);
+	    break;
+	  case 3:
+	    ShowGDS_LC ((GDSLambertConformal *)gds_in);
+	    break;
+	}
+
+	printf ("-----\n");
+}
+
+
+
+static void
+ShowGDS_PS (gds)
+GDSPolarStereo *gds;
+/*
+ * Summarize a Polar Stereographic GDS to stdout
+ */
+{
+	int nx, ny;
 	float lov;
 	float la1, lo1;
 	float dx, dy;
@@ -348,20 +376,11 @@ GFgds *gds_in;
 	float i, j;
 	float lat, lon;
 
-	printf ("-----\nGrid Description Section\n");
-	printf ("Data Representation Type: %s\n", grb_GDSRepName (gds_in));
-	/*
-	 * Only care about polar stereographic
-	 */
-	if (gds_in->data_type != 5)
-		return;
-
-	gds = (GDSPolarStereo *) gds_in;
-	Nx = grb_TwoByteInt (gds->gd_nx);
-	Ny = grb_TwoByteInt (gds->gd_ny);
-	printf ("Nx = %4i   Ny = %4i\n", Nx, Ny);
-	la1 = grb_ThreeByteSignInt (gds->gd_la1) / 1000.0;
-	lo1 = grb_ThreeByteSignInt (gds->gd_lo1) / 1000.0;
+	nx = grb_TwoByteInt (gds->gd_nx);
+	ny = grb_TwoByteInt (gds->gd_ny);
+	printf ("Nx = %4i   Ny = %4i\n", nx, ny);
+	la1 = grb_ThreeByteSignInt (gds->gd_lat1) / 1000.0;
+	lo1 = grb_ThreeByteSignInt (gds->gd_lon1) / 1000.0;
 	printf ("grid(0,0) at (lon,lat) = (%.3f,%.3f)\n", lo1, la1);
 	printf ("Resolution and Component Flags: %i\n", (int)gds->gd_res);
 	printf ("[increments %sgiven; earth is %s; u,v relative to %s]\n",
@@ -376,7 +395,7 @@ GFgds *gds_in;
 	printf ("Longitude of orientation: %.3f\n", lov);
 	dx = grb_ThreeByteInt (gds->gd_dx) / 1000.0;
 	dy = grb_ThreeByteInt (gds->gd_dy) / 1000.0;
-	printf ("Grid length (km) at lat 60, (dx, dy) = (%.3f km, %.3f km)\n", 
+	printf ("Grid length at lat 60, (dx, dy) = (%.3f km, %.3f km)\n", 
 		dx, dy);
 	printf ("Projection contains %s pole.\n",
 		gds->gd_pole ? "South" : "North");
@@ -410,8 +429,8 @@ GFgds *gds_in;
 	/*
 	 * Upper right corner
 	 */
-	i = Nx - 1;
-	j = Ny - 1;
+	i = nx - 1;
+	j = ny - 1;
 	x = (dx * (i - ipole)) + xpole;
 	y = (dy * (j - jpole)) + ypole;
 	PS_XYToLL (phi1, lambda0, x, y, &lat, &lon);
@@ -421,7 +440,7 @@ GFgds *gds_in;
 	 * Upper left
 	 */
 	i = 0;
-	j = Ny - 1;
+	j = ny - 1;
 	x = (dx * (i - ipole)) + xpole;
 	y = (dy * (j - jpole)) + ypole;
 	PS_XYToLL (phi1, lambda0, x, y, &lat, &lon);
@@ -430,14 +449,70 @@ GFgds *gds_in;
 	/*
 	 * Lower right
 	 */
-	i = Nx - 1;
+	i = nx - 1;
 	j = 0;
 	x = (dx * (i - ipole)) + xpole;
 	y = (dy * (j - jpole)) + ypole;
 	PS_XYToLL (phi1, lambda0, x, y, &lat, &lon);
 	printf ("(i=%.2f,j=%.2f) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
 		i, j, lon, lat, x, y);
+}
 
-	printf ("-----\n");
+
+
+static void
+ShowGDS_LC (gds)
+GDSLambertConformal *gds;
+/*
+ * Summarize a Lambert Conformal GDS to stdout
+ */
+{
+	int nx, ny;
+	float lov;
+	float la1, lo1;
+	float dx, dy;
+	float phi1, phi2, lambda0;
+	float spol_lat, spol_lon;
+
+	nx = grb_TwoByteInt (gds->gd_nx);
+	ny = grb_TwoByteInt (gds->gd_ny);
+	printf ("Nx = %4i   Ny = %4i\n", nx, ny);
+	la1 = grb_ThreeByteSignInt (gds->gd_lat1) / 1000.0;
+	lo1 = grb_ThreeByteSignInt (gds->gd_lon1) / 1000.0;
+	printf ("grid(0,0) at (lon,lat) = (%.3f,%.3f)\n", lo1, la1);
+	printf ("Resolution and Component Flags: %i\n", (int)gds->gd_res);
+	printf ("[increments %sgiven; earth is %s; u,v relative to %s]\n",
+		(gds->gd_res & (1<<7)) ? "" : "not ",
+		(gds->gd_res & (1<<6)) ? "oblate spheroid" : "spherical",
+		(gds->gd_res & (1<<3)) ? "grid x,y" : "E and N");
+	lov = grb_ThreeByteInt (gds->gd_lov) / 1000.0;
+	if (lov >= 180.0 && lov <= 360.0)
+		lov -= 360.0;
+	else if (lov > 360.0)	/* in case a negative lon, contrary to spec */
+		lov = grb_ThreeByteSignInt (gds->gd_lov) / 1000.0;
+	printf ("Longitude of orientation: %.3f\n", lov);
+	dx = grb_ThreeByteInt (gds->gd_dx) / 1000.0;
+	dy = grb_ThreeByteInt (gds->gd_dy) / 1000.0;
+	printf ("Grid length (dx, dy) = (%.3f km, %.3f km)\n", dx, dy);
+	if (gds->gd_pole && 1<<6)
+	    printf ("Projection is bipolar and symmetric\n");
+	else
+	    printf ("Projection contains %s pole.\n",
+		    (gds->gd_pole && 1<<7) ? "South" : "North");
+	printf ("Scan mode: %i ", gds->gd_scanmode);
+	printf ("[%si, %sj, adjacent points consecutive along %s]\n",
+		(gds->gd_scanmode & (1<<7)) ? "-" : "+",
+		(gds->gd_scanmode & (1<<6)) ? "+" : "-",
+		(gds->gd_scanmode & (1<<5)) ? "j" : "i");
+
+	phi1 = grb_ThreeByteSignInt (gds->gd_latin1) / 1000.0;
+	phi2 = grb_ThreeByteSignInt (gds->gd_latin2) / 1000.0;
+	printf ("Cone/Earth intersections -- phi1: %.3f, phi2: %.3f\n",
+		phi1, phi2);
+
+	spol_lat = grb_ThreeByteSignInt (gds->gd_spol_lat) / 1000.0;
+	spol_lon = grb_ThreeByteSignInt (gds->gd_spol_lon) / 1000.0;
+	printf ("Southern pole at (lon,lat) = (%.3f,%.3f)\n", spol_lon, 
+		spol_lat);
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.7 1997-06-16 16:17:03 burghart Exp $
+ * $Id: GRIB.h,v 3.8 1997-08-22 14:19:53 burghart Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -59,66 +59,58 @@ typedef struct s_GFbmshdr
 
 /*
  * The GRIB grid description section (GDS)
- * This is currently only set up for Latitude/Longitude Grids.
  */
 typedef struct s_GFgds
 {
-	unsigned char	len;		/* length of GDS		*/
-	unsigned char	len1;		/* 2nd byte of length		*/
-	unsigned char	len2;		/* 3rd byte of length		*/
-	unsigned char	nm_bytes;	/* Number of unused bytes	*/
-	unsigned char	g_zero;		/* Always set to 0 ECMWF Ed. 0	*/
+	unsigned char	len[3];		/* length of GDS		*/
+	unsigned char	nv;		/* Number of vertical levels	*/
+	unsigned char	pv_or_pl;	/* PV or PL			*/
 	unsigned char	data_type;	/* Data representation type	*/
 /*
- * Data-type specific section, octets 7 - 32
+ * Data-type specific section after octet 6
  */
-	unsigned char	gd_ni;		/* Number of longitude points 	*/
-	unsigned char	gd_ni1;		/* 2nd byte for ni		*/
-	unsigned char	gd_nj;		/* Number of latitude points   */
-	unsigned char	gd_nj1;		/* 2nd byte for nj		*/
-	unsigned char	gd_1lat;	/* latitude of 1st grid point	*/
-	unsigned char	gd_1lat1;	/* 2nd byte for lat.		*/
-	unsigned char	gd_1lat2;	/* 3rd byte for lat.		*/
-	unsigned char	gd_1lon;	/* longitude of 1st grid point	*/
-	unsigned char	gd_1lon1;	/* 2nd byte for lon.		*/
-	unsigned char	gd_1lon2;	/* 3rd byte for lon.		*/
+	unsigned char	gd_buf[256];	/* allow for a big GDS 		*/
+} GFgds;
+
+
+typedef struct s_GDSLatLon
+{
+	unsigned char	len[3];		/* length of GDS		*/
+	unsigned char	nv;		/* Number of vertical levels	*/
+	unsigned char	pv_or_pl;	/* PV or PL			*/
+	unsigned char	data_type;	/* Data representation type	*/
+/*
+ * Lat/lon grid type-specific stuff
+ */
+	unsigned char	gd_ni[2];	/* Number of longitude points 	*/
+	unsigned char	gd_nj[2];	/* Number of latitude points   */
+	unsigned char	gd_lat1[3];	/* latitude of 1st grid point	*/
+	unsigned char	gd_lon1[3];	/* longitude of 1st grid point	*/
 	unsigned char	gd_res;		/* resolution and component flags */
-	unsigned char	gd_2lat;	/* latitude of last grid point	*/
-	unsigned char	gd_2lat1;	/* 2nd byte for lat.		*/
-	unsigned char	gd_2lat2;	/* 3rd byte for lat.		*/
-	unsigned char	gd_2lon;	/* longitude of last grid point	*/
-	unsigned char	gd_2lon1;	/* 2nd byte for lon.		*/
-	unsigned char	gd_2lon2;	/* 3rd byte for lon.		*/
-	unsigned char	gd_di;		/* longitudinal increment	*/
-	unsigned char	gd_di1;		/* 2nd byte for di		*/
-	unsigned char	gd_dj;		/* latitudinal increment	*/
-	unsigned char	gd_dj1;		/* 2nd byte for dj		*/
+	unsigned char	gd_lat2[3];	/* latitude of last grid point	*/
+	unsigned char	gd_lon2[3];	/* longitude of last grid point	*/
+	unsigned char	gd_di[2];	/* longitudinal increment	*/
+	unsigned char	gd_dj[2];	/* latitudinal increment	*/
 	unsigned char	gd_scnmd;	/* scanning mode flags		*/
-	unsigned char	gd_resv;	/* reserved - set to 0		*/
-	unsigned char	gd_resv1;	/* reserved - set to 0		*/
-	unsigned char	gd_resv2;	/* reserved - set to 0		*/
-	unsigned char	gd_resv3;	/* reserved - set to 0		*/
-	unsigned char	gd_buf[200];	/* allow for a big gds		*/
-} GFgds, GDSLatLon;
+	unsigned char	gd_resv[4];	/* reserved - set to 0		*/
+} GDSLatLon;
 
 /*
  * A GDS for polar stereographic grids
  */
 typedef struct s_GDSPolarStereo
 {
-	unsigned char	len;		/* length of GDS		*/
-	unsigned char	len1;		/* 2nd byte of length		*/
-	unsigned char	len2;		/* 3rd byte of length		*/
-	unsigned char	nm_bytes;	/* Number of unused bytes	*/
-	unsigned char	g_zero;		/* Always set to 0 ECMWF Ed. 0	*/
+	unsigned char	len[3];		/* length of GDS		*/
+	unsigned char	nv;		/* Number of vertical levels	*/
+	unsigned char	pv_or_pl;	/* PV or PL			*/
 	unsigned char	data_type;	/* Data representation type	*/
 /*
- * Data-type specific section, octets 7 - 32
+ * Polar stereographic type-specific stuff
  */
 	unsigned char	gd_nx[2];	/* Number of points along x-axis*/
 	unsigned char	gd_ny[2];	/* Number of points along y-axis*/
-	unsigned char	gd_la1[3];	/* lat of 1st grid point (m-deg)*/
-	unsigned char	gd_lo1[3];	/* lon of 1st grid point (m-deg)*/
+	unsigned char	gd_lat1[3];	/* lat of 1st grid point (m-deg)*/
+	unsigned char	gd_lon1[3];	/* lon of 1st grid point (m-deg)*/
 	unsigned char	gd_res;		/* resolution and component flags */
 	unsigned char	gd_lov[3];	/* east longitude of orientation*/
 	unsigned char	gd_dx[3];	/* grid length along x at lat 60 (m)*/
@@ -127,6 +119,35 @@ typedef struct s_GDSPolarStereo
 	unsigned char	gd_scanmode;	/* Scan mode			*/
 	unsigned char	gd_reserved[4]; /* Set to 0			*/
 } GDSPolarStereo;
+
+/*
+ * A GDS for Lambert conformal grids
+ */
+typedef struct s_GDSLambertConformal
+{
+	unsigned char	len[3];		/* length of GDS		*/
+	unsigned char	nv;		/* Number of vertical levels	*/
+	unsigned char	pv_or_pl;	/* PV or PL			*/
+	unsigned char	data_type;	/* Data representation type	*/
+/*
+ * Lambert conformal type-specific stuff
+ */
+	unsigned char	gd_nx[2];	/* Number of points along x-axis*/
+	unsigned char	gd_ny[2];	/* Number of points along y-axis*/
+	unsigned char	gd_lat1[3];	/* lat of 1st grid point (m-deg)*/
+	unsigned char	gd_lon1[3];	/* lon of 1st grid point (m-deg)*/
+	unsigned char	gd_res;		/* resolution and component flags */
+	unsigned char	gd_lov[3];	/* east longitude of orientation*/
+	unsigned char	gd_dx[3];	/* grid length along x (m)	*/
+	unsigned char	gd_dy[3];	/* grid length along y (m)	*/
+	unsigned char	gd_pole;	/* projection center flag	*/
+	unsigned char	gd_scanmode;	/* Scan mode			*/
+	unsigned char	gd_latin1[3];	/* 1st lat of cone/earth intersection*/
+	unsigned char	gd_latin2[3];	/* 2nd lat of cone/earth intersection*/
+	unsigned char	gd_spol_lat[3];	/* lat of southern pole		*/
+	unsigned char	gd_spol_lon[3];	/* lon of southern pole		*/
+	unsigned char	gd_reserved[2]; /* Set to 0			*/
+} GDSLambertConformal;
 
 /*
  * Flag bits for section_flags
