@@ -1,100 +1,139 @@
 XCOMM -*- C -*-
 XCOMM
-XCOMM $Id: Docs.rules,v 1.2 1996-02-16 20:00:15 granger Exp $
+XCOMM $Id: Docs.rules,v 1.3 1996-02-21 00:07:57 granger Exp $
 XCOMM
 XCOMM An Imake rules file for fules which generate postscript and html
 XCOMM from FrameMaker books.
 XCOMM
 
 
-/* FM2HTML = /localbin/frame/fm2html */
-FM2HTML = fm2html
-FRAMELIB = /locallib/frame
+FM2HTML = /usr/local/bin/frame/fm2html
+FRAMELIB = /usr/local/lib/frame
 TAGSFILE = $(FRAMELIB)/zebra.htags
 PRINTFILE = $(FRAMELIB)/mif2gif.printsettings
 LANGUAGE = US
 FMBATCH = /net/FMaker5/bin/fmbatch
 /* FMBATCH = fmbatch */
 
-DOCDIR = /net/shared/zebra/doc/4.2
-HTMLDIR = $(DOCDIR)/html/$(BOOK)
-POSTSCRIPTDIR = $(DOCDIR)/hardcopy
+DOCDIR = $(TOP)/doc
+HTMLDIR = $(DOCDIR)/html
+POSTSCRIPTDIR = $(DOCDIR)/ps
 
-DISTCLEANFILES = *.backup *.gif *.mif *.html *.html1 *.html2 *.ps *.tmp *.000? *.000??
+/*
+ * Don't install anything by default
+ */
+all:: ps html
 
-#ifdef FrameExtension
-FMEXT = FrameExtension
-#else
-FMEXT = book
+/*
+ * Install PostScript file into a PostScript directory
+ */
+#ifndef InstallPostscriptDoc
+#define InstallPostscriptDoc(file)					@@\
+install.ps:: file							@@\
+	@echo Installing PostScript files into $(POSTSCRIPTDIR)		@@\
+	MakeDir($(POSTSCRIPTDIR))					@@\
+	$(CP) file $(POSTSCRIPTDIR)					@@\
+
 #endif
 
-BOOKFILE = $(BOOK).$(FMEXT)
-BOOKHTML = $(BOOK).html
-BOOKPS = $(BOOK).ps
+/*
+ * Install fm2html hypertext files into html directory
+ */
+#ifndef InstallHTMLFiles
+#define InstallHTMLFiles(depfile)					@@\
+install.html:: depfile							@@\
+	@echo Installing HTML files into $(HTMLDIR)			@@\
+	MakeDir($(HTMLDIR))						@@\
+	$(CP) *.html \
+	   `ls *.fig_*.ps *.tbl_*.ps *.gif 2>/dev/null` $(HTMLDIR)	@@\
+
+#endif
+
 
 /*
- * By default, don't do anything unless given a specific target
+ * Convert a FrameMaker book to HTML
  */
-
-all:: $(BOOKFILE) $(CHAPTERS)
-
-install:: install.ps install.html
-
-/*
- * Install PostScript files into PostScript directory
- */
-install.ps:: $(BOOKPS) FORCE
-	@echo Installing PostScript files into $(POSTSCRIPTDIR)
-	MakeDir($(POSTSCRIPTDIR))
-	$(CP) $(BOOKPS) $(POSTSCRIPTDIR)
-
-/*
- * Install hypertext files into html directory
- */
-install.html:: $(BOOKHTML) html FORCE
-	@echo Installing HTML files into $(HTMLDIR)
-	MakeDir($(HTMLDIR))
-	$(CP) *.html `ls *.fig_*.ps *.tbl_*.ps *.gif 2>/dev/null` $(HTMLDIR)
-
-html:: $(BOOKHTML)
-
-/*
- * Make the HTML files for this book
- */
-$(BOOKHTML):: $(BOOKFILE) $(CHAPTERS)
+#ifndef BookToHypertextTarget
+#define BookToHypertextTarget(bookname,chapters,author)			@@\
+									@@\
+bookname.html:: bookname.book chapters					@@\
 	MIF2HTMLTAGSFILE=$(TAGSFILE) DOCUMENTLANGUAGE=$(LANGUAGE) \
-		$(FM2HTML) -c -s -a $(AUTHOR) $(BOOKFILE)
+		$(FM2HTML) -c -s -a author bookname.book		@@\
+									@@\
+html:: bookname.html							@@\
+									@@\
+distclean::								@@\
+	$(RM) bookname.html						@@\
 
-ps:: $(BOOKPS)
+#endif
+
 
 /*
  * Generate PostScript from a FrameMaker book
  */
-$(BOOKPS):: $(BOOKFILE) $(CHAPTERS)
-	RemoveFile($@)
-	@echo Creating $@	;\
-	 (echo "Open $(BOOKFILE)"; \
-	  echo "Update $(BOOKFILE)"; \
-	  echo "Save $(BOOKFILE)" ;\
-	  echo "Print $(BOOKFILE)" ;\
-	  echo "Quit") >> batch.$$$$ ;\
-	$(FMBATCH) < batch.$$$$ ;\
-	$(RM) batch.$$$$ ;\
-	i=0; while [ \! -f $@ ]; do \
-	  i=`expr $$i + 1`; if [ $$i -gt 6 ]; then exit 1; fi; \
-	  echo "($$i) waiting for $@ to finish printing..."; \
-	  sleep 10; \
-	done ;\
-	echo "Done."
+#ifndef BookToPostscriptTarget
+#define BookToPostscriptTarget(bookname,chapters)			@@\
+									@@\
+bookname.ps:: bookname.book chapters					@@\
+	RemoveFile($@)							@@\
+	@echo Creating $@ ;\						@@\
+	 (echo "Open bookname.book"; \					@@\
+	  echo "Update bookname.book"; \				@@\
+	  echo "Save bookname.book" ;\					@@\
+	  echo "Print bookname.book" ;\					@@\
+	  echo "Quit") >> batch.$$$$ ;\					@@\
+	$(FMBATCH) < batch.$$$$ ;\					@@\
+	$(RM) batch.$$$$ ;\						@@\
+	i=0; while [ \! -f $@ ]; do \					@@\
+	  i=`expr $$i + 1`; if [ $$i -gt 6 ]; then exit 1; fi; \	@@\
+	  echo "($$i) waiting for $@ to finish printing..."; \		@@\
+	  sleep 10; \							@@\
+	done ;\								@@\
+	echo "Done."							@@\
+									@@\
+ps:: bookname.ps							@@\
+									@@\
+distclean::								@@\
+	$(RM) bookname.ps						@@\
+
+#endif
+
+/*
+ * Combine the above rules into one complete set for a book
+ */
+#ifndef CompleteBookTarget
+#define CompleteBookTarget(book,chapters,author)			@@\
+BookToPostscriptTarget(book,chapters)					@@\
+									@@\
+BookToHypertextTarget(book,chapters,author)				@@\
+									@@\
+InstallPostscriptDoc(book.ps)						@@\
+									@@\
+InstallHTMLFiles(book.html)						@@\
+
+#endif
+
+/*
+ * General targets used by any Imakefile which includes this rule file
+ */
+install:: install.ps install.html
+
+DISTCLEANHTML = *.gif *.mif *.html *.html1 *.html2 *.tmp *.000? *.000??
+DISTCLEANPS = *.ps *.backup
 
 distclean::
-	$(RM) $(DISTCLEANFILES)
+	$(RM) $(DISTCLEANHTML) $(DISTCLEANPS)
 
-FORCE::
+/*
+ * For Imakefiles which don't have any rules for these
+ */
+ps::
+
+html::
+
+install.html::
+
+install.ps::
 
 .PHONY: install.html install.ps html ps
 
-#ifdef notdef
-clean::
-	$(RM) $(CLEANFILES)
-#endif
