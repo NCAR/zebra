@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.61 1997-07-11 17:24:12 burghart Exp $
+XCOMM $Id: Project.tmpl,v 1.62 1997-07-31 15:21:30 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -887,6 +887,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  * Util Imakefiles which redefine EXTRA_DEFINES instead of using DEFINES.
  */
     EXTRA_DEFINES = ExtraDefines $(AUTO_DEFINES)
+    CXXEXTRA_DEFINES = ExtraDefines $(AUTO_DEFINES)
   RDSS_EXTRA_DEFS = ExtraDefines $(AUTO_DEFINES) -DUNIX
        SHMDEFINES = ShmDefines
      XHELPDEFINES = XHelpDefines
