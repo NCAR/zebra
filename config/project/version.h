@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 1.8 1995-06-29 20:53:19 granger Exp $
+ * $Id: version.h,v 1.9 1995-08-28 22:02:17 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -76,8 +76,12 @@ static char cppsyms[] = "@(#)$Symbols: "
 #ifdef __GNUC__
 static const char *use_cppsyms = (0, use_cppsyms, cppsyms);
 #endif
-#else
-static char cppsyms[] = "@(#)$Symbols: __STDC__ not defined$";
+#else /* ! __STDC__ */
+# ifndef __STDC__
+static char cppsyms[] = "@(#)$Symbols: __STDC__ not defined $";
+# else
+static char cppsyms[] = "@(#)$Symbols: __STDC__ defined as 0 $";
+# endif /* ndef __STDC */
 #endif /* __STDC__ */
 
 #endif /* !SABER && !lint */
@@ -164,7 +168,7 @@ static const char rcs_author[] = id ;
 
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.8 1995-06-29 20:53:19 granger Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.9 1995-08-28 22:02:17 granger Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
 #ifdef __GNUC__
