@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.12 1992-06-23 15:37:39 kris Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.13 1992-06-24 21:58:06 pai Exp $")
 
 
 /*
@@ -945,7 +945,7 @@ char *comp, *data;
 int datalen, begin, space;
 {
 	char string[40], ctable[40], color[40];
-	float center, step, val, used, scale, value, range, max;
+	float center, step, val, maxval, used, scale, value, range, max;
 	int i, left, ncolors, bar_height, limit, nsteps, y;
 	int highlight;
 	XColor *colors, xc;
