@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.3 1991-02-21 16:32:17 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 1.4 1991-02-26 19:00:15 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -19,12 +19,14 @@ static char *rcsid = "$Id: Appl.c,v 1.3 1991-02-21 16:32:17 corbet Exp $";
 	static void ds_NotifyDaemon (int, DataObject *, int, int);
 	static void ds_DispatchNotify (struct dsp_Notify *);
 	int ds_DSMessage (struct message *);
+	static void dfa_FixBoundary (DataObject *);
 # else
 	static void ds_InitPFTable ();
 	static void ds_AllocMemory ();
 	static void ds_NotifyDaemon ();
 	static void ds_DispatchNotify ();
 	int ds_DSMessage ();
+	static void dfa_FixBoundary ();
 # endif
 
 
@@ -222,14 +224,64 @@ float sel, badflag;
 	for (gp = get; gp; gp = gp->gl_next)
 		dfa_GetData (gp);
 /*
- * Free the get list.
+ * Free the get list.  If this is a boundary, we have to fix up a couple
+ * of things.  Then return the data object.
  */
 	dgl_ReturnList (get);
+	if (dobj->do_org == OrgOutline)
+		dfa_FixBoundary (dobj);
 	return (dobj);
 }
 
 
 
+
+
+
+static void
+dfa_FixBoundary (dobj)
+DataObject *dobj;
+/*
+ * Fix up this boundary to meet the external spec.  
+ */
+{
+# define TIMEEQ(a,b) (memcmp ((a), (b), sizeof (time)) == 0)
+	int nbnd = 1, samp, bnd, npt = 0, *ip;
+/*
+ * Check for the simple (usual) case.
+ */
+	if (TIMEEQ (&dobj->do_begin, &dobj->do_end))
+	{
+		dobj->do_desc.d_length = ALLOC (int);
+		*dobj->do_desc.d_length = dobj->do_npoint;
+		dobj->do_npoint = 1;
+		return;
+	}
+/*
+ * Not so easy.  Go through and figure out how many boundaries are really
+ * here.
+ */
+	for (samp = 1; samp < dobj->do_npoint; samp++)
+		if (! TIMEEQ (dobj->do_times + samp, dobj->do_times + samp -1))
+			nbnd++;
+/*
+ * Allocate space, then go through and assign the lengths of each boundary.
+ */
+	ip = dobj->do_desc.d_length = (int *) malloc (nbnd * sizeof (int));
+	bnd = 0;
+	ip[bnd] = 0;
+	for (samp = 1; samp < dobj->do_npoint; samp++)
+	{
+		ip[bnd]++;
+		if (! TIMEEQ (dobj->do_times + samp, dobj->do_times + samp -1))
+		{
+			bnd++;
+			ip[bnd] = 0;
+		}
+	}
+	ip[bnd]++;
+}
+				
 
 
 void
@@ -253,7 +305,7 @@ DataObject *dobj;
 		for (i = 0; i < dobj->do_nfield; i++)
 			free (dobj->do_data[i]);
 	}
-	else if (dobj->do_flags & DOF_FREEDATA)
+	else if (dobj->do_flags & DOF_FREEDATA && dobj->do_nfield > 0)
 		free (dobj->do_data[0]);
 /*
  * Locations for mobile platforms.
@@ -274,6 +326,8 @@ DataObject *dobj;
 		if (dobj->do_desc.d_irgrid.ir_subplats)
 			free (dobj->do_desc.d_irgrid.ir_subplats);
 	}
+	else if (dobj->do_org == OrgOutline)
+		free (dobj->do_desc.d_length);
 	free ((char *) dobj);
 }
 
@@ -304,8 +358,9 @@ GetList *get;
 /*
  * Get the memory in a big chunk.
  */
-	dobj->do_data[0] = (float *)
-			malloc (npoint*dobj->do_nfield*sizeof (float));
+	if (dobj->do_nfield > 0)
+		dobj->do_data[0] = (float *)
+				malloc (npoint*dobj->do_nfield*sizeof (float));
 	dobj->do_times = (time *) malloc (nsample * sizeof (time));
 	dobj->do_flags |= DOF_FREEDATA | DOF_FREETIME;
 	dobj->do_npoint = nsample;
@@ -317,10 +372,10 @@ GetList *get;
 /*
  * If this is a mobile platform, we need to arrange for location info.
  */
-	if (ds_IsMobile (dobj->do_id))
+	if (ds_IsMobile (dobj->do_id) || dobj->do_org == OrgOutline)
 	{
 		dobj->do_aloc = (Location *)
-				malloc (npoint*sizeof (Location));
+				malloc (nsample*sizeof (Location));
 		dobj->do_flags |= DOF_FREEALOC;
 	}
 /*
@@ -335,7 +390,7 @@ GetList *get;
 		for (field = 0; field < dobj->do_nfield; field++)
 			gp->gl_data[field] = dobj->do_data[field] + offset;
 		gp->gl_time = dobj->do_times + toffset;
-		if (ds_IsMobile (dobj->do_id))
+		if (ds_IsMobile (dobj->do_id) || dobj->do_org == OrgOutline)
 			gp->gl_locs = dobj->do_aloc + toffset;
 	}
 	if (offset != 0 || toffset != 0)
