@@ -157,14 +157,22 @@ ZebraTime *base_time)
  * and the number of times is the size of that dimension.  Note that the 
  * time dimension does _not_ need to be the record dimension.
  */
-	if (ndim != 1)
+	if (ndim == 1) /* most common case */
 	{
-		dnc_NCError ("time variable must have exactly one dimension");
-		return (FALSE);
-	}
-	if (ncdiminq (id, dims[0], NULL, &dimlen) < 0)
-	{
+	    if (ncdiminq (id, dims[0], NULL, &dimlen) < 0)
+	    {
 		dnc_NCError ("inquiring time dimension");
+		return (FALSE);
+	    }
+	}
+	else if (ndim == 0) /* one time in the file and no time dimension */
+	{
+	    dims[0] = -1;	/* mark empty time dimension */
+	    dimlen = 1;
+	}
+	else
+	{
+		dnc_NCError ("time variable must have zero or one dimension");
 		return (FALSE);
 	}
 /*
