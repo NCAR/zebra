@@ -43,7 +43,7 @@ procedure ctr-step-popup
 	if (rep = 'filled-contour')
 		local rep 'contour'
 	endif
-	local field pd_param(icon_component,'field','string')
+	local field SimpleFieldName(PDParam(icon_component,'field'))
 	local plat pd_param(icon_component, 'platform', 'string')
 !
 ! Stash aside the component name, we will want it later.
@@ -89,7 +89,7 @@ procedure ctr-step-apply
 	local mode getftext(f, 'mode')
 	parameter #comp 'scale-mode' #mode
 	local center getftext(f, 'center')
-	local field SimpleFieldName(pd_param(comp, 'field', 'string'))
+	local field SimpleFieldName(PDParam(comp, 'field'))
 	local param concat(field, '-center')
 	parameter #comp #param #center
 	local step getftext(f, 'step')

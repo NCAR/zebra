@@ -1,6 +1,6 @@
 !
 ! Lotsa track support stuff.
-! $Id: track,v 1.8 1999-03-01 02:03:58 burghart Exp $
+! $Id: track,v 1.9 2000-04-11 21:39:29 burghart Exp $
 !
 
 !
@@ -40,7 +40,7 @@ enddef
 procedure track-adjust-popup
 	local f ui$form
 	set comp icon_component
-	local field PDParam(comp, 'field')
+	local field SimpleFieldName(PDParam(comp, 'field'))
 	formtext #f comp #comp
 !
 ! Center and step.

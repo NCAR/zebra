@@ -54,7 +54,7 @@ enddef
 procedure hl-popup
 	local f ui$form
 	local c icon_component
-	local field PDParam(c, 'field')
+	local field SimpleFieldName(PDParam(c, 'field'))
 	formtext #f comp #c
 !center
 	local param concat(field, '-highlight')
@@ -152,7 +152,7 @@ procedure raster-ctr-step-popup
 	if (rep = 'filled-contour')
 		local rep 'contour'
 	endif
-	local field pd_param(icon_component,'field','string')
+	local field SimpleFieldName(PDParam(icon_component,'field'))
 	local plat pd_param(icon_component, 'platform', 'string')
 !
 ! Now see if they have auto scaling turned on.
@@ -202,7 +202,7 @@ procedure raster-ctr-step-apply
 	local center getftext(f, 'center')
 	local step getftext(f, 'step')
 	local nsteps getftext(f, 'nsteps')
-	local field SimpleFieldName(pd_param(icon_component,'field','string'))
+	local field SimpleFieldName(PDParam(icon_component,'field'))
 	local param concat(field, '-center')
 	parameter #icon_component #param #center
 	local param concat(field, '-step')

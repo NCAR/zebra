@@ -31,7 +31,7 @@ procedure rl-popup
 ! Pull some basic info.
 !
 	local f ui$form
-	local field pd_param(icon_component,'field','string')
+	local field SimpleFieldName(PDParam(icon_component,'field'))
 !
 ! Stash aside the component name, we will want it later.
 !
@@ -61,7 +61,7 @@ endprocedure
 procedure rl-apply
 	local f ui$form
 	local comp getftext(f, 'comp')
-	local field SimpleFieldName(pd_param(comp, 'field', 'string'))
+	local field SimpleFieldName(PDParam(comp, 'field'))
 !
 ! This is not quite right -- we need to somehow zap out the range limits
 ! if they say 'none'
