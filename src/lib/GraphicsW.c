@@ -82,8 +82,6 @@ GraphicsWidget	w;
 Mask		*value_mask;
 XSetWindowAttributes	*attributes;
 {
-	GC		gc;
-	XGCValues	gcvals;
 	XVisualInfo	vinfo;
 	int		i, status, depth = 8;
 /*
@@ -131,14 +129,17 @@ XSetWindowAttributes	*attributes;
 		*value_mask, attributes);
 # endif /* use_XB */
 /*
+ * Get the GC that travels with the widget
+ */
+	w->graphics.gc = XCreateGC (XtDisplay (w), XtWindow (w), 0, NULL);
+/*
  * Allocate the pixmaps for the frames and clear them out
  */
 	w->graphics.frames = (Pixmap *) 
 		XtMalloc (w->graphics.frame_count * sizeof (Pixmap));
 
-	gcvals.function = GXcopy;
-	gcvals.foreground = w->core.background_pixel;
-	gc = XtGetGC (w, GCFunction | GCForeground, &gcvals);
+	XSetForeground (XtDisplay (w), w->graphics.gc, 
+		w->core.background_pixel);
 
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
@@ -146,8 +147,8 @@ XSetWindowAttributes	*attributes;
 			XtWindow (w), w->core.width, w->core.height, 
 			w->core.depth);
 
-		XFillRectangle (XtDisplay (w), w->graphics.frames[i], gc, 
-			0, 0, w->core.width, w->core.height);
+		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
+			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
 /*
  * Initialize the draw and display frame numbers
@@ -192,8 +193,6 @@ GraphicsWidget	w;
 XEvent		*event;
 Region		region;
 {
-	GC		gc;
-	XGCValues	gcvals;
 	GraphicsPart	gp;
 
 	gp = w->graphics;
@@ -209,10 +208,8 @@ Region		region;
 /*
  * Do a CopyArea to copy the current frame into the window
  */
-	gc = XtGetGC (w, 0, &gcvals);
-
-	XCopyArea (XtDisplay (w), gp.frames[gp.display_frame], 
-		XtWindow (w), gc, 0, 0, w->core.width, w->core.height, 0, 0);
+	XCopyArea (XtDisplay (w), gp.frames[gp.display_frame], XtWindow (w), 
+		gp.gc, 0, 0, w->core.width, w->core.height, 0, 0);
 }
 
 
@@ -222,8 +219,6 @@ void
 Resize (w)
 GraphicsWidget	w;
 {
-	GC		gc;
-	XGCValues	gcvals;
 	int		i;
 	int		have_frames = (w->graphics.frames != NULL);
 /*
@@ -234,9 +229,8 @@ GraphicsWidget	w;
 /*
  * Free the old pixmaps, get new pixmaps and clear them out
  */
-	gcvals.function = GXcopy;
-	gcvals.foreground = w->core.background_pixel;
-	gc = XtGetGC (w, GCFunction | GCForeground, &gcvals);
+	XSetForeground (XtDisplay (w), w->graphics.gc, 
+		w->core.background_pixel);
 
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
@@ -246,17 +240,12 @@ GraphicsWidget	w;
 			XtWindow (w), w->core.width, w->core.height, 
 			w->core.depth);
 
-		XFillRectangle (XtDisplay (w), w->graphics.frames[i], gc, 
-			0, 0, w->core.width, w->core.height);
+		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
+			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
 
-	XFillRectangle (XtDisplay (w), w->core.window, gc, 0, 0, 
+	XFillRectangle (XtDisplay (w), w->core.window, w->graphics.gc, 0, 0, 
 		w->core.width, w->core.height);
-/*
- * Redraw the frames, if possible
- */
-	if (w->graphics.plot_routine)
-		(w->graphics.plot_routine)(w->graphics.plot_data);
 }
 
 
@@ -395,22 +384,6 @@ GraphicsWidget	w;
 
 
 void
-GWPlotRoutine (w, routine, plot_data)
-GraphicsWidget	w;
-void	(*routine)();
-caddr_t	plot_data;
-/*
- * Set the plot routine and data for widget w
- */
-{
-	w->graphics.plot_routine = routine;
-	w->graphics.plot_data = plot_data;
-}
-
-
-
-
-void
 GWResize (w, width, height)
 GraphicsWidget	w;
 int	width, height;
@@ -432,24 +405,22 @@ int		frame;
  * (frame == ClearAll clears all frames)
  */
 {
-	GC		gc;
-	XGCValues	gcvals;
 	int		i;
 
-	gcvals.function = GXcopy;
-	gcvals.foreground = w->core.background_pixel;
-	gc = XtGetGC (w, GCFunction | GCForeground, &gcvals);
+	XSetForeground (XtDisplay (w), w->graphics.gc, 
+		w->core.background_pixel);
 
 	if (frame == ClearAll)
 	{
 		for (i = 0; i < w->graphics.frame_count; i++)
 			XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
-				gc, 0, 0, w->core.width, w->core.height);
+				w->graphics.gc, 0, 0, w->core.width, 
+				w->core.height);
 	}
 	else
 	{
 		XFillRectangle (XtDisplay (w), w->graphics.frames[frame],
-			gc, 0, 0, w->core.width, w->core.height);
+			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
 }
 
@@ -480,8 +451,6 @@ unsigned int	frame;
  * Make 'frame' the currently displayed frame for widget 'w'
  */
 {
-	GC		gc;
-	XGCValues	gcvals;
 	unsigned int	use_buffer;
 /*
  * Sanity check
@@ -507,10 +476,8 @@ unsigned int	frame;
 /*
  * Do a CopyArea of the frame into the window
  */
-	gc = XtGetGC (w, 0, &gcvals);
-
-	XCopyArea (XtDisplay (w), w->graphics.frames[frame], XtWindow (w), gc, 
-		0, 0, w->core.width, w->core.height, 0, 0);
+	XCopyArea (XtDisplay (w), w->graphics.frames[frame], XtWindow (w), 
+		w->graphics.gc, 0, 0, w->core.width, w->core.height, 0, 0);
 
 # ifdef use_XB
 /*
