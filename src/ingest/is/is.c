@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.28 2004-03-01 19:36:54 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.29 2004-03-15 16:51:12 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -486,14 +486,14 @@ stop (struct is_config *cfg)
 	 * called when a stop command is issued for a configuration. Do the
 	 * following:
 	 * 
-	 * 1. send an INT to all active processes running under this
+	 * 1. send a TERM to all active processes running under this
 	 * configuration.
 	 * 
 	 * 2. cancel the timer associated with this configuration
 	 * 
 	 */
 	if (cfg->pid) {
-		kill(cfg->pid, SIGINT);
+		kill(cfg->pid, SIGTERM);
 		cfg->pid = 0;
 		cfg->active--;
 	}
