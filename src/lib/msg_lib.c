@@ -22,6 +22,7 @@
 # include <varargs.h>
 # include <errno.h>
 # include <signal.h>
+# include <string.h>
 # include <sys/types.h>
 # include <sys/time.h>
 # include <sys/socket.h>
@@ -32,7 +33,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.30 1995-05-24 22:30:43 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.31 1995-06-12 22:52:51 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.

@@ -30,7 +30,6 @@ char *file, *spath, *dest;
  */
 {
 	char *path, *delim;
-	char *strchr ();
 /*
  * Try to find the file as given.
  */

@@ -19,12 +19,14 @@
  * maintenance or updates for its software.
  */
 # include <unistd.h>
+# include <string.h>
+
 # include <config.h>
 # include <ui_symbol.h>
 # include "defs.h"
 # include "message.h"
 
-MAKE_RCSID("$Id: ConfigVars.c,v 1.9 1995-05-02 23:16:19 granger Exp $")
+MAKE_RCSID("$Id: ConfigVars.c,v 1.10 1995-06-12 22:52:42 granger Exp $")
 
 /*
  * Keep the directories around for queries.

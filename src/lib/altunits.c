@@ -19,10 +19,12 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
+
 # include "copyright.h"
 # include "defs.h"
 
-MAKE_RCSID("$Id: altunits.c,v 2.6 1995-04-15 00:17:29 granger Exp $")
+RCSID("$Id: altunits.c,v 2.7 1995-06-12 22:52:46 granger Exp $")
 
 /*
  * 

@@ -23,11 +23,13 @@
 # else
 # include <sys/file.h>
 # endif
+# include <string.h>
+
 # include "defs.h"
 # include "message.h"
 
 
-RCSID("$Id: Sound_lib.c,v 2.4 1995-05-01 16:06:49 corbet Exp $")
+RCSID("$Id: Sound_lib.c,v 2.5 1995-06-12 22:52:44 granger Exp $")
 
 
 void

@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.12 1995-05-02 23:16:30 granger Exp $ */
+/* $Id: pdaux.c,v 1.13 1995-06-12 22:52:54 granger Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -19,6 +19,8 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
+
 # include <ui_symbol.h>
 # include "defs.h"
 # include "message.h"

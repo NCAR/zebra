@@ -22,11 +22,13 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
+
 # include "defs.h"
 # include <config.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: cmd_exec.c,v 2.1 1995-04-15 00:11:39 granger Exp $")
+RCSID ("$Id: cmd_exec.c,v 2.2 1995-06-12 22:52:48 granger Exp $")
 
 
 void
