@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.18 1994-02-02 23:22:36 burghart Exp $ */
+/* $Id: defs.h,v 2.19 1994-02-02 23:32:58 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -143,8 +143,11 @@ int     FindFile FP ((char *, char *, char *));
  * Set up inline and const so that we can use them.
  */
 # ifndef __STDC__
-# define inline
 # define const
+# endif
+
+# ifndef __GNUC__
+# define inline
 # endif
 
 /*
