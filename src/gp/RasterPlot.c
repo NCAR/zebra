@@ -74,7 +74,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.32 1998-03-17 22:27:49 corbet Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.33 1998-03-23 23:14:20 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -179,7 +179,7 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   int xdim, int ydim, int pad,
 				   int bdepth));
 
-static void RP_MakeColorMap FP ((float, float, Pixel *));
+static void RP_MakeColorMap (double, double, Pixel *);
 static void RP_FixCMap FP ((Pixel *, int, int));
 
 
@@ -893,9 +893,7 @@ int		xdim, ydim, pad;
 
 
 static void
-RP_MakeColorMap (scale, bias, cmap)
-float scale, bias;
-Pixel *cmap;
+RP_MakeColorMap (double scale, double bias, Pixel *cmap)
 /*
  * Create the data->color map.
  */
