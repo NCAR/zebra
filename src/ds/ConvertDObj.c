@@ -24,7 +24,7 @@
 # include "DataStore.h"
 # include "ds_fields.h"
 # include "DataChunk.h"
-MAKE_RCSID ("$Id: ConvertDObj.c,v 1.2 1991-12-20 20:52:13 kris Exp $")
+MAKE_RCSID ("$Id: ConvertDObj.c,v 1.3 1992-03-18 21:10:23 corbet Exp $")
 
 
 static DataChunk *MakeIRGrid FP((DataObject *));
@@ -74,6 +74,7 @@ DataObject *dobj;
 	IRGrid *irg = &dobj->do_desc.d_irgrid;
 	int field, sample;
 	float *dp;
+	ZebTime zt;
 /*
  * Initial setup.
  */
@@ -93,8 +94,8 @@ DataObject *dobj;
 		dp = dobj->do_data[field];
 		for (sample = 0; sample < dobj->do_npoint; sample++)
 		{
-			dc_IRAddGrid (dc, dobj->do_times + sample, sample,
-					fids[field], dp);
+			TC_UIToZt (dobj->do_times + sample, &zt);
+			dc_IRAddGrid (dc, &zt, sample, fids[field], dp);
 			dp += dobj->do_npoint;
 		}
 	}
@@ -114,13 +115,14 @@ DataObject *dobj;
  */
 {
 	DataChunk *dc = dc_CreateDC (DCC_Boundary);
-
+	ZebTime zt;
 /*
  * Here, we just add the single boundary that we expect to be there.  Old
  * data objects didn't work right with more than that anyway....
  */
 	dc->dc_Platform = dobj->do_id;
-	dc_BndAdd (dc, dobj->do_times, dobj->do_id, dobj->do_aloc, 
+	TC_UIToZt (dobj->do_times, &zt);
+	dc_BndAdd (dc, &zt, dobj->do_id, dobj->do_aloc, 
 			dobj->do_desc.d_bnd->bd_npoint);
 	return (dc);
 }
@@ -138,6 +140,7 @@ DataObject *dobj;
 	DataChunk *dc = dc_CreateDC (DCC_RGrid);
 	FieldId fids[30];
 	RGrid *rg = &dobj->do_desc.d_rgrid;
+	ZebTime zt;
 	int field, sample;
 
 	dc->dc_Platform = dobj->do_id;
@@ -150,10 +153,11 @@ DataObject *dobj;
 /*
  * Go through and add each grid.
  */
+	TC_UIToZt (dobj->do_times, &zt);
 	rg->rg_nZ = 1;	/* Just to be sure.	*/
 	for (field = 0; field < dobj->do_nfield; field++)
 		dc_RGAddGrid (dc, 0, fids[field], &dobj->do_loc, rg,
-			dobj->do_times, dobj->do_data[field], 0);
+			&zt, dobj->do_data[field], 0);
 	return (dc);
 }
 
@@ -171,9 +175,15 @@ DataObject *dobj;
 {
 	int field, sample;
 	FieldId fids[30];
-	DataChunk *dc = dc_CreateDC (DCC_Scalar);
-
+	DataChunk *dc = dc_CreateDC (dobj->do_nfield > 0 ? DCC_Scalar :
+							DCC_Location);
+	ZebTime *zt = (ZebTime *) malloc (dobj->do_npoint * sizeof (ZebTime));
+/*
+ * Set up the platform, and convert the times.
+ */
 	dc->dc_Platform = dobj->do_id;
+	for (sample = 0; sample < dobj->do_npoint; sample++)
+		TC_UIToZt (dobj->do_times + sample, zt + sample);
 /*
  * Convert the field names in the DO to ID's, then set up our DC.
  */
@@ -181,35 +191,25 @@ DataObject *dobj;
 		fids[field] = F_Lookup (dobj->do_fields[field]);
 	if (dobj->do_nfield > 0)
 		dc_SetScalarFields (dc, dobj->do_nfield, fids);
-	else
-	{
-		fids[0] = BadField;
-		dc_SetScalarFields (dc, 1, fids);
-	}
 /*
  * Now we just go through and add the data, one field at a time.
  */
 	for (field = 0; field < dobj->do_nfield; field++)
-		dc_AddMultScalar (dc, dobj->do_times, 0, dobj->do_npoint,
+		dc_AddMultScalar (dc, zt, 0, dobj->do_npoint,
 				fids[field], dobj->do_data[field]);
-/*
- * Kludge to make "location only" data chunks work.
- */
-	if (dobj->do_nfield <= 0)
-	{
-		float zero = 0.0;
-		for (sample = 0; sample < dobj->do_npoint; sample++)
-			dc_AddScalar (dc, dobj->do_times + sample, sample,
-				BadField, &zero);
-	
-	}
 /*
  * Set the location for this chunk.  If it is a mobile platform, we need
  * to add each individually.
  */
 	if (ds_IsMobile (dobj->do_id))
 		for (sample = 0; sample < dobj->do_npoint; sample++)
-			dc_SetLoc (dc, sample, dobj->do_aloc + sample);
+		{
+			if (dobj->do_nfield > 0)
+				dc_SetLoc (dc, sample, dobj->do_aloc + sample);
+			else
+				dc_LocAdd (dc, zt + sample, 
+						dobj->do_aloc + sample);
+		}
 	else
 		dc_SetStaticLoc (dc, &dobj->do_loc);
 	return (dc);
@@ -230,6 +230,7 @@ DataObject *dobj;
 	FieldId fids[30];
 	RGrid *rg = dobj->do_desc.d_img.ri_rg;
 	int field;
+	ZebTime zt;
 
 	dc->dc_Platform = dobj->do_id;
 /*
@@ -241,11 +242,11 @@ DataObject *dobj;
 /*
  * Go through and add each grid.
  */
+	TC_UIToZt (dobj->do_times, &zt);
 	rg->rg_nZ = 1;	/* Just to be sure.	*/
 	for (field = 0; field < dobj->do_nfield; field++)
 		dc_ImgAddImage (dc, 0, fids[field], dobj->do_aloc, rg,
-			dobj->do_times, (unsigned char *) dobj->do_data[field],
-			0);
+			&zt, (unsigned char *) dobj->do_data[field], 0);
 	return (dc);
 }
 
