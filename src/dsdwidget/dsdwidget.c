@@ -21,7 +21,7 @@
  */
 
 static char *rcsid = 
-   "$Id: dsdwidget.c,v 1.17 1994-01-20 03:47:38 granger Exp $";
+   "$Id: dsdwidget.c,v 1.18 1994-04-01 08:27:17 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -421,12 +421,12 @@ CreateDSDWidget ()
 }
 
 
+
 static void
 Rescan ()
 /*
- * In theory, our platform cache is being updated by messages broadcast
- * from the DataStore.  So all we need to do is retrieve the latest
- * platform info and reset the widget entries.
+ * Plow through the platforms and refresh the file times and widget 
+ * entries for each.
  */
 {
 	int i;
@@ -442,6 +442,7 @@ Rescan ()
 		SetEntry (i, &begin, &end);
 	}
 }
+
 
 
 static void
