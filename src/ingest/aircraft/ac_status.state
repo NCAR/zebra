@@ -1,0 +1,34 @@
+!
+! Aircraft black box ingest configuration language.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'go' 1
+		next ust$no_more
+	endinput
+enddef
+
+set ui$initial_state "initial"
+
+procedure ui$init
+!
+! Parameters.
+!
+set ac_ingest_name "Ac_Ingest"
+
+!
+! If there was a command file specified, we just read it and go
+! straight into run mode.  Otherwise we expect to be interactive.
+!
+	if (defined ("CommandFile"))
+		local rcmd "read"
+		message 'Reading command file'
+		#rcmd #CommandFile
+		go
+	else
+		message 'No command file'
+	endif
+endprocedure

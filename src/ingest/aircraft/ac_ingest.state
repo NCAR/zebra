@@ -1,0 +1,44 @@
+!
+! Aircraft black box ingest configuration language.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'go' 1
+		next ust$no_more
+	endinput
+	input 'dial' 2
+		next ust$no_more
+	endinput
+enddef
+
+set ui$initial_state "initial"
+
+procedure ui$init
+!
+! Set up parameters for testing.
+!
+	set black_box	"/dev/cua0"
+	set dial_out	"atdt 6780768"
+	set baud_rate	2400
+	set our_aircraft	""
+	set range_res	0.125
+	set azimuth_res	0.0875
+	set radar_lat		39.95
+	set radar_lon		-105.19
+!
+! If there was a command file specified, we just read it and go
+! straight into run mode.  Otherwise we expect to be interactive.
+!
+	if (defined ("CommandFile"))
+		local rcmd "read"
+		message 'Reading command file'
+		#rcmd #CommandFile
+		dial
+		go
+	else
+		message 'No command file'
+	endif
+endprocedure
