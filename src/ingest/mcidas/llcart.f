@@ -1,7 +1,10 @@
+C   THIS IS SSEC PROPRIETARY SOFTWARE - ITS USE IS RESTRICTED.
       SUBROUTINE LLCART(XLAT,XLON,X,Y,Z)                                
 C *** McIDAS Revision History ***
 C 1 LLCART.FOR 19-Mar-90,21:50:54,`SSEC' PC-McIDAS ver 5.00
 C 2 LLCART.FOR 25-Sep-90,7:33:58,`SMG' First Release into COMmon
+C 3 LLCART.FOR 1-Apr-94,1:22:16,`BARRYR' Add proprietary statement
+C 4 LLCART.FOR 2-May-94,16:57:16,`USER' Released
 C *** McIDAS Revision History ***
 C $ SUBROUTINE LLCART(XLAT, XLON, X,Y,Z)  (DAS)                         
 C $ CONVERT LAT, LON TO CARTESIAN CENTERED COORDS  (X, Y, Z).           

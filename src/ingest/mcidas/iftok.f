@@ -1,7 +1,10 @@
-      FUNCTION IFTOK(CTOK)
 C *** McIDAS Revision History ***
 C 1 IFTOK.FOR 27-Feb-90,9:34:44,`SSEC' PC-McIDAS ver 5.00
 C 2 IFTOK.FOR 24-Sep-90,18:19:20,`SMG' First Release into COMmon
+C 3 IFTOK.FOR 1-Jul-94,9:20:00,`USER' Released
+C 4 IFTOK.FOR 24-Sep-96,12:36:02,`BILLL' Added programmer documentation
+C      (6993).
+C 5 IFTOK.FOR 4-Oct-96,10:22:00,`USER' Released
 C *** McIDAS Revision History ***
 C $ FUNCTION IFTOK(CTOK)  (TMW)
 C $ CONVERT NUMERIC CHARACTER TOKEN TO INTERNAL FORM. FN VAL IS INTEGER
@@ -28,6 +31,20 @@ C        DATE (E.G. 83/1/31 , 2883/1/31 (28 IS SS) , 28/// )
 C
 C
 C
+*$ Name:
+*$      iftok  - Provides conversions from tokens to integers and
+*$               dates/lats/lons in various integer formats.
+*$
+*$      NOTE   - This code has been superseded by a group of routines
+*$               in daytime.c and in argconv.c.  People doing
+*$               development should use these utilities.
+*$
+*$ Categories:
+*$      utility
+*$      converter
+*$      day/time
+
+      FUNCTION IFTOK(CTOK)
       PARAMETER (IMAXL=214748364,IMAXR=7)
       IMPLICIT CHARACTER*12 (C)
       IMPLICIT REAL*8 (D)
@@ -47,6 +64,22 @@ C----(FUNCTION IFTOK(CTOK))
          ITYPE=1
          GOTO 1
       ENTRY DFTOK(CTOK)
+
+
+
+*$ Name:
+*$      dftok  - Provides conversions from tokens to double precision
+*$               reals and dates/lats/lons in various formats.
+*$
+*$      NOTE   - This code has been superseded by a group of routines
+*$               in daytime.c and in argconv.c.
+*$               People doing development should use these utilities.
+*$
+*$ Categories:
+*$      utility
+*$      converter
+*$      day/time
+
 C $ ENTRY DFTOK(CTOK)  (TMW)
 C $ CONVERT NUMERIC CHARACTER TOKEN TO INTERNAL FORM. FN VAL IS REAL*8.
 C $ CTOK = (C) INPUT  CHARACTER TOKEN TO CONVERT

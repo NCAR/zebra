@@ -50,13 +50,14 @@ static NavMethods methods = \
 };
 
 NAV_PROTO(GoesMethods,"GOES",ngs)
-NAV_PROTO(PSMethods,"PS",nps)
-NAV_PROTO(RectMethods,"RECT",nrc)
 NAV_PROTO(GvarMethods,"GVAR",ngv)
+NAV_PROTO(PSMethods,"PS",nps)
+NAV_PROTO(RadrMethods,"RADR",nra)
+NAV_PROTO(RectMethods,"RECT",nrc)
 
 static NavMethods *Navs[] =
 {
-	&GoesMethods, &PSMethods, &GvarMethods, &RectMethods
+	&GoesMethods, &GvarMethods, &PSMethods, &RadrMethods, &RectMethods
 };
 static int NumNavs = sizeof (Navs) / sizeof (Navs[0]);
 
@@ -68,9 +69,9 @@ static NavMethods *Current = NULL;
 
 
 int 
-nvxini (int ifunc, int *navcod)
+nvxini (int *navcod)
 {
-	int i;
+	int i, one = 1, two = 2;
 	char nav[5];
 	int status = -1;
 
@@ -80,28 +81,22 @@ nvxini (int ifunc, int *navcod)
 	i = 3;
 	while (isspace (nav[i]))
 		nav[i--] = '\0';
+
 	for (i = 0; i < NumNavs; ++i)
 	{
 		if (strcmp (nav, Navs[i]->navtype) == 0)
 		{
 			Current = Navs[i];
-			/*
-			 * We want nvxps to use ITYPE=2, so we first
-			 * initialize the PSCOM common block with IFUNC=1,
-			 * then change the navigation to "LL" to set ITYPE.
-			 */
-			if (Current == &PSMethods && ifunc == 1)
-			{
-				char *nc = (char *)navcod;
-				ifunc = 1;
-				status = (*Current->nvxini)(&ifunc, navcod);
-				ifunc = 2;
-				nc[0] = 'L'; nc[1] = 'L';
-				nc[2] = ' '; nc[3] = ' ';
-				status = (*Current->nvxini)(&ifunc, navcod);
-			}
-			else
-				status = (*Current->nvxini)(&ifunc, navcod);
+		/*
+		 * Initialize navigation
+		 */
+			status = (*Current->nvxini)(&one, navcod);
+			if (status < 0)
+			    break;
+		/*
+		 * Force the nav routines to return lat/lon
+		 */
+			status = (*Current->nvxini)(&two, (int*)("LL  "));
 			break;
 		}
 	}

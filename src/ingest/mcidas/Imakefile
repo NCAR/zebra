@@ -4,33 +4,29 @@
  * nowrad and satellite.  Note that any program which references these
  * routines must also link with the FORTRAN libraries ($(FLIBS))
  */
-MFVERSION = "$Id: Imakefile,v 1.8 1997-06-30 20:49:39 granger Exp $"
+XCOMM Nearly all of the source files in this directory are U. of Wisconsin 
+XCOMM SSEC copyrighted code and should *not* be distributed outside 
+XCOMM of NCAR/UCAR.
 
-FSRCS = cfd.f cfg.f cfi.f cfr.f cfz.f clit.f ddest.f dpsino.f \
-        edest.f flalo.f ftime.f geolat.f idmyyd.f iftok.f ih.f \
-        iround.f itime.f len_trim.f lit.f llcart.f lwendw.f lwmop.f \
-        lwo.f movcw.f movwc.f nchars.f nvxgoes.f nvxgvar.f nvxps.f \
-        nvxrect.f raerac.f sdest.f solarp.f spout.f squak.f \
-        timdif.f volnam.f xonoff.f
+MFVERSION = "$Id: Imakefile,v 1.9 1997-12-08 18:03:08 burghart Exp $"
 
-SRCS =  dc.c delfil.c dw.c ffiletoc.c filbuf.c getday.c gettim.c \
-        ic.c iopn.c laddr.c leof.c luc.c mcidas.c movb.c movbmem.c \
-        puc.c scra.c sendtext.c stc.c /* nav.c */
+FSRCS = cfz.f clit.f flalo.f ftime.f geolat.f idmyyd.f iftok.f iround.f \
+	itime.f lit.f llcart.f m0itime.f movcw.f movwc.f nvxgoes.dlm \
+	nvxgvar.dlm nvxps.dlm nvxradr.dlm nvxrect.dlm raerac.f solarp.f \
+	timdif.f
 
-HEADERS = mcidas.h
+SRCS =  daytime.c ic_.c mcidas_nav.c movb_.c stc_.c strtofs.c
+
+HEADERS = hex80.inc mcidas.h mcidas_nav.h servacct.h
 
 ALLSRCS = $(FSRCS) $(SRCS)
 
-NAVOBJS = nvxgoes.o nvxps.o nvxrect.o nvxgvar.o
+NAVOBJS = nvxgoes.o nvxgvar.o nvxps.o nvxradr.o nvxrect.o
 
-OBJS =  clit.o flalo.o ftime.o geolat.o iround.o itime.o lit.o llcart.o \
-	movcw.o movwc.o raerac.o solarp.o timdif.o movb.o \
-	cfd.o cfg.o cfi.o cfr.o cfz.o ddest.o edest.o dpsino.o \
-	idmyyd.o iftok.o ih.o len_trim.o lwendw.o lwmop.o lwo.o nchars.o \
-	sdest.o spout.o squak.o volnam.o xonoff.o \
-	puc.o movbmem.o gettim.o ic.o getday.o dw.o sendtext.o laddr.o leof.o \
-	iopn.o luc.o filbuf.o scra.o stc.o dc.o delfil.o ffiletoc.o \
-	$(NAVOBJS) mcidas.o
+OBJS =  cfz.o clit.o daytime.o flalo.o ftime.o geolat.o ic_.o idmyyd.o \
+	iftok.o iround.o itime.o lit.o llcart.o m0itime.o mcidas_nav.o \
+	movb_.o movcw.o movwc.o raerac.o solarp.o stc_.o strtofs.o \
+	timdif.o $(NAVOBJS)
 
 /*
  * Leave UNDERSCORE undefined if for some reason a FORTRAN compiler does not
@@ -39,10 +35,6 @@ OBJS =  clit.o flalo.o ftime.o geolat.o iround.o itime.o lit.o llcart.o \
  */
 DEFINES = -DUNDERSCORE=1
 
-XCOMM nvx*.f files contain definitions of the nvxeas, nvxini, 
-XCOMM nvxopt, and nvxsae routines required by the satellite ingestors.
-XCOMM They are U. of Wisconsin SSEC copyrighted code and should *not* be 
-XCOMM distributed outside of NCAR/UCAR.
 
 DISTFILES = Imakefile $(ALLSRCS) $(HEADERS) README
 
@@ -56,34 +48,35 @@ XCOMM unique symbols so we can link to all of them in one program:
  * (i.e., AIX), so we have to do the substitutions ourselves.
  */
 #define NavRule(base,sub) \
-base.o: base.f								@@\
-	$(RM) base.F 							@@\
-	sed `echo -e 's/NVXINI/NNNINI/g' -e 's/NVXEAS/NNNEAS/g' \	@@\
+base.o: base.dlm							@@\
+	$(RM) base.f							@@\
+	sed `echo ' ' -e 's/NVXINI/NNNINI/g' -e 's/NVXEAS/NNNEAS/g' \	@@\
 	          -e 's/NVXSAE/NNNSAE/g' -e 's/NVXOPT/NNNOPT/g' | \	@@\
-		sed -e 's,NNN,sub,g'` < base.f > base.F			@@\
+		sed -e 's,NNN,sub,g'` < base.dlm > base.f		@@\
 	RemoveFile($@)							@@\
-	$(FC) -c $(FCFLAGS) $*.F					@@\
+	$(FC) -c $(FCFLAGS) base.f					@@\
 									@@\
 clean::									@@\
-	RemoveFile(base.F)						@@\
+	RemoveFile(base.f)						@@\
 
 
 
 /*
- * These name substutions must match the method names used in mcidas.c!
+ * These name substitutions must match the method names used in mcidas.c!
  * And they must begin with I-N so FORTRAN returns an integer type!
  */
 NavRule(nvxgoes,NGS)
-NavRule(nvxps,NPS)
-NavRule(nvxrect,NRC)
 NavRule(nvxgvar,NGV)
+NavRule(nvxps,NPS)
+NavRule(nvxradr,NRA)
+NavRule(nvxrect,NRC)
 
 NormalLibraryTarget(mcidas,$(OBJS))
 
 InstallLibrary(mcidas,$(LIBDIR))
 
 BuildIncludesTop($(HEADERS))
-InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+InstallMultipleFlags(mcidas_nav.h,$(INCDIR),$(INSTINCFLAGS))
 
 DistfilesTarget($(DISTFILES))
 
