@@ -8,6 +8,7 @@ p_rings
 	representation:	overlay
 	field:		range-rings
 	color:		white
+	icon-left-menu:		minimal-cap-left-menu
 	icon-middle-menu:	rings-origin
 	icon-right-menu:	rings-right
 	icon:		rings

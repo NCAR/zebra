@@ -16,7 +16,7 @@ p_contour
 	icon-right-menu:	contour-right
 	require:		contour, simple-color
 	scale-mode:		auto
-	color-table:		contour
+	color-table:		Contour
 	color:			cyan
 	do-labels:		true
 	label-blanking:		false

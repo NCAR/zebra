@@ -12,7 +12,7 @@ p_track
 	color:		red
 	line-width:	3
 	field:		alt
-	color-table:	contour
+	color-table:	Contour
 	arrow:		true
 	arrow-interval:	5m
 	x-field:	u_wind
