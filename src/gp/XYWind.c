@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.35 1999-03-01 02:04:35 burghart Exp $")
+RCSID ("$Id: XYWind.c,v 1.36 2000-11-16 22:58:02 granger Exp $")
 
 /*
  * General definitions
@@ -63,8 +63,11 @@ zbool	update;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
 	char	xflds[FieldListLen], yflds[FieldListLen];
 	char	*xfnames[MaxFields], *yfnames[MaxFields];
-	char	windfld1[32], windfld2[32], ctname[32], style[32];
-	char	xtype, ytype, csystem[16], annotcontrol[80], barbtype[16];
+	char	windfld1[256], windfld2[256], ctname[32], style[32];
+	char	xtype, ytype, annotcontrol[80], barbtype[16];
+#ifdef notdef
+	char	csystem[16];
+#endif
 	float   cstep, scaleSpeed, vecScale = 0.01;
 	XColor	*colors;
 	ZebTime	bTimeTarget, eTimeTarget, eTimeReq, bTimeReq;
@@ -74,6 +77,8 @@ zbool	update;
 	DataValRec	xleft, xright, ybottom, ytop;
 	xyDataVector	dv[4];
 	Pixel	taColor;
+	FieldId windfids[2];
+	WindInfo windinfo;
 /*
  * Get X-Y Winds Required parameters:
  * "platform","x-field", "y-field", "coords", "color-table", "org"
@@ -81,7 +86,9 @@ zbool	update;
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, xflds, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, yflds, SYMT_STRING);
+#ifdef notdef
 	ok &= pda_ReqSearch (Pd, c, "coords", "xy-wind", csystem, SYMT_STRING);
+#endif
 /*
  * If something vital is missing bail.
  */
@@ -91,6 +98,12 @@ zbool	update;
  * Figure out color stuff.
  */
 	xyw_PlotColors (c, &mono, &colors, &ncolors, ctname);
+/*
+ * See FindWindsFields below for wind field derivations.  All wind coords
+ * end up cartesian.
+ */
+	angle = 0;
+#ifdef notdef
 /*
  * Winds coordinate system.  This should be automatic.
  */
@@ -118,6 +131,7 @@ zbool	update;
 
 		angle = FALSE;
 	}
+#endif
 /*
  * Parse platform and field name information. 
  */
@@ -172,7 +186,8 @@ zbool	update;
 	pda_Search (Pd, c, "representation-style", "xy-wind", style, 
 		    SYMT_STRING);
 
-	if (strcmp (style, "vector") == 0)
+	/* The default is vector if no setting or setting is incorrect */
+	if (strcmp (style, "barb") != 0)
 	{
 		vecScale = 5.0;
 		pda_Search (Pd, c, "vec-scale", "xy-wind", (char *) &vecScale, 
@@ -282,6 +297,13 @@ zbool	update;
 	 * Do we want a single "observation" worth of data?
 	 */
 		single_obs = (dmode == DATA_SNAPSHOT && ! update);
+
+	/*
+	 * Look for explicit or derivable winds fields.
+	 */
+		FindWindsFields (c, pid, &eTimeReq, windfids, &windinfo);
+		strcpy (windfld1, F_GetFullName (windfids[0]));
+		strcpy (windfld2, F_GetFullName (windfids[1]));
 	/*
 	 * Set the field names in the data vectors, then get the vectors
 	 * filled in.
@@ -353,7 +375,23 @@ zbool	update;
 			ymin = dv[1].min;
 		if ((ytype == 'f') && (dv[1].max.val.f > ymax.val.f))
 			ymax = dv[1].max;
-
+	/*
+	 * Do any necessary wind field conversion.  We shouldn't have
+	 * any bad values by now, so pass an arbitrary bad value.  All
+	 * platforms should end up with cartesian winds.
+	 */
+		if (windinfo.wi_polar)
+		{
+		    int wi;
+		    msg_ELog (EF_DEBUG, "xywind: polar winds"
+			      "(%s,%s) for platform %s being converted",
+			      windfld1, windfld2, pnames[plat]);
+		    for (wi = 0; wi < npts[plat]; ++wi)
+		    {
+			GetWindData (&windinfo, &(dv[2].data[wi].val.f),
+				     &(dv[3].data[wi].val.f), -99999.0);
+		    }
+		}
 		w1data[plat] = dv[2].data;
 		w2data[plat] = dv[3].data;
 	}
