@@ -1,7 +1,8 @@
-! $Id: Graphproc.ad,v 1.14 1994-04-15 21:25:57 burghart Exp $
+! $Id: Graphproc.ad,v 1.15 1994-06-29 21:14:41 case Exp $
 !
 ! The Graphics process resource file.
 !
+*font:	*-courier-bold-r-normal--12-*
 *Graphics.background:		black
 *header.zap.label:		Dismiss
 *header.zap.borderColor:	red
