@@ -1,7 +1,7 @@
 /*
  * lat,lon <-> x,y conversion utilities
  */
-static char *rcsid = "$Id: convert.c,v 2.2 1991-09-23 19:53:31 burghart Exp $";
+static char *rcsid = "$Id: convert.c,v 2.3 1991-11-14 20:45:32 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,7 +27,7 @@ static char *rcsid = "$Id: convert.c,v 2.2 1991-09-23 19:53:31 burghart Exp $";
 /*
  * Radius of the earth, in km
  */
-# define R_EARTH	6372.
+# define R_EARTH	6378.
 
 /*
  * Origin latitude and longitude (radians)
@@ -41,7 +41,8 @@ void
 cvt_ToXY (lat, lon, x, y)
 float	lat, lon, *x, *y;
 /* 
- * Convert lat and lon (deg) to x and y (km) using sinusoidal projection
+ * Convert lat and lon (deg) to x and y (km) using equidistant 
+ * cylindrical (rectangular) projection
  */
 {
 	float	del_lat, del_lon;
@@ -65,7 +66,7 @@ float	lat, lon, *x, *y;
 	del_lat = lat - Origin_lat;
 	del_lon = lon - Origin_lon;
 
-	*x = R_EARTH * cos (lat) * del_lon;
+	*x = R_EARTH * cos (Origin_lat) * del_lon;
 	*y = R_EARTH * del_lat;
 }
 
@@ -76,7 +77,8 @@ void
 cvt_ToLatLon (x, y, lat, lon)
 float	x, y, *lat, *lon;
 /*
- * Convert x and y (km) to lat and lon (deg)
+ * Convert x and y (km) to lat and lon (deg) using equidistant 
+ * cylindrical (rectangular) projection
  */
 {
 	float	del_lat, del_lon;
@@ -97,7 +99,7 @@ float	x, y, *lat, *lon;
 	del_lat = y / R_EARTH;
 	*lat = Origin_lat + del_lat;
 
-	del_lon = x / (R_EARTH * cos (*lat));
+	del_lon = x / (R_EARTH * cos (Origin_lat));
 	*lon = Origin_lon + del_lon;
 /*
  * Convert to degrees
