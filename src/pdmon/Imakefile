@@ -1,29 +1,65 @@
 
+XCOMM HaveEmacs is set in config.h and Project.tmpl, and EMACS is set
+XCOMM to EmacsPath in Project.tmpl
+
 SRCS = pdmon.c
 OBJS = pdmon.o
 HEADERS = pdmon.h
 ELISPFILES = pd-utils.el pd-utils19.el
-ECOMPILE = emacs -batch -f batch-byte-compile
+ECOMPILE = $(EMACS) -batch -f batch-byte-compile
+E19COMPILE = $(EMACS19) -batch -f batch-byte-compile
 
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
 
+/*
+ * Even though it may never get used if HaveEmacs is not true, we'll build
+ * and install just in case someone decides to run with the non-compiled
+ * elisp files.
+ */
 NormalProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
 BuildIncludes (pdmon.h,.,.)
+
+#if HaveEmacs
+PDUTILS = pd-utils.elc
+#else
+PDUTILS =
+#endif
+#if HaveEmacs19
+/*
+ * We cannot batch compile for v19 since pd-utils19.el requires hilit19,
+ * which requires faces, which will not compile if not running 
+ * under X (such as in batch mode).
+ */
+PDUTILS19 = 
+/* PDUTILS19 = pd-utils19.elc */
+#else
+PDUTILS19 =
+#endif
 
 /*
  * Specialty stuff for the elisp file.  We don't build a byte compiled 
  * version of pd-utils19, since GNU Emacs V19 or greater is required, and 
  * that's a pain to test for.
  */
-all::	pd-utils.elc
+all::	$(PDUTILS) $(PDUTILS19)
 
 pd-utils.elc:	pd-utils.el
 	$(ECOMPILE) `pwd`/pd-utils.el
 
-InstallNonExec(pd-utils.elc,$(LIBDIR))
+pd-utils19.elc:	pd-utils19.el
+	$(E19COMPILE) `pwd`/pd-utils19.el
 
+InstallNonExec(pd-utils.el,$(LIBDIR))
 InstallNonExec(pd-utils19.el,$(LIBDIR))
+
+#if HaveEmacs
+InstallNonExec(pd-utils.elc,$(LIBDIR))
+#endif
+
+#if HaveEmacs19
+/* InstallNonExec(pd-utils19.elc,$(LIBDIR)) */
+#endif
 
 clean::
 	$(RM) *.elc
