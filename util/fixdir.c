@@ -1,5 +1,6 @@
 /* 10/88 jc */
 # include <string.h>
+# include <stdlib.h>
 
 void
 fixdir (env, def, file, dest)
@@ -11,7 +12,7 @@ char *env, *def, *file, *dest;
  * The result is put into DEST.
  */
 {
-	char *trans, *temp, *getenv ();
+	char *trans, *temp;
 	
 /*
  * First of all, look at the file name.  If it starts with a slash,
@@ -63,7 +64,7 @@ char *env, *def, *file, *dest, *type;
  * Also, if a file lacks a type string, add it.
  */
 {
-	char *trans, *getenv (), *strchr (), *strrchr (), *slash;
+	char *trans, *slash;
 /*
  * First of all, look at the file name.  If it starts with a slash,
  * we simply take it as it is.

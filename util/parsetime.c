@@ -10,8 +10,8 @@
  *
  */
 
-# include <stdio.h>
 # include <string.h>
+# include <stdio.h>
 # include <ctype.h>
 # define TRUE 1
 # define FALSE 0
@@ -709,7 +709,7 @@ char *string, *dest, **date, **time;
  * is a very simple routine, simply splitting things at the imbedded blank.
  */
 {
-	char *blank, *strchr (), *pmu_strend ();
+	char *blank, *pmu_strend ();
 /*
  * Find the blank.
  */
