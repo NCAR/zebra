@@ -14,7 +14,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Polar.c,v 3.1 1998-04-27 21:41:04 corbet Exp $");
+RCSID ("$Id: dc_Polar.c,v 3.2 1998-05-04 15:46:15 burghart Exp $")
 
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.46 1998-04-30 14:14:08 burghart Exp $
+ * $Id: DataStore.h,v 3.47 1998-05-04 15:46:13 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -753,14 +753,14 @@ unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
  * The polar class.
  */
 typedef PolarBeam *(*dcpGetFunc) (DataChunk *, int, int, int, FieldId,
-			FieldId, int, float);
-void		dcp_Setup FP ((DataChunk *, int, FieldId *, dcpGetFunc));
-void		dcp_AddSweep FP ((DataChunk *, ZebTime *, Location *, int,
-			float, ScanMode, int, int));
-int		dcp_GetSweepInfo FP ((DataChunk *, int, SweepInfo *));
-PolarBeam *	dcp_GetBeam FP ((DataChunk *, int, int, FieldId, FieldId,
-			int, float));
-void		dcp_FreeBeam FP ((PolarBeam *beam));
+				  FieldId, int, float);
+void		dcp_Setup (DataChunk *, int, FieldId *, dcpGetFunc);
+void		dcp_AddSweep (DataChunk *, ZebTime *, Location *, int,
+			      float, ScanMode, int, int);
+int		dcp_GetSweepInfo (DataChunk *, int, SweepInfo *);
+PolarBeam *	dcp_GetBeam (DataChunk *, int, int, FieldId, FieldId,
+			     int, float);
+void		dcp_FreeBeam (PolarBeam *beam);
 
 /*-------------------------------------------------------------------------
  * The NSpace class
