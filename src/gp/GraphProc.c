@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.20 1991-01-29 22:46:51 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.21 1991-02-07 16:24:36 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -461,6 +461,12 @@ struct ui_command *cmds;
 	 */
 	   case GPC_SENDENDPOINTS:
 		SendEndpoints (cmds + 1);
+		break;
+	/*
+	 * Activate a limit widget.
+	 */
+	   case GPC_ACTIVATE:
+	   	lw_ActivateWidget (UINT (cmds[1]), cmds + 2);
 		break;
 
 	   default:
