@@ -23,7 +23,7 @@
 # include <sys/uio.h>
 # include <pwd.h>	/* to get username from uid */
 # include <stdio.h>
-# include <varargs.h>
+# include <stdarg.h>
 # include <errno.h>
 # include <netdb.h>
 # include <fcntl.h>
@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.61 1999-11-01 22:04:27 granger Exp $")
+RCSID ("$Id: message.c,v 2.62 2000-03-01 20:33:15 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -251,8 +251,8 @@ static void MakeUnixSocket FP ((void));
 static void MakeInetSocket FP ((void));
 static void UpdateLogMask FP ((struct message *msg));
 static void BroadcastMask (int mask);
-static void send_log ();
-static void zmlog ();
+static void send_log (int flags, char* fmt, ...);
+static void zmlog (int flags, char* fmt, ...);
 static void inc_message FP ((int nsel, fd_set *fds));
 static void send_msg FP ((struct connection *conp, struct message *msgp));
 static void deadconn FP ((int fd));
@@ -3285,9 +3285,7 @@ struct message *msg;
 
 
 static void
-zmlog (flags, va_alist)
-int flags;
-va_dcl
+zmlog (int flags, char* fmt, ...)
 /*
  * Log a message short of sending it.  Meant for within send_msg, since using
  * send_log can lead to infinite or indefinite recursion.
@@ -3295,7 +3293,6 @@ va_dcl
 {
 	char mbuf[512];
 	va_list args;
-	char *fmt;
 /*
  * No sense in compiling a message if we won't be printing it
  */
@@ -3304,8 +3301,7 @@ va_dcl
 /*
  * Format the message.
  */
- 	va_start (args);
-	fmt = va_arg (args, char *);
+ 	va_start (args, fmt);
 	vsprintf (mbuf, fmt, args);
 	va_end (args);
 	fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname, mbuf);
@@ -3314,24 +3310,20 @@ va_dcl
 
 
 static void
-send_log (flags, va_alist)
-int flags;
-va_dcl
+send_log (int flags, char* fmt, ...)
 /*
  * Send a message to the event logger.
  */
 {
 	char mbuf[512];
 	va_list args;
-	char *fmt;
 	struct message msg;
 	struct msg_elog *el;
 	int len;
 /*
  * Format the message.
  */
- 	va_start (args);
-	fmt = va_arg (args, char *);
+ 	va_start (args, fmt);
 	el = (struct msg_elog *) mbuf;
 	vsprintf (el->el_text, fmt, args);
 	va_end (args);
