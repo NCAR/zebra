@@ -1,12 +1,14 @@
 !
 ! Display manager widgets.
 !
+! $Id: dm.widgets,v 1.4 1993-03-13 05:40:19 granger Exp $
+!
 
 define widget SaveConfig form 'Configuration saver'
 	noheader
 	label l1 'Save configuration as: '
 	blank cname variable dm$config width 150 command 'do_cfg_save'
-	button doit 'Do it' command 'do_cfg_save'
+	button doit 'Do It' command 'do_cfg_save'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
 	newline
 	label l2 'Config directory: '
@@ -58,7 +60,7 @@ define widget bmap-menu intmenu 'Button Maps'
 	entry 'Aircraft'	'formtext #ui$form bmap "aircraft"'
 	entry 'Basic'		'formtext #ui$form bmap "basic"' 
 	entry 'Big'		'formtext #ui$form bmap "big"' 
-	entry 'Optimized'	'formtext #ui$form bmap "optimizer"' 
+	entry 'Optimizer'	'formtext #ui$form bmap "optimizer"' 
 	entry 'Radar'		'formtext #ui$form bmap "radar"' 
 	entry 'Sounding'	'formtext #ui$form bmap "sounding"'
 endmenu
@@ -77,13 +79,12 @@ define widget NewWindow form 'Window creation'
 	label l5 'Button map:       '
 	blank bmap 'default' width 190
 	newline
-	label l3 'PD Force?'
-	button forcepd 'no' command 'ToggleFormButton forcepd' width 40
-	newline
 	pulldown pdlist 'Select Plot Description' menu 'pd-menu'
-	newline	
 	pulldown bmaps 'Select Button Map' menu 'bmap-menu'
 	newline 
+	label l3 'PD Force?'
+	button forcepd 'no' command 'ToggleFormButton forcepd' width 40
+!	newline
 	label l4 '    '
 	button doit 'Create Window' command 'DoWindowCreate'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
@@ -133,11 +134,11 @@ define widget newconfig form 'New configs'
 	noheader
 	label l1 'New configuration name: '
 	newline
-	blank cname 'new' width 220
+	blank cname 'new' width 210
 	newline
 	label l2 'Copy from: '
 	newline
-	blank oldname variable dm$config width 220
+	blank oldname variable dm$config width 210
 	newline
 	button doit 'Create Configuration' command 'DoConfigCreate'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
@@ -157,14 +158,14 @@ define widget ConfigEdit form 'config edit'
 	noheader
 	label l1 'Configuration Editing'
 	newline
-	button zap 'Zap' width 75 command 'popdown #ui$form'
+	button zap 'Cancel' width 75 command 'popdown #ui$form' color red
 	button help 'Help' width 75 command 'help editdconfig'
 	newline
-	button b1 'New configuration' width 160 command 'popup newconfig'
+	button b1 'New Configuration' width 160 command 'popup newconfig'
 	newline
-	button b2 'New window' width 160 command 'popup NewWindow'
+	button b2 'New Window' width 160 command 'popup NewWindow'
 	newline
-	button b3 'Save configuration' width 160 command 'popup SaveConfig'
+	button b3 'Save Configuration' width 160 command 'popup SaveConfig'
 endform
 
 
