@@ -37,8 +37,7 @@ static char 	*rcsid = "$ID$";
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-# include "DataStore.h"
-# include "dsPrivate.h"
+# include <DataStore.h>
 
 
 
