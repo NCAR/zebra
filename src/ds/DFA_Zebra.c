@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.3 1992-06-19 17:12:58 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.4 1992-07-22 16:48:30 corbet Exp $");
 
 
 /*
@@ -89,9 +89,9 @@ static struct CO_Compat
 	{ Org2dGrid,		DCC_RGrid	},
 	{ Org3dGrid,		DCC_RGrid	},
 	{ OrgIRGrid,		DCC_IRGrid	},
-# ifdef notdef
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Scalar	},
+# ifdef notdef
 	{ OrgScalar,		DCC_Location	},
 # endif
 };
@@ -113,6 +113,8 @@ static int	zn_WrGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *,
 			WriteCode, int *, FieldId *, int));
 static int	zn_WrIRGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
 			WriteCode, int *, FieldId *, int));
+static int	zn_WrScalar FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
+			WriteCode, int *, FieldId *, int));
 static void 	zn_WrLocInfo FP ((znTag *, int, Location *, RGrid *));
 static void	zn_GetFieldIndex FP ((znTag *, FieldId *, int, int *));
 static void	zn_DataWrite FP ((znTag *, void *, int, zn_Sample *,
@@ -124,6 +126,8 @@ static void	zn_ReadBoundary FP ((znTag *, DataChunk *, int, int));
 static void	zn_ReadGrid FP ((znTag *, DataChunk *, int, int, int,
 			dsDetail *, int, double));
 static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int, double));
+static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int,
+			double));
 static void	zn_RdRGridOffset FP ((RGrid *, Location *, long *, int *,
 			dsDetail *, int));
 static void	zn_DoBadval FP ((float *, int, double, double));
@@ -225,6 +229,7 @@ char **rtag;
 	{
 		tag->zt_Locs = (Location *) malloc (ZN_GRAIN*sizeof(Location));
 		hdr->znh_OffLoc = zn_GetSpace (tag, ZN_GRAIN*sizeof(Location));
+		tag->zt_Sync |= SF_LOCATION;
 	}
 	else
 		dc_GetLoc (dc, 0, &hdr->znh_Loc);
@@ -327,22 +332,22 @@ znTag *tag;
 		zn_PutBlock (tag, 0, &tag->zt_Hdr, sizeof (zn_Header));
 	if (tag->zt_Sync & SF_TIME)
 		zn_PutBlock (tag, hdr->znh_OffTime, tag->zt_Time,
-			hdr->znh_NSample*sizeof (ZebTime));
+			hdr->znh_NSampAlloc*sizeof (ZebTime));
 	if (tag->zt_Sync & SF_SAMPLE)
 		zn_PutBlock (tag, hdr->znh_OffSample, tag->zt_Sample,
-			hdr->znh_NField*hdr->znh_NSample*sizeof (zn_Sample));
+		       hdr->znh_NField*hdr->znh_NSampAlloc*sizeof (zn_Sample));
 	if (tag->zt_Sync & SF_LOCATION)
 		zn_PutBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,
-			hdr->znh_NSample*sizeof (Location));
+			hdr->znh_NSampAlloc*sizeof (Location));
 	if (tag->zt_Sync & SF_FIELD)
 		zn_PutBlock (tag, hdr->znh_OffField, tag->zt_Fields,
 			hdr->znh_NField*sizeof (zn_Field));
 	if (tag->zt_Sync & SF_ATTR)
 		zn_PutBlock (tag, hdr->znh_OffAttr, tag->zt_Attr,
-			hdr->znh_NSample*sizeof (zn_Sample));
+			hdr->znh_NSampAlloc*sizeof (zn_Sample));
 	if (tag->zt_Sync & SF_RGRID)
 		zn_PutBlock (tag, hdr->znh_OffRg, tag->zt_Rg,
-			hdr->znh_NSample*sizeof (RGrid));
+			hdr->znh_NSampAlloc*sizeof (RGrid));
 	tag->zt_Sync = 0;
 }
 
@@ -569,6 +574,11 @@ WriteCode wc;
 
 	   case OrgIRGrid:
 	   	zn_WrIRGrid (tag, dc, fsample, sample, samp, wc, index,
+				fids, nfield);
+		break;
+
+	   case OrgScalar:
+	   	zn_WrScalar (tag, dc, fsample, sample, samp, wc, index,
 				fids, nfield);
 		break;
 	}
@@ -982,6 +992,44 @@ FieldId *fids;
 				samp + index[fld], wc);
 	}
 }
+
+
+
+
+static int
+zn_WrScalar (tag, dc, fsample, dcsample, samp, wc, index, fids, nfield)
+znTag *tag;
+DataChunk *dc;
+int fsample, dcsample, *index, nfield;
+zn_Sample *samp;
+WriteCode wc;
+FieldId *fids;
+/*
+ * Write out some scalar data.
+ */
+{
+	int fld, len;
+	float data;
+/*
+ * Write out the data for each field.
+ */
+	for (fld = 0; fld < nfield; fld++)
+	{
+		data = dc_GetScalar (dc, dcsample, fids[fld]);
+		zn_DataWrite (tag, &data, sizeof(float), samp + index[fld],wc);
+	}
+/*
+ * Put out the location if necessary.
+ */
+	if (ds_IsMobile (dc->dc_Platform))
+	{
+		dc_GetLoc (dc, dcsample, tag->zt_Locs + fsample);
+		zn_PutBlock (tag, tag->zt_Hdr.znh_OffLoc + 
+			fsample*sizeof (Location), tag->zt_Locs + fsample,
+			sizeof (Location));
+	}
+}
+
 
 
 
@@ -1414,6 +1462,10 @@ DataClass class;
 	   	dc_IRSetup (dc, hdr->znh_NStation, tag->zt_Ids, tag->zt_Locs,
 				nfield, fields);
 		break;
+
+	   case DCC_Scalar:
+	   	dc_SetScalarFields (dc, nfield, fields);
+		break;
 	}
 /*
  * Done.
@@ -1502,6 +1554,10 @@ int ndetail;
 	   	zn_ReadIRG (tag, dc, dcsamp, tbegin, tend, badval);
 		break;
 
+	   case DCC_Scalar:
+	   	zn_ReadScalar (tag, dc, dcsamp, tbegin, tend, badval);
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Strange...class %d in GetData",
 				dc->dc_Class);
@@ -1559,7 +1615,95 @@ int tbegin, tend;
 		dc_BndAdd (dc, tag->zt_Time + samp, dc->dc_Platform, locs,
 				zs->znf_Size/sizeof (Location));
 	}
+	free (locs);
 }
+
+
+
+
+
+static void
+zn_ReadScalar (tag, dc, dcsamp, tbegin, tend, badval)
+znTag *tag;
+DataChunk *dc;
+int dcsamp, tbegin, tend;
+float badval;
+{
+	int sample, *index, nfield, fld, offset = 0, plat;
+	FieldId *fids;
+	zn_Sample *zs;
+	zn_Header *hdr = &tag->zt_Hdr;
+	float *data = (float *) malloc ((tend - tbegin + 1)*sizeof (float));
+	float *dp;
+/*
+ * If we are pulling a single station out of an irgrid, figure out 
+ * what the offset will be.
+ */
+	if (hdr->znh_Org == OrgIRGrid)
+	{
+		for (plat = 0; plat < hdr->znh_NStation; plat++)
+			if (tag->zt_Ids[plat] == dc->dc_Platform)
+				break;
+		if (plat >= hdr->znh_NStation)
+		{
+			msg_ELog (EF_PROBLEM, "Plat %s missing from IRGrid",
+				ds_PlatformName (dc->dc_Platform));
+			free (data);
+			return;
+		}
+		offset = plat*sizeof (float);
+	}
+/*
+ * Figure out where our fields are.
+ */
+	fids = dc_GetFields (dc, &nfield);
+	index = (int *) malloc (nfield*sizeof (int));
+	zn_GetFieldIndex (tag, fids, nfield, index);
+/*
+ * Go through and get the entire set of data for the given field.
+ */
+	for (fld = 0; fld < nfield; fld++)
+	{
+	/*
+	 * Now we get each sample.
+	 */
+		dp = data;
+	 	for (sample = tbegin; sample <= tend; sample++)
+		{
+			zs = tag->zt_Sample + sample*hdr->znh_NField +
+						index[fld];
+			if (zs->znf_Size <= 0)
+				*dp = badval;
+			else
+				zn_GetBlock (tag, zs->znf_Offset + offset,
+					dp, sizeof (float));
+			dp++;
+		}
+	/*
+	 * Dump it into the data chunk.
+	 */
+	 	dc_AddMultScalar (dc, tag->zt_Time + tbegin, dcsamp,
+			tend - tbegin + 1, fids[fld], data);
+	}
+/*
+ * Time to deal with locations.  If it is static, life is easy.
+ */
+	if (! ds_IsMobile (dc->dc_Platform))
+		dc_SetStaticLoc (dc, &hdr->znh_Loc);
+/*
+ * Otherwise we need to copy the locs over.
+ */
+	else
+		for (sample = tbegin; sample <= tend; sample++)
+			dc_SetLoc (dc, dcsamp + sample - tbegin, 
+				tag->zt_Locs + sample);
+/*
+ * Clean up and we are done.
+ */
+	free (index);
+	free (data);
+}
+
 
 
 
@@ -1575,7 +1719,6 @@ float badval;
  * Pull in some irregular grid data.
  */
 {
-	long offset;
 	int size, sample, *index, nfield, fld;
 	FieldId *fids;
 	zn_Sample *zs;
