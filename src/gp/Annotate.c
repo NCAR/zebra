@@ -1,7 +1,7 @@
 /*
  * Handle plot window annotation.
  */
-static char *rcsid = "$Id: Annotate.c,v 2.3 1991-12-19 23:06:46 kris Exp $";
+static char *rcsid = "$Id: Annotate.c,v 2.4 1992-01-03 00:28:44 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -65,6 +65,7 @@ static int	Ncomps;		/* How many components		*/
 	void An_ColorBar (char *, char *, int, int, int);
 	void An_ColorNumber (char *, char *, int, int, int);
 	void An_ColorVector (char *, char *, int, int, int);
+	void An_BarbLegend (char *, char *, int, int, int);
 	int An_GetLeft ();
 	void An_GetSideParams (char *, float *, int *);
 	void An_GetTopParams (XColor *, int *);
@@ -80,6 +81,7 @@ static int	Ncomps;		/* How many components		*/
 	void An_ColorBar ();
 	void An_ColorNumber ();
 	void An_ColorVector ();
+	void An_BarbLegend ();
 	int An_GetLeft ();
 	void An_GetSideParams ();
 	void An_GetTopParams ();
@@ -576,6 +578,85 @@ int datalen, begin, space;
  */
 	draw_vector (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
 		left, begin + 5, (double) u, (double) v, (double) unitlen); 
+}
+
+void
+An_BarbLegend (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+/*
+ * A standard side annotation routine for drawing a colored vector.
+ */
+{
+        int limit, left;
+        char string[40], color[40];
+        float scale, used;
+        int     unitlen;
+        char    title[80];
+        XColor xc;
+/*
+ * Get annotation parameters.
+ */
+        An_GetSideParams (comp, &scale, &limit);
+/*
+ * Get data.
+ */
+        sscanf (data, "%s %s %d", string, color, &unitlen);
+        ct_GetColorByName (color, &xc);
+/*
+ * Draw the string.
+ */
+        left = An_GetLeft ();
+        sprintf( title, "barb flags in %s",string);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+                left, begin, title, 0.0, scale, JustifyLeft, JustifyTop);
+        used = 20;
+        begin += used;
+        space -= used;
+/*
+ * Draw the barbs.
+ */
+        if ( space > 0.0 )
+        {
+            draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
+                left+1, begin + 9, 0.0, 100.0, unitlen);
+            DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+                left+unitlen+2, begin+9, " == 100", 0.0, scale,
+                JustifyLeft, JustifyBottom);
+            begin += used;
+            space -= used;
+        }
+        if ( space > 0.0 )
+        {
+            draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
+                left+1, begin + 9, 0.0, 50.0, unitlen);
+            DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+                left+unitlen+2, begin+9, " == 50", 0.0, scale,
+                JustifyLeft, JustifyBottom);
+            begin += used;
+            space -= used;
+        }
+        if ( space > 0.0 )
+        {
+            draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
+                left+1, begin + 9, 0.0, 10.0, unitlen);
+            DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+                left+unitlen+2, begin+9, " == 10", 0.0, scale,
+                JustifyLeft, JustifyBottom);
+            begin += used;
+            space -= used;
+        }
+        if ( space > 0.0 )
+        {
+            draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
+                left+1, begin + 9, 0.0, 5.0, unitlen);
+            DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+                left+unitlen+2, begin+9, " == 5", 0.0, scale,
+                JustifyLeft, JustifyBottom);
+            begin += used;
+            space -= used;
+        }
 }
 
 
