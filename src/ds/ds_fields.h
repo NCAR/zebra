@@ -1,7 +1,7 @@
 /*
  * Fields module stuff.
  *
- * $Id: ds_fields.h,v 1.3 1992-12-07 20:11:05 granger Exp $
+ * $Id: ds_fields.h,v 1.4 1995-02-10 01:21:38 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -33,9 +33,10 @@ typedef int FieldId;
 
 # ifdef __STDC__
 	void	F_Init (void);
-	FieldId	F_Lookup (char *);
-	FieldId F_DeclareField (char *, char *, char *);
-	FieldId F_Alias (char *, char *);
+	FieldId	F_Lookup (const char *);
+	FieldId F_DeclareField (const char *, const char *, const char *);
+	FieldId F_Declared (const char *name);
+	FieldId F_Alias (const char *, const char *);
 	char *	F_GetName (FieldId);
 	char *	F_GetUnits (FieldId);
 	char *	F_GetDesc (FieldId);
@@ -43,6 +44,7 @@ typedef int FieldId;
 	void	F_Init ();
 	FieldId	F_Lookup ();
 	FieldId F_DeclareField ();
+	FieldId F_Declared ();
 	FieldId F_Alias ();
 	char *	F_GetName ();
 	char *	F_GetUnits ();
