@@ -293,41 +293,41 @@ Usage (char *ourname)
 {
     fprintf (stderr, "Usage: %s <filename> <rank> [<rank> ...]\n",
 	     ourname);
-    fprintf (stderr, "
-	The \"rank\" of segments within a file is an indication of what the
-	segment depicts:
-	
-	In \"Boundary\" files (bdy):
-		01	Demarcated or delimited boundary
-		02	Indefinite or in Dispute
-		03	Other line of separation of sovreignty on land
-	
-	In \"Coast, Islands and Lakes\" files (cil)
-		01	Coast, islands and lakes that appear on all maps
-		02	Additional major islands and lakes
-		03	Intermediate islands and lakes
-		04	Minor islands and lakes
-		06	Intermittent major lakes
-		07	Intermittent minor lakes
-		08	Reefs
-		09	Salt pans -- major
-		10	Salt pans -- minor
-		13	Ice Shelves -- major
-		14	Ice Shelves -- minor
-		15	Glaciers
-	
-	In \"Rivers\" files (riv)
-		01	Permanent major rivers
-		02	Additional major rivers
-		03	Additional rivers
-		04	Minor rivers
-		05	Double lined rivers
-		06	Intermittent rivers -- major
-		07	Intermittent rivers -- additional
-		08	Intermittent rivers -- minor
-		10	Major canals
-		11	Canals of lesser importance
- 		12	Canals -- irrigation type\n");
+    fprintf (stderr,
+"	The \"rank\" of segments within a file is an indication of what the"
+"	segment depicts:"
+"	"
+"	In \"Boundary\" files (bdy):"
+"		01	Demarcated or delimited boundary"
+"		02	Indefinite or in Dispute"
+"		03	Other line of separation of sovreignty on land"
+"	"
+"	In \"Coast, Islands and Lakes\" files (cil)"
+"		01	Coast, islands and lakes that appear on all maps"
+"		02	Additional major islands and lakes"
+"		03	Intermediate islands and lakes"
+"		04	Minor islands and lakes"
+"		06	Intermittent major lakes"
+"		07	Intermittent minor lakes"
+"		08	Reefs"
+"		09	Salt pans -- major"
+"		10	Salt pans -- minor"
+"		13	Ice Shelves -- major"
+"		14	Ice Shelves -- minor"
+"		15	Glaciers"
+"	"
+"	In \"Rivers\" files (riv)"
+"		01	Permanent major rivers"
+"		02	Additional major rivers"
+"		03	Additional rivers"
+"		04	Minor rivers"
+"		05	Double lined rivers"
+"		06	Intermittent rivers -- major"
+"		07	Intermittent rivers -- additional"
+"		08	Intermittent rivers -- minor"
+"		10	Major canals"
+"		11	Canals of lesser importance"
+" 		12	Canals -- irrigation type\n");
     exit (1);
 }
 
@@ -446,7 +446,7 @@ get_segment (int ifile, Dictionary dict, int which)
  */
 	read (ifile, seg->data, databytes);
 	if (DoSwap)
-		swap2 (seg->data, databytes / 2);
+		swap2 ((short *)seg->data, databytes / 2);
 			
 	return (seg);
 }
