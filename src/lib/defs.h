@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.13 1993-03-18 18:32:10 corbet Exp $ */
+/* $Id: defs.h,v 2.14 1993-03-18 18:51:38 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -80,6 +80,7 @@ typedef struct s_Location
  * Functions.
  */
 void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
+void	tw_SetTime FP ((ZebTime *init_or_null)); /* null <==> use system time */
 void 	tw_DialAdjust FP ((int, int));
 int 	InterpDTime FP ((char *));
 void 	TC_SysToFcc FP ((long, time *));
