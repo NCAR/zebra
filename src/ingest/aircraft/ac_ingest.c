@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.5 1991-11-14 19:17:05 kris Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.6 1992-03-31 21:54:07 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -47,7 +47,7 @@ int		DoData ();
 static void	Go (), SetupIndirect (), Dial (), StoreData(); 
 static void	CvtData (), CvtToLatLon ();
 static int	AddTrans (), ChangeTrans (), DelTrans ();
-static void	GetOurAircraft ();
+static void	GetOurAircraft (), StartPhonyData (), MakePhonyData ();
 
 MsgDispatcher (msg)
 struct message	*msg;
@@ -112,9 +112,18 @@ Die ()
 {
 	FILE	*fptr;
 	int	i, n_written;
-	char	endcmd[2];
+	char	endcmd[2], buf[500];
 
-	msg_ELog (EF_DEBUG, "Dying...");
+	msg_ELog (EF_INFO, "Dying...");
+	endcmd[0] = 0x0d;
+/*
+ * Quick death for phony data
+ */
+	if (PhonyData)
+	{
+		ui_finish ();
+		exit (0);
+	}
 /*
  * Write out the transponder codes we're using.
  */
@@ -126,14 +135,24 @@ Die ()
 /*
  * Send the kill command to the black box.
  */
+  	n_written = write (Fd, Command, 1);
+  	sleep(2);
 	write (Fd, Kill, 1);
+  	n_written = write (Fd, endcmd, 1);
+	sleep (2);
+/*
+ * Clean out junk.
+ */
+	read (Fd, buf, 500);
 /*
  * Hang up the modem.
  */
-	endcmd[0] = 0x0d;
+	sleep (2);
+	n_written = write (Fd, "+++", 3);
+  	n_written = write (Fd, endcmd, 1);
+	sleep (2);
 	n_written = write (Fd, "at h0", 5);
   	n_written = write (Fd, endcmd, 1);
-	sleep (10);
 	close (Fd);
 	ui_finish ();
 	exit (0);
@@ -158,7 +177,9 @@ char	**argv;
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 			SYMT_STRING, &v);
 	}
-	else ui_init (loadfile, TRUE, FALSE);
+	else
+		ui_init (loadfile, TRUE, FALSE);
+
 	ui_setup ("ac_ingest", &argc, argv, 0);
 	SetupIndirect ();
 	ds_Initialize ();
@@ -338,6 +359,8 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "lat_max", &LatMax, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "lon_min", &LonMin, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "lon_max", &LonMax, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "phony_data", &PhonyData, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "phony_interval", &PhonyTime, SYMT_FLOAT, 0);
 }
 
 
@@ -378,11 +401,8 @@ Dial ()
  * Open the black box file.
  */
 	msg_ELog (EF_INFO, "Dialing...");
-	if (strcmp (BlackBox, "fake") == 0)
-	{
-		Fd = open (BlackBox, O_RDWR);
+	if (PhonyData)
 		return;
-	}
 	if ((Fd = open (BlackBox, O_RDWR)) <= 0)
 	{
 		msg_ELog (EF_EMERGENCY, "Error opening %s (%d).", BlackBox,
@@ -400,21 +420,21 @@ Dial ()
 	endcmd[0] = 0x0d;
 	n_written = write (Fd, "at e", 4);
   	n_written = write (Fd, endcmd, 1);
-	sleep (10);
+	sleep (2);
 	n_read = read (Fd, &buf, BUFLEN);
 /*
  * Write atv0 
  */
 	n_written = write (Fd, "at v", 4);
   	n_written = write (Fd, endcmd, 1);
-	sleep (10);
+	sleep (2);
 	n_read = read (Fd, &buf, BUFLEN);
 /*
  * Dial the black box.
  */
 	n_written = write (Fd, DialOut, strlen (DialOut));
   	n_written = write (Fd, endcmd, 1);
-	sleep (10);
+	sleep (2);
 /*
  * Read back the ok.
  */
@@ -452,22 +472,22 @@ Dial ()
 			Die ();
 			break;
 	}
-	sleep(10);
+	sleep(2);
   	n_written = write (Fd, Command, 1);
 	msg_ELog (EF_DEBUG, "wrote command %d", n_written);
-  	sleep(10);
+  	sleep(2);
 	
   	n_written = write (Fd, Kill, 1);
 	msg_ELog (EF_DEBUG, "wrote kill %d", n_written);
   	n_written = write (Fd, endcmd, 1);
 	msg_ELog (EF_DEBUG, "wrote endcmd %d", n_written);
-  	sleep(10);
+  	sleep(2);
 
   	n_written = write (Fd, Startup, strlen (Startup));
 	msg_ELog (EF_DEBUG, "wrote startup %d", n_written);
   	n_written = write (Fd, endcmd, 1);
 	msg_ELog (EF_DEBUG, "wrote endcmd %d", n_written);
-  	sleep(10);
+  	sleep(2);
 
   	n_written = write (Fd, SendAll, 1);
 	msg_ELog (EF_DEBUG, "wrote sendall %d", n_written);
@@ -484,7 +504,10 @@ Go ()
 {
 	GetOurAircraft ();
 	print_list ();
-	msg_add_fd (Fd, DoData);
+	if (! PhonyData)
+		msg_add_fd (Fd, DoData);
+	else
+		StartPhonyData ();
 	msg_await ();
 }
 
@@ -576,6 +599,8 @@ Ac_Data	aircraft;
 	Dobj.do_aloc->l_alt = aircraft.altitude; 
 	Dobj.do_aloc->l_lat = aircraft.latitude; 
 	Dobj.do_aloc->l_lon = aircraft.longitude; 
+	ds_PutData (&Dobj, FALSE);
+# ifdef notdef
 	if (CheckValues (aircraft))
 		ds_PutData (&Dobj, FALSE);
 	else
@@ -585,6 +610,7 @@ Ac_Data	aircraft;
 		msg_ELog (EF_INFO, "Discarding a track point (%f %f %f).",
 		aircraft.altitude, aircraft.latitude, aircraft.longitude);
 	}
+# endif
 }
 
 
@@ -616,10 +642,9 @@ Ac_Data	*aircraft;
  */
 	aircraft->transponder = (int) packet->transponder;
 /*
- * Convert altitude in hundreds of feet to km.
+ * Convert altitude in hundreds of feet to m.
  */
-	aircraft->altitude = (float) packet->altitude * 100.0 * M_PER_FT / 
-		1000.0;
+	aircraft->altitude = (float) packet->altitude * 100.0 * M_PER_FT;
 /*
  * Convert azimuth (lsb = AzimuthRes (0.0875 deg)) to radians.
  */
@@ -939,16 +964,11 @@ int	baud;
  */
 {
 	int	i, j, newfd;
-/*  
-  
+# ifdef notdef
 	msg_ELog (EF_DEBUG, "Resetting %s fd %d baud %d.", name, fd, baud);
+
 	close (fd);
-	if (*name == 0) newfd = -1;
-	else if (strcmp(name, "fake") == 0) 
-	{
-		newfd = open (name, O_RDWR);
-		return (newfd);
-	}
+
 	newfd = open (name, O_RDWR );
 	if (newfd <= 0 )
 	{
@@ -968,7 +988,7 @@ int	baud;
 		return (newfd);
 	}
 	else return (FALSE);
-*/
+# endif
 }
 
 
@@ -1026,3 +1046,51 @@ print_list ()
 			AircraftList[i].transponder);
 	msg_ELog (EF_INFO, "End of AircraftList (%d)", NumAc);
 }
+
+
+
+
+static void
+StartPhonyData ()
+/*
+ * Start generation of a phony data stream
+ */
+{
+	tl_AddRelativeEvent (MakePhonyData, 0, (int)(PhonyTime * INCFRAC),
+		(int)(PhonyTime * INCFRAC));
+}
+
+
+
+static void
+MakePhonyData ()
+/*
+ * Make a phony data point, and associate it with the first aircraft on
+ * the list
+ */
+{
+	static int	count = 0;
+	float	ang, x, y, lat, lon;
+	Ac_Data	newpoint;
+/*
+ * "Fly" in a circle 20km from the radar
+ */
+	count++;
+	count %= 360;
+
+	ang = count * 0.017453293;	/* convert to radians */
+	x = 20 * cos (ang);
+	y = 20 * sin (ang);
+	CvtToLatLon (x, y, &lat, &lon);
+
+	strcpy (Ac_Platform, AircraftList[0].platform);
+	newpoint.transponder = 0;
+	newpoint.altitude = 0.0;
+	newpoint.latitude = lat;
+	newpoint.longitude = lon;
+
+	msg_ELog (EF_DEBUG, "Adding a phony a/c point for %s", 
+		AircraftList[0].platform);
+	StoreData (newpoint);
+}
+
