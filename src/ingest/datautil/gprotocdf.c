@@ -26,34 +26,84 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.9 1992-11-05 20:30:27 kris Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.10 1992-12-15 00:58:05 granger Exp $")
 
+# define DEBUG
 
 /*
  * Netcdf stuff.
  */
 # define MAXFLD 100
 # define STRLEN	50
-int VFields[MAXFLD];	/* The netcdf variables			*/
+# define UNITLEN 20
+# define DESCLEN 100
+# define NAMELEN 50
+# define BADVAL		(-32768.0)	/* Bad data flag		*/
+# define LL_BADVAL	(0)
+# define BAD_FACTOR	(0)
+# define BAD_TERM	(-9999)
+# define BAD_OFFSET	(-1)
+# define BAD_VFIELD	(-1)
+# define MAX(a,b)	(((a)>(b))?(a):(b))
+# define STRNCPY(dst, src, n)	{ strncpy(dst, src, n); dst[n - 1] = '\0'; }
+
+# define Isalnum(c)	(isalnum(c) || ((c) == '_'))
+# define Tolower(c)	(((c) != '_') ? (tolower(c)) : (c))
+
+typedef struct _GPField {
+	char gpf_src[NAMELEN];	/* name of GP src field */
+	char gpf_dst[NAMELEN];	/* name of netCDF dest	*/
+	char gpf_desc[DESCLEN];	/* Descrpition of field	*/
+	char gpf_units[UNITLEN];/* Units of field	*/
+	float gpf_factor;	/* FACTOR from GP file	*/
+	float gpf_term;		/* TERM for this field	*/
+	int  gpf_offset;	/* Offset in GP record	*/
+	int  gpf_ncvar;		/* netcdf variable num	*/
+} GPField;
+
+GPField Fields[MAXFLD];	/* Info for all of the fields	*/
+
+int NField = 0;		/* number of elements in Fields[] */
+
+# define SRC(i)		(Fields[i].gpf_src)
+# define DST(i)		(Fields[i].gpf_dst)
+# define DESC(i)	(Fields[i].gpf_desc)
+# define UNITS(i)	(Fields[i].gpf_units)
+# define FOFFSET(i)	(Fields[i].gpf_offset)
+# define VFIELD(i)	(Fields[i].gpf_ncvar)
+# define FACTOR(i)	(Fields[i].gpf_factor)
+# define TERM(i)	(Fields[i].gpf_term)
+# define INIT(i)	{ SRC(i)[0] = '\0'; \
+			  DST(i)[0] = '\0'; \
+			  DESC(i)[0] = '\0'; \
+			  UNITS(i)[0] = '\0'; \
+			  FOFFSET(i) = BAD_OFFSET; \
+			  VFIELD(i) = BAD_VFIELD; \
+			  FACTOR(i) = BAD_FACTOR; \
+			  TERM(i) = BAD_TERM; \
+			}
+
+/*
+ * 12/14/92 gjg -- As near as I can tell, the TERM and FACTOR fields in
+ * the GENPRO header are used as follows to get the actual floating
+ * point value of a datum:
+ *
+ * value = ( <unsigned int file datum> / FACTOR ) - TERM
+ *
+ * The FACTOR and TERM for a field are retrieved in ProcScale()
+ * On a historical note, FACTOR used to be Scale, and TERM was always
+ * assumed to be 1000.0 (in fact, so was Scale)
+ */
+
 int DTime;		/* The time (unlimited) dimension	*/
 int VTime;		/* The time offset variable		*/
 int VBTime;		/* The base time variable		*/
-int NFile;
+int NFile;		/* id for the netCDF file		*/
 int NOut = 0;		/* Output record index			*/
-# define BADVAL	-32768.0	/* Bad data flag		*/
-
-/*
- * Field names.
- */
-char SrcFlds[MAXFLD][STRLEN];	/* Genpro field names		*/
-char DstFlds[MAXFLD][STRLEN];	/* Equivalent netcdf names	*/
-int NField = 0;
 
 /*
  * Local Genpro stuff.
  */
-float Scales[MAXFLD];	/* Scaling for each field		*/
-int Foffsets[MAXFLD];	/* Offsets into the GP record		*/
 int AltOffset;		/* Altitude offset			*/
 int LatOffset, LonOffset;	/* Ugly.  Please don't ask.	*/
 int NTrashed = 0;
@@ -68,6 +118,7 @@ int Time_off = 0;	/* The time offset to use		*/
 int Time_tweak = 0;	/* Seconds to tweak time		*/
 typedef enum { tf_NCAR, tf_UW } TimeFmt;
 TimeFmt TFmt = tf_NCAR;
+
 /*
  * The data record buffer.
  */
@@ -84,11 +135,18 @@ int FileType = 0;
 # define WYOMING	1
 # define NCAR		2
 
-
 /*
  * Quick white-space skipping.
  */
 # define SKIP_WHITE(cp) while (*cp && (*cp == ' ' || *cp == '\t')) cp++;
+
+
+/*
+ * Prototypes
+ */
+void ProcScale (/* char *line */);
+void ValidateFields ();
+
 
 
 main (argc, argv)
@@ -128,6 +186,10 @@ char **argv;
  * Open the input file.
  */
 	GpOpen (argv[2]);
+/*
+ * Make sure we got all the info we need, e.g. scale factors and terms
+ */
+	ValidateFields();
 /* 
  * Create the output file.
  */
@@ -138,6 +200,7 @@ char **argv;
 	Nrec = 0;
 	Plow ();
 	ncclose (NFile);
+	printf ("Wrote %i samples.\n", NOut);
 /*
  * Done.
  */
@@ -156,16 +219,18 @@ char	**filetype;
  * Get the type of the input file.
  */
 {
-	if (strcmp (filetype[0], "-wyoming") == 0)
+	if (strncmp (filetype[0], "-wyoming", 
+		     MAX(2,strlen(filetype[0]))) == 0)
 		FileType = WYOMING;
-	else if (strcmp (filetype[0], "-ncar") == 0)
+	else if (strncmp (filetype[0], "-ncar", 
+			  MAX(2,strlen(filetype[0]))) == 0)
 		FileType = NCAR;
 	else
 	{
 		printf ("Invalid file type: '%s'\n", filetype[0]);
 		exit (0);
 	}
-	printf ("FileType: %s.\n", filetype[0] + 1);
+	printf ("FileType: %s.\n", (FileType == NCAR) ? "ncar" : "wyoming" );
 }
 
 
@@ -184,10 +249,10 @@ int count;
  */
 	for (i = 0; i < count; i++)
 	{
-		strcpy (SrcFlds[i], fields[0]);
-		zapcase (SrcFlds[i]);
-		strcpy (DstFlds[i], fields[1]);
-		Scales[i] = 1000.0;	/* xxx */
+		INIT(i);
+		STRNCPY (Fields[i].gpf_src, fields[0], NAMELEN);
+		zapcase (Fields[i].gpf_src);
+		STRNCPY (Fields[i].gpf_dst, fields[1], NAMELEN);
 		fields += 2;
 		NField++;
 	}
@@ -196,44 +261,44 @@ int count;
  */
 	if (FileType == NCAR)
 	{
+		INIT(NField);
 		LatOffset = NField;
-		strcpy (SrcFlds[NField], "alat");
-		Scales[NField] = 1000.0;
-		strcpy (DstFlds[NField++], "lat");
+		STRNCPY (Fields[NField].gpf_src, "alat", NAMELEN);
+		STRNCPY (Fields[NField].gpf_dst, "lat", NAMELEN);
+		++NField;
+
+		INIT(NField);
 		LonOffset = NField;
-		strcpy (SrcFlds[NField], "alon");
-		Scales[NField] = 1000.0;
-		strcpy (DstFlds[NField++], "lon");
+		STRNCPY (Fields[NField].gpf_src, "alon", NAMELEN);
+		STRNCPY (Fields[NField].gpf_dst, "lon", NAMELEN);
+		++NField;
+
+		INIT(NField);
 		AltOffset = NField;
-		strcpy (SrcFlds[NField], "palt");
-		Scales[NField] = 1000.0;
-		strcpy (DstFlds[NField++], "alt");
+		STRNCPY (Fields[NField].gpf_src, "palt", NAMELEN);
+		STRNCPY (Fields[NField].gpf_dst, "alt", NAMELEN);
+		++NField;
 	}
 	else if (FileType == WYOMING)
 	{
+		INIT(NField);
 		LatOffset = NField;
-		strcpy (SrcFlds[NField], "latg");
-		Scales[NField] = 10000.0;
-		strcpy (DstFlds[NField++], "lat");
+		STRNCPY (Fields[NField].gpf_src, "latg", NAMELEN);
+		STRNCPY (Fields[NField].gpf_dst, "lat", NAMELEN);
+		++NField;
+
+		INIT(NField);
 		LonOffset = NField;
-		strcpy (SrcFlds[NField], "long");
-		Scales[NField] = 10000.0;
-		strcpy (DstFlds[NField++], "lon");
+		STRNCPY (Fields[NField].gpf_src, "long", NAMELEN);
+		STRNCPY (Fields[NField].gpf_dst, "lon", NAMELEN);
+		++NField;
+
+		INIT(NField);
 		AltOffset = NField;
-		strcpy (SrcFlds[NField], "z");
-		Scales[NField] = 1000.0;
-		strcpy (DstFlds[NField++], "alt");
+		STRNCPY (Fields[NField].gpf_src, "z", NAMELEN);
+		STRNCPY (Fields[NField].gpf_dst, "alt", NAMELEN);
+		++NField;
 	}
-}
-
-
-
-
-sync ()
-/*
- * Output the stuff to the file.
- */
-{
 }
 
 
@@ -336,24 +401,32 @@ char *file;
  * Do the units lines.
  */
 	if (strncmp (hbuf, " ORDVAR = UNITS", 15))
-		GiveUp ("No ORDVAR = UNITS");
+		GiveUp ("No ORDVAR = UNITS, instead got %s", hbuf);
 	for (;;)
 	{
 		if (! get_rec (hbuf, HDR_LEN))
-			GiveUp ("EOF encountered in the header");
+			GiveUp ("EOF encountered reading units and offsets");
 		if (strncmp (hbuf, " LETVAR", 7))
 			break;
 		ProcUnit (hbuf);
 	}
+	/*
+	 * alt will actually be stored in km rather than m
+	 */
+	STRNCPY (Fields[AltOffset].gpf_units, "km", UNITLEN);
 /*
- * Skip to the ENDHD.  Since all the scales still are, as far as I can
- * tell, 1000, I'm not going to bother with them here.
+ * Retrieve factors and terms for each field
  */
+	if (strncmp (hbuf, " ORDVAR = CONKEY", 16))
+		GiveUp ("No ORDVAR = CONKEY for reading scale factors: \n%s",
+			hbuf);
 	for (;;)
 	{
+		if (! get_rec (hbuf, HDR_LEN))
+			GiveUp ("EOF encountered searching for scale factors");
 		if (! strncmp (hbuf, " ENDHD", 6))
 			break;
-		get_rec (hbuf, HDR_LEN);
+		ProcScale (hbuf);
 	}
 /*
  * NCAR files need this done, the "new" Wyoming files don't.
@@ -363,6 +436,32 @@ char *file;
 			get_rec (hbuf, HDR_LEN);
 }
 
+
+
+void
+ValidateFields()
+/*
+ * Check that we have vital info for all of our Fields[]
+ */
+{
+	int i;
+
+	for (i = 0; i < NField; ++i)
+	{
+		if (TERM(i) == BAD_TERM)
+			printf("TERM value missing for %s, offset %i\n",
+			       SRC(i), FOFFSET(i));
+		else if (FACTOR(i) == BAD_FACTOR)
+			printf("FACTOR missing for field %s, offset %i\n",
+			       SRC(i), FOFFSET(i));
+		else if (FOFFSET(i) == BAD_OFFSET)
+			printf("No offset found for %s, offset = %i\n",
+			       SRC(i), FOFFSET(i));
+		else
+			continue;
+		GiveUp("Giving up!");
+	}
+}
 
 
 
@@ -498,21 +597,19 @@ char *line;
 		GiveUp ("Funky LETVAR: '%s'", field);
 	field++;
 	SKIP_WHITE (field);
-	for (fend = field; *fend && isalnum (*fend); fend++)
-		*fend = tolower (*fend);
+	for (fend = field; *fend && Isalnum(*fend); fend++)
+		*fend = Tolower (*fend);
 	*fend = '\0';
 /*
  * Now see if we want this field.
  */
 	for (i = 0; i < NField; i++)
-		if (! strcmp (SrcFlds[i], field))
+		if (! strcmp (Fields[i].gpf_src, field))
 			break;
 	if (i >= NField)
 		return;
-	printf ("Found field %s: %s\n", field, begq);
-# ifdef FIXME
-	strcpy (Fields[i].gpf_desc, begq);
-# endif
+	STRNCPY (Fields[i].gpf_desc, begq, DESCLEN);
+	printf ("Found field %s: %s\n", SRC(i), DESC(i));
 }
 
 
@@ -563,28 +660,78 @@ char *line;
 			GiveUp ("Funky UNIT line: '%s'", line);
 	field++;
 	SKIP_WHITE (field);
-	for (fend = field; *fend && isalnum (*fend); fend++)
-		*fend = tolower (*fend);
+	for (fend = field; *fend && Isalnum (*fend); fend++)
+		*fend = Tolower (*fend);
 	*fend = '\0';
 /*
  * Now see if we want this field.
  */
 	for (i = 0; i < NField; i++)
-		if (! strcmp (SrcFlds[i], field))
+		if (! strcmp (SRC(i), field))
 			break;
 	if (i >= NField)
 		return;
 /*
  * Grab the stuff.
  */
-# ifdef FIXME
-	strcpy (Fields[i].gpf_unit, unit);
-# endif
-	sscanf (offset, "%d", Foffsets + i);
-	Foffsets[i] /= 32;
-	printf ("Field %s, unit '%s', offset %d\n", SrcFlds[i],
-		"XXX", Foffsets[i]);
+	STRNCPY (Fields[i].gpf_units, unit, UNITLEN);
+	sscanf (offset, "%d", &(FOFFSET(i)));
+	FOFFSET(i) /= 32;
+	printf ("Field %s, units '%s', offset %d\n", SRC(i),
+		UNITS(i), FOFFSET(i));
 }
+
+
+
+
+void
+ProcScale (line)
+char *line;
+/*
+ * Deal with this FACTOR and TERM line.
+ * We expect lines of the form:
+ * <conkey>, <sclkey>, <term>, <factor>, FOR, <fieldname>
+ */
+{
+	char *strchr ();
+	char *fend, *field;
+	int conkey, sclkey;
+	float term, factor;
+	int i;
+
+	if (sscanf (line, " LETVAR = %i , %i , %f , %f",
+		    &conkey, &sclkey, &term, &factor) != 4)
+		GiveUp("Could not parse TERM and FACTOR from line: '%s'", line);
+/*
+ * Now find the field name.
+ */
+	field = line;
+	for (i = 0; i < 5; i++)
+	 	if (! (field = strchr (field + 1, ',')))
+			GiveUp ("Funky scale line: '%s'", line);
+	field++;
+	SKIP_WHITE (field);
+	for (fend = field; *fend && Isalnum (*fend); fend++)
+		*fend = Tolower (*fend);
+	*fend = '\0';
+/*
+ * Now see if we want this field.
+ */
+	for (i = 0; i < NField; i++)
+		if (! strcmp (SRC(i), field))
+			break;
+	if (i >= NField)
+		return;
+/*
+ * Grab the stuff.
+ */
+	Fields[i].gpf_factor = factor;
+	Fields[i].gpf_term = term;
+	printf ("Field %s, factor = %6.2f, term = %6.1f\n",
+		SRC(i), FACTOR(i), TERM(i));
+}
+
+
 
 
 get_rec (buf, len)
@@ -658,8 +805,10 @@ Plow ()
 	 * Major source of ugliness.
 	 */
 # ifdef notdef
-		if (ip[Foffsets[LatOffset]]/Scales[LatOffset] == 1000 ||
-		    ip[Foffsets[LonOffset]]/Scales[LonOffset] == 1000)
+		if (ip[FOFFSET(LatOffset)]/FACTOR(LatOffset) 
+		      == TERM(LatOffset) 			||
+		    ip[FOFFSET(LonOffset)]/FACTOR(LonOffset) 
+		      == TERM(LonOffset))
 		{
 			NTrashed++;
 			continue;
@@ -696,13 +845,13 @@ Plow ()
 	 */
 	 	for (i = 0; i < NField; i++)
 		{
-			data = ip[Foffsets[i]]/Scales[i] - 1000.0;
+			data = ip[FOFFSET(i)]/FACTOR(i) - TERM(i);
 			if (i == AltOffset)
-				data /= 1000.0;	/* m -> km */
-			ncvarput1 (NFile, VFields[i], &NOut, &data);
+				data /= 1000.0;		/* m -> km */
+			ncvarput1 (NFile, VFIELD(i), &NOut, &data);
 		}
 		NOut++;
-# ifdef notdef
+# ifdef DEBUG
 	/*
 	 * Debuggery.
 	 */
@@ -727,6 +876,7 @@ char *name;
 {
 	int i;
 	float bv = BADVAL;
+	float llbv = LL_BADVAL;		/* lat/lon bad value */
 /*
  * Create the actual file.
  */
@@ -745,10 +895,17 @@ char *name;
  */
 	for (i = 0; i < NField; i++)
 	{
-		VFields[i] = ncvardef (NFile, DstFlds[i], NC_FLOAT, 1, &DTime);
-		(void) ncattput (NFile, VFields[i], "missing_value",
-			NC_FLOAT, 1, &bv);
-		/* Units, desc, ...*/
+		VFIELD(i) = ncvardef (NFile, DST(i), NC_FLOAT, 1, &DTime);
+		if (i == LatOffset || i == LonOffset)
+			(void) ncattput (NFile, VFIELD(i), "missing_value",
+					 NC_FLOAT, 1, &llbv);
+		else
+			(void) ncattput (NFile, VFIELD(i), "missing_value",
+					 NC_FLOAT, 1, &bv);
+		(void) ncattput (NFile, VFIELD(i), "units",
+				 NC_CHAR, strlen(UNITS(i)) + 1, UNITS(i));
+		(void) ncattput (NFile, VFIELD(i), "long_name",
+				 NC_CHAR, strlen(DESC(i)) + 1, DESC(i));
 	}
 /*
  * That's it.  Finish defining, and put the base time in.
