@@ -26,7 +26,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-RCSID("$Id: GetList.c,v 3.9 1995-02-10 01:10:45 granger Exp $")
+RCSID("$Id: GetList.c,v 3.10 1995-08-31 09:38:06 granger Exp $")
 
 /*
  * Getlist lookaside list.
@@ -316,9 +316,6 @@ int *complete, dfindex;
  * we're done.
  */
 	gp->gl_dfindex = dfindex;
-#ifdef DF_USE
-	gp->gl_dfuse = dp->df_use;
-#endif
 	gp->gl_flags |= GLF_SATISFIED;
 	if (TC_LessEq (dp->df_begin, gp->gl_begin))
 		return (gp);

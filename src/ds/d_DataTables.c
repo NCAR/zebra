@@ -30,7 +30,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.19 1995-06-12 23:09:12 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.20 1995-08-31 09:38:39 granger Exp $")
 
 
 /*
@@ -126,9 +126,6 @@ dt_InitTables ()
 	for (i = 1; i < DFTableSize; i++)
 	{
 		DFTable[i].df_FLink = i + 1;
-#ifdef DF_USE
-		DFTable[i].df_use = 0;
-#endif
 	}
 	DFTable[DFTableSize - 1].df_FLink = 0;
 }
@@ -1083,9 +1080,6 @@ dt_NewFile ()
 		for (i = DFTableSize; i < nsize; i++)
 		{
 			DFTable[i].df_FLink = i + 1;
-#ifdef DF_USE
-			DFTable[i].df_use = 0;
-#endif
 		}
 		DFTable[nsize - 1].df_FLink = 0;
 		DFTableSize = nsize;
@@ -1278,9 +1272,6 @@ int local;
  */
 {
 	df->df_platform = p - PTable;
-#ifdef DF_USE
-	df->df_use++;
-#endif
 	/* df->df_flags = DFF_Seen; */
 	ClearLocks (p);
 	if (local)
