@@ -22,18 +22,14 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "ds_fields.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_IRGrid.c,v 3.3 1994-01-03 07:18:01 granger Exp $")
 
-# define SUPERCLASS DCC_MetData
+RCSID ("$Id: dc_IRGrid.c,v 3.4 1996-11-19 09:32:32 granger Exp $")
 
 /*
  * Our class-specific AuxData structure types.
  */
-# define ST_PLATFORMS	42
-
+#define ST_PLATFORMS	42
 
 /*
  * The format of the platform list.
@@ -45,47 +41,160 @@ typedef struct _PlatInfo
 } PlatInfo;
 
 
+typedef struct _IRGridDataChunk
+{
+	RawDataChunkPart	rawpart;
+	TranspDataChunkPart	transpart;
+	MetDataChunkPart	metpart;
+	IRGridDataChunkPart	irgridpart;
 
+} IRGridDataChunk;
+
+typedef IRGridDataChunkPart IRG;	/* type shortcut */
 
 /*
  * Local routines.
  */
-static DataChunk *dc_IRGCreate FP((DataClass));
 static bool dc_GetPlatList FP((DataChunk *, PlatInfo **, int *));
-static void dc_IRDump FP((DataChunk *));
 
-RawDCClass IRGridMethods =
+/*
+ * Class method prototypes
+ */
+static DataChunk *irg_Create FP((DataChunk *dc));
+static void irg_Destroy FP((DataChunk *));
+static void irg_Dump FP((DataChunk *));
+static void irg_Serialize FP((DataChunk *));
+static void irg_Localize FP((DataChunk *));
+
+#define SUPERCLASS ((DataClassP)&MetDataMethods)
+
+RawClass IRGridMethods =
 {
+	DCID_IRGrid,
 	"IRGrid",
 	SUPERCLASS,		/* Superclass			*/
 	3,			/* Depth, Raw = 0		*/
-	dc_IRGCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
-	dc_IRDump,		/* Dump				*/
+	irg_Create,
+	irg_Destroy,		/* Destroy			*/
+	0,			/* Add				*/
+	irg_Dump,		/* Dump				*/
+
+	irg_Serialize,
+	irg_Localize,
+
+	sizeof (IRGridDataChunk)
 };
 
+DataClassP DCP_IRGrid = ((DataClassP)&IRGridMethods);
 
+#define IRP(dc) (&((IRGridDataChunk *)(dc))->irgridpart)
 
+/*----------------------------------------------------------------------*/
+/* IRGrid class methods */
 
 
 static DataChunk *
-dc_IRGCreate (class)
-DataClass class;
+irg_Create (dc)
+DataChunk *dc;
 /*
  * Create a chunk of this class.
  */
 {
-	DataChunk *dc;
-/*
- * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
- * add any info here, because we don't know it yet.
- */
-	dc = DC_ClassCreate (SUPERCLASS);
-	dc->dc_Class = class;
+	IRG *irg = IRP(dc);
+
+	irg->irg_pinfo = NULL;
+	irg->irg_nplat = 0;
 	return (dc);
 }
 
+
+
+static void
+irg_Destroy (dc)
+DataChunk *dc;
+{
+	IRG *irg = IRP(dc);
+
+	if (irg->irg_pinfo)
+		free (irg->irg_pinfo);
+	irg->irg_pinfo = NULL;
+	irg->irg_nplat = 0;
+}
+
+
+
+static void
+irg_Serialize (dc)
+DataChunk *dc;
+{
+	IRG *irg = IRP(dc);
+
+	if (irg->irg_pinfo)
+		dc_AddADE (dc, irg->irg_pinfo, DCP_IRGrid, ST_PLATFORMS,
+			   irg->irg_nplat * sizeof (PlatInfo), FALSE);
+}
+
+
+
+static void
+irg_Localize (dc)
+DataChunk *dc;
+{
+	IRG *irg = IRP(dc);
+
+	irg->irg_pinfo = (PlatInfo *) dc_FindADE (dc, DCP_IRGrid,
+						  ST_PLATFORMS, 0);
+}
+
+
+
+static void
+irg_Dump (dc)
+DataChunk *dc;
+/*
+ * Dump this thing out.
+ */
+{
+	PlatInfo *pinfo;
+	int nplat, plat;
+/*
+ * Get our platform list.
+ */
+	dc_GetPlatList (dc, &pinfo, &nplat);
+/*
+ * Dump it out.
+ */
+	printf ("IRGRID class, %d platforms\n", nplat);
+	for (plat = 0; plat < nplat; plat++)
+		printf ("\t%2d: (%s) at %.4f %.4f %.2f\n", pinfo[plat].pi_Id,
+			ds_PlatformName (pinfo[plat].pi_Id),
+			pinfo[plat].pi_Loc.l_lat, pinfo[plat].pi_Loc.l_lon,
+			pinfo[plat].pi_Loc.l_alt);
+}
+
+
+
+/*-- End class methods -- */
+/*========================================================================*/
+
+
+static bool
+dc_GetPlatList (dc, plist, nplat)
+DataChunk *dc;
+PlatInfo **plist;
+int *nplat;
+/*
+ * Get the platform info list out of this DC.
+ */
+{
+	IRG *irg = IRP(dc);
+
+	if (nplat)
+		*nplat = irg->irg_nplat;
+	if (plist)
+		*plist = irg->irg_pinfo;
+	return ((irg->irg_nplat > 0) ? TRUE : FALSE);
+}
 
 
 
@@ -110,17 +219,24 @@ FieldId *fields;
  *	The data chunk has been set up.
  */
 {
+	IRG *irg = IRP(dc);
 	PlatInfo *pinfo;
 	int plat;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRSetup"))
+	if (! dc_ReqSubClass (dc, DCP_IRGrid, "IRSetup"))
 		return;
+	if (irg->irg_nplat > 0)
+	{
+		msg_ELog (EF_PROBLEM, "irgrid already setup");
+		return;
+	}
 /*
  * Do the field setup.
  */
-	dc_SetupUniformOrg (dc, 0, nfld, fields, nplat);
+	dc_SetupFields (dc, nfld, fields);
+	dc_SetUniformOrg (dc, nplat);
 /*
  * Allocate the platform space and set that up too.
  */
@@ -130,39 +246,15 @@ FieldId *fields;
 		pinfo[plat].pi_Id  = pids[plat];
 		pinfo[plat].pi_Loc = locs[plat];
 	}
-	dc_AddADE (dc, pinfo, DCC_IRGrid, ST_PLATFORMS,
-				nplat*sizeof (PlatInfo), TRUE);
+	irg->irg_pinfo = pinfo;
+	irg->irg_nplat = nplat;
 }
 
 
 
 
 
-
-static bool
-dc_GetPlatList (dc, plist, nplat)
-DataChunk *dc;
-PlatInfo **plist;
-int *nplat;
-/*
- * Get the platform info list out of this DC.
- */
-{
-	int len;
-
-	if (! (*plist = (PlatInfo *) dc_FindADE (dc, DCC_IRGrid,
-			ST_PLATFORMS, &len)))
-		return (FALSE);
-	*nplat = len/sizeof (PlatInfo);
-	return (TRUE);
-}
-
-
-
-
-
-
-void
+DataPtr
 dc_IRAddGrid (dc, t, sample, field, data)
 DataChunk *dc;
 ZebTime *t;
@@ -170,8 +262,10 @@ int sample;
 FieldId field;
 void *data;
 /*
- * Add data for one field, one sample to this data chunk.  The data is assumed
- * to be NPLAT samples, in the same order as the platform list.
+ * Add data for one field, one sample to this data chunk.  The data is
+ * assumed to be NPLAT samples, in the same order as the platform list.
+ * Returns a pointer to the storage location of this grid in the datachunk.
+ * If data is NULL, the space is allocated but no data is copied.
  */
 {
 	PlatInfo *pinfo;
@@ -179,25 +273,25 @@ void *data;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRAddGrid"))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_IRGrid, "IRAddGrid"))
+		return (NULL);
 	if (! dc_GetPlatList (dc, &pinfo, &nplat))
 	{
-		msg_ELog (EF_PROBLEM, "No platform list for AddGrid");
-		return;
+		msg_ELog (EF_PROBLEM, "No platform list for IRAddGrid");
+		return (NULL);
 	}
 /*
  * Just do the add.
  */
-	dc_AddMData (dc, t, field, nplat*dc_SizeOf(dc, field), sample, 1, data);
+	return (dc_AddMData(dc, t, field, nplat*dc_SizeOf(dc, field), 
+			    sample, 1, data));
 }
 
 
 
 
 
-
-void
+DataPtr
 dc_IRAddMultGrid (dc, t, begin, nsample, field, data)
 DataChunk *dc;
 ZebTime *t;
@@ -205,9 +299,8 @@ int begin, nsample;
 FieldId field;
 void *data;
 /*
- * Add data for one field, multiple samples to this data chunk.
- * The data is assumed
- * to be NPLAT samples, in the same order as the platform list.
+ * Add data for one field, multiple samples to this data chunk.  The data
+ * is assumed to be NPLAT samples, in the same order as the platform list.
  */
 {
 	PlatInfo *pinfo;
@@ -215,18 +308,50 @@ void *data;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRAddMultGrid"))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_IRGrid, "IRAddMultGrid"))
+		return (NULL);
 	if (! dc_GetPlatList (dc, &pinfo, &nplat))
 	{
 		msg_ELog (EF_PROBLEM, "No platform list for AddGrid");
-		return;
+		return (NULL);
 	}
 /*
  * Just do the add.
  */
-	dc_AddMData (dc, t, field, nplat * dc_SizeOf(dc, field), 
-		     begin, nsample, data);
+	return (dc_AddMData (dc, t, field, nplat * dc_SizeOf(dc, field), 
+			     begin, nsample, data));
+}
+
+
+
+
+void
+dc_IRAddMissing (dc, t, begin, nsample, field)
+DataChunk *dc;
+ZebTime *t;
+int begin, nsample;
+FieldId field;
+/*
+ * Fill missing data for one field, multiple samples to this data chunk.
+ */
+{
+	PlatInfo *pinfo;
+	int nplat;
+/*
+ * Checking time.
+ */
+	if (! dc_ReqSubClass (dc, DCP_IRGrid, "IRAddMissing"))
+		return;
+	if (! dc_GetPlatList (dc, &pinfo, &nplat))
+	{
+		msg_ELog (EF_PROBLEM, "No platform list for IRAddMissing");
+		return;
+	}
+/*
+ * Just do the fill.
+ */
+	dc_FillMissing (dc, t, field, nplat * dc_SizeOf(dc, field), 
+			begin, nsample);
 }
 
 
@@ -271,10 +396,8 @@ FieldId *fields;
 	float sc_data;
 	int sc_plat_idx;	/* index of scalar plat into irgrid list */
 
-	if (! dc_ReqSubClassOf (irgrid_dc->dc_Class, 
-				DCC_IRGrid, "IRAddScalarDC") ||
-	    ! dc_ReqSubClassOf (scalar_dc->dc_Class,
-				DCC_Scalar, "IRAddScalarDC"))
+	if (! dc_ReqSubClass (irgrid_dc, DCP_IRGrid, "IRAddScalarDC") ||
+	    ! dc_ReqSubClass (scalar_dc, DCP_Scalar, "IRAddScalarDC"))
 		return;
 /*
  * Set up the list of samples and fields to use.
@@ -403,30 +526,21 @@ DataChunk *dc;
  * Return the number of platforms in this DC.
  */
 {
-	PlatInfo *pinfo;
-	int nplat;
-/*
- * Checking time.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRGetNPlatform"))
-		return (0);
-	if (! dc_GetPlatList (dc, &pinfo, &nplat))
-		return (0);
-	return (nplat);
+	return (dc_IRGetPlatforms (dc, NULL, NULL));
 }
 
 
 
 
-
-void
+int
 dc_IRGetPlatforms (dc, pids, locs)
 DataChunk *dc;
 PlatformId *pids;
 Location *locs;
 /*
  * Return the list of platform ID's and locations for this DC.  Either pointer
- * may be NULL, in which case that info is not returned.
+ * may be NULL, in which case that info is not returned.  Returns number
+ * of platforms.
  */
 {
 	PlatInfo *pinfo;
@@ -434,12 +548,12 @@ Location *locs;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRGetPlatforms"))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_IRGrid, "IRGetPlatforms"))
+		return (0);
 	if (! dc_GetPlatList (dc, &pinfo, &nplat))
 	{
 		msg_ELog (EF_PROBLEM, "No platform list for GetPlatforms");
-		return;
+		return (0);
 	}
 /*
  * Return the info.
@@ -451,6 +565,7 @@ Location *locs;
 		if (locs)
 			*locs++ = pinfo[plat].pi_Loc;
 	}
+	return (nplat);
 }
 
 
@@ -471,7 +586,7 @@ FieldId field;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRGetPlatforms"))
+	if (! dc_ReqSubClass (dc, DCP_IRGrid, "IRGetPlatforms"))
 		return (NULL);
 	if (! dc_GetPlatList (dc, &pinfo, &nplat))
 	{
@@ -486,31 +601,3 @@ FieldId field;
 
 
 
-
-static void
-dc_IRDump (dc)
-DataChunk *dc;
-/*
- * Dump this think out.
- */
-{
-	PlatInfo *pinfo;
-	int nplat, plat;
-/*
- * Get our platform list.
- */
-	if (! dc_GetPlatList (dc, &pinfo, &nplat))
-	{
-		msg_ELog (EF_PROBLEM, "No platform list for GetPlatforms");
-		return;
-	}
-/*
- * Dump it out.
- */
-	printf ("IRGRID class, %d platforms\n", nplat);
-	for (plat = 0; plat < nplat; plat++)
-		printf ("\t%2d: (%s) at %.4f %.4f %.2f\n", pinfo[plat].pi_Id,
-			ds_PlatformName (pinfo[plat].pi_Id),
-			pinfo[plat].pi_Loc.l_lat, pinfo[plat].pi_Loc.l_lon,
-			pinfo[plat].pi_Loc.l_alt);
-}

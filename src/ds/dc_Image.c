@@ -28,60 +28,109 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "ds_fields.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Image.c,v 1.5 1994-01-03 07:18:03 granger Exp $")
 
-# define SUPERCLASS DCC_RGrid
-# define CLASSDEPTH 4
+RCSID ("$Id: dc_Image.c,v 1.6 1996-11-19 09:32:51 granger Exp $")
 
 /*
  * Our class-specific AuxData structure types.
  */
 # define ST_SCALING	1
 
-
-
-/*
- * Local routines.
- */
-static DataChunk *dc_ImgCreate FP((DataClass));
-
-RawDCClass ImageMethods =
+typedef struct _ImageDataChunk
 {
+	RawDataChunkPart	rawpart;
+	TranspDataChunkPart	transpart;
+	MetDataChunkPart	metpart;
+	RGridDataChunkPart	rgridpart;
+	ImageDataChunkPart	imagepart;
+
+} ImageDataChunk;
+
+#define IP(dc) (&((ImageDataChunk *)(dc))->imagepart)
+
+/* -----------------------
+ * Class method prototypes
+ */
+static DataChunk *img_Create FP((DataChunk *dc));
+static void img_Destroy FP((DataChunk *dc));
+static void img_Serialize FP((DataChunk *dc));
+static void img_Localize FP((DataChunk *dc));
+
+# define SUPERCLASS ((DataClassP)&RGridMethods)
+# define CLASSDEPTH 4
+
+RawClass ImageMethods =
+{
+	DCID_Image,
 	"Image",
 	SUPERCLASS,		/* Superclass			*/
 	CLASSDEPTH,		/* Depth, Raw = 0		*/
-	dc_ImgCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
-	0,		/* Dump				*/
+	img_Create,
+	img_Destroy,		/* Destroy			*/
+	0,			/* Add				*/
+	0,			/* Dump				*/
+
+	img_Serialize,
+	img_Localize,
+
+	sizeof (ImageDataChunk)
 };
 
+DataClassP DCP_Image = ((DataClassP)&ImageMethods);
 
-
+/*------------------------------------------------------------------------*/
+/* Class methods */
 
 
 static DataChunk *
-dc_ImgCreate (class)
-DataClass class;
-/*
- * Create a chunk of this class.
- */
+img_Create (dc)
+DataChunk *dc;
 {
-	DataChunk *dc;
-/*
- * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
- * add any info here, because we don't know it yet.
- */
-	dc = DC_ClassCreate (SUPERCLASS);
-	dc->dc_Class = class;
+	ImageDataChunkPart *ip = IP(dc);
+
+	ip->ip_scale = NULL;
+	ip->ip_Nscale = 0;
 	return (dc);
 }
 
 
+static void
+img_Destroy (dc)
+DataChunk *dc;
+{
+	ImageDataChunkPart *ip = IP(dc);
 
+	if (ip->ip_scale)
+		free (ip->ip_scale);
+	ip->ip_scale = NULL;
+	ip->ip_Nscale = 0;
+}
+
+
+static void
+img_Serialize (dc)
+DataChunk *dc;
+{
+	ImageDataChunkPart *ip = IP(dc);
+
+	if (ip->ip_scale)
+		dc_AddADE (dc, ip->ip_scale, DCP_Image, ST_SCALING, 
+			   ip->ip_Nscale * sizeof (ScaleInfo), FALSE);
+}
+
+
+static void
+img_Localize (dc)
+DataChunk *dc;
+{
+	ImageDataChunkPart *ip = IP(dc);
+
+	ip->ip_scale = (ScaleInfo *) dc_FindADE (dc, DCP_Image, ST_SCALING, 0);
+}
+
+
+/*----------------------------------------------------------------------*/
 
 
 
@@ -103,12 +152,13 @@ ScaleInfo *scale;
  *	The data chunk has been set up.
  */
 {
+	ImageDataChunkPart *ip = IP(dc);
 	ScaleInfo *sc;
 	int i;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Image, "ImgSetup"))
+	if (! dc_ReqSubClass (dc, DCP_Image, "ImgSetup"))
 		return;
 /*
  * Do the RGrid setup.  Set all of our types to unsigned char so that the
@@ -124,8 +174,8 @@ ScaleInfo *scale;
  */
 	sc = (ScaleInfo *) malloc (nfld * sizeof (ScaleInfo));
 	memcpy (sc, scale, nfld * sizeof (ScaleInfo));
-	dc_AddADE (dc, sc, DCC_Image, ST_SCALING, nfld*sizeof (ScaleInfo),
-			TRUE);
+	ip->ip_scale = sc;
+	ip->ip_Nscale = nfld;
 }
 
 
@@ -160,7 +210,7 @@ unsigned char *data;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Image, "AddImage"))
+	if (! dc_ReqSubClass (dc, DCP_Image, "AddImage"))
 		return;
 /*
  * Add the info.
@@ -168,6 +218,35 @@ unsigned char *data;
 	if (len == 0)
 		len = rg->rg_nX*rg->rg_nY;
 	dc_RGAddGrid (dc, sample, field, origin, rg, t, (void *) data, len);
+}
+
+
+
+
+
+void
+dc_ImgAddMissing (dc, sample, field, origin, rg, t, len)
+DataChunk *dc;
+int sample, len;
+FieldId field;
+Location *origin;
+RGrid *rg;
+ZebTime *t;
+/*
+ * Fill this image with missing values.
+ */
+{
+/*
+ * Checking time.
+ */
+	if (! dc_ReqSubClass (dc, DCP_Image, "AddMissing"))
+		return;
+/*
+ * Add the info.
+ */
+	if (len == 0)
+		len = rg->rg_nX*rg->rg_nY;
+	dc_RGAddMissing (dc, sample, field, origin, rg, t, len);
 }
 
 
@@ -186,14 +265,14 @@ ScaleInfo *scale;
  * Retrieve an image from this DC.
  */
 {
+	ImageDataChunkPart *ip = IP(dc);
 	void *gret;
 	ScaleInfo *sc;
-	int findex, nfield;
-	FieldId *flds;
+	int findex;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Image, "GetImage"))
+	if (! dc_ReqSubClass (dc, DCP_Image, "GetImage"))
 		return (NULL);
 /*
  * Find the data itself.
@@ -205,7 +284,7 @@ ScaleInfo *scale;
 /*
  * Find the scale info.
  */
-	if (! (sc = (ScaleInfo *) dc_FindADE (dc, DCC_Image, ST_SCALING,NULL)))
+	if (! (sc = ip->ip_scale))
 	{
 		msg_ELog (EF_PROBLEM, "Somebody swiped the scale info");
 		return ((unsigned char *) gret);
@@ -213,13 +292,10 @@ ScaleInfo *scale;
 /*
  * Find the index of this field.
  */
-	flds = dc_GetFields (dc, &nfield);
-	for (findex = 0; findex < nfield; findex++)
-		if (flds[findex] == field)
-			break;
-	if (findex >= nfield)
+	findex = dc_GetFieldIndex (dc, field);
+	if (findex < 0)
 		msg_ELog (EF_PROBLEM, "Strange...field %s vanished",
-				F_GetName (field));
+			  F_GetName (field));
 	else
 		*scale = sc[findex];
 	return ((unsigned char *) gret);
