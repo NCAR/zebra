@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.1 1991-10-30 19:25:07 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.2 1991-10-30 21:36:12 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -88,7 +88,6 @@ int ac_DisplayAxes ( )
     {
 	if ( AxisInfoList[AXIS_BOTTOM][i].component )
 	{
-	   fprintf ( stdout, "\r bottom pixPos = %d\n", pixPos);
            fit = ac_PlotAxis ( AXIS_BOTTOM, 
 		&pixPos, AxisInfoList[AXIS_BOTTOM][i].ticSize, 
 		AxisInfoList[AXIS_BOTTOM][i].ntic, 
@@ -111,7 +110,6 @@ int ac_DisplayAxes ( )
     {
 	if ( AxisInfoList[AXIS_TOP][i].component )
 	{
-	   fprintf ( stdout, "\r top pixPos = %d\n", pixPos);
            fit = ac_PlotAxis ( AXIS_TOP, 
 		&pixPos, AxisInfoList[AXIS_TOP][i].ticSize,
 		AxisInfoList[AXIS_TOP][i].ntic, 
@@ -134,7 +132,6 @@ int ac_DisplayAxes ( )
     {
 	if ( AxisInfoList[AXIS_LEFT][i].component )
 	{
-	   fprintf ( stdout, "\r left pixPos = %d\n", pixPos);
            fit = ac_PlotAxis ( AXIS_LEFT, 
 		&pixPos, AxisInfoList[AXIS_LEFT][i].ticSize, 
 		AxisInfoList[AXIS_LEFT][i].ntic, 

@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.1 1991-10-30 19:27:12 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.2 1991-10-30 21:35:47 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -107,7 +107,6 @@ bool	update;
 /*
  * Get the platform and color table
  */
-fprintf ( stdout, "\rin XYGraph, component = %s update = %d\n",c,update);
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, &(dataNames[0]), SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, &(dataNames[1]), SYMT_STRING);
@@ -152,7 +151,6 @@ fprintf ( stdout, "\rin XYGraph, component = %s update = %d\n",c,update);
  * Look for transformation directives
  */
 	saveConfig = TransConfig;
-	fprintf ( stdout,"\rxygraph TransConfig == %d\n",TransConfig);
 	TransConfig = 0;
 	if ( pda_Search (Pd, c, "log-x", "trans", 
 		(char *) &transConfig, SYMT_INT))
@@ -174,7 +172,6 @@ fprintf ( stdout, "\rin XYGraph, component = %s update = %d\n",c,update);
 	{
 	    TransConfig = TransConfig | ( transConfig ? INVERT_Y : 0 );
 	}
-	fprintf ( stdout,"\rxygraph TransConfig == %d\n",TransConfig);
 
 /*
  * Look for axis plotting directives.
@@ -500,7 +497,6 @@ fprintf ( stdout, "\rin XYGraph, component = %s update = %d\n",c,update);
 	gp_Clip( xmin, ymin,xmax,ymax );
 	for (plat = 0; plat < nplat; plat++)
 	{
-	    fprintf ( stdout, "\rplotting npts = %d",npts);
 	    gp_Pline( xdata[plat],ydata[plat],npts,L_solid, 
 			  lcolor[plat].pixel);
 
