@@ -15,8 +15,8 @@ define widget contour-right intmenu 'contour right'
 		(PDParam(icon_component,'color-mono') <> 'true')
 	submenu 'Contour color (when mono)' 'simple-color'
 	submenu 'Line width' linewidth
-	entry 'Interpolation method...' 'contour-InterpParams'
-	entry 'Adjust range limits...' 'contour-range-limits'
+	entry 'Interpolation method...' 'require interp; popup InterpParams'
+	entry 'Adjust range limits...' 'require range; popup range-limits'
 endmenu
 
 !
@@ -53,20 +53,4 @@ endmenu
 procedure contour-putup-adj comp string
 	require ctr-step
 	popup center-step
-endprocedure
-
-!
-! Popup the InterpParams widget
-!
-procedure contour-InterpParams
-	require interp
-	popup InterpParams
-endprocedure
-
-!
-! Popup the range-limits widget
-!
-procedure contour-range-limits
-	require range
-	popup range-limits
 endprocedure
