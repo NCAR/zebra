@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.25 2002-07-08 19:41:07 granger Exp $
+# $Id: zplotbatch,v 1.26 2002-10-15 09:07:30 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -91,16 +91,30 @@ fi
 # Start our private, virtual X display.  This may fail if one is already
 # there, in which case we'll use the existing one.  Use 'localhost' (not
 # 'unix') to force network socket since unix socket may have failed. (see
-# above.)
+# above.)  Redirect all i/o everything to completely divorce this process
+# from this shell.
 #
-$xvfb $display </dev/null &
+$xvfb $display </dev/null > /dev/null 2>&1 &
 x=$!
-sleep 10
 DISPLAY=localhost${display}.0 ; export DISPLAY
+# Try a series of connection attempts until it succeeds, else abort.
+i=0
+while [ $i -lt 5 ]; do
+    echo "Checking for X connection..."
+    if xdpyinfo > /dev/null 2>&1 ; then
+	echo "Done."
+	break
+    fi
+    i=`expr $i + 1`
+    sleep 2
+done
+if [ $i -ge 5 ]; then
+    echo "!! Could not connect to Xvfb at display $display. !!"
+    exit 1
+fi
 
 # Make sure we have a datastore running; we don't need the event logger
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
-
 echo "-- Checking for datastore session..."
 zstart -n -preserve -ds $ZEB_PROJDIR </dev/null >/dev/null 2>&1
 sleep 1
@@ -143,7 +157,7 @@ while read when config windows; do
 
     if [ x$config != x$lastconfig ]; then
 	(set -x; zrun $DM "display $config")
-	sleep 10
+	sleep 2
 	lastconfig="$config";
     fi
     if [ $when = "now" ]; then
@@ -152,14 +166,13 @@ while read when config windows; do
     else
     	(set -x; zrun $DM "history all $when")
     fi
-    # Wait for windows to take the new time.  Apparently a window might
-    # actually respond to an imgdump command before it has received or
-    # acted on the time change, so we must delay here until the time
-    # takes effect.
-    sleep 10
+    # We only wait long enough to presume that the windows have received
+    # their display and time change events.  The imgdump below will be
+    # enqueued rather than executed directly, so it should not run until
+    # the display and time changes have finished.
+    sleep 2
 
     # Get a list of the graphics processes appearing in this display
-    # mstatus
     procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
     echo "Processes: $procs"
 
@@ -181,7 +194,15 @@ while read when config windows; do
     queryprocs=''
     for plot in $procs ; do
 
-	win=`echo $plot | sed -e "s/-$DM.*//"`
+	# For each process, check that it has an active window and get the name
+	# zquery returns a line like this:
+	# Graphics process surfrad, window 'surfrad' DOWN ...
+	qwin=`zquery $plot | head -1`
+	if echo "$qwin" | egrep DOWN >/dev/null ; then
+	    continue
+	fi
+	win=`echo "$qwin" | sed -e "s/^.* \'//" -e "s/\' .*//" `
+	echo "Process $plot active and displaying window $win."
 
 	# If we have specific targets, skip this window if it's not one of them
 	if test "$windows" = "" || echo "$windows" | egrep -s "$win"; then
@@ -195,8 +216,9 @@ while read when config windows; do
 	    # can prepend the config here.
 
 	    images="$images ${name}.png"
-	    (set -x; zrun $plot "imgdump xwd \"${name}.xwd\"" ; \
-	     set +x ; sleep 5 ; \
+	    (set -x; zrun $plot \
+		"enqueue display 'imgdump xwd \"${name}.xwd\" ' " ; \
+	     set +x ; sleep 1 ; \
 	     zquery -t 15 $plot >/dev/null ; set -x ; \
 	     $convert $font -gravity southwest -fill black -box white \
 		-draw "text 20,20 ' REAL-TIME DATA, NOT CHECKED FOR QUALITY '"\
@@ -214,9 +236,9 @@ while read when config windows; do
     # is to give the windows time to actually start the dumps, so that
     # our query doesn't succeed *before* the imgdump command is received.
     echo "Waiting for windows to finish image dumps..."
-    sleep 5
+    sleep 2
     for plot in $queryprocs ; do
-        (set -x; zquery -t 30 $plot > /dev/null)
+        zquery -t 30 $plot > /dev/null
     done
     echo "Window dumps finished."
 
@@ -227,10 +249,10 @@ if [ -f "$temp" ]; then
 fi
 
 # Exit the window manager, give it a little time to shutdown before
-# killing it outright
-(set -x; zrun $DM 'shutdown')
-sleep 10
-kill $dm
+# killing it outright, but there's no reason to hang around here waiting
+# for it to die.
+echo "Shutting down $DM."
+(zrun $DM 'shutdown'; sleep 10; kill $dm) > /dev/null 2>&1 &
 
 # We'd kill our virtual X server, but another batch-plot may be using it
 # kill $x
