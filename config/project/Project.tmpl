@@ -17,6 +17,17 @@
 # endif
 
 /*
+ * Convenience definition
+ */
+#ifndef SolarisArchitecture
+# ifdef SunArchitecture
+#  if defined(SVR4) || defined(solaris) || defined(SVR4Architecture)
+#   define SolarisArchitecture
+#  endif
+# endif
+#endif
+
+/*
  * Specify some symbols required by config.h
  */
 # ifndef YES
@@ -28,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.51 1997-01-14 21:59:34 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.52 1997-01-20 19:26:36 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -629,7 +640,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define BuildDataUtilities NO
 #endif
 #ifndef BuildMapUtilities
-#define BuildMapUtilities UseGcc	/* need ANSI C for this stuff */
+/* need ANSI C and SYSV for this stuff */
+# if !defined(SunArchitecture) || defined(SolarisArchitecture)
+#  define BuildMapUtilities UseGcc
+# else
+#  define BuildMapUtilities NO
+# endif
 #endif
 
 #ifndef BuildClassIngest
