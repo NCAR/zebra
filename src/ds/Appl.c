@@ -25,7 +25,7 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.2 1992-06-09 19:17:21 corbet Exp $")
 
 
 /*
@@ -44,6 +44,7 @@ static int	ds_RequestNewDF FP ((PlatformId, char *, ZebTime *));
 static int	ds_GetNDFResp FP ((struct message *,
 				struct dsp_R_CreateFile *));
 static void	ds_AbortNewDF FP ((PlatformId, int));
+static int	ds_AwaitAck FP ((Message *, int));
 
 
 /*
@@ -1007,8 +1008,28 @@ DataChunk *dc;
  * Then let DFA know that we've signalled a revision on this file.
  */
 	dfa_NoteRevision (dfile);
+/*
+ * Wait for the update ack.
+ */
+	msg_Search (MT_DATASTORE, ds_AwaitAck, 0);
 }
 
+
+
+
+
+static int
+ds_AwaitAck (msg, junk)
+Message *msg;
+int junk;
+/*
+ * See if this is our ack.
+ */
+{
+	struct dsp_Template *tmpl = (struct dsp_Template *) msg->m_data;
+
+	return (tmpl->dsp_type != dpt_R_UpdateAck);
+}
 
 
 
