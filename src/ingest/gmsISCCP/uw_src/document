@@ -1,0 +1,91 @@
+Tape 1 file 1 is two 80 byte records of ebcdic.
+It contains the following stuff:
+
+HDR1B1               OUTPUT00010001
+87014 870140000000                    HDR2F325043250440                    1
+
+The second file contains a 10000 byte record, followed by
+
+Tape Rec     2: 32504 bytes
+Tape Rec     3: 32504 bytes
+Tape Rec     4: 32504 bytes
+Tape Rec     5: 32504 bytes
+Tape Rec     6: 32504 bytes
+Tape Rec     7: 32504 bytes
+Tape Rec     8: 32504 bytes
+Tape Rec     9: 32504 bytes
+Tape Rec    10: 32504 bytes
+Tape Rec    11: 32504 bytes
+Tape Rec    12: 32504 bytes
+Tape Rec    13: 32504 bytes
+Tape Rec    14: 32504 bytes
+Tape Rec    15: 32504 bytes
+Tape Rec    16: 32504 bytes
+Tape Rec    17: 32504 bytes
+Tape Rec    18: 32504 bytes
+Tape Rec    19: 32504 bytes
+Tape Rec    20: 32504 bytes
+Tape Rec    21: 32504 bytes
+Tape Rec    22: 32504 bytes
+Tape Rec    23: 32504 bytes
+Tape Rec    24: 32504 bytes
+Tape Rec    25: 32504 bytes
+Tape Rec    26: 32504 bytes
+Tape Rec    27: 32504 bytes
+Tape Rec    28: 32504 bytes
+Tape Rec    29: 32504 bytes
+Tape Rec    30: 32504 bytes
+Tape Rec    31: 32504 bytes
+Tape Rec    32: 32504 bytes
+Tape Rec    33: 32504 bytes
+Tape Rec    34: 32504 bytes
+Tape Rec    35: 32504 bytes
+Tape Rec    36: 32504 bytes
+Tape Rec    37: 32504 bytes
+Tape Rec    38: 32504 bytes
+Tape Rec    39: 32504 bytes
+Tape Rec    40: 32504 bytes
+Tape Rec    41: 32504 bytes
+Tape Rec    42: 32504 bytes
+Tape Rec    43: 32504 bytes
+Tape Rec    44: 32504 bytes
+Tape Rec    45: 32504 bytes
+Tape Rec    46: 32504 bytes
+Tape Rec    47: 32504 bytes
+Tape Rec    48: 32504 bytes
+Tape Rec    49: 32504 bytes
+Tape Rec    50: 32504 bytes
+Tape Rec    51: 32504 bytes
+Tape Rec    52: 32504 bytes
+Tape Rec    53: 32504 bytes
+Tape Rec    54: 32504 bytes
+Tape Rec    55: 32504 bytes
+Tape Rec    56: 32504 bytes
+Tape Rec    57: 32504 bytes
+Tape Rec    58: 32504 bytes
+Tape Rec    59: 32504 bytes
+Tape Rec    60: 32504 bytes
+Tape Rec    61: 32504 bytes
+Tape Rec    62: 32504 bytes
+Tape Rec    63: 32504 bytes
+Tape Rec    64: 32504 bytes
+Tape Rec    65: 32504 bytes
+Tape Rec    66: 32504 bytes
+Tape Rec    67: 32504 bytes
+Tape Rec    68: 32504 bytes
+Tape Rec    69: 32504 bytes
+Tape Rec    70: 32504 bytes
+Tape Rec    71: 32504 bytes
+Tape Rec    72: 32504 bytes
+Tape Rec    73: 32504 bytes
+Tape Rec    74: 32504 bytes
+Tape Rec    75: 32504 bytes
+Tape Rec    76: 32504 bytes
+Tape Rec    77: 32504 bytes
+Tape Rec    78: 32504 bytes
+Tape Rec    79: 32504 bytes
+Tape Rec    80: 18584 bytes
+
+These records are all ebcdic, with some header information
+in about the first 24 bytes, and 1280 byte logical records
+total.
