@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.25 1993-08-17 22:47:52 burghart Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.26 1993-08-25 21:35:05 granger Exp $")
 
 
 
@@ -946,8 +946,7 @@ struct ui_command *cmds;
 		else
 		{
 			zaptime = now;
-			zaptime.zt_Sec -= (seconds > 0) ? seconds :
-					PTable[plat].dp_keep;
+			zaptime.zt_Sec -= (seconds > 0) ? seconds : p->dp_keep;
 			dp_DeleteData (p, &zaptime);
 		}
 		return;
