@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.15 1993-07-01 20:16:39 granger Exp $ */
+/* $Id: defs.h,v 2.16 1993-08-26 20:13:24 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -107,6 +107,8 @@ void	TC_EncodeTime FP ((const ZebTime *, TimePrintFormat, char *));
 void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 		int *, int *));
 void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
+
+int     FindFile FP ((char *, char *, char *));
 
 /*
  * Some macros for the new time format.

@@ -1,7 +1,7 @@
 /*
  * Set up configuration variables so that they are available at the UI level.
  */
-static char *rcsid = "$Id: ConfigVars.c,v 1.2 1993-03-18 18:32:10 corbet Exp $";
+static char *rcsid = "$Id: ConfigVars.c,v 1.3 1993-08-26 20:13:17 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -65,12 +65,13 @@ InitDirVariables ()
 		sprintf (Libdir, "%s/lib", envbase);
 	}
 /*
- * Try to figure out a project directory.
+ * Try to figure out a project directory.  If they haven't given anything
+ * explicit, just take the current directory and hope for the best.
  */
 	if (envbase = getenv ("ZEB_PROJECT"))
 		sprintf (Projdir, "%s/%s", Basedir, envbase);
 	else
-		strcpy (Projdir, Libdir);	/* Probably useless */
+		strcpy (Projdir, ".");
 	done = TRUE;
 }
 
@@ -96,6 +97,8 @@ SetupConfigVariables ()
 	usy_s_symbol (vtable, "c$libdir", SYMT_STRING, &v);
 	v.us_v_ptr = Bindir;
 	usy_s_symbol (vtable, "c$bindir", SYMT_STRING, &v);
+	v.us_v_ptr = Projdir;
+	usy_s_symbol (vtable, "c$projdir", SYMT_STRING, &v);
 /*
  * Data dir is separate.  RDSS doesn't change, I don't think.
  */
