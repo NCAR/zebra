@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.19 1996-02-05 17:58:56 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.20 1996-02-05 23:22:38 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -69,6 +69,9 @@ XCOMM --- Auto-binary distribution
 #endif /* ndef HasHDF */
 #define HDFIncDir /usr/local/include/hdf
 #define HDFLibDir /usr/local/lib
+#ifdef AutoBinary
+# define HDFLibrary HDFLibDir/libdf.a
+#endif
 
 /*
  * Map projections are installed on all our machines, but only GCC and 
@@ -85,6 +88,9 @@ XCOMM --- Auto-binary distribution
 #if MapProjections
 # define ProjLibDir /usr/local/lib
 # define ProjIncDir /usr/local/include
+# ifdef AutoBinary
+#  define ProjLibrary ProjLibDir/libproj.a
+# endif
 #endif
 
 /*
@@ -233,6 +239,9 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 #endif
 #define NetCDFLibDir /usr/local/lib
 #define NetCDFIncDir /usr/local/include
+#ifdef AutoBinary
+# define NetCDFLibrary NetCDFLibDir/libnetcdf.a
+#endif
 
 XCOMM --- Deciding FORTRAN library paths
 
@@ -253,7 +262,8 @@ XCOMM --- Deciding FORTRAN library paths
 #   else
 #    define FortranLibraries /usr/lang/SC2.0.1/libF77.a \
       /usr/lang/SC2.0.1/libV77.a /usr/lang/SC2.0.1/libM77.a \
-      /usr/lang/SC2.0.1/libansi.a /usr/lang/SC2.0.1/values-Xa.o
+      /usr/lang/SC2.0.1/libm.a /usr/lang/SC2.0.1/libansi.a \
+      /usr/lang/SC2.0.1/values-Xa.o
 #   endif
 /* SunOS 4 with acc and FORTRAN SC2.x */
 /* # define FortranLibraries -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi */
@@ -262,7 +272,8 @@ XCOMM --- Deciding FORTRAN library paths
 #    define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
 #   else
 #    define FortranLibraries \
-      /usr/lang/SC1.0.1/libF77.a /usr/lang/SC1.0.1/libV77.a
+      /usr/lang/SC1.0.1/libF77.a /usr/lang/SC1.0.1/libV77.a \
+      /usr/lang/SC1.0.1/libm.a
 #   endif
 #  endif /* FortMajorVersion */
 # else /* Solaris, C2 and C3.0. */
@@ -309,5 +320,16 @@ XCOMM --- Deciding FORTRAN library paths
 #ifdef LinuxArchitecture
 # define TermcapLibrary -lncurses
 #endif
+
+#if defined(SunArchitecture) && defined(AutoBinary)
+# define MathLibrary /usr/lib/libm.a
+# define TermcapLibrary /usr/lib/libtermcap.a
+# ifndef RegexpLibrary
+#  if SystemV || SystemV4
+#     define RegexpLibrary /usr/lib/libgen.a
+#  endif
+# endif
+#endif
+
 
 XCOMM --- Finished with Build.tmpl
