@@ -1,3 +1,4 @@
+/* -*- c -*- */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -15,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.10 2001-01-17 20:29:49 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.11 2001-01-17 23:22:47 granger Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -107,6 +108,9 @@ DAP = dap
 #if BuildPamIngest
 PAM = pam
 #endif
+#if BuildDataUtilities
+DATAUTIL = datautil
+#endif
 
 #ifdef notdef		/* ----------------------------------------------
 			 * These directories are ignored since they
@@ -138,7 +142,7 @@ SUBDIRS = mcidas $(IS) $(CLASS) $(RADAR) $(SLGRABBER) $(NOWRAD) $(PROFS) \
 	  $(RAP_DATA_SERVER) $(WETNET) $(AIRCRAFT) $(FM) $(LLP) \
 	  $(P3COMPOSITE) $(TOGAST) $(ST_INGEST) $(TAO) $(GMSISCCP) \
 	  $(SSMI) $(TRMM_RAIN) $(TRMM_SONDE) $(FEST_P3_C130) $(PRECIP) \
-	  $(DAP)
+	  $(DAP) $(DATAUTIL)
 
 DISTFILES = Imakefile
 
@@ -151,96 +155,9 @@ DISTSUBDIRS = mcidas is radar class nowrad SLGrabber satellite profs is tao \
 	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
 	      dap
 
-DistfilesTarget($(DISTFILES))
+all::
 
 StandardSubdirTargets()
 
-/*
- * Omission notices.  This might get verbal, but for testing and feedback
- * it will probably be very useful.
- */
-#if !BuildIngestScheduler
-OmitBuildRules(ingest scheduler)
-#endif
-#if !BuildClassIngest
-OmitBuildRules(CLASS ingest)
-#endif
-#if !BuildRadarIngest
-OmitBuildRules(radar ingest)
-#endif
-#if !BuildSLGrabber
-OmitBuildRules(serial line grabber)
-#endif
-#if !BuildNowradIngest
-OmitBuildRules(NOWRAD ingest)
-#endif
-#if !BuildProfsIngest
-OmitBuildRules(profs ingest)
-#endif
-#if !BuildSatelliteIngest
-OmitBuildRules(satellite ingest)
-#endif
-#if !BuildRAPDataServerIngest
-OmitBuildRules(RAP data server)
-#endif
-#if !BuildWetnetIngest
-OmitBuildRules(WETNET ingest)
-#endif
-#if !BuildP3Composite
-OmitBuildRules(P3 composite ingest)
-#endif
-#if !BuildTOGASlowTape
-OmitBuildRules(TOGA slow tape)
-#endif
-#if !BuildSlowTapeIngest
-OmitBuildRules(slow tape ingest)
-#endif
-#if !BuildTAOIngest
-OmitBuildRules(TAO ingest)
-#endif
-#if !Build_GMS_ISCCP
-OmitBuildRules(GMS ISCCP ingest)
-#endif
-#if !Build_TRMM_SSMI
-OmitBuildRules(TRMM SSMI ingest)
-#endif
-#if !Build_TRMM_Rain
-OmitBuildRules(TRMM raingauge ingest)
-#endif
-#if !Build_TRMM_Sonde
-OmitBuildRules(TRMM sonde ingest)
-#endif
-#if !Build_FEST_P3_C130
-OmitBuildRules(StormFEST P3 and C130 ingest)
-#endif
-#if !BuildPrecipIngest
-OmitBuildRules(PrecipIngest)
-#endif
-#if !BuildDAPIngest
-OmitBuildRules(DAP ingest)
-#endif
-#if !BuildPamIngest
-OmitBuildRules(PAM ingest)
-#endif
+DistfilesTarget($(DISTFILES))
 
-
-#ifdef notdef	/* ---- Directories not presently being distributed ----- */
-#if !BuildRadarLimits
-OmitBuildRules(radar limits)
-#endif
-#if !BuildNatsIngest
-OmitBuildRules(nats ingest)
-#endif
-#if !BuildP3Ingest
-OmitBuildRules(P3 ingest)
-#endif
-#if !BuildAircraftIngest
-OmitBuildRules(aircraft ingest)
-#endif
-#if !BuildFMIngest
-OmitBuildRules(field mill ingest)
-#endif
-#if !BuildLLPIngest
-OmitBuildRules(llp ingest)
-#endif
-#endif		/* ------------------------------------------------------ */
