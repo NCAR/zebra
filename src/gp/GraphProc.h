@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.5 1991-10-30 23:21:38 kris Exp $ */
+/* $Id: GraphProc.h,v 2.6 1991-11-13 22:03:24 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -81,6 +81,12 @@ extern float	Alt;		/* CAP plot altitude			*/
 enum wstate { UP, DOWN };
 extern enum wstate WindowState;
 
+/*
+ * A couple of variables for passing event locationns out of UserEvent.  You
+ * should only use these if your are sure you're being called as a result
+ * of a user event -- preferably a pointer event -- or they may fool you.
+ */
+extern int	Event_X, Event_Y;
 /*
  * Window specific stuff.  We protect it in an ifdef so that not all the
  * code has to include all those files.

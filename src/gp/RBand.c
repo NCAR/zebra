@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.2 1991-11-13 22:03:24 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -178,8 +178,12 @@ struct ui_command *cmds;
 /*
  * Figure out where the pointer is now -- that's our anchor.
  */
+# ifdef notdef
 	XQueryPointer (Disp, XtWindow (Graphics), &wjunk, &wjunk, &rx, &ry,
 		&RBandX0, &RBandY0, (unsigned int *) &mask);
+# endif
+	RBandX0 = Event_X;
+	RBandY0 = Event_Y;
 	msg_ELog (EF_DEBUG, "Initial pt at %d %d (%.2f %.2f)", RBandX0,
 		RBandY0, XUSER (RBandX0), YUSER (RBandY0));
 	msg_ELog (EF_DEBUG, "	(Win is (%2.f %.2f) to (%.2f %.2f))", Xlo, Ylo,
@@ -204,7 +208,7 @@ rb_MakeGC ()
  */
 {
 	XGCValues gcv;
-	int fg;
+	int fg, lwidth;
 /*
  * Figure out which value to use for XORing.  For monochrome, use 1;
  * otherwise we look in the PD.
@@ -219,12 +223,19 @@ rb_MakeGC ()
 		gcv.foreground = fg;
 	}
 /*
+ * Maybe make the lines fatter.
+ */
+	if (! pda_Search (Pd, "global", "xor-line-width", NULL,
+			(char *) &lwidth, SYMT_INT))
+		lwidth = 3;
+	gcv.line_width = lwidth;
+/*
  * Fill in the rest of the stuff, and get our GC.
  */
 	gcv.function = GXxor;
 	gcv.subwindow_mode = IncludeInferiors;
 	RBandGC = XCreateGC (Disp, XtWindow (Graphics),
-		GCFunction | GCForeground | GCSubwindowMode, &gcv);
+		GCLineWidth | GCFunction | GCForeground | GCSubwindowMode, &gcv);
 }
 
 

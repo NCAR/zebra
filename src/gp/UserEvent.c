@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.2 1991-11-13 22:03:24 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -232,7 +232,15 @@ char *data;
  */
 {
 	struct dm_event dme;
-
+	XButtonEvent *button = (XButtonEvent *) event;
+/*
+ * Stash aside the location of this event.
+ */
+	Event_X = button->x;
+	Event_Y = button->y;
+/*
+ * Then execute the command.
+ */
 	ui_perform (data);
 }
 

@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.9 1991-11-04 17:51:58 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.10 1991-11-13 22:03:24 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -84,6 +84,7 @@ stbl	Vtable;				/* The variable table		*/
 plot_description	Pd = 0;		/* Current plot description	*/
 plot_description	Defaults = 0;	/* Plot description info	*/
 time	PlotTime;			/* The current plot time.	*/
+int	Event_X, Event_Y;		/* Button event locations	*/
 enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
 bool	MovieMode = FALSE;
