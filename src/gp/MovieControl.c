@@ -46,7 +46,7 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.31 2001-01-16 22:27:36 granger Exp $")
+RCSID ("$Id: MovieControl.c,v 2.32 2001-06-19 22:23:54 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		60	/* Length of a field string		*/
@@ -928,17 +928,21 @@ mc_MovieStop ()
 	ds_CancelNotify();
 	tl_AllCancel();
 /*
- * Throw the system into history mode, showing the current frame.
+ * Throw the system into history mode, showing the current frame, if any.
  */
-	if (CurrentFrame >= Nframes)
-		CurrentFrame = Nframes - 1;
 	MovieMode = FALSE;
 	MyMovie = FALSE;
-	PlotMode = History;
-	PlotTime = Mtimes[CurrentFrame];
-	pd_Store(Pd, "global", "plot-time", (char *) &PlotTime, SYMT_DATE);
-	pd_Store (Pd, "global", "plot-mode", "history", SYMT_STRING);
 	pd_Store (Pd, "global", "movie-mode", (char *) &MovieMode, SYMT_BOOL);
+
+	if (Nframes > 0)
+	{
+	    if (CurrentFrame >= Nframes)
+		CurrentFrame = Nframes - 1;
+	    PlotMode = History;
+	    PlotTime = Mtimes[CurrentFrame];
+	    pd_Store(Pd, "global", "plot-time", (char *) &PlotTime, SYMT_DATE);
+	    pd_Store(Pd, "global", "plot-mode", "history", SYMT_STRING);
+	}
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
 }
 
@@ -1087,7 +1091,7 @@ int frame;
  * Set the indicator to show that we're on this frame.
  */
 {
-	if (Indicator)
+	if (Indicator && (Nframes > 0))
 	{
 		float width = 1.0/Nframes;
 
