@@ -13,19 +13,29 @@ the image bytes into temperatures.  The source for both of the ingest
 programs, as well as the 'areadump' utility described in the next section,
 resides in zeb/src/ingest/satellite.
 
-The satellite ingest programs operate with a UI command file, which gives the
-ingest program important parameters such as the latitude of the origin at
-which the images will be displayed, the resolution of the kilometer grid,
-and the names of the MCIDAS area files to ingest.  Following are examples of
-typical command file commands.
+The satellite ingest programs operate with a UI command file, which gives
+the ingest program important parameters such as the latitude of the origin
+at which the images will be displayed, the resolution of the kilometer
+grid, and the names of the MCIDAS area files to ingest.  Given a command
+file named 'goesvis.cmd', 'SatIngest' executes the command file whose file
+name is specified on the command line.
+
+	host% SatIngest goevis.cmd
+
+The command file can have any name, but only one command file name is
+allowed on the SatIngest command line.  The various commands allowed in the
+command file are described below.
+
+Satellite Command Files
+-----------------------
 
 Essentially, the satellite ingest programs work by navigating satellite
 image cells, which are stored as line/element pairs in the area file, into
 squares of a regularly-spaced kilometer grid.  The program must be told
 where on the earth the grid is located and the size of the grid cells.
 This information is specified in a UI command file using special commands.
-For example, the covered by the ingested image is specified by the limits
-command, which takes four arguments.
+For example, the region covered by the ingested image is specified by the
+limits command, which takes four arguments.
 
 	limits <south lat> <west lon> <north lat> <east lon>
 
