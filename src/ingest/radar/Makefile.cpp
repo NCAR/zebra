@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 22:39:49 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.4 1991-11-22 15:50:27 kris Exp $"
 
 # include "../../include/config.h"
 
@@ -23,8 +23,8 @@ MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 22:39:49 corbet Exp $"
 /*
  * Sun options
  */
-CC=gcc
-CFLAGS=  -g -O -I$(FCCINC) -I$(RDSSINC)
+CC=CCompiler
+CFLAGS= CCOptions -I$(FCCINC) -I$(RDSSINC)
 LIBS=ZebLibrary -lnetcdf -lrdss -lXaw -lXmu -lXt -lXext -lX11 -ltermcap -lm
 # endif
 
