@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.1 1991-08-07 20:13:11 corbet Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -193,10 +193,6 @@ pc_PlotHandler ()
 	}
 	else
 		tl_GetTime (&PlotTime);
-/*
- * Arrange for AcWidget notifications.
- */
-	tr_InitNot ();
 /*
  * Force a replot if the window is visible.
  */
