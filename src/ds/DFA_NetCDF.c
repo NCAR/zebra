@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.53 1996-03-12 06:49:52 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.54 1996-09-05 17:44:19 granger Exp $")
 
 #include <netcdf.h>
 
@@ -1582,14 +1582,16 @@ NCTag *tag;
  * Synchronize this file.
  */
 {
+#ifdef notdef
 /*
  * If buffering is still enabled, we need to turn it off now.
  */
 	if (tag->nc_buffered)
 	{
-		ncnobuf (tag->nc_id);
+		/* ncnobuf (tag->nc_id); */   /* never did anything anyway */
 		tag->nc_buffered = FALSE;
 	}
+#endif
 /*
  * Update to the file itself, then reload the times array.
  */
@@ -3732,7 +3734,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.53 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.54 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
