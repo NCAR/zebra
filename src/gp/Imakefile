@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.26 1995-08-08 04:28:19 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.27 1995-09-11 22:24:56 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -58,18 +58,13 @@ INCLUDES = $(PROJINCLUDES)
    ALLOCA=
 # endif
 
+# ifdef FObjDir
+FOBJDIR = FObjDir
+# else
+FOBJDIR = .
+# endif
 
-OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
-	PlotExec.o UserEvent.o Contour.o FillContour.o \
-	DrawText.o RasterPlot.o VectorGrid.o derive.o \
-	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
-	FrameCache.o MovieControl.o rgrid.o bints.o cfit.o AltControl.o \
-	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
-	ConstAltPlot.o Utilities.o DataMenu.o $(ALLOCA) \
-	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
-	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
-	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
-	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o
+FOBJS = $(FOBJDIR)/rgrid.o $(FOBJDIR)/bints.o $(FOBJDIR)/cfit.o
 
 COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	PlotExec.o UserEvent.o Contour.o FillContour.o \
@@ -82,6 +77,10 @@ COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
 	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
 	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o
+
+OBJS =	$(COBJS) $(FOBJS)
+
+FSRCS = cfit.F mudras.f rgrid.F bints.f
 
 SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
@@ -99,10 +98,6 @@ HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \
 	PlotPrim.h XYCommon.h ContourP.h derive.h getpagesize.h \
 	gp_cmds.h rg_status.h rgrid.h
-
-FSRCS = cfit.F mudras.f rgrid.F bints.f
-
-FOBJS = cfit.o /*mudras.o*/ rgrid.o bints.o
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
@@ -122,11 +117,4 @@ DependTarget()
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
-
-fortran.o: $(FOBJS)
-	$(LD) -r -Bstatic -o fortran.o $(FOBJS)
-
-C_GP_LIBRARIES = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBREGEXP) fortran.o $(FLIBS)
-
-TestProgramTarget(c_gp,$(COBJS),$(DEPLIBS),$(C_GP_LIBRARIES),/**/)
 
