@@ -22,6 +22,7 @@
 
 # include <sys/types.h>
 # include <math.h>
+# include <ctype.h>
 # include <errno.h>
 # include <fcntl.h>
 # include <unistd.h>
@@ -39,7 +40,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.46 1999-10-21 20:51:34 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.47 2001-08-09 23:55:20 burghart Exp $")
 
 
 /*
@@ -476,17 +477,12 @@ static Regular Regular2 =
  */
 typedef struct s_PolarStereo
 {
-	float	phi1;	  /* latitude of center of projection (radians) */
+	char	pole;	  /* 'N' or 'S' */
 	float	lambda0;  /* longitude of center of projection (radians) */
-	float	scale;	  /* grid spacing (km) at latitude of true scale */
+	float	scale;	  /* grid spacing (km) at scale_lat */
+	float	scale_lat;/* latitude (radians) at which 'scale' is measured */
 	float	ipole;	  /* i grid index of north pole (C indexing) */
 	float	jpole;	  /* j grid index of north pole (C indexing) */
-/*
- * Applying the formulas to the north pole (phi = pi/2, lambda = 0)
- * yields the following x and y.
- */
-	float	xpole;
-	float	ypole;
 } PolarStereo;
 
 
@@ -498,13 +494,12 @@ static PolarStereo Transform27 =
  * in Fortran terms, or (32,32) here in the C world.
  */
 {
-	/* phi1 */ 	1.047197551,	/* 60.0 deg. north */
-	/* lambda0 */ 	-1.396263402,	/* 80.0 deg. west */
+	/* pole */	'N',
+	/* lambda0 */ 	DEG_TO_RAD(-80.0),	/* 80.0 deg. west */
 	/* scale */	381,
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
 	/* ipole */	32,
 	/* jpole */	32,
-	/* xpole */	0.0,
-	/* ypole */	3412.31689
 };
 
 static PolarStereo Transform36 =
@@ -515,13 +510,12 @@ static PolarStereo Transform36 =
  * in Fortran terms, or (18,41) here in the C world.
  */
 {
-	/* phi1 */	1.047197551,	/* 60.0 deg. north */
-	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-105.0),	/* 105.0 deg. west */
 	/* scale */	190.5,
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
 	/* ipole */	18,
 	/* jpole */	41,
-	/* xpole */	0.0,
-	/* ypole */	3412.31689
 };
 
 static PolarStereo Transform87 =
@@ -532,13 +526,12 @@ static PolarStereo Transform87 =
  * where the origin of the grid is (0,0).
  */
 {
-	/* phi1 */	0.6981317,	/* 40.0 deg. north */
-	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
-	/* scale */	60.0,		/* 60 km at 40N	   */
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-105.0),	/* 105.0 deg. west */
+	/* scale */	60.0,			/* 60 km at 40N	   */
+	/* scale_lat */	DEG_TO_RAD(40.0),	/* 40.0 deg. north */
 	/* ipole */	30.91,
 	/* jpole */	111.53,
-	/* xpole */	0.0,
-	/* ypole */	5938.4
 };
 
 static PolarStereo Transform104 =
@@ -550,13 +543,12 @@ static PolarStereo Transform104 =
  * world.
  */
 {
-	/* phi1 */	1.047197551,	/* 60.0 deg. north */
-	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
-	/* scale */	90.75464,	/* ~90 km at 60 N */
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-105.0),	/* 105.0 deg. west */
+	/* scale */	90.75464,		/* ~90 km at 60 N */
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
 	/* ipole */	74.5,
 	/* jpole */	108.5,
-	/* xpole */	0.0,
-	/* ypole */	3412.31689
 };
 
 
@@ -569,13 +561,12 @@ static PolarStereo Transform105 =
  * (40.5, 88.5), in Fortran terms, or (39.5, 87.5) here in the C world.
  */
 {
-	/* phi1 */	1.047197551,	/* 60.0 deg. north */
-	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
-	/* scale */	90.75464,	/* ~90 km at 60 N */
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-105.0),	/* 105.0 deg. west */
+    	/* scale */	90.75464,		/* ~90 km at 60 N */
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
 	/* ipole */	39.5,
 	/* jpole */	87.5,
-	/* xpole */	0.0,
-	/* ypole */	3412.31689
 };
 
 static PolarStereo Transform150 =
@@ -585,13 +576,54 @@ static PolarStereo Transform150 =
  * 60 N.
  */
 {
-	/* phi1 */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
+	/* pole */	'N',
 	/* lambda0 */	DEG_TO_RAD(-105.0),	/* 105.0 deg. west */
 	/* scale */	7.573,			/* km at 60 N */
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
 	/* ipole */	-61.43,
 	/* jpole */	825.36,
-	/* xpole */	0.0,
-	/* ypole */	3412.31689
+};
+
+
+static PolarStereo Transform213 =
+/*
+ * GRIB grid type 213: (129x85) US National - CONUS - Double resolution
+ */
+{
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-141.028),	/* 141.028 W */
+	/* scale */	95.25,
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60 N (?) */
+	/* ipole */	64.00,
+	/* jpole */	88.00,
+};
+
+
+static PolarStereo Transform214 =
+/*
+ * GRIB grid type 214: (97x69) Regional - Alaska - Double resolution
+ */
+{
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-175.641),	/* 175.641 W */
+	/* scale */	47.625,
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60 N (?) */
+	/* ipole */	48.00,
+	/* jpole */	100.00,
+};
+
+
+static PolarStereo Transform217 =
+/*
+ * GRIB grid type 217: (277x213) AWIPS Grid over Alaska - double resolution
+ */
+{
+	/* pole */	'N',
+	/* lambda0 */	DEG_TO_RAD(-173.0),	/* 173.0 W */
+	/* scale */	22.50,
+	/* scale_lat */	DEG_TO_RAD(60.0),	/* 60.0 N (?) */
+	/* ipole */	187.818,
+	/* jpole */	240.397,
 };
 
 
@@ -690,6 +722,26 @@ static GRB_TypeInfo GRB_Types[] =
 	{ 150, 73, 73, NULL, NULL, 
 		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 73, 73, 
 		  34.0, -101.0, 0.1, 0.1, NULL, NULL, &Transform150 },
+	/*
+	 * 213: (129x85) US National - CONUS - Double resolution
+	 */
+	{ 213, 129, 85, NULL, NULL, 
+	  grb_PolarStereoIndex, grb_PolarStereoLatLon, 221, 111, 
+	  20.0, -170.0, 0.5, 0.5, NULL, NULL, &Transform213 },
+
+	/*
+	 * 214: (97x69) Regional - Alaska - Double resolution
+	 */
+	{ 214, 97, 69, NULL, NULL, 
+	  grb_PolarStereoIndex, grb_PolarStereoLatLon, 81, 71, 
+	  40.0, -170.0, 0.5, 0.5, NULL, NULL, &Transform214 },
+
+	/*
+	 * 217: (277x213) AWIPS Grid over Alaska - double resolution
+	 */
+	{ 213, 277, 213, NULL, NULL, 
+	  grb_PolarStereoIndex, grb_PolarStereoLatLon, 401, 301, 
+	  32.0, -180.0, 0.2, 0.4, NULL, NULL, &Transform217 },
 };
 
 int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
@@ -2320,30 +2372,33 @@ float	*ifloat, *jfloat;
  * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
  * Professional Paper 1395.  Parameter names, members of the PolarStereo
  * structure, have been chosen to correspond to those used in the book, and
- * equation numbers from the book are referenced in the comments.  k0, the
- * central scale factor, is taken as 1. 
+ * equation numbers from the book are referenced in the comments.
  */
 {
 	PolarStereo *ps = (PolarStereo *) gg->gg_transform;
-	float	x, y, k, phi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
+	float	x, y, phi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
+	float sign = (toupper(ps->pole) == 'N') ? 1.0 : -1.0;
 /*
- * Formula 21-4
+ * Invert formula 21-7/21-11 to get k0.  (Our given scale factor is 1/k
+ * at scale_lat)
  */
-	k = 2 / (1 + sin (ps->phi1) * sin (phi) + 
-		 cos (ps->phi1) * cos (phi) * cos (lambda - ps->lambda0));
-
+	float k0 = (1 + sign * sin (ps->scale_lat)) / (2 * ps->scale);
 /*
- * Formulas 21-2 and 21-3
+ * Formula 21-8/21-12
  */
-	x = R_Earth * k * cos (phi) * sin (lambda - ps->lambda0);
-	y = R_Earth * k * (cos (ps->phi1) * sin (phi) - 
-		 sin (ps->phi1) * cos (phi) * cos (lambda - ps->lambda0));
+	float rho = 2 * R_Earth * k0 * tan (0.25 * M_PI - sign * 0.5 * phi);
 /*
- * Now turn x and y into grid coordinates based on the north pole, which is
- * the only reference point for which we have grid coordinates.
+ * Formulas 21-5 and 21-6 (using rho)
  */
-	*ifloat = ps->ipole + (x - ps->xpole) / ps->scale;
-	*jfloat = ps->jpole + (y - ps->ypole) / ps->scale;
+	float dlon = lambda - ps->lambda0;
+	x = rho * sin (dlon);
+	y = -rho * cos (dlon);
+/*
+ * Now turn x and y into grid coordinates based on the grid coordinates
+ * of the pole
+ */
+	*ifloat = ps->ipole + x;
+	*jfloat = ps->jpole + y;
 }
 
 
@@ -2366,27 +2421,30 @@ float	*lat, *lon;
 {
 	PolarStereo *ps = (PolarStereo *) gg->gg_transform;
 	float	x, y, rho, c, phi, lambda;
+	float sign = (toupper(ps->pole) == 'N') ? 1.0 : -1.0;
 /*
- * First turn our indices into x and y in km.
+ * Invert formula 21-7/21-11 to get k0.  (Our given scale factor is 1/k
+ * at scale_lat)
  */
-	x = (ps->scale * (idouble - ps->ipole)) + ps->xpole;
-	y = (ps->scale * (jdouble - ps->jpole)) + ps->ypole;
+	float k0 = (1 + sign * sin (ps->scale_lat)) / (2 * ps->scale);
+/*
+ * First turn our indices into scaled x and y
+ */
+	x = idouble - ps->ipole;
+	y = jdouble - ps->jpole;
 /*
  * Formulas 20-18 and 21-15
  */
 	rho = hypot (x, y);
-	c = 2 * atan ((double)(rho / (2 * R_Earth)));
+	c = 2 * atan2 (rho, 2 * R_Earth * k0);
 /*
- * Formula 20-15
+ * Formula 20-16/20-17
  */
-	lambda = ps->lambda0 + atan (x * sin (c) / 
-				     (rho * cos (ps->phi1) * 
-				      cos (c) - y * sin (ps->phi1) * sin (c)));
+	lambda = ps->lambda0 + atan2 (x, -1 * sign * y);
 /*
- * Formula 20-14
+ * Formula 20-14 (simplified for phi1 = pi/2)
  */
-	phi = asin (cos (c) * sin (ps->phi1) + 
-		    (y * sin (c) * cos (ps->phi1) / rho));
+	phi = asin (cos (c));
 /*
  * Now convert to degrees and we're done
  */
@@ -2938,14 +2996,12 @@ GFgds	*gds;
 	  case 3:
 	    grbinfo = grb_LambertGridInfo ((GDSLambertConformal*) gds);
 	    break;
-# ifdef notdef
 	/*
 	 * Polar stereographic grid
 	 */
 	  case 5:
 	    grbinfo = grb_PStereoGridInfo ((GDSPolarStereo*) gds);
 	    break;
-# endif
 	  default:
 	    msg_ELog (EF_PROBLEM, 
 		      "grb_GridTypeInfo: Cannot unpack GDS of type %d",
@@ -3072,6 +3128,9 @@ GDSPolarStereo *gds;
 {
 	GRB_TypeInfo *grbinfo;
 	PolarStereo *transform;
+	int snx, sny;
+	float lat1, lon1, ifloat1, jfloat1, latcenter, loncenter;
+	float latstep, lonstep;
 /*
  * Allocate a GRB_TypeInfo structure
  */
@@ -3084,32 +3143,58 @@ GDSPolarStereo *gds;
 /*
  * Source grid size comes straight from the GDS
  */
-	grbinfo->gg_snx = grb_TwoByteInt (gds->gd_nx);
-	grbinfo->gg_sny = grb_TwoByteInt (gds->gd_ny);
+	snx = grb_TwoByteInt (gds->gd_nx);
+	grbinfo->gg_snx = snx;
+	sny = grb_TwoByteInt (gds->gd_ny);
+	grbinfo->gg_sny = sny;
 /*
  * The big arrays are allocated and built later, if we actually end up
  * unpacking a grid of this type.
  */
 	grbinfo->gg_slatang = grbinfo->gg_slonang = NULL;
 	grbinfo->gg_dsi = grbinfo->gg_dsj = NULL;
-
-/* The rest is in progress... */
-# ifdef notdef
 /*
  * Allocate and build our transform structure
  */
 	transform = (PolarStereo*) malloc (sizeof (PolarStereo));
 
-	transform.phi1 = DEG_TO_RAD (60.0); /* implied in documentation... */
-	transform.lambda0 = grb_ThreeByteSignInt (&gds->gd_lov) * 0.001;
-	transform.scale = ??;
-	transform.ipole = ??;
-	transform.jpole = ??;
-	transform.xpole = ??;
-	transform.ypole = ??;
+	transform->pole = (gds->gd_pole == 0) ? 'N' : 'S';
+	transform->lambda0 = DEG_TO_RAD(grb_ThreeByteSignInt (gds->gd_lov) * 
+					0.001);
+	transform->scale = grb_ThreeByteSignInt (gds->gd_dx) * 0.001;
+	transform->scale_lat = DEG_TO_RAD (60.0); /* implied in doc... */
 
 	grbinfo->gg_transform = (void*) transform;
-# endif
+/*
+ * Use a the first point lat/lon to calculate the pole indices
+ */
+	lat1 = grb_ThreeByteSignInt (gds->gd_lat1) * 0.001;
+	lon1 = grb_ThreeByteSignInt (gds->gd_lon1) * 0.001;
+	
+	transform->ipole = 0.0;
+	transform->jpole = 0.0;
+
+	grb_PolarStereoIndex (grbinfo, lat1, lon1, &ifloat1, &jfloat1);
+
+	transform->ipole = -ifloat1;
+	transform->jpole = -jfloat1;
+/*
+ * Define the destination grid info.
+ */
+	grbinfo->gg_dnx = 1.5 * snx;
+	grbinfo->gg_dny = 1.5 * sny;
+
+	grb_PolarStereoLatLon (grbinfo, (double)(snx / 2), (double)(sny / 2), 
+			       &latcenter, &loncenter);
+
+	latstep = RAD_TO_DEG(transform->scale / R_Earth);
+	lonstep = latstep / cos (DEG_TO_RAD(latcenter));
+	
+	grbinfo->gg_dlat = latcenter - snx / 2 * latstep;
+	grbinfo->gg_dlatstep = latstep;
+
+	grbinfo->gg_dlon = loncenter - sny / 2 * lonstep;
+	grbinfo->gg_dlonstep = lonstep;
 /*
  * Done
  */
