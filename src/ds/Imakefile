@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.37 1996-01-23 20:00:50 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.38 1996-02-02 17:58:06 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -108,6 +108,15 @@ CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
 #ifdef notdef
 NSOBJS = nstest.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (nstest, $(NSOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
+	# setopt ansi
+	# load $(ALLDEFINES) nstest.c  $(DSLIBSRCS) $(DCSRCS) \
+		$(DEPLIBS) $(LIBS) $(SYS_LIBRARIES)  \
+		$(EXTRA_LIBRARIES)   $(CLIBS)
+	# link
+
+CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 #endif
 
 #if HasHDF
@@ -116,17 +125,6 @@ TestProgramTarget (hdflook, hdflook.o, /**/, $(LIBHDF), /**/)
 
 APOBJS = apple.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-
-#ifdef notdef
-cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
-	# setopt ansi
-	# load $(ALLDEFINES) nstest.c  $(DSLIBSRCS) $(DCSRCS) \
-		$(DEPLIBS) $(LIBS) $(SYS_LIBRARIES)  \
-		$(EXTRA_LIBRARIES)   $(CLIBS)
-	# link
-#endif
-
-CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 
 ALOBJS = aline.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
@@ -156,7 +154,7 @@ ALINE = aline -nconsumers 4 $(DEBUG_FLAG) -period 4 -inventory $(INVENTORY)
 DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
 APPLE = apple $(DEBUG_FLAG)
 
-test:: test.aline.only test.apple.only test.close
+test:: test.session test.aline.only test.apple.only test.close
 
 test.aline: test.aline.only test.close
 
@@ -237,6 +235,9 @@ test.close: $(BINDIR)/zstop
 	TEST_ENV
 	echo "Ending zebra test session..."; \
 	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET
+
+clean::
+	$(RM) $(SOCKET)
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
