@@ -7,6 +7,12 @@
 # the "p3" platform, you should be executing a copy this script 
 # named "platwatch.p3".
 #
+if (! $?ZEB_TOPDIR) then
+    echo "ZEB_TOPDIR must be set!"
+    exit 1
+endif
+
+setenv PATH "$ZEB_TOPDIR/bin:$PATH"
 
 if ($#argv != 2) then
     echo "Usage: $0 <dir> <frequency>"
@@ -64,8 +70,9 @@ unalias cd
 while (1)
     cd $dir >/dev/null
     foreach file (`find . -newer $testfile -print`)
-	if ($file == ".") continue;
-	dsrescan -file $file $plat >& /dev/null
+	# Ignore "." and files ending in ".part" or ".tmp"
+	if ($file == "." || $file:e == "part" || $file:e == "tmp") continue;
+	dsrescan -file $file:t $plat >& /dev/null
     end
     touch $testfile
     sleep $sleep
