@@ -71,11 +71,14 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 
 #ifdef AfterVendorCF
 /*
+ * 2002/04/11 cb
+ *
  * Remove default -O2 optimization from Linux compiles, since optimization
  * does weird things to large raster displays of terrain data.  Why?
  * Nobody knows...
  */
 #ifdef LinuxArchitecture
+# undef OptimizedCDebugFlags
 # define OptimizedCDebugFlags    -march=i486
 #endif
 
