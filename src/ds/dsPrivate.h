@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.1 1992-05-27 17:24:03 corbet Exp $
+ * $Id: dsPrivate.h,v 3.2 1992-06-09 19:23:49 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -31,6 +31,7 @@ typedef enum {
 	FTBoundary = 1,
 	FTRaster = 2,
 	FTCmpRaster = 3,
+	FTZeb = 4,
 	/* ... */
 } FileType;
 
@@ -168,6 +169,7 @@ enum dsp_Types
 	dpt_DataGone,			/* Data deletion announcement	*/
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
 	dpt_MarkArchived,		/* Mark a file as archived	*/
+	dpt_R_UpdateAck,		/* Acknowledge a file update	*/
 /*
  * Cross-machine broadcast notifications.
  */
