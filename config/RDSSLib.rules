@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: RDSSLib.rules,v 1.3 1994-01-04 20:47:53 case Exp $
+XCOMM $Id: RDSSLib.rules,v 1.4 1994-03-17 18:40:46 case Exp $
 XCOMM
 XCOMM Rules specific to the RDSS Libraries project, including some which
 XCOMM override definitions in Imake.rules
@@ -333,7 +333,7 @@ install.lib:: objects						@@\
 #define InstallObjectsIntoLibrary1(library,objects,libname)	@@\
 								@@\
 install:: objects						@@\
-        $(ARADD) library objects				@@\
+	$(ARADD) library objects				@@\
 	$(RANLIB) library					@@\
 								@@\
 install.lib:: objects						@@\
