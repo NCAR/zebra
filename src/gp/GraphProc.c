@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 2.1 1991-07-30 16:11:12 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.2 1991-09-12 19:33:43 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -8,6 +8,7 @@ static char *rcsid = "$Id: GraphProc.c,v 2.1 1991-07-30 16:11:12 kris Exp $";
 # include <X11/cursorfont.h>
 # include <ui.h>
 # include <fcntl.h>
+# include <config.h>
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -434,13 +435,14 @@ struct ui_command *cmds;
 	   case GPC_ALTSTEP:
 	   	alt_Step (UINT (cmds[1]));
 		break;
-
+# if C_CAP_OVERLAY
 	/*
 	 * Predefined features.
 	 */
 	   case GPC_FEATURE:
 	   	ov_Feature (cmds + 1);
 		break;
+# endif
 	/*
 	 * Movie control.
 	 */
