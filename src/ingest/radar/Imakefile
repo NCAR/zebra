@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.20 1996-12-10 21:27:04 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.21 1998-02-27 16:59:51 burghart Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -53,37 +53,31 @@ ROBJS = radar_ingest.o mtape.o Rasterize.o \
 
 RLIBS = $(LIBS) $(LIBPCAP)
 
-AllTarget(radar_ingest)
-NormalProgramTarget(radar_ingest,$(ROBJS),$(DEPLIBS),$(RLIBS),$(SYSLIBS))
+CccProgramTarget(radar_ingest,$(ROBJS),$(DEPLIBS),$(RLIBS),$(SYSLIBS))
 
-NormalProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-AllTarget(RadarStatus)
-NormalProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 AROBJS = adrad_ingest.o Rasterize.o adradInput.o
 
-AllTarget(adrad_ingest)
-NormalProgramTarget(adrad_ingest,$(AROBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(adrad_ingest,$(AROBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 AFLOBJS = adradFieldList.o adradInput.o
 
-CompleteProgramTarget(adradFieldList,$(AFLOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(adradFieldList,$(AFLOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UFOBJS = UFIngest.o Rasterize.o UFInput.o
 
-AllTarget(UFIngest)
-NormalProgramTarget(UFIngest,$(UFOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(UFIngest,$(UFOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-AllTarget(ds_consumer)
-NormalProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 RGOBJS = RGridConsumer.o
 
-AllTarget(RGridConsumer)
-NormalProgramTarget(RGridConsumer,$(RGOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(RGridConsumer,$(RGOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
 
