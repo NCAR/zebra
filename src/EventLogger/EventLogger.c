@@ -20,6 +20,7 @@
  */
 
 # include <stdio.h>
+# include <errno.h>
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Shell.h>
@@ -37,7 +38,7 @@
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.13 1992-11-09 18:04:45 burghart Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.14 1993-03-19 22:22:42 burghart Exp $")
 
 
 
@@ -73,7 +74,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.13 1992-11-09 18:04:45 burghart Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.14 1993-03-19 22:22:42 burghart Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -168,7 +169,8 @@ char **argv;
 		Log_file = fopen (fname, "w");
 
 		if (! Log_file)
-			printf ("Error %d opening log file '%s'\n", fname);
+			printf ("Error %d opening log file '%s'\n", errno, 
+				fname);
 	}
 /*
  * Get the event mask, if any
