@@ -1,5 +1,5 @@
 /*
- * $Id: glass_ingest.cxx,v 2.1 1999-07-10 01:15:35 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.2 1999-07-12 20:12:57 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -53,13 +53,14 @@
 #include <defs.h>
 #include <message.h>
 #include <timer.h>
-#include "DataStore.h"
+#include <DataStore.h>
 extern "C" 
 {
-#include "ingest.h"
+#include <ingest.h>
+#include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.1 1999-07-10 01:15:35 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.2 1999-07-12 20:12:57 granger Exp $")
 
 #include "ZTime.hh"
 #include "FieldClass.h"
@@ -128,7 +129,7 @@ extern const char *FT_VWind;	// Bug in Field.h left this out
 DefineField(F_tdelta, "tdelta", "", "s", "time since launch")
 DefineField(F_pres, "pres", FT_Pres, "hPa", "pressure")
 DefineField(F_temp, "temp", FT_Temp, "degC", "temperature")
-DefineField(F_dp, "dp", FT_DP, "degC", "dewpoint")
+DefineField(F_dewpoint, "dp", FT_DP, "degC", "dewpoint")
 DefineField(F_rh, "rh", FT_RH, "%", "relative humidity")
 DefineField(F_u, "u_wind", FT_UWind, "m/s", "u wind component")
 DefineField(F_v, "v_wind", FT_VWind, "m/s", "v wind component")
@@ -158,7 +159,7 @@ struct ClassFileRecord
 	F_tdelta tdelta;
 	F_pres pres;
 	F_temp temp;
-	F_dp dp;
+	F_dewpoint dp;
 	F_rh rh;
 	F_u u;
 	F_v v;
@@ -273,6 +274,8 @@ struct Sounding
 	}
 
 	F_REDIRECT(pres)
+	F_REDIRECT(temp)
+	F_REDIRECT(rh)
 	F_REDIRECT(tdelta)		
 	F_REDIRECT(lat)		
 	F_REDIRECT(lon)		
@@ -539,6 +542,8 @@ GlassIngest (int argc, char *argv[])
 	// Collect the record fields into a list for the datachunk setup.
 	CollectFields cf (&nfields, fields);
 	snd.enumerate (cf);
+	// Add the dewpoint field which we'll derive
+	fields[nfields++] = F_dewpoint::fieldId();
 	dc_SetScalarFields(Dchunk, nfields, fields);
 	IngestLog(EF_DEBUG,"%d scalar fields set in datachunk",nfields);
 	dc_SetBadval(Dchunk, BADVAL);
@@ -1458,6 +1463,22 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		AddRecord estore(dc, when, sample);
 		snd.enumerate (estore);
 		dc_SetLoc (dc, sample, &loc);
+
+/* From Chris Burghart:
+
+   From relative humidity (%) and temperature (K!), you can get to
+   dewpoint (also K) using two functions:
+
+   dp = dewpoint (0.01 * rh * e_sw (t)); */
+
+		F_dewpoint dp = BADVAL;
+		if (snd.rh() != BADVAL && snd.temp() != BADVAL)
+		{
+			dp = dewpoint (0.01 * snd.rh() * 
+				       e_sw(snd.temp() + 273.15));
+			dp -= 273.15;
+		}
+		dc_AddScalar (dc, &when, sample, dp.fieldId(), &dp.value());
 
 #ifdef notdef
 		cout << when << endl;

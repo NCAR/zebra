@@ -15,22 +15,26 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.12 1998-03-25 22:50:39 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.13 1999-07-12 20:12:57 granger Exp $"
 
-LIBS = $(LIBSUDS) $(DFALIBS) $(LIBZEB) $(LIBRDSSGRAPH) $(LIBRDSS) $(XLIBS)
-DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+CLIBS = $(LIBSUDS) $(DFALIBS) $(LIBZEBRA) $(LIBRDSSGRAPH) $(LIBRDSS) $(XLIBS)
+GLIBS = $(DFALIBS) $(ZLIBS) 
+DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA)
 
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
+.cxx.o:
+	$(CXX) $(CXXFLAGS) $(DEFINES) -c $<
 
 LINTOPTS = -nuvxz
 
-SRCS = class_ingest.c
-OBJS = class_ingest.o
+SRCS = class_ingest.c glass_ingest.cxx
+OBJS = class_ingest.o glass_ingest.o
 
 DISTFILES = class_ingest.c Imakefile
 
-CccProgramTarget(class_ingest, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(class_ingest,class_ingest.o,$(DEPLIBS),$(CLIBS),$(SYSLIBS))
+CccProgramTarget(glass_ingest,glass_ingest.o,$(DEPLIBS),$(GLIBS),$(SYSLIBS))
 
 DependTarget()
 LintTarget()
