@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_token.h,v 1.1 1989-02-08 13:28:22 corbet Exp $ */
+/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_token.h,v 1.2 1989-03-16 15:56:05 corbet Exp $ */
 /*
  * Included info for the tokenizer.
  */
@@ -39,5 +39,66 @@ struct token
 # define TF_NOECHO	0x01	/* This token should not be echoed.	*/
 # define TF_REPL	0x02	/* Replacement input -- sym/cmd subst	*/
 # define TF_INCR	0x04	/* Increment token group -- kludge	*/
+
+/*
+ * The token context type.
+ */
+/*
+ * This information describes a context for a particular tokenization.
+ */
+# define MAXTGRP	100	/* Max number of token groups	*/
+struct token_context
+{
+	char tc_iline[MAXLINE];	/* The actual input line */
+	char tc_rline[MAXLINE];	/* The real line	*/
+	int tc_iindex, tc_rindex; /* Indices into both lines */
+	unsigned short tc_iflags[MAXLINE];	/* Flags for Iline	*/
+	char tc_symbuf[MAXLINE];	/* Symbol buffer.	*/
+	int tc_sindex;
+	int tc_rstart;		/* Start of current token in Rline	*/
+	int tc_iprompt;		/* Where the prompt ends.	*/
+	bool tc_rdiff;		/* TRUE if rline is different from iline */
+	bool tc_dumped;		/* TRUE if lines have been dumped.	*/
+	bool tc_do_sub;		/* Do we perform substitutions?	*/
+	int tc_target;		/* Where input is going.	*/
+	int tc_saved_state;	/* Previous state			*/
+	int tc_t_state;		/* The actual tokenizer state 		*/
+	/*
+	 * Token group accounting.
+	 * A "token group" is a concept used to relate one or more "real line"
+	 * tokens to a single input line token.
+	 */
+	int tc_tgroup;			/* Current token group number	*/
+	int tc_rgroups[MAXTGRP];	/* Group pointers into Rline	*/
+	bool tc_in_line;		/* Are we in a line?		*/
+};
+typedef struct token_context *Tcontext;
+
+/*
+ * Function declarations.
+ */
+# ifdef __STDC__
+	void ut_zap_token (Tcontext);
+	void ut_finish_line (Tcontext, int);
+	void ut_begin (Tcontext, char *, int);
+	void ut_tok_repl (Tcontext, char *);
+	int ut_put_msg (char *, int);
+	void ut_reset (Tcontext);
+	void ut_get_token (Tcontext, struct token *);
+	void ut_continue (Tcontext);
+	void ut_complete (Tcontext, char *);
+	void ut_int_string (Tcontext, char *, struct token *);
+# else
+	void ut_zap_token ();
+	void ut_finish_line ();
+	void ut_begin ();
+	void ut_tok_repl ();
+	int ut_put_msg ();
+	void ut_reset ();
+	void ut_get_token ();
+	void ut_continue ();
+	void ut_complete ();
+	void ut_int_string ();
+# endif
 
 # endif
