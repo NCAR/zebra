@@ -22,7 +22,7 @@
 # include "defs.h"
 # include <sys/types.h>
 # include <sys/time.h>
-MAKE_RCSID ("$Id: TCvt.c,v 2.4 1992-03-31 23:53:21 burghart Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.5 1992-04-23 22:20:04 barrett Exp $");
 
 
 /*
@@ -208,7 +208,7 @@ int *year, *month, *day, *hour, *minute, *second, *microsec;
 	struct tm *t = gmtime (&zt->zt_Sec);
 
 	if (year)	*year = t->tm_year;
-	if (month)	*month = t->tm_mon;
+	if (month)	*month = t->tm_mon+1;
 	if (day)	*day = t->tm_mday;
 	if (hour)	*hour = t->tm_hour;
 	if (minute)	*minute = t->tm_min;
