@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.linux,v 1.2 2003-03-13 16:42:28 burghart Exp $
+XCOMM $Id: config.h.linux,v 1.3 2003-03-13 18:22:38 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -399,7 +399,7 @@ XCOMM -----------------------------------------------------------------------
  */
 # define MapProjections YES
 # define ProjLibDir /usr/local/lib
-# define ProjIncDir /usr/local/include
+/* # define ProjIncDir /usr/local/include */
 	
 /*
  * Examples of command-line options which override the above definitions
