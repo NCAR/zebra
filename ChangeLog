@@ -1,3 +1,10 @@
+Mon May  8 13:26:57 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* display manager: defaults to singleton mode (-single); -multiple
+	  option exists to force multiple mode.  The first display manager
+	  in a session can run -single (the usual case), and additional ones
+	  must use -multiple.
+
 Thu Apr 27 08:55:32 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* time widget: menu for deleting times and controlling windows
