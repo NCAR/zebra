@@ -443,10 +443,93 @@ T_ReverseRemoval (test_tree &tree)
 
 
 
+
+int
+T_Traversal (test_tree &tree)
+{
+	// Build an ordered vector of keys by traversing the tree forwards.
+	vector<test_tree::key_type> keys;
+	vector<test_tree::key_type>::iterator iv;
+	test_tree::key_type key;
+	int err = 0;
+
+	tree.First ();
+	//cout << "Traversal keys: ";
+	while (tree.Current (&key))
+	{
+		//cout << key << " ";
+		keys.push_back (key);
+		tree.Next ();
+	}
+	//cout << endl;
+
+	// Now do the same traversal backwards, and make sure we get the
+	// same keys coming the other direction.
+	tree.Last ();
+	iv = keys.end();
+	while (iv != keys.begin() && tree.Current (&key))
+	{
+		--iv;
+		if (*iv != key)
+		{
+			cout << "***** Traversal backwards: expected key "
+			     << *iv << ", got key " << key << endl;
+			++err;
+		}
+		tree.Prev ();
+	}
+	if (iv != keys.begin() || tree.Current())
+	{
+		++err;
+		cout << "***** Traversal backwards: did not exhaust tree"
+		     << endl;
+	}
+	
+	// Now traverse forwards in increments of 1/10 the size.
+	iv = keys.begin();
+	int step = keys.size() / 10 + 1;
+	cout << " ...stepping forward by " << step << ": ";
+	tree.First ();
+	while (tree.Next (step, &key))
+	{
+		cout << key << " ";
+		iv += step;
+		if (*iv != key)
+		{
+			cout << "***** Traversal error: expected key "
+			     << *iv << ", got key " << key << endl;
+			++err;
+		}
+	}
+	cout << endl;
+	
+	// Now traverse backwards in increments of 1/13 the size.
+	iv = keys.end() - 1;
+	step = keys.size() / 13 + 1;
+	cout << " ...stepping backwards by " << step << ": ";
+	tree.Last ();
+	while (tree.Prev (step, &key))
+	{
+		cout << key << " ";
+		iv -= step;
+		if (*iv != key)
+		{
+			cout << "***** Traversal error: expected key "
+			     << *iv << ", got key " << key << endl;
+			++err;
+		}
+	}
+	cout << endl;
+	return err;
+}
+
+
+
+
 int
 TestTree (test_tree &tree, int N)
 {
-	// Put a tree through its paces
+	// Put a tree through its paces.  Check() it after major operations.
 
 	int err = 0;
 	vector<test_key> keys(N);
@@ -459,24 +542,30 @@ TestTree (test_tree &tree, int N)
 	cout << "Sequential insert... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
 	err += T_Insert (tree, keys, keys);
+	err += tree.Check ();
+	err += T_Traversal (tree);
 
 	// Ordered removal
 	cout << "Forward removal... " << endl;
 	err += T_Removal (tree, keys);
+	err += tree.Check ();
 
 	// Insert the sequential keys and values and test.
 	cout << "Sequential insert... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
 	err += T_Insert (tree, keys, keys);
+	err += tree.Check ();
 
 	// Reverse removal
 	cout << "Reverse removal... " << endl;
 	err += T_ReverseRemoval (tree);
+	err += tree.Check ();
 
 	// Insert the sequential keys and values and test.
 	cout << "Sequential test and erase... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
 	err += T_Insert (tree, keys, keys);
+	err += tree.Check ();
 	tree.Erase ();
 	if (! tree.Empty())
 	{
@@ -498,16 +587,22 @@ TestTree (test_tree &tree, int N)
 	cout << "Reverse insert... "
 	     << *keys.begin() << " to " << keys.back() << endl;
 	err += T_Insert (tree, keys, keys);
+	err += tree.Check ();
+
+	// Test traversal
+	err += T_Traversal (tree);
 
 	// Random overwrites, new values
 	cout << "Random overwrites... " << endl;
 	vector<test_key> values = keys;
 	random_shuffle (keys.begin(), keys.end(), rnd);
 	err += T_Insert (tree, keys, values);
+	err += tree.Check ();
 
 	// Random removal
 	cout << "Random removal... " << endl;
 	err += T_RandomRemoval (tree);
+	err += tree.Check ();
 
 	// Do the above tests a few times with randomly inserted keys
 	for (int i = 0; i < 3; ++i)
@@ -517,8 +612,10 @@ TestTree (test_tree &tree, int N)
 
 		cout << "Random insertions... " << i+1 << endl;
 		err += T_Insert (tree, keys, keys);
+		err += tree.Check ();
 		cout << "Random removal...... " << i+1 << endl;
 		err += T_RandomRemoval (tree);
+		err += tree.Check ();
 	}
 
 	return err;
