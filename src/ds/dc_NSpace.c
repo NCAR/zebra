@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.12 1995-04-17 22:37:37 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.13 1995-06-09 16:00:58 granger Exp $")
 #endif
 
 /*
@@ -744,7 +744,7 @@ dc_NSGetField (dc, field, ndims, names, sizes, is_static)
 	NSpaceInfo *info;
 	NSpaceFldInfo *finfo;
 	NSpaceDimInfo *dinfo;
-	int i;
+	unsigned short i;
 
 	if (! IsNSpace(dc,"NSGetField"))
 		return (0);
@@ -935,7 +935,7 @@ dc_NSGetVariable (dc, field, ndims, dims, is_static)
 	NSpaceInfo *info;
 	NSpaceFldInfo *finfo;
 	NSpaceDimInfo *dinfo;
-	int i;
+	unsigned short i;
 
 	if (! IsNSpace(dc,"NSGetVariable"))
 		return FALSE;
@@ -1371,7 +1371,8 @@ NSDump (dc)
 	NSpaceInfo *info;
 	NSpaceFldInfo *finfo;
 	NSpaceDimInfo *dinfo;
-	int i,j;
+	unsigned short j;
+	int i;
 
 	if (! IsNSpace(dc,"NSDump"))
 		return;
@@ -1495,7 +1496,7 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 	 * As names which are too long will get trunc'ed, we need to 
 	 * use the trunc'ed name to search for a duplicate.
 	 */
-	if (strlen(name) >= DC_MaxDimName)
+	if (strlen(name) >= (unsigned) DC_MaxDimName)
 		msg_ELog (EF_PROBLEM, 
 			  "%s: dimn name '%s' longer than %i, truncated",
 			  routine, name, (DC_MaxDimName - 1));
@@ -1795,7 +1796,8 @@ SetFieldSizes (info, finfo, dinfo, routine)
  * each of its dimensions.
  */
 {
-	int i, j;
+	int i;
+	unsigned short j;
 	unsigned long size;
 
 	for (i = 0; i < info->ns_NField; ++i)	/* field loop */

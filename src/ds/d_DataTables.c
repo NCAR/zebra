@@ -30,7 +30,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.17 1995-02-10 01:01:04 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.18 1995-06-09 16:00:54 granger Exp $")
 
 
 /*
@@ -1375,7 +1375,7 @@ char *op;	       	/* optional operation for error message */
 {
 	int max = 0;
 
-	if (strlen(src) >= maxlen)
+	if (strlen(src) >= (unsigned) maxlen)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "%s%sstring '%s' too long",

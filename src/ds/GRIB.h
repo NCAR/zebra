@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.1 1995-04-17 22:33:08 granger Exp $
+ * $Id: GRIB.h,v 3.2 1995-06-09 16:00:49 granger Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -154,11 +154,11 @@ static const double R_Earth = 6367.47;
 # define DEG_TO_RAD(x)	((x) * 0.017453292)
 # define RAD_TO_DEG(x)	((x) * 57.29577951)
 
-extern int grb_FindRecord FP ((int fd, char *buf));
+extern int grb_FindRecord FP ((int fd, unsigned char *buf));
 extern char *grb_GDSRepName FP ((GFgds *gds));
-extern int grb_TwoByteInt FP ((char *));
-extern int grb_ThreeByteInt FP ((char *));
-extern int grb_ThreeByteSignInt FP ((char *));
+extern int grb_TwoByteInt FP ((unsigned char *));
+extern int grb_ThreeByteInt FP ((unsigned char *));
+extern int grb_ThreeByteSignInt FP ((unsigned char *));
 extern int grb_ReadGDS FP ((int fd, GFgds *gds_ret, int ng));
 extern void grb_ReferenceTime FP ((GFpds *pds, ZebTime *zt));
 extern int grb_Offset FP ((GFpds *));

@@ -27,7 +27,7 @@
 # include "DataChunk.h"
 # include "DataChunkP.h"
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.18 1995-06-08 21:27:03 burghart Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.19 1995-06-09 16:01:01 granger Exp $")
 
 /*
  * TODO:
@@ -252,7 +252,8 @@ bool decrease;
 	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
 				(int *) 0)))
 		return;
-	if (nsample >= 0 && (decrease || (nsample > tp->at_HintNSample)))
+	if (nsample >= 0 && 
+	    (decrease || ((unsigned short) nsample > tp->at_HintNSample)))
 		tp->at_HintNSample = nsample;
 }
 
@@ -323,7 +324,8 @@ bool decrease;
 				(int *) 0)))
 		return;
 	if (nsample > 0 && 
-	    (decrease || (tp->at_HintNSample < tp->at_NSample + nsample)))
+	    (decrease || (tp->at_HintNSample < 
+			  tp->at_NSample + (unsigned) nsample)))
 		tp->at_HintNSample = tp->at_NSample + nsample;
 }
 
@@ -417,9 +419,9 @@ DataChunk *dc;
 AuxTrans *tp;
 int nnew;
 {
-	if (tp->at_HintNSample > tp->at_NSample + nnew)
+	if (tp->at_HintNSample > (unsigned short) (tp->at_NSample + nnew))
 		return (tp->at_HintNSample);
-	else if (tp->at_NSampAlloc > tp->at_NSample + nnew)
+	else if (tp->at_NSampAlloc > (unsigned short) (tp->at_NSample + nnew))
 		return (tp->at_NSampAlloc);
 	else
 		return (tp->at_NSample + nnew);
@@ -491,7 +493,7 @@ Location *loc;
 /*
  * The sample has to exist first.
  */
-	if ((begin < 0) || (begin + nsamp > tp->at_NSample))
+	if ((begin < 0) || (begin + nsamp > (unsigned) tp->at_NSample))
 	{
 		msg_ELog (EF_PROBLEM, "Try to set loc on sample %d of %d",
 			  begin, tp->at_NSample);
@@ -565,7 +567,7 @@ char *method;
 			  MaxSamples);
 		return (NULL);
 	}
-	else if ((float)tp->at_NSample >= 0.99 * MaxSamples)
+	else if ((float)tp->at_NSample >= 0.99 * (float)MaxSamples)
 	{
 		msg_ELog (EF_INFO,
 		  "%s: samples 99%% full, %d samples of maximum %hu", 
@@ -574,7 +576,7 @@ char *method;
 /*
  * If our chunk lacks space for another sample, add it now.
  */
-	if (tp->at_NSample + 1 > tp->at_NSampAlloc)
+	if ((unsigned) tp->at_NSample + 1 > (unsigned) tp->at_NSampAlloc)
 		tp = dc_TrMoreSamples (dc, tp, 1);
 /*
  * The rest is specific to the method that called us.
@@ -593,7 +595,8 @@ int len;
 {
 	int reserve, avg;
 
-	reserve = (len > tp->at_HintSampSize) ? len : tp->at_HintSampSize;
+	reserve = (len > (unsigned) tp->at_HintSampSize) ? 
+		len : tp->at_HintSampSize;
 	if (tp->at_HintUseAvgs)
 	{
 		avg = dc_AvgSampleSize (dc, tp);
@@ -869,7 +872,7 @@ int subsample;
 		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
 		return ;
 	}
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "SetSubSample: No sample %d in datachunk", sample);
@@ -880,7 +883,7 @@ int subsample;
 		msg_ELog (EF_PROBLEM, "SetSubSample: no sub-samples defined!");
 		return ;
 	}
-	if (subsample < 0 || subsample >= tp->at_NSubSample)
+	if (subsample < 0 || subsample >= (unsigned) tp->at_NSubSample)
 	{
 		msg_ELog (EF_PROBLEM, 
 		  "SetSubSample: sub-sample %d out of range", subsample);
@@ -938,7 +941,7 @@ ZebTime *when;
 		msg_ELog (EF_PROBLEM, "GetSubSample: No sub-samples defined");
 		return (0);
 	}
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "GetSubSample: No sample %d in datachunk", sample);
@@ -1077,7 +1080,7 @@ int n;
  * If we have a hint greater than the current number of samples, use it
  * to determine the new number.  Otherwise, rely on the growth function.
  */
-	if (tp->at_HintNSample >= tp->at_NSampAlloc + n)
+	if ((unsigned) tp->at_HintNSample >= tp->at_NSampAlloc + n)
 		nnew = tp->at_HintNSample;
 	else
 		nnew = tp->at_NSampAlloc + 2*n;
@@ -1175,7 +1178,7 @@ AuxTrans *tp;
 	if (tp->at_NSample > 0)
 	{
 		first = tp->at_Samples[0].ats_Offset;
-		avg = (tp->at_NextOffset - first) / tp->at_NSample;
+		avg = (tp->at_NextOffset - first) / (unsigned) tp->at_NSample;
 	}
 	return (avg);
 }
@@ -1329,7 +1332,7 @@ ZebTime *t;
 /*
  * Make sure the sample exists.  If so, return the info.
  */
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 		return (FALSE);
 	*t = tp->at_Samples[sample].ats_Time;
 	return (TRUE);
@@ -1370,7 +1373,7 @@ int sample, *len;
 /*
  * Make sure the sample exists.  If so, return the info.
  */
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 		return (NULL);
 	if (len)
 		*len = tp->at_Samples[sample].ats_Len;
@@ -1418,7 +1421,7 @@ DataChunk *dc;
 {
 	AuxTrans *tp;
 	PlatformId *list;
-	int i;
+	unsigned short i;
 	struct sortrecord {
 		TransSample trans;
 		PlatformId pid;
@@ -1496,7 +1499,7 @@ DataChunk *dc;
  */
 {
 	AuxTrans *tp;
-	int i;
+	unsigned short i;
 	char atime[40];
 	PlatformId *list;
 /*
@@ -1746,7 +1749,7 @@ Location *loc;
 /*
  * For sample-indexed locations, make sure the sample is not bogus.
  */
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 	{
 		msg_ELog (EF_PROBLEM, "Try to getLoc on sample %d of %d",
 			sample, tp->at_NSample);
@@ -1772,7 +1775,8 @@ int sample, newsize;
  */
 {
 	AuxTrans *tp;
-	int i, diff, oldlen;
+	unsigned short i;
+	int diff, oldlen;
 	TransSample *ts;
 	int next_sample;
 /*
@@ -1792,7 +1796,7 @@ int sample, newsize;
 /*
  * Make sure the sample exists.
  */
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 	{
 		msg_ELog (EF_PROBLEM, "Adjust on nonexistent sample %d",
 				sample);
@@ -1815,7 +1819,7 @@ int sample, newsize;
  * would begin if it existed: NextOffset).  If we do, all we have to do is
  * adjust our length.
  */
-	next_sample = ((sample + 1) < tp->at_NSample) ? 
+	next_sample = ((sample + 1) < (unsigned) tp->at_NSample) ? 
 		tp->at_Samples[sample + 1].ats_Offset : tp->at_NextOffset;
 	if (ts->ats_Offset + newsize <= next_sample)
 	{
@@ -1830,7 +1834,7 @@ int sample, newsize;
  */
 	diff = newsize - ts->ats_Len;
 	oldlen = dc_TrMoreData (dc, tp, diff);
-	if ((sample + 1) < tp->at_NSample)
+	if ((sample + 1) < (unsigned) tp->at_NSample)
 	{
 #ifdef SVR4
 		memcpy ((char *) dc->dc_Data + ts[1].ats_Offset + diff,
@@ -1882,7 +1886,8 @@ int size;
  * Store our parameters as hints for future reference, esp the sample size, but
  * only if they are nonzero.  Don't let nsample hint become smaller.
  */
-	if ((nsample > 0) && (tp->at_NSample + nsample > tp->at_HintNSample))
+	if ((nsample > 0) && 
+	    (tp->at_NSample + nsample > (unsigned) tp->at_HintNSample))
 		tp->at_HintNSample = tp->at_NSample + nsample;
 	if (size > 0)
 	{

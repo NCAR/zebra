@@ -33,7 +33,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.1 1995-04-17 22:33:06 granger Exp $")
+RCSID ("$Id: GRIB.c,v 3.2 1995-06-09 16:00:46 granger Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -56,7 +56,7 @@ static int grb_Level FP ((GFpds *pds, int sfc_only, AltUnitType *units,
 
 int
 grb_TwoByteInt (buf)
-char	*buf;
+unsigned char	*buf;
 /*
  * Extract the first two bytes of buf into an int and return it.
  */
@@ -72,7 +72,7 @@ char	*buf;
 
 int
 grb_ThreeByteInt (buf)
-char	*buf;
+unsigned char	*buf;
 /*
  * Extract the first three bytes of buf into an int and return it.
  */
@@ -88,7 +88,7 @@ char	*buf;
 
 int
 grb_ThreeByteSignInt (buf)
-char	*buf;
+unsigned char	*buf;
 /*
  * Extract the first three bytes of buf into an int and return it.
  */
@@ -135,7 +135,7 @@ GFgds *gds;
 int
 grb_FindRecord (fd, buf)
 int fd;
-char *buf;
+unsigned char *buf;
 /*
  * Look for the 'GRIB' string which starts a GRIB record.  Return -1 if we
  * couldn't find it, 0 on end of file, otherwise return the number of bytes
@@ -146,20 +146,20 @@ char *buf;
 {
 	int fill, nread;
 	int status;
-	char *c;
+	unsigned char *c;
 
 	if ((status = read (fd, buf, 4)) != 4)
 		return (status);
 	nread = 4;
 	while (nread < 256)
 	{
-		if (strncmp (buf, "GRIB", 4) == 0)
+		if (strncmp ((char *)buf, "GRIB", 4) == 0)
 			return (nread);
 		/*
 		 * If there's a 'G' here somewhere it may be the beginning 
 		 * of a string which was cut off.
 		 */
-		c = (char *) memchr (buf, (int) 'G', 4);
+		c = (unsigned char *) memchr (buf, (int) 'G', 4);
 		if (c && (c > buf))
 		{
 			memcpy (buf, c, buf + 4 - c);
@@ -187,12 +187,12 @@ int ng;		/* number of this grid, for reference */
  * following the GDS.
  */
 {
-	char buf[16];
-	char *gds;
+	unsigned char buf[16];
+	unsigned char *gds;
 	int gds_len;
 	int status;
 
-	gds = (gds_ret) ? (char *)gds_ret : buf;
+	gds = (gds_ret) ? (unsigned char *) gds_ret : buf;
 	if (read (fd, gds, 4)  < 4)
 	{
 		msg_ELog (EF_INFO, "Missing GDS at grid %d", ng + 1);

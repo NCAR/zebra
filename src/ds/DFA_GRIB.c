@@ -38,7 +38,7 @@
 # include "dfa.h"
 # include "GRIB.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.20 1995-04-17 22:33:03 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.21 1995-06-09 16:00:31 granger Exp $")
 
 
 /*
@@ -546,7 +546,7 @@ int	*nsample;
  * Fast QueryTime, assuming there's only one time in the file.
  */
 	int	fd, len, ednum;
-	char	buf[8];
+	unsigned char buf[8];
 	GFpds	pds;
 /*
  * Open the file
@@ -1608,7 +1608,7 @@ GFTag	*tag;
 	int	fd = tag->gt_fd;
 	int	len, pds_len, bms_len, bds_len;
 	int	status, ng, ncopy, ednum, bds_pos;
-	char	buf[64];
+	unsigned char buf[64];
 	GFpds	*pds;
 	GFgds	*gds = 0;
 /*
@@ -1769,7 +1769,7 @@ GFTag	*tag;
 			break;
 		}
 		
-		if (strncmp (buf, "7777", 4))
+		if (strncmp ((char *) buf, "7777", 4))
 		{
 			msg_ELog (EF_EMERGENCY, 
 				  "Bad GRIB trailer '%4s' at grid %d",
@@ -2719,7 +2719,7 @@ float	*grid;
 	sign = (bds_hdr->ref_top & 0x80) ? -1 : 1;
 
 	exponent = 4 * (bds_hdr->ref_top & 0x7F) - 280;
-	mantissa = grb_ThreeByteInt (&(bds_hdr->ref_mant));
+	mantissa = grb_ThreeByteInt ((unsigned char *)&(bds_hdr->ref_mant));
 
 	ref = sign * mantissa * pow (2.0, (double) exponent);
 /*

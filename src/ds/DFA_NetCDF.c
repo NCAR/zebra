@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.47 1995-05-02 21:23:48 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.48 1995-06-09 16:00:39 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -345,7 +345,7 @@ char *name;
 	char target[MAX_NC_NAME+1];
 	char vname[MAX_NC_NAME+1];
 
-	if (strlen(name) > MAX_NC_NAME)	/* can't match if too long */
+	if (strlen(name) > (unsigned)MAX_NC_NAME)/* can't match if too long */
 		return (-1);
 	strcpy (target, name);
 	strtolower (target);
@@ -378,7 +378,7 @@ char *name;
 	char target[MAX_NC_NAME+1];
 	char dname[MAX_NC_NAME+1];
 
-	if (strlen(name) > MAX_NC_NAME)	/* can't match if too long */
+	if (strlen(name) > (unsigned)MAX_NC_NAME) /* can't match if too long */
 		return (-1);
 	strcpy (target, name);
 	strtolower (target);
@@ -767,7 +767,7 @@ char *name;
 	int dimids[MAX_VAR_DIMS];
 	int match = -1;
 
-	if (strlen(name) > MAX_NC_NAME)	/* can't match if too long */
+	if (strlen(name) > (unsigned)MAX_NC_NAME) /* can't match if too long */
 		return (-1);
 	strcpy (target, name);
 	strtolower (target);
@@ -804,7 +804,7 @@ char *name;
 			continue;
 		if (! strncmp (vname, target, strlen(target)))
 			match = varid;
-		else if ((strlen (vname) > strlen (target)) &&
+		else if (((unsigned)strlen (vname) > strlen (target)) &&
 			 ! strcmp (vname+strlen(vname)-strlen(target),
 				   target))
 			match = varid;
@@ -3654,7 +3654,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.47 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.48 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
@@ -4611,7 +4611,7 @@ int len;
 		   default:
 			return("unknown");
 		}
-		if (strlen(buf) + strlen(hold) > BUFSIZE - 5)
+		if (strlen(buf) + strlen(hold) > (unsigned)(BUFSIZE - 5))
 		{
 			strcat(buf, " ...");
 			return(buf);

@@ -63,12 +63,12 @@ static int
 DumpFile (file)
 char *file;
 {
-	static  char *buf = 0;
+	static  unsigned char *buf = 0;
 	static	int buflen = 0;
 	int	fd;
 	int	is_len, grib_len, pds_len;
 	int	status, ng = 0, ncopy;
-	char	is[8], *trailer;
+	unsigned char is[8], *trailer;
 	GFpds	pds;
 	GFgds	*gds = 0;
 	AltUnitType	altunits;
@@ -186,7 +186,7 @@ char *file;
 	 * the GRIB trailer "7777"
 	 */
 		trailer = buf + grib_len - 4;
-		if (strncmp (trailer, "7777", 4))
+		if (strncmp ((char *) trailer, "7777", 4))
 		{
 			fprintf (stderr, "%s: Bad GRIB trailer '%4s'", 
 				 file, trailer);
