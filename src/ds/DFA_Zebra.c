@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.13 1993-05-27 22:25:56 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.14 1993-06-01 15:11:46 corbet Exp $");
 
 
 /*
@@ -1467,6 +1467,10 @@ void *ctag;
 /*
  * Pull in the new header.  If the sizes of tables have changed, we need
  * to reallocate them.
+ *
+ * In retrospect, the use of "realloc" below is probably not the right
+ * way to do this, since all of the arrays get read in completely 
+ * anyway.  Probably we are doing a lot of copying for nothing.
  */
 	zn_GetBlock (tag, 0, hdr, sizeof (zn_Header));
 	nsa = hdr->znh_NSampAlloc;
@@ -1482,13 +1486,16 @@ void *ctag;
 		if (tag->zt_Attr)
 			tag->zt_Attr = (zn_Sample *) realloc (tag->zt_Attr,
 				nsa*sizeof (zn_Sample));
-		else if (hdr->znh_OffAttr)  /* They added attrs! */
-			tag->zt_Attr = (zn_Sample *)
-					malloc (nsa*sizeof (zn_Sample));
 		if (tag->zt_Rg)
 			tag->zt_Rg = (RGrid *) realloc (tag->zt_Rg,
 				nsa*sizeof (RGrid));
 	}
+/*
+ * Check to see if somebody added per-sample attributes when we weren't
+ * looking.
+ */
+	if (! tag->zt_Attr && hdr->znh_OffAttr > 0)
+		tag->zt_Attr = (zn_Sample *) malloc (nsa*sizeof (zn_Sample));
 /*
  * If there are new fields we have other stuff to do.
  */

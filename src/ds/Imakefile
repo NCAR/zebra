@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.10 1993-05-26 19:22:28 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.11 1993-06-01 15:11:50 corbet Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -69,6 +69,13 @@ NormalLibraryTarget (ZebDS, $(DSLIBOBJS) $(DCOBJS))
 InstallLibrary (ZebDS, LibDir)
 
 BuildIncludes(DataStore.h ds_fields.h DataChunk.h,.,.)
+
+/*
+ * Dump routines.
+ */
+NormalProgramTarget (rfdump, rfdump.o, , ,)
+
+NormalProgramTarget (zfdump, zfdump.o,, $(LIBZEB),)
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
