@@ -8,7 +8,7 @@ OBJS = dsnotice.o
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 LIBS = $(DSLIBS) $(LIBZEB) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
-DISTFILES = $(SRCS) Imakefile
+DISTFILES = $(SRCS) Imakefile README
 
 CompleteProgramTarget(dsnotice, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
