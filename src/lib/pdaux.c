@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.2 1990-07-08 13:00:54 corbet Exp $ */
+/* $Id: pdaux.c,v 1.3 1990-09-04 08:39:24 corbet Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -100,18 +100,18 @@ int type;
  * Try the global component.
  */
 	if (qual)
-	{
 		sprintf (qparam, "%s-%s", qual, param);
-		param = qparam;
-	}
-	if (pd_Retrieve (pd, "global", param, dest, type))
+	else
+		strcpy (qparam, param);
+	if (pd_Retrieve (pd, "global", qparam, dest, type))
 		return (TRUE);
 /*
- * If there is a defaults table, try it too.
+ * If there is a defaults table, try it too.  Try both qualified and unqual.
  */
-	if ((defpd = pda_GetPD ("defaults")) &&
+	if (defpd = pda_GetPD ("defaults"))
+		if (pd_Retrieve (defpd, "defaults", qparam, dest, type) ||
 			pd_Retrieve (defpd, "defaults", param, dest, type))
-		return (TRUE);
+			return (TRUE);
 /*
  * Nope.
  */
