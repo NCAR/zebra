@@ -39,7 +39,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h.dist,v 1.1 1994-01-26 10:45:07 granger Exp $
+/**/# $Id: config.h.dist,v 1.2 1994-01-27 02:44:09 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -576,11 +576,7 @@
  */
 #define CFG_NO_BADVALUES
 
-/*
- * If defined, altitude units are not noted in the data file for the altitude
- * field.
- */
-#define CFG_NC_NO_ALT_UNITS
+#define CFG_ALTITUDE_UNITS	"meters above Mean Sea Level"
 
 #define DistributeIngest 	NO
 #define DistributeOptimizer 	NO
@@ -611,6 +607,12 @@
  * If any of these definitions are unreasonable or downright incorrect,
  * you may not be able to compile or run Zeb.
  **************************************************************************/
+
+/*
+ * If defined, the 'alt' field will not be given a 'units' attribute in
+ * netCDF files.
+ */
+/* #define CFG_NC_NO_ALT_UNITS */
 
 /*
  * Various string length limits
