@@ -1,7 +1,7 @@
 /*
  * The message handler.
  */
-/* $Id: message.c,v 1.2 1990-07-08 13:02:12 corbet Exp $ */
+/* $Id: message.c,v 1.3 1990-08-01 17:02:18 corbet Exp $ */
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
@@ -194,8 +194,10 @@ new_un_connection ()
 /*
  * Mark this thing for nonblocking I/O.
  */
+# ifdef notdef
 # ifndef titan
  	ioctl (conn, FIONBIO, &one);
+# endif
 # endif
 /*
  * Put together a greeting and send it out.
@@ -275,7 +277,7 @@ fd_set *fds;
 	/*
 	 * Pull in the message.
 	 */
-		nb = read (fd, &msg, sizeof (struct message));
+		nb = msg_netread (fd, &msg, sizeof (struct message));
 	/*
 	 * If we get nothing, the connection has been broken.
 	 */
@@ -291,7 +293,7 @@ fd_set *fds;
 	 * Pull in the message text.
 	 */
 		msg.m_data = data;
-		read (fd, data, msg.m_len);
+		(void) msg_netread (fd, data, msg.m_len);
 	/*
 	 * Deal with this message.
 	 */
