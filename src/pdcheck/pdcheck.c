@@ -9,11 +9,7 @@
 #include <message.h>
 #include <pd.h>
 
-RCSID ("$Id: pdcheck.c,v 1.1 1995-04-18 22:30:25 granger Exp $")
-
-#ifdef notdef
-void uw_GetFText () {};
-#endif
+RCSID ("$Id: pdcheck.c,v 1.2 1995-05-16 22:04:23 granger Exp $")
 
 int
 main (argc, argv)
@@ -23,16 +19,18 @@ char *argv[];
 	int i;
 	int debug = 0;
 	int err = 0;
+	int test = 0;
 
 	if (argc < 2)
 	{
-		printf ("usage: %s [-debug] pdfile [pdfile ...]\n", argv[0]);
+		printf ("usage: %s [-debug] [-test] pdfile [pdfile ...]\n", 
+			argv[0]);
 		exit (1);
 	}
 
 	usy_init ();
 	msg_connect (0, "pdcheck");
-	msg_ELPrintMask (EF_ALL);
+	msg_ELPrintMask (EF_ALL & ~EF_DEBUG);
 
 	/*
 	 * For each file name on the command line, try to read it into
@@ -44,7 +42,14 @@ char *argv[];
 
 		if (! strcmp(argv[i], "-debug"))
 		{
+			msg_ELPrintMask (EF_ALL);
 			debug = 1;
+			continue;
+		}
+		else if (! strcmp(argv[i], "-test"))
+		{
+			msg_ELPrintMask (EF_PROBLEM | EF_EMERGENCY);
+			test = 1;
 			continue;
 		}
 		msg_ELog (EF_INFO, "%s", argv[i]);
@@ -55,7 +60,7 @@ char *argv[];
 			++err;
 			continue;
 		}
-		if (debug)
+		if (debug || test)
 		{
 			raw_plot_description *rpd;
 			char *data;
