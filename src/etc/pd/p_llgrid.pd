@@ -13,5 +13,5 @@ p_llgrid
 	y-spacing:	15
 	line-width:	0
 	require:	grid, simple-color
-	icon-left-menu:	standard-cap-left-menu
+	icon-left-menu:	minimal-cap-left-menu
 	icon-right-menu:	llgrid-right

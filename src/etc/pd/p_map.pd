@@ -6,6 +6,7 @@ p_map
 	field:		map
 	color:		yellow
 	line-width:	0
+	icon-left-menu:		minimal-cap-left-menu
 	icon-middle-menu:	simple-color
 	icon-right-menu:	linewidth
 	icon:		map
