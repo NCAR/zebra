@@ -15,7 +15,7 @@ AllTarget(LiteClue.o)
 
 TestProgramTarget(LiteClueTest,$(OBJS),/**/,$(XLIBS),/**/)
 
-BuildIncludesTop($(HEADERS))
+BuildIncludes($(HEADERS),,)
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 depend:: $(HEADERS)
