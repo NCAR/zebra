@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.13 1992-07-08 19:16:30 kris Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.14 1992-07-12 02:05:49 granger Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -307,7 +307,12 @@ plot_description pd;
  */
 	pd_ForEachComponent (pd, pd_UnloadComp, (int) rpd);
 	rpd->rp_len = strlen (rpd->rp_data);
-	rpd->rp_data = realloc (rpd->rp_data, rpd->rp_len);
+/*
+ * Be sure to include the null terminator when realloc'ing.  This lets
+ * rp_data be treated as a string, but note that '\0' will be stripped
+ * when sent as message data because it is not included in rp_len
+ */
+	rpd->rp_data = realloc (rpd->rp_data, rpd->rp_len + 1);
 	return (rpd);
 }
 
