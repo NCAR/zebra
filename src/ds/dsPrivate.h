@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.15 1993-08-05 18:17:04 corbet Exp $
+ * $Id: dsPrivate.h,v 3.16 1993-09-02 08:26:09 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -161,7 +161,7 @@ enum dsp_Types
 	 dpt_Notify,			/* Data available		*/
 	dpt_CancelNotify,		/* Cancel notifications		*/
 	 dpt_CancelAck,			/* Acknowledge cancel		*/
-	dpt_DeleteData,			/* DANGER remove data	*/
+	dpt_DeleteData,			/* DANGER remove data		*/
 	dpt_DataGone,			/* 10: Data deletion announcement*/
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
 	dpt_MarkArchived,		/* Mark a file as archived	*/
@@ -190,6 +190,7 @@ enum dsp_Types
 	dpt_FindAfter,			/* Find closest DFE after Time	*/
 	dpt_WriteLock,			/* Write lock a platform	*/
 	dpt_ReleaseWLock,		/* Release write lock		*/
+	dpt_DeleteObs,			/* 35: DANGER remove an observation*/
 };
 # define DSP_FLEN	256		/* File name length		*/
 
@@ -197,7 +198,7 @@ enum dsp_Types
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x930323
+# define DSProtocolVersion	0x930827
 
 /*
  * Create a new data file.
@@ -247,9 +248,9 @@ struct dsp_UpdateFile
  */
 struct dsp_DeleteData
 {
-	enum dsp_Types dsp_type;	/* == dpt_DeleteData		*/
-	PlatformId dsp_plat;		/* Target platform		*/
-	ZebTime dsp_when;		/* Zorch data before this time	*/
+	enum dsp_Types dsp_type;	/* == dpt_DeleteData/dpt_DeleteObs */
+	PlatformId dsp_plat;		/* Target platform		   */
+	ZebTime dsp_when;		/* Zorch obs before/at this time   */
 };
 
 
