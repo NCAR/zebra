@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.20 1992-12-18 21:10:30 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.21 1994-11-09 17:33:51 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -1066,7 +1066,8 @@ struct ui_command *cmds;
  */
 	if (Cs->cs_exec)
 	{
-		if ((Cs->cs_tstr = ui_parse_ftest (Cs->cs_tstr, &v)) == 0)
+		Cs->cs_tstr = ui_parse_ftest (Cs->cs_tstr, &v);
+		if (v.us_v_ptr == (char *) 0)
 			Cs->cs_exec = FALSE;
 		else
 			usy_s_symbol (Ui_variable_table, Cs->cs_cvar,
@@ -1184,7 +1185,7 @@ union usy_value *v;
  * Make sure there is something left.
  */
 	if (! *string)
-		return ((char *) 0);
+		return (v->us_v_ptr = (char *) 0);
 /*
  * Return the current param, and go on to the next.
  */
