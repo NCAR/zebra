@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.6 1993-02-22 21:15:14 corbet Exp $
+ * $Id: dm_vars.h,v 2.7 1993-11-15 21:07:00 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -104,6 +104,7 @@ extern char Cur_config[MAXNAME];
 extern char ConfigDir[200];
 extern char ConfigPD[200];
 extern char ConfigPath[512];
+extern char CTablePath[512];	/* Color tables */
 
 /*
  * The path for executable programs.

@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.36 1993-10-21 20:10:02 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.37 1993-11-15 21:06:54 corbet Exp $")
 
 
 /*
@@ -55,6 +55,8 @@ static Widget Top;
 char ConfigDir[200];	/* Default directory for display configs */
 char ConfigPD[200];	/* Where to save plot descriptions	*/
 char ConfigPath[512];	/* Path to search for display configs */
+char CTablePath[512];	/* Where are the color tables?		*/
+
 
 char ExecPath[ExecPathLen];	/* path for executables */
 int TBSpace = 0;	/* How much to tweak for title bar space. */
@@ -164,6 +166,11 @@ char **argv;
 			ExecPathLen);
 	usy_c_indirect (vtable, "forcehistory", &ForceHistory, SYMT_BOOL, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
+	sprintf (CTablePath, "%s/colortables", GetLibDir ());
+	usy_c_indirect (vtable, "ctablepath", CTablePath, SYMT_STRING, 512);
+/*
+ * Watch for incoming messages.
+ */
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
 
 /*

@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.5 1993-10-21 22:52:59 corbet Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.6 1993-11-15 21:06:57 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -48,15 +48,9 @@ typedef struct color_table
 /*
  * Local stuff.
  */
-# ifdef __STDC__
-	static CTable *dc_LookupTable (char *);
-	static int dc_InTable (CTable *, struct ui_command *);
-	static void dm_TRNak (struct dm_ctr *, char *);
-# else
-	static CTable *dc_LookupTable ();
-	static int dc_InTable ();
-	static void dm_TRNak ();
-# endif
+static CTable *dc_LookupTable FP ((char *));
+static int dc_InTable FP ((CTable *, struct ui_command *));
+static void dm_TRNak FP ((struct dm_ctr *, char *));
 
 
 
@@ -95,6 +89,7 @@ char *name;
 {
 	CTable *ct, *old;
 	union usy_value v;
+	int type;
 /*
  * Get a new color table structure, and begin to fill it in.  Allocate,
  * for now, the maximum possible number of xcolor structures.
@@ -118,8 +113,9 @@ char *name;
  * old version.  Eventually we may want to send out some sort of notification
  * that this table has changed, so that graphics processes can update.
  */
-	if (old = dc_LookupTable (name))
+	if (usy_g_symbol (Ct_table, name, &type, &v))
 	{
+		old = (CTable *) v.us_v_ptr;
 		free (old->ct_colors);
 		free (old);
 	}
@@ -192,11 +188,30 @@ char *name;
 {
 	int type;
 	union usy_value v;
-
-	if (! usy_g_symbol (Ct_table, name, &type, &v))
+	char cmd[120];
+/*
+ * See if we already know about this table.
+ */
+	if (usy_g_symbol (Ct_table, name, &type, &v))
+		return ((CTable *) v.us_v_ptr);
+/*
+ * Nope, try to find a file to load up.
+ */
+	strcpy (cmd, "read ");
+	if (! FindFile (name, CTablePath, cmd + 5))
 		return (NULL);
+	ui_perform (cmd);
+/*
+ * If it's still not there we give up.
+ */
+	if (! usy_g_symbol (Ct_table, name, &type, &v))
+	{
+		msg_ELog (EF_PROBLEM, "CTable %s absent after load", name);
+		return (NULL);
+	}
 	return ((CTable *) v.us_v_ptr);
 }
+
 
 
 
