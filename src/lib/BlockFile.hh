@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.5 1997-12-14 23:50:11 granger Exp $
+ * $Id: BlockFile.hh,v 1.6 1997-12-17 03:47:10 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -10,6 +10,7 @@
 #define _BlockFile_hh_
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <iostream.h>		// to add stream operator to dump header
 
 /* The types of our auxillary blocks, 
@@ -110,8 +111,9 @@ public:
 
 	// ----- File sharing -----
 
-	void Lock (int sync = 1);		// Lock entire file
-	void Unlock (int sync = 1);		// Unlock entire file
+	void ReadLock ();			// Read lock entire file
+	void WriteLock ();			// Write lock entire file
+	void Unlock ();				// Unlock entire file
 
 	void ReadSync ();			// Read sync from file
 	void WriteSync (int force = 0);		// Write sync to file
@@ -142,6 +144,7 @@ private:
 	FILE *fp;	// File pointer of open file (NULL if not open)
 	char *path;	// Path name of current file
 	int lock;	// Lock count
+	int writelock;	// Write sync pending
 
 	/* statistics and debugging */
 	struct
@@ -150,10 +153,6 @@ private:
 		int bread;
 		int nwrite;
 		int bwrite;
-		int nrequest;
-		int brequest;
-		int nfreed;
-		int bfreed;
 	} stats;
 
 	/*

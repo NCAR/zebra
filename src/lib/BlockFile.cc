@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: BlockFile.cc,v 1.4 1997-12-13 00:24:24 granger Exp $");
+RCSID ("$Id: BlockFile.cc,v 1.5 1997-12-17 03:47:08 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -49,6 +49,7 @@ void BlockFile::init ()
 	errno = 0;
 	path = 0;
 	lock = 0;
+	writelock = 0;
 	header = 0;
 	freelist = 0;
 	journal = 0;
@@ -105,6 +106,7 @@ int
 BlockFile::Open (const char *path, unsigned long app_magic = 0, 
 		 int flags = BF_NONE)
 {
+	int create = 0;		// non-zero when we're creating a new file
 	status = COULD_NOT_OPEN;
 
 	log->Debug (Printf("%s file: %s", (flags & BF_CREATE) ? "Creating" :
@@ -115,10 +117,13 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	this->path = (char *) malloc (strlen(path)+1);
 	strcpy (this->path, path);
 
-	Lock ();
+	if ((create = (flags & BF_CREATE)))
+		WriteLock ();
+	else
+		ReadLock ();
 
 	// First try to open a file pointer on the given path
-	fp = fopen (path, (flags & BF_CREATE) ? "w+" : "r+");
+	fp = fopen (path, create ? "w+" : "r+");
 	if (! fp)
 	{
 		this->errno = ::errno;
@@ -135,13 +140,16 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	if (seek_end() > 0)
 	{
 		// Sync with an existing header
+		create = 0;
 		header->readSync ();
 		if (app_magic != 0 && app_magic != header->app_magic)
 			status = WRONG_APP_MAGIC;
 		// But leave the file open...
 	}
-	else	// Creating a new header
+	else
 	{
+		// Creating a new header
+		create = 1;
 		// Pad the header block first to the correct size
 		long len = header->bf_length;
 		char pad[ len ];
@@ -154,23 +162,12 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	freelist = new FreeList (*this, header->freelist, header);
 	journal = new Journal (*this, header->journal, header);
 
-#ifdef notdef
-	// Force the allocation of a free list at the beginning of the file
-	if (header->freelist.revision == 0)
+	if (create)
 	{
-		freelist->writeSync (1);
+		// Force allocation of auxiliary blocks near beginning of file
+		WriteSync (1);
 	}
-
-	// Likewise for the journal
-	if (header->journal.revision == 0)
-	{
-		journal->writeSync (1);
-	}
-#endif
-
-	// Force allocations and/or ensure everything's in order on disk
-	WriteSync (1);
-	Unlock (0);
+	Unlock ();
 	return (status);
 }
 
@@ -220,12 +217,12 @@ BlockFile::Close ()
 
 
 void
-BlockFile::Lock (int sync)
+BlockFile::ReadLock ()
 {
 	if (lock++ == 0)
 	{
-		log->Debug (Printf("Locking '%s'", path));
-		if (sync && header)
+		log->Debug (Printf("Read locking '%s'", path));
+		if (header)
 			header->readSync ();
 	}
 }
@@ -233,13 +230,28 @@ BlockFile::Lock (int sync)
 
 
 void
-BlockFile::Unlock (int sync)
+BlockFile::WriteLock ()
+{
+	if (lock++ == 0)
+	{
+		log->Debug (Printf("Write locking '%s'", path));
+		if (header)
+			header->readSync ();
+	}
+	writelock = 1;
+}
+
+
+
+void
+BlockFile::Unlock ()
 {
 	if (lock == 1)
 	{
 		log->Debug (Printf("Unlocking '%s'", path));
-		if (sync)
+		if (writelock && header)
 			WriteSync ();
+		writelock = 0;
 	}
 	--lock;
 }
@@ -252,12 +264,12 @@ BlockFile::Unlock (int sync)
 void
 BlockFile::WriteSync (int force)
 {
-	Lock (0);
+	WriteLock ();
 	log->Debug (Printf("WriteSync '%s'", path));
 	journal->writeSync (force);
 	freelist->writeSync (force);
 	header->writeSync (force);
-	Unlock (0);		// No need to do another write sync!
+	Unlock ();		// No need to do another write sync!
 }
 
 
@@ -269,7 +281,7 @@ void
 BlockFile::ReadSync ()
 {
 	log->Debug (Printf("ReadSync '%s'", path));
-	Lock ();
+	ReadLock ();
 	freelist->readSync ();
 	journal->readSync ();
 	Unlock ();
@@ -313,6 +325,7 @@ BlockFile::DumpHeader (ostream& out)
 		return out;
 	}
 
+	ReadSync();
 	BlockFileHeader *h = header;
 	Block *b;
 	out << (header->dirty() ? "*Dirty*" : "Clean") << endl;
@@ -329,12 +342,41 @@ BlockFile::DumpHeader (ostream& out)
 	b = &(h->app_header);
 	out << "App header  = " << b->length << " bytes @ " <<
 		b->offset << " rev " << b->revision << endl;
-	b = &(h->freelist);
-	out << "Free list   = " << b->length << " bytes @ " <<
-		b->offset << " rev " << b->revision << endl;
 	b = &(h->journal);
 	out << "Journal     = " << b->length << " bytes @ " <<
 		b->offset << " rev " << b->revision << endl;
+	b = &(h->freelist);
+	out << "Free list   = " << b->length << " bytes @ " <<
+		b->offset << " rev " << b->revision << endl;
+	FreeStats fs = freelist->Stats();
+	out << "           nfree: " << fs.nfree << endl;
+	out << "      bytes free: " << fs.bytesfree << endl;
+	out << "        nrequest: " << fs.nrequest << endl;
+	out << "   bytes request: " << fs.bytesrequest << endl;
+	out << "     bytes alloc: " << fs.bytesalloc << endl;
+	out << "     bytes freed: " << fs.bytesfreed << endl;
+	long slop = fs.bytesalloc - fs.bytesrequest;
+	out << "            slop: " << slop << " bytes";
+	if (fs.bytesalloc > 0)
+	{
+		float sloppct = (float)slop/fs.bytesalloc*100.0;
+		out << ", " << sloppct << "%";
+	}
+	out << endl;
+	if (fs.nrequest > 0)
+	{
+		out << "     avg request: " 
+		    << (float)fs.bytesrequest/fs.nrequest 
+		    << " bytes" << endl;
+	}
+	out << "        pct free: " << (float)fs.bytesfree/h->bf_length*100.0 
+	    << "%" << endl;
+	if (fs.nfree > 0)
+	{
+		out << "  avg free block: "
+		    << (float)fs.bytesfree/fs.nfree
+		    << " bytes" << endl;
+	}
 	return (out);
 }
 
@@ -344,11 +386,11 @@ BlockFile::DumpHeader (ostream& out)
 SerialBuffer *
 BlockFile::readBuffer (BlkOffset addr, BlkSize length)
 {
-	Lock (0);
+	ReadLock ();
 	rbuf->Seek (0);
 	rbuf->Need (length);
 	read (rbuf->getBuffer(), addr, length);
-	Unlock (0);
+	Unlock ();
 	return (rbuf);
 }
 
@@ -381,7 +423,7 @@ BlockFile::Alloc (BlkSize size, BlkSize *actual)
  * the block prefix.
  */
 {
-	Lock();
+	WriteLock();
 	freelist->readSync ();
 	BlkOffset addr = alloc (size, actual);
 	Unlock ();
@@ -393,7 +435,7 @@ BlockFile::Alloc (BlkSize size, BlkSize *actual)
 void
 BlockFile::Free (BlkOffset addr, BlkSize len)
 {
-	Lock ();
+	WriteLock ();
 	free (addr, len);
 	Unlock ();
 }
@@ -406,9 +448,9 @@ BlockFile::Free (BlkOffset addr, BlkSize len)
 void *
 BlockFile::Read (void *buf, BlkOffset block, BlkSize len)
 {
-	Lock (0);
+	ReadLock ();
 	read (buf, block, len);
-	Unlock (0);
+	Unlock ();
 	return (status == OK ? buf : NULL);
 }
 
@@ -417,7 +459,7 @@ BlockFile::Read (void *buf, BlkOffset block, BlkSize len)
 int
 BlockFile::Write (BlkOffset block, void *buf, BlkSize len)
 {
-	Lock ();
+	WriteLock ();
 	if (top())
 	{
 		// Only record changes from outside our implementation
@@ -433,8 +475,8 @@ BlockFile::Write (BlkOffset block, void *buf, BlkSize len)
 BlkVersion
 BlockFile::Revision ()
 {
-	Lock (1);	// Read sync header, but no write sync needed
-	Unlock (0);
+	ReadLock ();		// Syncs the header for us
+	Unlock ();
 	return (header->revision);
 }
 
@@ -443,9 +485,9 @@ BlockFile::Revision ()
 int
 BlockFile::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 {
-	Lock (1);
+	ReadLock ();
 	int changed = journal->Changed (rev, offset, length);
-	Unlock (0);
+	Unlock ();
 	return (changed);
 }
 
