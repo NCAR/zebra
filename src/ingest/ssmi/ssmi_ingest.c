@@ -26,7 +26,7 @@
 
 #ifndef lint
 static char *rcsid = 
-	"$Id: ssmi_ingest.c,v 1.3 1993-06-17 11:42:07 granger Exp $";
+	"$Id: ssmi_ingest.c,v 1.4 1993-06-21 22:19:07 granger Exp $";
 #endif
 
 #include <time.h>
@@ -50,6 +50,7 @@ static char *rcsid =
 #define OURNAME		"SSMI Attack"
 #define TAPE_ERRORS	10		/* # tape errors to abort after */
 #define DEFAULT_RESOLUTION (12.5)	/* km */
+#define MIN_IMAGE_SCANS (32)		/* Minimum # scans to make an image */
 
 #define StoreBlocks(a,b,c,d) ((NoDataStore)?(TRUE):\
 			      (ds_StoreBlocks(a,b,c,d)))
@@ -57,13 +58,13 @@ static char *rcsid =
 static int NextRecs FP(( int fd, SSMI_LogicalRec *lrecs, int *nlogical ));
 static void WriteRecs FP(( int fd, SSMI_LogicalRec *lrecs, int nlogical ));
 static void SetupFields ();
+static int ReadHeader FP((int fd, SSMI_LogicalRec *lrecs, int *ndatafiles));
 static int ReadTape FP((int fd, SSMI_LogicalRec *lrecs, int *nlogical,
-			int is_tape));
+			int *nfiles, int is_tape));
 static int ProcessTape FP((int tape_fd, int echo_fd, SSMI_LogicalRec *lrecs,
-			   int is_tape));
+			   int is_tape, int ndatafiles));
 static DataChunk *CreateDC ();
 static int ScanWithinLimits FP((SSMI_LogicalRec *lrec, int check_lon));
-static int IsGarbage FP((OUTDAT_BLOCK *dat));
 static void IngestImage FP((SquareScan *ss));
 static void BuildImage FP((SquareScan *ss, DataChunk *dc));
 static void FillGrid FP((unsigned char *image, SquareScan *ss, 
@@ -107,14 +108,14 @@ FieldId Fids[ NUM_FIELDS ];
 
 ScaleInfo Scales[ NUM_FIELDS ] = /* real value = data/s_Scale + s_Offset */
 {
-	{ 1.41667, 120.0 },	/* Assuming temps (K) from 100 to 320 */
-	{ 1.41667, 120.0 },
-	{ 1.41667, 120.0 },
-	{ 1.41667, 120.0 },
-	{ 1.41667, 120.0 },
-	{ 1.41667, 120.0 },
-	{ 1.41667, 120.0 },
-	{ 1.0, 	   0.0 }   	/* The surface-type index */
+	{ 1.0, 100.0 },	/* Assuming temps (K) from 100 to 356 */
+	{ 1.0, 100.0 },
+	{ 1.0, 100.0 },
+	{ 1.0, 100.0 },
+	{ 1.0, 100.0 },
+	{ 1.0, 100.0 },
+	{ 1.0, 100.0 },
+	{ 1.0, 0.0 }   	/* The surface-type index */
 };
 
 
@@ -170,8 +171,9 @@ char	**argv;
 	int echo_fd;
 	int is_tape;	/* non-zero if we're reading a tape (== skip EOF) */
 	int nlog;
+	int ndatafiles;
 	SSMI_LogicalRec *lrec;
-	int pt;		/* return value from process tape */
+	int res;	/* return value from ProcessTape and ReadHeader */
 
 	mprof_stop();
 /*
@@ -241,22 +243,6 @@ char	**argv;
 		exit (2);
 	}
 /*
- * Dump the header to stdout, for the user's benefit, but only if this
- * is from tape, otherwise we skip the header and assume the file
- * starts with data.
- */
-	if (is_tape)
-	{
-		printf ("\nTAPE HEADER\n-----------\n");
-		NextRecs (fd, LRecs, &nlog);
-		lrec = &LRecs[0];
-		for (i = 0; i < nlog; i++)
-			printf ("%.79s\n", (char *)(lrec + i));
-		
-		/* Get rid of the EOF after the header */
-		NextRecs (fd, LRecs, &nlog);
-	}
-/*
  * Connect to the data store, message, etc. Get FieldId's for our fields
  */
 	IngestInitialize (OURNAME);
@@ -266,15 +252,79 @@ char	**argv;
  */
 /*	mprof_restart("mprof.data2");	*/
 
-	pt = ProcessTape (fd, echo_fd, LRecs, is_tape);
-	if (pt >= 0)
-		IngestLog (EF_INFO,"Finished after %d records",pt);
+	i = 1;
+	while (1)
+	{
+		ndatafiles = 1;		/* case for reading from a file */
+		if (is_tape)
+		{
+			res = ReadHeader (fd, LRecs, &ndatafiles);
+			if (res == 0)
+			{
+				IngestLog (EF_INFO, 
+				   "End of tape trying to read header.");
+			}
+			if (res <= 0)
+				break;
+		}
+		res = ProcessTape (fd, echo_fd, LRecs, is_tape, ndatafiles);
+		if (res >= 0)
+			IngestLog (EF_INFO,
+			   "Finished data file sequence %d after %d records",
+			   i, res);
+		else
+			break;
+		if (!is_tape)
+			break;
+		++i;
+	}
 
 	if (ofile) 
 		close(echo_fd);
 	close(fd);
-	return ((pt < 0) ? pt : 0);
+	return ((res < 0) ? res : 0);
 }
+
+
+
+
+static int
+ReadHeader (fd, lrecs, ndatafiles)
+int fd;
+SSMI_LogicalRec *lrecs;
+int *ndatafiles;
+/*
+ * Returns <= zero on failure to find a header, meaning abandon the tape
+ */
+{
+	int nlog, i, rt;
+
+	printf ("\nTAPE HEADER\n-----------\n");
+	/*
+	 * Use ReadTape() to skip over any EOF which precede the header
+	 * we're trying to read.  If we just can't do it, we must be
+	 * through with the tape.  The 0 is because we don't care about
+	 * being informed of an EOF.
+	 */
+	rt = ReadTape (fd, lrecs, &nlog, 0, 1 /*is_tape*/);
+	if (rt <= 0)
+		return (rt);
+	for (i = 0; i < nlog; i++)
+		printf ("%.79s\n", (char *)(lrecs + i));
+	
+	/* Get rid of the EOF after the header */
+	NextRecs (fd, lrecs, &nlog);
+
+	/* 
+	 * Extract the number of data files from the very first line.
+	 * The number begins with a space at char 31 (index 30) and
+	 * ends with a space at char 34 (index 33).
+	 */
+	*ndatafiles = atoi( (char *)lrecs + 31 );
+	IngestLog (EF_INFO, "Expecting %d data files following header",
+		   *ndatafiles);
+}
+	
 
 
 
@@ -293,15 +343,18 @@ SetupFields()
 
 
 static int
-ReadTape (fd, lrecs, nlog, is_tape)
+ReadTape (fd, lrecs, nlog, nfiles, is_tape)
 int fd;
 SSMI_LogicalRec *lrecs;
 int *nlog;
+int *nfiles;		/* EOF counter, stop when it reaches zero */
 int is_tape;
 /*
  * Returns > 0 if another block of logical records has been read,
  *	   = 0 if EOF or EOM
  *	   < 0 if error, leaves error number in errno
+ *
+ * Stop when nfiles reaches 0, meaning we shouldn't go any further.
  */
 {
 	int size;
@@ -317,14 +370,6 @@ int is_tape;
 	errcnt = 0;
 	while ((size = NextRecs (fd, lrecs, nlog)) <= 0)
 	{
-		if ((size == 0) && !is_tape)		/* end of file */
-			return FALSE;
-		if ((size == 0) && is_tape)
-		{
-			size = NextRecs (fd, lrecs, nlog); /* skip EOF */
-			if (size >= 0)	/* either EOM or some data */
-				return (size);
-		}
 		if (size < 0)		/* skip errors (size < 0) */
 		{
 			++errcnt;
@@ -335,17 +380,28 @@ int is_tape;
 				return (size);
 			}
 		}
+		if (nfiles && (--(*nfiles) == 0))
+			return (0);	/* don't read past expected EOF */
+		if ((size == 0) && !is_tape)		/* end of file */
+			return FALSE;
+		if ((size == 0) && is_tape)
+		{
+			size = NextRecs (fd, lrecs, nlog); /* skip EOF */
+			if (size >= 0)	/* either EOM or some data */
+				return (size);
+		}
 	}
 	return (size);
 }
 
 
 static int
-ProcessTape (fd, echo_fd, lrecs, is_tape)
+ProcessTape (fd, echo_fd, lrecs, is_tape, ndatafiles)
 int fd;
 int echo_fd;
 SSMI_LogicalRec *lrecs;
 int is_tape;
+int ndatafiles;
 /*
  * Read one physical record after another, combining scan pairs in 
  * logical records into SquareScan's and converting the squares into
@@ -354,6 +410,7 @@ int is_tape;
 {
 	SquareScan square;
 	int nlog;		/* Number logical records in block	*/
+	int nfiles = 0;		/* Number files read so far from tape	*/
 	int rt;			/* return value from ReadTape		*/
 	int i;			/* Loop over logical records in block	*/
 	int nrecs = 0;		/* total number logical records read	*/
@@ -362,8 +419,9 @@ int is_tape;
 	int nimages = 0;	/* Number images ingested so far	*/
 
 	SqClear (&square);
-	while ((rt = ReadTape (fd, lrecs, &nlog, is_tape)) > 0)
+	while ((rt = ReadTape (fd, lrecs, &nlog, &ndatafiles, is_tape)) > 0)
 	{
+
 		/*
 		 * Process the individual scans in each logical record
 		 */
@@ -408,20 +466,7 @@ int is_tape;
 			if (inbounds)
 			{
 				decode_ssmi (1, 0, 1, i+1, (char *)lrecs);
-				/*
-				 * More complications: the decoded scan pair
-				 * may be garbage.  If so, ignore it.
-				 */
-				if (IsGarbage(C_OUTDAT))
-				{
-				   IngestLog (EF_DEBUG,
-				   "Above record decoded to garbage, ignored");
-				   continue;
-			        }
-				else
-				{
-					SqAddLRec (&square, C_OUTDAT);
-				}
+				SqAddLRec (&square, C_OUTDAT);
 			}
 
 			/*
@@ -445,9 +490,10 @@ int is_tape;
 			 * So we know we have now left our latitude
 			 * boundaries, so its time to build an image from
 			 * the scans in our square.  Of course, squares 
-			 * with few scans are useless and ignored.
+			 * with few scans are useless, possibly mostly
+			 * out of bounds, and ignored.
 			 */
-			if (SqNumScans(&square) > 32)
+			if (SqNumScans(&square) >= MIN_IMAGE_SCANS)
 			{
 				IngestImage (&square);
 				++nimages;
@@ -549,51 +595,6 @@ int nrec;
 
 
 
-
-static int
-IsGarbage (dat)
-OUTDAT_BLOCK *dat;
-/*
- * Do some quick tests for a valid block, such as xtime in the correct
- * range (basically nonzero) and xlat and xlon valid
- */
-{
-	int i;
-
-	if ((dat->itime <= 0) || 	  /* i.e. at or before 1-1-1987 */
-	    (dat->itime > 10*365*24*60*60))	/*     after 12-31-1996 */
-		return TRUE;
-	if (dat->rev <= 0)
-		return TRUE;
-	if ((dat->xlatsc < -90.0) ||
-	    (dat->xlatsc > 90.0)  ||
-	    (dat->xlonsc < 0.0) ||
-	    (dat->xlonsc > 360.0))
-		return TRUE;
-	if ((dat->altsc) < 500 ||
-	    (dat->altsc) > 50000)
-		return TRUE;
-	for (i = 0; i < 128; i+=32)
-	{
-		if ((dat->alat[i] < -90.0)  ||
-		    (dat->alat[i] > 90.0)   ||
-		    (dat->alon[i] < 0.0) ||
-		    (dat->alon[i] > 360.0))
-			return TRUE;
-	}
-	if (dat->talo[0][0] < 100.0 || dat->talo[1][1] < 100.0)
-		return TRUE;
-	if (dat->atahi[0][0] < 100.0 || dat->atahi[1][1] < 100.0)
-		return TRUE;
-	if (dat->talo[0][0] > 600.0 || dat->talo[1][1] > 600.0)
-		return TRUE;
-	if (dat->atahi[0][0] > 600.0 || dat->atahi[1][1] > 600.0)
-		return TRUE;
-	return FALSE;
-}
-
-	
-
 static int
 ScanWithinLimits (lrec, check_lon)
 SSMI_LogicalRec *lrec;	/* the record to check				*/
@@ -615,23 +616,25 @@ int check_lon;		/* nonzero if interested in checking lon limits */
 	 * the same local time every 24 hours.  Cells can be scanned either
 	 * E-W or W-E, so check that lon of both ends of scan are within
 	 * limits.  This means we'll at least get the one pass per day that
-	 * passes closest to Darwin.
+	 * passes closest to Darwin.  The wide lon limits allow series of
+	 * scans which may eventually near Darwin; whether or not an image
+	 * on the outskirts is worth building is left to another function.
 	 */
 	static const unsigned short
-	   north_lat = ((-2.0 + 90.0)*1.0e+2);
+	   north_lat = ((0.0 + 90.0)*1.0e+2);
 	static const unsigned short
-	   south_lat = ((-22.0 + 90.0)*1.0e+2);
+	   south_lat = ((-25.0 + 90.0)*1.0e+2);
 	static const unsigned short
-	   west_lon = ((112.0)*1.0e+2);
+	   west_lon = ((110.0)*1.0e+2);
 	static const unsigned short
-	   east_lon = ((137.0)*1.0e+2);
+	   east_lon = ((150.0)*1.0e+2);
 
 	if ((lrec->a_lat[0] > north_lat) || (lrec->a_lat[0] < south_lat))
 		return (FALSE);
 	if (!check_lon)
 		return (TRUE);
 	if ((lrec->a_lon[0] > east_lon) || (lrec->a_lon[0] < west_lon) ||
-	    (lrec->a_lon[127] > east_lon) || (lrec->a_lon[127] < west_lon))
+	    (lrec->a_lon[18] > east_lon) || (lrec->a_lon[18] < west_lon))
 		return (FALSE);
 	return (TRUE);
 }
@@ -830,3 +833,49 @@ GridMap *gm;
 		 gm->gm_info.rg_nY);
 	IngestLog (EF_DEVELOP, "%s", buf);
 }
+
+
+
+#ifdef notdef		/* no longer needed, and hopefully never again */
+static int
+IsGarbage (dat)
+OUTDAT_BLOCK *dat;
+/*
+ * Do some quick tests for a valid block, such as xtime in the correct
+ * range (basically nonzero) and xlat and xlon valid
+ */
+{
+	int i;
+
+	if ((dat->itime <= 0) || 	  /* i.e. at or before 1-1-1987 */
+	    (dat->itime > 10*365*24*60*60))	/*     after 12-31-1996 */
+		return TRUE;
+	if (dat->rev <= 0)
+		return TRUE;
+	if ((dat->xlatsc < -90.0) ||
+	    (dat->xlatsc > 90.0)  ||
+	    (dat->xlonsc < 0.0) ||
+	    (dat->xlonsc > 360.0))
+		return TRUE;
+	if ((dat->altsc) < 500 ||
+	    (dat->altsc) > 50000)
+		return TRUE;
+	for (i = 0; i < 128; i+=32)
+	{
+		if ((dat->alat[i] < -90.0)  ||
+		    (dat->alat[i] > 90.0)   ||
+		    (dat->alon[i] < 0.0) ||
+		    (dat->alon[i] > 360.0))
+			return TRUE;
+	}
+	if (dat->talo[0][0] < 100.0 || dat->talo[1][1] < 100.0)
+		return TRUE;
+	if (dat->atahi[0][0] < 100.0 || dat->atahi[1][1] < 100.0)
+		return TRUE;
+	if (dat->talo[0][0] > 600.0 || dat->talo[1][1] > 600.0)
+		return TRUE;
+	if (dat->atahi[0][0] > 600.0 || dat->atahi[1][1] > 600.0)
+		return TRUE;
+	return FALSE;
+}
+#endif
