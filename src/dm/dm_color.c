@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
 # include <X11/Xlib.h>
 # include <ui.h>
 # include <ui_error.h>
@@ -27,7 +28,7 @@
 # include "dm_cmds.h"
 # include "dm_vars.h"
 
-RCSID("$Id: dm_color.c,v 2.8 1995-04-18 22:18:40 granger Exp $")
+RCSID("$Id: dm_color.c,v 2.9 1995-06-29 21:29:23 granger Exp $")
 
 /*
  * The symbol table used to hold color tables.

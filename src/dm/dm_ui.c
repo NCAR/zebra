@@ -28,7 +28,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.13 1995-05-24 00:14:33 granger Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.14 1995-06-29 21:29:32 granger Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -666,7 +666,6 @@ SValue *argv, *retv;
  *	pd_defined (pd, comp, param)
  */
 {
-	plot_description find_pd ();
 	plot_description pd = find_pd (argv[0].us_v_ptr);
 	char junk[200];
 
@@ -691,7 +690,6 @@ SValue *argv, *retv;
  */
 {
 	char tmp[500];
-	plot_description find_pd ();
 	plot_description pd = find_pd (argv[0].us_v_ptr);
 	char **comps;
 
@@ -734,7 +732,6 @@ SValue *argv, *retv;
  */
 {
 	char *vals[32], tmp[500];
-	plot_description find_pd ();
 	plot_description pd = find_pd (argv[0].us_v_ptr);
 
 	*rett = SYMT_INT;
@@ -758,7 +755,6 @@ SValue *argv, *retv;
  *	set comp_name NthComp (pd, n)
  */
 {
-	plot_description find_pd ();
 	plot_description pd = find_pd (argv[0].us_v_ptr);
 	char **comps = pd_CompList (pd);
 	int i;
@@ -792,7 +788,6 @@ SValue *argv, *retv;
  */
 {
 	char tmp[500];
-	plot_description find_pd ();
 	plot_description pd = find_pd (argv[0].us_v_ptr);
 	int type = (narg == 4) ? uit_int_type (argv[3].us_v_ptr) : SYMT_STRING;
 

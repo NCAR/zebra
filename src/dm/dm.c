@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.63 1995-05-24 21:47:28 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.64 1995-06-29 21:29:19 granger Exp $")
 
 
 /*
@@ -283,7 +283,6 @@ main (argc, argv)
 int argc;
 char *argv[];
 {
-	int msg_incoming ();
 	int type[4];
 	char loadfile[100];
 	char *initfile;
@@ -643,6 +642,12 @@ struct ui_command *cmds;
 	 */
 	    case DMC_WINDOWLIST:
 		MakeWindowList (UPTR (cmds[1]));
+		break;
+	/*
+	 * Want to see query information on the terminal
+	 */
+	   case DMC_QUERY:
+		dg_Query (/* from ourselves */ NULL);
 		break;
 
 	   default:
@@ -1104,8 +1109,10 @@ void *param;
 
 
 
+/*ARGSUSED*/
 static void
-recycle ()
+recycle (sig)
+int sig;
 {
 /*
  * Finish up ui stuff, and disconnect our ipc connections
@@ -1150,7 +1157,7 @@ dm_cycle ()
 			msg_Search (MT_MESSAGE, WaitForDeath, (*pp)->p_name);
 	} while (*pp);
 	alarm (0);
-	recycle ();
+	recycle (-1);
 	return (0);	/* never reached */
 }
 

@@ -36,7 +36,7 @@
 # include <defs.h>
 # include <pd.h>
 
-RCSID("$Id: dm_pd.c,v 2.7 1995-04-18 22:18:45 granger Exp $")
+RCSID("$Id: dm_pd.c,v 2.8 1995-06-29 21:29:25 granger Exp $")
 
 static void pddirfile FP ((char *file));
 
@@ -139,7 +139,7 @@ char *dir;
 {
 	DIR *dp = opendir (dir);
 	struct dirent *ent;
-	char *dot, *getcwd (), wd[MAXPATHLEN];
+	char *dot, wd[MAXPATHLEN];
 /*
  * Make sure we have a directory.
  */

@@ -18,6 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
@@ -26,7 +27,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-RCSID("$Id: dm_pick.c,v 2.12 1995-05-24 00:14:29 granger Exp $")
+RCSID("$Id: dm_pick.c,v 2.13 1995-06-29 21:29:28 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.

@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.11 1995-04-27 15:11:12 granger Exp $
+ * $Id: dm_vars.h,v 2.12 1995-06-29 21:29:35 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -247,7 +247,7 @@ void dg_SendPD FP ((struct cf_window *win));
 struct cf_window *dg_CurrentWindow FP ((char *name));
 struct cf_window *dg_AnyWindow FP ((char *name));
 void dg_SyncWindow FP ((struct config *cfg, struct cf_window *newwin, 
-			bool force));
+			int force));
 void dg_ConfigWindow FP ((struct cf_window *win));
 void dg_PutNewWindow FP ((char *pcname, struct ui_command *cmds));
 void dg_PutConfigAs FP ((char *name, char *template));
