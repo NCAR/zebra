@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.9 1992-01-02 16:57:33 barrett Exp $ */
+/* $Id: Makefile.cpp,v 1.10 1992-02-19 23:56:52 barrett Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,7 +40,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
 	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o Label.o \
-	XYWind.o XYCommon.o
+	XYWind.o XYCommon.o XYContour.o
 # else
 OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	PlotExec.o UserEvent.o GraphicsW.o Contour.o FillContour.o \
@@ -50,7 +50,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
 	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o \
-	XYWind.o XYCommon.o
+	XYWind.o XYCommon.o XYContour.o
 # endif
 
 all:	gp
