@@ -7,6 +7,10 @@
 use Time::Local;
 use POSIX;
 
+if ( ! $ENV{'ZEB_TOPDIR'} ) { die "ZEB_TOPDIR must be set."; }
+push(@INC,"$ENV{'ZEB_TOPDIR'}/bin");
+require libzplot;
+
 # Use an associative array to give the config and window to plot
 # when a given platform is updated.
 
@@ -18,71 +22,7 @@ $D_NoEmail = 4; # Don't email
 $debug = 0;		     	# No debugging
 $FAIL = "ZPLOTD_FAILED";	# failure string
 
-# Some option variables we need
-$image_mail_list = " $ENV{'IMAGE_MAIL_LIST'} ";
-$enable_ftp = $ENV{'PLOT_FTP_ENABLE'};
-
-# Project directory
-$project = "$ENV{'ZEB_PROJDIR'}";
-$project_name = $ENV{'PROJECT_NAME'};
-if (! $project_name) { $project_name = `basename $project`; }
-
-if (! $ENV{'PLOT_PLATFORMS'})
-{
-    print "Need a platforms file set in PLOT_PLATFORMS\n";
-    exit 1;
-}
-
-%Observations = ();
-%Plots = ();
-
-sub ztsys
-{
-    # print `ztsplit $_[0]`, "\n";
-    ($year, $mon, $day, $hour, $min, $sec) = split(/\s+/,`ztsplit $_[0]`);
-    timegm($sec,$min,$hour,$day,$mon-1,$year);
-}
-
-sub syszt
-{
-    ($sec,$min,$hour,$mday,$mon,$year) = gmtime($_[0]);
-    strftime ("%d-%h-%Y,%H:%M:%S", $sec,$min,$hour,$mday,$mon,$year);
-}
-
-$plotfile = "$ENV{'PLOT_PLATFORMS'}";
-open(PLOTS, "$plotfile") || die "$plotfile: $!\n";
-while (<PLOTS>)
-{
-    next if /^\s*(#.*)?$/;
-    ($platform, $obs, @windows) = split(/\s+/,$_);
-    print "$platform, $obs, ", join(' ', @windows), "\n" if ($debug);
-    if ("$obs" eq "yes")
-    {
-	$Observations{"$platform"} = 1;
-    }
-    $Plots{"$platform"} = join (' ', @windows);
-}
-close(PLOTS);
-
-# print "Plots: \n", join("\n", %Plots), "\n";
-# print "Observations: \n", join("\n", %Observations), "\n";
-
-@Queue = ();
-@Targets = ();
-%Pending = ();		# Platforms already in queue
-%Displays = ();
-
-# Default to getting notifications from standard input
-$since = 0;		# Plot only data since a given timestamp
-$notice = 0;		# Plot data as notices received from dsnotice
-$first = 0;		# true when platforms were queued from the cmd-line
-$batchfile = '';        # Batch file to which to write batch plot lines
-$enqfile = '';          # Queue file to which to write platform plot queue
-$deqfile = '';          # Queue file from which plot queue will be read
-$norescan = 0;
-
-# If we we're passed platform names or regular expressions on the
-# command line, just do those
+@clo = ();
 while ($pattern = shift @ARGV)
 {
     if ($pattern =~ /-h.*/)
@@ -129,23 +69,99 @@ while ($pattern = shift @ARGV)
 	print "read stdin in the format of dsnotice update lines.\n";
 	exit 0;
     }
+    if ($pattern =~ /^-d(\d*)/)
+    {
+	if ($1) 
+	{
+	    $debug = $1;
+	}
+	else
+	{
+	    ++$debug;
+	}
+	next;
+    }
+    push (@clo, $pattern);
+}
+
+# Some option variables we need
+$image_mail_list = " $ENV{'IMAGE_MAIL_LIST'} ";
+$enable_ftp = $ENV{'PLOT_FTP_ENABLE'};
+
+# Project directory
+$project = "$ENV{'ZEB_PROJDIR'}";
+$project_name = $ENV{'PROJECT_NAME'};
+if (! $project_name) { $project_name = `basename $project`; }
+
+if (! $ENV{'PLOT_PLATFORMS'})
+{
+    print "Need a platforms file set in PLOT_PLATFORMS\n";
+    exit 1;
+}
+
+%Observations = ();
+%Plots = ();
+
+$plotfile = "$ENV{'PLOT_PLATFORMS'}";
+open(PLOTS, "$plotfile") || die "$plotfile: $!\n";
+while (<PLOTS>)
+{
+    next if /^\s*(#.*)?$/;
+    ($platform, $obs, @windows) = split(/\s+/,$_);
+    if ("$obs" eq "status")
+    {
+	# This is a status message for this particular platform.
+	($message) = /\S+\s+\S+\s+(.*)\s*$/;
+	print "$platform status: $message\n" if ($debug);
+	next;
+    }
+    print "$platform, $obs, ", join(' ', @windows), "\n" if ($debug);
+    if ("$obs" eq "yes")
+    {
+	$Observations{"$platform"} = 1;
+    }
+    $Plots{"$platform"} = join (' ', @windows);
+}
+close(PLOTS);
+
+# print "Plots: \n", join("\n", %Plots), "\n" if ($debug);
+# print "Observations: \n", join("\n", %Observations), "\n" if ($debug);
+
+@Queue = ();
+@Targets = ();
+%Pending = ();		# Platforms already in queue
+%Displays = ();
+
+# Default to getting notifications from standard input
+$since = 0;		# Plot only data since a given timestamp
+$notice = 0;		# Plot data as notices received from dsnotice
+$first = 0;		# true when platforms were queued from the cmd-line
+$batchfile = '';        # Batch file to which to write batch plot lines
+$enqfile = '';          # Queue file to which to write platform plot queue
+$deqfile = '';          # Queue file from which plot queue will be read
+$norescan = 0;
+
+# If we we're passed platform names or regular expressions on the
+# command line, just do those
+while ($pattern = shift @clo)
+{
     if ($pattern eq "-dequeue")
     {
-	$deqfile = shift @ARGV;
+	$deqfile = shift @clo;
 	die "file needed for -dequeue option" unless ($deqfile);
 	die "cannot choose both -dequeue and -enqueue" if ($enqfile);
 	next;
     }
     if ($pattern eq "-enqueue")
     {
-	$enqfile = shift @ARGV;
+	$enqfile = shift @clo;
 	die "file needed for -enqueue option" unless ($enqfile);
 	die "cannot choose both -dequeue and -enqueue" if ($deqfile);
 	next;
     }
     if ($pattern eq "-batch")
     {
-	$batchfile = shift @ARGV;
+	$batchfile = shift @clo;
 	die "file needed for -batch option" unless ($batchfile);
 	next;
     }
@@ -156,7 +172,7 @@ while ($pattern = shift @ARGV)
     }
     if ($pattern eq "-since")
     {
-	$since = shift @ARGV;
+	$since = shift @clo;
 	$since = " " unless ($since);
 	next;
     }
@@ -173,7 +189,7 @@ while ($pattern = shift @ARGV)
 	{
 	    die "PLOT_PERIOD must be set for -period plots";
 	}
-	$fixend = shift @ARGV;
+	$fixend = shift @clo;
 	die "plot time needed for -period" 
 	    unless ($fixend);
 	$fixbegin = &syszt (&ztsys ($fixend) - ($plot_period * 3600));
@@ -182,22 +198,10 @@ while ($pattern = shift @ARGV)
     if ($pattern eq "-time")
     {
 	$fixtime = 1;
-	$fixbegin = shift @ARGV;
-	$fixend = shift @ARGV;
+	$fixbegin = shift @clo;
+	$fixend = shift @clo;
 	die "begin and end time needed for -time" 
 	    unless ($fixbegin && $fixend);
-	next;
-    }
-    if ($pattern =~ /^-d(\d*)/)
-    {
-	if ($1) 
-	{
-	    $debug = $1;
-	}
-	else
-	{
-	    ++$debug;
-	}
 	next;
     }
     foreach $platform (keys(%Plots))
@@ -431,9 +435,6 @@ sub clear
 
     $dt = `date -u '+%y%m%d.%H%M'`;
     chop $dt;
-    $plog="$project/logs/plot.$dt.log";
-    open(PLOG, "> $plog") || die "could not open $plog: $!\n";
-    $oldfh = select(PLOG); $| = 1; select($oldfh);
 
     # Finally, we can plot each config and its windows.
     # Open zplotbatch and pipe our plot entries to it.
@@ -478,7 +479,6 @@ sub clear
 	($config, $time) = split(/\s+/,"$entry");
 	$plot = "$time $config " . $Configs{"$entry"};
 	print "$plot\n";
-	print PLOG "$plot\n";
 	print BATCH "$plot\n";
     }
     close BATCH;
@@ -498,7 +498,6 @@ sub clear
 	while (<BP>)
 	{
 	    print;
-	    print PLOG;
 	    if (/^Images: (.*)$/)
 	    {
 		$images .= " $1 ";
@@ -539,7 +538,6 @@ sub clear
 	while (<FTP>)
 	{
 	    print;
-	    print PLOG;
 	}
 	close FTP;
 	if ($?) {
@@ -553,7 +551,6 @@ sub clear
 	$result = 0;
     }
 
-    close PLOG;
     $cmd = "(echo \"Subject: zplotd $status, log $plog\"; echo \" \"; cat -)"
 	. " | /bin/mail $image_mail_list";
     print "$cmd\n";

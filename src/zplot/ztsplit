@@ -1,24 +1,9 @@
 #! /usr/bin/env perl
 #
-# $Id: ztsplit,v 1.7 2002-05-25 00:19:13 burghart Exp $
+# $Id: ztsplit,v 1.8 2002-06-10 22:03:04 granger Exp $
 #
 # Split zebra times into yy mm dd hour min sec
 #
-
-# 7-dec-1997,12:00:00
-
-%Months = ("jan", 1,
-	   "feb", 2,
-	   "mar", 3,
-	   "apr", 4,
-	   "may", 5,
-	   "jun", 6,
-	   "jul", 7,
-	   "aug", 8,
-	   "sep", 9,
-	   "oct", 10,
-	   "nov", 11,
-	   "dec", 12);
 
 if ($#ARGV != 0)
 {
@@ -26,15 +11,12 @@ if ($#ARGV != 0)
     exit 1;
 }
 
-$sec = 0;
-($day, $mon, $year, $hour, $min) =
-    $ARGV[0] =~ /(\d+)-(\w+)-(\d+),(\d+):(\d+)/;
+if ( ! $ENV{'ZEB_TOPDIR'} ) { die "ZEB_TOPDIR must be set."; }
+push(@INC,"$ENV{'ZEB_TOPDIR'}/bin");
+require libzplot;
 
-$month = `echo $mon | tr '[:upper:]' '[:lower:]'`;
-chop $month;
-#print "$month\n";
-
+($year, $month, $day, $hour, $min, $sec) = ztsplit ($ARGV[0]);
 printf "%d %02d %02d %02d %02d %02d\n",
-    $year, $Months{$month}, $day, $hour, $min, $sec;
+    $year, $month, $day, $hour, $min, $sec;
 
 exit 0;

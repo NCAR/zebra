@@ -5,7 +5,7 @@
 SCRIPTS = zplotbatch class2ascii dfsince disclaim ftpplots \
           issclass logimages zplotlast sendclass ztsplit \
           zconfig zplotd zplotloop plotindex zplotnow sumplot \
-          convert2gif
+          convert2gif libzplot.pm
 
 DISTFILES = Imakefile $(SCRIPTS) proj_env
 
@@ -26,6 +26,7 @@ InstallNamedTarget(install,zplotd,$(INSTBINFLAGS),$(BINDIR),zplotd)
 InstallNamedTarget(install,zplotloop,$(INSTBINFLAGS),$(BINDIR),zplotloop)
 InstallNamedTarget(install,plotindex,$(INSTBINFLAGS),$(BINDIR),plotindex)
 InstallNamedTarget(install,zplotnow,$(INSTBINFLAGS),$(BINDIR),zplotnow)
+InstallNamedTarget(install,libzplot.pm,$(INSTBINFLAGS),$(BINDIR),libzplot.pm)
 InstallNamedTarget(install,sumplot,$(INSTBINFLAGS),$(BINDIR),sumplot)
 InstallNamedTarget(install,libsumplot,$(INSTBINFLAGS),$(BINDIR),libsumplot)
 

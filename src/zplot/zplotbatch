@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.23 2002-05-25 17:08:57 burghart Exp $
+# $Id: zplotbatch,v 1.24 2002-06-10 22:03:04 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -16,6 +16,10 @@ echo=
 # we'll use that same one anyway.)
 #
 xvfb="Xvfb -pn -ac"
+
+convert="convert"
+#font="-font helvetica -pointsize 12"
+font="-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*'"
 
 if [ x$BATCH_IMAGE_SPOOL = x ]; then
     echo "Batch image spool directory not set: BATCH_IMAGE_SPOOL"
@@ -193,10 +197,9 @@ while read when config windows; do
 	    images="$images ${name}.png"
 	    (set -x; zrun $plot "imgdump xwd \"${name}.xwd\"" ; \
 	     set +x ; sleep 5 ; \
-	     zquery -t 15 $plot >/dev/null ; \
-	     convert -fill black -box white \
-		-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*' \
-		-draw 'text 20,-20 "REAL-TIME DATA, NOT CHECKED FOR QUALITY"' \
+	     zquery -t 15 $plot >/dev/null ; set -x ; \
+	     $convert $font -gravity southwest -fill black -box white \
+		-draw "text 20,20 ' REAL-TIME DATA, NOT CHECKED FOR QUALITY '"\
 		"${name}.xwd" "${name}.png" ; \
 	     /bin/rm -f "${name}.xwd" ) &
 	    queryprocs="$queryprocs $plot"

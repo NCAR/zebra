@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: zplotloop,v 1.7 2002-05-25 00:19:13 burghart Exp $
+# $Id: zplotloop,v 1.8 2002-06-10 22:03:04 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -9,6 +9,10 @@
 
 use Time::Local;
 use POSIX;
+
+if ( ! $ENV{'ZEB_TOPDIR'} ) { die "ZEB_TOPDIR must be set."; }
+push(@INC,"$ENV{'ZEB_TOPDIR'}/bin");
+require libzplot;
 
 if ($#ARGV < 1)
 {
@@ -31,20 +35,6 @@ if ($#ARGV > 0)
     $step = $ARGV[0];
     shift;
 }
-
-sub ztsys
-{
-    # print `ztsplit $_[0]`, "\n";
-    ($year, $mon, $day, $hour, $min, $sec) = split(/\s+/,`ztsplit $_[0]`);
-    timegm($sec,$min,$hour,$day,$mon-1,$year);
-}
-
-sub syszt
-{
-    ($sec,$min,$hour,$mday,$mon,$year) = gmtime($_[0]);
-    strftime ("%d-%h-%Y,%H:%M:%S", $sec,$min,$hour,$mday,$mon,$year);
-}
-
 
 $project_start_date = "$ENV{'PROJECT_START_DATE'}";
 $project_end_date = "$ENV{'PROJECT_END_DATE'}";
