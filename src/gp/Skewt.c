@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.23 1996-02-22 20:16:52 burghart Exp $")
+RCSID ("$Id: Skewt.c,v 2.24 1996-04-19 21:15:14 burghart Exp $")
 
 /*
  * General definitions
@@ -789,6 +789,7 @@ bool    update;
 	flist[2] = F_Lookup ("dp");
 
 	platflds = (FieldId *) malloc (50 * sizeof (FieldId));
+	nflds = 50;
 	ds_GetFields (pid, &ptime, &nflds, platflds);
 	for (i = 0; i < nflds; i++)
 		if (! strcmp (F_GetName (platflds[i]), "temp") ||
