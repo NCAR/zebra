@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.15 1997-08-29 16:57:11 ishikawa Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.16 1997-09-18 22:14:39 ishikawa Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -12,7 +12,7 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.15 1997-08-29 16:57:11 ishikawa Exp $
 # if defined(SVR4) || defined(AIXV3)
 # include <libgen.h>
 # endif
-# ifdef hpux 
+# if defined(hpux) || defined(__osf__)
 # include <regex.h>
 # endif
 
@@ -867,7 +867,7 @@ char *re;
 #if defined (SVR4) || defined (AIXV3)
         /* nothing special for Solaris yet */
 #else
-#ifdef hpux 
+#if defined(hpux) || defined(__osf__)
         regex_t *preg;
 #else 
 	char *re_comp (), *re_exec ();
@@ -892,7 +892,7 @@ char *re;
                 if (!stat)
                         ui_error ("(BUG) RE comp error: %s", stat);
 #else
-#ifdef hpux 
+#if defined(hpux) || defined(__osf__)
                 int stat = regcomp ( preg, re, REG_EXTENDED );
                 if (stat)
                         ui_error ("(BUG) RE comp error: %d", stat);
@@ -913,7 +913,7 @@ char *re;
 #if defined (SVR4) || defined (AIXV3)
                         if (! re ||  ! regex (re, sp->ste_sym))
 #else
-#ifdef hpux 
+#if defined(hpux) || defined(__osf__)
                         if (! re ||  ! regexec (preg, sp->ste_sym,
                                         (size_t) 0, NULL, 0))
 #else
