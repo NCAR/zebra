@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.14 1991-01-30 20:43:09 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.15 1991-02-07 22:55:13 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -83,31 +83,25 @@ static Boolean	Table_built = FALSE;
 static int	PlotType;
 
 /*
- * Contour plot types
- */
-typedef enum {LineContour, FilledContour} contour_type;
-
-/*
  * Forward declarations
  */
 # ifdef __STDC__
 	int	px_NameToNumber (char *, name_to_num *);
 	void	px_Init ();
 	void	px_AddComponent (char *, int);
-	void	px_CAPFContour (char *, int);
-	void	px_CAPVector (char *, int);
-	void	px_CAPRaster (char *, int);
-	void	px_CAPLineContour (char *, int);
-	void	px_CAPContour (char *, contour_type, char *, float *, float *);
+	void	CAP_FContour (char *, int);
+	void	CAP_Vector (char *, int);
+	void	CAP_Raster (char *, int);
+	void	CAP_LineContour (char *, int);
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	void	px_FixPlotTime ();
 	static bool px_GetCoords (void);
 	static void px_GlobalPlot (void);
 # else
 	int	px_NameToNumber ();
-	void	px_Init (), px_AddComponent (), px_CAPFContour ();
-	void	px_CAPVector (), px_CAPRaster (), px_CAPLineContour ();
-	void	px_CAPContour (), px_AdjustCoords ();
+	void	px_Init (), px_AddComponent (), CAP_FContour ();
+	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
+	void	px_AdjustCoords ();
 	void	px_FixPlotTime ();
 	static bool px_GetCoords ();
 	static void px_GlobalPlot ();
@@ -124,34 +118,25 @@ extern void	xs_LineContour (), xs_FilledContour ();
  * component are we currently dealing with?
  */
 static int	Ncomps;
-static int	Comp_index;
+int	Comp_index;
 
-/*
- * Color stuff
- */
-static XColor	*Colors, Ctclr;
-static int	Ncolors;
-static int  	Monocolor;
-Pixel	White;
 
 /*
  * Annotation stuff
  */
-static int Tacmatch;
-static XColor Tadefclr;
-static float Sascale;
-static int Ctlimit;
-static int Sashow;
+XColor Tadefclr;
+Pixel	White;
 
+# ifdef notdef
 /*
  * Stuff for px_GetGrid (the phony data store)
  * Macro to reference the grid two-dimensionally
  */
 /* # define GRID(i,j)	grid[(i)* (*ydim) + (j)] */
 # define GRID(j,i)	grid[(i)* (*ydim) + (j)]
-# define BADVAL	-32768.0
 static float Melev = 0.0;	/* Mean pam elevation		*/
 
+# endif
 
 
 
@@ -292,9 +277,6 @@ px_GlobalPlot ()
 		strcpy(tadefcolor, "white");
 		ct_GetColorByName(tadefcolor, &Tadefclr);
 	}
-	Tacmatch = FALSE;
-	pd_Retrieve(Pd, "global", "ta-color-match", (char *) &Tacmatch,
-		SYMT_BOOL);
 	if(pd_Retrieve(Pd, "global", "ta-scale", (char *) &tascale,
 		SYMT_FLOAT))
 		An_SetScale(tascale);
@@ -322,7 +304,7 @@ px_GlobalPlot ()
 	{
 		sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
 
-		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext,
 			GWWidth (Graphics) - 10, USABLE_HEIGHT - 10, 
 			datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
@@ -477,10 +459,10 @@ px_Init ()
 /*
  * Put in the entries that exist
  */
-	Plot_routines[PT_CAP][RT_FCONTOUR] = px_CAPFContour;
-	Plot_routines[PT_CAP][RT_CONTOUR] = px_CAPLineContour;
-	Plot_routines[PT_CAP][RT_VECTOR] = px_CAPVector;
-	Plot_routines[PT_CAP][RT_RASTER] = px_CAPRaster;
+	Plot_routines[PT_CAP][RT_FCONTOUR] = CAP_FContour;
+	Plot_routines[PT_CAP][RT_CONTOUR] = CAP_LineContour;
+	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
+	Plot_routines[PT_CAP][RT_RASTER] = CAP_Raster;
 	Plot_routines[PT_CAP][RT_TRACK] = tr_CAPTrack;
 	Plot_routines[PT_CAP][RT_OVERLAY] = ov_CAPOverlay;
 
@@ -535,572 +517,6 @@ float *x0, *y0, *x1, *y1;
 
 
 
-
-void
-px_CAPFContour (c, update)
-char	*c;
-Boolean	update;
-/*
- * Filled contour CAP plot for the given component
- */
-{
-	float	center, step, bar_height, cval;
-	int	i, left, right, top, bottom;
-	char	string[10], fname[20];
-/*
- * Use the common CAP contouring routine to do a filled contour plot
- */
-	px_CAPContour (c, FilledContour, fname, &center, &step);
-/*
- * If it's just an update, return now since we don't want
- * to re-annotate
- */
-	if (update)
-		return;
-/*
- * Top annotation
- */
-	An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
-	An_TopAnnot (" filled contour", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
-/*
- * Side annotation (color bar)
- */
-	if(Sashow)
-	{
-		An_AnnotLimits (&top, &bottom, &left, &right);
-		left += 5;
-		top += 5;
-		bottom -= 5;
-
-		bar_height = (float)(bottom - top) / (float) Ncolors;
-	
-		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
-			top, fname, 0.0, Sascale, 
-			JustifyLeft, JustifyCenter);
-		top += Sascale * USABLE_HEIGHT;
-		for (i = 0; i <= Ncolors; i += Ctlimit)
-		{
-		/*
-		 * Draw a color rectangle
-		 */
-			if (i < Ncolors)
-			{
-				XSetForeground (XtDisplay (Graphics), Gcontext, 
-					Colors[i].pixel);
-				XFillRectangle (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, left, 
-					(int)(top + i * bar_height), 10, 
-					(int)(bar_height + 1));
-			}
-		/*
-		 * Numeric label
-		 */
-			cval = center + (i - Ncolors / 2) * step;
-			sprintf (string, "%.1f", cval);
-	
-			XSetForeground (XtDisplay (Graphics), Gcontext, White);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left + 15, (int)(top + i * bar_height), string,
-				 0.0, Sascale, JustifyLeft, JustifyCenter);
-		}
-	}
-}
-
-
-
-
-void
-px_CAPLineContour (c, update)
-char	*c;
-Boolean	update;
-/*
- * Line contour CAP plot for the given component
- */
-{
-	float	center, step, cval;
-	char	fname[20], string[10];
-	int	top, bottom, left, right, wheight, i;
-/* 
- * Use the common CAP contouring routine to do a color line contour plot
- */
-	px_CAPContour (c, LineContour, fname, &center, &step);
-/*
- * If it's just an update, return now since we don't want
- * to re-annotate
- */
-	if (update)
-		return;
-/*
- * Top annotation
- */
-	if(Tacmatch && Monocolor)
-		An_TopAnnot (px_FldDesc (c, fname), Ctclr.pixel);
-	else 
-		An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
-	An_TopAnnot (" contour", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
-/*
- * Side annotation
- */
-	if(Sashow)
-	{	
-		An_AnnotLimits (&top, &bottom, &left, &right);
-		left += 10;
-		top += 5;
-
-		wheight = USABLE_HEIGHT;
-
-		if(! Monocolor)
-		{
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Tadefclr.pixel);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-					left, top, fname, 0.0, Sascale, 
-					JustifyLeft, JustifyTop);
-			top += Sascale * wheight;
-			for (i = 0; i <= Ncolors; i += Ctlimit)
-			{
-			/*
-			 * Numeric label
-			 */
-				cval = center + (i - Ncolors / 2) * step;
-				sprintf (string, "%.1f", cval);
-	
-		
-				XSetForeground (XtDisplay (Graphics), Gcontext, 
-					Colors[i].pixel);
-				DrawText (Graphics, GWFrame (Graphics), 
-					Gcontext, left, top, string, 0.0, 
-					Sascale, JustifyLeft, JustifyTop);
-				top += (int)(1.2 * Sascale * wheight);
-			}
-		}
-	}
-}
-
-
-
-
-void
-px_CAPContour (c, type, fname, center, step)
-char	*c, *fname;
-contour_type	type;
-float	*center, *step;
-/*
- * Execute a CAP contour plot, based on the given plot
- * description, specified component, and contour type.
- * Return the field name, contour center, and step from the plot
- * description.
- */
-{
-	char	ctname[40], platform[40], ctcolor[40];
-	int	xdim, ydim;
-	float	*rgrid, *grid, x0, x1, y0, y1, alt;
-	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
-	int 	labelflag;
-	Boolean	ok;
-	XColor	black;
-	XRectangle	clip;
-/*
- * Get necessary parameters from the plot description
- */
-	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "contour-center", fname, (char *) center, 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "contour-step", fname, (char *) step, 
-		SYMT_FLOAT);
-	Monocolor = FALSE;
-	pda_Search(Pd, c, "color-mono", "contour", (char *) &Monocolor,
-		SYMT_BOOL);
-	if(Monocolor)
-	{
-		ok &= pda_Search(Pd, c, "color", "contour", ctcolor,
-			SYMT_STRING);
-		if(! ct_GetColorByName(ctcolor, &Ctclr))
-		{
-			msg_ELog(EF_PROBLEM, "Can't get contour color '%s'.",
-				ctcolor);
-			strcpy(ctcolor,"white");
-			ct_GetColorByName(ctcolor, &Ctclr);
-		}
-	}
-	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctname, 
-		SYMT_STRING);
-	labelflag = TRUE;
-	pda_Search(Pd, c, "label-blanking", "contour", (char *) &labelflag,
-		SYMT_BOOL);
-	dt_SetBlankLabel(labelflag);
-
-	if (! ok)
-		return;
-/* 
- * Get annotation information
- */
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
-		Sascale = 0.02;
-	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
-		Ctlimit = 1;
-	Sashow = TRUE;
-	pda_Search(Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
-
-/*
- * Special stuff for line contours
- */
-	if (! pda_Search (Pd, c, "do-labels", "contour", (char *) &dolabels,
-		SYMT_BOOL))
-		dolabels = TRUE;
-
-	if (! pda_Search (Pd, c, "line-width", "contour", (char *) &linewidth,
-		SYMT_INT))
-		linewidth = 0;
-/*
- * Grab the color table
- */
-	if(! Monocolor)
-		ct_LoadTable (ctname, &Colors, &Ncolors);
-/*
- * Get the data (pass in plot time, get back actual data time)
- */
-	alt = Alt;
-	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
-	rgrid = ga_GetGrid (&PlotTime, platform, fname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
-	if (Comp_index == 0)
-		Alt = alt;
-	if (! rgrid)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to get grid");
-		return;
-	}
-/*
- * Kludge: rotate the grid into the right ordering.
- */
-	grid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, grid, xdim, ydim);
-	free (rgrid);
-/*
- * Convert the grid limits to pixel values
- */
-	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
-	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
-/*
- * Clip rectangle
- */
-	clip.x = F_X0 * GWWidth (Graphics);
-	clip.y = (1.0 - F_Y1) * USABLE_HEIGHT;
-	clip.width = (F_X1 - F_X0) * GWWidth (Graphics);
-	clip.height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
-/*
- * Draw the contours
- */
-	ct_GetColorByName ("black", &black);
-
-	switch (type)
-	{
-	    case FilledContour:
-		FC_Init (Colors, Ncolors, Ncolors / 2, black, clip, TRUE, 
-			BADVAL);
-		FillContour (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
-		break;
-	    case LineContour:
-		if(! Monocolor)
-			CO_Init (Colors, Ncolors, Ncolors / 2, black, clip, 
-				TRUE, BADVAL);
-		else CO_InitMono (Ctclr, clip, TRUE, BADVAL);
-		Contour (Graphics, GWFrame (Graphics), grid, xdim, ydim,
-			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step, 
-			dolabels, linewidth);
-		break;
-	    default:
-		msg_ELog (EF_PROBLEM, "BUG: bad contour plot type %d", type);
-	}
-/*
- * Free the data array
- */
-	free (grid);
-}
-
-
-
-
-void
-px_CAPVector (c, update)
-char	*c;
-Boolean	update;
-/*
- * Execute a CAP vector plot, based on the given plot
- * description, specified component, and plot time
- */
-{
-	char	uname[20], vname[20], cname[30], platform[40], annot[120];
-	int	xdim, ydim;
-	float	*rgrid, *ugrid, *vgrid;
-	float	vscale, x0, x1, y0, y1, alt;
-	int	pix_x0, pix_x1, pix_y0, pix_y1;
-	int	top, bottom, left, right, xannot, yannot;
-	Boolean	ok;
-	XColor	color;
-/*
- * Get necessary parameters from the plot description
- */
-	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "u-field", NULL, uname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "arrow-scale", NULL, CPTR (vscale), 
-		SYMT_FLOAT);
-	if (! ok)
-		return;
-/*
- * Get annotation information from the plot description
- */
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
-		Sascale = 0.02;
-/*
- * Figure out an arrow color.
- */
-	if (! pda_Search (Pd, c, "arrow-color", platform, cname, SYMT_STRING)
-		&& ! pda_Search (Pd, c, "color", platform, cname, SYMT_STRING))
-		strcpy (cname, "white");
-/*
- * Allocate the chosen arrow color
- */
-	if (! ct_GetColorByName (cname, &color))
-	{
-		msg_ELog (EF_PROBLEM, "Can't get arrow color '%s'!", cname);
-		return;
-	}
-/*
- * Get the data (pass in plot time, get back actual data time)
- */
-	alt = Alt;
-	rgrid = ga_GetGrid (&PlotTime, platform, uname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
-	if (Comp_index == 0)
-		Alt = alt;
-	if (! rgrid)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to get U grid");
-		return;
-	}
-	ugrid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
-	free (rgrid);
-
-	rgrid = ga_GetGrid (&PlotTime, platform, vname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
-	if (! rgrid)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to get V grid");
-		return;
-	}
-	vgrid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, vgrid, xdim, ydim);
-	free (rgrid);
-/*
- * Convert the grid limits to pixel values
- */
-	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
-	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
-/*
- * Draw the vectors
- */
-	VectorGrid (Graphics, GWFrame (Graphics), ugrid, vgrid, xdim, ydim, 
-		pix_x0, pix_y0, pix_x1, pix_y1, vscale, BADVAL, color);
-/*
- * Free the data arrays
- */
-	free (ugrid);
-	free (vgrid);
-/*
- * If it's just an update, return now since we don't want
- * to re-annotate
- */
-	if (update)
-		return;
-/*
- * Top annotation
- */
-	sprintf (annot, " plot (%s).  ", platform);
-	if(Tacmatch)
-		An_TopAnnot ("Vector winds", color.pixel);
-	else
-		An_TopAnnot ("Vector winds", Tadefclr.pixel);
-	An_TopAnnot (annot, Tadefclr.pixel);
-/*
- * Side annotation (scale vectors)
- */
-	An_AnnotLimits (&top, &bottom, &left, &right);
-
-	if(Tacmatch)
-		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
-	else
-		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
-
-	xannot = (left + right) / 2;
-	yannot = top + 0.04 * USABLE_HEIGHT;
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
-		"10 m/sec", 0.0, Sascale, JustifyCenter, JustifyBottom);
-	xannot = left;
-	yannot += Sascale * USABLE_HEIGHT;
-	if(Tacmatch)
-		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, color.pixel);
-	else
-		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, Tadefclr.pixel);
-
-}
-
-
-
-
-void
-px_CAPRaster (c, update)
-char	*c;
-Boolean	update;
-/*
- * Execute a CAP raster plot, based on the given plot
- * description, specified conent, and plot time
- */
-{
-	char	name[20], string[10], ctname[40], platform[40];
-	int	xdim, ydim;
-	int	top, bottom, left, right, i, newrp, fastloop;
-	Boolean	ok;
-	float	*grid, x0, x1, y0, y1, alt;
-	float	min, max, bar_height, val, frac;
-	int	pix_x0, pix_x1, pix_y0, pix_y1;
-	XRectangle	clip;
-	XColor	black;
-/*
- * Get necessary parameters from the plot description
- */
-	strcpy (name, "none");
-	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "field", NULL, name, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "minval", name, CPTR (min), SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "maxval", name, CPTR (max), SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
-		SYMT_STRING);
-
-	if (! ok)
-		return;
-/*
- * Get annotation information from the plot description
- */
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
-		Sascale = 0.02;
-	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
-		Ctlimit = 1;
-/*
- * Rasterization control.
- */
-	if (! pda_Search (Pd, c, "new-raster", NULL, (char *) &newrp,
-		SYMT_BOOL))
-		newrp = TRUE;
-	if (! pda_Search (Pd, c, "fast-raster", NULL, (char *) &fastloop,
-		SYMT_BOOL))
-		fastloop = FALSE;
-/*
- * Field number and color table
- */
-	ct_LoadTable (ctname, &Colors, &Ncolors);
-/*
- * Get the data (pass in plot time, get back actual data time)
- */
-	alt = Alt;
-	grid = ga_GetGrid (&PlotTime, platform, name, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
-	if (Comp_index == 0)
-		Alt = alt;
-	if (! grid)
-	{
-		msg_ELog (EF_INFO, "Unable to get grid for %s at %d %d",
-			platform, PlotTime.ds_yymmdd, PlotTime.ds_hhmmss);
-		return;
-	}
-/*
- * Convert the grid limits to pixel coordinates
- */
-	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
-	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
-/*
- * Clip rectangle
- */
-	clip.x = F_X0 * GWWidth (Graphics);
-	clip.y = (1.0 - F_Y1) * USABLE_HEIGHT;
-	clip.width = (F_X1 - F_X0) * GWWidth (Graphics);
-	clip.height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
-/*
- * Draw the raster plot
- */
-	ct_GetColorByName ("black", &black);
-	RP_Init (Colors, Ncolors, black, clip, min, max);
-	if (! newrp)
-		RasterPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1);
-	else
-		RasterXIPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
-/*
- * Free the data array
- */
-	free (grid);
-/*
- * If it's just an update, return now since we don't want
- * to re-annotate
- */
-	if (update)
-		return;
-/*
- * Top annotation
- */
-	An_TopAnnot (px_FldDesc (c, name), Tadefclr.pixel);
-	An_TopAnnot ("plot", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
-/*
- * Side annotation (color bar)
- */
-	An_AnnotLimits (&top, &bottom, &left, &right);
-
-	bottom -= 5;
-	top += 5;
-
-	bar_height = (bottom - top) / (float) Ncolors;
-	XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
-		top, name, 0.0, Sascale, JustifyLeft, 
-		JustifyCenter);
-	top += Sascale * USABLE_HEIGHT;
-	for (i = 0; i < Ncolors; i++)
-	{
-	/*
-	 * Draw a color rectangle
-	 */
-		XSetForeground (XtDisplay (Graphics), Gcontext, 
-			Colors[i].pixel);
-		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			Gcontext, left, (int)(top + i * bar_height), 10, 
-			(int)(bar_height + 1));
-	}
-
-	for (i = 0; i < 9; i++)
-	{
-	/*
-	 * Numeric label
-	 */
-		frac = (float) i / 8.0;
-		val = min + frac * (max - min);
-		sprintf (string, "%.1f", val);
-
-		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
-			(int)(top + frac * (bottom - top)),string, 0.0,Sascale, 
-			JustifyLeft, JustifyCenter);
-	}
-}
 
 
 
