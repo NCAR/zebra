@@ -310,7 +310,27 @@ XtGeometryResult
 GeometryManager (w, request, reply)
 Widget	w;
 XtWidgetGeometry	*request, *reply;
+/*
+ * The geometry manager.  We're easy -- we'll allow anything.  If they request
+ * something that puts them off the window, that's their problem....
+ */
 {
+/*
+ * Stash the new values into the widget.
+ */
+	if (request->request_mode & CWWidth)
+		w->core.width = request->width;
+	if (request->request_mode & CWHeight)
+		w->core.height = request->height;
+	if (request->request_mode & CWX)
+		w->core.x = request->x;
+	if (request->request_mode & CWY)
+		w->core.y = request->y;
+	if (request->request_mode & CWBorderWidth)
+		w->core.border_width = request->border_width;
+/*
+ * Return our approval.
+ */
 	return (XtGeometryYes);
 }
 
