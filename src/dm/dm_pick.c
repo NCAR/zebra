@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.9 1994-11-20 22:40:45 granger Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.10 1994-12-05 23:33:53 sobol Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -145,66 +145,58 @@ struct wpick *wp;
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
 	Window root, parent, *children = NULL;
 	unsigned int nchild = 0;
-	XWindowAttributes attr;
 	
 	if (! (win->cfw_flags & CF_WIDGET) && (win->cfw_win != 0))
 	{
 		msg_ELog (EF_DEBUG, "Window name = %s", win->cfw_name);
 		msg_ELog (EF_DEBUG, "Window id = %X", win->cfw_win);
-		XGetWindowAttributes (Dm_Display, win->cfw_win, &attr);
-		if (attr.override_redirect == True)
+	/*
+	 * We used to check for the shell being in override redirect mode, 
+	 * i.e it has NOT been reparented, but this seems not to be necessary.
+	 * Do compare the picked window with the windows we know about.
+	 */
+		msg_ELog (EF_DEBUG, "OR case");
+		if (wp->wp_id == win->cfw_win)
 		{
-		/*
-		 * The shell is in override redirect mode, i.e it has
-		 * NOT been reparented.  Compare the picked window with
-		 * the windows we know about.
-		 */
-			msg_ELog (EF_DEBUG, "OR case");
-			if (wp->wp_id == win->cfw_win)
-			{
-				strcpy (wp->wp_name, win->cfw_name);
-				wp->wp_found = TRUE;
-				return (FALSE);
-			}
+			strcpy (wp->wp_name, win->cfw_name);
+			wp->wp_found = TRUE;
+			return (FALSE);
 		}
-		else
+	/*
+	 * In most window managers the window has been reparented. 
+	 * Compare the picked window with the parent window of the windows 
+	 * we know about.
+	 */
+		XQueryTree (Dm_Display, win->cfw_win, &root, &parent, 
+			&children, &nchild);
+		msg_ELog (EF_DEBUG, "NOR, parent is 0x%x", parent);
+	/*
+	 * Don't need the children, so free them, if any
+	 */
+		if (nchild)
+			XFree(children);
+		if (wp->wp_id == parent)
 		{
-		/*
-		 * The shell is not in override redirect mode, i.e it has
-		 * been reparented.  Compare the picked window with
-		 * the parent window of the windows we know about.
-		 */
-			XQueryTree (Dm_Display, win->cfw_win, &root, &parent, 
-				&children, &nchild);
-			msg_ELog (EF_DEBUG, "NOR, parent is 0x%x", parent);
-		/*
-		 * Don't need the children, so free them, if any
-		 */
-			if (nchild)
-				XFree(children);
-			if (wp->wp_id == parent)
-			{
-				strcpy (wp->wp_name, win->cfw_name);
-				wp->wp_found = TRUE;
-				return (FALSE);
-			}
-		/*
-		 * failing that, do it all one more time, since mwm likes
-		 * to put two levels of reparenting in...
-		 */
-			XQueryTree (Dm_Display, parent, &root, &parent, 
-				&children, &nchild);
-			msg_ELog (EF_DEBUG, "NOR, parent2 is 0x%x", parent);
-			if (nchild)
-				XFree(children);
-			if (wp->wp_id == parent && parent != root)
-			{
-				strcpy (wp->wp_name, win->cfw_name);
-				wp->wp_found = TRUE;
-				return (FALSE);
-			}
+			strcpy (wp->wp_name, win->cfw_name);
+			wp->wp_found = TRUE;
+			return (FALSE);
+		}
+	/*
+	 * failing that, do it all one more time, since mwm likes
+	 * to put two levels of reparenting in...
+	 */
+		XQueryTree (Dm_Display, parent, &root, &parent, 
+			&children, &nchild);
+		msg_ELog (EF_DEBUG, "NOR, parent2 is 0x%x", parent);
+		if (nchild)
+			XFree(children);
+		if (wp->wp_id == parent && parent != root)
+		{
+			strcpy (wp->wp_name, win->cfw_name);
+			wp->wp_found = TRUE;
+			return (FALSE);
+		}
 
-		}
 	}
 	return (TRUE);
 }

@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.21 1994-11-19 00:28:36 burghart Exp $
+! $Id: dm.widgets,v 1.22 1994-12-05 23:33:50 sobol Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -469,6 +469,7 @@ procedure sk-add-data platform string field string target string
 ! OK implement overlaying for them.
 !
 	if (nvalue (target, comp, 'platform') >= 3)
+		message 'Too many platforms.  Reset window to initial state.'
 		beep
 	else
 		local explat PDParam(target,comp,'platform')
