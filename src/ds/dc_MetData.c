@@ -27,71 +27,9 @@
 # include <config.h>		/* For CFG_ symbols */
 # include <message.h>
 # include "DataStore.h"
-# include "ds_fields.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.17 1995-11-20 20:22:57 granger Exp $")
 
-# define SUPERCLASS DCC_Transparent
-
-# ifndef CFG_NO_BADVALUES
-# define SUPPORT_BADVALUES
-# endif
-
-/*
- * The default bad value flag, usually -99999.9
- */
-# define DefaultBadval 		CFG_DC_DEFAULT_BADVAL
-
-# define HASH_FIELD_ID(fid)	((fid)&(MD_HASH_SIZE-1))
-# define HASH_SIZE		MD_HASH_SIZE
-/* 
- * MD_HASH_SIZE is defined next to DC_MaxField, in DataStore.h, 
- * since it depends on DC_MaxField
- */
-
-const char *DC_ElemTypeNames[] =
-{
-	"unknown",
-	"float",
-	"double",
-	"long double",
-	"char",
-	"unsigned char",
-	"short int",
-	"unsigned short",
-	"int",
-	"unsigned int",
-	"long int",
-	"unsigned long",
-	"string",
-	"Boolean",
-	"ZebTime",
-	"void *"
-};
-
-const int DC_ElemTypeSizes[] = 
-{
-	0,
-	sizeof(float),
-	sizeof(double),
-	sizeof(LongDouble),
-	sizeof(char),
-	sizeof(unsigned char),
-	sizeof(short int),
-	sizeof(unsigned short),
-	sizeof(int),
-	sizeof(unsigned int),
-	sizeof(long int),
-	sizeof(unsigned long),
-	sizeof(char *),
-	sizeof(unsigned char),
-	sizeof(ZebTime),
-	sizeof(void *)
-};
-
-const int DC_NumTypes = 
-	sizeof (DC_ElemTypeSizes) / sizeof (DC_ElemTypeSizes[0]);
+RCSID ("$Id: dc_MetData.c,v 3.18 1996-11-19 09:46:50 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -104,90 +42,141 @@ typedef struct _FieldTOC
 } FieldTOC;
 
 
+static int FillValuePointer = 0;
+DataPtr DC_FillValues = (DataPtr)&FillValuePointer;
+
+
+# define SUPERCLASS ((DataClassP)&TranspMethods)
+
 /*
- * The structure which describes our fields.
+ * Class method prototypes
  */
-typedef struct _FldInfo
+static DataChunk *md_Create FP((DataChunk *));
+static void	md_Dump FP((DataChunk *));
+
+RawClass MetDataMethods =
 {
-	int		fi_NSample;		/* Shadows superclass 	 */
-	int		fi_NField;
-	FieldId		fi_Fields[DC_MaxField];
-	DC_ElemType	fi_Types[DC_MaxField];	/* field element types	 */
-	int		fi_Sizes[DC_MaxField];	/* field sizes, if fixed */
-	int		fi_Offset[DC_MaxField];	/* offsets into sample	 */
-	FieldId		fi_HashIndex[HASH_SIZE];
-	bool		fi_BlockChanges;	/* block changes, esp types */
-	bool		fi_Uniform;		/* Uniform length fields */
-	bool		fi_UniformOrg;		/* Uniform elems/sample	 */
-	int		fi_Size;		/* Size of uniform flds  */
-	bool		fi_FixedFields;		/* Field sizes fixed	 */
-	bool		fi_ReserveSpace;	/* Pre-arrange field space */
-	float		fi_Badval;		/* Bad value flag	 */
-} FldInfo;
+	DCID_MetData,		/* Class id */
+	"MetData",
+	SUPERCLASS,		/* Superclass			*/
+	2,			/* Depth, Raw = 0		*/
+	md_Create,
+	0,			/* Destroy			*/
+	0,			/* Add				*/
+	md_Dump,		/* Dump				*/
 
+	0,			/* Serialize			*/
+	0,			/* Localize			*/
 
-/*
- * Our class-specific AuxData structure types.
- */
-# define ST_FLDINFO		1000
-# define ST_FIELDATTR(x)	(2000+(x))
+	sizeof (MetDataChunk)
+};
+
+DataClassP DCP_MetData = (DataClassP)&MetDataMethods;
 
 
 /*
  * Local routines.
  */
-static DataChunk *dc_MDCreate FP((DataClass));
-static int	dc_GetIndex FP((FldInfo *, FieldId));
 static FldInfo *dc_BuildFieldInfo FP((DataChunk *dc, int nfld, FieldId *fids));
-static void	dc_BuildIndexHash FP((FldInfo *finfo));
+static void	dc_BuildIndexHash FP((FldInfo *finfo, int begin, int end));
 static inline void dc_MDSetType FP((DataChunk *dc, FldInfo *finfo, FieldId fid,
 				    DC_ElemType type));
 static void	dc_MDOptimize FP((DataChunk *dc, FldInfo *finfo));
-static void	dc_AddUniform FP((DataChunk *dc, FldInfo *finfo, int findex,
+static void *	dc_AddUniform FP((DataChunk *dc, FldInfo *finfo, int findex,
 				  ZebTime *t, int size, int start, int nsamp,
 				  DataPtr data));
-static void	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, ZebTime *,
+static void *	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, ZebTime *,
 			int, int, int, DataPtr));
-static void	dc_AddFixedField FP((DataChunk *dc, FldInfo *finfo, 
+static void *	dc_AddFixedField FP((DataChunk *dc, FldInfo *finfo, 
 				     int findex, ZebTime *t, int size, 
 				     int start, int nsamp, DataPtr data));
-static void	dc_DumpMD FP((DataChunk *));
-static int	dc_PrintFiAttr FP((char *key, void *value, int nval,
-				   DC_ElemType type, void *arg));
 static FldInfo *dc_ChangeInfo FP((DataChunk *dc, char *method));
 
 
+#define dc_GetSample dc_MetGetSample
 
-RawDCClass MetDataMethods =
-{
-	"MetData",
-	SUPERCLASS,		/* Superclass			*/
-	2,			/* Depth, Raw = 0		*/
-	dc_MDCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
-	dc_DumpMD,		/* Dump				*/
-};
-
-
-
-
-/* ARGSUSED */
-static DataChunk *
-dc_MDCreate (class)
-DataClass class;
+static inline DataPtr
+dc_MetGetSample (dc, sample, len)
+DataChunk *dc;
+int sample, *len;
 /*
- * Create a chunk of this class.
+ * Inlined version of Transparent class's dc_GetSample.
  */
 {
-	DataChunk *dc;
+	AuxTrans *tp = (&((TranspDataChunk *)(dc))->transpart);
 /*
- * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
- * add any field info here, because we don't know it yet.
+ * Make sure the sample exists.  If so, return the info.
  */
-	dc = DC_ClassCreate (SUPERCLASS);
-	dc->dc_Class = DCC_MetData;
-	return (dc);
+	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
+		return (NULL);
+	if (len)
+		*len = tp->at_Samples[sample].ats_Len;
+	return ((DataPtr) ((char *) dc->dc_Data +
+			tp->at_Samples[sample].ats_Offset));
+}
+
+
+#ifdef METDATA_STATS
+static int GetIndexHits = 0;
+static int GetIndexRolls = 0;
+#endif
+
+
+static inline int
+dc_GetIndex (finfo, field)
+FldInfo *finfo;
+FieldId field;
+/*
+ * Return the index of this field in this DC by looking it up in the hash
+ * table.  Note that we expect at least one more empty slot than the
+ * maximum possible number of fields, so that we don't infinitely loop if
+ * we get a field that is not in a datachunk with DC_MaxField fields.
+ * Return -1 if the field does not exist in this datachunk.
+ */
+{
+	int hash, index;
+
+	hash = HASH_FIELD_ID(field);
+
+	while ((index = finfo->fi_HashIndex[hash]) != -1)
+	{
+		if (finfo->fi_Fields[index] == field)
+		{
+#ifdef METDATA_STATS
+			++GetIndexHits;
+#endif
+			return (index);
+		}
+#ifdef METDATA_STATS
+		++GetIndexRolls;
+#endif
+		if (++hash == HASH_SIZE)
+			hash = 0;
+	} 
+	return (-1);
+}
+
+
+
+int
+dc_ClearFields (dc)
+DataChunk *dc;
+/*
+ * Clear this datachunk of any fields, unless changes are no longer allowed.
+ * Return non-zero if we succeed.
+ */
+{
+	FldInfo *finfo;
+	int i;
+
+	if ((finfo = dc_ChangeInfo (dc, "ClearFields")) && finfo->fi_NField)
+	{
+		/* empty the hash and reset the count */
+		for (i = 0; i < HASH_SIZE; ++i)
+			finfo->fi_HashIndex[i] = -1;
+		finfo->fi_NField = 0;
+	}
+	return (finfo != NULL);
 }
 
 
@@ -199,21 +188,43 @@ DataChunk *dc;
 int nfield;
 FieldId *fields;
 /*
- * Set up this DC to take non-uniform fields.
+ * Set datachunk fields to this list, by first clearing any existing fields
+ * and adding the new ones.
  */
 {
 	FldInfo *finfo;
-/*
- * The usual sanity checking.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetupFields"))
-		return;
 
-	finfo = dc_BuildFieldInfo (dc, nfield, fields);
+	if ((finfo = dc_ChangeInfo (dc, "SetupFields")))
+	{
+		dc_ClearFields (dc);
+		dc_BuildFieldInfo (dc, nfield, fields);
+	}
 }
 
 
 
+
+void
+dc_AddFields (dc, nfield, fields)
+DataChunk *dc;
+int nfield;
+FieldId *fields;
+/*
+ * Add fields.
+ */
+{
+	FldInfo *finfo;
+
+	if ((finfo = dc_ChangeInfo (dc, "AddFields")))
+	{
+		dc_BuildFieldInfo (dc, nfield, fields);
+	}
+}
+
+
+
+
+#ifdef CFG_DC_OLDFIELDS	/* --------------------------------------- */
 void
 dc_SetupUniformFields (dc, nsamples, nfield, fields, size)
 DataChunk *dc;
@@ -221,35 +232,24 @@ int nsamples, nfield;
 FieldId *fields;
 int size;
 /*
- * Get this data chunk set up to have uniform-length fields.
+ * Set this data chunk up to have uniform-length fields.
  * Entry:
  *	DC	is a new data chunk, which is a subclass of DCC_MetData
  *	NSAMPLES is the best guess at the number of samples which this
  *		data chunk will have.  It is not an upper limit.
- *	NFIELD	is the number of fields this data chunk will have.
- *	FIELDS	is the list of ID's for the fields in this DC.
  *	SIZE	is the uniform size that each field will have.
- * Exit:
- *	The data chunk has been configured for this mode of operation.
  */
 {
-	FldInfo *finfo;
-/*
- * The usual sanity checking.
- */
-	if (!dc_ReqSubClassOf(dc->dc_Class, DCC_MetData, "SetupUniformFields"))
-		return;
-
-	finfo = dc_BuildFieldInfo (dc, nfield, fields);
-	if (finfo)
+	if (dc_ChangeInfo (dc, "SetupUniformFields"))
 	{
-		finfo->fi_Uniform = TRUE;
-		finfo->fi_Size = size;
-	}
+		FldInfo *finfo;
 
+		dc_ClearFields (dc);
+		finfo = dc_BuildFieldInfo (dc, nfield, fields);
+		dc_SetUniformFieldSize (dc, size);
+	}
 	dc_HintNSamples (dc, nsamples, TRUE);
 }
-
 
 
 
@@ -260,33 +260,43 @@ int nsamples, nfield;
 FieldId *fields;
 int nelems;
 /*
- * Get this data chunk set up to have uniform-length fields.
- * Entry:
- *	DC	is a new data chunk, which is a subclass of DCC_MetData
- *	NSAMPLES is the best guess at the number of samples which this
- *		data chunk will have.  It is not an upper limit.
- *	NFIELD	is the number of fields this data chunk will have.
- *	FIELDS	is the list of ID's for the fields in this DC.
- *	NELEMS	is the uniform number of elements in each field.
- * Exit:
- *	The data chunk has been configured for this mode of operation.
+ * Set this data chunk up to use uniform-length fields.
  */
 {
 	FldInfo *finfo;
-/*
- * The usual sanity checking.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetupUniformOrg"))
-		return;
 
-	finfo = dc_BuildFieldInfo (dc, nfield, fields);
+	if (dc_ChangeInfo (dc, "SetupUniformOrg"))
+	{
+		dc_ClearFields (dc);
+		finfo = dc_BuildFieldInfo (dc, nfield, fields);
+		dc_SetUniformOrg (dc, nelems);
+	}
+	dc_HintNSamples (dc, nsamples, TRUE);
+}
+
+
+
+void
+dc_FixFieldSizes (dc, sizes)
+DataChunk *dc;
+int *sizes;
+/*
+ * Inform us that all of the fields will have the fixed size given in sizes,
+ * where sizes[] corresponds to the FieldId array fids[].
+ */
+{
+	FldInfo *finfo;
+	int i;
+
+	finfo = dc_ChangeInfo (dc, "FixFieldSizes");
 	if (finfo)
 	{
-		finfo->fi_UniformOrg = TRUE;
-		finfo->fi_Size = nelems;
+		for (i = 0; i < finfo->fi_NField; ++i)
+			finfo->fi_Sizes[i] = sizes[i];
+		finfo->fi_FixedFields = TRUE;
 	}
-	return;
 }
+#endif	/* --------------------------------------- CFG_DC_OLDFIELDS */
 
 
 
@@ -297,63 +307,35 @@ DataChunk *dc;
 int nfield;
 FieldId *fields;
 /*
- * Check limits, set default values, and construct the hash index table.
+ * Add fields to the field id array and hash table.
  */
 {
-	FldInfo *finfo;
-	int fld;
-/*
- * Make sure someone hasn't already tried this.
- */
-	if (dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "Fields already setup; setup only allowed once");
-		return NULL;
-	}
-/*
- * Allocate and fill in our structure.
- */
-	finfo = ALLOC (FldInfo);
+	FldInfo *finfo = FIP(dc);
+	int fld, n;
 /*
  * Make sure someone's not trying to overstuff us with fields.
- * If so, only the first DC_MaxField fields will be accepted.
+ * If so, only up to DC_MaxField fields will be accepted.
  */
-	if (nfield > DC_MaxField)
+	if (finfo->fi_NField + nfield > DC_MaxField)
 	{
-		msg_ELog(EF_PROBLEM,
-			"%i is too many fields, max is %i",
-			nfield, DC_MaxField);
-		finfo->fi_NField = DC_MaxField;
+		msg_ELog(EF_PROBLEM, "%i is too many fields, max is %i",
+			 finfo->fi_NField + nfield, DC_MaxField);
 	}
-	else
+
+	n = finfo->fi_NField;
+	for (fld = 0; (fld < nfield) && (n < DC_MaxField); fld++)
 	{
-		finfo->fi_NField = nfield;
+		finfo->fi_Fields[n] = fields[fld];
+		finfo->fi_Types[n] = DCT_Float;
+		finfo->fi_Sizes[n] = 0;
+		finfo->fi_Offset[n] = 0;
+		++n;
 	}
-	for (fld = 0; fld < finfo->fi_NField; fld++)
-	{
-		finfo->fi_Fields[fld] = fields[fld];
-		finfo->fi_Types[fld] = DCT_Float;
-		finfo->fi_Sizes[fld] = 0;
-		finfo->fi_Offset[fld] = 0;
-	}
-	finfo->fi_Badval = DefaultBadval;
-	finfo->fi_BlockChanges = FALSE;
-	finfo->fi_Uniform = FALSE;
-	finfo->fi_UniformOrg = FALSE;
-	finfo->fi_Size = 0;
-	finfo->fi_FixedFields = FALSE;
-	finfo->fi_ReserveSpace = TRUE;	/* pre-arrange space if possible */
-	finfo->fi_NSample = 0;
 /*
  * Create the hash table for finding the index of a given FieldId
  */
-	dc_BuildIndexHash (finfo);
-/* 
- * Attach it to the DC.
- */
-	dc_AddADE (dc, (DataPtr) finfo, DCC_MetData, ST_FLDINFO, 
-				sizeof (FldInfo), TRUE);
+	dc_BuildIndexHash (finfo, finfo->fi_NField, n);
+	finfo->fi_NField = n;
 	return (finfo);
 }
 
@@ -361,32 +343,22 @@ FieldId *fields;
 
 
 static void
-dc_BuildIndexHash (finfo)
+dc_BuildIndexHash (finfo, begin, end)
 FldInfo *finfo;
+int begin;
+int end;
 /*
  * Initialize the hash table to the indices of all of our FieldIds.
  */
 {
 	int i, hash;
 
-	for (i = 0; i < HASH_SIZE; ++i)
-		finfo->fi_HashIndex[i] = -1;	/* fill with empty slots */
-	/*
-	 * Make sure HASH_SIZE has not gotten out of sync with DC_MaxField.
-	 */
-	if (DC_MaxField + 1 > HASH_SIZE)
-	{
-		msg_ELog (EF_PROBLEM, 
-		  "Field index hash table too small, check MD_HASH_SIZE defn");
-		if (finfo->fi_NField + 1 > HASH_SIZE)
-			return;
-	}
 	/*
 	 * Now pass through all of our fields, and place them in the 
 	 * hash table.  Collisions are placed in the next available slot,
 	 * where the next higher slot may circle around to the bottom.
 	 */
-	for (i = 0; i < finfo->fi_NField; ++i)
+	for (i = begin; i < end; ++i)
 	{
 		hash = HASH_FIELD_ID (finfo->fi_Fields[i]);
 		while (finfo->fi_HashIndex[hash] != -1)
@@ -407,17 +379,12 @@ DataChunk *dc;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "BlockChanges"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "BlockChanges"))
 		return;
 /*
- * Grab the field info structure, and set the bad value flag.
+ * Grab the field info structure, and set the block changes flag.
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Attempt to block changes with no fields");
-		return;
-	}
+	finfo = FIP(dc);
 	finfo->fi_BlockChanges = TRUE;
 }
 
@@ -426,7 +393,7 @@ DataChunk *dc;
 
 /*
  * --------------------------------------------------------------------------
- * Element type handling
+ * Field element type handling
  * --------------------------------------------------------------------------
  */
 
@@ -442,8 +409,8 @@ DC_ElemType type;
 {
 	int idx;
 
-	idx = dc_GetIndex (finfo, fid);
-	finfo->fi_Types[idx] = type;
+	if ((idx = dc_GetIndex (finfo, fid)) >= 0)
+		finfo->fi_Types[idx] = type;
 }
 
 
@@ -460,20 +427,14 @@ char *method;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, method))
+	if (! dc_ReqSubClass (dc, DCP_MetData, method))
 		return NULL;
 /*
- * Grab the field info structure, and set the bad value flag.
+ * Grab the field info structure.
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "%s: attempt to change info with no fields", method);
-		return NULL;
-	}
+	finfo = FIP(dc);
 /*
- * Don't allow changes to the field type once data has been added
+ * Don't allow changes to the fields or types once data has been added
  */
 	if (finfo->fi_NSample > 0)
 	{
@@ -482,7 +443,7 @@ char *method;
 		return NULL;
 	}
 /*
- * Forbid change if they have been blocked by the subclass
+ * Forbid changes if blocked by the subclass
  */
 	if (finfo->fi_BlockChanges)
 	{
@@ -492,6 +453,7 @@ char *method;
 	}
 	return (finfo);
 }
+
 
 
 
@@ -512,7 +474,6 @@ int size;
 		finfo->fi_Size = size;
 	}
 }
-
 
 
 
@@ -565,24 +526,30 @@ DC_ElemType *types_in;
 
 
 void
-dc_FixFieldSizes (dc, sizes)
+dc_SetFieldSizes (dc, nfield, fids, sizes)
 DataChunk *dc;
+int nfield;
+FieldId *fids;
 int *sizes;
 /*
- * Inform us that all of the fields will have the fixed size given in sizes,
- * where sizes[] corresponds to the FieldId array passed into SetupFields.
+ * Inform the Met class that all of the fields will have the fixed size
+ * given in sizes, where sizes[] corresponds to the FieldId array fids[].
+ * It is the callers responsibility to make sure every field eventually
+ * gets a size set, unless that size is zero.
  */
 {
 	FldInfo *finfo;
-	int i;
 
-	finfo = dc_ChangeInfo (dc, "FixFieldSizes");
+	finfo = dc_ChangeInfo (dc, "SetFieldSizes");
 	if (finfo)
 	{
-		for (i = 0; i < finfo->fi_NField; ++i)
-			finfo->fi_Sizes[i] = sizes[i];
+		int i, idx;
+
+		for (i = 0; i < nfield; ++i)
+			if ((idx = dc_GetIndex (finfo, fids[i])) >= 0)
+				finfo->fi_Sizes[idx] = sizes[i];
+		finfo->fi_FixedFields = TRUE;
 	}
-	finfo->fi_FixedFields = TRUE;
 }
 
 
@@ -622,7 +589,7 @@ DC_ElemType type;	/* The type to assign		*/
 
 
 
-DC_ElemType
+inline DC_ElemType
 dc_Type (dc, fid)
 DataChunk *dc;
 FieldId fid;
@@ -632,21 +599,18 @@ FieldId fid;
 {
 	int idx;
 	FldInfo *finfo;
+
+#if CFG_DC_CHECKCLASS
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "Type"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "Type"))
 		return (DCT_Unknown);
+#endif
 /*
  * Grab the field info structure, find the field, and return its type
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Attempt to get type with no fields");
-		return (DCT_Unknown);
-	}
-
+	finfo = FIP(dc);
 	idx = dc_GetIndex (finfo, fid);
 	if (idx >= 0)
 		return (finfo->fi_Types[idx]);
@@ -669,425 +633,6 @@ FieldId fid;
 
 
 
-/* ----------------------------------------------------------------------
- * Utility routines for converting between elements, void pointers, and
- * strings.
- * ----------------------------------------------------------------------
- */
-void
-dc_AssignElement (e, ptr, type)
-DC_Element *e;
-void *ptr;
-DC_ElemType type;
-/*
- * De-reference a void pointer to type and store it into a DC_Element union.
- * Unknown types are copied opaquely if they fit, otherwise the union is
- * filled with zeros.
- */
-{
-	switch (type)
-	{
-	   case DCT_Float:
-		e->dcv_float = *(float *)ptr;
-		break;
-	   case DCT_Double:
-		e->dcv_double = *(double *)ptr;
-		break;
-	   case DCT_LongDouble:
-		e->dcv_longdbl = *(LongDouble *)ptr;
-		break;
-	   case DCT_Char:
-		e->dcv_char = *(char *)ptr;
-		break;
-	   case DCT_UnsignedChar:
-		e->dcv_uchar = *(unsigned char *)ptr;
-		break;
-	   case DCT_ShortInt:
-		e->dcv_shortint = *(short *)ptr;
-		break;
-	   case DCT_UnsignedShort:
-		e->dcv_ushort = *(unsigned short *)ptr;
-		break;
-	   case DCT_Integer:
-		e->dcv_int = *(int *)ptr;
-		break;
-	   case DCT_UnsignedInt:
-		e->dcv_uint = *(unsigned int *)ptr;
-		break;
-	   case DCT_LongInt:
-		e->dcv_longint = *(long int *)ptr;
-		break;
-	   case DCT_UnsignedLong:
-		e->dcv_ulong = *(unsigned long *)ptr;
-		break;
-	   case DCT_String:
-		e->dcv_string = *(char **)ptr;
-		break;
-	   case DCT_Boolean:
-		e->dcv_boolean = *(unsigned char *)ptr;
-		break;
-	   case DCT_ZebTime:
-		e->dcv_zebtime = *(ZebTime *)ptr;
-		break;
-	   case DCT_VoidPointer:
-		e->dcv_pointer = ptr;
-		break;
-	   case DCT_Element:
-		*e = *(DC_Element *)ptr;
-		break;
-	   default:
-		if (dc_SizeOfType (type) <= sizeof(*e))
-			memcpy ((void *)e, ptr, dc_SizeOfType (type));
-		else
-			memset ((void *)e, 0, sizeof (*e));
-		break;
-	}
-}
-
-
-
-void
-dc_AssignValue (ptr, e, type)
-void *ptr;
-DC_Element *e;
-DC_ElemType type;
-/* 
- * Assign an element union containing the given type to space pointed
- * to by ptr.  Usually ptr is actually a pointer to the type which 
- * was cast to (void *) when passed into the function.
- */
-{
-	switch (type)
-	{
-	   case DCT_Float:
-		*(float *)ptr = e->dcv_float;
-		break;
-	   case DCT_Double:
-		*(double *)ptr = e->dcv_double;
-		break;
-	   case DCT_LongDouble:
-		*(LongDouble *)ptr = e->dcv_longdbl;
-		break;
-	   case DCT_Char:
-		*(char *)ptr = e->dcv_char;
-		break;
-	   case DCT_UnsignedChar:
-		*(unsigned char *)ptr = e->dcv_uchar;
-		break;
-	   case DCT_ShortInt:
-		*(short *)ptr = e->dcv_shortint;
-		break;
-	   case DCT_UnsignedShort:
-		*(unsigned short *)ptr = e->dcv_ushort;
-		break;
-	   case DCT_Integer:
-		*(int *)ptr = e->dcv_int;
-		break;
-	   case DCT_UnsignedInt:
-		*(unsigned int *)ptr = e->dcv_uint;
-		break;
-	   case DCT_LongInt:
-		*(long int *)ptr = e->dcv_longint;
-		break;
-	   case DCT_UnsignedLong:
-		*(unsigned long *)ptr = e->dcv_ulong;
-		break;
-	   case DCT_String:
-		*(char **)ptr = e->dcv_string;
-		break;
-	   case DCT_Boolean:
-		*(unsigned char *)ptr = e->dcv_boolean;
-		break;
-	   case DCT_ZebTime:
-		*(ZebTime *)ptr = e->dcv_zebtime;
-		break;
-	   case DCT_VoidPointer:
-		ptr = e->dcv_pointer;
-		break;
-	   case DCT_Element:
-		*(DC_Element *)ptr = *e;
-		break;
-	   default:
-		if (dc_SizeOfType (type) <= sizeof(*e))
-			memcpy (ptr, (void *)e, dc_SizeOfType (type));
-		break;
-	}
-}
-
-
-
-const char *
-dc_ElemToString (e, type)
-DC_Element *e;
-DC_ElemType type;
-/*
- * Convert an element to a string, and return the string.  The returned
- * buffer space is only valid until the next call to this function or to
- * dc_ValueToString.  If the type is a string, allocate dynamic space if
- * the string won't fit in static.  If the type is unknown, the byte values
- * are printed in hex.
- */
-{
-	static char *dest = NULL;
-	static char buf[128]; 	/* holds all numbers and times, yes? */
-	unsigned char *hex;
-
-	/*
-	 * If we used dynamic memory last time, free it.
-	 */
-	if ((dest != buf) && (dest != NULL))
-		free (dest);
-	dest = buf;		/* default to writing in static memory */
-	switch (type)
-	{
-	   case DCT_Float:
-		sprintf (dest, "%g", e->dcv_float);
-		break;
-	   case DCT_Double:
-		sprintf (dest, "%g", e->dcv_double);
-		break;
-	   case DCT_LongDouble:
-		sprintf (dest, "%Lg", e->dcv_longdbl);
-		break;
-	   case DCT_Char:
-		sprintf (dest, "%c", e->dcv_char);
-		break;
-	   case DCT_UnsignedChar:
-		sprintf (dest, "%#hx", e->dcv_uchar);
-		break;
-	   case DCT_ShortInt:
-		sprintf (dest, "%hi", e->dcv_shortint);
-		break;
-	   case DCT_UnsignedShort:
-		sprintf (dest, "%hu", e->dcv_ushort);
-		break;
-	   case DCT_Integer:
-		sprintf (dest, "%d", e->dcv_int);
-		break;
-	   case DCT_UnsignedInt:
-		sprintf (dest, "%u", e->dcv_uint);
-		break;
-	   case DCT_LongInt:
-		sprintf (dest, "%li", e->dcv_longint);
-		break;
-	   case DCT_UnsignedLong:
-		sprintf (dest, "%lu", e->dcv_ulong);
-		break;
-	   case DCT_String:
-		/*
-		 * Make sure we have enough space for arbitrary strings
-		 */
-		if (strlen(e->dcv_string) >= sizeof(buf))
-			dest = (char *)malloc(strlen(e->dcv_string) + 1);
-		strcpy (dest, e->dcv_string);
-		break;
-	   case DCT_Boolean:
-		sprintf (dest, "%s", (e->dcv_boolean) ? "true" : "false");
-		break;
-	   case DCT_ZebTime:
-		if (e->dcv_zebtime.zt_MicroSec)
-			TC_EncodeTime (&e->dcv_zebtime, TC_FullUSec, dest);
-		else
-			TC_EncodeTime (&e->dcv_zebtime, TC_Full, dest);
-		break;
-	   case DCT_VoidPointer:
-		sprintf (dest, "%#0x", (int) e->dcv_pointer);
-		break;
-	   default:
-		hex = (unsigned char *)e;
-		if (5 * sizeof (*e) >= sizeof(buf))
-			dest = (char *)malloc(5 * sizeof (*e) + 1);
-		dest[0] = '\0';
-		while (hex < (unsigned char *)e + sizeof(*e))
-			sprintf (dest+strlen(dest), "%#0x ", (int)*(hex++));
-		break;
-	}
-	return (dest);
-}
-
-
-
-const char *
-dc_ValueToString (ptr, type)
-void *ptr;
-DC_ElemType type;
-/*
- * Convert the void pointer to an element union and then to a string.
- * The return value is identical to dc_ElemToString.
- */
-{
-	DC_Element e;
-
-	dc_AssignElement (&e, ptr, type);
-	return (dc_ElemToString(&e, type));
-}
-
-
-
-const char *
-dc_PrintElement (e, type)
-DC_Element *e;
-DC_ElemType type;
-/*
- * Same as dc_ElemToString except special characters are converted to their
- * escaped sequences.
- */
-{
-	static char *dest = NULL;
-	static char buf[256];
-	const char *result, *src;
-	char *obj;
-
-	if ((dest != buf) && (dest != NULL))
-		free (dest);
-	dest = buf;		/* default to writing in static memory */
-	result = dc_ElemToString (e, type);
-	/*
-	 * We don't really have anything to do unless the type is
-	 * character or string.
-	 */
-	if (type != DCT_String && type != DCT_Char)
-		return (result);
-	/*
-	 * We'll need, at the most, twice as much space for backslashes
-	 */
-	if (2*strlen(result) >= sizeof(buf))
-		dest = (char *)malloc((2 * strlen(result)) + 1);
-	dest[0] = '\0';
-	src = result;
-	obj = dest;
-	while (*src)
-	{
-		switch (*src)
-		{
-		   case '\t':
-			strcat (obj, "\\t");
-			break;
-		   case '\0':
-			strcat (obj, "\\0");
-			break;
-		   case '\n':
-			strcat (obj, "\\n");
-			break;
-		   case '\b':
-			strcat (obj, "\\b");
-			break;
-		   case '\f':
-			strcat (obj, "\\f");
-			break;
-		   case '\r':
-			strcat (obj, "\\r");
-			break;
-		   default:
-			*obj = *src;
-			--obj;
-		}
-		++src;
-		obj += 2;
-	}
-	*obj = '\0';
-	return (dest);
-}
-
-
-
-const char *
-dc_PrintValue (ptr, type)
-void *ptr;
-DC_ElemType type;
-/*
- * Same as dc_PrintElement except it first converts a pointer to void
- * to an element before calling dc_PrintElement
- */
-{
-	DC_Element e;
-
-	dc_AssignElement (&e, ptr, type);
-	return (dc_PrintElement (&e, type));
-}
-
-
-
-double
-dc_GetBadval (dc)
-DataChunk *dc;
-/*
- * Return the bad value flag stored in this DC.
- */
-{
-	FldInfo *finfo;
-	char *abad;
-/*
- * The usual sanity checking.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetBadval"))
-		return (0);
-#ifdef SUPPORT_BADVALUES
-/*
- * Look first for a global attribute.
- */
-	if ((abad = dc_GetGlobalAttr (dc, "bad_value_flag")))
-	{
-		float fbad;
-		sscanf (abad, "%f", &fbad);
-		return (fbad);
-	}
-/*
- * Grab the field info structure, and return the bad value flag stored
- * therein.  If the structure doesn't exist, return the default.
- */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-		return (DefaultBadval);
-	return (finfo->fi_Badval);
-#else
-	return (DefaultBadval);
-#endif /* SUPPORT_BADVALUES */
-}
-
-
-
-
-
-void
-dc_SetBadval (dc, badval)
-DataChunk *dc;
-float badval;
-/*
- * Store the bad value flag into this DC.  This should be done after fields
- * are set up, but before data are added.
- */
-{
-	FldInfo *finfo;
-	char sbad[60];
-/*
- * The usual sanity checking.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetBadval"))
-		return;
-#ifdef SUPPORT_BADVALUES
-/*
- * Grab the field info structure, and set the bad value flag.
- */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-	{
-		msg_ELog (EF_PROBLEM,"Attempt to set bad flag with no fields");
-		return;
-	}
-	finfo->fi_Badval = badval;
-/*
- * Also store it as a global attribute.
- */
-	sprintf (sbad, "%f", badval);
-	dc_SetGlobalAttr (dc, "bad_value_flag", sbad);
-#endif /* SUPPORT_BADVALUES */
-}
-
-
-
-
-
 int
 dc_GetNField (dc)
 DataChunk *dc;
@@ -1099,14 +644,12 @@ DataChunk *dc;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetNField"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetNField"))
 		return (0);
 /*
  * Grab the field info structure and return the number.
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-		return (0);
+	finfo = FIP(dc);
 	return (finfo->fi_NField);
 }
 
@@ -1125,19 +668,15 @@ int *nf;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFields"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFields"))
 		return (0);
 /*
  * Grab the field info structure and return the stuff.
  */
-	if (nf)
-		*nf = 0;
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-		return (0);
+	finfo = FIP(dc);
 	if (nf)
 		*nf = finfo->fi_NField;
-	return (finfo->fi_Fields);
+	return ((finfo->fi_NField) ? finfo->fi_Fields : NULL);
 }
 
 
@@ -1156,19 +695,15 @@ int *nf;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldTypes"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFieldTypes"))
 		return (0);
 /*
  * Grab the field info structure and return the stuff.
  */
-	if (nf)
-		*nf = 0;
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-		return (0);
+	finfo = FIP(dc);
 	if (nf)
 		*nf = finfo->fi_NField;
-	return (finfo->fi_Types);
+	return ((finfo->fi_NField) ? finfo->fi_Types : NULL);
 }
 
 
@@ -1190,9 +725,8 @@ FldInfo *finfo;
  * sample's total size.
  */
 {
-	int i, tsize, ssize;
+	int i, tsize = 0, ssize;
 	bool uniform;
-
 /*
  * If holding space for all defined fields has been disabled, disable all
  * optimization flags so that we resort to non-uniform field storage
@@ -1287,7 +821,7 @@ FldInfo *finfo;
 
 
 
-void
+DataPtr
 dc_AddMData (dc, t, field, size, start, nsamp, data)
 DataChunk *dc;
 ZebTime *t;
@@ -1306,23 +840,29 @@ DataPtr data;
  *	DATA	is the actual data.
  * Exit:
  *	The data has been added.
+ *
+ * Return a pointer to the storage location of this field in the first
+ * sample written.  This pointer can be combined with uniform sample
+ * strides to directly access this field's data for the given range
+ * of samples.  Returns NULL on error.
  */
 {
 	FldInfo *finfo;
 	int findex, samp;
+	DataPtr base = NULL;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "AddMData"))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_MetData, "AddMData"))
+		return (NULL);
 /*
  * Grab the field info structure and return the number.
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
+	finfo = FIP(dc);
+	if (finfo->fi_NField == 0)
 	{
-		msg_ELog (EF_PROBLEM, "Attempt to add data with no finfo");
-		return;
+		msg_ELog (EF_PROBLEM, "Attempt to add data with no fields");
+		return (NULL);
 	}
 /*
  * If our first sample, check for possible optimizations
@@ -1335,31 +875,51 @@ DataPtr data;
 	if ((findex = dc_GetIndex (finfo, field)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Attempt to add field %d not in finfo",
-				field);
-		return;
+			  field);
+		return (NULL);
 	}
 /*
  * Set the time here, since dc_AddUniform(), dc_AddFixedField(), and 
  * dc_AddNonUniform() only tweak the data portion of the data chunk when
- * the sample already exists
+ * the sample already exists.
  */
 	for (samp = 0; samp < nsamp; samp++)
 		dc_SetTime (dc, samp + start, t + samp);
 /*
  * Uniform and non-uniform data are handled differently, and hence separately.
  */
-	if (finfo->fi_Uniform)
-		dc_AddUniform(dc, finfo, findex, t, size, start, nsamp, data);
-	else if (finfo->fi_FixedFields)
-		dc_AddFixedField(dc,finfo,findex,t, size, start, nsamp, data);
+	if (data == DC_FillValues)
+		base = NULL;
 	else
-		dc_AddNonUniform(dc,finfo,findex,t, size, start, nsamp, data);
+		base = data;
+	if (finfo->fi_Uniform)
+		base = dc_AddUniform(dc, finfo, findex, t, size, start, 
+				     nsamp, base);
+	else if (finfo->fi_FixedFields)
+		base = dc_AddFixedField(dc,finfo,findex,t, size, start, 
+					nsamp, base);
+	else
+		base = dc_AddNonUniform(dc,finfo,findex,t, size, start, 
+					nsamp, base);
+	if (data == DC_FillValues)
+	{
+		int len, i;
+		DataPtr ptr;
+
+		for (i = start; i < start + nsamp; ++i)
+		{
+			ptr = dc_GetMData (dc, i, field, &len);
+			dc_MetFillMissing (dc, field, (unsigned char *)ptr, 
+					   len);
+		}
+	}
+	return (base);
 }
 
 
 
 
-static void
+static void *
 dc_AddNonUniform (dc, finfo, findex, t, size, start, nsamp, data)
 DataChunk *dc;
 FldInfo *finfo;
@@ -1374,6 +934,7 @@ DataPtr data;
 	DataPtr space;
 	FieldTOC *ft;
 	int tsize;
+	void *base = NULL;
 
 	tsize = dc_SizeOfType(finfo->fi_Types[findex]);
 	for (samp = start; samp < start + nsamp; samp++)
@@ -1422,6 +983,8 @@ DataPtr data;
 		if (data)
 			memcpy ((char *) space + ft[findex].ft_Offset, data,
 					size);
+		if (! base)
+			base = (void *)((char *)space + ft[findex].ft_Offset);
 	/*
 	 * On to the next one.
 	 */
@@ -1429,13 +992,14 @@ DataPtr data;
 		if (data)
 			data = (char *) data + size;
 	}
+	return (base);
 }
 
 
 
 
 
-static void
+static void *
 dc_AddFixedField (dc, finfo, findex, t, size, start, nsamp, data)
 DataChunk *dc;
 FldInfo *finfo;
@@ -1448,6 +1012,7 @@ DataPtr data;
 {
 	int samp, len;
 	DataPtr space;
+	void *base = NULL;
 
 	for (samp = start; samp < start + nsamp; samp++)
 	{
@@ -1469,6 +1034,9 @@ DataPtr data;
 		if (data)
 			memcpy ((char *) space + finfo->fi_Offset[findex], 
 				data, size);
+		if (! base)
+			base = (void *)((char *)space + 
+					finfo->fi_Offset[findex]);
 	/*
 	 * On to the next one.
 	 */
@@ -1476,13 +1044,14 @@ DataPtr data;
 		if (data)
 			data = (char *) data + size;
 	}
+	return (base);
 }
 
 
 
 
 
-static void
+static void *
 dc_AddUniform (dc, finfo, findex, t, size, start, nsamp, data)
 DataChunk *dc;
 FldInfo *finfo;
@@ -1498,6 +1067,7 @@ DataPtr data;
 	int samp;
 	DataPtr dest;
 	int offset = finfo->fi_Size * findex;
+	void *base = NULL;
 /*
  * Make sure the size is what we were promised.
  */
@@ -1505,7 +1075,7 @@ DataPtr data;
 	{
 		msg_ELog (EF_PROBLEM, "Size %d does not match finfo %d",
 			size, finfo->fi_Size);
-		return;
+		return (NULL);
 	}
 /*
  * If they don't all exist, there better not be gaps in the middle.
@@ -1514,7 +1084,7 @@ DataPtr data;
 	{
 		msg_ELog (EF_PROBLEM, "Attempt to add samp %d after %d exist",
 			start, finfo->fi_NSample);
-		return;
+		return (NULL);
 	}
 	
 	for (samp = start; samp < start + nsamp; ++samp)
@@ -1533,23 +1103,99 @@ DataPtr data;
 		else
 			dest = dc_GetSample (dc, samp, NULL);
 	/*
-	 * This absolutely, undubitably, definately, certainly, without
+	 * This absolutely, undubitably, definitely, certainly, without
 	 * fail should never, ever happen, not even in a million years.
 	 */
 		if (! dest)
 		{
 			msg_ELog (EF_PROBLEM, 
 				  "Sample %d disappeared anyway", samp);
-			return;
+			return (NULL);
 		}
 		if (data)
 		{
 			memcpy ((char *) dest + offset, data, finfo->fi_Size);
 			data = (char *) data + finfo->fi_Size;
 		}
+		if (! base)
+			base = (void *)((char *)dest + offset);
 	}
+	return (base);
 }
 
+
+
+int
+dc_FillMissing (dc, when, fid, size, start, nsamp)
+DataChunk *dc;
+ZebTime *when;
+FieldId fid;
+int size;
+int start;
+int nsamp;
+/*
+ * Essentially an alternate interface to dc_AddMData() which stores missing
+ * values.  Use the class methods to make sure space is allocated for this
+ * field for these samples.  Then loop through the samples getting the
+ * location of each one and filling the field's data with missing
+ * values.  Return zero if any of the fills fail, non-zero otherwise.
+ */
+{
+	int i;
+	void *ptr;
+	int len;
+	int ret = 1;
+
+	dc_AddMData (dc, when, fid, size, start, nsamp, NULL);
+	for (i = start; i < start + nsamp; ++i)
+	{
+		ptr = dc_GetMData (dc, i, fid, &len);
+		ret &= dc_MetFillMissing (dc, fid, (unsigned char *)ptr, len);
+	}
+	return (ret);
+}
+
+
+
+
+int
+dc_MetFillMissing (dc, fid, at, len)
+DataChunk *dc;
+FieldId fid;
+unsigned char *at;
+int len;
+/*
+ * Given the location and size of a field's contiguous array of elements to
+ * add, fill the space with bad values instead.  The location is 'at',
+ * the number of elements is 'len'.
+ * If we don't have a bad value for the particular field or type,
+ * fill the memory with zeros.  Return non-zero if we succeeded in filling
+ * with bad values.  Return zero when an error occurs.
+ */
+{
+	int i;
+	DC_ElemType type;
+	int size = 0;
+	void *ptr = NULL;
+
+	type = dc_Type (dc, fid);
+	if (type == DCT_Unknown)
+	{
+		msg_ELog (EF_PROBLEM, "attempt to fill unknown field %d", fid);
+	}
+	else if ((ptr = dc_GetFieldBadval (dc, fid)))
+	{
+		size = dc_SizeOfType (type);
+		for (i = 0; i+size <= len; i += size)
+			memcpy (at + i, ptr, size);
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "failed to get badval to fill field %d",
+			  fid);
+	}
+	return ((ptr != NULL));
+}
 
 
 
@@ -1564,64 +1210,18 @@ FieldId field;
  * either of the SetupFields methods.  Returns -1 if the field is not found.
  */
 {
-	FldInfo *finfo;
+#if CFG_DC_CHECKCLASS
 /*
  * Make sure this one of our subclasses.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "AddMData"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFieldIndex"))
 		return (-1);
-/*
- * Retrieve the field info.
- */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Attempt to add data with no finfo");
-		return (-1);
-	}
+#endif
 /*
  * Use our private method to actually find the field.
  */
-	return (dc_GetIndex (finfo, field));
+	return (dc_GetIndex (FIP(dc), field));
 }
-
-
-
-
-static int
-dc_GetIndex (finfo, field)
-FldInfo *finfo;
-FieldId field;
-/*
- * Return the index of this field in this DC by looking it up in the hash table.
- * Note that we expect at least one more empty slot than the maximum possible
- * number of fields, so that we don't infinitely loop if we get a field that
- * is not in a datachunk with DC_MaxField fields.
- */
-{
-	int hash, f;
-
-	hash = HASH_FIELD_ID(field);
-
-	while (finfo->fi_HashIndex[hash] != -1)
-	{
-		if (finfo->fi_Fields[finfo->fi_HashIndex[hash]] == field)
-			return (finfo->fi_HashIndex[hash]);
-		if (++hash == HASH_SIZE)
-			hash = 0;
-	} 
-
-	/*
-	 * This is a backup for the hash table, in case it's not being used
-	 * because of problems.  If someone is specifying wrong field id's,
-	 * then they deserve the overhead of the automatic extra check.
-	 */
-	for (f = 0; f < finfo->fi_NField; f++)
-		if (finfo->fi_Fields[f] == field)
-			return (f);
-	return (-1);
-}
-
 
 
 
@@ -1629,8 +1229,9 @@ FieldId field;
 DataPtr
 dc_GetMData (dc, sample, field, len)
 DataChunk *dc;
-int sample, *len;
+int sample;
 FieldId field;
+int *len;
 /*
  * Find a data sample in this DC.
  */
@@ -1639,20 +1240,22 @@ FieldId field;
 	FieldTOC *ft;
 	int findex;
 	DataPtr data;
+#if CFG_DC_CHECKCLASS
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetMData"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetMData"))
 		return (NULL);
+#endif
 /*
  * Grab the field info structure.
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Attempt to get data with no finfo");
+	finfo = FIP(dc);
+/*
+ * Find this sample.
+ */
+	if ((data = dc_GetSample (dc, sample, NULL)) == NULL)
 		return (NULL);
-	}
 /*
  * Find the index of our field.
  */
@@ -1662,11 +1265,6 @@ FieldId field;
 				field);
 		return (NULL);
 	}
-/*
- * Find this sample.
- */
-	if ((data = dc_GetSample (dc, sample, NULL)) == NULL)
-		return (NULL);
 /*
  * Now that we have everything, we're set.
  */
@@ -1700,231 +1298,199 @@ FieldId field;
 
 
 
-void
-dc_SetFieldAttrArray (dc, field, key, type, nval, values)
+
+DataPtr *
+dc_GetMVector (dc, sample, nfield, fields, fdata, len)
 DataChunk *dc;
-FieldId field;
-char *key;
-DC_ElemType type;
-int nval;
-void *values;
-{
-	if (! dc_ReqSubClassOf(dc->dc_Class,
-			       DCC_MetData, "SetFieldAttrArray"))
-		return;
-	dca_AddAttrArray (dc, DCC_MetData, ST_FIELDATTR(field),
-			  key, type, nval, values);
-}
-
-
-
-
-void *
-dc_GetFieldAttrArray (dc, field, key, type, nval)
-DataChunk *dc;
-FieldId field;
-char *key;
-DC_ElemType *type;
-int *nval;
-{
-	void *values;
-
-	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_MetData,
-			       "GetFieldAttrArray"))
-		return NULL;
-	if ((values = dca_GetAttrArray (dc, DCC_MetData, ST_FIELDATTR(field),
-					key, type, nval)))
-		return (values);
-	return (dc_GetGlobalAttrArray (dc, key, type, nval));
-}
-
-
-
-
-int
-dc_ProcFieldAttrArrays (dc, field, pattern, func, arg)
-DataChunk *dc;
-FieldId field;
-char *pattern;
-int (*func) (/* char *key, void *vals, int nval, DC_ElemType, void *arg */);
-void *arg;
-{
-	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_MetData, 
-			       "ProcFieldAttrArrays"))
-		return (0);
-	return (dca_ProcAttrArrays (dc, DCC_MetData, ST_FIELDATTR(field),
-				    pattern, func, arg));
-}
-
-
-
-
-
-void
-dc_RemoveFieldAttr (dc, field, key)
-DataChunk *dc;
-FieldId field;
-char *key;
-/*
- * Remove a field attribute from this data chunk.
- */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, 
-				DCC_MetData, "RemoveFieldAttr"))
-		return;
-	dca_RemoveAttr (dc, DCC_MetData, ST_FIELDATTR(field), key);
-}
-
-
-
-
-void
-dc_SetFieldAttr (dc, fid, key, value)
-DataChunk *dc;
-FieldId fid;
-char *key, *value;
-/*
- * Store a field attribute into this data chunk.
- */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetFieldAttr"))
-		return;
-	dca_AddAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key, value);
-}
-
-
-
-
-char *
-dc_GetFieldAttr (dc, fid, key)
-DataChunk *dc;
-FieldId fid;
-char *key;
-/*
- * Look up a field attribute.
- */
-{
-	char *value;
-
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttr"))
-		return(NULL);
-	if ((value = dca_GetAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key)))
-		return(value);
-	return (dc_GetGlobalAttr (dc, key));
-}
-
-
-
-
-void *
-dc_GetFiAttrBlock (dc, fid, len)
-DataChunk *dc;
-FieldId fid;
+int sample;
+int nfield;
+FieldId *fields;
+DataPtr *fdata;
 int *len;
 /*
- * Get the per-field attributes out as an opaque chunk.
+ * Find a data sample in this DC and return a vector of pointers to
+ * the field data for each of the fields in the fields[] array.
+ * Returns the fdata array if successful, NULL if not.
  */
 {
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFiAttrBlock"))
-		return(NULL);
-	return (dca_GetBlock (dc, DCC_MetData, ST_FIELDATTR(fid), len));
-}
-
-
-
-
-void
-dc_SetFiAttrBlock (dc, fid, block, len)
-DataChunk *dc;
-FieldId fid;
-void *block;
-int len;
+	FldInfo *finfo;
+	FieldTOC *ft;
+	int findex = -1;
+	int f;
+	DataPtr data;
 /*
- * Store a per-field attribute block back.
-
+ * The usual sanity checking.
  */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetFiAttrBlock"))
-		return;
-	dca_PutBlock (dc, DCC_MetData, ST_FIELDATTR(fid), block, len);
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetMVector"))
+		return (NULL);
+/*
+ * Grab the field info structure.
+ */
+	finfo = FIP(dc);
+/*
+ * Find this sample.
+ */
+	if ((data = dc_GetSample (dc, sample, NULL)) == NULL)
+		return (NULL);
+/*
+ * Loop for each field.  If not found the field's pointer is set to NULL.
+ */
+	for (f = 0; f < nfield; ++f)
+	{
+		if (len) len[f] = 0;
+		fdata[f] = NULL;
+		if ((fields[f] < 0) ||
+		    (findex = dc_GetIndex (finfo, fields[f])) < 0)
+			continue;
+		/*
+		 * Now that we have everything, we're set.
+		 */
+		if (finfo->fi_Uniform)
+		{
+			if (len) len[f] = finfo->fi_Size;
+			fdata[f] = (void *)((char *) data + 
+					    findex*finfo->fi_Size);
+		}
+		else if (finfo->fi_FixedFields)
+		{
+			/*
+			 * For fixed fields, the index is in the offset table
+			 */
+			if (len) len[f] = finfo->fi_Sizes[findex];
+			fdata[f] = (void *)((char *) data + 
+					    finfo->fi_Offset[findex]);
+		}
+		else
+		{
+			/*
+			 * In the non-uniform case, find the TOC and return
+			 * the info from there.
+			 */
+			ft = (FieldTOC *) data;
+			if (ft[findex].ft_Len > 0)
+			{
+				if (len) *len = ft[findex].ft_Len;
+				fdata[f] = (void *)((char *) data + 
+						    ft[findex].ft_Offset);
+			}
+		}
+	}
+	return (fdata);
 }
 
 
 
 
 int
-dc_ProcessFieldAttrs(dc, fid, pattern, func)
+dc_SampleStride (dc, stride)
 DataChunk *dc;
-FieldId fid;
-char *pattern;
-int (*func) ();
+int *stride;
 /*
- * Pass all of the attributes of this fid to the function
+ * Checks whether this datachunk's fields can be accessed directly using
+ * a constant stride between samples.  First, the samples must be stored
+ * in the same order they are indexed, and second, the metdata field layout
+ * must be FixedFields or Uniform.  If those two criteria are met, the
+ * sample size is the sum of the field sizes, which is also the stride
+ * from one field's sample data to the next.  If the criteria are not met,
+ * return zero and leave stride unchanged.
  */
 {
-	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_MetData, "ProcessFieldAttrs"))
-		return(0);
-	return (dca_ProcAttrs (dc, DCC_MetData, ST_FIELDATTR(fid),
-			       pattern, func));
-}
-
-
-
-
-int
-dc_GetNFieldAttrs(dc, fid)
-DataChunk *dc;
-FieldId fid;
+	FldInfo *finfo;
+	DataPtr data, next;
+	int i;
+	int ssize;
+	int nsample;
 /*
- * Return the number of field attributes in a datachunk.
+ * The usual sanity checking.
  */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetNFieldAttrs"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "SampleStride"))
 		return (0);
-	return(dca_GetNAttrs(dc, DCC_MetData, ST_FIELDATTR(fid)));
-}
-
-
-
-
-char **
-dc_GetFieldAttrList(dc, fid, pattern, values, natts)
-DataChunk *dc;
-FieldId fid;
-char *pattern;
-void **values[];
-int *natts;
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttrList"))
-		return (NULL);
-	return(dca_GetAttrList(dc, DCC_MetData, ST_FIELDATTR(fid),
-			       pattern, values, natts));
-}
-
-
-
-char **
-dc_GetFieldAttrKeys (dc, fid, natts)
-DataChunk *dc;
-FieldId fid;
-int *natts;
-{
 /*
- * Returns a list of keys for the field attributes in this data chunk.
- * Also puts into natt the number of global attributes for this dc.
- * The returned array of attribute keys is only valid until the next call
- * of any of the Get*AttrList or Get*AttrKeys functions.
+ * Grab the field info structure.  If no data has been stored, abort.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttrKeys"))
-		return (NULL);
-	return(dca_GetAttrList(dc, DCC_MetData, ST_FIELDATTR(fid),
-			       NULL, NULL, natts));
+	finfo = FIP(dc);
+	if (finfo->fi_NSample == 0)
+		return (0);
+/*
+ * If our field layout is not uniform, no sense trying the rest.
+ */
+	if (! finfo->fi_FixedFields && ! finfo->fi_Uniform)
+		return (0);
+/*
+ * Determine what our sample stride should be.
+ */
+	if (finfo->fi_Uniform)
+	{
+		ssize = finfo->fi_NField*finfo->fi_Size;
+	}
+	else /* (finfo->fi_FixedFields) */
+	{
+		ssize = finfo->fi_Offset[finfo->fi_NField - 1];
+		ssize += finfo->fi_Sizes[finfo->fi_NField - 1];
+		ssize = (int) ALIGN(ssize,DC_ElemTypeMaxSize);
+	}
+#ifdef notdef
+/*
+ * Now loop through the samples in index order, and make sure each
+ * starts exactly 'ssize' bytes from the previous.
+ */
+	nsample = finfo->fi_NSample;
+	data = dc_GetSample (dc, 0, NULL);
+	for (i = 1; i < nsample; ++i)
+	{
+		next = dc_GetSample (dc, i, NULL);
+		if (next != (char *)data + ssize)
+			return (0);
+		data = next;
+	}
+	msg_ELog (EF_DEBUG, "sample stride check succeeded: %d bytes", ssize);
+#endif
+	*stride = ssize;
+	return (1);
 }
- 
+
+
+
+/* ----------------------------------------------------------------------- */
+/* MetData class methods */
+
+
+static DataChunk *
+md_Create (dc)
+DataChunk *dc;
+/*
+ * Initialize the field info part of our instance stucture.
+ */
+{
+	FldInfo *finfo = FIP(dc);
+	int i;
+
+	finfo->fi_NField = 0;
+	finfo->fi_BlockChanges = FALSE;
+	finfo->fi_Uniform = FALSE;
+	finfo->fi_UniformOrg = FALSE;
+	finfo->fi_Size = 0;
+	finfo->fi_FixedFields = FALSE;
+	finfo->fi_ReserveSpace = TRUE;	/* pre-arrange space if possible */
+	finfo->fi_NSample = 0;
+	for (i = 0; i < HASH_SIZE; ++i)
+		finfo->fi_HashIndex[i] = -1;	/* fill with empty slots */
+	/*
+	 * Make sure HASH_SIZE has not gotten out of sync with DC_MaxField.
+	 */
+	if (DC_MaxField + 1 > HASH_SIZE)
+	{
+		msg_ELog (EF_PROBLEM, 
+		  "Field index hash table too small, check MD_HASH_SIZE defn");
+	}
+	return (dc);
+}
+
+
 
 
 static void
-dc_DumpMD (dc)
+md_Dump (dc)
 DataChunk *dc;
 /*
  * Dump out this DC.
@@ -1935,14 +1501,12 @@ DataChunk *dc;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetMData"))
+	if (! dc_ReqSubClass (dc, DCP_MetData, "GetMData"))
 		return;
 /*
  * Grab the field info structure.
  */
-	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
-						== NULL)
-		return;
+	finfo = FIP(dc);
 /*
  * Write.
  */
@@ -1983,49 +1547,7 @@ DataChunk *dc;
 		}
 		printf ("\n");
 	}
-	printf ("Field Attributes:\n");
-	for (i = 0; i < finfo->fi_NField; i++)
-	{
-		if (dca_GetNAttrs(dc, DCC_MetData,
-				  ST_FIELDATTR(finfo->fi_Fields[i])) > 0)
-		{
-			printf ("\t%s:\t", F_GetName (finfo->fi_Fields[i]));
-			dca_ProcAttrArrays (dc, DCC_MetData, 
-					    ST_FIELDATTR(finfo->fi_Fields[i]), 
-					    NULL, dc_PrintFiAttr, NULL);
-			printf ("\n");
-		}
-	}
+	dc_DumpFieldAttributes (dc, finfo->fi_Fields, finfo->fi_NField);
 }
 
 
-
-static int
-dc_PrintFiAttr (key, value, nval, type, arg)
-char *key;
-void *value;
-int nval;
-DC_ElemType type;
-void *arg;
-/*
- * Print out a field attribute
- */
-{
-	int i;
-
-	if (nval && (type == DCT_String))
-	{
-		printf (" %s='%s';", key, (char *)value);
-		return (0);
-	}
-	printf (" %s=[", key);
-	for (i = 0; i < nval; ++i)
-	{
-		printf ("%s%s", dc_PrintValue (value, type),
-			(i == nval - 1) ? "];" : ",");
-		value = (char *)value + dc_SizeOfType (type);
-	}
-	if (nval == 0)
-		printf ("];");
-	return (0);
-}
