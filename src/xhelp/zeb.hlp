@@ -1,0 +1,557 @@
+15
+000000%000000Welcome to Zeb
+538
+Introduction To Zeb
+
+        Zeb is a system of software that may be used to
+combine diverse data sets in an integrated display.
+Zeb is useful in both real-time and post-processing 
+environments.
+
+Using This Help Facility
+
+        This is Zeb's online help facility.  In order
+to see the topics on which help is available, press
+the Topics button.  The Up and Down arrow buttons move
+up and down throught the list of topics.  The
+magnifying glass button searches a topic for a text
+string.  Click on the Quit button to remove this window.buttonmaps   Button to Command Mapping
+1697
+Button to Command Mapping
+
+        Zeb's command mapping refers to how functions of the
+graphics process are mapped to keystrokes and mouse button
+clicks in the graphics window.  In order to perform one of
+the actions listed in the following table, simply press the
+indicated key or mouse button while the cursor is in the
+graphics window where the action should be performed:
+
+        b               Back up from a zoom.
+
+        g               Popup the GetPosition widget.
+
+	h		Popup this help window.
+
+        m               Popup the movie controller.
+
+        p               Draw a spotlight.
+
+        r               Run a movie.
+
+        s               Stop a movie.
+
+        t               Popup the overlay times widget.
+
+        u               Move up one step in altitude.
+
+        d               Move down one step in altitude.
+
+        Left Mouse Button       Display this location in the
+                                GetPosition widget.
+
+	Shift-Left Mouse Button	Zoom in on an area.
+
+        Middle Mouse Button     Draw a line on which to base
+                                a vertical cross section.
+
+        Right Mouse Button      Toggle the radar field 
+                                between reflectivity and
+                                velocity.
+
+        Up Arrow        Move up one step in altitude.
+
+        Down Arrow      Move down one step in altitude.
+
+        Left Arrow      Zoom to a preset level(large scale).
+
+        RightArrow      Zoom to a preset level(small scale).
+
+        Page Up         Move to the highest altitude
+                        available.
+
+        Page Down       Move to the lowest altitude
+                        available.movies       Running Movies
+659
+Starting a Movie
+
+        Movies can be run in each of the graphics windows
+at any time.  The first step is to popup the movie
+controller.  This can be done in one of two ways:
+
+        -  Select the
+
+                Popup movie controller
+
+           entry from the menu under the Zeb icon located in
+           the graphics window.
+
+        -  Or, type 'm' in the graphics window.
+
+        Next set the movie parameter to generate the
+desired movie.  Then click on the Run button. 
+
+Stopping a Movie and Returning to Real Time
+
+	Click the Stop button to halt the movie in History
+Mode.  Click the Real Time button to return to the normal 
+real time display.altitude     Changing Altitude
+487
+Changing Altitude
+
+	When the graphics window is dislaying a constant
+altitude plot, and the base field contains several different
+altitudes (or elevation angles), it is possible to change the
+altitude of the plot.
+
+	The following keystrokes may be used to step up and
+down in altitude:
+
+	Up Arrow	Move up one step in altitude.
+
+	Down Arrow	Move down one step in altitude.
+
+	Page Up		Move up to the highest altitude
+			available.
+
+	Page Down	Move down to the lowest altitude
+			available.zooming      Zooming
+643
+Zooming
+
+	In order to zoom in on a portion of a graphics
+window, a box is drawn around that area using the mouse:
+
+	1.  Place the cursor in the upper left corner of the
+	    area of interest.
+
+	2.  Press the Shift key and the Left Mouse Button at
+	    the same time.
+
+	3.  Without releasing the key or button, drag the
+	    cursor until a box of the correct size encloses
+	    the area of interest.
+
+	4.  Let go of the key and button.
+
+	Note:  If the box does not cover the correct area,
+cancel the zoom by pressing any other mouse button without
+releasing the Shift key or the Left Mouse Button.
+
+Un-Zooming
+
+	To return from a zoom press 'b'.addrem       Adding and Removing Overlays
+1802
+Adding and Removing Overlays
+
+	An overlay is either a representation of the data
+that can be displayed in a graphics window or a static
+overlay such as a map.  The user may add as many overlays
+as desired to a graphics window (providing the plot type
+of the graphics window and the overlay are the same.)
+
+Adding Overlays
+
+	In order to add an overlay to a window, follow these
+steps:
+
+	1.  Place the cursor over the icon in the IconBar
+	    which represents the desired data.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the desired overlay is
+	    highlighted.
+
+	4.  Let go of the mouse button.
+
+	5.  Move the cursor into the graphics window where
+	    the overlay should be added.
+
+	6.  Click the left mouse button.
+
+Removing Overlays
+
+	In order to remove an overlay from a graphics window,
+follow these steps:
+
+	1.  Place the cursor over the icon in the graphics
+	    window which represents the overlay.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the Remove menu entry is
+	    highlighted.
+
+	4.  Let go of the mouse button.
+
+Disabling and Reenabling Overlays
+
+	Rather than completely removing an overlay from a
+graphics window, it is possible to simply disable it.
+Disabling an overlay means that the overlay will be
+removed from the graphics window, but the icon will remain.
+This allows the overlay to be quickly re-enabled.  In order
+to disable or re-enable an overlay, follow these steps:
+
+	1.  Place the cursor over the icon in the graphics
+	    window which represents the overlay.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the Disable/Reenable
+	    menu entry is highlighted.
+
+	4.  Let go of the mouse button.
+
+	The icon will change color, typically to gray, to
+indicate that an overlay has been disabled.getposition  Get Position Widget
+530
+Get Position Widget
+
+	The Get Position Widget allows the user to click on
+a point in the graphics window and have that point's 
+location displayed in a special widget.  There are two
+steps to using the Get Position Widget, popping it up and
+picking the points.
+
+	1.  To pop up the Get Position Widget:  Type a 'g'
+	    in the graphics window where positions are to
+	    be located.
+
+	2.  To get the location of a point:  Click the left
+	    mouse button on that point.
+
+	To remove the Get Position Widget, click on the Zap
+button.overlaytimes Overlay Times Widget
+516
+Overlay Times Widget
+
+	The Overlay Times Widget displays the time at which
+the data was collected for each data platform used in the
+graphics window.  Note that this time may be different from
+the time displayed in the graphics window.  The widget can
+be popped up in one of two ways:
+
+	-  Select the
+
+		Popup overlay times window
+
+	    entry of the left button menu of the Zeb icon
+	    in the graphics window.
+
+	-  Or, type 't' in the graphics window.
+
+	To remove the Overlay Times Widget, click on the
+Zap button.historytime  Setting a History Time
+4312
+Setting a History Time
+
+	Setting a history time in Zeb means that the 
+graphics windows will be instructed to display data 
+associated with a historical time.  The graphics window will
+not update the display until the user either sets another 
+history time, or returns to real time.  
+
+	Zeb indicates that a history time has been set by
+changing the color of the date and time in the graphics
+window to red.  However it is important to realize that
+the time the displayed data was collected is not necessarily
+the same as the time displayed in the graphics window.  This
+is because Zeb data for the exact time selected may not
+exist, so Zeb searches for the data that as close as 
+possible and before the selected time.  Old data may be 
+indicated by an icon which has changed colors to red.  Use
+the Overlay Times Widget to see the actual data collection
+time.
+
+	There are three ways to set a history time in Zeb:
+
+	-  Time Widget
+	-  Data Available Menu
+	-  Movie Controller
+
+Using the Time Widget
+
+	The purpose of the Time Widget is to allow the
+user to easily control mode and time in each of the 
+graphics windows.  The Time Widget can be separated into
+four sections:  Window control, Setting the date and time,
+Setting the mode, and Skipping.
+
+	Window Control - This section of the Time Widget
+consists of a single button.  Clicking on the button
+toggles control between either All windows associated with
+the display or One window.  If All is selected, then 
+the actions performed in other sections of the Time Widget
+affect all graphics windows.  However if One is selected,
+then after performing an action in one of the other sections
+of the Time Widget, the user must select a window where the
+action should take effect.  Selecting the window is done
+by moving the cursor into that window and clicking the left
+mouse button.
+
+	Setting the Date and Time - This section of the
+widget consists of arrow buttons and a text window which
+displays a date and time.  This date and time can be
+modified by either clicking on the arrow buttons or by
+typing in the text window.  Changing the date and time in
+this section of the Time Widget does not take effect until
+the user sets the history mode and time described in the
+next paragraph.
+
+	Setting the Mode - This section of the Time Widget
+contains two buttons.  One labelled Real Time and the
+other labelled History.  By clicking on the button labeled
+History, the user places the system in history mode at the
+time indicated in the previously discussed text window.  To
+return the system to real time mode, click on the Real Time
+button.
+
+	Skipping - When the system is in history mode, the
+history time can be 'skipped' either forward or backward
+a preset number of minutes.  This is done by entering the
+desired number of minutes in the text window within the
+Skipping section of the Time Widget,  then clicking on
+either the left or right arrow to move backward or forward
+that number of minutes in time.
+
+Using a Data Available Menu
+
+	A Data Available Menu may be activated by clicking
+one of the mouse buttons, typically the middle mouse
+button, on one of the icons in the graphics window.  The
+menu that is activated has entries that consist of a
+platform name followed by a time, as well as one entry
+for returning to real time mode.  By selecting an entry
+in this menu, the graphics window is placed into history
+mode, and the data associated with the selected time is
+displayed.
+
+	Select the 
+
+		Real time mode
+
+option to return the graphics window to real time mode.
+
+Using the Movie Controller
+
+	By running a movie a graphics window is 
+automatically placed in history mode.  The historical times
+are also automatically selected based on the end time and
+duration of the movie.  The user may manually step through
+the frames of the movie, thereby viewing the data 
+associated with each of the historical times selected by
+the movie system.  
+
+	Manually stepping through the frames of a movie is
+done by:
+
+	1.  Clicking on the Stop button to halt automatic
+	    looping of the movie.  Notice that the status
+	    line of the movie controller indicates that the
+	    graphics window is in history mode:
+
+		Stopped (history mode).
+
+	2.  Click on the scrollbar area of the movie
+	    controller to manually loop through the frames
+	    of the movie.icons        Using Icons
+1019
+Using Icons
+
+	The Iconbar is Zeb's main menu and allows the user 
+to choose the type of data to be plotted and the display 
+configuration.  All the available data is represented here. 
+A new data type or overlay may be added to any window by 
+simply using the mouse to pick the desired platform and 
+field from the icon bar, then clicking on the target window. 
+(NOTE: The target window must be a horizontal cross-section.)
+
+	The icons at the bottom of each window are used to 
+control the contents of the data present in that window.  
+There is one icon present for each data type and/or overlay.
+Different menus are associated with each mouse buttons.  
+Generally the icon menus on the left button allow users to 
+change plotting limits/intervals, remove a field or 
+disable/reenable a field.  The middle buttons generally 
+allows users to change fields (i.e. change mesonet contours 
+from temperature to dewpoint) and the right button generally 
+allows modification of line width or other miscellaneous 
+information.limitwidgets Adjusting Limits
+1126
+Adjusting Limits
+
+	Values that affect the plotting of data, referred to
+as plot limits, may be directly changed using limit widgets.
+Some examples of plot limits are:
+
+	- Center and Step:  Plot limits that map data values
+	  onto colors.
+
+	- Arrow Scale:  Plot limit that determines the 
+	  length of a vector relative to the window size.
+
+	- Time Interval:  Length of time of interest to
+	  the user.
+
+	- And many more.
+
+	Limit widgets are activated by:
+
+	1.  Click and hold the left mouse button on the 
+	    icon representing the overlay whose limits 
+	    must be adjusted.
+
+	2.  Move the cursor until the
+
+		Adjust Limits
+
+	    menu entry is highlighted.
+
+	3.  If a submenu appears, then select the limit
+	    to be adjusted from the submenu.
+	
+	4.  Release the mouse button.
+
+	At this point a limit widget should have appeared,
+and the values within it may be changed.
+
+	1.  Place the cursor in the yellow text window,
+	    and type the new value.  The previous value
+	    will automatically be deleted.
+	
+	2.  Press Store when the value(s) are correct.
+	    Or, to abandon any changes, click on the
+	    Cancel button.
+displayconfigChanging Display Configurations
+907
+Changing Display Configurations
+
+	A display configuration refers to the number, size
+and position of windows that make up the Zeb display.  
+Several predefined display configurations have been created
+and the user may switch between configurations whenever
+necessary.  The available configurations are listed in a 
+menu under the Zeb icon of the IconBar.
+
+	In order to change to a new configuration:
+
+	1.  Click and hold the left mouse button on the 
+	    Zeb icon of the IconBar.
+
+	2.  Move the cursor until the desired display
+	    configuration is highlighted.  (Note:  Display
+	    Configurations are recognized by a reference
+	    to windows or the word Configuration in the
+	    menu entry.)  The currently selected display
+	    configuration is denoted by an *.
+
+	3.  Let go of the mouse button.
+
+	While the new configuration is being drawn some
+or all of the currently visible windows may disappear.
+shutdown    Shutting Down Zeb
+671
+Shutting Down Zeb
+
+	Stopping the Zeb system is a two step process. First
+the graphics display is stopped by performing the following
+steps:
+        1.  Move the cursor to the Zeb icon in the IconBar.
+        2.  Press and hold the left mouse button.
+        3.  Drag the cursor until the entry
+                Shutdown the Zeb system
+            is highlighted.
+        4.  Let go of the mouse button.
+
+        If it is not possible to use the IconBar, the
+graphics display may be stopped by typing the following
+command at the display manager prompt:
+
+        DM> exit
+
+        Second the background processes must be stopped.  Do
+this by typing the command:
+
+	% zebstopddop         Displaying Dual Doppler Analysis Data
+1602
+Displaying Dual Doppler Analisys Data
+
+	One of the platforms available for display with Zeb
+is the results of Dual Doppler Analysis.  To display Dual
+Doppler data, first examine the representations of the data
+that are available by clicking and holding the left mouse
+button on the Dual Doppler icon in the IconBar.  
+
+	These representations are:
+
+	-  Line Contours
+	-  Filled Contours
+	-  Wind Vectors
+
+Any of these data representations may be added to a
+graphics window by following the steps listed in the
+topic, Adding and Removing Overlays.  If a filled contour
+is selected, other overlays may need to be removed before
+the newly added data becomes visible.
+
+	Filled Contours of Divergence, Vertical Velocity, or
+Interpolated Reflectivity may be displayed.  When filled 
+contours are added to a graphics window, they become the 
+'base' overlay, meaning that these contours are drawn first 
+and all other overlays are drawn on top of them.  Because 
+filled contours become the base overlay, altitude stepping 
+is based on this data.  When adding a filled contour to
+a graphics window that already contains either another
+filled contour or a raster image (such as radar data), 
+pre-existing contour or raster image must be removed or
+disabled for the new filled contour to be visible.	
+
+	Line contours of divergence, vertical velocity, or
+interpolated reflectivity may be displayed.  When line
+contours are added to a graphics window, they are overlayed
+on top of the existing data.
+
+	Wind Vectors may also be added to a graphics 
+window.  Wind vectors will be overlayed on top of the
+existing data.xygraph      Using X-Y Graphs
+1245
+Using X-Y Graphs
+
+	In general, X-Y Graphs allow plotting of any two-
+dimensional data combination.
+
+Adding Data to an X-Y Graph
+
+	If a particular X-Y Graph allows data from different
+platforms to be added, then this will be done using the
+menu activated by clicking the middle mouse button on the
+Zeb icon in the graphics window.
+
+Changing Fields
+
+	Changing fields per se is not usually allowed.  To
+see data from a different field, add it from the Zeb icon.
+
+Changing Time Interval
+
+	If the time interval of an X-Y Graph may be changed,
+then it is done by selecting the Adjust Limits entry in the
+menu activated by clicking the left mouse button on the
+icons in the graphics window.  Traverse the Adjust Limits
+submenu, if necessary, and select Time Interval.  A Limit
+Widget will pop up, that allows the time interval to be
+changed.
+
+Changing Platforms
+
+	If changing the platform of a component is allowed,
+then it will be done using the menu activated by clicking
+the middle mouse button on the icons in the graphics window.
+
+Changing Color and Representation
+
+	If changing the color and the representation of data
+points is allowed, then menus to do this will be found by
+clicking the right mouse button on the icons in the graphics
+window.
