@@ -26,9 +26,9 @@
 # include <X11/Shell.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/cursorfont.h>
-# include <ui.h>
 # include <fcntl.h>
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.62 1996-08-21 17:26:03 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.63 1996-11-19 07:19:33 granger Exp $")
 
 /*
  * Default resources.
@@ -124,6 +124,12 @@ static stbl RequireTable = 0;
 static char RequirePath[PathLen];
 
 /*
+ * To get some default, historic behavior from the datastore
+ */
+static dsDetail Details[5];
+static int NDetail = 0;
+
+/*
  * Forward routine definitions.
  */
 int	msg_handler ();
@@ -172,13 +178,11 @@ GPShutDown ()
 	
 	ui_finish ();
 	pdm_Finish ();
-# ifdef SHM
-	RP_ZapSHMImage (Graphics);
+	RP_ZapShmImage (Graphics);
 	if (GWShmPossible (Graphics))
 		for(i = 0; i < FrameCount; i++)
 			if (GWFrameShared (Graphics, i))
 				GWZapShmPixmap(Graphics, i);
-# endif
 /*
  * Is this necessary?
  */
@@ -191,12 +195,77 @@ GPShutDown ()
 
 
 
+static void
+usage (prog)
+char *prog;
+{
+	printf("usage: %s [options] [initfile ...]\n", prog);
+	printf("options: [can be abbreviated]\n");
+	printf("   -help       Show this usage message\n");
+	printf("   -version    Print version information\n");
+	printf("   -copyright  Print copyright information\n");
+	printf("initfile: \n");
+	printf("               %s\n",
+	       "Multiple init files are read in the order given");
+}
+
+
+
+static inline int
+Match(arg,opt)
+char *arg;
+char *opt;
+{
+	int len = strlen(arg);
+
+	return (len > 1 && strncmp(arg, opt, len) == 0);
+}
+
+
+
+static void
+CheckOptions (argc, argv)
+int argc;
+char *argv[];
+{
+	int i;
+
+	for (i = 1; i < argc; ++i)
+	{
+		if (Match (argv[i], "-help"))
+		{
+			usage (argv[0]);
+			exit (0);
+		}
+		else if (Match (argv[i], "-version"))
+		{
+			printf ("%s%s", Z_version(), Z_cppsymbols());
+			printf ("%s", Z_rcsid());
+			printf ("DataStore protocol version: %s\n",
+				ds_ProtoVersion() );
+			printf ("Message protocol version: %s\n",
+				MSG_PROTO_VERSION);
+			exit (0);
+		}
+		else if (Match (argv[i], "-copyright"))
+		{
+			printf ("%s", Z_copyright());
+			exit (0);
+		}
+	}
+}
+
+
+
+
 void
 main (argc, argv)
 int argc;
 char **argv;
 {
 	char loadfile[200];
+
+	CheckOptions (argc, argv);
 /*
  * Get any dm options from our command line.
  */
@@ -231,6 +300,9 @@ char **argv;
 		msg_ELog (EF_EMERGENCY, "Data store initialize failed");
 		exit (1);
 	}
+	ds_SetFloatDetail (DD_FETCH_BADVAL, CFG_DC_DEFAULT_BADVAL, Details,
+			   NDetail++);
+	ds_SetDefaultDetails (Details, NDetail);
 /*
  * Now we have to go into the UI, and finish our setup later.  This is
  * essentially a kludge designed to keep UI from trying to open tty
@@ -240,6 +312,32 @@ char **argv;
 	ui_get_command ("initial", (char *)msg_myname(), dispatcher, 0);
 	GPShutDown ();
 }
+
+
+
+static void
+ReadInitFiles (argc, argv)
+int argc;
+char *argv[];
+{
+	char perf[512];
+	int i;
+/*
+ * If there are non-hyphenated parameters left on the "command line", 
+ * they will be the names of initialization files to read.
+ */
+	for (i = 1; i < argc; ++i)
+	{
+		if (argv[i][0] == '\0' || argv[i][0] == '-')
+			continue;
+		if (access (argv[i], F_OK) == 0)
+			sprintf (perf, "read %s", argv[i]);
+		else
+			sprintf (perf, "read %s/%s", GetProjDir (), argv[i]);
+		ui_perform (perf);
+	}
+}
+
 
 
 
@@ -262,7 +360,6 @@ finish_setup ()
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
 	int pd_removeparam (), substr_remove(), ReplString ();
-	char initfile[128], perf[80];
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
@@ -270,20 +367,6 @@ finish_setup ()
 	XtAppAddActions (Actx, actions, FIVE);
 	XtRegisterGrabAction (Ue_PointerEvent, True,
 	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
-/*
- * If there is a parameter left on the "command line", it will be the name
- * of an initialization file to read.
- */
-	if ((Argc > 1) && (Argv[1][0] != '\0'))
-	{
-		if (! access (Argv[1], F_OK))
-			strcpy (initfile, Argv[1]);
-		else
-			sprintf (initfile, "%s/%s", GetProjDir (), Argv[1]);
-	}
-	else
-		initfile[0] = '\0';
-	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
@@ -318,6 +401,7 @@ finish_setup ()
  * Get the require table set up just in case anybody needs it.
  */
 	RequireTable = usy_c_stbl ("RequireTable");
+	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Module initializations.
  */
@@ -340,18 +424,7 @@ finish_setup ()
 /*
  * Tell DM that we're here.
  */
-#ifdef notdef
-	greet_dm ();
-#endif
 	dm_Greet ();
-
-#ifdef notdef	/* moved to happen after we have a window */
-/*
- * Graphics context
- */
-	Gcontext = XCreateGC (XtDisplay (Graphics), XtWindow (Graphics), 
-		0, NULL);
-#endif
 /*
  * Set up our event handlers.
  */
@@ -411,13 +484,9 @@ finish_setup ()
 	}
 	sprintf (RequirePath, "%s/gplib", GetLibDir ());
 /*
- * Pull in the init file, if there is one
+ * Pull in the init files.
  */
-	if (initfile[0])
-	{
-		sprintf (perf, "read %s", initfile);
-		ui_perform (perf);
-	}
+	ReadInitFiles (Argc, Argv);
 }
 
 
