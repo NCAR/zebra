@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.15 1995-02-10 01:25:40 granger Exp $
+ * $Id: nstest.c,v 1.16 1995-05-01 20:21:06 granger Exp $
  */
 
 /*
@@ -109,7 +109,6 @@ struct message *msg;
 #define TIME_UNITS
 #define EXAMPLE_ONLY
 #define NSPACE_AERI
-#endif
 
 #define AERI_TYPES
 #define ATTRIBUTES
@@ -127,6 +126,11 @@ struct message *msg;
 #define ATTRIBUTES
 #define NEXUS
 #define RGRID		/* test DC RGrid interface */
+#define DUMMY_FILES
+#define DATA_TIMES
+#define FETCH_GAP
+#endif
+
 #define DUMMY_FILES
 #define DATA_TIMES
 #define FETCH_GAP
@@ -570,7 +574,7 @@ char *platform;
 		    &last, 10, DsAfter, 1, last.zt_Sec);
 	CheckTimes (pid, "120 times after first time", 
 		    &first, 120, DsAfter, 120, first.zt_Sec);
-	next.zt_Sec = 1;
+	next.zt_Sec = 0;
 	CheckTimes (pid, "5 times after prehistoric time", 
 		    &next, 5, DsAfter, 5, first.zt_Sec);
 	Announce ("------------ DataTimes: done ------------");
