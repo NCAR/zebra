@@ -16,3 +16,4 @@ p_loc
 	active-icon:	true
 	require:	location
 	label-size:	12
+	icon:		radar-loc

@@ -11,7 +11,7 @@ p_radar
 	field:		reflectivity
 	representation:	raster
 	icon:		cp4
-	color-table:	wild
+	color-table:	wild_new
 	every-sweep:	true
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	radar-middle
