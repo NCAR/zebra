@@ -91,13 +91,14 @@
  * interpretation and translation on the other end, such as in DFA_NetCDF
  * will be much more complicated.
  *
- * Possible Future Optimizations:
+ * Possible Future Optimizations and Changes:
  *-------------------------------------------------------------------------
- * The internal, private functions should pass the general info structure
- * between them so that it need only be retrieved from the ADE list once,
- * upon entry to one of the public interface functions.  And it probably
- * wouldn't hurt to prefix the private function names with `_' or `ns_',
- * leaving the dc_ prefix for the public functions.
+ * It probably wouldn't hurt to prefix the private function names with `_'
+ * or `ns_', leaving the dc_ prefix for the public functions.
+ *
+ * Public functions should return non-zero on success and zero on failure.
+ * This should be consistent among all functions where this makes sense.
+ * At the moment this only exists for inquiry functions.
  *
  * Further Ideas
  *-------------------------------------------------------------------------
@@ -144,7 +145,9 @@
 #include "DataStore.h"
 #include "ds_fields.h"
 #include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.3 1993-04-22 06:06:06 granger Exp $")
+#ifndef lint
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.4 1993-05-04 18:54:08 granger Exp $")
+#endif
 
 /*
  * The DCC_NSpace public interface, aka, what is included in DataStore.h
@@ -211,10 +214,10 @@ int dc_NSGetAllDimensions FP((DataChunk *dc, char **names, FieldId *fields,
 int dc_NSGetAllVariables FP((DataChunk *dc, FieldId *fields, int *ndims));
 int dc_NSGetField FP((DataChunk *dc, FieldId field, int *ndims, 
 		      char **names, unsigned long *sizes, int *is_static));
-void dc_NSGetDimension FP((DataChunk *dc, FieldId dimn, char **name,
-			   unsigned long *size));
-void dc_NSGetVariable FP((DataChunk *dc, FieldId field, int *ndims, 
-			  FieldId *dims, int *is_static));
+int dc_NSGetDimension FP((DataChunk *dc, FieldId dimn, char **name,
+			  unsigned long *size));
+int dc_NSGetVariable FP((DataChunk *dc, FieldId field, int *ndims, 
+			 FieldId *dims, int *is_static));
 int dc_NSIsStatic FP((DataChunk *dc, FieldId field));
 /*
  * NSpace Data addition
@@ -337,21 +340,22 @@ typedef struct _NSpaceDimInfo
  * Private routines
  */
 
-static NSpaceDimInfo *DefineDimension FP((DataChunk *dc, char *name, 
-					  FieldId id, 
+static NSpaceDimInfo *DefineDimension FP((DataChunk *dc, NSpaceInfo *info,
+					  char *name, FieldId id, 
 					  unsigned long size, char *routine,
 					  int warn_duplicates));
 static NSpaceDimInfo *FindDimnByID FP((DataChunk *dc, NSpaceInfo *info,
 				       FieldId id));
 static NSpaceFldInfo *FindFieldByID FP((DataChunk *dc, NSpaceInfo *info,
 					FieldId id, char *routine));
-static NSpaceFldInfo *DefineField FP((DataChunk *dc, FieldId field, 
-				      int ndims,
+static NSpaceFldInfo *DefineField FP((DataChunk *dc, NSpaceInfo *info,
+				      FieldId field, int ndims,
 				      unsigned short *dim_indices, 
 				      short is_static, char *routine));
-static void SetFieldSizes FP((DataChunk *dc, NSpaceInfo *info, char *routine));
-static int CheckStatic FP((NSpaceFldInfo *finfo, int test, char *routine));
-
+static void SetFieldSizes FP((NSpaceInfo *info, char *routine));
+static int inline CheckStatic 
+	FP((NSpaceFldInfo *finfo, int test, char *routine));
+static int inline CheckOpen FP((NSpaceInfo *info, char *routine));
 
 /*****************************************************************
 // Public routines --- For defining, building, and inquiring
@@ -375,10 +379,15 @@ dc_NSDefineDimension(dc, field, size)
  * will override it.
  */
 {
+	NSpaceInfo *info;
+
 	if (! IsNSpace(dc,"NSDefineDimension"))
 		return;
 
-	(void) DefineDimension (dc, F_GetName(field), field, size, 
+	info = GetInfo(dc);
+	if (! CheckOpen(info, "NSDefineDimension"))
+		return;
+	(void) DefineDimension (dc, info, F_GetName(field), field, size, 
 				"NSDefineDimension", TRUE);
 
 }
@@ -418,6 +427,10 @@ int is_static;
 	if (! IsNSpace(dc, "NSDefineVariable"))
 		return;
 
+	info = GetInfo(dc);
+	if (! CheckOpen(info, "NSDefineVariable"))
+		return;
+
 	/*
 	 * Make sure we have a valid field id; it must have a non-empty name
 	 */
@@ -441,7 +454,6 @@ int is_static;
 	 * associated dinfo structure, and retrieve the index of the dimn ADE.
 	 * If dimn ADE is not found, the variable definition fails.
 	 */
-	info = GetInfo(dc);
 	for (i = 0; i < ndims; ++i)
 	{
 		dinfo = FindDimnByID (dc, info, dims[i]);
@@ -455,7 +467,7 @@ int is_static;
 		dim_indices[i] = dinfo->nsd_Index;
 	}
 
-	(void) DefineField (dc, field, ndims, dim_indices, is_static,
+	(void) DefineField (dc, info, field, ndims, dim_indices, is_static,
 			    "NSDefineVariable");
 }
 /*-------------------------------------------- end: dc_NSDefineVariable ----*/
@@ -494,12 +506,17 @@ dc_NSDefineField(dc, field, ndims, dimnames, dimsizes, is_static)
  * error.
  */
 {
+	NSpaceInfo *info;
 	NSpaceDimInfo *dinfo;
 	int i;
 	char *field_name;
 	unsigned short dim_indices[ DC_MaxDimension ];
 
-	if (!IsNSpace(dc,"NSDefineField"))
+	if (! IsNSpace(dc,"NSDefineField"))
+		return;
+
+	info = GetInfo(dc);
+	if (! CheckOpen(info, "NSDefineField"))
 		return;
 
 	/*
@@ -520,7 +537,7 @@ dc_NSDefineField(dc, field, ndims, dimnames, dimsizes, is_static)
 	 */
 	for (i = 0; i < ndims; ++i)
 	{
-		dinfo = DefineDimension (dc, dimnames[i], BadField, 
+		dinfo = DefineDimension (dc, info, dimnames[i], BadField, 
 					 dimsizes[i], "NSDefineField", FALSE);
 		if (! dinfo)
 		{
@@ -535,7 +552,7 @@ dc_NSDefineField(dc, field, ndims, dimnames, dimsizes, is_static)
 	/*
 	 * Dimensions all defined.  Pass on the rest of the work.
 	 */
-	(void) DefineField (dc, field, ndims, dim_indices, is_static,
+	(void) DefineField (dc, info, field, ndims, dim_indices, is_static,
 			    "NSDefineField");
 }
 /*------------------------------------------- end: dc_NSDefineField --------*/
@@ -566,7 +583,7 @@ dc_NSDefineComplete (dc)
 		nfield = dc_NSGetAllVariables (dc, fields, NULL);
 		dc_SetupFields (dc, nfield, fields);
 		info->ns_Defined = (unsigned char)TRUE;
-		SetFieldSizes (dc, info, "NSDefineComplete");
+		SetFieldSizes (info, "NSDefineComplete");
 	}
 }
 /*--------------------------------------------- end: dc_NSDefineComplete --*/
@@ -803,7 +820,7 @@ dc_NSIsStatic (dc, field)
 
 
 /*------------------------------------------- begin: dc_NSGetDimension() --*/
-void 
+int 
 dc_NSGetDimension (dc, dimn, name, size)
 	DataChunk *dc;
 	FieldId dimn;
@@ -819,28 +836,28 @@ dc_NSGetDimension (dc, dimn, name, size)
 	NSpaceDimInfo *dinfo;
 
 	if (! IsNSpace(dc,"NSGetDimension"))
-		return;
+		return FALSE;
 
 	dinfo = FindDimnByID (dc, NULL, dimn);
 	if (!dinfo)
 	{
 		msg_ELog (EF_PROBLEM, "%s: no dimension %i",
 			  "NSGetDimension", dimn);
-		return;
+		return FALSE;
 	}
 
 	if (name)
 		*name = &(dinfo->nsd_Name[0]);
 	if (size)
 		*size = dinfo->nsd_Size;
-	return;
+	return TRUE;
 }
 /*------------------------------------------------ end: dc_NSGetDimension -*/
 
 
 	
 /*---------------------------------------------- begin: dc_NSGetVariable --*/
-void
+int
 dc_NSGetVariable (dc, field, ndims, dims, is_static)
 	DataChunk *dc;
 	FieldId field;
@@ -867,18 +884,18 @@ dc_NSGetVariable (dc, field, ndims, dims, is_static)
 	int i;
 
 	if (! IsNSpace(dc,"NSGetVariable"))
-		return;
+		return FALSE;
 
 	info = GetInfo(dc);
 	if (!(finfo = FindFieldByID (dc, info, field, "NSGetVariable")))
-		return;
+		return FALSE;
 
 	if (ndims)
 		*ndims = finfo->nsf_NDimn;
 	if (is_static)
 		*is_static = (int)(finfo->nsf_Flags & NSF_STATIC);
 	if (! dims)
-		return;
+		return TRUE;
 
 	for (i = 0; i < finfo->nsf_NDimn; ++i)
 	{
@@ -886,7 +903,7 @@ dc_NSGetVariable (dc, field, ndims, dims, is_static)
 		dims[i] = dinfo->nsd_Id;
 	}
 
-	return;
+	return TRUE;
 }
 /*---------------------------------------------- end: dc_NSGetVariable ----*/
 
@@ -1000,7 +1017,8 @@ dc_NSAddStatic (dc, field, values)
 	 * Now copy the data
 	 */
 	if (values)
-		memcpy ((char *) dc->dc_Data + finfo->nsf_StOffset, 
+		memcpy ((char *) ((unsigned long)dc->dc_Data + 
+				  finfo->nsf_StOffset), 
 			(char *) values, (finfo->nsf_Size * sizeof(float)));
 }
 /*------------------------------------------------- end: dc_NSAddStatic ---*/
@@ -1070,7 +1088,6 @@ dc_NSGetStatic (dc, field, size)
  * error, NULL is returned.
  */
 {
-	int len;
 	DataPtr data;
 	NSpaceFldInfo *finfo;
 
@@ -1091,7 +1108,8 @@ dc_NSGetStatic (dc, field, size)
 	 */
 	if (finfo->nsf_Flags & NSF_OFFSET)
 	{
-		data = dc->dc_Data + finfo->nsf_StOffset;
+		data = (DataPtr) ((unsigned long)dc->dc_Data + 
+				  finfo->nsf_StOffset);
 		if (size)
 			*size = (unsigned long) (finfo->nsf_Size);
 		return ((float *)data);
@@ -1155,7 +1173,10 @@ NSDump (dc)
 	DataChunk *dc;
 /*
  * Our dump method --- we need to see our complicated structures for
- * debugging purposes, and for the sake of applications programmers
+ * debugging purposes, and for the sake of applications programmers.
+ * Rather than show field sizes as zero until closing the definition,
+ * we'll go ahead and do the calculations so that people can see what
+ * we've got so far.
  */
 {
 	NSpaceInfo *info;
@@ -1173,6 +1194,8 @@ NSDump (dc)
 		return;
 	}
 
+	if (! info->ns_Defined)
+		SetFieldSizes (info, "NSDump");
 	printf ("NSPACE class: definition %s",
 		(info->ns_Defined) ? "completed" : "open");
 	/*
@@ -1236,8 +1259,9 @@ NSDump (dc)
 
 /*------------------------------------------------ begin: DefineDimension() */
 static NSpaceDimInfo *
-DefineDimension(dc, name, field, size, routine, warn_duplicates)
+DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 	DataChunk *dc;
+	NSpaceInfo *info;
 	char *name;
 	FieldId field;
 	unsigned long size;
@@ -1251,29 +1275,9 @@ DefineDimension(dc, name, field, size, routine, warn_duplicates)
  * returned.  On error, NULL returned.
  */
 {
-	NSpaceInfo *info;
 	NSpaceDimInfo *dinfo;
 	char dim_name [ DC_MaxDimName ];
 	int i;
-
-	/*
-	 * Get our global info so that we know what we have to work with
-	 */
-	info = (NSpaceInfo *) dc_FindADE (dc, DCC_NSpace, ST_NSPACE_INFO, 0);
-	if (!info)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "%s: info not found, cannot continue", routine);
-		return NULL;
-	}
-
-	if (info->ns_Defined)
-	{
-		msg_ELog (EF_PROBLEM,
-		  "%s: datachunk has data, no more definitions allowed",
-		  routine);
-		return NULL;
-	}
 
 	/*
 	 * If the field id is not BadField, make sure it is a valid field id; 
@@ -1440,8 +1444,9 @@ FindFieldByID (dc, info, id, routine)
 
 /*-------------------------------------------------- begin: DefineField() -*/
 static NSpaceFldInfo *
-DefineField (dc, field, ndims, dim_indices, is_static, routine)
+DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 	DataChunk *dc;
+	NSpaceInfo *info;
 	FieldId field;
 	int ndims;
 	unsigned short *dim_indices;
@@ -1452,7 +1457,6 @@ DefineField (dc, field, ndims, dim_indices, is_static, routine)
  * same ID, but not without sending a warning.
  */
 {
-	NSpaceInfo *info = GetInfo(dc);
 	NSpaceFldInfo *finfo;
 	char *field_name = F_GetName(field);
 	int i;
@@ -1548,8 +1552,7 @@ DefineField (dc, field, ndims, dim_indices, is_static, routine)
 
 /*------------------------------------------------ begin: SetFieldSizes --*/
 static void
-SetFieldSizes (dc, info, routine)
-	DataChunk *dc;
+SetFieldSizes (info, routine)
 	NSpaceInfo *info;
 	char *routine;		/* name of calling routine */
 /*
@@ -1582,7 +1585,7 @@ SetFieldSizes (dc, info, routine)
 
 
 /*---------------------------------------------- begin: CheckStatic -----*/
-static int
+static int inline
 CheckStatic(finfo, test, routine)
 	NSpaceFldInfo *finfo;
 	int test;
@@ -1605,3 +1608,26 @@ CheckStatic(finfo, test, routine)
 	return (TRUE);
 }
 /*----------------------------------------------- end: CheckStatic -----*/
+
+
+
+/*---------------------------------------------- begin: CheckOpen -----*/
+static int inline
+CheckOpen(info, routine)
+	NSpaceInfo *info;
+	char *routine;
+/*
+ * Make sure our definition is still open before allowing any further
+ * definition.  Log a message if not.  Return TRUE if things o.k.
+ */
+{
+	if (info->ns_Defined)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "%s: defn closed, no more definitions allowed",
+			  routine);
+		return (FALSE);
+	}
+	return (TRUE);
+}
+/*----------------------------------------------- end: CheckOpen -------*/
