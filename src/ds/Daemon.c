@@ -59,7 +59,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.62 1997-06-17 06:23:29 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.63 1997-06-30 21:42:50 ishikawa Exp $")
 
 /*
  * Local forwards.
@@ -1349,17 +1349,34 @@ DataFile *df;
  * Make this file go away.
  */
 {
+  char **filenames;
+  int  nfiles, i;
+
 /*
  * Let everyone know this file is going away.
  */
-	DataFileGone (df);
+        DataFileGone (df);
+ 
 /*
  * Unlink the file from in the filesystem.
  */
 	if (! (df->df_flags & DFF_Remote))
-		if (unlink (dt_DFEFilePath(PTable + df->df_platform, df)) < 0)
-			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", 
-				  errno, df->df_name);
+	{
+           filenames=dfa_GetAssociatedFiles (df->df_index, &nfiles );
+           for (i=0; i<nfiles; i++)
+	   {
+
+/* Maybe is better to show this message than in the caller function
+		msg_ELog (EF_DEBUG, "File is : %s", filenames[i]);
+*/
+
+	     if (unlink (filenames[i] ) < 0)
+	        msg_ELog (EF_PROBLEM, "Error %d unlinking %s", 
+                           errno, filenames[i]);
+             if (filenames[i])  free ( filenames[i]);
+	   }
+           if ( filenames ) free (filenames);
+        }
 }
 
 
