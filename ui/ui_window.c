@@ -26,7 +26,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.19 1992-01-30 21:58:18 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.20 1992-05-06 15:54:52 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -371,7 +371,7 @@ struct ui_command *cmds;
 	 * Forms.
 	 */
 	   case WT_FORM:
-	   	gw = uw_FormDef ();
+	   	gw = uw_FormDef (frame);
 		frame->fw_flags |= WF_PROTOTYPE;
 		break;
 
@@ -725,6 +725,10 @@ struct frame_widget *w;
 	if (w->fw_flags & WF_OVERRIDE)
 	{
 		XtSetArg (args[n], XtNtransient, True);	n++;
+	}
+	else if (w->fw_next && w->fw_next->gw_type == WT_FORM)
+	{
+		XtSetArg (args[n], XtNtransient, False); n++;
 	}
 	w->fw_w = XtCreatePopupShell (w->fw_name, topLevelShellWidgetClass,
 		Top, args, n);
@@ -1505,6 +1509,7 @@ FrameWidget *fw;
  */
 	sprintf (NewName, "%s.%d", fw->fw_name, fw->fw_ninst++);
 	inst = uw_make_frame (NewName, fw->fw_title);
+	inst->fw_flags = fw->fw_flags;
 	child = (*fw->fw_next->gw_clone) (fw->fw_next, inst);
 	uw_add_child (inst, child);
 	uw_wdef (inst);
