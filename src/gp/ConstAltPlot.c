@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.54 1995-06-29 23:40:48 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.55 1995-07-16 15:18:31 granger Exp $")
 
 
 /*
@@ -1695,8 +1695,8 @@ bool	update;
 /*
  * Convert the grid limits to pixel coordinates
  */
-	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
-	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
+	pix_x0 = IXPIX (x0);	pix_x1 = IXPIX (x1);
+	pix_y0 = IYPIX (y0);	pix_y1 = IYPIX (y1);
 /*
  * Clip rectangle
  */
@@ -1773,7 +1773,8 @@ int datalen, begin, space;
 	char string[40], ctable[40], color[40];
 	float center, step, val, used, scale, value, range, max;
 	int i, left, ncolors, limit, nsteps, y;
-	float bar_height, step_height;
+	int bar_height;
+	float step_height;
 	int highlight;
 	XColor *colors, xc;
 /*
@@ -1800,21 +1801,26 @@ int datalen, begin, space;
 	begin += used;
 	space -= 2*used;  /* 2* so as to leave room at the bottom */
 /*
- * Add all the colors.
+ * Add all the colors.  Keep the bar height integral so that all of our
+ * color rectangles are the same height and their edges line up.
  */
-	bar_height = (float) space / (float) ncolors;
-	if (bar_height <= 0) bar_height = 1.0;
+	bar_height = space / ncolors;
+	if (bar_height <= 0) bar_height = 1;
 	for (i = 0; i < ncolors; i++)
 	{
 		XSetForeground (XtDisplay (Graphics), Gcontext, 
 			colors[ncolors - i - 1].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			Gcontext, left, (int) (begin + i * bar_height), 10, 
-			(int) bar_height);
+			Gcontext, left, begin + i * bar_height, 10, 
+			bar_height);
 	}
 /*
- * Do the numeric labels.
+ * Do the numeric labels.  Keep the step height as float to place it
+ * accurately rather than just evenly.  Figure the height using the actual
+ * span of the color bar, which may be different than the available space
+ * because of the truncation above. 
  */
+	space = bar_height * ncolors; 
 	step_height = (float) space / (float) nsteps;
 	for (i = 0; step_height > 0 && i <= nsteps; i++)
 	{
@@ -1836,25 +1842,17 @@ int datalen, begin, space;
 	if (highlight)
 	{
 #ifdef notdef
-		space = bar_height * ncolors; 
 		bar_height = space * range / (step * (nsteps - 1.0));
 		max = center + nsteps / 2 * step;
 		y = (float) begin + (float) space * (max - value) / 
 			(step * (nsteps - 1.0)) - bar_height / 2.0; 
-		if ((y + bar_height) > (begin + space)) 
-			bar_height = begin + space - y;
-		else if (y < begin)
-		{
-			bar_height -= (begin - y);
-			y = begin;
-		}
 #endif
 		XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 		bar_height = space * range / (step * nsteps);
 		max = center + (float) nsteps / 2.0 * step;
 		y = (float) begin + (float) space * (max - value) / 
 			(step * nsteps) - bar_height / 2.0; 
-		if ((y + (int)bar_height) > (begin + space)) 
+		if ((y + bar_height) > (begin + space)) 
 			bar_height = begin + space - y;
 		else if (y < begin)
 		{
@@ -1863,7 +1861,7 @@ int datalen, begin, space;
 		}
 		if (bar_height <= 0) bar_height = 1;
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			Gcontext, left, y, 10, (int) bar_height);
+			Gcontext, left, y, 10, bar_height);
 	}
 }
 
