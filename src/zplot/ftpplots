@@ -1,10 +1,10 @@
 #! /usr/local/bin/perl5
 #
-# FTP images to JOSS
-# $Id: ftpplots,v 1.6 1999-10-08 20:44:34 granger Exp $
+# FTP images to a remote host
+# $Id: ftpplots,v 1.7 1999-10-15 19:09:28 granger Exp $
 
-$site="$ENV{'JOSS_HOST'}";
-$dir="$ENV{'JOSS_DIR'}";
+$site="$ENV{'PLOT_FTP_HOST'}";
+$dir="$ENV{'PLOT_FTP_DIR'}";
 $user="anonymous";
 $pass="iss\@atd.ucar.edu";
 
