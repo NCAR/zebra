@@ -1,0 +1,17 @@
+Fri Jul  9 00:03:51 1993  Gary Granger  (granger@steam)
+
+	* DataStore:
+	ds_StoreBlocks() bug fixed which improperly handled the addition
+	of new files prior to existing data files.
+
+	* DataStore: 
+	Fixed bug which allowed more than 'maxsamples' samples to be
+	written to a platform's data file.
+
+	* Added the ChangeLog file to the top-level directory of Zeb.  All
+	major changes and bug fixes in any part of Zeb will be mentioned
+	in this file.  This file lists a history of changes of importance
+	and interest to the end user.
+
+
+
