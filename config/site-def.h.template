@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.25 1995-06-05 17:00:08 case Exp $
+/**/# $Id: site-def.h.template,v 1.26 1995-08-17 20:24:10 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -104,17 +104,17 @@
 /*
  * If you don't have the MIT X11 distribution, set UseXWindows to NO.
  * If you have X11 and your X11 libraries aren't in /usr/lib, edit define
- * XLibraries with the proper path.
+ * XLibDir with the proper path.
  *
- * Edit XInclude only if your X11 include directory is not in /usr/include.
+ * Edit XIncDir only if your X11 include directory is not in /usr/include.
  * Since /usr/include is automatically searched during the compile process,
  * XInclude is left blank here on purpose.  If you must edit this path,
  * insert a -I before the path name.
  *
  *    Example:
  *        Your X11 include directory is in: /usr/local/include.
- *        Edit "define XIncludes" to read:
- *        #       define XIncludes -I/usr/local/include
+ *        Edit "define XIncDir" to read:
+ *        #       define XIncDir -I/usr/local/include
  *
  * Either UseXWindows or UseOpenWin should be set to YES to get X windows
  * support (not both).  OpenWindows users should note that Version 3.0 or higher is needed 
@@ -125,7 +125,7 @@
  * must have OpenWindows 3.0 or higher, and RDSS must be compiled with
  * UseOpenWindows defined as YES and OldOpenWin defined as NO.
  *
- * For Solo users: MIT X11R5 is required for all installations.  OpenWindows
+ * For Solo users: X11R5 is required for all installations.  OpenWindows
  * versions running on SunOS 4.1.x will not work because they are based on
  * X11R4.
  *
@@ -270,7 +270,8 @@
  *        # define FortranPath /usr/lang/SC2.0.1
  *        # define FortranLibraries -lF77 -lM77
  *
- * SGI users should edit the lines to read:
+ * SGI users should comment out the Fortran Path and 
+ * edit FortranLibraries:
  *
  */	  /*# define FortranPath*/
 /*        # define FortranLibraries -lF77 -lI77 -lisam
@@ -360,9 +361,9 @@
 
 
 /*
- * If you are installing REORDER and wish to add the Dorade alpha version,
- * set this to yes.  Solo must already be installed if you wish to 
- * use this option.
+ * If you are installing Solo and REORDER and wish to add the Dorade 
+ * capability to REORDER, set this to yes.  Solo must be installed before
+ * REORDER if you use this option.
  */
 
 # define BuildDoradeReorder NO
