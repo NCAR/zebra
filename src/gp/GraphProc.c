@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.7 1990-06-12 11:30:39 burghart Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.8 1990-06-12 11:41:54 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -326,6 +326,8 @@ struct dm_msg *dmsg;
  * Deal with a display manager message.
  */
 {
+	struct dm_dial *dmd;
+
 	switch (dmsg->dmm_type)
 	{
 	/*
@@ -380,6 +382,13 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_EVBIND:
 	   	Ue_NewBinding ((struct dm_ebchange *) dmsg);
+		break;
+	/*
+	 * Dial events.
+	 */
+	   case DM_DIAL:
+		dmd = (struct dm_dial *) dmsg;
+	   	msg_log ("DIAL: '%s' %d", dmd->dmm_param, dmd->dmm_motion);
 		break;
 	/*
 	 * ???
