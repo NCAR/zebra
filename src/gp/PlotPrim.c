@@ -5,7 +5,7 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.1 1991-10-30 19:26:00 barrett Exp $";
+static char *rcsid = "$Id: PlotPrim.c,v 1.2 1992-01-02 17:02:50 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -51,7 +51,6 @@ static char *rcsid = "$Id: PlotPrim.c,v 1.1 1991-10-30 19:26:00 barrett Exp $";
 # define ROUNDIT(x)	((int)(x + 0.5))
 
 void	gp_Pline (),  gp_Clip () ;
-extern int TransConfig;
 
 /*
  * Line style
@@ -74,8 +73,9 @@ extern XColor 	Tadefclr;
 # define C_DATA(i)	(6 + (i))
 
 void
-gp_Clip (xlo, ylo, xhi, yhi)
-float	xlo, ylo, xhi, yhi;
+gp_Clip (xlo, ylo, xhi, yhi,xscalemode, yscalemode)
+DataValPtr	xlo, ylo, xhi, yhi;
+unsigned short	xscalemode, yscalemode;
 /*
  * Set the clipping window
  */
@@ -85,30 +85,40 @@ float	xlo, ylo, xhi, yhi;
 /*
  * Build the clip rectangle (XRectangle (x,y) is its upper left corner)
  */
-	saveConfig = TransConfig;
-	TransConfig = 0;
-	r.x = devX (xlo);
-	r.y = devY (yhi);
-
-	r.width = devX (xhi) - r.x + 1;
-	r.height = devY (ylo) - r.y + 1;
+	if ( xscalemode & INVERT )
+	{
+	    r.x = devX (xhi,xscalemode);
+	    r.width = devX (xlo,xscalemode) - r.x + 1;
+	}
+	else
+	{
+	    r.x = devX (xlo,xscalemode);
+	    r.width = devX (xhi,xscalemode) - r.x + 1;
+	}
+	if ( yscalemode & INVERT )
+	{
+	    r.y = devY (ylo,yscalemode);
+	    r.height = devY (yhi,yscalemode) - r.y + 1;
+	}
+	else
+	{
+	    r.y = devY (yhi,yscalemode);
+	    r.height = devY (ylo,yscalemode) - r.y + 1;
+	}
 /*
  * Put the clip rectangle into the GC
  */
 	XSetClipRectangles (XtDisplay (Graphics), Gcontext, 0, 0, &r, 1, 
 		Unsorted);
-	TransConfig = saveConfig;
 }
 
-
-
-
 void
-gp_Pline (x, y, npts, style, color_ndx)
-float		*x, *y;
+gp_Pline (x, y, npts, style, color_ndx,xscalemode, yscalemode)
+DataValPtr	x, y;
 int		npts;
 LineStyle	style;
 XColor		color_ndx;
+unsigned short	xscalemode, yscalemode;
 /*
  * ENTRY:
  *	x,y	polyline coordinates in user-coordinate system.
@@ -123,6 +133,7 @@ XColor		color_ndx;
 	XPoint	*pts;
 	char	dash[2];
 	Pixel	color;
+	int	x0,x1,y0,y1;
 
 	if (npts == 0)
 		return;
@@ -135,8 +146,8 @@ XColor		color_ndx;
  */
 	for (i = 0; i < npts; i++)
 	{
-		pts[i].x = devX (x[i]);
-		pts[i].y = devY (y[i]);
+		pts[i].x = devX (&(x[i]),xscalemode);
+		pts[i].y = devY (&(y[i]),yscalemode);
 	}
 /*
  * Set up the correct foreground color and line style
@@ -174,6 +185,7 @@ XColor		color_ndx;
  */
 	XDrawLines (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, pts, 
 		npts, CoordModeOrigin);
+	
 /*
  * Make the GC use LineSolid again
  */
@@ -186,3 +198,207 @@ XColor		color_ndx;
 	free (pts);
 }
 
+void
+gp_WindVector (x, y, u, v, npts, isangle,scale, style, colors, ncolor, cstep,
+		xscalemode,yscalemode)
+DataValPtr	x, y,u,v;
+int		npts;
+int		isangle;
+double		scale;
+LineStyle	style;
+XColor		*colors;
+int		ncolor;
+int		cstep;
+unsigned short	xscalemode, yscalemode;
+{
+    double	radians;
+    double	radius;
+    int		i,line_style;
+    double	upt,vpt;
+    char	dash[2];
+    Pixel	color;
+    float	tangle;
+
+    if ( npts == 0 ) return;
+
+
+	switch (style)
+	{
+	    case L_solid:
+		line_style = LineSolid;
+		break;
+	    case L_dashed:
+		line_style = LineOnOffDash;
+		dash[0] = 6;
+		dash[1] = 6;
+		break;
+	    case L_dotted:
+		line_style = LineOnOffDash;
+		dash[0] = 2;
+		dash[1] = 4;
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "Unknown line style %d in gp_Pline\n",
+			style);
+		line_style = LineSolid;
+	}
+
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, line_style, 
+		CapButt, JoinMiter);
+	if (line_style != LineSolid)
+		XSetDashes (XtDisplay (Graphics), Gcontext, 0, dash, 2);
+    for (i = 0; i < npts; i++)
+    {
+	if ( isangle )
+	{
+	    tangle = 270.0 - u[i].val.f;
+	    radius = (double)v[i].val.f;
+	    radians = (double)tangle/57.2958; /* convert to radians */
+	    upt = radius * cos(radians);
+	    vpt = radius* sin(radians);
+	}
+	else
+	{
+	    upt = (double)u[i].val.f;
+	    vpt = (double)v[i].val.f;
+	    radius = sqrt(upt*upt + vpt*vpt);
+	}
+	color = colors[(int)(radius/(float)cstep)% ncolor].pixel;
+	XSetForeground (XtDisplay (Graphics), Gcontext, color);
+	draw_vector ( XtDisplay(Graphics), GWFrame(Graphics),Gcontext,
+		devX(&(x[i]),xscalemode),devY(&(y[i]),yscalemode), upt, vpt, scale);
+    }
+	if (line_style != LineSolid)
+		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
+			LineSolid, CapButt, JoinMiter);
+}
+
+void
+gp_WindBarb (x, y, u, v, npts, isangle,shaftlen, style, colors, ncolor, cstep,
+		xscalemode,yscalemode)
+DataValPtr	x, y,u,v;
+int		npts;
+int		isangle;
+int		shaftlen;
+LineStyle	style;
+XColor		*colors;
+int		ncolor;
+int		cstep;
+unsigned short	xscalemode, yscalemode;
+{
+    double	radians;
+    double	radius;
+    int		i,line_style;
+    double	upt,vpt;
+    char	dash[2];
+    Pixel	color;
+    float	tangle;
+
+    if ( npts == 0 ) return;
+
+
+	switch (style)
+	{
+	    case L_solid:
+		line_style = LineSolid;
+		break;
+	    case L_dashed:
+		line_style = LineOnOffDash;
+		dash[0] = 6;
+		dash[1] = 6;
+		break;
+	    case L_dotted:
+		line_style = LineOnOffDash;
+		dash[0] = 2;
+		dash[1] = 4;
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "Unknown line style %d in gp_Pline\n",
+			style);
+		line_style = LineSolid;
+	}
+
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, line_style, 
+		CapButt, JoinMiter);
+	if (line_style != LineSolid)
+		XSetDashes (XtDisplay (Graphics), Gcontext, 0, dash, 2);
+    for (i = 0; i < npts; i++)
+    {
+	if ( isangle )
+	{
+	    tangle = (270.0 - u[i].val.f);
+	    radians = (double)tangle/57.2958;
+	    radius = (double)v[i].val.f;
+	}
+	else
+	{
+	    upt = (double)u[i].val.f;
+	    vpt = (double)v[i].val.f;
+	    radius = sqrt(upt*upt + vpt*vpt);
+	    radians = atan2 ( vpt, upt ) ;
+	}
+/*
+	fprintf ( stdout, "\rradius = %f radians = %f\n",(float)radius,
+		(float)radians);
+*/
+	color = colors[(int)(radius/(float)cstep)% ncolor].pixel;
+	XSetForeground (XtDisplay (Graphics), Gcontext, color);
+	radians = radians + 3.1415926; /* reverse direction */
+	draw_barb ( XtDisplay(Graphics), GWFrame(Graphics),Gcontext,
+		devX(&(x[i]),xscalemode),devY(&(y[i]),yscalemode), radians, radius, shaftlen);
+    }
+	if (line_style != LineSolid)
+		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
+			LineSolid, CapButt, JoinMiter);
+}
+void
+gp_Points (x, y, npts, color_ndx,xscalemode, yscalemode)
+DataValPtr	x, y;
+int		npts;
+XColor		color_ndx;
+unsigned short	xscalemode, yscalemode;
+/*
+ * ENTRY:
+ *	x,y	polyline coordinates in user-coordinate system.
+ *	npts	the number of points
+ *	color_ndx	index of the color to use
+ * EXIT:
+ *	The polyline has been drawn
+ */
+{
+	int	i;
+	XPoint	*pts;
+	char	dash[2];
+	Pixel	color;
+	int	x0,x1,y0,y1;
+
+	if (npts == 0)
+		return;
+/*
+ * Allocate the XPoint array
+ */
+	pts = (XPoint*) malloc (npts * sizeof (XPoint));
+/*
+ * Fill the pixel location arrays
+ */
+	for (i = 0; i < npts; i++)
+	{
+		pts[i].x = devX (&(x[i]),xscalemode);
+		pts[i].y = devY (&(y[i]),yscalemode);
+	}
+/*
+ * Set up the correct foreground color and line style
+ */
+	color = color_ndx.pixel;
+	XSetForeground (XtDisplay (Graphics), Gcontext, color);
+
+/*
+ * Draw the points
+ */
+	XDrawPoints (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, pts, 
+		npts, CoordModeOrigin);
+/*
+ * Free the allocated points
+ */
+	free (pts);
+}
