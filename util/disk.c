@@ -1,5 +1,5 @@
 /* 11/84 jc */
-/* $Id: disk.c,v 1.2 1990-01-03 10:00:28 corbet Exp $ */
+/* $Id: disk.c,v 1.3 1990-01-03 11:06:57 wyngaard Exp $ */
 /*
  * Disk handling.
  *
@@ -566,7 +566,7 @@ LTYPE r;
 # endif
 
 # ifdef UNIX
-	if (!fseek ((FILE *) r, Offset, 0))
+	if (fseek ((FILE *) r, Offset, 0) == -1)
 		printf ("\nImproper seek\n");
 # endif
 }
@@ -607,7 +607,7 @@ short rfa[3];
 # endif
 
 # ifdef UNIX
-	if (!fseek ((FILE *) r, (long) *rfa, 0))
+	if (fseek ((FILE *) r, *(long *) rfa, 0) == -1)
 		printf ("\nImproper seek\n");
 # endif
 }
