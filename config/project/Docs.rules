@@ -1,6 +1,6 @@
 XCOMM -*- C -*-
 XCOMM
-XCOMM $Id: Docs.rules,v 1.1 1996-02-10 23:20:36 granger Exp $
+XCOMM $Id: Docs.rules,v 1.2 1996-02-16 20:00:15 granger Exp $
 XCOMM
 XCOMM An Imake rules file for fules which generate postscript and html
 XCOMM from FrameMaker books.
@@ -10,10 +10,8 @@ XCOMM
 /* FM2HTML = /localbin/frame/fm2html */
 FM2HTML = fm2html
 FRAMELIB = /locallib/frame
-#ifdef notdef
-TAGSFILE = $(FRAMELIB)/mif2html.tags
+TAGSFILE = $(FRAMELIB)/zebra.htags
 PRINTFILE = $(FRAMELIB)/mif2gif.printsettings
-#endif
 LANGUAGE = US
 FMBATCH = /net/FMaker5/bin/fmbatch
 /* FMBATCH = fmbatch */
@@ -22,7 +20,7 @@ DOCDIR = /net/shared/zebra/doc/4.2
 HTMLDIR = $(DOCDIR)/html/$(BOOK)
 POSTSCRIPTDIR = $(DOCDIR)/hardcopy
 
-DISTCLEANFILES = *.backup *.gif *.mif *.html *.html1 *.html2 *.ps
+DISTCLEANFILES = *.backup *.gif *.mif *.html *.html1 *.html2 *.ps *.tmp *.000? *.000??
 
 #ifdef FrameExtension
 FMEXT = FrameExtension
@@ -31,6 +29,8 @@ FMEXT = book
 #endif
 
 BOOKFILE = $(BOOK).$(FMEXT)
+BOOKHTML = $(BOOK).html
+BOOKPS = $(BOOK).ps
 
 /*
  * By default, don't do anything unless given a specific target
@@ -38,40 +38,39 @@ BOOKFILE = $(BOOK).$(FMEXT)
 
 all:: $(BOOKFILE) $(CHAPTERS)
 
+install:: install.ps install.html
+
 /*
  * Install PostScript files into PostScript directory
  */
-install:: $(BOOK).ps
+install.ps:: $(BOOKPS) FORCE
 	@echo Installing PostScript files into $(POSTSCRIPTDIR)
 	MakeDir($(POSTSCRIPTDIR))
-	$(CP) $(BOOK).ps $(POSTSCRIPTDIR)
-
+	$(CP) $(BOOKPS) $(POSTSCRIPTDIR)
 
 /*
- * Install all of the hypertext files into another directory
+ * Install hypertext files into html directory
  */
-install:: $(BOOKFILE).html html
+install.html:: $(BOOKHTML) html FORCE
 	@echo Installing HTML files into $(HTMLDIR)
 	MakeDir($(HTMLDIR))
-	$(CP) *.html `ls *.gif 2>/dev/null` $(HTMLDIR)
+	$(CP) *.html `ls *.fig_*.ps *.tbl_*.ps *.gif 2>/dev/null` $(HTMLDIR)
 
-html:: $(BOOKFILE).html
+html:: $(BOOKHTML)
 
 /*
  * Make the HTML files for this book
  */
-$(BOOKFILE).html:: $(BOOKFILE) $(CHAPTERS)
-	DOCUMENTLANGUAGE=$(LANGUAGE) $(FM2HTML) $(BOOKFILE)
+$(BOOKHTML):: $(BOOKFILE) $(CHAPTERS)
+	MIF2HTMLTAGSFILE=$(TAGSFILE) DOCUMENTLANGUAGE=$(LANGUAGE) \
+		$(FM2HTML) -c -s -a $(AUTHOR) $(BOOKFILE)
 
-#ifdef notdef
-$(BOOK).html:: $(BOOKFILE) $(CHAPTERS)
-	FRAME2HTMLTAGSFILE=$(TAGSFILE) DOCUMENTLANGUAGE=$(LANGUAGE) \
-		FRAME2HTMLPRINTFILE=$(PRINTFILE) $(FM2HTML) $(BOOKFILE)
-#endif
+ps:: $(BOOKPS)
 
-ps:: $(BOOK).ps
-
-$(BOOK).ps:: $(BOOKFILE) $(CHAPTERS)
+/*
+ * Generate PostScript from a FrameMaker book
+ */
+$(BOOKPS):: $(BOOKFILE) $(CHAPTERS)
 	RemoveFile($@)
 	@echo Creating $@	;\
 	 (echo "Open $(BOOKFILE)"; \
@@ -90,6 +89,10 @@ $(BOOK).ps:: $(BOOKFILE) $(CHAPTERS)
 
 distclean::
 	$(RM) $(DISTCLEANFILES)
+
+FORCE::
+
+.PHONY: install.html install.ps html ps
 
 #ifdef notdef
 clean::
