@@ -24,7 +24,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: met_formulas.c,v 1.9 1993-07-21 21:51:25 burghart Exp $";
+static char *rcsid = "$Id: met_formulas.c,v 1.10 1997-02-10 22:17:53 burghart Exp $";
 
 # include <math.h>
 # include "met_formulas.h"
@@ -382,42 +382,51 @@ double	t, p, rh;
  * like a poor algorithm, but I don't have time to make it better)
  */
 {
-	float	e_sat, e, e_test, t_w, delta;
-	short	sign;
+    double	e_sat, e, e_left, e_right, e_guess;
+    double	tw_left, tw_right, tw_guess;
 /*
  * Find our vapor pressure
  */
-	e_sat = e_sw (t);
-	e = rh * 0.01 * e_sat;
+    e_sat = e_sw (t);
+    e = rh * 0.01 * e_sat;
 /*
  * Initialize
  */
-	e_test = e_sat;
-	t_w = t;
-	delta = 40; /* t_w should be within 80 deg. of t */
-/*
- * Iterate
- */
-	while (delta > 0.002)
+    tw_left = t - 80; /* Assume t_w is within 80 deg. of t */
+    e_left = e_sw (tw_left) - p * (t - tw_left) * 0.00066 * 
+	(0.6859 + 0.00115 * tw_left);
+
+    tw_right = t;
+    e_right = e_sat;
+
+    while (1)
+    {
+	tw_guess = tw_left + (e - e_left) / (e_right - e_left) * 
+	    (tw_right - tw_left);
+	
+	e_guess = e_sw (tw_guess) - p * (t - tw_guess) * 0.00066 * 
+	    (0.6859 + 0.00115 * tw_guess);
+
+    /*
+     * Quit when the vapor pressure for our guess is within 0.01 mb of the 
+     * actual
+     */
+	if (fabs (e_guess - e) < 0.01)	
+	    break;
+
+	if (e_guess < e)
 	{
-	/*
-	 * Get the next t_w
-	 */
-		sign = ((e_test - e) > 0.0) ? -1 : 1;
-		delta *= 0.5;
-		t_w += sign * delta;
-	/*
-	 * Find the associated vapor pressure
-	 */
-		e_sat = e_sw (t_w);
-		e_test = e_sat - p * (t - t_w) * 0.00066 * 
-				(0.6859 + 0.00115 * (t_w + T_3));
-		
+	    tw_left = tw_guess;
+	    e_left = e_guess;
 	}
-/*
- * Assign the value
- */
-	return ((double) t_w);
+	else
+	{
+	    tw_right = tw_guess;
+	    e_right = e_guess;
+	}
+    }
+    
+    return (tw_guess);
 }
 
 
