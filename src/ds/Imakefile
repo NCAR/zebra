@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.74 2001-10-16 22:26:29 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.75 2001-10-26 08:10:00 granger Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -300,11 +300,11 @@ test.apple: test.apple.only test.close
 	-@ZEBRA_SOCKET=$(SOCKET); export ZEBRA_SOCKET; \ @@\
 	DSDUMP=$(DSDUMP); export DSDUMP; \ @@\
 	ZEB_PROJECT=$(TESTPROJ); export ZEB_PROJECT; \ @@\
-	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
+	DATA_DIR=$(DATA_DIR); export DATA_DIR;
 
 
 test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
-	TEST_ENV
+	TEST_ENV \
 	echo "Starting a zebra test session... ZEBRA_SOCKET=$$ZEBRA_SOCKET"; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEBRA_SOCKET; \
 	set -x; \
@@ -316,7 +316,7 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	sleep 5; /* give daemon time to connect */
 
 test.aline.only: aline $(SOCKET)
-	TEST_ENV
+	TEST_ENV \
 	echo "Assembly line testing with 'aline'..."; \
 	set +x; \
 	RunTest($(ALINE) -shar $(TESTOUT),"shared cdf platform, r/o"); \
@@ -330,31 +330,18 @@ test.aline.only: aline $(SOCKET)
 	echo "End assembly line testing."
 
 test.apple.only: apple $(SOCKET) $(DSDUMP)
-	TEST_ENV
+	TEST_ENV \
 	RunTest($(APPLE),"William Tell, arrows away"); \
 	echo "End apple testing."
 
 test.close:
-	TEST_ENV
+	TEST_ENV \
 	echo "Ending zebra test session..."; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEBRA_SOCKET
 
 clean::
 	$(RM) $(SOCKET)
 	$(RM) test.znf		/* created by apple test program */    
-
-/*
- * Saber stuff.  This is a bit complicated, depending on what you are
- * trying to debug.  The saber "#" construct makes it through the Sun
- * preprocessor; others may give trouble.
- *
- * Note that imake produces some saber rules for the normal program
- * targets.  Either those or these below can be used.  Or add your own!
- */
-saber_lib:
-	#setopt ansi
-	#load $(CFLAGS) -I/usr/local/include $(DSLIBOBJS) $(DCOBJS)
-	#load -Bstatic $(LIBS) $(LIBGCC)
 
 ZebraMakeDepend()
 
