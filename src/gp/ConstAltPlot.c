@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.88 2001-12-07 21:00:35 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.89 2002-12-04 00:07:28 burghart Exp $")
 
 
 /*
@@ -1734,7 +1734,8 @@ int datalen, begin, space;
 
 
 static void
-CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
+CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot,
+		zbool *sidelegend)
 /*
  * Execute a CAP raster plot, based on the given plot
  * description, specified conent, and plot time
@@ -1970,24 +1971,19 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 		 platform, px_FldDesc (fname), 
 		 shifted ? " plot (SHIFTED).  " : " plot.  ");
 /*
- * Side annotation (color bar)
+ * Side annotation (color bar), either legend style or a normal
+ * numeric color bar.
  */
 	if (pda_Search (Pd, c, "side-annot-style", fname, style,
 			SYMT_STRING) && ! strcmp (style, "legend"))
 	{
-	    float scale;
-	    int lim, lheight, space;
-		
-	    An_GetSideParams (c, &scale, &lim);
-	    lheight = DT_ApproxHeight (Graphics, scale, 1);
-	    space = (Ncolors + 1)*lheight;
-	    sprintf (data, "%s|%s|%f|%f|%d", fname, ctname, center, step,
+	    *sidelegend = TRUE;
+	    sprintf (sideannot, "%s|%s|%f|%f|%d", fname, ctname, center, step,
 		     Ncolors);
-	    An_AddAnnotProc (CAP_LegendAnnot, c, data, strlen (data),
-			     space, FALSE, FALSE);
 	}
 	else
 	{
+	    *sidelegend = FALSE;
 	    if (highlight)
 		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
 			 px_FldDesc (fname), ctname, center, step, nsteps, 
@@ -2006,6 +2002,7 @@ CAP_Raster (char *c, zbool update)
 {
 	char topannot[512];
 	char sideannot[512];
+	zbool use_sidelegend;
 
 	topannot[0] = 0;
 	sideannot[0] = 0;
@@ -2018,7 +2015,7 @@ CAP_Raster (char *c, zbool update)
  * with the CAP_Contour plots which show their top and side annotation
  * even when no data can be plotted.
  */
-	CAP_PlotRaster (c, update, topannot, sideannot);
+	CAP_PlotRaster (c, update, topannot, sideannot, &use_sidelegend);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -2032,9 +2029,29 @@ CAP_Raster (char *c, zbool update)
 		An_TopAnnot (topannot);
 	if (sideannot[0])
 	{
+	    /*
+	     * Are we doing a legend-style side annotation or
+	     * a normal numeric color bar?
+	     */
+	    if (use_sidelegend)
+	    {
+		float scale;
+		int lim, lheight, space;
+		
+		An_GetSideParams (c, &scale, &lim);
+		lheight = DT_ApproxHeight (Graphics, scale, 1);
+		space = (Ncolors + 1)*lheight;
+
+		An_AddAnnotProc (CAP_LegendAnnot, c, sideannot, 
+				 strlen (sideannot),
+				 space, FALSE, FALSE);
+	    }
+	    else
+	    {
 		An_AddAnnotProc (CAP_RasterSideAnnot, c, sideannot,
 				 strlen (sideannot), 
 				 140, TRUE, FALSE);
+	    }
 	}
 }
 
