@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.1 1991-09-12 23:06:22 corbet Exp $ */
+/* $Id: timer.h,v 2.2 1991-12-20 17:51:05 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -60,7 +60,7 @@ struct tm_req
 struct tm_time
 {
 	int	tm_type;	/* Answer type			*/
-	time	tm_time;	/* The current time value	*/
+	ZebTime	tm_time;	/* The current time value	*/
 };
 
 
@@ -70,7 +70,7 @@ struct tm_time
 struct tm_abs_alarm_req
 {
 	int	tr_type;	/* Request type	(== TR_ABSOLUTE)*/
-	time	tr_when;	/* When the alarm happens	*/
+	ZebTime	tr_when;	/* When the alarm happens	*/
 	int	tr_inc;		/* Increment to next alarm	*/
 	int	tr_align;	/* Align for alarm		*/
 	int	tr_param;	/* Param to go back with alarm	*/
@@ -93,7 +93,7 @@ struct tm_rel_alarm_req
 struct tm_alarm
 {
 	int	tm_type;	/* == TRR_ALARM			*/
-	time	tm_time;	/* The current time		*/
+	ZebTime	tm_time;	/* The current time		*/
 	int	tm_param;	/* Client-supplied time		*/
 };
 
@@ -104,7 +104,7 @@ struct tm_alarm
 struct tm_status
 {
 	int	tm_type;	/* Answer type			*/
-	time	tm_time;	/* The current time value	*/
+	ZebTime	tm_time;	/* The current time value	*/
 	char	tm_status[1];	/* Actual status -- as long as nec.	*/
 };
 
@@ -125,7 +125,7 @@ struct tm_cancel
 struct tm_prt
 {
 	int	tr_type;	/* == TR_PRT				*/
-	time	tr_time;	/* What time to consider it to be	*/
+	ZebTime	tr_time;	/* What time to consider it to be	*/
 	int	tr_scale;	/* Time scale factor			*/
 };
 
@@ -136,7 +136,7 @@ struct tm_prt
 struct tm_tchange
 {
 	int	tm_type;	/* == TRR_TCHANGE			*/
-	time	tm_time;	/* The new time				*/
+	ZebTime	tm_time;	/* The new time				*/
 	bool	tm_pseudo;	/* Pseudo real time mode?		*/
 };
 
@@ -144,16 +144,8 @@ struct tm_tchange
 /*
  * Definitions of timer library routines.
  */
-# ifdef __STDC__
-	int tl_AddRelativeEvent (void (*func) (), void *, int, int);
-	int tl_AddAbsoluteEvent (void (*func) (), void *, time *, int);
-	void tl_DispatchEvent (struct tm_time *);
-	void tl_AllCancel (void);
-	void tl_Cancel (int);
-# else
-	int tl_AddRelativeEvent ();
-	int tl_AddAbsoluteEvent ();
-	void tl_DispatchEvent ();
-	void tl_AllCancel ();
-	void tl_Cancel ();
-# endif
+int tl_AddRelativeEvent FP ((void (*func) (), void *, int, int));
+int tl_AddAbsoluteEvent FP ((void (*func) (), void *, time *, int));
+void tl_DispatchEvent FP ((struct tm_time *));
+void tl_AllCancel FP ((void));
+void tl_Cancel FP ((int));

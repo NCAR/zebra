@@ -1,7 +1,6 @@
 /*
  * Access routines for the timer module.
  */
-static char *rcsid = "$Id: timer_lib.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,6 +22,7 @@ static char *rcsid = "$Id: timer_lib.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
 # include "../include/defs.h"
 # include "timer.h"
 # include "../include/message.h"
+MAKE_RCSID ("$Id: timer_lib.c,v 2.2 1991-12-20 17:51:05 corbet Exp $");
 
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
@@ -37,6 +37,7 @@ static struct Tevent
 	void	*te_param;		/* Param for func		*/
 	sstatus	te_status;		/* This stuff in use		*/
 	bool	te_recurring;		/* Does this one recurr?	*/
+	bool	te_BCompat;		/* Backward compatible fmt?	*/
 } Events[MAXEVENT] = { 0 };
 
 static bool First = TRUE;
@@ -46,23 +47,19 @@ static void (*ChangeHandler) () = 0;
 /*
  * Forward routines
  */
-# ifdef __STDC__
-	static void tl_SendToTimer (void *, int);
-	static void tl_DispAlarm (struct tm_alarm *);
-	static void tl_CancelAck (struct tm_alarm *);
-	static int tl_ProtoHandler (struct message *);
-# else
-	static void tl_SendToTimer ();
-	static void tl_DispAlarm ();
-	static void tl_CancelAck ();
-	static int tl_ProtoHandler ();
-# endif
+static void tl_SendToTimer FP ((void *, int));
+static void tl_DispAlarm FP ((struct tm_alarm *));
+static void tl_CancelAck FP ((struct tm_alarm *));
+static int tl_ProtoHandler FP ((struct message *));
 
 
 
 
 static void inline
 tl_Init ()
+/*
+ * Initialize the timer library.
+ */
 {
 	if (First)
 	{
@@ -82,6 +79,28 @@ void (*func) ();
  */
 {
 	ChangeHandler = func;
+}
+
+
+
+
+
+static int
+tl_GetSlot ()
+/*
+ * Return an available slot number.
+ */
+{
+	int i;
+
+	for (i = 0; i < MAXEVENT && Events[i].te_status != Empty; i++)
+		;
+	if (i >= MAXEVENT)
+	{
+		msg_ELog (EF_EMERGENCY, "Out of event slots");
+		return (-1);
+	}
+	return (i);
 }
 
 
@@ -111,13 +130,8 @@ int delay, incr;
 /*
  * Find an empty slot.
  */
-	for (i = 0; i < MAXEVENT && Events[i].te_status != Empty; i++)
-		;
-	if (i >= MAXEVENT)
-	{
-		msg_ELog (EF_EMERGENCY, "Out of event slots");
+	if ((i = tl_GetSlot ()) < 0)
 		return (-1);
-	}
 /*
  * Fill in the information.
  */
@@ -125,6 +139,7 @@ int delay, incr;
 	Events[i].te_param = param;
 	Events[i].te_status = Active;
 	Events[i].te_recurring = incr != 0;
+	Events[i].te_BCompat = TRUE;
 /*
  * Pass on the request to the timer module.
  */
@@ -164,13 +179,8 @@ int incr;
 /*
  * Find an empty slot.
  */
-	for (i = 0; i < MAXEVENT && Events[i].te_status != Empty; i++)
-		;
-	if (i >= MAXEVENT)
-	{
-		msg_ELog (EF_EMERGENCY, "Out of event slots");
+	if ((i = tl_GetSlot ()) < 0)
 		return (-1);
-	}
 /*
  * Fill in the information.
  */
@@ -178,11 +188,13 @@ int incr;
 	Events[i].te_param = param;
 	Events[i].te_status = Active;
 	Events[i].te_recurring = incr != 0;
+	Events[i].te_BCompat = TRUE;
 /*
  * Pass on the request to the timer module.
  */
 	alr.tr_type = TR_ABSOLUTE;
-	alr.tr_when = *when;
+	/* alr.tr_when = *when; */
+	TC_UIToZt (when, &alr.tr_when);
 	alr.tr_inc = incr;
 	alr.tr_param = i;
 	tl_SendToTimer (&alr, sizeof (alr));
@@ -244,6 +256,7 @@ tl_DispAlarm (te)
 struct tm_alarm *te;
 {
 	int slot = te->tm_param;
+	date uitime;
 /*
  * Sanity check.
  */
@@ -259,9 +272,16 @@ struct tm_alarm *te;
 	if (Events[slot].te_status == Cancelled)
 		return;
 /*
- * Dispatch the event.
+ * Dispatch the event.  If this slot requires that times be converted
+ * back to the old format, do so now.
  */
-	(*Events[slot].te_func) (&te->tm_time, Events[slot].te_param);
+	if (Events[slot].te_BCompat)
+	{
+		TC_ZtToUI (&te->tm_time, &uitime);
+		(*Events[slot].te_func) (&uitime, Events[slot].te_param);
+	}
+	else
+		(*Events[slot].te_func) (&te->tm_time, Events[slot].te_param);
 /*
  * If this is a non-recurring event, clear the entry.
  */
@@ -370,6 +390,7 @@ time *t;
 {
 	static int tl_TimeHandler ();
 	struct tm_req req;
+	ZebTime zt;
 /*
  * Send off the timer request.
  */
@@ -378,7 +399,8 @@ time *t;
 /*
  * Now wait for the reply.
  */
-	msg_Search (MT_TIMER, tl_TimeHandler, t);
+	msg_Search (MT_TIMER, tl_TimeHandler, &zt);
+	TC_ZtToUI (&zt, t);
 }
 
 
@@ -387,7 +409,7 @@ time *t;
 static int
 tl_TimeHandler (msg, t)
 struct message *msg;
-time *t;
+ZebTime *t;
 /*
  * The time handler, called out of msg_Search.
  */

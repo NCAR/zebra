@@ -1,7 +1,6 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,7 +18,7 @@ static char *rcsid = "$Id: timer.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.1 $ $Date: 1991-09-12 23:06:22 $";
+char *Version = "$Revision: 2.2 $ $Date: 1991-12-20 17:51:05 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -28,6 +27,7 @@ char *Version = "$Revision: 2.1 $ $Date: 1991-09-12 23:06:22 $";
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "timer.h"
+MAKE_RCSID ("$Id: timer.c,v 2.2 1991-12-20 17:51:05 corbet Exp $");
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -61,6 +61,11 @@ struct tq_entry * new_tqe ();
 void timer_alarm ();
 int msg_handler ();
 struct timeval *GetTime ();
+void GetZebTime FP ((ZebTime *));
+void ZtToTimeval FP ((ZebTime *, struct timeval *));
+void TimevalToZt FP ((struct timeval *, ZebTime *));
+int Status FP ((char *));
+
 
 
 /*
@@ -82,6 +87,7 @@ main ()
  */
 	msg_connect (msg_handler, TIMER_PROC_NAME);
 	msg_join ("Client events");
+	msg_SetQueryHandler (Status);
 /*
  * Log a message telling the world we're here.
  */
@@ -183,43 +189,6 @@ new_tqe ()
 
 
 
-void
-CvtSysToFcc (sys, fcc)
-struct timeval *sys;
-time *fcc;
-/*
- * Convert a system time value to FCC format.
- */
-{
-	struct tm *t = gmtime (&sys->tv_sec);
-
-	fcc->ds_yymmdd = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
-	fcc->ds_hhmmss = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
-}
-
-
-
-void
-CvtFccToSys (fcc, sys)
-time *fcc;
-struct timeval *sys;
-/*
- * Convert an FCC-format time into a system format time.
- */
-{
-	struct tm t;
-
-	t.tm_year = fcc->ds_yymmdd/10000;
-	t.tm_mon = (fcc->ds_yymmdd/100) % 100 - 1;
-	t.tm_mday = fcc->ds_yymmdd % 100;
-	t.tm_hour = fcc->ds_hhmmss/10000;
-	t.tm_min = (fcc->ds_hhmmss/100) % 100;
-	t.tm_sec = fcc->ds_hhmmss % 100;
-	t.tm_zone = (char *) 0;
-	t.tm_wday = t.tm_isdst = t.tm_yday = 0;
-	sys->tv_sec = timegm (&t);
-	sys->tv_usec = 0;
-}
 
 
 
@@ -254,11 +223,11 @@ struct tm_req *tr;
 	   case TR_ABSOLUTE:
 	   	AbsoluteTR (who, (struct tm_abs_alarm_req *) tr);
 		break;
-
+# ifdef notdef /* superseded by zquery */
 	   case TR_STATUS:
 	   	Status (who);
 		break;
-
+# endif
 	   case TR_PRT:
 	   	EnterPRT ((struct tm_prt *) tr);
 		break;
@@ -311,11 +280,22 @@ char *who;
 	struct tm_time repl;
 
 	repl.tm_type = TRR_TIME;
-	CvtSysToFcc (GetTime (), &repl.tm_time);
+	GetZebTime (&repl.tm_time);
 	msg_send (who, MT_TIMER, FALSE, &repl, sizeof (repl));
 }
 
 
+
+
+void
+GetZebTime (zt)
+ZebTime *zt;
+/*
+ * Get the current time in zeb format.
+ */
+{
+	TimevalToZt (GetTime (), zt);
+}
 
 
 
@@ -437,7 +417,8 @@ struct tm_abs_alarm_req *tr;
  * Put together the tqe.
  */
 	strcpy (tqe->tqe_proc, who);
-	CvtFccToSys (&tr->tr_when, &tqe->tqe_when);
+	/* CvtFccToSys (&tr->tr_when, &tqe->tqe_when); */
+	ZtToTimeval (&tr->tr_when, &tqe->tqe_when);
 	tqe->tqe_param = tr->tr_param;
 	tqe->tqe_inc = tr->tr_inc;
 	tqe->tqe_nalarm = 0;
@@ -513,7 +494,8 @@ struct timeval *ct;
  * Send back the alarm packet.
  */
 	alarm.tm_type = TRR_ALARM;
-	CvtSysToFcc (ct, &alarm.tm_time);
+	/* CvtSysToFcc (ct, &alarm.tm_time); */
+	TimevalToZt (ct, &alarm.tm_time);
 	alarm.tm_param = tqe->tqe_param;
 	msg_send (tqe->tqe_proc, MT_TIMER, FALSE, &alarm, sizeof (alarm));
 /*
@@ -606,7 +588,8 @@ struct tq_entry *tqe;
 	struct tm_alarm tr;
 
 	tr.tm_type = TRR_CANCELACK;
-	CvtSysToFcc (GetTime (), &tr.tm_time);
+	/* CvtSysToFcc (GetTime (), &tr.tm_time); */
+	GetZebTime (&tr.tm_time);
 	tr.tm_param = tqe->tqe_param;
 	msg_send (tqe->tqe_proc, MT_TIMER, FALSE, &tr, sizeof (tr));
 }
@@ -622,40 +605,34 @@ char *who;
  */
 {
 	char tbuf[2048];
-	struct tm_status *ts = (struct tm_status *) tbuf;
-	char *cp = ts->tm_status;
 	struct tq_entry *tqe;
-	time etime;
+	ZebTime zt;
 /*
- * Fill in the boilerplate.
+ * Send out a header line.
  */
-	ts->tm_type = TRR_STATUS;
-	CvtSysToFcc (GetTime (), &ts->tm_time);
-	sprintf (cp, "Timer module version %s\n", Version);
-	cp += strlen (cp);
+	sprintf (tbuf, "Timer module version %s", Version);
+	msg_AnswerQuery (who, tbuf);
+	GetZebTime (&zt);
+	strcpy (tbuf, "Current time is ");
+	TC_EncodeTime (&zt, TC_Full, tbuf + strlen (tbuf));
+	msg_AnswerQuery (who, tbuf);
 /*
  * Now add each queue entry.
  */
 	for (tqe = Tq; tqe; tqe = tqe->tqe_next)
 	{
-		CvtSysToFcc (&tqe->tqe_when, &etime);
-		sprintf (cp, "\t%s: alarm %d %06d.%d", tqe->tqe_proc,
-			etime.ds_yymmdd, etime.ds_hhmmss, 
-			tqe->tqe_when.tv_usec/100000);
-		cp += strlen (cp);
+		sprintf (tbuf, "\t%s: alarm %d ", tqe->tqe_proc);
+		TC_EncodeTime ((ZebTime *) &tqe->tqe_when, TC_FullUSec,
+				tbuf + strlen (tbuf));
 		if (tqe->tqe_inc)
-		{
-			sprintf (cp, " incr %d N %d", tqe->tqe_inc,
-				tqe->tqe_nalarm);
-			cp += strlen (cp);
-		}
-		*cp++ = '\n';
+			sprintf (tbuf + strlen (tbuf), " incr %d N %d",
+				tqe->tqe_inc, tqe->tqe_nalarm);
+		msg_AnswerQuery (who, tbuf);
 	}
 /*
- * Ship the whole thing over.
+ * All done.
  */
-	*cp++ = '\0';
-	msg_send (who, MT_TIMER, FALSE, ts, cp - tbuf);
+	msg_FinishQuery (who);
 }
 
 
@@ -674,7 +651,7 @@ struct tm_prt *prt;
  * Convert the desired time into a system time, and make sure that it is
  * not in the future.
  */
-	CvtFccToSys (&prt->tr_time, &newtime);
+	ZtToTimeval (&prt->tr_time, &newtime);
 	T_offset = 0;	/* To get real time */
 	now = GetTime ();
 	if (TLT (now, &newtime))
@@ -687,6 +664,7 @@ struct tm_prt *prt;
  * Set the new offset, and inform the world.
  */
 	T_offset = now->tv_sec - newtime.tv_sec;
+	msg_ELog (EF_INFO, "Pseudo RT mode: offset = %d", T_offset);
 	TimeChangeBc ();
 }
 
@@ -705,10 +683,39 @@ TimeChangeBc ()
  * Put together the broadcast.
  */
 	tc.tm_type = TRR_TCHANGE;
-	CvtSysToFcc (GetTime (), &tc.tm_time);
+	/* CvtSysToFcc (GetTime (), &tc.tm_time); */
+	GetZebTime (&tc.tm_time);
 	tc.tm_pseudo = (T_offset != 0);
 /*
  * Send it.
  */
 	msg_send ("TimeChange", MT_TIMER, TRUE, &tc, sizeof (tc));
+}
+
+
+
+
+
+void
+ZtToTimeval (zt, tv)
+ZebTime *zt;
+struct timeval *tv;
+/*
+ * Convert a zeb-format time to system timeval.
+ */
+{
+	*tv = * (struct timeval *) zt;
+}
+
+
+
+void
+TimevalToZt (tv, zt)
+struct timeval *tv;
+ZebTime *zt;
+/*
+ * Go back the other way.
+ */
+{
+	*zt = * (ZebTime *) tv;
 }

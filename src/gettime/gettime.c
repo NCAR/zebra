@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: gettime.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
+static char *rcsid = "$Id: gettime.c,v 2.2 1991-12-20 17:51:05 corbet Exp $";
 /*
  * Timer module test code.
  */
@@ -49,20 +49,6 @@ char **argv;
 msg_handler (msg)
 struct message *msg;
 {
-	struct tm_time *t = (struct tm_time *) msg->m_data;
-
-	if (msg->m_proto == MT_TIMER && t->tm_type == TRR_TIME)
-		printf ("Time is %d %06d\n", t->tm_time.ds_yymmdd,
-			t->tm_time.ds_hhmmss);
-	else if (msg->m_proto == MT_TIMER && t->tm_type == TRR_CANCELACK)
-	{
-		printf ("Cancel ack\n");
-		exit (0);
-	}
-	else if (msg->m_proto == MT_TIMER && t->tm_type == TRR_ALARM)
-		tl_DispatchEvent (t);
-	else
-		printf ("Funky msg proto %d\n", msg->m_proto);
 	return (0);
 }
 
