@@ -1,38 +1,45 @@
 /*
  * Basic configuration parameters.
+ * Everything defined in this file should have defaults in Zeb.tmpl,
+ * except for where noted for directories.
  */
 # define CONFIG_VERSION \
-	"$Id: config.h-v4.0,v 1.1 1992-05-11 17:14:46 granger Exp $"
+	"$Id: config.h-v4.0,v 1.2 1992-08-20 13:22:41 granger Exp $"
 
 # ifndef YES
 #	define YES 1
+# endif
+# ifndef NO
 #	define NO 0
 # endif
 
 /*
- * Directories in which FCC/ZEB files live.
+ * Directories in which ZEB files live.  These, alas, need to be defined
+ * twice, once in quotes for programs, once without for Makefiles.  Someday
+ * when we all have ANSI compilers that can be avoided, but we are not 
+ * there yet.
  */
 # ifdef MAKING_MAKEFILE	 		/* use unquoted definitions */
 
-# define BaseDir	/zeb/gary
-# define FCCDir		BaseDir
-# define FCCIncDir	FCCDir/include
-# define RDSSDir	/zeb/gary/rdss
-# define RDSSLibDir	RDSSDir/lib
-# define RDSSIncDir	RDSSDir/include
-# define LibDir		/zeb/gary/lib
-# define EtcDir		/zeb/gary/etc	/* Shouldn't really be used for much */
-# define BinDir		/zeb/gary/bin
+# define BaseDir	/zeb
+# define IncDir		BaseDir/include
+# define LibDir		BaseDir/lib
+# define EtcDir		BaseDir/etc	/* Shouldn't really be used for much */
+# define BinDir		BaseDir/bin
 # define DataDir	/zeb/data
+# define RDSSDir	/rdss
+# define RDSSLibDir	/usr/local/lib
+# define RDSSIncDir	RDSSDir/include
 
 # else 		/* use the quoted versions for inclusion in source files */
 
-# define BASEDIR	"zeb/gary"
-# define FCCDIR		"BASEDIR"
-# define RDSDIR		"/zeb/gary/rdss"
-# define LIBDIR		"/zeb/gary/lib"
-# define ETCDIR		"/zeb/gary/etc"
-# define BINDIR		"/zeb/gary/bin"
+# define BASEDIR	"/zeb"
+# define ZEBDIR		BASEDIR
+# define FCCDIR		BASEDIR
+# define RDSSDIR	"/rdss"
+# define LIBDIR		"/zeb/lib"
+# define ETCDIR		"/zeb/etc"
+# define BINDIR		"/zeb/bin"
 # define DATADIR	"/zeb/data"
 
 # endif /* MAKING_MAKEFILE */
@@ -78,22 +85,14 @@
  */
 # if C_PT_CAP
 /*
- * These YES if you want them.
+ * These YES if you want them.  If C_PT_CAP above is not YES, these
+ * settings will be ignored and none of them will be built.
  */
 #	define C_CAP_OVERLAY	YES	/* Overlays			*/
 #	define C_CAP_VECTOR	YES	/* Vector plots			*/
 # 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
 #	define C_CAP_RASTER	YES	/* Raster plots			*/
-# else
-/*
- * These are always NO -- do not change them!
- */
-#	define C_CAP_OVERLAY	NO	/* Overlays			*/
-#	define C_CAP_VECTOR	NO	/* Vector plots			*/
-# 	define C_CAP_LIGHTNING	NO	/* Lightning location		*/
-#	define C_CAP_RASTER	NO	/* Raster plots			*/
 # endif
-
 
 
 # ifdef MAKING_MAKEFILE
@@ -101,15 +100,15 @@
 /**/# -----------------------------------------------------------------------
 /**/# Template info for Makefiles from config.h defined here
 /**/# See config.h!
+/**/# $Id: config.h-v4.0,v 1.2 1992-08-20 13:22:41 granger Exp $
 /**/# -----------------------------------------------------------------------
 
 /*
  * Using Open Windows?  Set this to YES, and be sure to set the
  * correct version number, either 2 or 3
  */
-# define OPENWIN	NO
-# define OpenWindows	NO
-# define OpenWindowsVersion 3
+# define UseOpenWindows NO	
+# define OpenWindowsVersion 2
 # define OpenWinHome	/usr/openwin
 
 /*
@@ -117,28 +116,30 @@
  * yes for MIT X at release 4 or greater, or for Openwin 2.0 or above.  If
  * unsure, run "xdpyinfo" and look for the MIT-SHM extension.
  */
-# define XSharedMemory YES
+# define XSharedMemory NO
 
 /*
  * Compiler information.  Use of gcc is recommended if you have it.
- * If OPENWIN is YES, then do static linking (-Bstatic).
  *
  * IncludeDirs is where the C compiler is told to look for "system" include
  * files.  If you have files in strange places (X window system, perhaps),
  * add the directories here.
  */
+# define UseGcc
+# define CDebugFlags -g
+
+# define XIncDir /local/X11R5/include
+# define XLibDir /local/X11R5/lib
+
+/*
 # define CCompiler gcc
 # define CDebugFlags -g
 # define CCOptions -O
 # define FortOptions -O
-# define IncludeDirs -I$(FCCINC) -I$(RDSSINC) -I$(NETCDFINC)
+# define XIncludes
+*/
 
-# define NetCDFDir	/usr/local	/* Location of NetCDF libraries and */
-					/* include files, e.g. /usr/local   */
-
-# define ZebLibrary	$(LIBDIR)/libfcc.a
-# define RDSSLibrary	$(RDSSLIBDIR)/librdss.a
-# define SudsLibrary    $(RDSSLIBDIR)/suds/libsuds.a
+# define SudsLibrary    RDSSDir/suds/libsuds.a
 
 /*
  * Library information.
@@ -147,40 +148,90 @@
  * libraries are not in /usr/lib or /usr/local/lib, throw in the appropriate
  * -L option here.
  */
+/*
 # define XLibraries -lXaw -lXmu -lXt -lXext -lX11
+*/
 
 /*
  * Fortran libraries needed to build the graphics process.  These are
  * set properly for Suns with Fortran 1.3 or beyond.
  */
-# define FortranLibs -L/usr/lang/SC1.0.1 -lF77 -lV77
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
 
 /*
  * The netCDF library.
  */
-# define CDFLibrary  -L$(NETCDFLIBDIR) -lnetcdf
+/*
+# define NetCDFLibrary  -L$(NETCDFLIBDIR) -lnetcdf
+*/
 
 /*
- * Other system libraries which are routinely needed.
+ * System libraries which are routinely needed.
  */
-# define SystemLibs -ltermcap -lm
-
+/*
+# define SystemLibraries -ltermcap -lm
+*/
 
 /*
  * Here we choose pieces of the system to create.
  */
+/* Do we make ingest modules?	*/
+#define BuildIngest YES
 
-# define	BUILD_INGEST	YES 	/* Do we make ingest modules?	*/
+/*
+ * Individual ingest modules to select.  NONE of these will be built
+ * if BuildIngest is NO
+ */
+# define	BuildIngestScheduler	YES
+# define	BuildClassIngest	YES
+# define	BuildRadarIngest	YES
+# define	BuildRadarLimits	NO
+# define	BuildSLGrabber		YES
+# define	BuildAircraftIngest	NO
+# define	BuildFMIngest		NO
+# define 	BuildLLPIngest		NO
+# define 	BuildNatsIngest		NO
+# define	BuildNowradIngest	YES
+# define	BuildP3Ingest		NO
+# define	BuildPamIngest		YES
+# define	BuildProfsIngest	YES
+# define	BuildRsgIngest		NO
+# define	BuildSatelliteIngest	NO
 
-# define	BUILD_OPTIMIZER YES 	/* Scan optimizer?		*/
+/* Build Scan optimizer?	*/
+#define BuildOptimizer YES
 
 /*
  * Set this if you want the ingest-oriented DataStore utilities (being
  * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  It
  * will not build properly under a non-ANSI compiler.
  */
-# define	RT_DS_TOOLS	YES	/* Build real-time DS tools	*/
+# define	BuildRealtimeDataStoreTools	YES
+
 
 # endif /* MAKING_MAKEFILE */
 
+
+/*========================================================================
+ * DO NOT MODIFY BELOW THIS LINE!
+ * THESE ARE DEFINITIONS THAT SHOULD NOT CHANGE!
+ *========================================================================*/
+
+/*
+ * These are always NO -- do not change them!
+ */
+# if !C_PT_CAP
+#	define C_CAP_OVERLAY	NO	/* Overlays			*/
+#	define C_CAP_VECTOR	NO	/* Vector plots			*/
+# 	define C_CAP_LIGHTNING	NO	/* Lightning location		*/
+#	define C_CAP_RASTER	NO	/* Raster plots			*/
+# endif
+
+/*
+ * For backwards compatibility, in case these symbols are still
+ * referenced somewhere...
+ */
+#define RT_DS_TOOLS BuildRealtimeDataStoreTools
+#define BUILD_OPTIMIZER BuildOptimizer
+#define BUILD_INGEST BuildIngest
 
