@@ -24,7 +24,7 @@
 
 # ifndef lint
 static char *rcsid = 
-   "$Id: trmm_rain.c,v 1.7 1993-06-22 21:00:40 granger Exp $";
+   "$Id: trmm_rain.c,v 1.8 1994-02-01 11:03:14 granger Exp $";
 # endif
 
 # include <assert.h>
@@ -558,8 +558,10 @@ int *ryear;	/* year used for the Month and Day being ingested */
 	local.tm_year = year - 1900;
 	local.tm_wday = 0;
 	local.tm_yday = 0;
+#if !defined(SYSV) && !defined(SVR4)
 	local.tm_zone = NULL;
 	local.tm_gmtoff = 0;
+#endif
 	t.zt_MicroSec = 0;	/* we won't be using micro-seconds */
 	last.zt_MicroSec = last.zt_Sec = 0;
 	end.zt_MicroSec = end.zt_Sec = 0;
