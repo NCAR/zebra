@@ -1,0 +1,18 @@
+Hints for Binary Distributions
+==============================
+
+Solaris
+-------
+The config.h settings below will give you binaries that only use shared 
+libraries which exist in "vanilla" Solaris installations.  Note in
+particular that we link explicitly to the EGCS libstdc++.a to avoid the 
+shared version; also note that taking off the "-nodefaultlibs" will cause
+the shared version to be linked in, even with the non-shared version 
+given explicitly.
+
+# define UseOpenWindows YES
+# define OpenWinHome	/usr/openwin
+# define ExtraLoadFlags	-nodefaultlibs /usr/local/lib/libstdc++.a -lgcc -lc
+
+Don't forget to comment out definitions of XIncDir and XLibDir.
+
