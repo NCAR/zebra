@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.2 1991-09-12 20:27:54 corbet Exp $ */
+/* $Id: Makefile.cpp,v 1.3 1991-09-26 17:48:35 gracio Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,7 +22,7 @@
  * Sun options
  */
 CC=gcc
-CFLAGS=-g -O -I/fcc/include -I/rdss/include -DSHM
+CFLAGS=-g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include -DSHM
 /* CFLAGS=-g -O -I/fcc/include -I/rdss/include -DTIMING -DSHM */
 FFLAGS=-g 
 LIBS=../lib/libfcc.a -L/usr/lang/SC0.0 -lF77 -lV77 -lrdss -ltermcap -lnetcdf -lXaw -lXmu -lXt -lXext -lX11 -lm
@@ -128,7 +128,7 @@ mf:
 	make depend
 
 coda:
-	(cd /fcc; CODA=/fcc/.codarc; export CODA; coda gp)
+	(cd $(ZEBHOME)/fcc; CODA=$(ZEBHOME)/fcc/.codarc; export CODA; coda gp)
 
 depend:
 	makedepend $(CFLAGS) *.c
