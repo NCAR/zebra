@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.7 1993-05-04 21:42:11 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1993-05-04 21:48:05 granger Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -27,7 +27,7 @@ BINOBJS= dsdump.o zfdump.o rfdump.o bfdump.o dsdelete.o \
  */
 DSLIBOBJS = Appl.o DataFileAccess.o DFA_NetCDF.o \
 	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o
-DSLIBSRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c \
+DSLIBSRCS = Appl.c DataFileAccess.c DFA_NetCDF.c \
 	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c
 
 /* 
