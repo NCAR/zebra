@@ -34,7 +34,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.32 1995-06-29 23:07:14 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.33 1995-08-22 06:21:29 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -377,21 +377,7 @@ struct message *msg;
  */
 {
 	struct mh_ack ack;
-#ifdef notdef
-	struct iovec iov[2];
-/*
- * Put together the outgoing message.
- */
- 	iov[0].iov_base = (caddr_t) msg;
-	iov[0].iov_len = sizeof (struct message);
-	iov[1].iov_base = msg->m_data;
-	iov[1].iov_len = msg->m_len;
-/*
- * Send it, and get the response back.
- */
- 	if (! writev (Msg_fd, iov, 2))
-		return (FALSE);
-#endif
+
 	if (msg_write (msg))
 	{
 		msg_Search (MT_MESSAGE, msg_SrchAck, &ack);
@@ -1065,13 +1051,15 @@ void *data;
  */
 {
 	int nwrote = 0;
+	int ret;
 /*
  * Things are done this way because writes can fail for a number of
  * nonfatal reasons.  Linux will even fail them with errno=0.
  */
 	while (nwrote < len)
 	{
-		nwrote += write (fd, (char *) data + nwrote, len - nwrote);
+		if ((ret = write (fd, (char *)data+nwrote, len - nwrote)) > 0)
+			nwrote += ret;
 		if (nwrote < len && errno != 0 && errno != EAGAIN &&
 				errno != EINTR)
 			return (-1);
