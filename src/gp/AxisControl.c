@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.17 1993-12-22 01:16:44 corbet Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.18 1993-12-22 22:08:58 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -697,7 +697,7 @@ DataValPtr	min, max;
 /*
  * Array of good time steps and the associated minimum span for each
  */
-	struct
+	static struct
 	{
 		int	step, minspan;
 	} timeSteps[] =
