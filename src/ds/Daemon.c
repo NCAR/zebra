@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.8 1993-02-05 21:25:04 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.9 1993-02-08 22:35:10 corbet Exp $")
 
 
 
@@ -111,7 +111,7 @@ char **argv;
 /*
  * Hook into the UI.
  */
-	fixdir_t ("DSDLOADFILE", LIBDIR, "dsDaemon.lf", loadfile, ".lf");
+	fixdir_t ("DSDLOADFILE", GetLibDir (), "dsDaemon.lf", loadfile, ".lf");
 	ui_init (loadfile, FALSE, TRUE);
 	SetupConfigVariables ();
 	cp_SetupCmdProto ();
