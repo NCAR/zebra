@@ -22,7 +22,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Archiver.c,v 1.5 1991-11-22 20:49:58 kris Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -45,6 +44,7 @@ static char *rcsid = "$Id: Archiver.c,v 1.5 1991-11-22 20:49:58 kris Exp $";
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+MAKE_RCSID ("$Id: Archiver.c,v 1.6 1992-02-06 15:56:51 corbet Exp $")
 
 /*
  * Issues:
@@ -82,10 +82,10 @@ char listfile[200];
 int	TimerEvent;
 int	TapeFD = -1;		/* -1 = no drive	*/
 int	BytesWritten = 0, FilesWritten = 0;
-# define DriveName	"/dev/nrst0"
+# define DriveName	"/dev/nrst8"
 # define BLOCKSIZE	(16*512)
 
-# define DUMPTIME	120	/* how often, in minutes, to dump	*/
+# define DUMPTIME	2	/* how often, in hours, to dump	*/
 
 
 /*
@@ -99,45 +99,34 @@ static char Tarbuf[65536];
 Widget Top, Form, WStatus, Bytes, Tape;
 XtAppContext Appc;
 
+/*
+ * Colors for the status widget.
+ */
+Pixel RedPix, WhitePix;
 
 
-# ifdef __STDC__
-	static int	Handler (Message *);
-	static void	LoadFileList (void);
-	static void	SaveFiles (void);
-	static void	DumpPlatform (Platform *);
-	static int	RunTar (char *);
-	static int	OpenTapeDevice (void);
-	static void	Die (void);
-	static void	UpdateList (void);
-	static int	WriteFileDate (char *, int, SValue *, FILE *);
-	static void	WriteEOF (void);
-	static void	Finish (void);
-	static void	TapeButton (void);
-	static void	SpinOff (void);
-	static void	SetStatus (char *);
-	static int	xevent (int);
-	static void	MakeWidget (int *, char **);
-	static void	Sync (void);
-# else
-	static int	Handler ();
-	static void	LoadFileList ();
-	static void	SaveFiles ();
-	static void	DumpPlatform ();
-	static int	RunTar ();
-	static int	OpenTapeDevice ();
-	static void	Die ();
-	static void	UpdateList ();
-	static int	WriteFileDate ();
-	static void	WriteEOF ();
-	static int	xevent ();
-	static void	MakeWidget ();
-	static void	TapeButton ();
-	static void	SpinOff ();
-	static void	SetStatus ();
-	static void	Sync ();
-	static void	Finish ();
-# endif
+static int	Handler FP ((Message *));
+static void	LoadFileList FP ((void));
+static void	SaveFiles FP ((int));
+static void	TimerSaveFiles FP ((ZebTime *));
+static void	DumpPlatform FP ((Platform *, int));
+static int	RunTar FP ((char *));
+static int	OpenTapeDevice FP ((void));
+static void	Die FP ((void));
+static void	UpdateList FP ((void));
+static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
+static void	WriteEOF FP ((void));
+static void	Finish FP ((void));
+static void	TapeButton FP ((void));
+static void	SpinOff FP ((void));
+static void	SetStatus FP ((int, char *));
+static int	xevent FP ((int));
+static void	MakeWidget FP ((int *, char **));
+static void	Sync FP ((void));
+static void	SendMA FP ((int));
+static int	TellDaemon FP ((char *, int, SValue *, int));
+static void	UpdateMem FP ((void));
+
 
 
 main (argc, argv)
@@ -157,9 +146,8 @@ char **argv;
 
 	chdir (DATADIR);
 	LoadFileList ();
-	SetStatus ("Awaiting tape");
-# ifdef notdef
-# endif
+	UpdateMem ();
+	SetStatus (TRUE, "Awaiting tape");
 /*
  * Go into our dump loop.
  */
@@ -204,6 +192,7 @@ char **argv;
 	Arg args[5];
 	int n;
 	Widget w, above, button;
+	XColor screen, exact;
 /*
  * Hook into the window system.
  */
@@ -213,16 +202,6 @@ char **argv;
  * The inevitable form.
  */
 	Form = XtCreateManagedWidget ("form", formWidgetClass, Top, NULL, 0);
-# ifdef notdef
-/*
- * FIrst row.
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Zeb tape archiver");	n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
-	XtSetArg (args[n], XtNfromVert, NULL);			n++;
-	above = XtCreateManagedWidget ("title", labelWidgetClass, Form,args,n);
-# endif
 	above = NULL;
 /*
  * Give our status.
@@ -271,6 +250,15 @@ char **argv;
 
 	XtRealizeWidget (Top);
 	Sync ();
+/*
+ * Also look up a couple of pixel colors.
+ */
+	XAllocNamedColor (XtDisplay (Top), DefaultColormap (XtDisplay (Top),0),
+		"red", &exact, &screen);
+	RedPix = screen.pixel;
+	XAllocNamedColor (XtDisplay (Top), DefaultColormap (XtDisplay (Top),0),
+		"white", &exact, &screen);
+	WhitePix = screen.pixel;
 }
 
 
@@ -284,12 +272,12 @@ Finish ()
 {
 	if (TapeFD < 0)
 	{
-		SetStatus ("Can't finish -- no tape");
+		SetStatus (TRUE, "Can't finish -- no tape");
 		return;
 	}
-	SaveFiles ();
+	SaveFiles (TRUE);
 	SpinOff ();
-	SetStatus ("CROAK");
+	SetStatus (TRUE, "CROAK");
 	Die ();
 }
 
@@ -304,6 +292,8 @@ TapeButton ()
  */
 {
 	Arg args[2];
+	ZebTime zt;
+	int year, month, day, hour;
 /*
  * If we don't have a tape, we try to get one.
  */
@@ -314,15 +304,20 @@ TapeButton ()
 	 */
 		if (! OpenTapeDevice ())
 		{
-			SetStatus ("Unable to open tape");
+			SetStatus (TRUE, "Unable to open tape");
 			return;
 		}
 	/*
-	 * Start saving stuff.
+	 * Start saving stuff.  Make the archive time line up nicely
+	 * on the hour boundary.
 	 */
 		XtSetArg (args[0], XtNlabel, "Free tape");
-		TimerEvent = tl_AddRelativeEvent (SaveFiles, 0,
-			INCFRAC, DUMPTIME*60*INCFRAC);
+		tl_Time (&zt);
+		TC_ZtSplit (&zt, &year, &month, &day, &hour, 0, 0, 0);
+		hour -= hour % DUMPTIME;
+		TC_ZtAssemble (&zt, year, month, day, hour, 0, 0, 0);
+		TimerEvent = tl_AbsoluteReq (TimerSaveFiles, 0, &zt,
+				DUMPTIME*60*60*INCFRAC);
 	}
 /*
  * Otherwise we give it away.
@@ -332,7 +327,9 @@ TapeButton ()
 		XtSetArg (args[0], XtNlabel, "Take tape");
 		tl_Cancel (TimerEvent);
 		SpinOff ();
-		SetStatus ("Awaiting tape");
+		close (TapeFD);
+		TapeFD = -1;
+		SetStatus (TRUE, "Awaiting tape");
 	}
 	XtSetValues (Tape, args, 1);
 }
@@ -407,9 +404,31 @@ OpenTapeDevice ()
 
 
 
+static void
+TimerSaveFiles (zt)
+ZebTime *zt;
+/*
+ * File saving invoked from a timer event.
+ */
+{
+	int hour;
+/*
+ * Special check -- if the hour is zero, we clean up everything.
+ */
+	TC_ZtSplit (zt, 0, 0, 0, &hour, 0, 0, 0);
+	SaveFiles (hour == 0);
+	if (hour == 0)
+	{
+		TapeButton ();
+		SetStatus (TRUE, "Need new day's tape");
+	}
+}
+
+
 
 static void
-SaveFiles ()
+SaveFiles (all)
+int all;
 /*
  * Pass through the list of stuff and save files to the tape.
  */
@@ -424,28 +443,29 @@ SaveFiles ()
 /*
  * Pass through the platform table and dump things.
  */
-	SetStatus ("Scanning platforms");
+	SetStatus (FALSE, "Scanning platforms");
 	for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
 		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
-			DumpPlatform (PTable + plat);
+			DumpPlatform (PTable + plat, all);
 /*
  * Run the tar command to put this all together.
  */
-	SetStatus ("Writing");
+	SetStatus (FALSE, "Writing");
 	if (strlen (Tarbuf) > 20 && RunTar (Tarbuf))
 	{
 		WriteEOF ();
 		UpdateList ();
+		SetStatus (FALSE, "Sleeping");
 	}
-	SetStatus ("Sleeping");
 }
 
 
 
 
 static void
-DumpPlatform (p)
+DumpPlatform (p, all)
 Platform *p;
+int all;
 /*
  * Dump out any files from this platform.
  */
@@ -462,10 +482,11 @@ Platform *p;
 		last.ds_yymmdd = last.ds_hhmmss = 0;
 /*
  * Go through the file chain.  We never dump the most recent file, on the 
- * assumption that it is still being written to.
+ * assumption that it is still being written to (unless we've been told
+ * to do them all.
  */
 	if ((findex = p->dp_LocalData) == 0 || 
-			(findex = DFTable[findex].df_FLink) == 0 ||
+			(! all && (findex = DFTable[findex].df_FLink) == 0) ||
 			DLE (DFTable[findex].df_end, last))
 		return;		/* Nothing to dump */
 	dumptime = DFTable[findex].df_end;
@@ -475,11 +496,22 @@ Platform *p;
 	while (findex && DLT (last, DFTable[findex].df_end))
 	{
 		char *fname = DFTable[findex].df_name;
-		if (! strncmp (fname, "DATADIR", strlen (DATADIR)))
+	/*
+	 * Fix up the file name and add it to our big tar command.
+	 */
+		if (! strncmp (fname, DATADIR, strlen (DATADIR)))
 			fname += (strlen (DATADIR) + 1);
-		printf ("Dumping file '%s'\n", fname);
+		msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
 		strcat (Tarbuf, fname);
 		strcat (Tarbuf, " ");
+	/*
+	 * Send the MarkArchived request now, even though we do not know
+	 * that the tar will succeed.  This is to help insure that nothing
+	 * is written to the file after archive it.  If the archive fails,
+	 * we'll try again later, since we go by our own dates, and not the
+	 * archived flag, when picking files to write.
+	 */
+	 	SendMA (findex);
 		findex = DFTable[findex].df_FLink;
 	}
 /*
@@ -511,6 +543,7 @@ char *cmd;
 	if (pfp == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Tar command execute failed");
+		SetStatus (TRUE, "Can't run tar");
 		return (FALSE);
 	}
 /*
@@ -518,18 +551,29 @@ char *cmd;
  */
 	while ((nb = netread (pfp->_file, fbuf, BLOCKSIZE)) > 0)
 	{
-		write (TapeFD, fbuf, nb);
+		if (write (TapeFD, fbuf, nb) < nb) /* oh shit! */
+		{
+			msg_ELog (EF_EMERGENCY, "Archive tape write error %d",
+				errno);
+			TapeButton (); /* Free drive */
+			SetStatus (TRUE, "Tape write error!");
+			pclose (pfp);
+			LoadFileList ();
+			return (FALSE);
+		}
 		tnb += nb;
+		xevent (0);
 	}
 /*
  * If tar returned OK, so do we.
  */
-	printf ("Transferred %d bytes, last %d\n", tnb, nb);
+	msg_ELog (EF_DEBUG, "Transferred %d bytes, last %d", tnb, nb);
 	FilesWritten++;
 	BytesWritten += tnb;
 	if ((rstatus = pclose (pfp)) == 0)
 		return (TRUE);
 	msg_ELog (EF_PROBLEM, "Tar returned status %d", rstatus);
+	SetStatus (TRUE, "Tar returned failure");
 	return (FALSE);
 }
 
@@ -690,25 +734,28 @@ SpinOff ()
 		return;
 	op.mt_op = MTOFFL;
 	op.mt_count = 1;
-	SetStatus ("Spinning off tape");
+	SetStatus (FALSE, "Spinning off tape");
 	if (ioctl (TapeFD, MTIOCTOP, &op) < 0)
-		SetStatus ("Unable to spin off tape");
+		SetStatus (TRUE, "Unable to spin off tape");
 }
 
 
 
 
 static void
-SetStatus (s)
+SetStatus (problem, s)
+int problem;
 char *s;
 /*
  * Set our status window.
  */
 {
-	Arg args[2];
+	Arg args[4];
+	int n = 0;
 
-	XtSetArg (args[0], XtNlabel, s);
-	XtSetValues (WStatus, args, 1);
+	XtSetArg (args[n], XtNlabel, s);	n++;
+	XtSetArg (args[n], XtNbackground, problem ? RedPix : WhitePix); n++;
+	XtSetValues (WStatus, args, n);
 	Sync ();
 }
 
@@ -717,7 +764,76 @@ char *s;
 
 static void
 Sync ()
+/*
+ * Synchronize the display.
+ */
 {
 	XSync (XtDisplay (Top), False);
 	xevent (0);
+}
+
+
+
+
+
+
+static void
+UpdateMem ()
+/*
+ * Update the "archived" flags in the shm segment.
+ */
+{
+/*
+ * Scan through our table.
+ */
+	usy_traverse (DumpedTable, TellDaemon, 0, FALSE);
+}
+
+
+/* ARGSUSED */
+static int
+TellDaemon (sym, type, v, junk)
+char *sym;
+int type;
+SValue *v;
+int junk;
+/*
+ * Update this platform.
+ */
+{
+	int dfi;
+	PlatformId pid = ds_LookupPlatform (sym);
+/*
+ * Plow through the file entries, marking everything that we have written 
+ * out.
+ */
+	for (dfi = LOCALDATA (PTable[pid]); dfi; dfi = DFTable[dfi].df_FLink)
+	{
+	/*
+	 * If this file is already marked, or hasn't been done, move on.  
+	 * Otherwise send the notification.
+	 */
+	 	if (DLE (DFTable[dfi].df_end, v->us_v_date) &&
+				! DFTable[dfi].df_archived)
+			SendMA (dfi);
+	}
+	return (TRUE);
+}
+
+
+
+
+
+static void
+SendMA (index)
+int index;
+/*
+ * Send the archive mark.
+ */
+{
+	struct dsp_MarkArchived ma;
+
+	ma.dsp_type = dpt_MarkArchived;
+	ma.dsp_FileIndex = index;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &ma, sizeof (ma));
 }
