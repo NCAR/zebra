@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.37 1995-08-03 21:00:05 corbet Exp $")
+RCSID("$Id: PlotControl.c,v 2.38 1995-09-27 16:13:13 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -124,6 +124,8 @@ pc_PlotHandler ()
 /*
  * See if they have put us on hold.
  */
+	if (! Pd)
+		return;
 	hold = FALSE;
 	if (pd_Retrieve (Pd, "global", "plot-hold", (char *) &hold, SYMT_BOOL)
 	    && hold)

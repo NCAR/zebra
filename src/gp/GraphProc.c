@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.56 1995-08-28 21:49:10 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.57 1995-09-27 16:13:09 granger Exp $")
 
 /*
  * Default resources.
@@ -152,6 +152,7 @@ static void gp_sync FP ((void));
 static void ChangeState FP ((enum wstate new));
 static void ChangeParam FP ((struct dm_parchange *dmp));
 static void ChangeDefaults FP ((struct dm_pdchange *dmp));
+static void ClearPD FP ((void));
 static void HistoryMode FP ((ZebTime *when));
 static void RealTimeMode FP ((void));
 static void DialEvent FP ((struct dm_dial *dmd));
@@ -749,6 +750,7 @@ struct dm_msg *dmsg;
 {
 	struct dm_dial *dmd;
 	struct dm_history *dmh;
+	struct dm_reconfig *dmr;
 
 	switch (dmsg->dmm_type)
 	{
@@ -756,7 +758,11 @@ struct dm_msg *dmsg;
 	 * Reconfigure.
 	 */
 	   case DM_RECONFIG:
-		msg_ELog (EF_DEBUG, "reconfig message received from dm");
+		dmr = (struct dm_reconfig *) dmsg;
+		msg_ELog (EF_DEBUG, "reconfig (%s) received from dm",
+			  dmr->dmr_pdwait ? "wait for pd" : "no pd");
+		if (dmr->dmr_pdwait)
+			ClearPD ();
 	   	Eq_AddEvent (PUrgent, eq_reconfig, dmsg, 
 			     sizeof (struct dm_reconfig), Override);
 		break;
@@ -912,8 +918,8 @@ int len;
 
 	msg_ELog (EF_DEBUG, "reconfig routine entered from event queue");
 /*
- * Let dm interface gleen what it wants from the message, like our
- * window name, and then set our UI variable accordingly.
+ * Let the dm interface gleen what it wants from the message, like our
+ * window name.
  */
 	dm_Reconfig (dmsg);
 /*
@@ -923,18 +929,24 @@ int len;
 	if (WindowState == UP)
 		PopdownWidgets ();
 /*
- * Figure out if anything really important has changed.
+ * Change the title
  */
-	schanged = (dmsg->dmr_dx != GWWidth (Graphics)) ||
-			(dmsg->dmr_dy != GWHeight (Graphics));
-	wchanged = (WindowState == DOWN);
-
+	XtSetArg (args[0], XtNtitle, dm_WindowName());
+	XtSetValues (GrShell, args, (Cardinal)1);
+/*
+ * Handle things a little differently the first time around, when we haven't
+ * yet realized a window.
+ */
 	if (! WindowSent)
 	{
 	/*
-	 * Set the geometry first, in case this is the first time we're
+	 * Popping up the first time is naturally a change in everything.
+	 */
+		schanged = TRUE;
+		wchanged = TRUE;
+	/*
+	 * Set the geometry first, since this is the first time we're
 	 * popping up this window and it needs some geometry settings.
-	 * These are just defaults and probably won't match our configuration.
 	 */
 		width = dmsg->dmr_dx;
 		height = dmsg->dmr_dy;
@@ -948,59 +960,63 @@ int len;
 		XtSetArg (args[1], XtNy, y);
 		XtSetValues (GrShell, args, (Cardinal)2);
 	}
+	else
+	{
+	/*
+	 * Figure out if anything really important has changed.
+	 */
+		schanged = (dmsg->dmr_dx != GWWidth (Graphics)) ||
+			(dmsg->dmr_dy != GWHeight (Graphics));
+		wchanged = (WindowState == DOWN);
+	/*
+	 * Configure the window before raising it to avoid bouncing
+	 * around on the screen.
+	 */
+		ConfigureWindow (XtDisplay(GrShell), XtWindow(GrShell), 
+				 dmsg->dmr_x, dmsg->dmr_y,
+				 dmsg->dmr_dx, dmsg->dmr_dy);
+	}
 /*
- * If this is the first time we've popped up, send along our newly-realized
- * window id.
+ * Now that everything is configured, actually raise the window.
  */
 	ChangeState (UP);
+/*
+ * If this is the first time we've popped up, send along our newly-realized
+ * window id.  Then send a ConfigureWindow just in case the window manager
+ * interprets that differently than the resource geometry settings.
+ */
 	if (! WindowSent)
 	{
 		dm_SendWindowID (XtWindow (GrShell));
 		WindowSent = TRUE;
+
+		ConfigureWindow (XtDisplay(GrShell), XtWindow(GrShell), 
+				 dmsg->dmr_x, dmsg->dmr_y,
+				 dmsg->dmr_dx, dmsg->dmr_dy);
 		/*
 		 * Graphics context
 		 */
 		Gcontext = XCreateGC (XtDisplay (Graphics), 
 				      XtWindow (Graphics), 0, NULL);
 	}
-	/*
-	 * Change title and geometry
-	 */
-	XtSetArg (args[0], XtNtitle, dm_WindowName());
-	XtSetValues (GrShell, args, (Cardinal)1);
-	ConfigureWindow (XtDisplay(GrShell), XtWindow(GrShell), 
-			 dmsg->dmr_x, dmsg->dmr_y,
-			 dmsg->dmr_dx, dmsg->dmr_dy);
-#ifdef notdef
-	/*
-	 * Do the geometry setting again for those window managers which
-	 * don't get it the first time.
-	 */
-	XtSetArg (args[0], XtNwidth, width);
-	XtSetArg (args[1], XtNheight, height);
-	XtSetValues (Graphics, args, (Cardinal)2);
- 	XtSetArg (args[0], XtNx, x);
-	XtSetArg (args[1], XtNy, y);
-	XtSetValues (GrShell, args, (Cardinal)2);
-#endif
-	/*
-	 * Set the cursor to our normal value.
-	 */
+/*
+ * Set the cursor to our normal value.
+ */
 	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
-	/*
-	 * If nothing drastic has changed, we can quit now and not redraw 
-	 * everything.
-	 */
+/*
+ * If nothing drastic has changed, we can quit now and not redraw 
+ * everything.
+ */
 	if (! schanged && ! wchanged)
 		return;
-	/*
-	 * Invalidate the frame cache if the window size has changed.
-	 */
+/*
+ * Invalidate the frame cache if the window size has changed.
+ */
 	if (schanged)
 		fc_InvalidateCache ();
-	/*
-	 * Force a redisplay.
-	 */
+/*
+ * Force a redisplay, but only if we still have a plot description.
+ */
 	if (Pd)
 	{
 		Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
@@ -1171,6 +1187,32 @@ struct dm_pdchange *dmp;
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
 	pdm_ScheduleUpdate ();
+}
+
+
+
+
+
+static void
+ClearPD ()
+/*
+ * Clear any existing pd while we wait for a new one.  Essentially this is
+ * the first half of ChangePD, which forgoes replots while waiting for
+ * a new pd.
+ */
+{
+/*
+ * If we have an old plot description, get rid of it.  Also cancel any
+ * pending plot activity and free the colors we were using.
+ */
+	if (Pd)
+	{
+	        lc_UnZoom(Zlevel);
+		pd_Release (Pd);
+		pc_CancelPlot ();
+		ct_FreeColors ();
+	}
+	Pd = NULL;
 }
 
 
