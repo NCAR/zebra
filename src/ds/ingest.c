@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.8 1993-06-10 22:31:22 granger Exp $
+/* $Id: ingest.c,v 1.9 1993-08-05 18:17:07 corbet Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -42,7 +42,7 @@
 #undef ds_DeleteData
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.8 1993-06-10 22:31:22 granger Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.9 1993-08-05 18:17:07 corbet Exp $")
 #endif
 
 
@@ -436,7 +436,7 @@ _Ingest_ds_LookupPlatform (name)
 }
 
 
-
+# ifdef notdef
 void
 _Ingest_ds_DeleteData(platform, leave)
 	PlatformId platform;
@@ -458,5 +458,5 @@ _Ingest_ds_DeleteData(platform, leave)
 	}
 	return;
 }
-
+# endif
 

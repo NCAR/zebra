@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.14 1993-06-18 15:59:20 corbet Exp $
+ * $Id: dsPrivate.h,v 3.15 1993-08-05 18:17:04 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -249,7 +249,7 @@ struct dsp_DeleteData
 {
 	enum dsp_Types dsp_type;	/* == dpt_DeleteData		*/
 	PlatformId dsp_plat;		/* Target platform		*/
-	int 	dsp_leave;		/* Minimum seconds data left	*/
+	ZebTime dsp_when;		/* Zorch data before this time	*/
 };
 
 

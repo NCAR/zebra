@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.10 1993-05-25 07:04:52 granger Exp $
+ * $Id: DataStore.h,v 3.11 1993-08-05 18:17:01 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -439,7 +439,7 @@ DataChunk *	ds_Fetch FP ((PlatformId, DataClass, ZebTime *, ZebTime *,
 			FieldId *, int, dsDetail *, int));
 DataChunk *	ds_FetchObs FP ((PlatformId, DataClass, ZebTime *, FieldId *,
 			int, dsDetail *, int));
-void		ds_DeleteData FP ((PlatformId, int));
+void		ds_DeleteData FP ((PlatformId, ZebTime *));
 void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
 int		ds_DataTimes FP ((PlatformId, ZebTime *, int,TimeSpec,

@@ -24,10 +24,10 @@
 #include "message.h"
 #include "DataStore.h"
 #include "dsPrivate.h"
-# define NO_SHM
 #include "dslib.h"
+
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.17 1993-07-09 19:51:15 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.18 1993-08-05 18:16:54 corbet Exp $")
 #endif
 
 /*
@@ -40,7 +40,7 @@ static void     ds_DispatchNotify FP ((struct dsp_Notify *));
 int             ds_DSMessage FP ((struct message *));
 static int      ds_AttrCheck FP ((int, ZebTime *, char *));
 static int 	ds_FindDest FP ((DataChunk *, Platform *, int, int *dfile,
-				 int *dfnext, WriteCode *, int));
+				 int *dfnext, WriteCode *, int, ZebTime *));
 static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
 static int	ds_MakeNewFile FP ((DataChunk *, Platform *, int sample, 
 				    dsDetail *details, int ndetail));
@@ -97,6 +97,14 @@ static int DFZap = 0;	/* Next entry to zap	*/
  */
 static int LockCount = 0;
 
+/*
+ * How far in the future we are willing to accept data.
+ */
+static int MaxFuture = 3600;	/* One hour into future	*/
+
+
+
+
 
 
 int
@@ -107,18 +115,13 @@ ds_Initialize()
 {
 	int i;
 /*
- * Hook into the shared memory segment.
- */
-# ifdef notdef	
-	if (!dsm_Init())
-		return (FALSE);
-# endif
-/*
  * Set up the platform lookup table.
  */
 	ds_InitPFTable();
 	for (i = 0; i < MAXPLAT; i++)
 		ApplFuncs[i] = 0;
+	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "maxfuture",
+			&MaxFuture, SYMT_INT, 0);
 /*
  * Join the data store group.
  */
@@ -661,11 +664,11 @@ struct message *msg;
 
 
 void
-ds_DeleteData (platform, leave)
+ds_DeleteData (platform, zaptime)
 PlatformId platform;
-int leave;
+ZebTime *zaptime;
 /*
- * Zap all data from "platform", leaving only "leave" seconds worth.
+ * Zap data from this platform -- everything before the given time.
  */
 {
 	struct dsp_DeleteData del;
@@ -675,7 +678,7 @@ int leave;
 	ds_WriteLock (platform);
 	del.dsp_type = dpt_DeleteData;
 	del.dsp_plat = platform;
-	del.dsp_leave = leave;
+	del.dsp_when = *zaptime;
 	ds_SendToDaemon (&del, sizeof (del));
 	ds_FreeWLock (platform);
 }
@@ -950,9 +953,13 @@ int ndetail;
 	WriteCode wc;
 	Platform p;
 	int dfnext;
-
+	ZebTime curtime;
+/*
+ * Pull some details together.
+ */
 	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 	ds_WriteLock (dc->dc_Platform);
+	tl_Time (&curtime);
 /*
  * For now (and maybe forever) we do the writing one sample at a time,
  * to ease the process of figuring out what goes where.
@@ -965,7 +972,7 @@ int ndetail;
 	 * Find a feasible location for this data.
 	 */
 		if (! ds_FindDest (dc, &p, sample, &dfile, &dfnext, 
-				   &wc, newfile && (sample == 0)))
+				   &wc, newfile && (sample == 0), &curtime))
 			continue;	/* Sigh */
 	/*
 	 * If a new file is called for, create it.  Then write the data.
@@ -1030,11 +1037,18 @@ int ndetail;
 	int block_size;
 	WriteCode wc;
 	Platform p;
-
+	ZebTime curtime;
+/*
+ * Setup time.
+ */
 	ds_WriteLock (dc->dc_Platform);
 	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
+	tl_Time (&curtime);
 	nsample = dc_GetNSample (dc);
 	sample = 0;
+/*
+ * Start plowing through the data.
+ */
 	msg_ELog(EF_INFO,
 	   "ds_StoreBlocks: noting all blocks of 50 or more samples");
 	while (sample < nsample)
@@ -1047,7 +1061,7 @@ int ndetail;
 	 * Find a feasible location for the next sample of the data chunk
 	 */
 		if (! ds_FindDest (dc, &p, sample, &dfile, &dfnext, &wc, 
-				   newfile && (sample == 0)))
+				   newfile && (sample == 0), &curtime))
 			continue;	/* Sigh */
 	/*
 	 * If a new file is called for, create it.
@@ -1272,11 +1286,12 @@ int *block_size;
 
 
 static int
-ds_FindDest (dc, plat, sample, dfile, dfnext, wc, newfile)
+ds_FindDest (dc, plat, sample, dfile, dfnext, wc, newfile, now)
 DataChunk *dc;
 Platform *plat;
 int sample, *dfile, *dfnext, newfile;
 WriteCode *wc;
+ZebTime *now;
 /*
  * Try to find an appropriate destination for this datum.
  * Return value is TRUE iff it was possible.  *dfnext returns with
@@ -1287,13 +1302,23 @@ WriteCode *wc;
 	DataFile dfe;
 	ZebTime when, dftime;
 /*
+ * Do a quick sanity check to see if this data has a bizarre time.  Reject
+ * it in that case.
+ */
+	dc_GetTime (dc, sample, &when);
+	if ((when.zt_Sec - now->zt_Sec) > MaxFuture)
+	{
+		msg_ELog (EF_PROBLEM, "Rejecting %s sample %d sec in future",
+			plat->dp_name, when.zt_Sec - now->zt_Sec);
+		return (FALSE);
+	}
+/*
  * Find the first file in the local list which begins before the time
  * of interest.  This may seem like an inefficient search, and I suppose
  * it, but the fact of the matter is that almost every time we are 
  * appending data and we'll stop at the first DFE.
  */
 	ds_LockPlatform (dc->dc_Platform);
-	dc_GetTime (dc, sample, &when);
 	*dfnext = 0;
 	for (; df; df = dfe.df_FLink)
 	{

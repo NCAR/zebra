@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.22 1993-08-04 17:15:48 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.23 1993-08-05 18:16:58 corbet Exp $")
 
 
 
@@ -54,7 +54,7 @@ static void	ds_message FP ((char *, struct dsp_Template *));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
 static void	dp_AbortNewFile FP ((struct dsp_AbortNewFile *));
 static void	dp_UpdateFile FP ((char *, struct dsp_UpdateFile *));
-static void	dp_DeleteData FP ((Platform *, int));
+static void	dp_DeleteData FP ((Platform *, ZebTime *));
 static void	ZapDF FP ((DataFile *));
 static void	SetUpEvery FP ((struct ui_command *));
 static void	ExecEvery FP ((ZebTime *, int));
@@ -500,7 +500,7 @@ struct dsp_Template *dt;
 	 */
 	   case dpt_DeleteData:
 	   	dp_DeleteData (PTable+((struct dsp_DeleteData *) dt)->dsp_plat,
-				((struct dsp_DeleteData *) dt)->dsp_leave);
+				&((struct dsp_DeleteData *) dt)->dsp_when);
 		break;
 	/*
 	 * Application notification details.
@@ -744,15 +744,14 @@ struct dsp_UpdateFile *request;
 
 
 static void
-dp_DeleteData (p, sub)
+dp_DeleteData (p, t)
 Platform *p;
-int sub;
+ZebTime *t;
 /*
  * Handle the delete data request.
  */
 {
 	int index = LOCALDATA (*p), last;
-	ZebTime t;
 /*
  * If there is no data at all, life is easy.
  */
@@ -771,11 +770,6 @@ int sub;
 		return;
 	}
 /*
- * Calculate the time before which all data is zapped.
- */
-	t = DFTable[index].df_end;
-	TC_SysToZt (TC_ZtToSys (&t) - sub, &t);
-/*
  * Now we go through and remove every file which ends before this time.
  */
 	last = index;
@@ -786,7 +780,7 @@ int sub;
 	/*
 	 * If this file is too new, go on to the next one.
 	 */
-	 	if (TC_Less (t, df->df_end))
+	 	if (TC_Less (*t, df->df_end))
 		{
 			last = index;
 			index = df->df_FLink;
@@ -935,6 +929,7 @@ struct ui_command *cmds;
 {
 	int seconds, plat;
 	Platform *p;
+	ZebTime now, zaptime;
 /*
  * Figure out how much data remains.
  */
@@ -942,13 +937,19 @@ struct ui_command *cmds;
 /*
  * If they gave a specific platform, do it now.
  */
+	tl_Time (&now);
 	if (cmds[1].uc_ctype != UTT_KW)
 	{
 		if (! (p = dt_FindPlatform (UPTR (cmds[1]), FALSE)))
 			msg_ELog (EF_PROBLEM, "TRUNCATE on bad platform %s",
 				UPTR (cmds[1]));
 		else
-			dp_DeleteData (p, seconds > 0 ? seconds : p->dp_keep);
+		{
+			zaptime = now;
+			zaptime.zt_Sec -= (seconds > 0) ? seconds :
+					PTable[plat].dp_keep;
+			dp_DeleteData (p, &zaptime);
+		}
 		return;
 	}
 /*
@@ -956,8 +957,12 @@ struct ui_command *cmds;
  */
 	for (plat = 0; plat < NPlatform; plat++)
 		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
-			dp_DeleteData (PTable + plat,
-				seconds > 0 ? seconds : PTable[plat].dp_keep);
+		{
+			zaptime = now;
+			zaptime.zt_Sec -= (seconds > 0) ? seconds :
+					PTable[plat].dp_keep;
+			dp_DeleteData (PTable + plat, &zaptime);
+		}
 }
 
 
