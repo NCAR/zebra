@@ -30,7 +30,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.3 1993-10-25 21:34:06 corbet Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.4 1993-10-27 16:57:25 corbet Exp $");
 
 //
 // Forwards.
@@ -186,7 +186,7 @@ PlatformIndex::add (const char *plat, IndexFile &file)
 
 
 
-struct PlatformIndex::PlatInfo *
+struct PlatInfo *
 PlatformIndex::findPlat (const char *name) const
 //
 // Try to find a platform.
@@ -217,7 +217,7 @@ ZapPlat (const char *name, int type, const SValue *v, long junk)
 // Get rid of this platform by deleting all of the dynamic structures.
 //
 {
-	PlatformIndex::PlatInfo *pi = (PlatformIndex::PlatInfo *) v->us_v_ptr;
+	PlatInfo *pi = (PlatInfo *) v->us_v_ptr;
 //
 // Get rid of the files.
 //
@@ -272,7 +272,7 @@ WritePlat (const char *name, int type, const SValue *v, long lfp)
 //
 {
 	FILE *fp = (FILE *) lfp;
-	PlatformIndex::PlatInfo *pi = (PlatformIndex::PlatInfo *) v->us_v_ptr;
+	PlatInfo *pi = (PlatInfo *) v->us_v_ptr;
 	const IndexFile *indf = pi->pi_files;
 
 	while (indf)

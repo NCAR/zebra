@@ -52,6 +52,16 @@ public:
 };
 
 
+//
+// Platform info structure.  Used to be inside the PlatformIndex class,
+// but gcc-2.5 was not pleased with that...
+//
+struct PlatInfo
+{
+	ZebTime pi_begin, pi_end;
+	IndexFile *pi_files;
+	int pi_marked;
+};
 
 //
 // Platform index type.
@@ -60,12 +70,6 @@ class PlatformIndex
 {
 	friend STTraverseProc ZapPlat;
 	STable table;			// table containing platforms.
-	struct PlatInfo
-	{
-		ZebTime pi_begin, pi_end;
-		IndexFile *pi_files;
-		int pi_marked;
-	};
 	struct PlatInfo *findPlat (const char *name) const;
 	static int TNum;		// To make unique stbl names
 public:
