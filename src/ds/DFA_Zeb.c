@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.4 1992-07-22 16:48:30 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.5 1992-07-23 21:41:11 corbet Exp $");
 
 
 /*
@@ -90,6 +90,7 @@ static struct CO_Compat
 	{ Org3dGrid,		DCC_RGrid	},
 	{ OrgIRGrid,		DCC_IRGrid	},
 	{ OrgIRGrid,		DCC_Scalar	},
+	{ OrgTransparent,	DCC_Transparent	},
 	{ OrgScalar,		DCC_Scalar	},
 # ifdef notdef
 	{ OrgScalar,		DCC_Location	},
@@ -116,7 +117,9 @@ static int	zn_WrIRGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *,
 static int	zn_WrScalar FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
 			WriteCode, int *, FieldId *, int));
 static void 	zn_WrLocInfo FP ((znTag *, int, Location *, RGrid *));
-static void	zn_GetFieldIndex FP ((znTag *, FieldId *, int, int *));
+static int	zn_WrTrans FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
+			WriteCode));
+static void	zn_GetFieldIndex FP ((znTag *, FieldId *, int, int *, int));
 static void	zn_DataWrite FP ((znTag *, void *, int, zn_Sample *,
 			WriteCode));
 static void	zn_OFLoadStations FP ((znTag *));
@@ -128,6 +131,7 @@ static void	zn_ReadGrid FP ((znTag *, DataChunk *, int, int, int,
 static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int, double));
 static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int,
 			double));
+static void	zn_ReadTrans FP ((znTag *, DataChunk *, int, int, int));
 static void	zn_RdRGridOffset FP ((RGrid *, Location *, long *, int *,
 			dsDetail *, int));
 static void	zn_DoBadval FP ((float *, int, double, double));
@@ -254,7 +258,7 @@ char **rtag;
 		memcpy (tag->zt_GlAttr, ablock, asize);
 	}
 /*
- * IMAGE, RGRID -- rgrid array
+ * Sync up and we are done.
  */
 	zn_WriteSync (tag);
 	*rtag = (char *) tag;
@@ -277,9 +281,9 @@ DataChunk *dc;
 	FieldId *fids, bfid;
 	float badval = 99999.9;
 /*
- * Make a special case for boundaries.
+ * Make a special case for boundaries. (XXX)
  */
-	if (dc->dc_Class == DCC_Boundary)
+	if (dc->dc_Class == DCC_Boundary || dc->dc_Class == DCC_Transparent)
 	{
 		bfid = F_Lookup ("boundary");
 		fids = &bfid;
@@ -548,11 +552,11 @@ WriteCode wc;
 /*
  * Get our field array into order.
  */
-	if (dc->dc_Class != DCC_Boundary)
+	if (dc->dc_Class != DCC_Boundary && dc->dc_Class != DCC_Transparent)
 	{
 		fids = dc_GetFields (dc, &nfield);
 		index = (int *) malloc (nfield*sizeof (int));
-		zn_GetFieldIndex (tag, fids, nfield, index);
+		zn_GetFieldIndex (tag, fids, nfield, index, TRUE);
 	}
 	samp = tag->zt_Sample + (fsample*hdr->znh_NField);
 /*
@@ -580,13 +584,15 @@ WriteCode wc;
 	   case OrgScalar:
 	   	zn_WrScalar (tag, dc, fsample, sample, samp, wc, index,
 				fids, nfield);
+
+	   case OrgTransparent:
+	   	zn_WrTrans (tag, dc, fsample, sample, samp, wc);
 		break;
 	}
 /*
  * We also have to add the time to the time array.  We flush the individual
  * time out here rather than dirty up and sync the entire array.
  */
-	/* dc_GetTime (dc, sample, tag->zt_Time + fsample); */
 	tag->zt_Time[fsample] = t;
 	zn_PutBlock (tag, hdr->znh_OffTime + fsample*sizeof (ZebTime),
 			tag->zt_Time + fsample, sizeof (ZebTime));
@@ -664,10 +670,10 @@ void *ablock;
 
 
 static void
-zn_GetFieldIndex (tag, fids, nfield, index)
+zn_GetFieldIndex (tag, fids, nfield, index, create)
 znTag *tag;
 FieldId *fids;
-int nfield, *index;
+int nfield, *index, create;
 /*
  * Figure out file field corresponds to each dc field.  This routine
  * will add the fields to the file if necessary.
@@ -695,7 +701,7 @@ int nfield, *index;
 /*
  * If we found all of our fields, we can quit.
  */
- 	if (! nnew)
+ 	if (! nnew || ! create)
 		return;
 /*
  * Otherwise we are going to have to expand the sample table.
@@ -1054,6 +1060,41 @@ WriteCode wc;
  */
 	locs = dc_BndGet (dc, sample, &nloc);
 	zn_DataWrite (tag, locs, nloc*sizeof (Location), samp + index, wc);
+	return (1);
+}
+
+
+
+
+
+static int
+zn_WrTrans (tag, dc, fsample, dcsample, samp, wc)
+znTag *tag;
+DataChunk *dc;
+int fsample, dcsample;
+zn_Sample *samp;
+WriteCode wc;
+/*
+ * Write out a boundary sample.
+ */
+{
+	DataPtr data;
+	int len;
+/*
+ * Pull out the data itself, then dump it out.
+ */
+	data = dc_GetSample (dc, dcsample, &len);
+	zn_DataWrite (tag, data, len, samp, wc);
+/*
+ * Put out the location if necessary.
+ */
+	if (ds_IsMobile (dc->dc_Platform))
+	{
+		dc_GetLoc (dc, dcsample, tag->zt_Locs + fsample);
+		zn_PutBlock (tag, tag->zt_Hdr.znh_OffLoc + 
+			fsample*sizeof (Location), tag->zt_Locs + fsample,
+			sizeof (Location));
+	}
 	return (1);
 }
 
@@ -1450,6 +1491,11 @@ DataClass class;
 	if (tag->zt_GlAttr)
 		dc_SetGlAttrBlock (dc, tag->zt_GlAttr, hdr->znh_GlAttrLen);
 /*
+ * Store the static location out of the header if called for.
+ */
+	if (hdr->znh_OffLoc < 0)
+		dc_SetStaticLoc (dc, &hdr->znh_Loc);
+/*
  * Do class-specific setup.
  */
 	switch (class)
@@ -1558,6 +1604,10 @@ int ndetail;
 	   	zn_ReadScalar (tag, dc, dcsamp, tbegin, tend, badval);
 		break;
 
+	   case DCC_Transparent:
+	   	zn_ReadTrans (tag, dc, dcsamp, tbegin, tend);
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Strange...class %d in GetData",
 				dc->dc_Class);
@@ -1658,7 +1708,7 @@ float badval;
  */
 	fids = dc_GetFields (dc, &nfield);
 	index = (int *) malloc (nfield*sizeof (int));
-	zn_GetFieldIndex (tag, fids, nfield, index);
+	zn_GetFieldIndex (tag, fids, nfield, index, FALSE);
 /*
  * Go through and get the entire set of data for the given field.
  */
@@ -1672,7 +1722,7 @@ float badval;
 		{
 			zs = tag->zt_Sample + sample*hdr->znh_NField +
 						index[fld];
-			if (zs->znf_Size <= 0)
+			if (index[fld] < 0 || zs->znf_Size <= 0)
 				*dp = badval;
 			else
 				zn_GetBlock (tag, zs->znf_Offset + offset,
@@ -1708,6 +1758,57 @@ float badval;
 
 
 
+static void
+zn_ReadTrans (tag, dc, dcsamp, tbegin, tend)
+znTag *tag;
+DataChunk *dc;
+int dcsamp, tbegin, tend;
+{
+	int sample, alen = -1, len;
+	zn_Sample *zs;
+	zn_Header *hdr = &tag->zt_Hdr;
+	DataPtr data = 0;
+/*
+ * Pull it in one sample at a time.
+ */
+	for (sample = tbegin; sample <= tend; sample++)
+	{
+		zs = tag->zt_Sample + sample*hdr->znh_NField;
+
+		if ((len = zs->znf_Size) > 0)
+		{
+		/*
+		 * Make sure we have enough scratch space.
+		 */
+		 	if (len > alen)
+			{
+				if (data)
+					free (data);
+				data = (DataPtr) malloc (alen = len);
+			}
+		/*
+		 * Now pull in the stuff and add it to the DC.
+		 */
+			zn_GetBlock (tag, zs->znf_Offset, data, len);
+			dc_AddSample (dc, tag->zt_Time + sample, data, len);
+		}
+	}
+/*
+ * Time to deal with locations.
+ */
+	if (ds_IsMobile (dc->dc_Platform))
+		for (sample = tbegin; sample <= tend; sample++)
+			dc_SetLoc (dc, dcsamp + sample - tbegin, 
+				tag->zt_Locs + sample);
+/*
+ * Clean up and we are done.
+ */
+	if (data)
+		free (data);
+}
+
+
+
 
 static void
 zn_ReadIRG (tag, dc, dcsamp, tbegin, tend, badval)
@@ -1729,7 +1830,7 @@ float badval;
  */
 	fids = dc_GetFields (dc, &nfield);
 	index = (int *) malloc (nfield*sizeof (int));
-	zn_GetFieldIndex (tag, fids, nfield, index);
+	zn_GetFieldIndex (tag, fids, nfield, index, FALSE);
 	zs = tag->zt_Sample + tbegin*hdr->znh_NField;
 /*
  * Now pull in the stuff.
@@ -1741,7 +1842,7 @@ float badval;
 		/*
 		 * Make sure the data exists, and grab it.
 		 */
-		 	if (zs[index[fld]].znf_Size <= 0)
+		 	if (index[fld] < 0 || zs[index[fld]].znf_Size <= 0)
 				zn_SetBad (data, hdr->znh_NStation, badval);
 			else
 			 	zn_GetBlock (tag, zs[index[fld]].znf_Offset,
@@ -1805,7 +1906,7 @@ float badval;
  */
 	fids = dc_GetFields (dc, &nfield);
 	index = (int *) malloc (nfield*sizeof (int));
-	zn_GetFieldIndex (tag, fids, nfield, index);
+	zn_GetFieldIndex (tag, fids, nfield, index, FALSE);
 	zs = tag->zt_Sample + tbegin*hdr->znh_NField;
 /*
  * Now pull in the stuff.
@@ -1827,7 +1928,7 @@ float badval;
 		/*
 		 * Make sure the data is here.
 		 */
-			if (zs[index[fld]].znf_Size <= 0)
+			if (index[fld] < 0 || zs[index[fld]].znf_Size <= 0)
 				continue;
 		/*
 		 * Set up the data chunk to accept it, then read it in.  The
