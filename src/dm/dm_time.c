@@ -15,7 +15,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.5 1995-08-10 18:49:32 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.6 1995-09-07 21:29:26 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
@@ -26,8 +26,8 @@ static bool ForceHistory = FALSE;
 static bool HistoryMode = FALSE;
 static bool AutoAdvance = FALSE;
 static ZebTime HistoryTime;
-static char TimeFile[TIME_FILE_LEN];
-
+static char TimeFile[TIME_FILE_LEN] = { '\0' };
+static bool InitTW = FALSE;
 
 /*
  * Private prototypes
@@ -37,7 +37,7 @@ static void dt_SetTimeMode FP ((struct cf_window *who, int history,
 static int dt_TWCallback FP ((int mode, ZebTime *t, int control_all,
 			      char *window_name));
 static void dt_TWHelp FP ((void));
-static void dt_TWPopupCallback FP ((void));
+static void dt_InitTW FP ((void));
 static void dt_WriteTimeFile FP ((void));
 static void dt_ReadTimeFile FP ((void));
 
@@ -61,16 +61,13 @@ void
 dt_Init ()
 {
 	stbl vtable = usy_g_stbl ("ui$variable_table");
-	
-	TimeFile[0] = 0;
+
 	usy_c_indirect (vtable, "forcehistory", &ForceHistory, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "autoadvance", &AutoAdvance, SYMT_BOOL, 0);
 	usy_daemon (vtable, "autoadvance", SOP_WRITE, dt_AutoAdvance, NULL);
 	usy_c_indirect (vtable, "timefile", TimeFile, SYMT_STRING, 
 			TIME_FILE_LEN);
 	tw_DefTimeWidget (dt_TWCallback, "System Time Control");
-	tw_AddHelpCallback (dt_TWHelp);
-	tw_AddPopupCallback (dt_TWPopupCallback);
 	aw_DefAlarmWidget ();
 }
 
@@ -82,9 +79,12 @@ dt_ReadTimeFile ()
 #	define BUFLEN 128
 	FILE *in;
 	ZebTime zt;
-	char buf[BUFLEN];
+	int visited;
+	int n;
+	char buffer[BUFLEN];
 	char stime[BUFLEN];
 	char note[BUFLEN];
+	char *buf;
 
 	if (! TimeFile[0])
 		return;
@@ -96,12 +96,21 @@ dt_ReadTimeFile ()
 		return;
 	}
 	msg_ELog (EF_DEBUG, "reading time file: %s", TimeFile);
-	while (fgets (buf, BUFLEN, in))
+	while (fgets (buffer, BUFLEN, in))
 	{
-		if (sscanf (buf, "%s %[^\n]", stime, note) == 2)
+		buf = buffer;
+		if (sscanf (buf, "%s %n", stime, &n) == 1 &&
+		    TC_DecodeTime (stime, &zt))
 		{
-			if (TC_DecodeTime (stime, &zt))
+			buf += n;
+			if (sscanf (buf, "%d %[^\n]", &visited, note) == 2)
+				tw_AddVisited (&zt, visited, note);
+			else if (sscanf (buf, "%d", &visited) == 1)
+				tw_AddVisited (&zt, visited, "");
+			else if (sscanf (buf, "%[^\n]", note) == 1)
 				tw_AddHotTime (&zt, note);
+			else
+				tw_AddHotTime (&zt, "");
 		}
 		if (buf[strlen(buf) - 1] != '\n')
 		{
@@ -110,6 +119,11 @@ dt_ReadTimeFile ()
 			while ((c = fgetc (in)) && (c != '\n'))
 				/* find next line */;
 		}
+#ifdef DEBUG_TIME
+		buf[strlen(buf) - 1] = '\0';
+		printf ("After reading: %s\n", buffer);
+		dt_WriteTimeFile ();
+#endif
 	}
 	fclose (in);
 }
@@ -123,6 +137,7 @@ dt_WriteTimeFile ()
 	int n, i;
 	const HotTime *ht;
 
+#ifndef DEBUG_TIME
 	if (! TimeFile[0])
 		return;
 	out = fopen (TimeFile, "w");
@@ -132,39 +147,43 @@ dt_WriteTimeFile ()
 			  TimeFile, errno);
 		return;
 	}
+#endif
 	ht = tw_ListHotTimes (&n);
 	msg_ELog (EF_DEBUG, "writing %d hot times to file: %s", n, TimeFile);
 	for (i = 0; i < n; ++i)
 	{
-		fprintf (out, "%s %s\n", TC_AscTime(&ht[i].ht_zt, TC_Full),
-			 ht[i].ht_label);
+#ifdef DEBUG_TIME
+		ui_printf ("%s %d %s\n", TC_AscTime(&ht[i].ht_zt, TC_Full),
+			   ht[i].ht_visited, ht[i].ht_label);
+#else
+		fprintf (out, "%s %d %s\n", TC_AscTime(&ht[i].ht_zt, TC_Full),
+			 ht[i].ht_visited, ht[i].ht_label);
+#endif
 	}
+#ifndef DEBUG_TIME
 	fclose (out);
+#endif
 }
 
 
 
 
 static void
-dt_TWPopupCallback ()
+dt_InitTW ()
 /*
- * The time widget is being created, so we get a chance to set the hot
- * times and the window names.  If a time file has been specified, read it
- * and send the times to the time widget. 
+ * Set the hot times and callbacks.  If a time file has been specified, 
+ * read it and send the times to the time widget.  Sync AutoAdvance setting.
  */
 {
+	if (InitTW)
+		return;
+	else
+		InitTW = TRUE;
 	dt_ReadTimeFile ();
-	/*
-	 * Add change callbacks once we've made all of our changes here
-	 */
 	tw_AddHTAddCallback (dt_WriteTimeFile);
 	tw_AddHTDeleteCallback (dt_WriteTimeFile);
-	dt_SetWindowNames ();
+	tw_AddHelpCallback (dt_TWHelp);
 	tw_AutoAdvance (AutoAdvance);
-	/*
-	 * We only want to be called back the first time.
-	 */
-	tw_AddPopupCallback (NULL);
 }
 
 
@@ -207,6 +226,7 @@ struct ui_command *cmds;
 /*
  * If necessary, look up the window.
  */
+	dt_InitTW ();
 	if (! all)
 	{
 		if (cmds->uc_vptype != SYMT_STRING)
@@ -256,6 +276,7 @@ struct ui_command *cmds;
 /*
  * If necessary, look up the window.
  */
+	dt_InitTW ();
 	if (! all)
 	{
 		if (cmds->uc_vptype != SYMT_STRING)
@@ -367,6 +388,7 @@ UItime *when;
 {
 	struct tm_prt prt;
 	
+	dt_InitTW ();
 	prt.tr_type = TR_PRT;
 	/* prt.tr_time = *when; */
 	TC_UIToZt (when, &prt.tr_time);
@@ -381,6 +403,7 @@ void
 dt_SendTime (win)
 struct cf_window *win;
 {
+	dt_InitTW ();
 	if (ForceHistory && HistoryMode)
 		dt_SetTimeMode (win, TRUE, &HistoryTime);
 }
