@@ -19,7 +19,7 @@ setenv BATCH_IMAGE_SPOOL "/net/global/www/sssf/projects/cases99/realtime"
 # Use a fixed zebra top since we are version-dependent
 setenv ZEB_TOPDIR /scr/steam/granger/zebra
 
-# Settings required by ftpjoss.pl
+# Settings required for ftpplots
 setenv PLOT_FTP_HOST "ftp.joss.ucar.edu"
 setenv PLOT_FTP_DIR "/pub/incoming/catalog/cases99"
 setenv PLOT_FTP_ENABLE 1

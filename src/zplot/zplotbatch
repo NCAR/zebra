@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.12 1999-10-15 19:09:58 granger Exp $
+# $Id: zplotbatch,v 1.13 1999-10-15 21:26:05 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -146,7 +146,7 @@ while read when config windows; do
     # JOSS filenames: platform.YYYYMMDDHHmm.plottype.{jpg,gif}
     # We're sticking with gif for now
     # Derive the image name from the plot time
-    set `./tcsplit $when`
+    set `ztsplit $when`
     base="${config}.$1$2$3$4$5."
     # For the Web, put the images in directories by date and display
     subspool="${spool}/${config}/$1$2$3"

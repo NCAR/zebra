@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: ztsplit,v 1.3 1999-10-08 20:36:58 granger Exp $
+# $Id: ztsplit,v 1.4 1999-10-15 21:26:05 granger Exp $
 #
 # Split zebra times into yy mm dd hour min sec
 #
@@ -22,7 +22,7 @@
 
 if ($#ARGV != 0)
 {
-    print "Usage: tcsplit <time>\n";
+    print "Usage: ztsplit <time>\n";
     exit 1;
 }
 
