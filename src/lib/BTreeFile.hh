@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.2 1998-05-28 22:00:46 granger Exp $
+ * $Id: BTreeFile.hh,v 1.3 1998-06-02 23:28:42 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -31,6 +31,8 @@ public:
 
 	BTreeFile (int order = DEFAULT_ORDER, 
 		   long sz = sizeof(T), int fix = 0);
+
+	virtual void Reopen ();
 
 	virtual ~BTreeFile ();
 
@@ -83,7 +85,7 @@ private:
 	Logger *log;
 
 	void Init (int order, long sz, int fix);
-
+	void release ();
 };
 
 

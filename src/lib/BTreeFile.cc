@@ -13,7 +13,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.3 1998-05-28 22:00:45 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.4 1998-06-02 23:28:40 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -50,6 +50,23 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 	our_bf(1)
 {
 	Init (order, sz, fix);
+}
+
+
+
+template <class K, class T>
+void
+BTreeFile<K,T>::Reopen ()
+{
+	BlockFile *reopen = new BlockFile (bf->Path(), MAGIC);
+
+	// Release what we have, and start over with our own file
+	release ();
+
+	bf = reopen;
+	our_bf = 1;
+	attach (Block(), *bf);
+	Init (order, value_size, value_size_fixed);
 }
 
 
@@ -166,6 +183,16 @@ BTree<K,T>::BTree (BlockFile &bf, BlkOffset offset) :
 template <class K, class T>
 BTreeFile<K,T>::~BTreeFile ()
 {
+	release ();
+	delete log;
+}
+
+
+
+template <class K, class T>
+void
+BTreeFile<K,T>::release ()
+{
 	// Delete any nodes in memory, leaving the tree empty when our
 	// superclass destructor is called.
 	if (root)
@@ -174,7 +201,7 @@ BTreeFile<K,T>::~BTreeFile ()
 	bf->Close ();
 	if (our_bf)
 		delete bf;
-	delete log;
+	bf = 0;
 }
 
 
@@ -191,14 +218,21 @@ BTreeFile<K,T>::get (Node &node, int depth)
 		that = new BlockNode<K,T> (*bf, *this, depth);
 		node.local = that;
 		that->block.offset = node.addr;
+		assert (that->block.offset > 0);
 		// Initially set this to the minimum we need to read, but
 		// it will be rewritten with the actual allocated size
 		// when the node is translated.
 		that->block.length = nodeSize (that);
+		that->thisNode.addr = that->block.offset;
+		that->thisNode.local = that;
 		log->Debug (Format("Recreating node from block (%u,%u)") %
 			    that->block.offset % that->block.length);
+		that->readSync ();
 	}
-	that->readSync ();
+	// that->readSync ();
+
+	// For now, assume any access causes a change
+	//that->mark ();
 	return (that);
 }
 
@@ -262,7 +296,7 @@ template <class K, class T>
 void
 BTreeFile<K,T>::leave ()
 {
-	if (bf->WriteLockPending() && lock == 1 && root)
+	if (/*bf->WriteLockPending() &&*/ lock == 1 && root)
 	{
 		// Need to tell all nodes in memory to writeSync(), which
 		// right now is done by a recursive sync() method.
@@ -433,11 +467,33 @@ BlockNode<K,T>::sync ()
 	{
 		for (int i = 0; i < nkeys; ++i)
 		{
-			follow(children[i])->sync ();
+			BlockNode<K,T> *child = 
+				(BlockNode<K,T> *)children[i].local;
+			assert (children[i].addr > 0);
+			if (child)
+			{
+				child->sync ();
+			}
+		}
+	}
+#ifdef notdef
+	else if (depth == 1)
+	{
+		for (int i = 0; i < nkeys; ++i)
+		{
+			BlockNode<K,T> *child = 
+				(BlockNode<K,T> *)children[i].local;
+			if (child)
+			{
+				child->writeSync();
+			}
 		}
 	}
 	filetree.log->Debug (Printf("Write sync node (%u,%u,%u)", 
 			    block.offset, block.length, block.revision));
+#endif
+	assert (thisNode.addr > 0);
+	assert (block.offset > 0 && block.length > 0);
 	writeSync ();
 }
 
@@ -456,6 +512,8 @@ template <class K, class T>
 void
 BlockNode<K,T>::write ()
 {
+	assert (block.offset > 0 && block.length > 0);
+
 	// Figure out how much space we need and get a buffer to encode into.
 	unsigned long nspace = filetree.nodeSize (this);
 	SerialBuffer *wb = bf->writeBuffer (nspace + overflow.length);
