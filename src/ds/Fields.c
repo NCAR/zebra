@@ -22,7 +22,7 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.6 1993-07-16 17:02:21 corbet Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.7 1994-11-22 00:29:58 granger Exp $")
 
 
 
@@ -150,12 +150,13 @@ F_Alias (name, alias)
 char *name, *alias;
 /*
  * Cause "alias" to be equivalent to the existing field "name".
+ * Fails and returns BadField if "name" does not exist.
  */
 {
 	int index;
 	SValue v;
 
-	if ((index = F_Lookup (name)) == BadField)
+	if ((index = F_Declared (name)) == BadField)
 		return (BadField);
 	v.us_v_int = index;
 	usy_s_symbol (FNameTable, alias, SYMT_INT, &v);
