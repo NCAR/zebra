@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.5 1993-05-06 17:10:22 corbet Exp $"
+ * "$Id: dslib.h,v 3.6 1993-08-12 18:27:44 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -77,5 +77,5 @@ int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
 char	*dfa_FilePath FP ((Platform *, DataFile *));
 long	dfa_GetRevision FP ((Platform *, DataFile *));
 void	ds_GetFileStruct FP ((int, DataFile *));
-void	ds_GetPlatStruct FP ((PlatformId, Platform *, int));
+void	ds_GetPlatStruct FP ((PlatformId, Platform *, bool));
 int	ds_FindDF FP ((PlatformId, ZebTime *, int));

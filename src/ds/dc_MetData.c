@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.4 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.5 1993-08-12 18:27:37 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -700,7 +700,7 @@ char *key;
 	char *value;
 
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttr"))
-		return;
+		return(NULL);
 	if (value = dca_GetAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key))
 		return(value);
 	return (dc_GetGlobalAttr (dc, key));
@@ -719,7 +719,7 @@ int *len;
  */
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFiAttrBlock"))
-		return;
+		return(NULL);
 	return (dca_GetBlock (dc, DCC_MetData, ST_FIELDATTR(fid), len));
 }
 

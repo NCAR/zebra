@@ -27,7 +27,7 @@
 # include <string.h>
 #endif
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.10 1993-08-04 17:15:58 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.11 1993-08-12 18:27:41 granger Exp $")
 
 /*
  * TODO:
@@ -957,7 +957,7 @@ char *key;
 {
 	char *value;
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
-		return;
+		return(NULL);
 	if (value = dca_GetAttr (dc, DCC_Transparent, ST_ATTR + sample, key))
 		return (value);
 	return (dc_GetGlobalAttr (dc, key));
@@ -975,7 +975,7 @@ int sample, *len;
  */
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
-		return;
+		return(NULL);
 	return (dca_GetBlock (dc, DCC_Transparent, ST_ATTR + sample, len));
 }
 
