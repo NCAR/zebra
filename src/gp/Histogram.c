@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.3 1996-01-02 20:48:28 corbet Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.4 1996-11-19 07:21:09 granger Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -211,7 +211,7 @@ int update;
 		/*
 		 * Fill up the bins.
 		 */
-			counts[offset] = malloc ((nbin + 1)*sizeof(int));
+			counts[offset]=(int *) malloc((nbin + 1)*sizeof(int));
 			memset (counts[offset], 0, (nbin + 1)*sizeof (int));
 			HG_FillBins (dc, fids[field], bins, nbin,
 					counts[offset], badcounts + offset);
