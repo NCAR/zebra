@@ -1,0 +1,15 @@
+#!/bin/csh -f
+# this tool is used to grab an window and produce a PNG file
+if ($#argv != 1) then
+    set fname=/scr/images/`date +%Y_%m%d_%H%M%S`.png
+    echo saving image to $fname
+else
+    set fname=$1
+endif
+set temp=/tmp/$$.pnm
+set out=/tmp/$$.png
+rm -f $temp
+xwd  | xwdtopnm  >$temp
+convert $temp $out
+mv $out $fname
+rm -f $temp

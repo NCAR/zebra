@@ -4,7 +4,7 @@
 # cam_ingest can not start until the datastore and message are running.
 # (it would be more elegant to poll utnil these tasks are ready . . .)
 # 
-sleep 180
+sleep 60
 
 datafile=/scr/data/tmp/spol_surface.txt
 fields=skip:pres:tdry:rh:wspd:wdir:jd:hhmm

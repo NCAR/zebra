@@ -1,4 +1,4 @@
-SCRIPTS= build_selected_links newdisplay startbutton startup do_new_iop new_iop start_cam
+SCRIPTS= build_selected_links newdisplay startbutton startup do_new_iop new_iop start_cam snap_win
 
 DESTDIR=/usr/local/zebra/bin
 install:
