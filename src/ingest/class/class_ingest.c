@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.12 1993-03-24 18:50:20 burghart Exp $
+ * $Id: class_ingest.c,v 2.13 1994-05-24 02:35:24 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.12 1993-03-24 18:50:20 burghart Exp $")
+   "$Id: class_ingest.c,v 2.13 1994-05-24 02:35:24 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -54,6 +54,11 @@ static char *	GetNextString FP ((char *, char*));
 # define BUFLEN	1024
 # define BADVAL -9999.0
 # define MAX_FIELDS 32
+
+#define ZEB_PROBLEM 1
+#define FILE_PROBLEM 8
+#define PROBLEM 99
+#define NO_PROBLEM 0
 
 /*
  * Structure to build a linked list of site name -> platform name translations
@@ -129,14 +134,14 @@ int main (argc, argv)
 	{
 		printf("%s: need a file name\n",argv[0]);
 		Usage(argv[0]);
-		exit(1);
+		exit(PROBLEM);
 	}
 	filename = argv[1];
 	if (JustShowFields)
 	{
 		GetPlatformName(filename, plat);
 		snd_show(&end_cmd);
-		exit(0);
+		exit(NO_PROBLEM);
 	}
 
 /*
@@ -227,10 +232,10 @@ ERRORCATCH
 
 ON_ERROR
 	IngestLog(EF_EMERGENCY,"Error occurred.  Aborting...");
-	exit (1);
+	exit (FILE_PROBLEM);
 ENDCATCH
 	IngestLog(EF_DEBUG, "Finished...");
-	exit (0);
+	exit (NO_PROBLEM);
 }
 
 
