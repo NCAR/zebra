@@ -47,7 +47,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.9 1992-04-23 22:17:59 barrett Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.10 1992-05-12 16:19:02 burghart Exp $")
 
 /*
  * Issues:
@@ -60,7 +60,7 @@ MAKE_RCSID ("$Id: Archiver.cc,v 1.9 1992-04-23 22:17:59 barrett Exp $")
  *
  * The scheme:
  
- 	cd to $ZEBHOME/fcc/data
+ 	cd to the data root directory
 	Figure out files dumped some other time
 	open tape drive (position?)
 	do forever:
@@ -89,7 +89,8 @@ int	FreshTape = TRUE;
 int	TapeLimit = 350000000;	/* Tape size, less a safety margin */
 				/* Default is high density Exabyte */
 
-# define BLOCKSIZE	(16*512)
+# define BFACTOR	64	/* Blocking factor for the tar command */
+# define BLOCKSIZE	(BFACTOR*512)
 
 # define DUMPTIME	2	/* how often, in hours, to dump	*/
 # define AR_TAPE 1
@@ -336,7 +337,7 @@ char **argv;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
 	button = XtCreateManagedWidget ("finish", commandWidgetClass, Form,
 			args, n);
-	XtAddCallback (button, XtNcallback, Finish, 0);
+	XtAddCallback (button, XtNcallback, (XtCallbackProc) Finish, 0);
 /*
  * A "take/release" button.
  */
@@ -354,7 +355,7 @@ char **argv;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
 	Action = XtCreateManagedWidget ("action", commandWidgetClass, Form,
 			args, n);
-	XtAddCallback (Action, XtNcallback, ActionButton, 0);
+	XtAddCallback (Action, XtNcallback, (XtCallbackProc) ActionButton, 0);
 /*
  * Status info.
  */
@@ -657,7 +658,7 @@ int all;
  */
 	if (DeviceFD < 0)
 		return;
-	strcpy (Tarbuf, "exec tar cfb - 16 ");
+	sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
 /*
  * Pass through the platform table and dump things.
  */
@@ -697,16 +698,16 @@ int all;
  * Dump out any files from this platform.
  */
 {
-	time last, dumptime;
+	ZebTime last, dumptime;
 	SValue v;
 	int type, findex;
 /*
  * Find the last time this thing was dumped.
  */
 	if (usy_g_symbol (DumpedTable, p->dp_name, &type, &v))
-		last = v .us_v_date;
+		TC_UIToZt (&(v.us_v_date), &last);
 	else
-		last.ds_yymmdd = last.ds_hhmmss = 0;
+		last.zt_Sec = last.zt_MicroSec = 0;
 /*
  * Go through the file chain.  We never dump the most recent file, on the 
  * assumption that it is still being written to (unless we've been told
@@ -714,13 +715,13 @@ int all;
  */
 	if ((findex = p->dp_LocalData) == 0 || 
 			(! all && (findex = DFTable[findex].df_FLink) == 0) ||
-			DLE (DFTable[findex].df_end, last))
+			TC_LessEq (DFTable[findex].df_end, last))
 		return;		/* Nothing to dump */
 	dumptime = DFTable[findex].df_end;
 /*
  * Now go through and do it.
  */
-	while (findex && DLT (last, DFTable[findex].df_end))
+	while (findex && TC_Less (last, DFTable[findex].df_end))
 	{
 		char *fname = DFTable[findex].df_name;
 	/*
@@ -744,7 +745,7 @@ int all;
 /*
  * Record the new time.
  */
-	v.us_v_date = dumptime;
+	TC_ZtToUI (&dumptime, &(v.us_v_date));
 	usy_s_symbol (DumpedTable, p->dp_name, SYMT_DATE, &v);
 }
 
@@ -1033,18 +1034,21 @@ int junk;
  */
 {
 	int dfi;
+	ZebTime ftime;
 	PlatformId pid = ds_LookupPlatform (sym);
 /*
  * Plow through the file entries, marking everything that we have written 
  * out.
  */
+	TC_UIToZt (&(v->us_v_date), &ftime);
+
 	for (dfi = LOCALDATA (PTable[pid]); dfi; dfi = DFTable[dfi].df_FLink)
 	{
 	/*
 	 * If this file is already marked, or hasn't been done, move on.  
 	 * Otherwise send the notification.
 	 */
-	 	if (DLE (DFTable[dfi].df_end, v->us_v_date) &&
+	 	if (TC_LessEq (DFTable[dfi].df_end, ftime) &&
 				! DFTable[dfi].df_archived)
 			SendMA (dfi);
 	}
