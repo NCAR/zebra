@@ -20,13 +20,15 @@ Logger * Logger::prototype = 0;
 
 /*
  * Return a clone of the logger prototype for the given name.
+ * The default prototype is the null logger so that applications
+ * not worried about underlying logging will not need to care.
  */
 Logger *
 Logger::For (const char *name)
 {
 	if (prototype)
 		return prototype->Clone (name);
-	return new Logger (name);
+	return new NullLogger (name);
 }
 
 
