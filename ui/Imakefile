@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.4 1995-05-24 22:49:19 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1995-05-24 23:13:32 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,8 +28,6 @@ LIBS = $(LIBRDSSUTIL) $(XLIBS)
 INCLUDES =
 LIBS = $(LIBRDSSUTIL)
 #endif
-
-SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBRDSSUTIL)
 
@@ -100,6 +98,8 @@ DISTFILES = Imakefile ui_commands ui_commands. ui_commands.def \
  */
 #ifdef ProjectZebra
 
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+
 NormalLibraryTarget(rdssui,$(LIBOBJS))
 InstallLibrary(rdssui,$(LIBDIR))
 
@@ -107,6 +107,9 @@ CompleteProgramTarget(uib, uib.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 CompleteProgramTarget(uic, uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 #else /* ProjectRDSSLibs */
+
+/* RDSS includes math and termcap in the SYS_LIBRARIES variable */
+SYSLIBS = $(LIBREGEXP)
 
 AllTarget ($(LIBOBJS))
 NormalLibraryTarget($(LOCALLIB),$(LIBOBJS))
