@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.6 1989-09-07 09:45:25 burghart Exp $ */
+/* $Id: device.c,v 1.7 1989-09-18 13:54:22 corbet Exp $ */
 /*
  * Handle device specifics.
  */
@@ -23,7 +23,7 @@ extern int x11_pixel (), x11_put_target (), x11_clip ();
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
 extern int xt_poly (), xt_pick (), xt_target (), xt_color (), xt_event ();
-extern int xt_pixel (), xt_put_target (), xt_vp ();
+extern int xt_pixel (), xt_put_target (), xt_vp (), xt_readscreen ();
 # endif
 # ifdef DEV_RAMTEK
 extern int rm_open (), rm_clear (), rm_flush (), rm_poly (), rm_color_map ();
@@ -260,7 +260,7 @@ struct device D_tab[] =
 		___,			/* Color assignment		*/
 		xt_event,		/* Event handling		*/
 		xt_vp,			/* (no)	viewport adjustment	*/
-		___,			/* readscreen			*/
+		xt_readscreen,		/* readscreen			*/
 		xt_pick,			/* pick			*/
 	},
 # endif
