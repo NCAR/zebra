@@ -7,7 +7,7 @@
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
-# include <DataStore.h>
+# include <FakeDataStore.h>
 # include "derive.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
