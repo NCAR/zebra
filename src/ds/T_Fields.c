@@ -9,7 +9,7 @@
 
 #include "apple.h"
 
-RCSID("$Id: T_Fields.c,v 3.4 1997-12-11 20:49:35 burghart Exp $")
+RCSID("$Id: T_Fields.c,v 3.5 1997-12-12 16:34:08 burghart Exp $")
 
 extern void F_Warnings (int);
 
@@ -21,22 +21,33 @@ T_FieldNames ()
 	"too many characters for a legal description; should get truncated";
 	static char *units =
 		"this units string needs to be shorter";
+	static int pass = 0;
 	int err = 0;
 
 	/*
 	 * Just make sure we catch illegal names, but they will still
-	 * be defined.  If the fields have already been defined, then
-	 * we won't get any warnings.
+	 * be defined.  After the first pass for any given name, we 
+	 * shouldn't get any warnings.
 	 */
 	F_Warnings (1);
 
-	TX_Catch ("declare field 'thisname.*name longer than");
-	err += (F_DeclareField (name, longname, units) == BadField);
-	err += TX_Caught();
+	if (pass == 0)
+	{
+	    TX_Catch ("declare field 'thisname.*name longer than");
+	    err += (F_DeclareField (name, longname, units) == BadField);
+	    err += TX_Caught();
 
-	TX_Catch ("declare field 'xxx.*illegal characters");
-	err += (F_DeclareField ("xxx.&.xxx", "X", "X") == BadField);
-	err += TX_Caught();
+	    TX_Catch ("declare field 'xxx.*illegal characters");
+	    err += (F_DeclareField ("xxx.&.xxx", "X", "X") == BadField);
+	    err += TX_Caught();
+	}
+	else
+	{
+	    err += (F_DeclareField (name, longname, units) == BadField);
+	    err += (F_DeclareField ("xxx.&.xxx", "X", "X") == BadField);
+	}
+
+	pass++;
 
 	return (err);
 }
