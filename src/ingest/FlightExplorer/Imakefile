@@ -1,0 +1,4 @@
+OBJS = FlightExplorer.o
+CXXFLAGS = $(DIRDEFINES)
+
+CccProgramTarget(FlightExplorer, $(OBJS),,,)
