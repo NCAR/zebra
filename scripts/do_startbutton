@@ -1,0 +1,2 @@
+#!/bin/csh
+exec /usr/local/zebra/bin/startbutton
