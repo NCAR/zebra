@@ -23,7 +23,7 @@
 # include <string.h>
 # include <unistd.h>
 
-# include <copyright.h>
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
@@ -32,7 +32,7 @@
 # include "NetXfr.h"
 
 
-RCSID("$Id: NetXfr.c,v 3.8 1995-09-20 20:45:58 burghart Exp $")
+RCSID("$Id: NetXfr.c,v 3.9 1996-11-19 08:08:12 granger Exp $")
 
 
 /*
@@ -135,9 +135,6 @@ static int	Incoming FP ((Message *));
 static void	Die FP ((void));
 static int	Dispatcher FP ((int, struct ui_command *));
 static void	NewRecipients FP ((struct ui_command *));
-#ifdef notdef
-static void	Run FP ((void));
-#endif
 static void	DataAvailable FP ((PlatformId, int, ZebTime *, int, UpdCode));
 static int	NXMessage FP ((Message *));
 static void	SendAux FP ((PlatformId, AuxDataChain));
@@ -152,10 +149,6 @@ static void	ZapIP FP ((InProgress *));
 static void	Timeout FP ((UItime *, int));
 static void	AskRetrans FP ((InProgress *, int));
 void		ProcessPolled FP ((void));
-#ifdef notdef
-static void	RLEDecode FP ((unsigned char *, unsigned char *, int));
-static void 	canIP FP ((void));
-#endif
 void		SendDChunk FP ((DataChunk *, int));
 void		SendOut FP ((PlatformId, void *, int));
 static inline	DataBCChunk *NewBCChunk FP ((void));
@@ -314,7 +307,6 @@ struct ui_command *cmds;
 	 * Time to start running.
 	 */
 	   case NXC_RUN:
-	   	/* Run (); */
 		tl_RelativeReq(ScanIP,0, IPScan*60*INCFRAC, IPScan*60*INCFRAC);
 		msg_await ();
 		break;
@@ -862,7 +854,7 @@ NxAuxData *nxa;
 /*
  * Add this ade and the data by passing the fields from the ade
  */
-	dc_AddADE (ip->ip_Dc, data, ade->dca_Class, ade->dca_SubType,
+	dc_AddADE (ip->ip_Dc, data, ade->dca_ClassId, ade->dca_SubType,
 		   ade->dca_Len, ade->dca_Free);
 }
 

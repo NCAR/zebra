@@ -27,12 +27,14 @@
 # include <sys/time.h>
 # include <sys/resource.h>
 # include <signal.h>
+
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
-# include "DataStore.h"
+# include <DataStore.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_PktGrabber.c,v 3.7 1995-09-20 20:46:02 burghart Exp $")
+RCSID("$Id: nx_PktGrabber.c,v 3.8 1996-11-19 08:08:18 granger Exp $")
 
 /*
  * The header of our shared memory segment.

@@ -20,13 +20,14 @@
  */
 # include <string.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include <ImageXfr.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_DirImage.c,v 3.8 1996-01-10 19:06:41 granger Exp $")
+RCSID("$Id: nx_DirImage.c,v 3.9 1996-11-19 08:08:16 granger Exp $")
 
 /*
  * We're only set up to deal with one image source for now.  Should

@@ -27,13 +27,14 @@
 # include <sys/signal.h>
 #endif
 
-# include "defs.h"
-# include "message.h"
-# include "timer.h"
-# include "DataStore.h"
+# include <ui.h>
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <DataStore.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_BCast.c,v 3.4 1995-04-20 07:57:13 granger Exp $")
+RCSID("$Id: nx_BCast.c,v 3.5 1996-11-19 08:08:15 granger Exp $")
 
 /*
  * Local stuff.
