@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.4 1992-07-31 19:26:49 kris Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.5 1992-07-31 22:02:38 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -108,7 +108,7 @@ bool	update;
  */
 {
 	bool	ok;
-	int	i, npts, plat, nplat, ii, jj, ns, gridsize;
+	int	i, npts, plat, nplat, ii, jj, ns ;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted=0;
@@ -430,9 +430,12 @@ bool	update;
 			{
 			    tempdata = dc_RGGetGrid (dc, m, fids[n],
 					&origin, &rg, &len);
-			    npts = rg.rg_nX * ns;
-			    data[n] = (float *) malloc (npts * sizeof (float));
-			    memcpy (data[n] + gridsize, tempdata, gridsize);
+			    if ( m == 0 )
+			    {
+			        npts = rg.rg_nX * ns;
+			        data[n] = (float *) malloc (npts * sizeof (float));
+			    }
+			    memcpy (data[n] + (m*rg.rg_nX), tempdata, len);
 			}
 		}
 	        xdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));

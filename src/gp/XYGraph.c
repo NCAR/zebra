@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.8 1992-07-31 19:27:03 kris Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.9 1992-07-31 22:01:33 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -356,11 +356,13 @@ bool	update;
 			{
 				tempdata = dc_RGGetGrid (dc, m, fids[n], 
 					&origin, &rg, &len);
-		    		npts[plat] = rg.rg_nX * ns;
-				data[n] = (float *) malloc (npts[plat] *
+				if ( m == 0 )
+				{
+		    		    npts[plat] = rg.rg_nX * ns;
+				    data[n] = (float *) malloc (npts[plat] *
 					sizeof (float)); 
-				gridsize = m * rg.rg_nX;
-				memcpy (data[n]+ gridsize, tempdata, gridsize); 
+				}
+				memcpy (data[n]+ (m*rg.rg_nX), tempdata, len); 
 			}
 		}
 

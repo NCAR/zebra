@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.7 1992-07-31 19:27:20 kris Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.8 1992-07-31 22:02:13 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -65,7 +65,7 @@ bool	update;
  */
 {
 	bool	ok;
-	int	i, npts, plat, nplat, ii, jj, ns, gridsize;
+	int	i, npts, plat, nplat, ii, jj, ns ;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted=0;
@@ -453,10 +453,12 @@ bool	update;
 			{
 			    tempdata = dc_RGGetGrid (dc, m, fids[n],
 					&origin, &rg, &len);
-			    npts = rg.rg_nX * ns;
-			    data[n] = (float *) malloc (npts * sizeof (float));
-			    gridsize = m * rg.rg_nX;
-			    memcpy (data[n] + gridsize, tempdata, gridsize);
+			    if ( m == 0 )
+			    {
+			        npts = rg.rg_nX * ns;
+			        data[n] = (float *)malloc(npts*sizeof (float));
+			    }
+			    memcpy (data[n] + (m*rg.rg_nX), tempdata, len);
 			}
 		}
 
