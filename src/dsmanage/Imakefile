@@ -8,7 +8,7 @@ SRCS = dsmanage.cc dsmWindows.cc DataDir.cc Index.cc MainWindow.cc Dialog.cc \
 	LoadData.cc StatusWin.cc DLoad.cc Tape.cc TBCleanup.cc $(TISRCS) \
 	Examiner.cc
 
-HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h ZTime.h \
+HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h \
 	fcontainer.h plcontainer.h container.h dsmWindows.h dsmanage.h \
 	Exceptions.h dsPlatform.h BoolKludge.h MaybeCString.h
 
@@ -40,20 +40,3 @@ DistfilesTarget($(DISTFILES))
 ZebraMakeDepend()
 CccDependTarget($(SRCS))
 
-XCOMM Dependencies added by hand for now
-
-dsmanage.o: STable.h dsmanage.h DataDir.h fcontainer.h Index.h plcontainer.h
-dsmWindows.o: dsmanage.h container.h DataDir.h fcontainer.h dsmWindows.h
-DataDir.o: container.h DataDir.h fcontainer.h
-Index.o: STable.h Index.h ZTime.h
-MainWindow.o: dsmanage.h dsmWindows.h Dialog.h
-Dialog.o: dsmanage.h dsmWindows.h Dialog.h
-LoadData.o: dsmanage.h DataDir.h
-LoadData.o: fcontainer.h STable.h dsmWindows.h Index.h ZTime.h plcontainer.h
-StatusWin.o: dsmanage.h dsmWindows.h StatusWin.h
-DLoad.o: dsmanage.h Tape.h plcontainer.h
-DLoad.o: dsmWindows.h STable.h Index.h StatusWin.h DataDir.h fcontainer.h
-TBCleanup.o: dsmanage.h DataDir.h
-TBCleanup.o: fcontainer.h STable.h dsmWindows.h Index.h ZTime.h plcontainer.h
-TapeIndex.o: dsmanage.h STable.h Index.h Tape.h
-Examiner.o: dsmanage.h DataDir.h fcontainer.h dsmWindows.h plcontainer.h
