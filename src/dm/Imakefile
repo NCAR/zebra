@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.5 1995-04-18 22:18:29 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 1995-05-05 17:37:38 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,6 +29,8 @@ SRCS= dm.c dm_pd.c dm_ui.c dm_color.c DialBox.c dm_pick.c dm_config.c \
 
 HEADERS = dm_cmds.h dm_vars.h dm_process.h
 
+DEFINES = $(XHELPDEFINES)
+
 DISTFILES = Imakefile $(SRCS) $(HEADERS) dm.widgets dm.state DisplayMgr.ad
 
 NormalProgramTarget(dm,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
@@ -36,8 +38,6 @@ NormalProgramTarget(dm,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 UILoadFileTarget_2(dm.lf,dm.state,'dm-initial',dm.widgets)
 
 InstallAppDefaults(DisplayMgr)
-
-/* BuildIncludes(dm.h,.,.) */
 
 saber:	$(OBJS)
 	# setopt ansi
