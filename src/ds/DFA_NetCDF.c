@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.4 1992-07-08 19:13:45 kris Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.5 1992-07-23 14:38:29 corbet Exp $")
 
 # include "netcdf.h"
 
@@ -989,22 +989,22 @@ float badval;
 	for (field = 0; field < nfield; field++)
 	{
 	/*
-	 * Look up the field and try to pull in the data.
+	 * Look up the field and try to pull in the data.  Make sure we
+	 * get bad value flags right.
 	 */
-		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-			continue;
-		if (ncvarget (tag->nc_id, vfield, start, count, temp) < 0)
-			dnc_NCError ("Scalar data read");
-	/*
-	 * If that works, add it to the data chunk, with bad flags done
-	 * right.
-	 */
-		else
+		if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0) ||
+			(ncvarget(tag->nc_id, vfield, start, count, temp) < 0))
 		{
-			dnc_ApplyBadval (tag, vfield, badval, temp, nsamp);
-			dc_AddMultScalar (dc, t, sbegin, nsamp, fids[field],
-					temp);
+			float bad = dc_GetBadval (dc);
+			for (i = 0; i < nsamp; i++)
+				temp[i] = bad;
 		}
+		else
+			dnc_ApplyBadval (tag, vfield, badval, temp, nsamp);
+	/*
+	 * Add it to the data chunk.
+	 */
+		dc_AddMultScalar (dc, t, sbegin, nsamp, fids[field], temp);
 	}
 	free (temp);
 	free (t);
