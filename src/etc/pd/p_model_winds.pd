@@ -1,0 +1,24 @@
+!
+! Generic plot description for model data winds.  Needs to have the platform
+! and icon filled in.
+!
+global
+	pd-name:	p_model_winds
+p_model_winds
+	platform:	SOMETHING
+	icon:		SOMETHING
+	altitude-control:	true
+	arrow-scale:	0.002
+	degrade:	2
+	color:	white
+	color-mono:	true
+	color-table:	gcook16
+	grid-method:	bilinear
+	icon-middle-menu:	simple-color
+	icon-right-menu:	linewidth
+	limit-proc:	adj_arrow_scale
+	line-width:	2
+	representation:	vector
+	u-field:	u_wind
+	v-field:	v_wind
+	require:	simple-color
