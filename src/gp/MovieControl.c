@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.4 1990-07-09 20:19:51 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.5 1990-09-13 09:45:24 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -30,14 +30,21 @@ static char *rcsid = "$Id: MovieControl.c,v 1.4 1990-07-09 20:19:51 corbet Exp $
 static char Minutes[ATSLEN], Endt[ATSLEN], Frate[ATSLEN], Fskip[ATSLEN];
 static Widget StatusLabel;	/* Where the current status goes	*/
 static Widget Indicator;
-static Widget WEndt;
+static Widget WEndt, WMinutes, WFrate, WFskip;
 
 /*
  * The actual movie control parameters.
  */
 # define MAXFRAME	40
-static time Mtimes[MAXFRAME];
+static time Mtimes[MAXFRAME];	/* The time of each frame		*/
+/*
+ * CurrentFrame is the frame we are supposed to be actually looking at.
+ * DisplayedFrame is what we really *are* looking at.  They diverge when
+ * multiple update events happen before we can actually update the screen,
+ * due to system load.
+ */
 static int CurrentFrame;
+static int DisplayedFrame;
 static int MovieSlot = -1;
 static int Nframes = 0;
 static int TimeSkip = 1;	/* Minutes between frames		*/
@@ -98,7 +105,7 @@ mc_DefMovieWidget ()
 
 
 
-static void
+void
 mc_LoadParams ()
 /*
  * Load the movie params from the PD.
@@ -209,13 +216,13 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
 	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	w = XtCreateManagedWidget ("movieMin", asciiTextWidgetClass, form,
-		args, n);
+	WMinutes = XtCreateManagedWidget ("movieMin", asciiTextWidgetClass,
+		form, args, n);
 /*
  * More label.
  */
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromHoriz, WMinutes); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "min. ending at"); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
@@ -267,20 +274,20 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
 	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	w = XtCreateManagedWidget ("moviefr", asciiTextWidgetClass, form,
+	WFrate = XtCreateManagedWidget ("moviefr", asciiTextWidgetClass, form,
 		args, n);
 /*
  * More label.
  */
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromHoriz, WFrate); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "Frame skip: "); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	w = XtCreateManagedWidget ("Movieskpl", labelWidgetClass, form,
 		args, n);
 /*
- * The frame rate text widget.
+ * The frame skip text widget.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
@@ -296,13 +303,13 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
 	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	w = XtCreateManagedWidget ("moviefs", asciiTextWidgetClass, form,
+	WFskip = XtCreateManagedWidget ("moviefs", asciiTextWidgetClass, form,
 		args, n);
 /*
  * More label.
  */
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromHoriz, WFskip); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "minutes."); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
@@ -350,19 +357,33 @@ XtAppContext appc;
 
 
 
+static void
+mc_DoOneWidget (w, string)
+Widget w;
+char *string;
+/*
+ * Update a single text widget.
+ */
+{
+	Arg args[5];
+	int n = 0;
+
+	XtSetArg (args[n], XtNstring, string); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetValues (w, args, n);
+}
+
 
 mc_UpdateWidgets ()
 /*
  * Make the widgets reflect reality.
  */
 {
-	Arg args[5];
-	int n = 0;
-
-	XtSetArg (args[n], XtNstring, Endt); n++;
-	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
-	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
-	XtSetValues (WEndt, args, n);
+	mc_DoOneWidget (WEndt, Endt);
+	mc_DoOneWidget (WMinutes, Minutes);
+	mc_DoOneWidget (WFrate, Frate);
+	mc_DoOneWidget (WFskip, Fskip);
 }
 
 
@@ -411,8 +432,6 @@ mc_SetupParams ()
 	int minutes;
 	union usy_value v;
 	char fskipk[ATSLEN];
-
-	mc_LoadParams ();
 /*
  * Figure out what is in the control widget now.
  */
@@ -431,6 +450,7 @@ mc_SetupParams ()
 		mc_SetStatus ("Unable to understand frame rate");
 		return (FALSE);
 	}
+	msg_ELog (EF_INFO, "Frame rate %d", Rate);
 	if (! sscanf (Fskip, "%d", &TimeSkip))
 	{
 		mc_SetStatus ("Unable to understand frame skip");
@@ -527,7 +547,7 @@ int *which;
  * Otherwise now it's time to start the movie sequence process.
  */
 	mc_SetStatus ("Running");
-	CurrentFrame = 0;
+	DisplayedFrame = CurrentFrame = Nframes + 1;
 	mc_NextFrame ();
 /*
  * Start the timer to do the rest.
@@ -608,7 +628,7 @@ mc_MovieStop ()
  * Throw the system into history mode, showing the current frame.
  */
 	if (CurrentFrame >= Nframes)
-		CurrentFrame--;
+		CurrentFrame = Nframes - 1;
 	HistoryMode (&Mtimes[CurrentFrame]);
 }
 
@@ -656,14 +676,23 @@ mc_NextFrame ()
  * Arrange to have the next frame displayed.
  */
 {
-	Eq_AddEvent (PDisplay, mc_DoNextFrame, &CurrentFrame, sizeof (int), 
-		Bounce);
+/*
+ * If we are out of sync -- the last update not yet done -- blow this one
+ * off completely.
+ */
+	if (CurrentFrame != DisplayedFrame)
+		return;
 /*
  * Increment the frame count.  We allow it to go one over the number of frames
  * around, to implement a one-cycle pause at the end of the movie.
  */
 	if (++CurrentFrame > Nframes)
 		CurrentFrame = 0;
+/*
+ * Now schedule an update of the next frame.
+ */
+	Eq_AddEvent (PDisplay, mc_DoNextFrame, &CurrentFrame, sizeof (int), 
+		Bounce);
 }
 
 
@@ -683,6 +712,7 @@ int *frame;
 		mc_SetIndicator (*frame);
 		px_PlotExec ("global");
 	}
+	DisplayedFrame = *frame;
 }
 
 
