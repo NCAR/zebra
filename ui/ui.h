@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.7 1998-02-27 17:01:10 burghart Exp $ */
+/* $Id: ui.h,v 1.8 2000-04-10 20:33:45 burghart Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -65,7 +65,7 @@ struct ui_command
 	void ui_string_prompt (char *, char *, char *, char *);
 	void ui_date_prompt (char *, char *, date *, date *);
 	int ui_kw_prompt (char *, char *, char *, char *);
-	char *usy_string (char *);
+	char *usy_string (const char *);
 	void usy_rel_string (char *);
 	char *usy_pstring (const char *);
 	void tty_watch (int, void (*)());
