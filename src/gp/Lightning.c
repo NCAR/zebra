@@ -1,6 +1,10 @@
 /*
  * Lightning display routine.
  */
+static char *rcsid = "$Id: Lightning.c,v 2.2 1991-09-12 19:29:08 corbet Exp $";
+# include <config.h>
+# if C_CAP_LIGHTNING
+
 # include <X11/Intrinsic.h>
 # include <math.h>
 # include <defs.h>
@@ -190,3 +194,4 @@ bool update;
 }
 
 
+# endif   /* C_CAP_LIGHTNING */
