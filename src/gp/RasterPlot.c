@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.2 1991-11-04 18:01:54 kris Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.3 1992-07-30 19:12:25 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -63,16 +63,28 @@ static XRectangle	Clip;
 /*
  * Forwards.
  */
-/* static */ void RP_FPRasterize (), RP_IRasterize ();
-# ifdef __STDC__
-	static XImage *RP_GetXImage (Widget, int, int);
-	static void RP_ImageRasterize (unsigned char *, int, int,
+void RP_FPRasterize FP((
+	unsigned char *ximp,
+	int width, int height, 
+	unsigned int *colgrid, 
+	float row, float icol, 
+	float rowinc, float colinc,
+	int xdim, 
+	int pad));
+
+void RP_IRasterize FP((
+	unsigned char *ximp,
+	int width, int height, 
+	unsigned int *colgrid, 
+	float row, float icol, 
+	float rowinc, float colinc,
+	int xdim, 
+	int pad));
+
+static XImage *RP_GetXImage FP((Widget, int, int));
+static void RP_ImageRasterize FP((unsigned char *, int, int,
 		unsigned char *, unsigned char *, double, double, double,
-		double, int, int);
-# else
-	static XImage *RP_GetXImage ();
-	static void RP_ImageRasterize ();
-# endif
+		double, int, int));
 
 /*
  * Shared memory ximages, if we can.
@@ -396,7 +408,7 @@ Display *disp;
 
 
 
-static void
+void
 RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
 	xdim, pad)
 unsigned char *ximp;
@@ -567,7 +579,7 @@ int width, height;
 
 
 
-/* static */ void
+void
 RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
 	xdim, pad)
 unsigned char *ximp;
@@ -613,9 +625,11 @@ float row, icol, rowinc, colinc;
 
 
 
-
-# ifdef SHM
-
+/*-----------------------------------------------------------------
+ * The following routines do raster plots of data that already
+ * have an Image organization.  If shared memory is supported and
+ * possible, it is used.
+ */
 
 
 void
@@ -633,6 +647,10 @@ float scale, bias;
 	int c, rcolor, width, height;
 	float cscale = Ncolor/Datarange;
 	float row, col, rowinc, colinc, icol, irow;
+	GC gcontext;
+	XGCValues gcvals;
+	Display *disp = XtDisplay(w);
+	XImage *image;
 /*
  * Go through and make the color map.
  */
@@ -661,6 +679,12 @@ float scale, bias;
 	colinc = ((float) xd - 1)/((float) width);
 	rowinc = ((float) yd)/((float) height);
 /*
+ * Get a graphics context
+ */
+	gcontext = XCreateGC( disp, XtWindow(w), 0, &gcvals);
+	XSetClipRectangles( disp, gcontext, 0, 0, &Clip, 1, Unsorted);
+
+/*
  * Clip to the window, if appropriate.
  */
 	if (xlo < Clip.x)
@@ -686,10 +710,36 @@ float scale, bias;
  * the server; things could happen in the wrong order otherwise.
  */
 	eq_sync ();
-	destimg = (unsigned char *) GWGetFrameAddr (w, frame);
-	destimg += yhi*GWWidth(w) + xlo;
-	RP_ImageRasterize (destimg, width, height, grid, cmap, row, icol,
-		rowinc, colinc, xd, GWWidth (w) - width);
+
+# ifdef SHM
+	/*
+	 * The raster image will be written directly to the 
+	 * server's memory through the Graphics Widget's shared memory,
+	 * unless shared memory is not possible... in which case we
+	 * must create a local image, process our data, and then
+	 * send the image to the server.
+	 */
+	if (RP_ShmPossible(disp))
+	{
+		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
+		destimg += yhi*GWWidth(w) + xlo;
+		RP_ImageRasterize (destimg, width, height, grid, cmap, row, icol,
+			rowinc, colinc, xd, GWWidth (w) - width);
+	}
+	else
+# endif
+	{
+		image = RP_GetXImage(w, width, height);
+		RP_ImageRasterize ((unsigned char *)(image->data), 
+				   width, height, grid, cmap, row, icol,
+				   rowinc, colinc, xd, 0);
+		/*
+		 * Now send our local XImage to the server
+	 	 */
+		XPutImage(disp, GWFrame(w), gcontext, image, 0, 0,
+			  xlo, yhi, width, height);
+	}
+	XFreeGC(disp, gcontext);
 /*
  * Done!
  */
@@ -742,4 +792,3 @@ float row, icol, rowinc, colinc;
 }
 
 
-# endif
