@@ -1,7 +1,7 @@
 /*
  * The message handler.
  */
-static char *rcsid = "$Id: message.c,v 1.5 1991-04-30 23:10:41 corbet Exp $";
+static char *rcsid = "$Id: message.c,v 1.6 1991-05-30 17:40:00 corbet Exp $";
 
 # include <stdio.h>
 # include <varargs.h>
@@ -39,10 +39,12 @@ static int M_in_socket;		/* Internet domain socket	*/
 static fd_set Allfds;
 static int Port = DEFAULT_PORT;
 
+static int Dying = FALSE;
+
 /*
  * This structure describes a connection.
  */
-struct connection 
+typedef struct connection 
 {
 	char	c_name[MAX_NAME_LEN];	/* The name of the connection	*/
 	int	c_fd;			/* The file descriptor.		*/
@@ -51,8 +53,8 @@ struct connection
 	int	c_nrec;			/* Messages received		*/
 	int	c_bnrec;		/* Bytes received		*/
 	char	c_inet;			/* Internet connection		*/
-};
-struct connection *MH_conn;		/* Fake connection for local stuff */
+} Connection;
+Connection *MH_conn;		/* Fake connection for local stuff */
 
 /*
  * Process groups are maintained through a structure like this.
@@ -578,6 +580,8 @@ die ()
 	struct message msg;
 	struct mh_template tmpl;
 	int i;
+
+	Dying = TRUE;
 /*
  * Send out a message saying that it's all over.  Note that we do not
  * explicitly broadcast to inet connections, or we could take down the
@@ -782,8 +786,8 @@ struct message *msg;
  * See to it that we agree with the remote machine as to their name.
  */
 	at = strrchr (msg->m_from, '@');
-	if (! at || strcmp (conp->c_name, at))
-		send_log ("IN machine %s thinks its %s!", conp->c_name, at);
+	if (! at || strcmp (conp->c_name, at + 1))
+		send_log ("IN machine %s thinks its %s!", conp->c_name, at +1);
 }
 
 
@@ -840,7 +844,10 @@ char *recip;
 	if (! (at = strrchr (recip, '@')))
 	{
 		if (! usy_g_symbol (Proc_table, recip, &type, &v))
+		{
 			send_log ("Message to unknown recipient %s", recip);
+			return (0);
+		}
 		return ((struct connection *) v.us_v_ptr);
 	}
 /*
@@ -1101,24 +1108,41 @@ struct connection *conp;
 	struct group *grp;
 	int i, type;
 	union usy_value v;
+	char *at, *strrchr ();
+	Connection *netcon;
 /*
- * Lookup the group.
+ * If this thing has an @ in it, what we really want to do is to ship it
+ * across the net.
  */
- 	if (! usy_g_symbol (Group_table, msg->m_to, &type, &v))
-		return;
-	grp = (struct group *) v.us_v_ptr;
+	if (at = strrchr (msg->m_to, '@'))
+	{
+		if (netcon = FindRecipient (msg->m_to))
+			send_msg (netcon, msg);
+	}
 /*
- * Stats.
+ * Otherwise we distribute locally.
  */
-	S_nbcast++;
-	S_bnbcast += msg->m_len;
-/*
- * Now step through the connections, sending to each, but being careful
- * not to send to the originator of the message.
- */
- 	for (i = 0; i < grp->g_nprocs; i++)
-		if (grp->g_procs[i] != conp)
-			send_msg (grp->g_procs[i], msg);
+	else
+	{
+	/*
+	 * Lookup the group.
+	 */
+	 	if (! usy_g_symbol (Group_table, msg->m_to, &type, &v))
+			return;
+		grp = (struct group *) v.us_v_ptr;
+	/*
+	 * Stats.
+	 */
+		S_nbcast++;
+		S_bnbcast += msg->m_len;
+	/*
+	 * Now step through the connections, sending to each, but being careful
+	 * not to send to the originator of the message.
+	 */
+	 	for (i = 0; i < grp->g_nprocs; i++)
+			if (grp->g_procs[i] != conp)
+				send_msg (grp->g_procs[i], msg);
+	}
 }
 
 
@@ -1166,6 +1190,9 @@ struct connection *conp;
 {
 	struct message msg;
 	struct mh_client cl;
+
+	if (Dying)
+		return;
 /*
  * Fill in our message.
  */
@@ -1239,7 +1266,7 @@ va_dcl
 /*
  * If there is no event logger, there is no point.
  */
- 	if (! usy_g_symbol (Proc_table, "Event logger", &type, &v))
+ 	if (Dying || ! usy_g_symbol (Proc_table, "Event logger", &type, &v))
 		return;
 	conp = (struct connection *) v.us_v_ptr;
 /*
@@ -1273,7 +1300,6 @@ psig ()
  */
 {
 	S_npipe++;
-	send_log ("Pipe signal received");
 }
 
 
