@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+#ifndef _zeb_slgrabber_h_
+#define _zeb_slgrabber_h_
+
 # define SL_DATA	1		/* Data			*/
 
 
@@ -29,3 +32,5 @@ typedef struct _sldata
 	int	sl_len;			/* The length		*/
 	char	sl_data[1];		/* Actual data		*/
 } sldata;
+
+#endif /* _zeb_slgrabber_h_ */
