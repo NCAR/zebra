@@ -47,7 +47,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.11 1992-06-26 22:11:30 kris Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.12 1992-06-29 19:44:41 burghart Exp $")
 
 /*
  * Issues:
@@ -95,14 +95,15 @@ unsigned long	TapeLimit = 3500000000;	/* in bytes.			   */
 # define BFACTOR	64	/* Blocking factor for the tar command */
 # define BLOCKSIZE	(BFACTOR*512)
 
-# define DUMPTIME	2	/* how often, in hours, to dump	*/
+# define DUMPINTERVAL	120	/* how often, in minutes, to dump	*/
 # define AR_TAPE 1
 # define AR_EOD 2
 
 char	*DriveName = NULL;
 char	*OutputDir = NULL;
 char	*MountName = NULL;
-int	DumpTime = DUMPTIME;
+int	DumpInterval = DUMPINTERVAL;
+int	StartMinute = 0;
 int	MinDisk = 10000;
 int	ArchiveMode = 0;
 
@@ -220,8 +221,19 @@ char **argv;
 		    sscanf ( (*++argv), "%d", &MinDisk );
 		    argc--;
 		break;
-		case 't': /* t(imer) for archive interval */
-		    sscanf ( (*++argv), "%d", &DumpTime );
+		case 'i': /* i(nterval) between dumps */
+		case 't': /* t(ime) */
+		    sscanf ( (*++argv), "%d", &DumpInterval );
+		    argc--;
+		break;
+		case 's': /* s(tart) minute */
+		    sscanf ((*++argv), "%d", &StartMinute);
+		    if (StartMinute > 60)
+		    {
+			msg_ELog (EF_PROBLEM, "Bad start minute %d, using 0", 
+				StartMinute);
+			StartMinute = 0;
+		    }
 		    argc--;
 		break;
 		case 'm': /* m(ode) */
@@ -245,8 +257,8 @@ char **argv;
 	    }
 	}
     }
-    msg_ELog (EF_INFO, "Archiver: device: %s dump interval: %d",
-	DriveName,DumpTime);
+    msg_ELog (EF_INFO, "Archiver: device: %s, dump interval: %d, start: %d",
+	DriveName, DumpInterval, StartMinute);
     if ( ArchiveMode == AR_EOD )
     {
     msg_ELog (EF_INFO, "Archiver: dump files to directory: %s",OutputDir);
@@ -458,8 +470,8 @@ ActionButton ()
  */
 {
 	Arg args[2];
-	ZebTime zt;
-	int year, month, day, hour;
+	ZebTime current, zt;
+	int year, month, day, hour, min, sec;
 	int status;
 /*
  * If we don't have a device, we try to get one.
@@ -477,6 +489,8 @@ ActionButton ()
 			SetStatus (TRUE, "Unable to open tape");
 			return;
 		    }
+
+		    SetStatus (FALSE, "Sleeping");
 		    XtSetArg (args[0], XtNlabel, "Free tape");
 		break;
 		case AR_EOD:
@@ -485,15 +499,18 @@ ActionButton ()
 		break;
 	    }
 	/*
-	 * Start saving stuff.  Make the archive time line up nicely
-	 * on the hour boundary.
+	 * Start saving stuff.  Find the next time by searching from the
+	 * beginning of the day until we get a time greater than the current
+	 * time.
 	 */
-		tl_Time (&zt);
-		TC_ZtSplit (&zt, &year, &month, &day, &hour, 0, 0, 0);
-		hour -= hour % DumpTime;
-		TC_ZtAssemble (&zt, year, month, day, hour, 0, 0, 0);
+		tl_Time (&current);
+		TC_ZtSplit (&current, &year, &month, &day, 0, 0, 0, 0);
+		TC_ZtAssemble (&zt, year, month, day, 0, StartMinute, 0, 0);
+		while (zt.zt_Sec < current.zt_Sec)
+			zt.zt_Sec += DumpInterval * 60;
+					
 		TimerEvent = tl_AbsoluteReq (TimerSaveFiles, 0, &zt,
-				DumpTime*60*60*INCFRAC);
+				DumpInterval*60*INCFRAC);
 	}
 /*
  * Otherwise we give it away.
@@ -608,18 +625,23 @@ ZebTime *zt;
 {
 	int status;
 	int year, month, day, hour, minute, second;
-	int test;
+	int test, delta;
+	ZebTime daystart;
 	char datafile[120];
 	struct statfs buf;
 /*
- * Special check -- if the hour is zero, we clean up everything.
+ * Special check -- if this is the first dump of a new day, we clean up 
+ * everything
  */
 	TC_ZtSplit (zt, &year, &month, &day, &hour, &minute, &second, 0);
+	TC_ZtAssemble (&daystart, year, month, day, 0, 0, 0, 0);
+	delta = zt->zt_Sec - daystart.zt_Sec;
+
 	switch ( ArchiveMode )
 	{
 	    case AR_TAPE:
 		if (ZeroZFree)
-			test = ((hour == 0) && (! FreshTape));
+			test = ((delta < 60 * DumpInterval) && (! FreshTape));
 		else
 			test = FALSE;
 
