@@ -1,4 +1,4 @@
-/* $Id: DataChunk.h,v 1.4 1992-01-22 23:22:58 corbet Exp $ */
+/* $Id: DataChunk.h,v 1.5 1992-03-30 19:40:11 corbet Exp $ */
 
 /*
  * DataChunks -- the new "data object" format.
@@ -8,6 +8,8 @@
  *	- Type codes
  *	- External access functions
  */
+# ifndef _DATACHUNK_H_
+# define _DATACHUNK_H_
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -169,3 +171,7 @@ void		dc_ImgAddImage FP ((DataChunk *, int, FieldId, Location *,
 			RGrid *, ZebTime *, unsigned char *, int));
 unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
 			RGrid *, int *, ScaleInfo *));
+
+
+
+# endif  /* _DATACHUNK_H_ */
