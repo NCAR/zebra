@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.39 1995-02-10 00:52:55 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.40 1995-02-24 22:49:43 burghart Exp $")
 #endif
 
 #include <netcdf.h>
@@ -900,7 +900,7 @@ NCTag *tag;
 
 		start[i] = 0;
 		ncdiminq (tag->nc_id, dimids[i], dimname, &dimsize);
-		if (! strcmp (dimname, F_GetName (altid)))
+		if (F_Declared (dimname) == altid)
 		{
 			altdimn = i;
 			count[i] = dimsize;
@@ -2413,8 +2413,9 @@ long begin, count;
 /*
  * Just do it one piece at a time.  Latitude.
  */
-	if ((var = ncvarid (tag->nc_id, "lat")) < 0) {
-		dnc_NCError ("No latitude field");
+	if ((var = ncvarid (tag->nc_id, "lat")) < 0 &&
+	    (var = ncvarid (tag->nc_id, "latitude")) < 0) {
+		dnc_NCError ("No 'lat' or 'latitude' field");
 		return;
 	}
 	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
@@ -2426,8 +2427,9 @@ long begin, count;
 /*
  * Longitude.
  */
-	if ((var = ncvarid (tag->nc_id, "lon")) < 0) {
-		dnc_NCError ("No longitude field");
+	if ((var = ncvarid (tag->nc_id, "lon")) < 0 &&
+	    (var = ncvarid (tag->nc_id, "longitude")) < 0) {
+		dnc_NCError ("No 'lon' or 'longitude' field");
 		return;
 	}
 	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
@@ -2439,8 +2441,9 @@ long begin, count;
 /*
  * Altitude.
  */
-	if ((var = ncvarid (tag->nc_id, "alt")) < 0) {
-		dnc_NCError ("No altitude field");
+	if ((var = ncvarid (tag->nc_id, "alt")) < 0 &&
+	    (var = ncvarid (tag->nc_id, "altitude")) < 0) {
+		dnc_NCError ("No 'alt' or 'altitude' field");
 		return;
 	}
 	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
@@ -3080,7 +3083,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.39 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.40 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
