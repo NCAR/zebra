@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.22 1992-11-03 16:07:13 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.23 1992-11-17 03:30:29 burghart Exp $")
 
 
 /*
@@ -442,7 +442,6 @@ bool update;
 /*
  * Get the data.
  */
-	zt = PlotTime;
 	if (! (dc = ds_Fetch (pid, DCC_IRGrid, &zt, &zt, fields, 2 + numquads,
 			NULL, 0)))
 	{
