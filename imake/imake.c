@@ -99,7 +99,7 @@ FILE * fdopen();
 #endif
 #include <ctype.h>
 #include "Xosdefs.h"
-#ifndef X_NOT_POSIX
+#if (!defined (X_NOT_POSIX) && !defined (_POSIX_SOURCE))
 #define _POSIX_SOURCE
 #endif
 #include <sys/types.h>
