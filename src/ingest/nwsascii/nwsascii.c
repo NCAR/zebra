@@ -37,10 +37,9 @@
 # include <DataChunk.h>
 # include <ingest.h>
 
-MAKE_RCSID("$Id: nwsascii.c,v 1.2 1994-11-17 03:42:26 granger Exp $")
+MAKE_RCSID("$Id: nwsascii.c,v 1.3 1995-09-13 22:01:25 granger Exp $")
 
 # include "sc_cmds.h"
-# include "netcdf.h"
 
 # define LOADFILE 	"nwsascii.lf"
 # define MESSAGE_NAME 	"nws<--ascii"
