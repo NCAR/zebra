@@ -100,7 +100,9 @@ DataDump (FILE *infile)
 {
     char	tag[128], lead_id[4], data[32*1024];
     long	datalen;
-    int		status;
+    int		status, bigEndian;
+
+    g123order (&bigEndian);
 
     while (1)
     {
@@ -112,7 +114,16 @@ DataDump (FILE *infile)
 	{
 	    if (! strcmp (tag, "SADR"))
 	    {
-		long	*pos = (long *)data;
+		long	*pos;
+
+		if (! bigEndian)
+		{
+		    char c;
+		    c = data[0]; data[0] = data[3]; data[3] = c;
+		    c = data[1]; data[1] = data[2]; data[2] = c;
+		}
+		    
+		pos = (long *)data;
 		printf ("\t%s - %.6f\n", tag, 1.0e-6 * (*pos));
 	    }
 	    else
