@@ -1,7 +1,6 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 2.2 1991-11-22 20:55:05 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,6 +27,7 @@ static char *rcsid = "$Id: FrameCache.c,v 2.2 1991-11-22 20:55:05 kris Exp $";
 # include "../include/pd.h"
 # include "GraphProc.h"
 # include "GraphicsW.h"
+MAKE_RCSID ("$Id: FrameCache.c,v 2.3 1991-12-05 17:33:25 corbet Exp $")
 
 # define BFLEN 500
 # define FLEN 1024
@@ -407,8 +407,8 @@ int frame, pixmap;
 		framesize = GWHeight(Graphics) * image->bytes_per_line;
 	 	if((image->data = (char *) malloc(framesize)) == NULL)
 	 	{
-	 		msg_ELog(EF_PROBLEM, "Can't allocate space for image.");
-			XtFree((XImage **) image);
+	 		msg_ELog(EF_PROBLEM,"Can't allocate space for image.");
+			XDestroyImage (image);
 	 		return(FALSE);
 	 	}
 	}
@@ -421,10 +421,7 @@ int frame, pixmap;
 		msg_ELog(EF_PROBLEM,"Pixmap %d to be swapped into is not free.",
 			pixmap);
 		if(image) 
-		{
-			free(image->data);
-			XtFree((XImage **) image);
-		}
+			XDestroyImage (image);
 		return(FALSE);
 	}
 
@@ -435,10 +432,7 @@ int frame, pixmap;
 	{
 		msg_ELog(EF_PROBLEM, "Can't lseek in %s.", FileName);
 		if(image) 
-		{
-			free(image->data);
-			XtFree((XImage **) image);
-		}
+			XDestroyImage (image);
 		return(FALSE);
 	}
 
@@ -463,15 +457,13 @@ int frame, pixmap;
 		{
 			msg_ELog(EF_PROBLEM, "Can't read into image (%d).", 
 				errno);
-			free(image->data);
-			XtFree((XImage **) image);
+			XDestroyImage (image);
 			return(FALSE);
 		}
 		XPutImage(XtDisplay(Graphics), GWGetFrame(Graphics, pixmap), 
 			GWGetGC(Graphics), image, 0, 0, 0, 0, 
 			GWWidth(Graphics), GWHeight(Graphics));  
-		free(image->data);
-		XtFree((XImage **) image);
+		XDestroyImage (image);
 	}
 
 /*
