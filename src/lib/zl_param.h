@@ -1,4 +1,4 @@
-/* $Id: zl_param.h,v 2.2 1998-01-15 22:03:54 burghart Exp $ */
+/* $Id: zl_param.h,v 2.3 1998-03-02 23:58:51 burghart Exp $ */
 /*
  * Basic UI types needed regardless of whether we're linking with UI.
  */
@@ -12,11 +12,15 @@
 typedef unsigned char byte;	/* Basic byte variable */
 
 /*
- * So far only g++ has the predefined bool type per the final draft ANSI C++
- * standard.  Everywhere else, we have to use our own typedef.
+ * So far only g++ has the predefined bool type per the final draft 
+ * ANSI C++ standard.  Everywhere else, we have to use our own typedef.
+ * 
+ * We choose "typedef int" rather than "typedef char" because g++'s bool
+ * is 4 bytes on all the systems tested.  We must have a size match for 
+ * symbols and structures shared between g++ and non-g++ object modules.
  */
 # if !(__cplusplus && __GNUC__)
-typedef char bool;		/* Boolean variable	*/
+typedef int bool;		/* Boolean variable	*/
 # endif
 
 struct date_st
