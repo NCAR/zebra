@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.70 2001-10-16 22:26:28 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.71 2002-03-26 00:07:10 burghart Exp $")
 
 # include <netcdf.h>
 
@@ -2489,6 +2489,7 @@ int ndetail;
 	int dim, ndim, is_static;
 	int altindex, dindex;
 	int nfield;
+	int all_static;
 	FieldId altid;
 	FieldId *fids = dc_GetFields (dc, &nfield);
 
@@ -2502,6 +2503,8 @@ int ndetail;
 	 * field's dimensions.  So we'll loop through the fields and handle
 	 * each one entirely separately.
 	 */
+	all_static = 1; /* set to false if we have any dynamic fields */
+	
 	for (field = 0; field < nfield; ++field)
 	{
 		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
@@ -2516,6 +2519,9 @@ int ndetail;
 		 */
 		dc_NSGetField (dc, fids[field], &ndim, 
 			       names, sizes, &is_static);
+
+		all_static = all_static && is_static;
+
 		if (is_static)
 		{
 		/*
@@ -2580,6 +2586,14 @@ int ndetail;
 				dc_NSFillStatic (dc, fids[field]);
 		}
 	}
+/*
+ * Print a message if all fields are static, which will likely result
+ * in a later "get failed" message...  This can help to clarify it.
+ */
+	if (all_static)
+	    msg_ELog(EF_PROBLEM, "Fields requested for %s are all static; %s",
+		     ds_PlatformName(dc->dc_Platform), 
+		     "no time samples will be returned");
 }
 
 
@@ -3510,7 +3524,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.70 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.71 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
