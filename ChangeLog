@@ -1,3 +1,113 @@
+Tue Apr 25 14:56:49 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* ds and prt_Notify: added d_Notify module to ds library so that
+	  prt_Notify can link to it instead of a duplicate source copy
+
+Wed Apr 19 14:56:49 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* -+- ARM science team meeting and cotemporary changes -+-
+
+	o   The display manager overhaul which maps configuration windows to
+	    'process classes', taking care of giving each forked process a
+	    unique message handle and mapping window names to process
+	    names.  Multiple display manager sessions can run independently
+	    under the same message manager, in theory.
+
+	    Window geometry taken from the top-level shell window and not
+	    the window manager parent window; dm clients set static window
+	    gravity to prevent window managers (all except for mwm) from
+	    shifting the window when reparented.
+
+	o   Looser plot description syntax.  The syntax now looks something
+	    like this:
+
+		<component name><newline>
+		<parameter name>:<parameter value><newline>
+		...
+		<component name><newline>
+		...
+
+	    White space is allowed anywhere; no tabs are required
+	    anywhere.  Comments (!) can be anywhere and cause text between
+	    '!' and the next newline to be skipped.  Blank lines are
+	    allowed.  The new syntax is backwards compatible.
+
+	    A program called pdcheck will read plot description files
+	    named on the command line and report warnings (like empty
+	    components or parameter values) to the terminal.
+
+	o   New GRIB grid types for MM5 6.67 km sigma-level grids and RUC.
+	    GRIBdump will show Grid Description Sections now, and
+	    DFA_GRIB has been modularized a little further to make it easier
+	    to add polar stereographic projections (and other projections).
+
+	o   Lots of DFA_NetCDF.c changes to accept the variety of ARM
+	    "conventions" in their netCDF files.  Irregular grids whose
+	    stations have a height dimension (wind profiler demo network)
+	    can be sliced by altitude and stepped through like 3-D regular
+	    grids.  Lots more flexibility in accepting times and different
+	    variable and dimension names.
+
+	o   Lots of cleaning up in the library, trying to make sure 
+	    everything is prototyped where it should be.  The message 
+	    interface supports an 'unconnected' mode so that programs can
+	    use the library even when msg_ELog calls might otherwise cause
+	    errors from lack of a message socket.
+
+	o   A "hot times" menu in the time widget.  The time widget provides
+	    a menu of times and descriptions for which applications can 
+	    request callbacks on changes.  The display manager uses it to
+	    save times in a file as a user adds them through the time
+	    widget.
+
+	o   Active time labels in top annotation of graphics processes.
+
+	o   An "auto build" configuration capability.  The project template
+	    file recognizes an AutoBuild symbol which causes it to include
+	    Build.tmpl rather than config.h.  Build.tmpl automatically
+	    defines configuration symbols according to the architecture, so
+	    we can use it to choose particular configurations (e.g. static,
+	    cc or gcc) from the make command line.  A build script and
+	    crontab file in CVSROOT uses auto builds to periodically update
+	    and build Zebra trees on each architecture, reporting build 
+	    errors to people by email.
+
+Sun Feb  5 01:27:24 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* mstatus on internet hosts; defines for group names and display
+	  manager name; better memory tracking in message manager; -Wall
+	  checks done on message manager
+
+Fri Feb  3 01:30:01 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* dm: if MosaicPath defined in config.h, try to exec that first;
+	  MosaicPath indirect variable added to dm; -Wall checks on dm
+
+	* config.h: optional build and distribution of xhelp, using
+	  DistributeXHelp and BuildXHelp symbols.  dm support for xhelp is
+	  not compiled if BuildXHelp is true (SUPPORT_XHELP will not be
+	  defined in config.h).
+
+	* message: detect malloc failures, debugging, elog, host table: now
+	  more robust about detecting and recovering from memory overruns
+	  (copying strings which don't fit) and malloc failures; extended
+	  logging used, so that log messages have a level and can be
+	  directed to stdout when debugging; lots of cmd-line options and
+	  usage info added; host tables for mapping message handler names
+	  to Internet address and port (supports multiple message sessions
+	  running on a single machine connected via loopback); detects
+	  namespace collisions and tries to kill the existing client before
+	  replacing it with the new one; cleans up delayed write queues
+	  when client disconnects; frees all memory on exit so that dynamic
+	  memory checking can detect leaks.
+
+	* msg_ping: cmd-line selection of client or host ping protocol
+
+	* datstore protocol change: int file indices and inode support:
+	  daemon detects inode changes and tells clients to close and
+	  re-open the file, while mtime changes handled as before; 
+	  upper limit on data files is now (2^32).
+
 Tue Jan 31 09:37:40 1995  Chris Burghart  (burghart@fuggles.atd.ucar.edu)
 
 	* zstart: We now add /zeb/lib/resources to  XFILESEARCHPATH rather 
