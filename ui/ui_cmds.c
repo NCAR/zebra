@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.7 1989-09-25 16:59:44 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.8 1989-10-25 16:20:03 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -466,6 +466,11 @@ int init;
 			   case LF_KEYS:
 			   	uk_load (lun);
 				break;
+# ifdef XSUPPORT
+			   case LF_WIDGET:
+			   	uw_load (lun, init);
+				break;
+# endif
 			   default:
 			   	ui_printf ("Funky marker: %d\n", marker);
 				break;
@@ -509,6 +514,9 @@ int all;
 	uct_save (lun);		/* Defined commands		*/
 	um_save (lun, all);	/* Menus			*/
 	uk_save (lun);		/* Defined keys			*/
+# ifdef XSUPPORT
+	uw_save (lun, all);	/* Widgets			*/
+# endif
 /*
  * All done.
  */
