@@ -1,6 +1,23 @@
-static char *rcsid = "$Id: fccclock.c,v 2.0 1991-06-14 22:56:24 corbet Exp $";
 /*
  * The FCC clock program.
+ */
+static char *rcsid = "$Id: fccclock.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
  */
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -15,6 +32,7 @@ static char *rcsid = "$Id: fccclock.c,v 2.0 1991-06-14 22:56:24 corbet Exp $";
 # include "../include/message.h"
 # include "../include/dm.h"
 # include "../include/GraphicsW.h"
+# include "../include/copyright.h"
 # include "timer.h"
 # include "../include/pd.h"
 /*
