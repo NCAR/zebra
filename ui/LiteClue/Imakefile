@@ -1,9 +1,8 @@
+/*
+ * This Imakefile is now here only for builds via Zebra.  If Zebra gets
+ * a different build mechanism, this file can go away...
+ */
 
-/* XPMLIB = -lXpm */
-
-/*CC = gcc -g /* -DXPM  */
-
-/* SYS_LIBRARIES= -lXaw -lXmu $(XPMLIB) $(XTOOLLIB) $(XLIB)  */
 SYS_LIBRARIES= $(XLIBS)
 
 EXTRA_DEFINES = $(PICFLAGS)
