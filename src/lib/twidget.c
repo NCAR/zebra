@@ -37,10 +37,13 @@
 # include "message.h"
 # include "timer.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.12 1993-03-18 07:01:03 granger Exp $")
+MAKE_RCSID ("$Id: twidget.c,v 2.13 1993-03-19 23:30:46 granger Exp $")
 
 
 # define LABELWIDTH	60
+
+# define TW_NAME	"time"
+
 /*
  * Date/time button action codes.
  */
@@ -62,13 +65,16 @@ MAKE_RCSID ("$Id: twidget.c,v 2.12 1993-03-18 07:01:03 granger Exp $")
  */
 static Widget Form = NULL, Htext = NULL;
 static Widget Stext = NULL, ControlButton = NULL;
+static Widget RTToggle = NULL, HistoryToggle = NULL;
 
 /*
  * Histdate is the history date that appears in the window.  Maxdate is
  * the highest date we've ever seen, used to keep the date from being
- * moved into the future.
+ * moved into the future.  RTMode tells us what mode we have most
+ * recently been put in.
  */
 static ZebTime Histdate, Maxdate;
+static int RTMode = TRUE;
 static char Ahistdate[80];
 static char Title[200];
 static int Tslot = -1;	/* Timeout slot		*/
@@ -85,6 +91,7 @@ static void ChangeHour (), ChangeMin ();
 static void TimeSkip ();
 static void ChangeControl ();
 static void CallForHelp ();
+static void QuitCallback ();
 extern Widget LeftRightButtons ();
 
 
@@ -101,13 +108,15 @@ char	*title;
  * Get the current time, then clear out the seconds portion of it.
  */
 	tl_Time (&Histdate);
+	RTMode = TRUE;
 	/* Histdate.ds_hhmmss -= Histdate.ds_hhmmss % 100; */
 	TC_ZtSplit (&Histdate, &year, &month, &day, &hour, &minute, &second,0);
 	TC_ZtAssemble (&Histdate, year, month, day, hour, minute, 0, 0);
 
 	strcpy (Title, title);
 	Tw_Callback = callback;
-	uw_def_widget ("time", "Time control", tw_WCreate, 0, 0);
+	uw_def_widget (TW_NAME, "Time control", tw_WCreate, 0, 0);
+	uw_NoHeader (TW_NAME);
 }
 
 
@@ -121,13 +130,38 @@ ZebTime *zt;
  */
 {
 	int year, month, day, hour, minute, second;
+	Arg true, false;
+
+	XtSetArg (true, XtNstate, True);
+	XtSetArg (false, XtNstate, False);
 
 	if (zt)
+	{
 		Histdate = *zt;
+		RTMode = FALSE;
+	}
 	else
+	{
 		tl_Time (&Histdate);
+		RTMode = TRUE;
+	}
 	TC_ZtSplit (&Histdate, &year, &month, &day, &hour, &minute, &second,0);
 	TC_ZtAssemble (&Histdate, year, month, day, hour, minute, 0, 0);
+/*
+ * If no zt we've gone into real time mode, else we've gone to history.
+ * Reflect the change in the mode toggles and the time text, after checking
+ * that the toggle widgets exist.
+ */
+	if (zt && RTToggle && HistoryToggle)
+	{
+		XtSetValues (RTToggle, &false, (Cardinal)1);
+		XtSetValues (HistoryToggle, &true, (Cardinal)1);
+	}
+	else if (RTToggle && HistoryToggle)
+	{
+		XtSetValues (HistoryToggle, &false, (Cardinal)1);
+		XtSetValues (RTToggle, &true, (Cardinal)1);
+	}
 	set_dt ();
 	uw_sync ();
 }
@@ -143,7 +177,7 @@ XtAppContext appc;
 	Arg args[20];
 	Widget form, title, f, left, dayleft, dform, sform, cform, hform;
 	Widget mbutton, dbutton, ybutton, hbutton, minbutton, sbutton;
-	Widget skipbutton, helpbutton;
+	Widget skipbutton, helpbutton, quitbutton;
 	Widget MonText, DayText, YearText, HMSText;
 	int n;
 	static char *ttrans = "<Btn1Down>,<Btn1Up>: 	set()notify()";
@@ -177,7 +211,7 @@ XtAppContext appc;
 	title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 		args, 3);
 /*
- * Establish a help button
+ * Establish a help button and a quit button
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
@@ -195,6 +229,15 @@ XtAppContext appc;
 					    commandWidgetClass, 
 					    hform, args,n);
 	XtAddCallback (helpbutton, XtNcallback, CallForHelp, NULL);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Dismiss");	n++;
+	XtSetArg (args[n], XtNfromHoriz, helpbutton);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	quitbutton = XtCreateManagedWidget ("quitbutton", 
+					    commandWidgetClass, 
+					    hform, args,n);
+	XtAddCallback (quitbutton, XtNcallback, QuitCallback, NULL);
 /*
  * Control one/all windows selection.
  */
@@ -354,8 +397,9 @@ XtAppContext appc;
 	XtSetArg (args[1], XtNfromHoriz, left);
 	XtSetArg (args[2], XtNfromVert, NULL);
 	XtSetArg (args[3], XtNborderWidth, 1);
-	XtSetArg (args[4], XtNstate, True);
-	left = XtCreateManagedWidget ("rt", toggleWidgetClass, f, args, 5);
+	XtSetArg (args[4], XtNstate, (RTMode)?(True):(False));
+	left = RTToggle = 
+		XtCreateManagedWidget ("rt", toggleWidgetClass, f, args, 5);
 	XtOverrideTranslations (left, ttable);
 	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) RealTime);
 
@@ -363,8 +407,10 @@ XtAppContext appc;
 	XtSetArg (args[1], XtNfromHoriz, left);
 	XtSetArg (args[2], XtNfromVert, NULL);
 	XtSetArg (args[3], XtNradioGroup, left);
-	XtSetArg (args[4], XtNborderWidth, 0);
-	left = XtCreateManagedWidget ("history", toggleWidgetClass, f, args,5);
+	XtSetArg (args[4], XtNborderWidth, 1);
+	XtSetArg (args[5], XtNstate, (RTMode)?(False):(True));
+	left = HistoryToggle = 
+		XtCreateManagedWidget ("history", toggleWidgetClass, f, args, 6);
 	XtOverrideTranslations (left, ttable);
 	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) History);
 /*
@@ -435,6 +481,17 @@ CallForHelp ()
  */
 {
 	ui_perform ("help historytime");
+}
+
+
+
+static void
+QuitCallback ()
+/*
+ * Popdown the time widget
+ */
+{
+	uw_popdown (TW_NAME);
 }
 
 
