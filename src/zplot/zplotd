@@ -21,6 +21,8 @@ $enable_ftp = $ENV{'PLOT_FTP_ENABLE'};
 
 # Project directory
 $project = "$ENV{'ZEB_PROJDIR'}";
+$project_name = $ENV{'PROJECT_NAME'};
+if (! $project_name) { $project_name = `basename $project`; }
 
 if (! $ENV{'PLOT_PLATFORMS'})
 {
@@ -30,6 +32,19 @@ if (! $ENV{'PLOT_PLATFORMS'})
 
 %Observations = ();
 %Plots = ();
+
+sub ztsys
+{
+    # print `ztsplit $_[0]`, "\n";
+    ($year, $mon, $day, $hour, $min, $sec) = split(/\s+/,`ztsplit $_[0]`);
+    timegm($sec,$min,$hour,$day,$mon-1,$year);
+}
+
+sub syszt
+{
+    ($sec,$min,$hour,$mday,$mon,$year) = gmtime($_[0]);
+    strftime ("%d-%h-%Y,%H:%M:%S", $sec,$min,$hour,$mday,$mon,$year);
+}
 
 $plotfile = "$ENV{'PLOT_PLATFORMS'}";
 open(PLOTS, "$plotfile") || die "$plotfile: $!\n";
@@ -71,7 +86,7 @@ while ($pattern = shift @ARGV)
     {
 	print "Usage:\n";
 	print "$0 [-debug] [-d<DEBUGLEVEL>] [-queue file] [-batch file]" . 
-	    "{-since|-notice|-time} [platforms ...]\n";
+	    "{-since|-notice|-time|-period} [platforms ...]\n";
 	print "-since [timestampfile]\n";
 	print "\n",
 	    "   Generate new plot images for all platforms with data\n" .
@@ -82,6 +97,12 @@ while ($pattern = shift @ARGV)
 	print
 	    "   Generate plots with the given end time for all platforms\n" .
 	    "   with data between begin and end.\n" . 
+	    "   Times are dd-mon-yyyy,hh:mm:ss\n";
+	print "-period <end>\n";
+	print
+	    "   Generate plots with the given end time for all platforms,\n" .
+	    "   where the data begin time is calculated from the project\n" . 
+	    "   parameter PLOT_PERIOD (in hours).\n" .
 	    "   Times are dd-mon-yyyy,hh:mm:ss\n";
 	print "-enqueue <file>\n" . 
 	    "   Append platform queue to the file and exit.\n";
@@ -101,7 +122,7 @@ while ($pattern = shift @ARGV)
 	print "need configuration information from the project's proj_env\n";
 	print "file, so it probably needs to be run with zconfig.\n";
 	print "\n";
-	print "If -since, -notice, nor -time is chosen, the default is to\n";
+	print "If -since, -notice, -period, nor -time are chosen,\n";
 	print "read stdin in the format of dsnotice update lines.\n";
 	exit 0;
     }
@@ -139,6 +160,20 @@ while ($pattern = shift @ARGV)
     if ($pattern eq "-notice")
     {
 	$notice = 1;
+	next;
+    }
+    if ($pattern eq "-period")
+    {
+	$fixtime = 1;
+	$plot_period = $ENV{'PLOT_PERIOD'};
+	if (! $plot_period)
+	{
+	    die "PLOT_PERIOD must be set for -period plots";
+	}
+	$fixend = shift @ARGV;
+	die "plot time needed for -period" 
+	    unless ($fixend);
+	$fixbegin = &syszt (&ztsys ($fixend) - ($plot_period * 3600));
 	next;
     }
     if ($pattern eq "-time")
@@ -475,6 +510,13 @@ sub clear
 	system ("cat $batch >> $batchfile");
     }
     unlink("$batch");
+
+    if ($debug < $D_NoPlot)
+    {
+	print "Generating plot image index:\n";
+	system ("plotindex \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'}");
+    }
+
     if (! $enable_ftp)
     {
 	print "ftpplots not enabled.\n";
@@ -519,6 +561,8 @@ sub clear
 	{
 	    $url = $i;
 	    $url =~ s,/net/www,, ;
+	    $parenturl = `dirname $url`;
+	    print MAIL "http://www.atd.ucar.edu$parenturl\n";
 	    print MAIL "http://www.atd.ucar.edu$url\n";
 	}
 	print MAIL "\n";

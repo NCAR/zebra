@@ -1,0 +1,58 @@
+#! /bin/sh -x
+
+if [ "$1" = "-h" ]; then
+    echo "Usage: $0 [h1 h2 ...]"
+    echo "Generate plots for any data since and before the current"
+    echo "plot hour.  If no arguments, uses the value of"
+    echo "PLOT_HOURS from the project configuration."
+    echo "The plot hours need to be in increasing order."
+    exit 0
+fi
+
+if [ $# -eq 0 ]; then
+    set $PLOT_HOURS
+else
+    PLOT_HOURS="$*"
+fi
+
+if [ $# -eq 0 ]; then
+    echo "No plot hours.  Exiting."
+    exit 1
+fi
+
+currenthour=`date -u '+%H'`
+h1=99
+h2=99
+hlast=0
+hfirst=$1
+for h in $*; do
+
+    if [ $h -le $currenthour ]; then
+	h1=$h
+    elif [ $h2 -eq 99 ]; then
+	h2=$h
+    fi
+    hlast=$h
+
+done
+
+# If h1 is set, then the first plot time is on the current day at
+# the plot hour given by h1.
+# If h1 is not set, then the first plot time is the
+# last plot hour on the previous day, which we find by shifting timezone.
+if [ $h1 -ne 99 ]; then
+    plot1=`date -u +"%d-%h-%Y,$h1:00:00"`
+else
+    plot1=`TZ=GMT+24 date +"%d-%h-%Y,$hlast:00:00"`
+fi
+
+# Similar setup for the second plot time, except we have to advance a day
+# if no plot hours found greater than the current hour.
+if [ $h2 -ne 99 ]; then
+    plot2=`date -u +"%d-%h-%Y,$h2:00:00"`
+else
+    plot2=`TZ=GMT-24 date +"%d-%h-%Y,$hfirst:00:00"`
+fi
+
+echo exec zplotd -period $plot1
+echo exec zplotd -period $plot2
