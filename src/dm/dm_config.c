@@ -31,7 +31,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.14 1994-06-06 22:27:36 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.15 1994-09-14 16:39:19 burghart Exp $")
 
 
 /*
@@ -48,7 +48,8 @@ static void SetupExec FP ((struct cf_window *));
 static void PutConfig FP ((struct config *));
 static void RunProgram FP ((char *, char **));
 static int  SaveParameter FP ((char *name, char *value, FILE *fp));
-static Widget UWShell FP ((char *name));
+static void send_default FP ((struct cf_window *));
+
 
 
 
@@ -671,10 +672,14 @@ struct cf_window *win;
 		created = TRUE;
 	}
 /*
- * Then ship over the PD too.
+ * Then ship over the PD too, including the defaults.
  */
 	if (win->cfw_linkpar || win->cfw_forcepd|| created ||win->cfw_tmpforce)
+	{
+		send_default (win);
 		send_pd (win);
+	}
+
 	win->cfw_tmpforce = FALSE;
 /*
  * And the button maps.
@@ -689,24 +694,45 @@ struct cf_window *win;
 
 
 
-static Widget
-UWShell (name)
-char *name;
+
+send_default (win)
+struct cf_window *win;
 /*
- * Return the top-level shell widget for this UI widget
+ * Send this window it's defaults table.
  */
 {
-	Widget shell = uw_IWWidget (name);
+	struct dm_pdchange *dmp;
+	plot_description def = pda_GetPD ("defaults");
+	raw_plot_description *rpd;
+	int len;
+/*
+ * If there is no defaults table, forget it.
+ */
+	if (! def)
+		return;
+/*
+ * Convert it to external form.
+ */
+	rpd = pd_Unload (def);
+	len = sizeof (struct dm_pdchange) + rpd->rp_len;
+/*
+ * Allocate a sufficiently big pdchange structure.
+ */
+	dmp = (struct dm_pdchange *) malloc (len);
+/*
+ * Move over the stuff.
+ */
+	dmp->dmm_type = DM_DEFAULTS;
+	dmp->dmm_pdlen = rpd->rp_len;
+	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
+	msg_ELog (EF_DEBUG, "Sending defaults to %s len %d", win->cfw_name,
+		len);
+	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
 
-	/*
-	 * Duh.  Need to use wmShellWidgetClass instead of shellWidgetClass
-	 * since menubars use simplemenu, which is a subclass of the override
-	 * shell class.
-	 */
-	while (shell && !XtIsSubclass (shell, wmShellWidgetClass))
-		shell = XtParent(shell);
-	return (shell);
+	pd_RPDRelease (rpd);
+	free (dmp);
 }
+
 
 
 
