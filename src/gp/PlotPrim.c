@@ -41,7 +41,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.16 1999-03-01 02:04:28 burghart Exp $")
+RCSID("$Id: PlotPrim.c,v 1.17 2000-08-22 22:41:04 granger Exp $")
 
 
 static int PP_LineWidth = 0;
@@ -361,41 +361,50 @@ void
 pp_RGBtoHLS (r,g,b,h,l,s)
 double	r, g, b; /* range [0,1] */
 float	*h, *l, *s; /* hue = [0,360], lightness & saturation = [0,1] 
-		     except if s == 0, h = undefined */
+		     except if s == 0, h = -1 (undefined) */
 {
-    float	max,min;
-    float	undefined = 0.0;
-    float	rc,bc,gc;
-    max = r > g ? r : g;
-    max = max > b ? max : b;
+    float	max,min,delta;
+    enum rgb_color_component { e_red, e_green, e_blue } cmax;
+
+    max = r;
+    cmax = e_red;
+    if (g > max)
+    {
+	max = g;
+	cmax = e_green;
+    }
+    if (b > max)
+    {
+	max = b;
+	cmax = e_blue;
+    }
     min = r < g ? r : g;
     min = min < b ? min : b;
     *l = (max+min)/2.0;		/*lightness*/
+    delta = max - min;
 
     /*
      * Calculate saturation and hue
      */
-    if ( max == min ) /* achromatic r==g==b */
+    if ( delta < 0.0001 ) /* achromatic r==g==b */
     {
 	*s = 0.0;
-	*h = undefined;
+	*h = -1;
     }
     else	      /* chromatic */
     {
 	if ( *l <= 0.5 )
-	    *s = (max-min)/(max+min);
+	    *s = delta/(max+min);
 	else
-	    *s = (max-min)/(2.0-max-min);
+	    *s = delta/(2.0-max-min);
 
-	rc = (max-r)/(max-min);
-	gc = (max-g)/(max-min);
-	bc = (max-b)/(max-min);
-	if ( r == max ) 
-	    *h = bc-gc;
-	else if ( g == max ) 
-	    *h = 2 + rc - bc;
-	else if ( b == max )
-	    *h = 4 + gc -rc;
+	if (cmax == e_red)
+	    *h = (g - b) / delta;
+	else if (cmax == e_green)
+	    *h = 2 + (b - r) / delta;
+	else 
+	    *h = 4 + (r - g) / delta;
+
 	*h = *h * 60.0;  /* convert to degrees */
 	if ( *h < 0.0 ) *h = *h + 360.0;
     }
@@ -430,18 +439,15 @@ float	*r,*g,*b;
 double	h,l,s;
 {
     float	m1,m2;
-    float	undefined = 0.0;
+
     if ( l <= 0.5 ) 
 	m2 = l *(1.0+s);
     else
 	m2 = l + s - l*s;
     m1 = 2*l -m2;
-    if ( s == 0.0 )
+    if ( s < 0.0001 )
     {
-	if ( h == undefined )
-	    *r = *g = *b = l;
-	else
-	    fprintf ( stderr, "\rbad h,l,s values\n");
+	*r = *g = *b = l;
     }
     else
     {
