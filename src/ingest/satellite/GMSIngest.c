@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.10 1996-03-12 17:44:04 granger Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.11 1996-06-27 20:26:41 burghart Exp $")
 
 # include "keywords.h"
 
@@ -441,7 +441,7 @@ Ingest ()
 	F_Init ();
 	for (f = 0; f < nfields; f++)
 	{
-		fid[f] = F_Lookup (Infile[f].field);
+		fid[f] = F_DeclareField (Infile[f].field, "", "");
 	/*
 	 * Throw together the IR calibration.
 	 */
@@ -655,10 +655,12 @@ int	fentry;
 			*c = tolower (*c);
 	}
 	msg_ELog (EF_DEBUG, "Source is '%s'", source);
+# ifdef _ACE1_PROJECT_
 /*
  * *Huge* calibration entry for ACE-1 GMS images.  Skip it.
  */
 	fread ((void *) stuff, 4, 1792, Infile[fentry].stream);
+# endif
 /*
  * 512 byte extra header for "aaa" areas (we ignore it for now)
  */
