@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.65 1997-10-03 23:38:06 ishikawa Exp $
+XCOMM $Id: Project.tmpl,v 1.66 1997-10-09 20:31:58 ishikawa Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -592,7 +592,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifdef HPArchitecture
 #define FortOptions -O +ppu
 #else
+#ifdef AIXArchitecture
+#define FortOptions -O -qextname
+#else
 #define FortOptions -O
+#endif /* AIXArchitecture */
 #endif /* HPArchitecture */
 #endif /* FortOptions */
 
@@ -1009,11 +1013,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
       FORTOPTIONS = FortOptions
    FORTDEBUGFLAGS = FortDebugFlags
 
-#ifdef AIXArchitecture
-           FFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS) -qextname
-#else
            FFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS)
-#endif
           FCFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS)
 
               UIC = UicCmd
