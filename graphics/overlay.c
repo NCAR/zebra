@@ -6,6 +6,8 @@
 # include "param.h"
 # include "oplist.h"
 # include "overlay.h"
+# include "workstation.h"
+# include "pixel.h"
 
 
 
@@ -22,15 +24,23 @@ int priority;
 /*
  * Fill in the new overlay structure.
  */
- 	ov->ov_ws = NULL;
+ 	ov->ov_ws = (struct workstation *) getvm (sizeof (struct workstation));
 	ov->ov_priority = priority;
 	ov->ov_flags = OVF_VISIBLE | OVF_ADDITIVE | OVF_EMPTY;
 	ov->ov_number = ov->ov_naop = 0;
-	ov->ov_pmap = NULL;
-	ov->ov_ops = ov->ov_aop = NULL;
+	ov->ov_pmap = (struct pixmap *) getvm (sizeof (struct pixmap));
+	ov->ov_ops = (struct oplist *) getvm (sizeof (struct oplist)); 
+        ov->ov_aop = (struct oplist *) getvm (sizeof (struct oplist));
 	ov->ov_x0 = ov->ov_y0 = ov->ov_cx0 = ov->ov_cy0 = 0.0;
 	ov->ov_x1 = ov->ov_y1 = ov->ov_cx1 = ov->ov_cy1 = 1.0;
-	ov->ov_next = NULL;
+	ov->ov_next = (struct overlay *) getvm (sizeof (struct overlay));
+
+        /* initialize everything else to null */
+        ov->ov_ws = NULL;
+        ov->ov_pmap = NULL;
+        ov->ov_ops = NULL;
+        ov->ov_naop = NULL;
+        ov->ov_next = NULL;
 	
 	return ((overlay) ov);
 }
