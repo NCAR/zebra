@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.42 1994-05-24 00:58:24 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.43 1994-06-15 23:23:13 corbet Exp $")
 
 
 /*
@@ -967,8 +967,10 @@ bool quadstn[4];
 /*
  * Ugly kludgery to fit the interface oriented around IRGrids.
  */
-	static float qv[4];
-	static float *qgrid[4] = { qv, qv + 1, qv + 2, qv + 3 };
+	float qv[4];
+	float *qgrid[4];
+	for (i = 0; i < 4; i++)
+		qgrid[i] = qv + i;
 /*
  * Get some info out of the data chunk.
  */	
