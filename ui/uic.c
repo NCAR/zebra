@@ -10,6 +10,8 @@
  */
 static char Istate[80];
 
+static void dump_cmd (struct ui_command *cmd);
+
 
 main (argc, argv)
 int argc;
@@ -76,7 +78,7 @@ struct ui_command *cmds;
 
 
 
-
+static void
 dump_cmd (cmd)
 struct ui_command *cmd;
 {
