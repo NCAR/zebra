@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.35 1993-10-18 19:28:34 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.36 1993-10-28 20:28:38 burghart Exp $")
 
 
 /*
@@ -237,8 +237,8 @@ bool	update;
 		{
 			sprintf (data, "%s %s %f %f", fname, ctable, 
 				center, step); 
-			An_AddAnnotProc (An_ColorNumber, c, data, strlen (data),
-				75, TRUE, FALSE);
+			An_AddAnnotProc (An_ColorNumber, c, data, 
+					 strlen (data), 75, TRUE, FALSE);
 		}
 	}
 }
@@ -682,8 +682,8 @@ bool update;
  */
 	if (numquads > 0)
 	{
-		sprintf (data, "%s %s %s %f %d ", "10m/sec", 
-			cname, quadclr, unitlen, numquads);
+		sprintf (data, "%s %d %d %f %d ", "10m/sec", 
+			color.pixel, qcolor.pixel, unitlen, numquads);
 		for (i = 0; i < 4; i++)
 			if (i < numquads)
 			{
@@ -699,8 +699,8 @@ bool update;
 	}
 	else
 	{
-		sprintf (data, "%s %s %s %f %d %s %s %s %s", "10m/sec", 
-			cname, "null", unitlen, numquads, "none",
+		sprintf (data, "%s %d %d %f %d %s %s %s %s", "10m/sec", 
+			color.pixel, 0, unitlen, numquads, "none",
 			"none", "none", "none");
 		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
 			strlen (data), 40, FALSE, FALSE);
@@ -980,8 +980,8 @@ bool	update;
 /*
  * Side annotation (scale vectors)
  */
-	sprintf (data, "%s %s %f %f %f", "10m/sec", cname,
-		10.0, 0.0, unitlen); 
+	sprintf (data, "%s %d %f %f %f", "10m/sec", color.pixel, 10.0, 0.0, 
+		 unitlen); 
 	An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
 		40, FALSE, FALSE);
 	lw_TimeStatus (c, platform, &zt);
@@ -1061,10 +1061,10 @@ int datalen, begin, space;
  * Routine to do station plot side annotation.
  */
 {
-	char string[40], vcolor[40], qcolor[40], qname[4][40];
+	char string[40], qname[4][40];
 	float unitlen, used, scale; 
 	int i, left, numquads, limit, middle;
-	XColor vc, qc;
+	Pixel vc, qc;
 /*
  * Get annotation parameters.
  */
@@ -1072,22 +1072,20 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-        sscanf (data, "%s %s %s %f %d %s %s %s %s", string, vcolor, qcolor, 
+        sscanf (data, "%s %d %d %f %d %s %s %s %s", string, &vc, &qc, 
 		&unitlen, &numquads, qname[0], qname[1], qname[2], qname[3]);
-	ct_GetColorByName (vcolor, &vc);
-	ct_GetColorByName (qcolor, &qc);
 /*
  * Put in the vector.
  */
 	left = An_GetLeft ();
-	XSetForeground (XtDisplay (Graphics), Gcontext, vc.pixel);
+	XSetForeground (XtDisplay (Graphics), Gcontext, vc);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
 		"10 m/sec", 0.0, scale, JustifyLeft, JustifyTop);
 	used = DT_ApproxHeight (Graphics, scale, 1);
 	begin += used;
 	space -= used;
 
-	XSetForeground (XtDisplay (Graphics), Gcontext, vc.pixel);
+	XSetForeground (XtDisplay (Graphics), Gcontext, vc);
 	draw_vector (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
 		left, begin + 5, 10.0, 0.0, unitlen);
 	begin += 10;
@@ -1095,7 +1093,7 @@ int datalen, begin, space;
 /*
  * Put in the quadrant annotation.
  */
-	XSetForeground (XtDisplay (Graphics), Gcontext, qc.pixel);
+	XSetForeground (XtDisplay (Graphics), Gcontext, qc);
 	middle = (left + GWWidth (Graphics))/2;
 	if (numquads > 0)
 	{

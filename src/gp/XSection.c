@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.13 1993-10-22 21:25:37 corbet Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.14 1993-10-28 20:28:46 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -527,8 +527,8 @@ bool	update;
  */
 	xs_Background ();
 
-	sprintf (Scratch, "%s %s %f %f %f", "10m/s", cname, 10.0, 0.0, 
-		 Vector_scale * USABLE_HEIGHT); 
+	sprintf (Scratch, "%s %d %f %f %f", "10m/s", Colors[0].pixel, 10.0, 
+		 0.0, Vector_scale * USABLE_HEIGHT); 
 	An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
 		40, FALSE, FALSE);
 

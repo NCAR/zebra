@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.18 1993-10-18 19:28:28 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.19 1993-10-28 20:28:35 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -536,11 +536,11 @@ int datalen, begin, space;
 {
 	float	ratio;	    /* The ratio of graph width to actual units */
 	int	graphWidth; /* The graph width in pixels */
+	Pixel	color;
 	XColor	xc;
 	int	left,width;
 	int	limit;
 	float	scale;
-	char	color[32];
 	char	label[32];
 	char	field[32];
 	int	nTic, ticPix, pixUnit, i;
@@ -553,7 +553,7 @@ int datalen, begin, space;
 /*
  * Get Data
  */
-	sscanf ( data, "%f %d %s %s", &ratio, &graphWidth , color, field);
+	sscanf (data, "%f %d %d %s", &ratio, &graphWidth , &color, field);
 /*
  * Draw the (ruler) scale
  */
@@ -606,8 +606,7 @@ int datalen, begin, space;
 	/*
 	 * Draw the scale name
 	 */
-	ct_GetColorByName(color, &xc);
-        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, color);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext,
              left+(ticPix*nTic/2), begin+1+abs(y1-y2)+7, field, 0.0, scale, 
 	     JustifyCenter, JustifyTop);
@@ -622,9 +621,9 @@ int datalen, begin, space;
  */
 {
         int limit, left;
-        char string[40], color[40];
+        char string[40];
         float scale, used, u, v, unitlen;
-        XColor xc;
+	Pixel color;
 /*
  * Get annotation parameters.
  */
@@ -632,13 +631,12 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %s %f %f %f", string, color, &u, &v, &unitlen);
-        ct_GetColorByName (color, &xc);
+        sscanf (data, "%s %d %f %f %f", string, &color, &u, &v, &unitlen);
 /*
  * Draw the string.
  */
         left = An_GetLeft ();
-        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, color);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left, begin, string, 0.0, scale, JustifyLeft, JustifyTop);
 	used = DT_ApproxHeight (Graphics, scale, 1);
@@ -660,11 +658,11 @@ int datalen, begin, space;
  */
 {
         int limit, left;
-        char string[40], color[40];
+        char string[40];
+	Pixel color;
         float scale, used;
         int     unitlen;
         char    title[80];
-	XColor	xc;
 	int	doKnot = 0;
 /*
  * Get annotation parameters.
@@ -673,15 +671,14 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %s %d", string, color, &unitlen);
-        ct_GetColorByName (color, &xc);
+        sscanf (data, "%s %d %d", string, &color, &unitlen);
 /*
  * Draw the string.
  */
 	doKnot = strcmp("knots", title ) == 0 ? 1 : 0;
         left = An_GetLeft ();
         sprintf( title, "barb flags in %s",string);
-        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, color);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left, begin, title, 0.0, scale, JustifyLeft, JustifyTop);
         used = 20;
@@ -744,8 +741,8 @@ int datalen, begin, space;
 {
 	int limit, left;
 	float scale;
-	char string[40], color[40], *strrchr (), *sp;
-	XColor xc;
+	Pixel color;
+	char string[40], *strrchr (), *sp;
 /*
  * Get annotation parameters.
  */
@@ -753,8 +750,7 @@ int datalen, begin, space;
 /*
  * Get data.
  * Changed 3/5 jc -- some annotation strings have spaces in them!  So we look
- * 		     for the last one as designating the color -- nobody 
- *		     better make any damn color names with spaces...
+ * 		     for the last one as designating the color
  */
 	/* sscanf (data, "%s %s", string, color); */
 	if (! (sp = strrchr (data, ' ')))
@@ -763,13 +759,12 @@ int datalen, begin, space;
 		return;
 	}
 	*sp = '\0';
-	strcpy (color, sp + 1);
-	ct_GetColorByName (color, &xc);
+	color = atoi (sp + 1);
 /*
  * Draw the string.
  */
 	left = An_GetLeft ();
-        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, color);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
         	left, begin, data, 0.0, scale, JustifyLeft, JustifyTop);
 }
@@ -959,7 +954,7 @@ int datalen, begin, space;
 	int limit, left, cheight, nstuff, i;
 	float scale;
 	char *stuff[20];
-	XColor xc;
+	Pixel color;
 /*
  * Get annotation parameters.
  */
@@ -971,9 +966,9 @@ int datalen, begin, space;
 /*
  * Initial graphics setup.
  */
-	ct_GetColorByName (stuff[1], &xc);
+	color = atoi (stuff[1]);
 	left = An_GetLeft ();
-        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, color);
 	cheight = DT_ApproxHeight (Graphics, scale, 1);
 	begin -= 4; /* XXX */
 /*

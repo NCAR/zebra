@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.26 1993-10-14 20:22:17 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.27 1993-10-28 20:28:42 burghart Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -578,7 +578,7 @@ bool shifted;
  */
 {
 	char tadefcolor[30], datastr[100];
-	XColor tadefclr, taclr;
+	XColor tadefclr, taclr, xc;
 	bool tacmatch = FALSE;
 	float sascale;
 /*
@@ -638,7 +638,8 @@ bool shifted;
  */
 	if (! ccfield)
 	{
-		sprintf (datastr, "%s %s", platform, mtcolor);
+		ct_GetColorByName (mtcolor, &xc);
+		sprintf (datastr, "%s %d", platform, xc.pixel);
 		An_AddAnnotProc (An_ColorString, comp, datastr,
 			strlen (datastr), 25, FALSE, FALSE);
 	}
@@ -649,8 +650,8 @@ bool shifted;
 			strlen (datastr), 75, TRUE, FALSE);
 		if (arrow)
 		{
-			sprintf (datastr, "%s %s %f %f %f", "10m/sec", 
-				a_color, 10.0, 0.0, unitlen);
+			sprintf (datastr, "%s %d %f %f %f", "10m/sec", 
+				taclr.pixel, 10.0, 0.0, unitlen);
 			An_AddAnnotProc (An_ColorVector, comp, datastr,
 				strlen (datastr), 25, FALSE, FALSE);
 		}
