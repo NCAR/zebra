@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.9 1992-01-29 21:49:55 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.10 1992-08-24 21:57:53 corbet Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -16,6 +16,14 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.9 1992-01-29 21:49:55 corbet Exp $";
 # include "ui_date.h"
 # include "ui_globals.h"
 
+/*
+ * Make sure we won't get into trouble with "const".
+ */
+# ifndef __STDC__
+# ifndef const
+# define const
+# endif
+# endif
 
 extern char *usy_pstring (), *usy_string ();
 
@@ -166,7 +174,7 @@ union usy_value *ov, *nv;
 
 stbl
 usy_c_stbl (name)
-char *name;
+const char *name;
 /*
  * Create a symbol table by this name.
  */
@@ -245,7 +253,7 @@ stbl stable;
 
 usy_z_symbol (stable, symbol)
 stbl stable;
-char *symbol;
+const char *symbol;
 /*
  * Remove this symbol from the table.
  */
@@ -274,7 +282,7 @@ char *symbol;
  * We have to unlink this symbol from the chain.  If it is the first one,
  * we have it easy.
  */
-	symbol = zapcase (usy_string (symbol));
+	symbol = zapcase (usy_string ((char *) symbol));
  	slot = HASH (symbol);
  	if (table->st_ste[slot] == sym)
 		table->st_ste[slot] = sym->ste_next;
@@ -362,8 +370,8 @@ char *symbol;
 
 int
 usy_g_symbol (stable, symbol, type, value)
-stbl stable;
-char *symbol;
+const stbl stable;
+const char *symbol;
 union usy_value *value;
 int *type;
 /*
@@ -445,8 +453,8 @@ union usy_value *v;
 
 bool
 usy_defined (stable, symbol)
-stbl stable;
-char *symbol;
+const stbl stable;
+const char *symbol;
 /*
  * See if this symbol is defined.
  * Entry:
@@ -466,9 +474,9 @@ char *symbol;
 
 usy_s_symbol (stable, symbol, type, value)
 stbl stable;
-char *symbol;
+const char *symbol;
 int type;
-union usy_value *value;
+const union usy_value *value;
 /*
  * Define a symbol.
  * Entry:
@@ -619,7 +627,7 @@ char *symbol;
 
 
 usy_dump_table (stable)
-stbl stable;
+const stbl stable;
 /*
  * Print out a listing of this table.
  */
@@ -709,7 +717,7 @@ union usy_value *value;
 
 stbl
 usy_g_stbl (name)
-char *name;
+const char *name;
 /*
  * Look up the tag of a symbol table.
  * Entry:
@@ -742,8 +750,8 @@ char *name;
 
 usy_c_indirect (stable, symbol, target, type, length)
 stbl stable;
-char *symbol;
-void *target;
+const char *symbol;
+const void *target;
 int type, length;
 /*
  * Create an indirect symbol.
@@ -782,7 +790,7 @@ int type, length;
 
 int
 usy_hash (s)
-char *s;
+const char *s;
 /*
  * Return a hash number for this string.
  */
@@ -799,7 +807,7 @@ char *s;
 
 
 usy_traverse (stable, func, arg, sort)
-stbl stable;
+const stbl stable;
 int (*func) ();
 long arg;
 bool sort;
@@ -816,7 +824,7 @@ bool sort;
 
 
 usy_search (stable, func, arg, sort, re)
-stbl stable;
+const stbl stable;
 int (*func) ();
 long arg;
 bool sort;
@@ -982,7 +990,7 @@ char *symbol;
 int
 usy_daemon (stable, symbol, ops, func, arg)
 stbl stable;
-char *symbol;
+const char *symbol;
 int ops;
 int (*func) ();
 char * arg;
@@ -1034,7 +1042,7 @@ char * arg;
 int
 usy_z_daemon (stable, symbol, ops, func, arg)
 stbl stable;
-char *symbol;
+const char *symbol;
 int ops;
 int (*func) ();
 char * arg;

@@ -1,4 +1,4 @@
-/* $Id: ui_symbol.h,v 1.4 1990-09-19 08:50:24 corbet Exp $ */
+/* $Id: ui_symbol.h,v 1.5 1992-08-24 21:57:53 corbet Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -46,19 +46,19 @@ typedef char *stbl;
  */
 # ifdef __STDC__
 	void usy_init (void);
-	stbl usy_c_stbl (char *);
+	stbl usy_c_stbl (const char *);
 	int usy_z_stbl (stbl);
-	int usy_z_symbol (stbl, char *);
-	int usy_g_symbol (stbl, char *, int *, SValue *);
-	bool usy_defined (stbl, char *);
-	int usy_s_symbol (stbl, char *, int, SValue *);
-	int usy_dump_table (stbl);
-	stbl usy_g_stbl (char *);
-	int usy_c_indirect (stbl, char *, void *, int, int);
-	int usy_traverse (stbl, int (*)(), long, int);
-	int usy_search (stbl, int (*)(), long, int, char *);
-	int usy_daemon (stbl, char *, int, int (*)(), char *);
-	int usy_z_daemon (stbl, char *, int, int (*)(), char *);
+	int usy_z_symbol (stbl, const char *);
+	int usy_g_symbol (const stbl, const char *, int *, SValue *);
+	bool usy_defined (const stbl, const char *);
+	int usy_s_symbol (stbl, const char *, int, const SValue *);
+	int usy_dump_table (const stbl);
+	stbl usy_g_stbl (const char *);
+	int usy_c_indirect (stbl, const char *, const void *, int, int);
+	int usy_traverse (const stbl, int (*)(), long, int);
+	int usy_search (const stbl, int (*)(), long, int, char *);
+	int usy_daemon (stbl, const char *, int, int (*)(), char *);
+	int usy_z_daemon (stbl, const char *, int, int (*)(), char *);
 # else
 	void usy_init ();
 	stbl usy_c_stbl ();
