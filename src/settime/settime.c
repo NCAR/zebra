@@ -19,16 +19,19 @@
  * Change the current time.
  */
 # include <signal.h>
-# include "defs.h"
-# include "message.h"
-# include "copyright.h"
-# include "timer.h"
-MAKE_RCSID ("$Id: settime.c,v 2.5 1995-06-29 22:38:14 granger Exp $")
+
+# include <defs.h>
+# include <message.h>
+# include <copyright.h>
+# include <timer.h>
+
+RCSID ("$Id: settime.c,v 2.6 1995-07-06 04:49:33 granger Exp $")
 
 
 int msg_handler (), intr (), Slot;
 void alrm ();
 
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -56,6 +59,7 @@ char **argv;
 
 
 
+int
 msg_handler (msg)
 struct message *msg;
 {
@@ -65,10 +69,9 @@ struct message *msg;
 
 
 
+int
 intr ()
 {
-	struct tm_req tr;
-
 	printf ("OUCH! (%d)\n", Slot);
 	tl_Cancel (Slot);
 	return (0);
@@ -81,6 +84,6 @@ alrm (now, param)
 UItime *now;
 char *param;
 {
-	printf ("Alarm at %d %d, param '%s'\n", now->ds_yymmdd,
+	printf ("Alarm at %li %li, param '%s'\n", now->ds_yymmdd,
 		now->ds_hhmmss, param);
 }
