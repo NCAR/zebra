@@ -5,7 +5,7 @@
 # include "config.h"
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.18 1990-04-09 14:33:31 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.19 1990-05-02 10:03:01 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -111,6 +111,7 @@ struct device *dev;
 	XSetWindowAttributes attr;
 	XGCValues gcontext;
 	XVisualInfo template, *vlist;
+	XWMHints hints;
 	int screen, pv[2], pm, nmatch, depth, i;
 	XEvent ev;
 /*
@@ -189,6 +190,12 @@ struct device *dev;
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
 		tag->x_yres, 2, depth, InputOutput, tag->x_visual,
 		CWBackPixel|CWBorderPixel|CWBackingStore|CWEventMask, &attr);
+/*
+ * Set the input flag for difficult window managers.
+ */
+	hints.flags = InputHint;
+	hints.input = True;
+	XSetWMHints (tag->x_display, tag->x_window, &hints);
 /*
  * Create all of the subwindows.
  */
