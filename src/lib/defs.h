@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.27 1994-11-21 22:58:33 granger Exp $ */
+/* $Id: defs.h,v 2.28 1995-04-15 00:29:31 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,8 +21,6 @@
  */
 # ifndef _zeb_defs_h_
 # define _zeb_defs_h_
-
-# include <version.h>
 
 # include <ui.h>
 # include <stdlib.h>
@@ -49,6 +47,8 @@
 # ifndef __GNUC__
 # define inline
 # endif
+
+# include <version.h>
 
 /*
  * FCC-specific defined types.
@@ -119,22 +119,20 @@ typedef enum
 	AU_mMSL,	/* m MSL */
 	AU_kmAGL,	/* km AGL */
 	AU_mAGL,	/* m AGL */
-	AU_mb		/* mb (pressure altitude) */
+	AU_mb,		/* mb (pressure altitude) */
+	AU_sigma,	/* sigma level (unitless) */
+	AU_level	/* unknown, unitless level */
 } AltUnitType;
 
 /*
  * Functions.
  */
-void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
-void	tw_SetTime FP ((ZebTime *init_or_null)); /* null ==> use system time */
-void 	tw_DialAdjust FP ((int, int));
 int 	InterpDTime FP ((char *));
-void 	TC_SysToFcc FP ((long, UItime *));
-long 	TC_FccToSys FP ((UItime *));
 void	RL_Encode FP ((unsigned char *, unsigned char *, int, int, 
 		int *, int *));
 void 	RL_Decode FP ((unsigned char *, unsigned char *const, int));
 int	CommaParse FP ((char *, char **));
+int	ParseLine FP ((char *string, char **substrings, char delim));
 
 void	SetupConfigVariables FP ((void));
 char 	*GetBaseDir FP ((void));
@@ -145,11 +143,14 @@ char 	*GetDataDir FP ((void));
 
 /* New time format utilities */
 
+void 	TC_SysToFcc FP ((const long, UItime *));
+long 	TC_FccToSys FP ((const UItime *));
 long	TC_ZtToSys FP ((const ZebTime *));
-void	TC_SysToZt FP ((long, ZebTime *));
+void	TC_SysToZt FP ((const long, ZebTime *));
 void	TC_UIToZt FP ((const date *, ZebTime *));
 void	TC_ZtToUI FP ((const ZebTime *, date *));
 void	TC_EncodeTime FP ((const ZebTime *, TimePrintFormat, char *));
+const char *TC_AscTime FP ((const ZebTime *zt, int format));
 bool	TC_DecodeTime FP ((const char *, ZebTime *));
 void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 		int *, int *));
@@ -166,6 +167,25 @@ const char	*au_PrintFormat FP ((AltUnitType atype));
 const char	*au_AltLabel FP ((double alt, AltUnitType atype));
 const char	*au_LongAltLabel FP ((double alt, AltUnitType atype));
 bool		au_ConvertName FP ((char *name, AltUnitType *atype));
+
+/* 
+ * Alarm widget interface
+ */
+void aw_DefAlarmWidget FP ((void));
+
+/*
+ * Sounds interface
+ */
+void DoSound FP ((char *sound));
+
+/*
+ * Coordinate conversions
+ */
+void cvt_ToXY FP ((double lat, double lon, float *x, float *y));
+void cvt_ToLatLon FP ((double x, double y, float *lat, float *lon));
+int cvt_GetOrigin FP ((float *lat, float *lon));
+bool cvt_Origin FP ((double lat, double lon));
+void cvt_ShowOrigin FP ((void));
 
 /*
  * Some macros for the new time format.
