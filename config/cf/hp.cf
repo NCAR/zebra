@@ -31,3 +31,10 @@ XCOMM operating system:  OSName
 #if OSMajorVersion < 6 || (OSMajorVersion == 6 && OSMinorVersion < 2)
 #define ConnectionFlags		-DTCPCONN	/* no unix sockets */
 #endif
+
+/*
+ * Force "ranlib" stuff since library installation seems to make the
+ * library symbol table out-of-date.
+ */
+#define DoRanlibCmd	1
+#define RanlibCmd	ar s
