@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.3 1991-10-01 15:58:45 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.4 1991-10-17 15:31:34 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -146,9 +146,17 @@ pc_PlotHandler ()
  * Movie mode?
  */
 	MovieMode = FALSE;
-	pda_Search (Pd, "global", "movie-mode", 0, (char *) &MovieMode, 
+	pda_Search (Pd, "global", "movie-mode", NULL, (char *) &MovieMode, 
 		SYMT_BOOL);
 	msg_ELog(EF_DEBUG, "Movie mode: %s", MovieMode ? "TRUE" : "FALSE");
+/*
+ * Post processing mode?
+ */
+	PostProcMode = FALSE;
+	pda_Search (Pd, "global", "post-proc-mode", NULL, 
+		(char *) &PostProcMode, SYMT_BOOL);
+	msg_ELog(EF_DEBUG, "Post processing mode: %s", PostProcMode ? "TRUE" : 
+		"FALSE");
 /*
  * Get the path to the FrameFile from the plot description.
  */
@@ -401,9 +409,6 @@ char *comp;
 	msg_ELog (EF_DEBUG, "Plot alarm at %d %d", t->ds_yymmdd, t->ds_hhmmss);
 	Eq_AddEvent (PDisplay, pc_Plot, comp, 1 + strlen (comp),
 		(strcmp (comp, "global") ? Bounce : Override));
-/*
-	Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
-*/
 }
 
 
@@ -450,9 +455,6 @@ time *t;
 		index = 0;
 	Eq_AddEvent (PDisplay, pc_Plot, comps[index],
 			strlen (comps[index]) + 1, Override);
-/*
-	Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
-*/
 }
 
 
@@ -469,7 +471,7 @@ char	*comp;
 	px_PlotExec (comp);
 
 	if (! MovieMode)
-		I_DoIcons ();
+		I_ColorIcons (comp);
 }
 
 
