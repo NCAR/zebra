@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.28 1995-10-12 16:41:29 corbet Exp $ 
+XCOMM $Id: Imakefile,v 1.29 1995-10-24 21:59:31 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -45,7 +45,6 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
 # else
    MAPDEFINE=
 # endif
-/* DEFINES = $(SHMDEFINES) $(MAPDEFINE) -DC_PT_HISTOGRAM=1 /* -DXDEBUG */
 DEFINES = $(SHMDEFINES) $(MAPDEFINE) /* -DXDEBUG */
 
 /*

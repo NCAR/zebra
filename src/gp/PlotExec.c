@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.49 1995-10-12 16:41:33 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.50 1995-10-24 21:59:34 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -200,7 +200,7 @@ static void _UncompiledFunction () { }
 
 # if C_PT_HISTOGRAM
 	extern void	HG_Init ();
-	extern void	HG_BarChart ();
+	extern void	HG_CountBarChart ();
 # endif
 
 /*
@@ -808,7 +808,7 @@ px_Init ()
 # endif
 # if C_PT_HISTOGRAM
 	Plot_routines[PT_HISTOGRAM][RT_INIT] = HG_Init;
-	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = HG_BarChart;
+	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = HG_CountBarChart;
 # else
 	Plot_routines[PT_HISTOGRAM][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = UNCOMPILED_FUNCTION;

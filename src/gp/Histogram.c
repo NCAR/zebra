@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.1 1995-10-12 16:41:27 corbet Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.2 1995-10-24 21:59:29 corbet Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -80,6 +80,8 @@ static void HG_BinAnnot FP ((float *, int, int, float, int, int, int));
 static void HG_DividerBar FP ((char *));
 static int HG_FigureInterval FP ((int, int, int));
 static void HG_CountGrid FP ((char *, int, int, int, int));
+static void HG_NextPlot FP ((char *));
+
 
 
 
@@ -131,11 +133,23 @@ ZebTime *t;
 
 
 
+static void
+HG_NextPlot (c)
+char *c;
+/*
+ * Time for the next histogram plot.
+ */
+{
+	if (++NPlotted > 1)
+		HG_DividerBar (c);
+}
+
+
 
 
 
 void
-HG_BarChart (c, update)
+HG_CountBarChart (c, update)
 char *c;
 int update;
 /*
@@ -146,15 +160,14 @@ int update;
 	FieldId fids[HG_MAX_FIELDS];
 	float bins[HG_MAX_BINS], sscale, bscale;
 	int nplat, nfield, nbin, tperiod, ncolor, cmin, cmax, bwidth, ngroup;
-	int plat, *badcounts, field, barpos, y0, y1, bbase, maxbh;
+	int plat, *badcounts, field, barpos, y0, y1, bbase, maxbh, nok = 0;
 	int **counts, bin, pbegin, binwidth, sapos, junk, lheight;
 	bool bvbin, anncounts, autoscale, zanchor;
 	XColor *ctable;
 /*
- * Another one down.
+ * Onward.
  */
-	if (++NPlotted > 1)
-		HG_DividerBar (c);
+	HG_NextPlot (c);
 /*
  * Grab our info.
  */
@@ -188,6 +201,7 @@ int update;
 	 */
 		if (! (dc = HG_GetBCData (pids[plat], fids, nfield, tperiod)))
 			continue;
+		nok++;		/* We have something */
 	/*
 	 * Now go through each field.
 	 */
@@ -208,6 +222,12 @@ int update;
 		HG_SetOT (c, dc);
 		dc_DestroyDC (dc);
 	}
+/*
+ * Did we maybe not get any data at all?  If so, to hell with the rest of
+ * that stuff.
+ */
+	if (! nok)
+		goto cleanup;
 /*
  * Now we can figure out our plot limits, if need be.  Save them for the
  * adjuster widget.
@@ -281,6 +301,8 @@ int update;
 /*
  * Cleanup and done.
  */
+cleanup:
+	free (counts);
 	free (badcounts);
 }
 
@@ -527,6 +549,12 @@ int **counts, nplat, nfield, nbin, *badcounts, zanchor, *cmin, *cmax;
 	for (pf = 0; pf < nplat*nfield; pf++)
 	{
 		int *bcounts = counts[pf];
+	/*
+	 * Make really, really sure there is data here.  Otherwise things
+	 * get ugly.
+	 */
+		if (! bcounts)
+			continue;
 	/*
 	 * Count up the regular bins.
 	 */
