@@ -24,8 +24,7 @@ typedef struct {
     /* resources */
 	unsigned int	frame_count;	/* How many frames? */
     /* private state */
-	void	(*plot_routine)();	/* Routine to regenerate plot */
-	caddr_t		plot_data;	/* Pointer to data for plot routine */
+	GC		gc;		/* Graphics context */
 	Pixmap		*frames;	/* Pixmaps for the frames */
 	unsigned int	draw_frame;	/* Frame to draw */
 	unsigned int	display_frame;	/* Frame to display */
