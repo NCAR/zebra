@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.20 2002-11-18 17:33:35 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.21 2002-11-18 18:49:24 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -80,7 +80,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.20 2002-11-18 17:33:35 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.21 2002-11-18 18:49:24 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -438,6 +438,7 @@ static void 	GetPlatformName (const Sounding &snd, char plat[]);
 static void	BuildTranslationTable (const char *tfilename);
 static void	ParseCommandLineOptions (int *argc, char *argv[]);
 static char *	GetNextString (char *, char*);
+static void 	StoreSurfaceRecords (DataChunk *dc, Sounding &snd);
 extern "C"
 { 
 	static void Usage(char *prog_name);
@@ -509,19 +510,6 @@ CreateSoundingDC (Sounding &snd)
 		dc_NSDefineVariable (dc, fields[i], 0, 0, 0);
 	}
 	IngestLog(EF_DEBUG,"%d sounding fields set in datachunk",nfields);
-
-	// Define the dimension for surface points
-	dc_NSDefineDimension (dc, F_stime::fieldId(), 
-			      GlassFileRecord::MAX_SURFACE);
-	CollectFields sf (&nfields, fields);
-	snd.gl->enumerateSurfaceFields (sf);
-	fields[nfields++] = F_sdewpoint::fieldId();
-	FieldId dimn = F_stime::fieldId();
-	for (i = 0; i < nfields; ++i)
-	{
-		dc_NSDefineVariable (dc, fields[i], 1, &dimn, /*static*/TRUE);
-	}
-	IngestLog(EF_DEBUG,"%d surface fields set in datachunk",nfields);
 
 	dc_SetBadval(dc, BADVAL);
 	IngestLog(EF_DEBUG,"bad_value_flag set to %6.2f",BADVAL);
@@ -965,7 +953,8 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 
 		// Now check for expected attributes.
 		int year, mon, day, hour, min, sec;
-		if (left.find("GMT Launch Time") != string::npos)
+		if (left.find("GMT Launch Time") != string::npos ||
+		    left.find("UTC Release Time") != string::npos)
 		{
 			// Found the launch time.
 			snd.launch_time = right;
@@ -992,11 +981,16 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 		    sscanf (right.c_str(), "%f %f'E, %f %f'N, %f",
 			    &eastd, &eastm, &northd, &northm, &alt) == 5)
 		{
-			// Found the site location.
 			snd.location = right;
 		}
 
-		if (left.find ("Launch Site") != string::npos)
+		if (left.find ("Release Location") != string::npos)
+		{
+			snd.location = right;
+		}
+
+		if (left.find ("Launch Site") != string::npos ||
+		    left.find ("Release Site") != string::npos)
 		{
 			snd.site = right;
 		}
@@ -1302,29 +1296,20 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		}
 
 		// Add the surface data to the datachunk at the first
-		// post-launch point.
+		// post-launch point, but only if we found some.
 		if (sample == 0)
 		{
-			// Redefine the length of the surface time dimension
-			// to actual length.
-			dc_NSDefineDimension (dc, F_stime::fieldId(), 
-					      gl->nsurface);
-
-			dc_NSAddStatic (dc, F_stime::fieldId(), gl->stime);
-			dc_NSAddStatic (dc, F_spres::fieldId(), gl->spres);
-			dc_NSAddStatic (dc, F_stemp::fieldId(), gl->stemp);
-			dc_NSAddStatic (dc, F_srh::fieldId(), gl->srh);
-			dc_NSAddStatic (dc, F_swdir::fieldId(), gl->swdir);
-			dc_NSAddStatic (dc, F_swspd::fieldId(), gl->swspd);
-
-			dc_NSAddStatic (dc, F_sdz::fieldId(), gl->sdz);
-			dc_NSAddStatic (dc, F_slon::fieldId(), gl->slon);
-			dc_NSAddStatic (dc, F_slat::fieldId(), gl->slat);
-			dc_NSAddStatic (dc, F_salt::fieldId(), gl->salt);
-			dc_NSAddStatic (dc, F_ssa::fieldId(), gl->ssa);
-			dc_NSAddStatic (dc, F_sdewpoint::fieldId(), gl->sdp);
-			msg_ELog (EF_DEBUG, "%d surface records found.",
-				  gl->nsurface);
+			if (gl->nsurface > 0)
+			{
+				StoreSurfaceRecords (dc, snd);
+				msg_ELog (EF_DEBUG,
+					  "%d surface records found.",
+					  gl->nsurface);
+			}
+			else
+			{
+				msg_ELog (EF_DEBUG, "No surface records.");
+			}
 		}
 
 		// Continue with the normal sounding record case.
@@ -1361,4 +1346,40 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	{
 		dc_SortSamples (dc);
 	}
+}
+
+
+
+static void
+StoreSurfaceRecords (DataChunk *dc, Sounding &snd)
+{
+	GlassFileRecord *gl = snd.gl;
+	int nfields;
+	FieldId fields[MAX_FIELDS];
+
+	// Define the dimension for surface points
+	dc_NSDefineDimension (dc, F_stime::fieldId(), gl->nsurface);
+	CollectFields sf (&nfields, fields);
+	gl->enumerateSurfaceFields (sf);
+	fields[nfields++] = F_sdewpoint::fieldId();
+	FieldId dimn = F_stime::fieldId();
+	for (int i = 0; i < nfields; ++i)
+	{
+		dc_NSDefineVariable (dc, fields[i], 1, &dimn, /*static*/TRUE);
+	}
+	IngestLog(EF_DEBUG,"%d surface fields set in datachunk",nfields);
+
+	dc_NSAddStatic (dc, F_stime::fieldId(), gl->stime);
+	dc_NSAddStatic (dc, F_spres::fieldId(), gl->spres);
+	dc_NSAddStatic (dc, F_stemp::fieldId(), gl->stemp);
+	dc_NSAddStatic (dc, F_srh::fieldId(), gl->srh);
+	dc_NSAddStatic (dc, F_swdir::fieldId(), gl->swdir);
+	dc_NSAddStatic (dc, F_swspd::fieldId(), gl->swspd);
+
+	dc_NSAddStatic (dc, F_sdz::fieldId(), gl->sdz);
+	dc_NSAddStatic (dc, F_slon::fieldId(), gl->slon);
+	dc_NSAddStatic (dc, F_slat::fieldId(), gl->slat);
+	dc_NSAddStatic (dc, F_salt::fieldId(), gl->salt);
+	dc_NSAddStatic (dc, F_ssa::fieldId(), gl->ssa);
+	dc_NSAddStatic (dc, F_sdewpoint::fieldId(), gl->sdp);
 }
