@@ -25,11 +25,13 @@
  * parameter-less protos in ANSI location stdlib.h
  */
 # include <math.h>
+# include <string.h>
+# include <ctype.h>
 
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.7 1996-05-01 20:15:45 granger Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.8 1997-09-10 19:56:32 granger Exp $")
 
 # ifdef MAP_PROJECTIONS
 static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
@@ -105,6 +107,11 @@ static struct ProjMap PMap [] =
 };
 # define N_PROJECTION (sizeof (PMap)/sizeof (struct ProjMap))
 
+static struct ProjMap UserProj =
+{
+	"user", "user", "User", 0
+};
+
 # endif
 
 /*
@@ -116,9 +123,14 @@ static float O_Lat, O_Lon;
 /*
  * Local stuff.
  */
-static int prj_GetParams FP ((char *, float *, float *));
+static int prj_GetParams FP ((char *, int *, char **, float *, float *));
+static void prj_FreeParams FP ((int *nparam, char **params));
+static void prj_SetParam FP ((char *p, char *v, int *nparam, char **params));
+static int prj_AddParam FP ((char *p, char *v, int *nparam, char **params));
+static int prj_AddFloatParam FP ((char *, double v, int *nparam, char **p));
 # ifdef MAP_PROJECTIONS
-static int prj_InitProj FP ((struct ProjMap *, double, double));
+static int prj_InitProj FP ((struct ProjMap *pm, int *nparam, char **params,
+			     double lat, double lon));
 static struct ProjMap *prj_Lookup FP ((char *));
 # endif
 
@@ -138,10 +150,12 @@ prj_Setup ()
 # ifdef MAP_PROJECTIONS
 	struct ProjMap *pm;
 # endif
+	char *params[32];
+	int nparam = 0;
 /*
  * Dig up all of the parameters.
  */
-	if (! prj_GetParams (proj, &lat, &lon))
+	if (! prj_GetParams (proj, &nparam, params, &lat, &lon))
 		return (FALSE);
 	O_Lat = lat;
 	O_Lon = lon;
@@ -158,7 +172,6 @@ prj_Setup ()
  */
 	pm = prj_Lookup (proj);
 	key = (int) (O_Lat + O_Lon) + (int) pm;
-	strcpy (Pname, pm ? pm->pm_LongName : "Zebra");
 /*
  * If we have an old PJ structure, and a new projection is in the works,
  * dump the old one.
@@ -170,18 +183,24 @@ prj_Setup ()
 	}
 /*
  * If we have a fancy projection and it has changed, try to initialize it.
- * Since we precheck projection names now, the init should never fail.
+ * If it fails, revert to zebra projection.
  */
 	if (pm)
 	{
 		if (key != PKey)
-			PKey = prj_InitProj (pm, lat, lon) ? key : 0;
+			PKey = prj_InitProj (pm, &nparam, params, lat, lon)
+				? key : 0;
 	}
 	else
 		PKey = 0;
-	msg_ELog (EF_DEBUG, "Projection: %s, Key %d, VOffset %.2f", Pname,
-			PKey, VOffset);
+/*
+ * Set the name here rather than above in case the initialization failed.
+ */
+	strcpy (Pname, (pm && PKey) ? pm->pm_LongName : "Zebra");
+	msg_ELog (EF_DEBUG, "Projection setup: %s, Key %d, VOffset %.2f",
+		  Pname, PKey, VOffset);
 # endif
+	prj_FreeParams (&nparam, params);
 	return (TRUE);
 }
 
@@ -221,14 +240,19 @@ prj_GetProjName ()
 
 
 static int
-prj_GetParams (proj, lat, lon)
+prj_GetParams (proj, nparam, params, lat, lon)
 char *proj;
+int *nparam;
+char **params;
 float *lat, *lon;
 /*
  * Get the projection control parameters.
  */
 {
 	bool ok;
+	char *space;
+	char *c;
+	int param;
 /*
  * Figure out what projection they want.
  */
@@ -250,11 +274,113 @@ float *lat, *lon;
 			SYMT_FLOAT);
 	ok &= pda_ReqSearch (Pd, "global", "y-max", NULL, (char *) &Yhi,
 			SYMT_FLOAT);
+/*
+ * Parse the projection for space-separated user parameters.
+ */
+	c = proj;
+	param = 0;
+	while (ok && *c)
+	{
+		while (*c && isspace (*c))
+			c++;
+		if (! *c)
+			break;
+		space = c;
+		while (*space && ! isspace (*space))
+			space++;
+		if (*space)
+			*(space++) = '\0';
+		if (param)	/* skip the initial projection name */
+			prj_SetParam (c, NULL, nparam, params);
+		else
+			param = 1;
+		c = space;
+	}
 	return (ok);
 }
 	
 
 
+
+
+static void
+prj_FreeParams (nparam, params)
+int *nparam;
+char **params;
+{
+	int i;
+	for (i = 0 ; i < *nparam ; ++i)
+	{
+		if (params[i])
+			free (params[i]);
+	}
+	*nparam = 0;
+}
+
+
+
+
+static void
+prj_SetParam (p, v, nparam, params)
+char *p;
+char *v;
+int *nparam;
+char **params;
+/*
+ * Just set this parameter at the end of the list.
+ */
+{
+	int len = strlen(p) + (v ? strlen(v) : 0) + 2;
+	params[(*nparam)] = (char *) malloc (len);
+	sprintf (params[(*nparam)], "%s%s%s", p, v ? "=" : "", v ? v : "");
+	(*nparam)++;
+}
+
+
+
+
+static int
+prj_AddParam (p, v, nparam, params)
+char *p;
+char *v;
+int *nparam;
+char **params;
+/*
+ * The params array of pointers is assumed to have enough room to append
+ * the given parameter.  The parameter is only added if it does not
+ * already exist in the array.  If v is null, the parameter is added
+ * without the '=' and with no value.  Return non-zero if parameter was
+ * actually added.  Once used the parameter list needs to be freed with
+ * prj_FreeParams().
+ */
+{
+	int i;
+
+	for (i = 0; i < *nparam; ++i)
+	{
+		if (strstr (params[i], p) == params[i])
+			return (0);
+	}
+/*
+ * So add the parameter already...
+ */
+	prj_SetParam (p, v, nparam, params);
+	return (1);
+}
+
+
+
+static int
+prj_AddFloatParam (p, v, nparam, params)
+char *p;
+double v;
+int *nparam;
+char **params;
+{
+	char value[32];
+	sprintf (value, "%.4f", v);
+	return (prj_AddParam (p, value, nparam, params));
+}
 
 
 
@@ -286,6 +412,8 @@ char *proj;
  */
 	if (pindex >= N_PROJECTION)
 	{
+		if (! strcmp (proj, "user"))
+			return (&UserProj);
 		if (strcmp (proj, "zebra"))
 			msg_ELog (EF_PROBLEM, "Unknown projection: %s", proj);
 		return (0);
@@ -297,57 +425,46 @@ char *proj;
 
 
 
-
 static int
-prj_InitProj (pm, lat, lon)
+prj_InitProj (pm, nparam, params, lat, lon)
 struct ProjMap *pm;
+int *nparam;
+char **params;
 double lat, lon;
 /*
  * Try to set up a fancy projection.
  */
 {
-	char *params[10], pproj[32], plat[32], plon[32], lts[32], *prp;
-	int nparam = 0;
+	int i;
 	UV origin;
+	char log[256];
 /*
- * Set up the parameters for the init call.
+ * Set up the parameters for the init call.  For special "user" projection,
+ * don't set any parameters.
  */
-	sprintf (pproj, "proj=%s", pm->pm_LibName);
-	params[nparam++] = pproj;
-# ifdef notdef
-	sprintf (plat, "lat_0=%.4f", lat);
-	params[nparam++] = plat;
-# endif	
-	sprintf (plon, "lon_0=%.4f", lon);
-	params[nparam++] = plon;
-	sprintf (lts, "lat_ts=%.4f", lat);
-	params[nparam++] = lts;
+	if (pm != &UserProj)
+	{
+		prj_AddParam ("proj", pm->pm_LibName, nparam, params);
+		prj_AddFloatParam ("lon_0", lon, nparam, params);
+		prj_AddFloatParam ("lat_ts", lat, nparam, params);
+	}
 /*
  * Add in any projection-specific ones.
  */
-# ifdef notdef
-	for (arg = 0; arg < pm->pm_Narg; arg++)
-		params[nparam++] = pm->pm_Eargs[arg];
-# endif
 	if (pm->pm_SParam)
-		(*pm->pm_SParam) (pm, &nparam, params);
-/*
- * We need a way to get user-specified params in here too.  Someday.
- */
-	if ((OurPJ = pj_init (nparam, params)) == 0)
+		(*pm->pm_SParam) (pm, nparam, params);
+
+	sprintf (log, "Init proj: ");
+	for (i = 0; i < *nparam; ++i)
+		sprintf (log+strlen(log), "%s ", params[i]);
+	msg_ELog (EF_DEBUG, "%s", log);
+
+	if ((OurPJ = pj_init (*nparam, params)) == 0)
 	{
 		msg_ELog (EF_PROBLEM, "pj_init failed, proj = %s",
-				pm->pm_Name);
+			  pm->pm_Name);
 		return (FALSE);
 	}
-# ifdef notdef
-/*
- * Make up a "key" for this projection.  Kludge.
- */
-	PKey = 0;
-	for (prp = proj; *prp; prp++)
-		PKey += *prp;
-# endif
 /*
  * Not all projections respect lat_0, so we have to remember an offset anyway.
  */
@@ -355,6 +472,12 @@ double lat, lon;
 	origin.v = lat*DEG_TO_RAD;
 	origin = pj_fwd (origin, OurPJ);
 	VOffset = origin.v;
+	if (origin.u == HUGE_VAL)
+	{
+		msg_ELog (EF_PROBLEM,
+			  "projection of origin to get VOffset failed");
+		VOffset = 0;
+	}
 	return (TRUE);
 }
 
@@ -471,7 +594,6 @@ char **params;
  * Fix up additional parameters needed for conic projections.
  */
 {
-	static char lat1p[32], lat2p[32];
 	float lat, lon;
 /*
  * Try to figure lat1 and lat2 as the upper and lower bounds of the
@@ -480,18 +602,15 @@ char **params;
  *
  */
 	cvt_ToLatLon (Xlo, Ylo, &lat, &lon);
-	sprintf (lat1p, "+lat_1=%.4f", lat);
-	params[(*np)++] = lat1p;
+	prj_AddFloatParam ("lat_1", lat, np, params);
 	cvt_ToLatLon (Xhi, Yhi, &lat, &lon);
-	sprintf (lat2p, "+lat_2=%.4f", lat);
-	params[(*np)++] = lat2p;
-	msg_ELog (EF_DEBUG, "Conic: lat1 '%s', lat2 '%s'", lat1p, lat2p);
+	prj_AddFloatParam ("lat_2", lat, np, params);
 /*
  * Some projections can use a "+south" to do better in the southern
  * hemisphere.  And it doesn't hurt to have it for the rest.
  */
 	if (O_Lat < 0)
-		params[(*np)++] = "+south";
+		prj_AddParam ("south", NULL, np, params);
 }
 
 
@@ -505,10 +624,10 @@ char **params;
  */
 {
 	int south = O_Lat < 0;
-	params[(*np)++] = south ? "+lat_1=-90" : "+lat_1=90";
-	params[(*np)++] = south ? "+lat_2=-90" : "+lat_2=90";
+	prj_AddFloatParam ("lat_1", south ? -90.0 : 90.0, np, params);
+	prj_AddFloatParam ("lat_2", south ? -90.0 : 90.0, np, params);
 	if (south)
-		params[(*np)++] = "+south";
+		prj_AddParam ("south", NULL, np, params);
 }
 
 
@@ -522,15 +641,13 @@ char **params;
  * Make a stereographic projection centered on our origin
  */
 {
-	static char slat[32];
 /*
  * Stereographic requires that we set lat_0.  Let's hope nobody else does.
  */
-	sprintf (slat, "+lat_0=%.4f", O_Lat);
-	params[(*np)++] = slat;
+	prj_AddFloatParam ("lat_0", O_Lat, np, params);
 
 	if (O_Lat < 0)
-		params[(*np)++] = "+south";
+		prj_AddParam ("south", NULL, np, params);
 }
 
 
@@ -544,16 +661,13 @@ char **params;
  * Make a polar stereographic projection.
  */
 {
-	static char slat[32];
 	int	south = (O_Lat < 0);
 /*
  * Polar means lat_0 = +/-90
  */
-	sprintf (slat, "+lat_0=%.4f", south ? -90 : 90);
-	params[(*np)++] = slat;
-
+	prj_AddFloatParam ("lat_0", south ? -90.0 : 90.0, np, params);
 	if (south)
-		params[(*np)++] = "+south";
+		prj_AddParam ("south", NULL, np, params);
 }
 
 
