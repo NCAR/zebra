@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.10 1989-10-20 14:07:07 corbet Exp $ */
+/* $Id: device.c,v 1.11 1990-01-12 13:58:59 wyngaard Exp $ */
 /*
  * Handle device specifics.
  */
@@ -45,6 +45,11 @@ extern int zb_flush (), zb_target (), zb_put_target ();
 # ifdef DEV_LN03
 extern int ln_open (), ln_close (), ln_clear (), ln_poly (), ln_cmap ();
 extern int ln_flush ();
+# endif
+
+# ifdef DEV_PS
+extern int ps_open (), ps_close (), ps_flush (), ps_poly (), ps_hcw ();
+extern int ps_cmap (), ps_clear (), ps_vp (), ps_print ();
 # endif
 
 # ifdef DEV_SUNVIEW
@@ -106,6 +111,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 # ifdef DEV_XWIN
@@ -147,6 +153,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -186,6 +193,7 @@ struct device D_tab[] =
 		___,		/* readscreen			*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -230,6 +238,7 @@ struct device D_tab[] =
 		x11_readscreen,		/* readscreen			*/
 		x11_pick,		/* pick		*/
 		x11_coff,		/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -273,6 +282,7 @@ struct device D_tab[] =
 		xt_readscreen,		/* readscreen			*/
 		xt_pick,			/* pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -315,6 +325,7 @@ struct device D_tab[] =
 		sv_readscreen,		/* readscreen			*/
 		sv_pick,		/* pick				*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 
 	{
@@ -352,6 +363,7 @@ struct device D_tab[] =
 		sv_readscreen,		/* readscreen			*/
 		sv_pick,		/* pick				*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 
 	{
@@ -389,6 +401,7 @@ struct device D_tab[] =
 		sv_readscreen,		/* readscreen			*/
 		sv_pick,		/* pick				*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 
 # endif /* DEV_SUNVIEW */
@@ -433,6 +446,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 /*
  * The Ramtek 9460 in "image" (quarter-screen) mode.
@@ -472,6 +486,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 /*
  * The Ramtek 9460 in "image" (quarter-screen) mode.  This variant uses
@@ -513,6 +528,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -555,6 +571,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 /*
  * This is a special variation on the 4107 that uses the pixel operations
@@ -597,6 +614,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -639,6 +657,7 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 
@@ -681,6 +700,50 @@ struct device D_tab[] =
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
+	},
+# endif
+
+# ifdef DEV_PS
+/*
+ * PostScript printer:  1, 2 and 4 window modes
+ */
+ 	{
+		"ps",
+		3, { "ps1", "ps2", "ps4"},
+		GDF_VECTOR | GDF_HARDCOPY | GDF_MONO | GDF_HCW | GDF_VP,
+		2,			/* 2 colors			*/
+		2250, 3000,		/* Our screen resolution	*/
+		1.0,			/* Assume square aspect for now */
+		0, 0,			/* Blocks irrelevant		*/
+		0,			/* no buttons, for now		*/
+		0,			/* Background color		*/
+		ps_open,		/* The open routine		*/
+		ps_close,		/* close			*/
+		ps_flush,		/* Flush			*/
+		___,			/* (no) flush w/o screen renew	*/
+		ps_cmap,		/* Set color table		*/
+		ps_poly,		/* Draw polyline		*/
+		___,			/* Pixel fill			*/
+		___,			/* Text				*/
+		ps_hcw,			/* Set clip window		*/
+		ps_clear,		/* Clear screen			*/
+		___,			/* Polygon fill			*/
+		___,			/* (no) Segment init		*/
+		___,			/* (no) Segment clear		*/
+		___,			/* (no) Segment select		*/
+		___,			/* (no) Segment end		*/
+		___,			/* (no) Segment attributes	*/
+		___,			/* Read target			*/
+		___,			/* Put target			*/
+		___,			/* (no) Remove target		*/
+		___,			/* (no) color assignment	*/
+		___,			/* (no) exposure checking	*/
+		ps_vp,			/* Viewport adjustment		*/
+		___,			/* (no) readscreen		*/
+		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
+		ps_print,		/* Hardware print screen routine*/
 	},
 # endif
 };
