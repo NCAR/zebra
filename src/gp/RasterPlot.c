@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 1.6 1990-11-09 16:32:59 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 1.7 1991-02-12 20:55:07 corbet Exp $";
 
 # include <errno.h>
 # include <math.h>
@@ -251,7 +251,7 @@ bool fast;
  * Figure our offsets into the color array.
  */
 	row = ydim - 0.5;
-	colinc = ((float) xdim)/((float) width);
+	colinc = ((float) xdim - 1)/((float) width);
 	rowinc = -((float) ydim)/((float) height);
 /*
  * Clip to the window, if appropriate.
@@ -332,7 +332,7 @@ Display *disp;
 		return (possible);
 	known = True;
 	possible = XShmQueryVersion (disp, &maj, &min, &sp);
-	msg_ELog (EF_INFO, "Shared memory: %s", possible ? "True" : "False");
+	msg_ELog (EF_DEBUG, "Shared memory: %s", possible ? "True" : "False");
 }
 # endif
 
@@ -392,7 +392,6 @@ int width, height;
  * Return a shared-memory XImage with this geometry.
  */
 {
-	char *xim;
 	Display *disp = XtDisplay (w);
 /*
  * If the geometry matches, we can just return what we got last time.  This
@@ -414,14 +413,11 @@ int width, height;
 /*
  * Now get a new one.
  */
-	xim = malloc (width*height);
 	image = XShmCreateImage (disp, 0, 8, ZPixmap, 0, &shminfo, width,
 			height);
 /*
  * All of the shmucking around.
  */
-	msg_ELog (EF_INFO, "SHM width %d, bytes/line %d", width,
-		image->bytes_per_line);
 	shminfo.shmid = shmget (IPC_PRIVATE, image->bytes_per_line*height,
 		IPC_CREAT | 0777);
 	if (shminfo.shmid < 0)
