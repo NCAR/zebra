@@ -32,7 +32,7 @@
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.12 1992-06-29 21:41:54 pai Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.13 1992-06-29 23:56:31 pai Exp $")
 
 
 /*
@@ -130,7 +130,7 @@ char **argv;
 	usy_c_indirect (vtable, "sleepafter", &SleepAfter, SYMT_INT, 0);
 	usy_c_indirect (vtable, "sleepfor", &SleepFor, SYMT_INT, 0);
 	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING, 200);
-	strcpy (ConfigDir, ".");
+	/*strcpy (ConfigDir, ".");*/
 	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 200);
 	strcpy (ConfigPD, ".");
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
@@ -476,6 +476,7 @@ char *name;
 	char delim = ',';	/* a token delimiter for strtok() */
 	char * ccd;		/* current configs directory */
 	char * ConfigPath;
+	int firstime = TRUE;
 	
 /*
  * If ConfigPath is defined, get it, otherwise set it to "."
@@ -497,16 +498,19 @@ char *name;
  */
 	while(1)
 	{
-		if(ccd != NULL)
-			strcpy(ConfigDir, ccd);
-		else
-			strcpy(ConfigDir, ".");
+		if(firstime == FALSE)
+		{
+			if(ccd != NULL)
+				strcpy(ConfigDir, ccd);
+			else
+				strcpy(ConfigDir, ".");
+		}
 
 		sprintf (fname, "read %s/%s", ConfigDir, name);
 		if (access (fname + 5, F_OK) == 0)
 		{
 			ui_perform (fname);
- 			if (usy_g_symbol (Configs, name, &type, &v))
+			if (usy_g_symbol (Configs, name, &type, &v))
 				return ((struct config *) v.us_v_ptr);
 			ui_error ("Unknown configuration: '%s'\n", name);
 		}
@@ -514,7 +518,10 @@ char *name;
 		if(ccd == NULL)
 			ui_error ("Unknown configuration: '%s'\n", name);
 	
-		ccd = strtok(NULL, &delim);
+		if(firstime == FALSE)
+			ccd = strtok(NULL, &delim);
+		else
+			firstime = FALSE;
 	}
 }
 
