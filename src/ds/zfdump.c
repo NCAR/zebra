@@ -2,15 +2,17 @@
  * Dump out a zeb file
  */
 
+# include <unistd.h>
 # include <stdio.h>
 # include <sys/types.h>
+# include <string.h>
 # include <errno.h>
-# include <unistd.h>
+
 # include <defs.h>
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.11 1994-06-02 22:55:53 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.12 1995-02-10 01:24:07 granger Exp $")
 
 extern int optind;
 
@@ -37,6 +39,7 @@ char *prog;
 }
 	
 
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -97,7 +100,7 @@ int dump_free, dump_header, dump_all;
  * Returns non-zero on FAILURE!
  */
 {
-	int fd, t, c, ssps, hdrlen, magic;
+	int fd, t, ssps, hdrlen, magic;
 	char atime[30];
 	zn_Header hdr;
 	ZebTime *zt = NULL;
@@ -251,7 +254,7 @@ int dump_free, dump_header, dump_all;
 			printf ("\n");
 			if (satts && (satts[t].znf_Size > 0))
 			{
-				char *ablock, *att;
+				char *ablock;
 				DataChunk *dc;
 
 				ablock = (char *)malloc(satts[t].znf_Size);
@@ -295,7 +298,7 @@ zn_Header *hdr;
  */
 {
 	long blen;
-	char *ablock, *att;
+	char *ablock;
 	DataChunk *dc;
 
 	printf ("Global Attributes:\n");
@@ -416,7 +419,6 @@ PrintFloat (f)
 float f;
 {
 	char buf[30];
-	char *f_fmt = "%.6g";
 
 	/*
 	 * If more than one, just take 6 significant digits,
@@ -475,6 +477,9 @@ RGrid *rg;
 				PrintFloat ( *(float *)buf );
 			else
 				printf (blank_fmt);
+		   default:
+			/* can't handle anything else */
+			break;
 		}
 		if ((fld + 1) % 8 == 0)
 			printf ("\n");
@@ -491,7 +496,7 @@ DumpHeader (hdr)
 zn_Header *hdr;
 {
 	printf ("ZNF version: %d\n", hdr->znh_Version);
-	printf ("Free space: %d bytes in %d chunks; file len = %d\n",
+	printf ("Free space: %d bytes in %d chunks; file len = %ld\n",
 		hdr->znh_NFreeB, hdr->znh_NFree, hdr->znh_Len);
 	printf ("%d samples used of %d alloc.  %d fields.  Org = ",
 		hdr->znh_NSample, hdr->znh_NSampAlloc, hdr->znh_NField);
@@ -611,7 +616,7 @@ void *arg;
 	printf ("   %s --> ", key);
 	for (i = 0; i < nval; ++i)
 	{
-		printf ("%s%s", dc_ElemToString(value, type),
+		printf ("%s%s", dc_PrintValue (value, type),
 			(i == nval - 1) ? "\n" : ", ");
 		value = (char *)value + dc_SizeOfType (type);
 	}
