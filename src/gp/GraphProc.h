@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.9 1991-04-10 17:43:48 corbet Exp $ */
+/* $Id: GraphProc.h,v 1.10 1991-04-19 17:35:09 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -82,10 +82,13 @@ extern void pc_CancelPlot (void);
 extern void pc_PlotHandler (void);
 extern void pc_ParamChange (char *);
 extern void sync (void);
+extern int  reset_limits(char *, char *, char *);
 extern void eq_ResetAbort (void);
 extern void eq_ReturnPD (void);
 extern void px_PlotExec (char *);
 extern int pc_TimeTrigger (char *);
+extern void px_GlobalPlot (time *);
+extern void px_FixPlotTime (time *);
 extern char *af_OpenFile (char *);
 extern char *af_Setup (char *, time *, int, char **);
 extern bool af_NextSample (char *, int *, float *);
@@ -141,9 +144,12 @@ extern void SetColor (char *, char *, char *, char *);
 	extern void pc_PlotHandler ();
 	extern void pc_ParamChange ();
 	extern void sync ();
+	extern int  reset_limits();
 	extern void eq_ResetAbort ();
 	extern void eq_ReturnPD ();
 	extern void px_PlotExec ();
+	extern void px_GlobalPlot();
+	extern void px_FixPlotTime();
 	extern int pc_TimeTrigger ();
 	extern char *af_OpenFile ();
 	extern char *af_Setup ();
