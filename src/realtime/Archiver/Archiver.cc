@@ -30,6 +30,8 @@
 # include <sys/types.h>
 # include <sys/ioctl.h>
 # include <sys/mtio.h>
+# include <sys/wait.h>
+# include <sys/vfs.h>
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -44,7 +46,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: Archiver.cc,v 1.6 1992-02-06 15:56:51 corbet Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.7 1992-03-18 16:15:46 barrett Exp $")
 
 /*
  * Issues:
@@ -82,10 +84,18 @@ char listfile[200];
 int	TimerEvent;
 int	TapeFD = -1;		/* -1 = no drive	*/
 int	BytesWritten = 0, FilesWritten = 0;
-# define DriveName	"/dev/nrst8"
+/*# define DriveName	"/dev/nrst8"*/
 # define BLOCKSIZE	(16*512)
 
 # define DUMPTIME	2	/* how often, in hours, to dump	*/
+#define AR_TAPE 1
+#define AR_EOD 2
+char	*DriveName = NULL;
+char	*OutputDir = NULL;
+char	*MountName = NULL;
+int	DumpTime = DUMPTIME;
+int	MinDisk = 10000;
+int	ArchiveMode = 0;
 
 
 /*
@@ -96,7 +106,7 @@ static char Tarbuf[65536];
 /*
  * Widget info.
  */
-Widget Top, Form, WStatus, Bytes, Tape;
+Widget Top, Form, WStatus, Bytes, Action;
 XtAppContext Appc;
 
 /*
@@ -117,7 +127,7 @@ static void	UpdateList FP ((void));
 static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
 static void	WriteEOF FP ((void));
 static void	Finish FP ((void));
-static void	TapeButton FP ((void));
+static void	ActionButton FP ((void));
 static void	SpinOff FP ((void));
 static void	SetStatus FP ((int, char *));
 static int	xevent FP ((int));
@@ -126,6 +136,9 @@ static void	Sync FP ((void));
 static void	SendMA FP ((int));
 static int	TellDaemon FP ((char *, int, SValue *, int));
 static void	UpdateMem FP ((void));
+static void	InitArchiver FP ((int, char**));
+static int	EjectEOD FP ((void));
+static void	MountEOD FP ((void));
 
 
 
@@ -139,6 +152,7 @@ char **argv;
 	usy_init ();
 	msg_connect (Handler, "Archiver");
 	ds_Initialize ();
+	InitArchiver(argc,argv);
 /*
  * Window sys initialization.
  */
@@ -147,7 +161,15 @@ char **argv;
 	chdir (DATADIR);
 	LoadFileList ();
 	UpdateMem ();
-	SetStatus (TRUE, "Awaiting tape");
+	switch (ArchiveMode)
+	{
+	    case AR_TAPE:
+		SetStatus (TRUE, "Awaiting tape");
+	    break;
+	    case AR_EOD:
+		SetStatus (TRUE, "Awaiting optical disk");
+	    break;
+	}
 /*
  * Go into our dump loop.
  */
@@ -155,7 +177,89 @@ char **argv;
 	msg_await ();
 }
 
+void
+InitArchiver (argc, argv)
+int argc;
+char **argv;
+{
+    static char defaultDeviceFile[] = "/dev/nrst8";
+    static char defaultMountName[] = "eod0";
+    static char defaultOutputDir[] = "/eod0";
+    MountName = defaultMountName;
+    OutputDir = defaultOutputDir;
+    DriveName = defaultDeviceFile;
+    ArchiveMode = AR_TAPE;
+    while ((--argc) > 0 )
+    {
+	if ( (*++argv)[0] == '-' )
+	{
+	    switch ( (*argv)[1] )
+	    {
+		case 'v': /* device name */
+		    DriveName = (*++argv);
+		    argc--;
+		break;
+		case 'o': /* output directory */
+		    OutputDir = (*++argv);
+		    argc--;
+		break;
+		case 'n': /* optical disk mount name */
+		    MountName = (*++argv);
+		    argc--;
+		break;
+		case 'k': /* min required disk size in k-bytes */
+		    sscanf ( (*++argv), "%d", &MinDisk );
+		    argc--;
+		break;
+		case 't': /* t(imer) for archive interval */
+		    sscanf ( (*++argv), "%d", &DumpTime );
+		    argc--;
+		break;
+		case 'm': /* m(ode) */
+		    ++argv;
+		    if ( strcmp ( (*argv), "tape") == 0 )
+			ArchiveMode = AR_TAPE;
+		    else if ( strcmp ( (*argv), "eod") == 0 )
+			ArchiveMode = AR_EOD;
+		    argc--;
+		break;
+	    }
+	}
+    }
+    msg_ELog (EF_INFO, "Archiver: device: %s dump interval: %d",
+	DriveName,DumpTime);
+    if ( ArchiveMode == AR_EOD )
+    {
+    msg_ELog (EF_INFO, "Archiver: dump files to directory: %s",OutputDir);
+    msg_ELog (EF_INFO, "Archiver: minimum optical disk to dump: %d kb",MinDisk);
+    }
 
+}
+
+static void
+MountEOD()
+{
+    char cmd[80];
+    int	status;
+    sprintf ( cmd, "eodmount %s /%s", DriveName, MountName );
+    status = system(cmd);
+    TapeFD = 0;
+}
+
+static int
+EjectEOD()
+{
+    char cmd[80];
+    int	 status;
+    if ( TapeFD >= 0 )
+    {
+	sprintf ( cmd, "eodmount -u %s", DriveName );
+	status = system(cmd);
+    }
+    sprintf ( cmd, "eodutil %s eject", MountName);
+    status = system(cmd);
+    return ( WEXITSTATUS(status));
+}
 
 
 static int
@@ -232,19 +336,27 @@ char **argv;
  * A "take/release" button.
  */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Take tape");	n++;
+	switch ( ArchiveMode )
+	{
+	    case AR_TAPE:
+		XtSetArg (args[n], XtNlabel, "Take tape");	n++;
+	    break;
+	    case AR_EOD:
+		XtSetArg (args[n], XtNlabel, "Mount optical disk");	n++;
+	    break;
+	}
 	XtSetArg (args[n], XtNfromHoriz, button);	n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
-	Tape = XtCreateManagedWidget ("tape", commandWidgetClass, Form,
+	Action = XtCreateManagedWidget ("action", commandWidgetClass, Form,
 			args, n);
-	XtAddCallback (Tape, XtNcallback, TapeButton, 0);
+	XtAddCallback (Action, XtNcallback, ActionButton, 0);
 /*
  * Status info.
  */
 	n = 0;
 /*	above = Tape; */
 	XtSetArg (args[n], XtNlabel, "0 Bytes in 0 files");	n++;
-	XtSetArg (args[n], XtNfromHoriz, Tape);		n++;
+	XtSetArg (args[n], XtNfromHoriz, Action);		n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
 	Bytes = XtCreateManagedWidget ("bytes", labelWidgetClass, Form,args,n);
 
@@ -270,13 +382,45 @@ Finish ()
  * Finish things out.
  */
 {
+	char datafile[120];
+	ZebTime	zt;
+	int	year,month,day,hour,minute;
 	if (TapeFD < 0)
 	{
+	    switch ( ArchiveMode )
+	    {
+	      case AR_TAPE:
 		SetStatus (TRUE, "Can't finish -- no tape");
 		return;
+	      break;
+	      case AR_EOD:
+		SetStatus (TRUE, "Can't finish -- no optical disk");
+		return;
+	      break;
+	    }
 	}
-	SaveFiles (TRUE);
-	SpinOff ();
+	switch ( ArchiveMode )
+	{
+	    case AR_TAPE:
+		tl_Time (&zt);
+		TC_ZtSplit (&zt, &year, &month, &day, &hour, &minute, 0, 0);
+		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
+		    OutputDir,year,month,day,hour,minute );
+	        if ((TapeFD = open (datafile, O_RDWR|O_CREAT)) < 0)
+		{
+		    SetStatus ( TRUE, "Bad file open on EOD" );
+		}
+		else
+		{
+		    SaveFiles (TRUE);
+		}
+		(void)EjectEOD ();
+	    break;
+	    case AR_EOD:
+		SaveFiles (TRUE);
+		SpinOff ();
+	    break;
+	}
 	SetStatus (TRUE, "CROAK");
 	Die ();
 }
@@ -286,7 +430,7 @@ Finish ()
 
 
 static void
-TapeButton ()
+ActionButton ()
 /*
  * Take or release the tape.
  */
@@ -294,44 +438,73 @@ TapeButton ()
 	Arg args[2];
 	ZebTime zt;
 	int year, month, day, hour;
+	int status;
 /*
  * If we don't have a tape, we try to get one.
  */
 	if (TapeFD < 0)
 	{
-	/*
-	 * Get the tape.
-	 */
-		if (! OpenTapeDevice ())
-		{
+	    switch ( ArchiveMode )
+	    {
+		case AR_TAPE:
+	        /*
+	         * Get the tape.
+	         */
+		    if (! OpenTapeDevice ())
+		    {
 			SetStatus (TRUE, "Unable to open tape");
 			return;
-		}
+		    }
+		    XtSetArg (args[0], XtNlabel, "Free tape");
+		break;
+		case AR_EOD:
+		    MountEOD();
+		    XtSetArg (args[0], XtNlabel, "Free optical disk.");
+		break;
+	    }
 	/*
 	 * Start saving stuff.  Make the archive time line up nicely
 	 * on the hour boundary.
 	 */
-		XtSetArg (args[0], XtNlabel, "Free tape");
 		tl_Time (&zt);
 		TC_ZtSplit (&zt, &year, &month, &day, &hour, 0, 0, 0);
-		hour -= hour % DUMPTIME;
+		hour -= hour % DumpTime;
 		TC_ZtAssemble (&zt, year, month, day, hour, 0, 0, 0);
 		TimerEvent = tl_AbsoluteReq (TimerSaveFiles, 0, &zt,
-				DUMPTIME*60*60*INCFRAC);
+				DumpTime*60*60*INCFRAC);
 	}
 /*
  * Otherwise we give it away.
  */
 	else
 	{
-		XtSetArg (args[0], XtNlabel, "Take tape");
-		tl_Cancel (TimerEvent);
-		SpinOff ();
-		close (TapeFD);
-		TapeFD = -1;
-		SetStatus (TRUE, "Awaiting tape");
+	    tl_Cancel (TimerEvent);
+	    switch ( ArchiveMode )
+	    {
+		case AR_TAPE:
+		    XtSetArg (args[0], XtNlabel, "Take tape");
+		    SpinOff ();
+		    close (TapeFD);
+		    TapeFD = -1;
+		    SetStatus (TRUE, "Awaiting tape");
+		break;
+		case AR_EOD:
+		    status = EjectEOD();
+		    if ( !status )
+		    {
+		        XtSetArg (args[0], XtNlabel, "Mount optical disk");
+		        TapeFD = -1;
+		        SetStatus (TRUE, "Awaiting optical disk");
+		    }
+		    else
+		    {
+		        XtSetArg (args[0], XtNlabel, "Retry eject");
+		        SetStatus (TRUE, "Optical Disk Eject Error!");
+		    }
+		break;
+	    }
 	}
-	XtSetValues (Tape, args, 1);
+	XtSetValues (Action, args, 1);
 }
 
 
@@ -411,16 +584,44 @@ ZebTime *zt;
  * File saving invoked from a timer event.
  */
 {
-	int hour;
+	int status;
+	int year,month,day;
+	int hour,minute,second;
+	char datafile[120];
+	struct statfs buf;
 /*
  * Special check -- if the hour is zero, we clean up everything.
  */
-	TC_ZtSplit (zt, 0, 0, 0, &hour, 0, 0, 0);
-	SaveFiles (hour == 0);
-	if (hour == 0)
+	TC_ZtSplit (zt, &year, &month, &day, &hour, &minute, &second, 0);
+	switch ( ArchiveMode )
 	{
-		TapeButton ();
-		SetStatus (TRUE, "Need new day's tape");
+	    case AR_TAPE:
+		SaveFiles (hour == 0);
+		if (hour == 0)
+		{
+		    ActionButton ();
+		    SetStatus (TRUE, "Need new day's tape");
+		}
+	    break;
+	    case AR_EOD:
+		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
+		    OutputDir,year,month,day,hour,minute );
+		if ((TapeFD = open (datafile, O_RDWR|O_CREAT)) < 0)
+		{
+		    SetStatus ( TRUE, "Bad file open on EOD" );
+		}
+	 	else
+		{
+		    SaveFiles(0);
+		    close ( TapeFD );
+		    status = statfs(DriveName,&buf);
+		    if ( !status && buf.f_bavail < MinDisk )
+		    {
+			ActionButton ();
+			SetStatus (TRUE, "New new optical disk.");
+		    }
+		}
+	    break;
 	}
 }
 
@@ -450,13 +651,20 @@ int all;
 /*
  * Run the tar command to put this all together.
  */
-	SetStatus (FALSE, "Writing");
+	if ( strlen(Tarbuf) > 20 )SetStatus (FALSE, "Writing");
 	if (strlen (Tarbuf) > 20 && RunTar (Tarbuf))
 	{
-		WriteEOF ();
+	    switch ( ArchiveMode )
+	    {
+		case AR_TAPE:
+		    WriteEOF ();
+		break;
+		case AR_EOD:
+		break;
+	    }
 		UpdateList ();
-		SetStatus (FALSE, "Sleeping");
 	}
+	SetStatus (FALSE, "Sleeping");
 }
 
 
@@ -553,10 +761,11 @@ char *cmd;
 	{
 		if (write (TapeFD, fbuf, nb) < nb) /* oh shit! */
 		{
-			msg_ELog (EF_EMERGENCY, "Archive tape write error %d",
+			msg_ELog (EF_EMERGENCY, "Archive device write error %d",
 				errno);
-			TapeButton (); /* Free drive */
-			SetStatus (TRUE, "Tape write error!");
+			if ( ArchiveMode == AR_EOD ) close(TapeFD);
+			ActionButton (); /* Free drive */
+			SetStatus (TRUE, "Device write error!");
 			pclose (pfp);
 			LoadFileList ();
 			return (FALSE);
