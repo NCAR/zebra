@@ -1,6 +1,6 @@
 35
 000000%000000Welcome to Zeb
-795
+788
 
 / INTRODUCTION /
 
@@ -12,30 +12,30 @@ and also as a post-processing visualization tool.
 / USING HELP /
 
 This is the on-line help facility for Zeb.  Help can be
-obtained in several ways.  To see all of the topics help
-topics, press the <Topics> button, the leftmost icon above
-the title bar "Welcome to the Wide World of Zeb".  The <Up>
-and <Down> icon buttons, the second and third icons from the
-left, move up and down through the list of topics.  The
-<Search> button, picturing the magnifying glass, provides a
-search facility for finding text references within a single
-topic.  
+obtained in several ways.  To see all of the help topics,
+press the <Topics> button, the leftmost icon above the title
+bar "Welcome to the Wide World of Zeb".  The <Up> and <Down>
+icon buttons, the second and third icons from the left, move
+up and down through the list of topics.  The <Search>
+button, picturing the magnifying glass, provides a search
+facility for finding text references within a single topic.  
 
 Click the <Down> icon for more information on using Help... 
 moreonhelp   Using Zeb's On-line Help
-1303
+1340
 
 / SCROLLING HELP WINDOWS /
 
 Often, a help topic includes more text than fits inside the
 help window.  In these cases a scroll bar will appear at
-the left side of the help window.  Click the middle mouse
+the left side of the help window.  Depress the middle mouse
 button inside the scroll bar, and while holding the button
-down, move the mouse up and down to scroll text through the
-window.  Clicking the left or right mouse buttons inside
-the scroll bar scrolls the text in increments, down and up,
-respectively.  The increments are larger the lower the
-cursor is when a mouse button is pressed.
+down, move the mouse up and down.  The text scrolls through
+the window as the mouse moves up and down.  Clicking the
+left or right mouse buttons inside the scroll bar scrolls
+the text in increments, down and up, respectively.  The
+increments are larger the lower the cursor is when a mouse
+button is pressed.
 
 / HOW HELP TOPICS ARE ORGANIZED /
 
@@ -97,7 +97,7 @@ display is shut down.  Hence STORM-FEST CD users do not
 need to perform the second step mentioned above.  
 
 components   Zeb System Components
-4969
+5088
 
 / ZEB SYSTEM COMPONENTS /
 
@@ -167,18 +167,20 @@ post-processing.
 
 / GRAPHICS WINDOWS /
 
-Graphics windows are the focal processes of the Zeb
-graphics display.  A graphics window is responsible for a
-single plot, allowing the plot description to be modified
-through various pull-down menus, while plotting data from
-multiple platforms using various representations of the
-data.  [See "Add and Removing Data".]  A graphics window
-can only display one type of plot at a time, such as
-horizontal (constant-altitude), time-series, X-Y, skew-t,
-or cross-sections.  Any number of graphics windows may be
-present in a Zeb display configuration, and each can be a
-different type of plot from the others.  See "Changing the
-Display Configuration" and "Editing Display
+Graphics windows display the data on the screen.  A
+graphics window is responsible for drawing a single plot
+and allowing the plot to be modified through various
+pull-down menus accessed through the graphics window icons
+(see "Using the Icons in a Graphics Window").  Data from
+multiple platforms may be viewed using various
+representations of the data; in some cases the data may be
+viewed simultaneously.  [See "Add and Removing Data".]  A
+graphics window can only display one type of plot at a
+time, such as horizontal (constant-altitude), time-series,
+X-Y, skew-t, or cross-sections.  Any number of graphics
+windows may be present in a Zeb display configuration, and
+each can be a different type of plot from the others.  See
+"Changing the Display Configuration" and "Editing Display
 Configurations." 
 
 
@@ -219,7 +221,7 @@ See the topics "Changing the Display Configuration" and
 
 
 iconbar      The Icon Bar Icons
-3701
+4352
 
 / THE ICON BAR ICONS /
 
@@ -239,19 +241,34 @@ either top-to-bottom or left-to-right.
 
 / THE HELP ICON /
 
-This icon pictures a question mark and the word "Help". 
-This icon menu provides access to the Zeb on-line help
-facility and help-related services, such as printing
-hardcopies of Zeb docuementation.  Some help topics are
-directly accessible though menu entries, such instructions
-on "Shutting Down Zeb", while other topics can be reached
-by first visiting the "Introduction" topic.  One of the
-menu entries, "Surface Station Listing", pops up a help
-window which lists a subset of the hourly surface stations,
-their Zeb IDs, cities and coordinates.   The two sub-menu
-entries at the bottom generate hardcopies of some of the
-PostScript-format Zeb documents.  See the "Guide to
-Documentation" topic.
+This icon pictures a question mark and the word "Help".  It
+provides access to the Zeb on-line help facility and
+help-related services, such as printing hardcopies of Zeb
+docuementation.  Some help topics are directly accessible
+though menu entries, such as instructions on "Shutting Down
+Zeb" or the "Introduction" topic, which introduces Zeb and 
+its on-line help facility.  The
+"On-line Topics" entry accesses a listing of all of the
+available help topics.  
+
+The "Listings" entry is a sub-menu containing entries for
+all of the general listings available through the on-line
+help: "Surface Stations", "Profiler Sites", "Sounding
+Sites", and "Weather and Quality Control Codes".  These
+topics are all project-specific and separate from the
+general Zeb topics.  The site and station listings include
+city, state, latitude, longitude, altitude, and ID
+for each platform.  To see all of the list arrangements
+available, click on the <Up> and <Down> icons in the
+help window.
+
+The two sub-menu entries at the bottom generate hardcopies
+of some of the PostScript-format Zeb documents.  See the
+"Guide to Documentation" topic for a description of each of
+the documents.  When a document is selected from one of the
+sub-menus, it will be sent to the default printer.  [The
+default printer is either 'lp' or the value of the
+'PRINTER' environment variable.]
 
 / THE ZEB ICON /
 
@@ -304,7 +321,7 @@ The rest of the Icon Bar icons direct which fields of which
 platforms to add to a plot in an individual Graphics
 Window.  In general, when an overlay or field is selected
 from an icon menu, you must indicate to which window you
-wish to add the overlay.  After selecting the entry, the
+wish to add the data.  After selecting the entry, the
 cursor will change into a crosshair; just click the mouse
 inside the desired window.  If you click the mouse in a
 window which is not a Graphics Window, the action will be
@@ -322,7 +339,7 @@ the platform icons represent these platform categories:
 	Static overlays
 
 historytime  Setting a History Time
-6412
+6415
 
 / SETTING A HISTORY TIME /
 
@@ -339,7 +356,7 @@ history mode will be meaningful.
 
 Zeb indicates that a history time has been set (i.e. the
 graphics window is in history mode) by changing the color
-of the date and time in the graphics window to red. 
+of the date and time in the graphics window to yellow. 
 However, it is important to realize that the time the
 displayed data was collected is not necessarily the same as
 the time displayed in the graphics window.  Data for the
@@ -497,7 +514,7 @@ configurations and modifying pre-defined configurations.
 
 
 editdconfig  Editing Display Configurations
-6742
+6744
 
 / EDITING DISPLAY CONFIGURATIONS /
 
@@ -646,6 +663,8 @@ DM> pconfig <config-name>
 
 The configuration can be added to the Icon Bar <Zeb> menu
 by editing the file 'IconBar' in the <project> directory.
+
+
 dsdwidget    Listing Available Data
 1128
 
@@ -674,16 +693,16 @@ period covered by each file. Left-click on the <Exit>
 button to remove the widget.  
 
 dsmanage     Managing Local Disk Space
-2373
+2358
 
 / THE DATA STORE MANAGER /
 
 To load data onto your local hard disk, choose Data Store
 Management under the Zeb Icon on the Iconbar. An Icon will
 pop-up titled `The Zeb disk manager'. This widget allows
-users to remove files from their local disk (Platform and
-file maintenance) and load data (Load data) from a remote
-medium, such as a CD or tape.
+users to remove files from their local disk (Disk space
+cleanup) and load data (Load data) from a remote medium,
+such as a CD or tape.
 
 / LOADING DATA FROM CD /
 
@@ -697,39 +716,37 @@ data-store or CDROM). When the widget is first brought up
 all of the platforms are selected (the select buttons are
 in reverse video when they are on). To select the data to
 be moved onto the local disk, enter the start and end times
-in the boxes at the top of the widget and click on <Apply 
-to selected platforms>.
-This
-will select all the data for each selected platform that
-falls between the start and end times. The number of files
-and size of the data will appear in the upper-right
-corner.  Modifications to the selected data can be made. 
-Entire platforms may be un-selected by clicking on the
-select button to the left of the platform name and then
-clicking on <Apply to selected platforms>.  Individual files
-can be selected by clicking on the platform name.  Finally,
-large data sets such as satellite or radar data can be
-selected at specified intervals by clicking on the <only
-select every> button.  After selecting the data to be moved
-to the local disk, click on <Load the data>. A widget will
-pop-up that gives the status of the load. After completing
-the load, use the <Quit> button to exit. The data is now on
-disk.  Pop-up the Data Store widget to verify that the
-load was successful.  
+in the boxes at the top of the widget and click on <Apply
+to selected platforms>.  This will select all the data for
+each selected platform that falls between the start and end
+times. The number of files and size of the data will appear
+in the upper-right corner.  Modifications to the selected
+data can be made.  Entire platforms may be un-selected by
+clicking on the <Select> button to the left of the platform
+name and then clicking on <Apply to selected platforms>. 
+Individual files can be selected by clicking on the
+platform name.  Finally, large data sets such as satellite
+or radar data can be selected at specified intervals by
+clicking on the <only select every> button.  After
+selecting the data to be moved to the local disk, click on
+<Load the data>. A widget will pop-up that gives the status
+of the load. After completing the load, use the <Quit>
+button to exit. The data is now on disk.  Pop-up the Data
+Store widget to verify that the load was successful.  
 
 / REMOVING DATA FROM LOCAL DISK /
 
-To remove data from the local disk, click on <Platform and
-file maint.>  A widget will pop-up that contains a list of
-all of the platforms currently on the disk. Click on the
-platform name; a new widget will appear that contains all
-the files under that platform.  Choose the files for
-deletion by clicking on the <delete> button to the left of
-the file name.  Finally, click on <Execute deletions> to
-delete the files.
+To remove data from the local disk, click on <Disk space
+cleanup>.  A widget will pop-up that contains a list of all
+of the platforms currently on the disk.  Files can either
+be selected for deletion by clicking on the platform name
+and selecting individual files or by entering beginning and
+end times.  Times are entered in the same manner as above. 
+To delete the selected files, click on <Execute deletions>.
+
 
 printer      Printing Hardcopies of Windows
-6195
+6196
 
 / THE HARDCOPY WIDGET /
 
@@ -763,7 +780,7 @@ indicated with the text "Printer name:" or "File name:",
 respectively.  The hardcopy widget prints to the printer by
 default.  If the default printer name is not correct, type
 the name of the printer in the box to the right of "Printer
-name:".  Click on "Printer name:" to change to destination
+name:".  Click on "Printer name:" to change the destination
 to a file, and replace the printer name with a file name. 
 See "Environment Variables" below to learn how to change
 the default printer name.
@@ -889,7 +906,7 @@ freely distributed software.  See the copyright notices in
 the xwd2ps man(1) page in the directory doc/man in the
 distribution.  
 documentationA Guide to Zeb Documentation
-2324
+2311
 
 / A GUIDE TO ZEB DOCUMENTATION /
 
@@ -898,13 +915,13 @@ under top Zeb directory.  For the STORM-FEST CDROM
 distribution, if the CD is mounted on /cd, the document
 directory will be /cd/doc.  This directory contains some
 notable documents specific to the CD distribution.  All
-significant documentation can be conveniently printed from
-the sub-menus under the Icon Bar <Help> menu.  Select the
-menu entry corresponding to the documentation which you
-wish to get in hardcopy form.  The document will be sent to
-the default printer (or the printer named by the PRINTER
-environemnt variable).  The destination printer must have
-PostScript capability.
+significant documentation can be printed from the sub-menus
+under the Icon Bar <Help> menu.  Select the menu entry
+corresponding to the documentation which you wish to get in
+hardcopy form.  The document will be sent to the default
+printer (or the printer named by the PRINTER environemnt
+variable).  The destination printer must have PostScript
+capability.
 
 The "Running Zeb" document can be found in the PostScript
 file "CD/doc/zeb/zeb.startup.doc.ps".  This document
@@ -949,18 +966,26 @@ directory.
 
 
 icons        Using the Icons in a Graphics Window
-1037
+1415
 
 / GRAPHICS WINDOW ICONS /
 
-The Iconbar is Zeb's main menu and allows the user to
-choose the type of data to be plotted and the display
-configuration.  All the available data is represented here.
-A new data type or overlay may be added to any window by
-simply using the mouse to pick the desired platform and
-field from the icon bar, then clicking on the target
-window.  (NOTE: The target window must be a horizontal
-cross-section.)
+The Iconbar is Zeb's 'main menu'.  It allows the user to
+access on-line help, choose the display configuration,
+pop-up various widgets, shut-down Zeb, and add data to
+graphics windows that contain horizontal cross-sections. 
+This help topic reviews how to use the <Platform> (or Data)
+icons that are located in the IconBar (to the right of or
+below the <Zeb> icon).
+
+A new data type or overlay may be added to a horizontal
+cross-section window by using any of the <Platform> icons. 
+Place the cursor on the <Platform> icon, deperess the left
+mouse button, select a field from the pulldown menu, and
+release the mouse button.  The cursor will become a
+cross-hair; move it to the target window and click a mouse
+button.  Note that the target window must be a horizontal
+cross-section.
 
 The icons at the bottom of each window are used to control
 the contents of the data present in that window.  There is
@@ -1043,7 +1068,7 @@ the STORM-FEST domain:
 	Center Button	Central and Midwest U.S.
 	Right Arrow	CP4 Radar domain
 movies       Running Movies
-3778
+3858
 
 / SETTING THE MOVIE PARAMETERS /
 
@@ -1083,16 +1108,17 @@ frames increases.
 
 There are two options for entering the ending time for a
 movie; 1) type in the time using the format
-"DD-MMM-YYYY,HH:MM", or 2) type the word "now".  Note that
-the year must have four digits, even though elsewhere in
-Zeb the year is displayed with only two digits.  If the
-time is left out, as in "04-mar-1992", or specified as
+"DD-MMM-YYYY,HH:MM", or 2) type the word "now".  If typing
+the time, the year must have four digits.  If the time is
+left out, as in "04-mar-1992", or specified as
 "04-mar-1992,0", "00:00" is assumed.  When the ending time
-is specified as "now", the ending time is taken to be the
-current system time (when the graphics window is in
-real-time mode) or as the history time of the graphics
-window (when the graphics window is in history mode).
-
+is specified as "now", the ending time is determined
+according to the current mode of the graphics window.  If
+the graphics window is in real-time mode, the ending time
+will be the current system time.  If the graphics window
+is in history mode, the ending time will be the history
+time (displayed in yellow at the upper left corner of the
+window) of the window.
 
 / RUNNING THE MOVIE /
 
@@ -1175,7 +1201,7 @@ press 'b'.  You can zoom an area successively any number of
 times; pressing 'b' steps back from each zoomed perspective
 one zoom at a time.
 addrem       Adding and Removing Data in Horizontal Plots
-3407
+3218
 
 / DATA REPRESENTATIONS /
 
@@ -1183,20 +1209,26 @@ Several types of data may be displayed in a
 constant-altitude (horizontal cross-section) plot using
 different 'representations'.  The 'representation'
 essentially refers to the type of plot used to display the
-data in a graphics window.  Static data, such as lat/lon
+data in a graphics window.  Examples are listed below.
+
+Static overlays; for lat/lon
 grids, x/y grids, range rings, state boundaries, dual
 doppler lobes, and locations of towns, airports, and
-soundings are all represented as static overlays.  Other
-data, such as radar sweeps, satellite images, surface
-station field contours, and aircraft tracks are represented
-differently.  Radar and satellite images are plotted as
-gridded raster data.  Surface station data can be plotted
-as contours over a regularized grid, or the field
-measurements can be explicitly displayed for each station
-in the irregular grid.  Aircraft tracks are represented as
-track plots.  Any number of data set representations can be
-added to a horizontal plot; likewise, any data set
-representation can be removed from a plot.
+sounding sites,
+
+Raster Images; for radar, satellite, and nowrad,
+
+Filled Contours; for surface data,
+
+Contours; for nowrad and surface data,
+
+Station plots; for surface data, and
+
+Aircraft tracks; for research aircraft.
+
+Raster Images and Filled Contours are opaque, meaning if a
+radar image is added to a window already containing
+satellite data, the satellite data will not be visible.
 
 / ADDING DATA /
 
@@ -1277,12 +1309,12 @@ that this icon's data is no longer being displayed in the
 plot.
 
 limitwidgets Adjusting Limits
-4323
+4331
 
 / ADJUSTING LIMITS /
 
 Various plotting limits in a graphics window may be changed
-with a limit widget.  Limit widgets appear with the
+with 'Adjust Limit' widgets.  Limit widgets appear with the
 appropriate labels and blanks for setting specific plotting
 parameters.  Each of the styles of limit widgets are
 described in this topic.  Every limit widget contains three
@@ -1775,7 +1807,7 @@ the <Dismiss> button.  The <Help> button brings up this
 help topic.
 
 timeseries   Time Series Plots
-2008
+2011
 
 / TIME SERIES PLOTS /
 
@@ -1797,12 +1829,12 @@ the available mesonet fields.  Once a field is selected, it
 will be plotted in the XY Graph.  A solid square icon,
 corresponding to the new field and appearing in the same
 color as the field's points in the graph, will be added at
-the bottom of the window.
+the bottom of the graphics window.
 
 Each of the solid square icons, or "field icons", appearing
 at the bottom of the window can be adjusted through two
-menus, one menu activated by the left mouse button and
-another activated by the right mouse button.  Limit widgets
+menus: one menu activated by the left mouse button and a
+second activated by the right mouse button.  Limit widgets
 (see "Adjusting Limits") for adjusting "Time Interval",
 "Min/Max", and "Tic Interval" can be popped up with the
 "Adjust Limits" submenu of the left-button menu.  A new
@@ -1818,12 +1850,8 @@ right-button menu.  Four representations are possible:
 	"X Mark"	Mark each point with an "X".
 	"Cross"		Mark each point with a cross.
 
-Each field can be removed by selecting the "Remove"
-entry from the left-button menu of the field icon.
-
-
-
-
+A field can be removed by selecting the "Remove" entry from
+the left-button menu of the field icon.
 
 plat_selectorChoosing Surface Stations for Time Series Plots
 1338
