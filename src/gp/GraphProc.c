@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.37 1993-12-14 03:23:16 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.38 1993-12-14 18:32:02 burghart Exp $")
 
 /*
  * Default resources.
@@ -1468,9 +1468,12 @@ struct ui_command *cmds;
 		return;
 	}
 /*
- * Send the endpoints
+ * Put the destination plot on hold, send the endpoints, and let it go again
  */
 	dme.dmm_type = DM_EVENT;
+
+	sprintf (dme.dmm_data, "param %s global plot-hold true", win);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
 
 	sprintf (dme.dmm_data, "param %s %s left-endpoint %.3f,%.3f", win, 
 		comp, x0, y0);
@@ -1478,6 +1481,9 @@ struct ui_command *cmds;
 
 	sprintf (dme.dmm_data, "param %s %s right-endpoint %.3f,%.3f", win, 
 		comp, x1, y1);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+
+	sprintf (dme.dmm_data, "param %s global plot-hold false", win);
 	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
 
 	msg_ELog (EF_DEBUG, 
