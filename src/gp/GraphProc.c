@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.19 1992-09-15 16:32:37 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.20 1992-09-17 15:17:57 corbet Exp $")
 
 /*
  * Default resources.
@@ -143,14 +143,19 @@ GPShutDown ()
 	char filename[100];
 	
 	ui_finish ();
+	pdm_Finish ();
 # ifdef SHM
 	RP_ZapSHMImage (Graphics);
 	if(GWShmPossible(Graphics))
 		for(i = 0; i < FrameCount; i++)
 			GWZapShmPixmap(Graphics, i);
 # endif
+/*
+ * Is this necessary?
+ */
 	sprintf(filename, "%s/%s%dFrameFile",FrameFilePath, Ourname, getpid());
 	unlink(filename);
+
 	exit (0);
 }
 
