@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 2.1 1991-07-22 17:12:19 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -273,7 +273,7 @@ bool update;
 	 */
 		if(arrow)
 		{
-			timenow = TC_FccToSys (dobj->do_times);
+			timenow = TC_FccToSys (dobj->do_times + i);
 			if(((timenow % a_int) == 0) || 
 			   ((vectime + a_int) < timenow))
 			{
