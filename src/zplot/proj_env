@@ -5,5 +5,5 @@ if (! $?DATA_DIR) setenv DATA_DIR /net/sssf3/lake_ice
 setenv ZEB_TOPDIR /net/sssf3/lake_ice/zebra
 setenv ZEB_PROJDIR $ZEB_TOPDIR/project/lake_ice
 setenv ZEB_CACHEDIR $ZEB_PROJDIR/tmp
-setenv PRESERVE_ZEB yes
+#setenv PRESERVE_ZEB yes
 
