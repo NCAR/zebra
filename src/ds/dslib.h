@@ -36,6 +36,7 @@ typedef struct _GetList
 	struct _GetList *gl_next;	/* Next in the list		*/
 	time	*gl_time;		/* Where to put sample times	*/
 	Location *gl_locs;		/* Location array for mobile	*/
+	int	gl_sindex;		/* Sample index for entire rq	*/
 } GetList;
 
 /*
