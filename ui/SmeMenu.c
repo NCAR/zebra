@@ -1,5 +1,5 @@
 #if ( !defined(lint) && !defined(SABER) )
-static char rcsid[] = "$Id: SmeMenu.c,v 1.12 1993-05-26 16:55:51 granger Exp $";
+static char rcsid[] = "$Id: SmeMenu.c,v 1.13 1994-09-01 10:53:24 granger Exp $";
 #endif 
 
 /*
@@ -417,7 +417,7 @@ Highlight(w)
 	XPoint loc;
 	Window junkW;
 	int x, y, junkI;
-	Boolean wantup;
+	int left, right;
 	unsigned int junkU;
 /*
  * Decide whether we want the menu up or not.
@@ -425,6 +425,10 @@ Highlight(w)
  * the pointer is in our entry region, and all we need check for popping up
  * the sub-menu is the X coordinate of the pointer relative to the X origin
  * of our entry.
+ *
+ * To support left-cascading menus when near the right edge, we must use
+ * two x limits: one on the right for popping up, and one towards the left
+ * for popping down.
  */
 	ENTER("Highlight()",w)
 	if (! XQueryPointer (XtDisplay (XtParent (w)), XtWindow (XtParent (w)),
@@ -441,21 +445,31 @@ Highlight(w)
 /*
  * Should probably get leftMargin resource and use that, or specify
  * this as a unique resource in the SmeMenu widget.  For now, use (x > 60)
- * unless width/2 is less than 60.
+ * unless width/2 is less than 60.  The left limit is the right limit less
+ * 20.  The difference is fixed since we don't care so much if you have to
+ * pop down a menu by highlighting another entry, whereas left-cascades are
+ * impossible if the left and right limits are too close.
  */
-	wantup = ((x > entry->rectangle.width / 2) || (x > 60)) ? True : False;
+	right = entry->rectangle.width / 2;
+	right = (right > 60) ? 60 : right;
+	left = right - 20;
 /*
  * If we do want it up, and it's not, and there is a menu name, put it up.
  */
-	if (entry->sme_menu.menu && wantup && !entry->sme_menu.up) 
+	if (entry->sme_menu.menu == NULL)
+	{
+		/* nothing to do with nothin' */;
+	}
+	else if (!entry->sme_menu.up && (x > right)) 
 	{
 		Position root_x, root_y;
 
 		/* 
-		 * Get the upper left root coords of where we'd like
-		 * the upper left corner of menu: middle of entry.
-		 * Later passed to RdssPositionMenu() to position the
-		 * popup.
+		 * Figure a location for the menu.  All we really want to do 
+		 * is adjust y so that submenus always appear in the same
+		 * place relative to the highlighted entry.
+		 * The root-relative location is passed to 
+		 * RdssPositionMenu() to position the popup.
 		 */
 		XtTranslateCoords (XtParent(w), w->core.x, w->core.y,
 				   &root_x, &root_y);
@@ -492,7 +506,7 @@ Highlight(w)
  * If it is up, and we don't want that, bring it back down.  Our colors
  * will stay the same though, since we are at least still highlighted.
  */
- 	else if (entry->sme_menu.up && (!wantup))
+ 	else if (entry->sme_menu.up && (x <= left))
 	{
 		XtPopdown (entry->sme_menu.popup);
 		entry->sme_menu.up = False;
