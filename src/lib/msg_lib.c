@@ -28,7 +28,9 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.16 1993-06-10 22:21:24 granger Exp $")
+# ifndef lint
+MAKE_RCSID ("$Id: msg_lib.c,v 2.17 1993-10-22 21:31:37 granger Exp $")
+# endif
 
 /*
  * The array of functions linked with file descriptors.
@@ -249,7 +251,6 @@ struct message *msg;
  * Send a message which expects a returning acknowledgement.
  */
 {
-	struct message ret;
 	struct mh_ack ack;
 	struct iovec iov[2];
 /*
@@ -470,7 +471,7 @@ int fd;
 
 
 
-void
+static void
 msg_free (msg)
 Message *msg;
 /*
@@ -522,30 +523,50 @@ int
 msg_poll(timeout)
 int timeout; /* seconds */
 /*
- * Check the message queue and poll the message handler fd for any pending
- * messages and handle them with msg_incoming().  The number of seconds to
- * block on the select() is set with the 'timeout' parameter.  Either the
- * return from msg_incoming() is returned or -1 if no messages.
+ * Check the message queue and poll the fd set for any pending messages and
+ * handle one of them as in msg_await().  The number of seconds to block on
+ * the select() is set with the 'timeout' parameter.  Either the return
+ * from message handler is returned or MSG_TIMEOUT if no messages.
  */
 {
-	fd_set readfds;
-	int ret;
+	fd_set fds;
+	int nsel, fd;
 	struct timeval delay;
 
 	delay.tv_sec = timeout;
 	delay.tv_usec = 0;
 
-	FD_ZERO(&readfds);
-	FD_SET(Msg_fd,&readfds);
-
-	if (Mq || (select(Msg_fd+1, &readfds, NULL, NULL, &delay) > 0))
+	for (;;)
 	{
-		/* We have a message to read */
-		return(msg_incoming(Msg_fd));
+	/*
+	 * Clean out the queue.
+	 */
+		msg_DispatchQueued ();
+	/*
+	 * Wait for something.
+	 */
+		fds = Fd_list;
+		if ((nsel = select (Max_fd + 1, &fds, 0, 0, &timeout)) < 0)
+		{
+			if (errno == EINTR) /* gdb attach can cause this */
+				continue;
+			printf ("Return code %d from msg select", errno);
+			return (1);
+		}
+		else if (nsel == 0)		/* timeout occurred */
+			return (MSG_TIMEOUT);
+	/*
+	 * Now dispatch a single message.
+	 */
+		for (fd = 0; fd <= Max_fd && nsel > 0; fd++)
+		{
+			if (FD_ISSET (fd, &fds) && Fd_funcs[fd])
+			{
+				nsel--;
+				return ((*Fd_funcs[fd]) (fd));
+			}
+		}
 	}
-	else
-		/* No messages waiting */
-		return(-1);
 }
 
 
@@ -566,27 +587,55 @@ void *param;
  * then pass it to FUNC.  If FUNC returns zero, msg_search will also
  * return zero.  Otherwise the message is queued, and the cycle happens
  * again with the next message with the given PROTO type.
+ *
+ * Three possible return values for FUNC are now checked:
+ *
+ *	MSG_ENQUEUE	queue this message and keep looking, same as a
+ *			nonzero return in past revisions
+ *	MSG_CONSUMED	a special non-zero value indicating that this
+ *			message can be discarded
+ *	MSG_DONE	zero, with the same meaning as before: discard
+ *			the message and return zero
+ *
+ * These symbols are defined in message.h
  */
 {
-	struct mqueue *queue = 0, *tail = 0;
+	struct mqueue *queue, *nextq, *tail = 0;
 	struct message *msg;
+	int action;
 /*
  * First search the queue for this protocol type.
  */
-	for (queue = Mq; queue; queue = queue->mq_next)
-		if (queue->mq_msg->m_proto == proto &&
-			(*func) (queue->mq_msg, param) == 0)
+	nextq = Mq;
+	while (nextq)
+	{
+		queue = nextq;
+	/*
+	 * Find the next queued msg first, before any attempts to remove this one
+	 */
+		nextq = queue->mq_next;
+		if (queue->mq_msg->m_proto == proto)
 		{
-			msg_RemQueue (queue);
-			return (0);
+			action = (*func) (queue->mq_msg, param);
+			if (action == MSG_DONE)
+			{
+				msg_RemQueue (queue);
+				return (0);
+			}
+			else if (action == MSG_CONSUMED)
+				msg_RemQueue (queue);
+		/*
+		 * Otherwise leave this message in the queue
+		 */
 		}
+	}
 /*
  * No such luck there.  We'll have to start reading stuff.
  */
 	queue = 0;
 	for (;;)
 	{
-		int action = MSG_ENQUEUE;
+		action = MSG_ENQUEUE;
 	/*
 	 * Get a message.
 	 */
@@ -634,6 +683,7 @@ void *param;
 		Mq_tail = tail;
 	}
 	msg_free (msg);
+	return (0);
 }
 
 
