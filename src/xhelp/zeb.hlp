@@ -184,7 +184,7 @@ See the topics "Changing the Display Configuration" and
 
 
 iconbar      The Icon Bar Icons
-4352
+4350
 
 / THE ICON BAR ICONS /
 
@@ -207,12 +207,11 @@ either top-to-bottom or left-to-right.
 This icon pictures a question mark and the word "Help".  It
 provides access to the Zeb on-line help facility and
 help-related services, such as printing hardcopies of Zeb
-docuementation.  Some help topics are directly accessible
+documentation.  Some help topics are directly accessible
 though menu entries, such as instructions on "Shutting Down
-Zeb" or the "Introduction" topic, which introduces Zeb and 
-its on-line help facility.  The
-"On-line Topics" entry accesses a listing of all of the
-available help topics.  
+Zeb" or the "Introduction" topic, which introduces Zeb and
+its on-line help facility.  The "On-line Topics" entry
+accesses a listing of all of the available help topics.  
 
 The "Listings" entry is a sub-menu containing entries for
 all of the general listings available through the on-line
@@ -342,7 +341,7 @@ display is shut down.  Hence STORM-FEST CD users do not
 need to perform the second step mentioned above.  
 
 historytime  Setting a History Time
-6415
+6414
 
 / SETTING A HISTORY TIME /
 
@@ -409,7 +408,7 @@ of the Time Widget do not take effect until the user sets
 the history mode and time described in the next paragraph.
 
 Setting the Mode - This section of the Time Widget contains
-two buttons.  One labelled <Real Time> and the other
+two buttons.  One labeled <Real Time> and the other
 labelled <History>.  Clicking on the <History> button
 directs that the date and time entered in the Time Widget
 be used as the new history time.  If the scope of the time
@@ -517,7 +516,7 @@ configurations and modifying pre-defined configurations.
 
 
 editdconfig  Editing Display Configurations
-6744
+6745
 
 / EDITING DISPLAY CONFIGURATIONS /
 
@@ -526,7 +525,7 @@ configuration.  New configurations can be created or
 existing configurations can be modified to personal
 preference.  First, change to the display configuration
 which will be modified.  To start a new configuration from
-scratch, change to the 'Emtpy' configuration.  See the help
+scratch, change to the 'Empty' configuration.  See the help
 topic "Changing Display Configurations" for details on
 setting the display configuration.
 
@@ -625,7 +624,7 @@ configure the platform plots in the window.
 
 / DELETING A WINDOW /
 
-The <Delete Window> button pops up a window selction
+The <Delete Window> button pops up a window selection
 widget.  The window to be deleted must be specified by
 name.  The name can be entered in the text window next to
 "Window name:" or by selecting the window with the mouse. 
@@ -898,7 +897,7 @@ options.
 
 The 'xwd2ps' program is included in the STORM-FEST CD
 distribution, so the default path should be correct and
-should not be changed, unless spcific options are desired. 
+should not be changed, unless specific options are desired.
 The executable supplied on the CD contains a fix for
 automatically determining landscape versus portrait
 orientation.
@@ -922,7 +921,7 @@ significant documentation can be printed from the sub-menus
 under the Icon Bar <Help> menu.  Select the menu entry
 corresponding to the documentation which you wish to get in
 hardcopy form.  The document will be sent to the default
-printer (or the printer named by the PRINTER environemnt
+printer (or the printer named by the PRINTER environment
 variable).  The destination printer must have PostScript
 capability.
 
@@ -969,7 +968,7 @@ directory.
 
 
 icons        Using the Icons in a Graphics Window
-1415
+1414
 
 / GRAPHICS WINDOW ICONS /
 
@@ -983,7 +982,7 @@ below the <Zeb> icon).
 
 A new data type or overlay may be added to a horizontal
 cross-section window by using any of the <Platform> icons. 
-Place the cursor on the <Platform> icon, deperess the left
+Place the cursor on the <Platform> icon, depress the left
 mouse button, select a field from the pulldown menu, and
 release the mouse button.  The cursor will become a
 cross-hair; move it to the target window and click a mouse
@@ -1927,27 +1926,32 @@ Flag                Definition
 6                   Estimated Value
 5                   "Glitch"
 xygraph      X-Y Graphs
-1268
+1583
 
 / X-Y GRAPHS /
 
 In general, X-Y Graphs allow plotting of any two-
-dimensional data combination.
-
+dimensional data combination.  A special occurrence of X-Y
+Graphs is Time Series plots, which are simply X-Y Graphs
+whose X axis is bound to the time dimension.  For
+information on Time Series plots, see the help topic "Time
+Series Plots".  X-Y graphs are also used for profiler plots.
 
 / ADDING DATA TO AN X-Y GRAPH /
 
-If a particular X-Y Graph allows data from different
-platforms to be added, then this will be done using the
-menu activated by clicking the middle mouse button on the
-Zeb icon in the graphics window.
+If a particular X-Y Graph window allows the addition of
+data from different platforms, then this can usually be
+done through the menu activated by clicking the middle
+mouse button on the Zeb icon in the graphics window.
+Data which is added to the window can be manipulated
+through an associated icon which is added to the bottom
+row of icons in the window.
 
-
-/ CHANGING FIELDS /
-
-Changing fields per se is not usually allowed.  To see data
-from a different field, add it from the Zeb icon.
-
+Once a data field has been added, it cannot be changed. 
+Instead, the field icon must be removed by selecting
+"Remove" from the left-button menu of the icon.  Once
+removed, a new field may be added in the manner described
+above.
 
 / CHANGING THE TIME INTERVAL /
 
@@ -1958,33 +1962,44 @@ the graphics window.  Traverse the Adjust Limits submenu,
 if necessary, and select Time Interval.  A Limit Widget
 will pop up, that allows the time interval to be changed.
 
-
-/ CHANGING PLATFORMS /
-
-If changing the platform of a component is allowed, then it
-will be done using the menu activated by clicking the
-middle mouse button on the icons in the graphics window.
-
-
 / CHANGING COLOR AND REPRESENTATION /
 
-If changing the color and the representation of data points
-is allowed, then menus to do this will be found by clicking
-the right mouse button on the icons in the graphics window.
+Pulldown menus for changing the color and the
+representation of data points will usually be found by
+clicking the right mouse button on the icons at the bottom
+of the graphics window.
+
 
 Cross-sectionCross-section Plots
-2429
+4364
 
 / USING CROSS-SECTION PLOTS /
 
-Zeb has the ability to generate vertical cross-section plots
-using various datasets.  Two basic types of cross-sections
-are provided: "zig-zag" and planar.  The types and their
-differences are described separately below.  Various options
-such as which platforms to use, the field to display, and
-whether to use pressure or altitude as the vertical scale
-are generally provided in menus from the associated
-cross-section icon.
+Zeb has the ability to generate vertical cross-section
+plots using various datasets.  Two basic types of
+cross-sections are provided: "zig-zag" and planar.  The
+types and their differences are described separately in the
+sections below.  Various options, such as which platforms
+to use, the field to display, and whether to use pressure
+or altitude as the vertical scale, are provided in menus
+from the associated cross-section icon.  The cross-section
+icon pictures a cube sliced by a shaded square plane.  The
+icon's right-button pulldown menu accesses functions for
+toggling the vertical scale, selecting data platforms,
+setting zig-zag or planar cross-sections, and displaying
+general help information.  The middle button selects the
+field to plot in the cross-section.  The left button
+executes the usual limit adjustment and enable/disable
+functions.
+
+The next help topic, "Selecting Platforms for Cross-section
+Plots", provides information on manipulating the set of
+platforms associated with the cross-section plot.  For
+planar cross-sections (see below), the end points of the
+cross-section plane can be chosen through a
+constant-altitude graphics window.  This process is
+described in the section "CHOOSING THE END POINTS" at the
+end of this topic.
 
 / ZIG-ZAG CROSS-SECTIONS /
 
@@ -2030,8 +2045,84 @@ data.  The value for each point in the plane is interpolated
 bilinearly from the four surrounding source grid points at
 the same vertical level.
 
+/ CHOOSING THE END POINTS /
+
+For planar cross-sections, the end points of the vertical
+plane can be specified through a constant-altitude plot in
+another graphics window.  The instructions here assume you
+are using the "Cross-section Configuration", one of the
+pre-built configurations available through the <Zeb> icon
+of the Icon Bar.  The upper right window is a
+horizontal---or constant-altitude---plot, while the lower
+left window is a cross-section plot.  First make sure the
+cross-section window is plotting planar cross-sections,
+otherwise you will not see the change in end points.  To
+specify new end points for the plane, move the cursor over
+the location of the first end point in the horizontal plot.
+Depress the middle mouse button.  A line will appear
+originating from the point where the mouse button was
+pressed.  While holding down the mouse button, drag the
+other end point of the line to the desired end point of the
+plane, then release the mouse button.  The end points of
+the line just chosen will be sent to the cross-section
+window, and the cross-section plot will be updated.
+
+
 xsectplatformSelecting Platforms for Cross-section Plots
-0
+2568
+
+/ CROSS-SECTION PLATFORM SELECTION /
+
+Cross-section plots require a list of platforms from which
+to collect vertical profiles.  For zig-zag cross-sections,
+the platform sites determine the end points of each plane
+in the cross-section, and the vertical profiles of two
+adjacent sites are used to interpolate grid points for the
+plane between the two sites.  For planar cross-sections,
+the vertical profiles of the platforms supply the
+collection of data points from which a single vertical
+plane is calculated.  See the previous topic,
+"Cross-section Plots", for details about how zig-zag and
+planar cross-sections are calculated, and instructions on
+choosing the end points of a planar cross-section.
+
+To select a set of platforms, pop-up the selection widget
+by choosing "Select Platforms" from the right-button menu
+of the <Cross-section> icon.  The current set of platforms
+is displayed in the "Platforms:" window as a
+comma-separated list of platform ID's.  This list can be
+manipulated with the <Clear> button and any of the
+<Platform-ID> buttons.  The <Platform ID> buttons are the
+rows of buttons in the lower two-thirds of the widget, each
+labeled with the ID name of a platform.  Press <Clear> to
+empty the set of platforms.  If a platform is not in the
+platform list, press the platform's <Platform ID> button to
+add the platform to the list.  Pressing the <Platform ID>
+button of a platform which is already listed will remove
+that platform from the list.  To plot a cross-section using
+the platforms listed in the widget, press the <Apply>
+button.  If you make changes to the list that you would
+like to erase, press <Get Current>.  This sets the list of
+platforms in the widget to the list being used by the plot
+window.
+
+The list of platform sites may also be manipulated
+'manually' by typing in the names of the platforms.  The
+platform name of a sounding site is simply the site ID
+prefixed with an 's'.  For example, to manually enter the
+sounding sites SEP, OUN, AKZ, and SLB into the platform
+list, first press <Clear>, then type "ssep,soun,sakz,sslb",
+and finally press <Apply>.  Text can be inserted in the
+same manner as most text windows; however, use Ctl-D to
+delete a character if in the middle of the list, since
+<Delete> will delete characters from the end of the list.
+
+To view this help topic at any time, press the <Help>
+button.  To see a list of all of the sounding sites---ID's,
+coordinates, and cities---in a help window, press <List>. 
+Finally, when finished with the widget, press <Dismiss> to
+remove the window from the screen.
+
 skewt        Skew-T Plots
 1118
 
@@ -2063,13 +2154,13 @@ menu of the sounding icon.
 
 
 soundingsitesChoosing a Subset of Sounding Sites
-1518
+2308
 
 / CHOOSING A WORKING SET OF SOUNDING SITES /
 
 The "Sounding Sites" widget allows the working set of
 sounding sites to be modified to particular needs.  To
-pop-up the widget, select "Choose sounding sites" from the
+pop-up the widget, select "Choose Sounding Sites" from the
 left-button menu of the balloon icon in a skew-t plot.
 
 The 'working set' of sounding sites is the collection of
@@ -2082,14 +2173,29 @@ sounding will be plotted in the skew-t graphics window.
 
 Use the "Sounding Sites" widget to change the working set
 of sounding sites.  The current set of sites is displayed
-in the "Platforms:" window as comma-separated list of
+in the "Platforms:" window as a comma-separated list of
 three-letter site ID's.  The list can be manipulated with
-the <Clear> button and any of the site-ID buttons in the
-lower half of the widget.  Pressing <Clear> empties the
-working set.  Pressing a <Site ID> button, one of the 
-buttons with a three-letter ID name, adds the site to
-the working set.  To change the working set used in
-the "Data Available" menu, press the <Apply> button.
+the <Clear> button and any of the <Site-ID> buttons.  The
+<Site ID> buttons are the rows of buttons in the lower half
+of the widget, each labeled with the three-letter ID of a
+sounding site.  Press <Clear> to empty the working set.  If
+a site is not listed in the working set, press the site's
+<Site ID> button to add the site to the working set. 
+Pressing the <Site ID> button of a site which is already
+contained in the working set will remove that site from the
+set.  To update the set of sounding sites listed by "Data
+Available" menu, press the <Apply> button.
+
+The list of sounding sites may also be manipulated
+'manually' by typing in the names of the sounding
+platforms.  The platform name of a sounding site is simply
+the site ID prefixed with an 's'.  For example, to manually
+enter the sounding sites SEP, OUN, AKZ, and SLB, first
+press <Clear>, then type "ssep,soun,sakz,sslb", and finally
+press <Apply>.  Text can be inserted in the same manner as
+most text windows; however, use Ctl-D to delete a character
+if in the middle of the list, since <Delete> will delete
+characters from the end of the list.
 
 To view this help topic at any time, press the <Help>
 button.  To see a list of all of the sounding sites---ID's,
