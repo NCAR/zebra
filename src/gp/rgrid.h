@@ -15,7 +15,7 @@ C UCAR does not indemnify any infringement of copyright, patent, or trademark
 C through use or modification of this software.  UCAR does not provide 
 C maintenance or updates for its software.
 C
-       PARAMETER (MAXDIM=25, MAXSTN=200, LUIN=5, LUOUT=6)
+       PARAMETER (MAXDIM=25, MAXSTN=800, LUIN=5, LUOUT=6)
 C MAXDIM = LARGEST DIMENSION ALLOWED FOR THE GRID USED FOR MESONET DATA.
 C MAXSTN = MAXIMUM NO. OF PAM STATIONS.
 C LUIN = LOGICAL UNIT NO. FOR INPUT.
