@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.12 1999-11-30 01:29:33 granger Exp $
+# $Id: zstart.sh,v 1.13 2000-06-05 21:57:19 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -56,9 +56,15 @@ unalias rm
 	set unique=0
 	set check=0
 	set name=""
+	set options=()
 	while ($#argv)
 		switch ($argv[1])
 		    case -h*:
+echo "Usage: $0 [-options] [project] [project-options ...]"
+echo "With no project name, the current directory is assumed."
+echo "If the project name is a directory, that directory is used,"
+echo "else the project name is matched against directory names in "
+echo "these locations: $ZEB_TOPDIR, $ZEB_TOPDIR/project"
 echo "  -preserve	Keep session and datastore running after dm exits."
 echo "  -data*	Specify the data directory."
 echo "  -dm		Execute the display manager start-up only."
@@ -70,6 +76,19 @@ echo "		one and return zero."
 echo "  -unique  	Generate a unique socket and session name if needed."
 echo "  -session	Set a session name for the message manager."
 echo "  -help		Print a summary of the options."
+echo "The first unknown option is taken as a project directory."
+echo "All unknown options following the project are passed to the project"
+echo "configuration."
+echo "Examples:"
+echo "  $0 coare"
+echo "  $0 -data /net/datastore ufp sol gaia"
+echo "The project name is 'ufp', and 'sol' and 'gaia' are project options."
+echo "Project options may differ between projects.  To specify the"
+echo "current directory as the project and specify project options, "
+echo "use '.' as the project name:"
+echo "  $0 . sol gaia"
+echo "Hyphen options should usually be reserved for zstart."
+echo "To see the project options, this _may_ work: $0 <project> help"
 			exit 0
 			breaksw
 		    case -preserve:
@@ -100,11 +119,16 @@ echo "  -help		Print a summary of the options."
 			shift
 			breaksw
 		    default:
-		    	set projdir="$argv[1]"
+		        if (! $?projdir) then
+			    set projdir="$argv[1]"
+			else
+			    set options=($options $argv[1])
+			endif
 			breaksw
 		endsw
 		shift
 	end
+	set argv=($options)
 #
 # Figure out where the project directory is.
 #
