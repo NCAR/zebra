@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdelete.c,v 2.8 1993-10-26 15:43:11 corbet Exp $";
+static char *rcsid = "$Id: dsdelete.c,v 2.9 1993-11-30 23:32:55 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -26,7 +26,12 @@ static char *rcsid = "$Id: dsdelete.c,v 2.8 1993-10-26 15:43:11 corbet Exp $";
 # include <copyright.h>
 # include "DataStore.h"
 
-#if ! defined(SVR4) && ! defined (SYSV)
+/*
+ * The standard C test prevents conflicts with correctly-prototyped GNU C
+ * include files, and hopefully any other ANSI C compilers with ANSI-compliant
+ * function prototypes.
+ */
+#if ! defined(SVR4) && ! defined (SYSV) && ! defined (__STDC__)
 extern char *getenv FP((char *));
 #endif
 
