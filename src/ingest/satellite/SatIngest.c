@@ -19,8 +19,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id";
-
 # include <copyright.h>
 # include <unistd.h>
 # include <errno.h>
@@ -33,6 +31,8 @@ static char *rcsid = "$Id";
 # include <timer.h>
 # include <DataStore.h>
 # include <DataChunk.h>
+
+MAKE_RCSID("$Id: SatIngest.c,v 1.3 1993-03-24 22:49:31 granger Exp $")
 
 # include "keywords.h"
 
@@ -229,13 +229,25 @@ UserLimits (cmds)
 struct ui_command	*cmds;
 /*
  * Get user specified lat/lon limits for the grid
+ * ...and do some sanity checking...
  */
 {
 	Minlat = UFLOAT (cmds[0]);
 	Minlon = UFLOAT (cmds[1]);
 	Maxlat = UFLOAT (cmds[2]);
 	Maxlon = UFLOAT (cmds[3]);
-	HaveLimits = TRUE;
+	if ((Minlat < Maxlat) && (Minlon < Maxlon))
+	{
+		/* values are valid, note as much */
+		HaveLimits = TRUE;
+	}
+	else
+	{
+		/* illegal values: tell user */
+		msg_ELog(EF_PROBLEM,"limits values illegal: %f %f %f %f",
+			Minlat,Minlon,Maxlat,Maxlon);
+		HaveLimits = FALSE;
+	}
 }
 
 
@@ -396,6 +408,7 @@ Ingest ()
 		ngood++;
 		dc_ImgAddImage (dc, 0, fid[f], &loc, &rg, &t, grid, 
 			GridX * GridY);
+		free(grid); 		/* we're done with it */
 	}
 /*
  * Write out the data chunk.  Finally.
@@ -431,7 +444,7 @@ ZebTime *t;
  */
 {
 	ZebTime	ftime;
-	int	f, prev, ngood;
+	int	f, prev, ngood = 0;
 /*
  * Run through the file list, leaving only one(s) with the latest time
  */
@@ -527,8 +540,8 @@ int	fentry;
 /*
  * Resolution (# of satellite units per image unit)
  */
-	Xres = header[11];
-	Yres = header[12];
+	Yres = header[11];
+	Xres = header[12];
 /*
  * If it isn't one byte data, we can't handle it (for now)
  */
@@ -680,6 +693,8 @@ ZebTime	*t;
 	month = 1;
 	while (day > Mdays[month])
 		day -= Mdays[month++];
+	Mdays[2] = 28;		/* return to 28 days in case next file
+				 * is in a different year */
 /*
  * Time
  */
