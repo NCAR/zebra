@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.7 1989-09-19 16:39:50 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.8 1990-04-26 12:11:51 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -477,10 +477,11 @@ bool exec;
 	  	ut_open_file (cmds[1].uc_v.us_v_ptr, TRUE);
 		return (TRUE);
 	/*
-	 * Set something to a boolean value.
+	 * Set something.
 	 */
 	  case UIC_SET:
-	  	ui_set (cmds + 1);
+	  case UIC_LOCAL:
+	  	ui_set (cmds + 1, UKEY (cmds[0]) == UIC_LOCAL);
 		return (TRUE);
 	/*
 	 * Testing hook.
@@ -1349,7 +1350,8 @@ struct ui_command *cmds;
 	Cs->cs_term = "return";
 	Cs->cs_test = usy_string (proc->p_name);
 	Cs->cs_mode = M_COMMAND;
-	argtable = (proc->p_narg > 0) ? usy_c_stbl ((char *) 0) : 0;
+/*	argtable = (proc->p_narg > 0) ? usy_c_stbl ((char *) 0) : 0; */
+	argtable = usy_c_stbl ((char *) 0);
 	ucs_csave_source (csv, TRUE);
 /*
  * Bind all of the arguments.
