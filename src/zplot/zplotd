@@ -518,7 +518,7 @@ sub clear
 	foreach $i (split(/\s+/,$images))
 	{
 	    $url = $i;
-	    $url =~ s,/net/global/www,, ;
+	    $url =~ s,/net/www,, ;
 	    print MAIL "http://www.atd.ucar.edu$url\n";
 	}
 	print MAIL "\n";

@@ -14,7 +14,7 @@ setenv PRESERVE_ZEB 1
 setenv ZEB_SOCKET "/tmp/zebra.cases99-iss"
 
 # The spool dir is where images are dumped by batch-plot
-setenv BATCH_IMAGE_SPOOL "/net/global/www/sssf/projects/cases99/realtime"
+setenv BATCH_IMAGE_SPOOL "/net/www/sssf/projects/cases99/realtime"
 
 # Use a fixed zebra top since we are version-dependent
 setenv ZEB_TOPDIR /scr/steam/granger/zebra
