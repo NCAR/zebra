@@ -33,6 +33,8 @@
 # include <X11/Xaw/SmeBSB.h>
 # include <X11/Xaw/SmeLine.h>
 # include <X11/Xaw/Cardinals.h>
+# include <X11/Xaw/Dialog.h>
+# include <X11/Xaw/Toggle.h>
 # include "defs.h"
 # include "message.h"
 # include "timer.h"
@@ -40,30 +42,38 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.17 1993-05-13 17:35:27 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.18 1993-09-07 18:19:53 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
 
+#ifndef streq
+#define streq(a,b) (!strcmp((a),(b)))
+#endif
+
 /*
- * Event mask info.
+ * Event mask info.  Emask is the bitwise or of Display_mask and Log_mask,
+ * telling us all of the events we are accepting from clients and logging
+ * to one place and/or another.
  */
-int Emask = EF_EMERGENCY | EF_PROBLEM | EF_INFO;
+#define DEFAULT_MASK (EF_EMERGENCY | EF_PROBLEM | EF_INFO)
+
+int Emask = DEFAULT_MASK;		/* All the events we need 	*/
+int Display_mask = DEFAULT_MASK;	/* Event mask for the display 	*/
 
 struct EMMap
 {
 	int	em_flag;
 	char	*em_name;
 	char	em_code;
-	Widget	em_w;
 } EMap[] =
 {
-	{ EF_EMERGENCY,		"Emergencies",	'E', 0	},
-	{ EF_PROBLEM,		"Problems",	'P', 0	},
-	{ EF_CLIENT,		"Client events", 'C', 0	},
-	{ EF_INFO,		"Informational", 'I', 0	},
-	{ EF_DEBUG,		"Debugging",	'D', 0	},
-	{ 0, 0, 0, 0}
+	{ EF_EMERGENCY,		"Emergencies",	'E' 	},
+	{ EF_PROBLEM,		"Problems",	'P' 	},
+	{ EF_CLIENT,		"Client events", 'C'	},
+	{ EF_INFO,		"Informational", 'I'	},
+	{ EF_DEBUG,		"Debugging",	'D' 	},
+	{ 0, 0, 0 }
 };
 
 
@@ -77,7 +87,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.17 1993-05-13 17:35:27 granger Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.18 1993-09-07 18:19:53 granger Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -133,7 +143,30 @@ const char Check_bits[] = {
 };
 Pixmap Check;
 
-FILE *Log_file = (FILE *) 0;
+/*
+ * Bitmap for the log file popup
+ */
+#define scroll_width 32
+#define scroll_height 32
+static char scroll_bits[] = {
+   0x00, 0xe0, 0x01, 0x00, 0x00, 0x10, 0x1f, 0x00, 0x00, 0x08, 0xe0, 0x01,
+   0x00, 0x08, 0x00, 0x1e, 0x00, 0x08, 0x00, 0x38, 0x00, 0x10, 0x00, 0x44,
+   0x00, 0xe0, 0x00, 0x82, 0x00, 0x40, 0x07, 0x82, 0x00, 0x20, 0x78, 0x82,
+   0x00, 0x20, 0x80, 0xc7, 0x00, 0x10, 0x00, 0x78, 0x00, 0x48, 0x00, 0x40,
+   0x00, 0x28, 0x00, 0x40, 0x00, 0x14, 0x00, 0x20, 0x00, 0x12, 0x06, 0x20,
+   0x00, 0x0a, 0x89, 0x10, 0x00, 0x89, 0x48, 0x13, 0x80, 0x90, 0x28, 0x08,
+   0x80, 0xa0, 0x24, 0x08, 0x40, 0x00, 0x13, 0x04, 0x20, 0x00, 0x88, 0x02,
+   0x2c, 0x00, 0xb0, 0x02, 0xf2, 0x00, 0x40, 0x01, 0x02, 0x0f, 0x00, 0x01,
+   0x01, 0xf0, 0x80, 0x00, 0x01, 0x00, 0x87, 0x00, 0x01, 0x80, 0x48, 0x00,
+   0x02, 0x40, 0x50, 0x00, 0x7c, 0x40, 0x30, 0x00, 0x80, 0x47, 0x10, 0x00,
+   0x00, 0xf8, 0x08, 0x00, 0x00, 0x80, 0x07, 0x00};
+Pixmap Scroll;
+
+
+FILE *Log_file = (FILE *) 0;	/* File being logged to 		*/
+char Log_path[320];		/* File path of log file		*/
+bool Log_enabled = FALSE;	/* Whether actively logging to the file	*/
+int Log_mask = DEFAULT_MASK;	/* Event mask for the log file		*/
 
 /*
  * Is there somebody out there interested in our problems?  If so, this
@@ -144,19 +177,210 @@ char *Mother = 0;
 /*
  * Forwards.
  */
-void	SendToMother FP((struct msg_elog *, char *));
+void	SendToMother FP((char code, char *from, char *text));
 Widget	MakeDbgButton FP ((Widget));
 void	NewProc FP ((char *));
 void	DeadProc FP ((char *));
 void	ToggleProc FP ((Widget, XtPointer, XtPointer));
 int	SendDbgMask FP ((char *, int, SValue *, long));
-int	PassDebug FP ((int, char *));
+int	PassDebug FP ((int,  char *));
 static void AppendToLog FP ((char *buf));
 static Widget MakeTimestampButton FP ((Widget left, int default_period));
 static void TimestampSetup FP ((int period));
 static void Timestamp FP ((ZebTime *t, void *param));
 static void TimestampCallback FP ((Widget w, XtPointer client_data, 
 				   XtPointer call_data));
+static void PopupLogSettings FP ((Widget w, XtPointer client_data,
+				  XtPointer call_data));
+static void LogToggle FP ((Widget w, XtPointer client_data, 
+			   XtPointer call_data));
+static Widget CreateLogSettings FP ((Widget w, Widget top));
+static void CreateMaskMenu FP ((Widget button, char *name, int *maskp));
+static void ChangeMaskCallback FP ((Widget w, XtPointer, XtPointer));
+static void LogMessage FP ((int flag,  char *from,  char *text));
+static char *FormatMessage FP ((char code, char *from_in,
+				char *msg_in));
+static void AppendToDisplay FP ((char *fmtbuf));
+static void AppendToLogFile FP ((char *fmtbuf));
+static void DoLog FP ((char *from, char *msg));
+
+
+
+#define USAGE \
+"EventLogger [-h] [-o|-w] [-f logfile] [-m eventmask] [-l filemask] [mom]\n\
+   -h\tPrint this usage message\n\
+   -o\tOverride redirect---give display manager control\n\
+   -w\tNo override redirect---gives window manager control\n\
+   -f\tSpecify a file to which log messages will be written\n\
+   -m\tSpecify the event mask for the EventLogger display\n\
+   -l\tSpecify the event mask for the log file\n\
+   mom\tThe name of a process to echo emergencies and problems to\n\
+Environment variables are checked if the equivalent option above\n\
+is not present:\n\
+   ZEB_LOGFILE	The name of the log file.\n\
+   LOG_MASK	The event mask for the log file.  If not specified, it\n\
+                defaults to the value of EVENT_MASK.\n\
+   EVENT_MASK	The event mask for the display\n\
+Specifying a log file automatically enables file logging.  File and\n\
+display masks default to Emergency, Problem, and Information messages.\n\
+If the event masks are not specified as numbers, they will be interpreted\n\
+as strings of characters naming the events to include.  For example,\n\
+'epid' represents Emergency, Problem, Information, and Debugging messages.\n"
+
+
+
+static int
+StringToMask (flags)
+const char *flags;
+/*
+ * Convert the characters in the string 'flags' to an event mask
+ */
+{
+	int mask, i;
+	const char *c;
+
+	mask = 0;
+	for (c = flags; *c; ++c)
+		switch (tolower(*c))
+		{
+		   case 'e':
+			mask |= EF_EMERGENCY;
+			break;
+		   case 'p':
+			mask |= EF_PROBLEM;
+			break;
+		   case 'c':
+			mask |= EF_CLIENT;
+			break;
+		   case 'i':
+			mask |= EF_INFO;
+			break;
+		   case 'd':
+			mask |= EF_DEBUG;
+			break;
+		   default:
+			printf ("Illegal character '%c' in mask\n");
+			break;
+		}
+	return (mask);
+}
+
+
+
+static void
+GetOptions (argc, argv)
+int argc;
+char *argv[];
+/*
+ * Process command-line options and environment variables to establish
+ * our initial settings.  Unfortunately, because the command line is
+ * also parsed by XtAppInitialize, we have to make sure these options
+ * do not conflict with the standard Xt options.
+ */
+{
+	extern int optind, opterr;
+	extern char *optarg;
+	bool dmask_set = FALSE, lmask_set = FALSE;
+	char c;
+
+	Log_path[0] = '\0';
+	while ((c = getopt(argc, argv, "howf:m:l:")) != -1)
+	{
+		switch (c)
+		{
+		   case 'h':
+			printf ("%s", USAGE);
+			exit (0);
+		   case 'o':
+			Override = TRUE;
+			break;
+		   case 'w':
+			Override = FALSE;
+			break;
+		   case 'f':
+			strcpy (Log_path, optarg);
+			break;
+		   case 'm':
+			Display_mask = atoi(optarg);
+			if (!Display_mask)
+				Display_mask = StringToMask (optarg);
+			dmask_set = TRUE;
+			break;
+		   case 'l':
+			Log_mask = atoi(optarg);
+			if (!Log_mask)
+				Log_mask = StringToMask (optarg);
+			lmask_set = TRUE;
+			break;
+		   case '?':
+			printf ("%s", USAGE);
+			exit (1);
+		}
+	}
+
+	/*
+	 * If there is an argument left, it's somebody to send problems to.
+	 */
+	if (optind < argc)
+		Mother = argv[optind];
+
+	/*
+	 * Try to initialize missing options from the environment,
+	 * otherwise we go to defaults.
+	 */
+	if (!Log_path[0])
+	{
+		if (getenv ("ZEB_LOGFILE"))
+			strcpy (Log_path, (char *) getenv ("ZEB_LOGFILE"));
+	}
+	if (!dmask_set)
+	{
+		if (getenv ("EVENT_MASK"))
+		{
+			Display_mask = atoi (getenv ("EVENT_MASK"));
+			if (!Display_mask)
+			   Display_mask = StringToMask (getenv("EVENT_MASK"));
+		}
+		else
+			Display_mask = DEFAULT_MASK;
+	}
+	if (!lmask_set)
+	{
+		if (getenv ("LOG_MASK"))
+		{
+			Log_mask = atoi(getenv ("LOG_MASK"));
+			if (!Log_mask)
+			   Log_mask = StringToMask (getenv("LOG_MASK"));
+		}
+		else
+			Log_mask = Display_mask;
+	}
+#ifdef notdef
+	if (getenv ("EVENT_TIMESTAMP"))
+		TSSecs = atoi (getenv ("EVENT_TIMESTAMP"));
+	else
+#endif
+	TSSecs = DEFAULT_PERIOD;
+
+	Emask = Log_mask | Display_mask;
+
+	/*
+	 * Open the log file if we got one.
+	 */
+	if (Log_path[0])
+	{
+		Log_file = fopen (Log_path, "w");
+
+		if (! Log_file)
+		{
+			printf ("Error %d opening log file '%s'\n", errno, 
+				Log_path);
+			Log_enabled = FALSE;
+		}
+		else
+			Log_enabled = TRUE;
+	}
+}
 
 
 
@@ -168,8 +392,24 @@ char **argv;
 	Widget w, label;
 	int xevent (), msg_event (), clearbutton (), wm (), n;
 	char *fname;
+	char buf[128];
 /*
- * Initialize.
+ * Get set up with the toolkit, removing it's options first.
+ */
+	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
+		Resources, NULL, 0);
+	Check = XCreateBitmapFromData (XtDisplay (Top),
+		RootWindowOfScreen (XtScreen (Top)), Check_bits,
+		check_width, check_height);
+	Scroll = XCreateBitmapFromData (XtDisplay (Top),
+		RootWindowOfScreen (XtScreen (Top)), scroll_bits,
+		scroll_width, scroll_height);
+/*
+ * Retrieve our command line options and initialize parameters accordingly
+ */
+	GetOptions (argc, argv);
+/*
+ * Initialize UI.
  */
 	usy_init ();
 	ProcTable = usy_c_stbl ("ProcTable");
@@ -182,46 +422,12 @@ char **argv;
 		exit (1);
 	}
 /*
- * Open our log file.
- */
-	if (fname = (char *) getenv ("ZEB_LOGFILE"))
-	{
-		Log_file = fopen (fname, "w");
-
-		if (! Log_file)
-			printf ("Error %d opening log file '%s'\n", errno, 
-				fname);
-	}
-/*
- * Get the event mask, if any, and the timestamp interval, if any
- */
-	if (getenv ("EVENT_MASK"))
-		Emask = atoi (getenv ("EVENT_MASK"));
-#ifdef notdef
-	if (getenv ("EVENT_TIMESTAMP"))
-		TSSecs = atoi (getenv ("EVENT_TIMESTAMP"));
-	else
-#endif
-		TSSecs = DEFAULT_PERIOD;
-/*
- * Get set up with the toolkit.
- */
-	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
-		Resources, NULL, 0);
-	Check = XCreateBitmapFromData (XtDisplay (Top),
-		RootWindowOfScreen (XtScreen (Top)), Check_bits,
-		check_width, check_height);
-/*
- * If there is an argument left, it's somebody to send problems to.
- */
-	if (argc > 1)
-		Mother = argv[1];
-/*
  * Create our shell.
  */
 	n = 0;
 	XtSetArg (args[n], XtNinput, True);		n++;
-	XtSetArg (args[n], XtNoverrideRedirect, True);	n++;
+	XtSetArg (args[n], XtNoverrideRedirect, 
+		  (Override) ? True : False);		n++;
 	XtSetArg (args[n], XtNallowShellResize, True);	n++;
 	Shell = XtCreatePopupShell ("Event Logger", topLevelShellWidgetClass,
 		Top, args, n);
@@ -266,7 +472,7 @@ char **argv;
 	w = Wm = XtCreateManagedWidget("wm",commandWidgetClass, Form, args, 7);
 	XtAddCallback (Wm, XtNcallback, (XtCallbackProc) wm, (XtPointer) 0);
 /*
- * The filter button.
+ * The filter button for the display mask.
  */
 	XtSetArg (args[0], XtNfromHoriz, w);
 	XtSetArg (args[1], XtNfromVert, NULL);
@@ -274,10 +480,9 @@ char **argv;
 	XtSetArg (args[3], XtNbottom, XtChainTop);
 	XtSetArg (args[4], XtNleft, XtChainLeft);
 	XtSetArg (args[5], XtNright, XtChainLeft);
-	XtSetArg (args[6], XtNmenuName, "EventMasks");
 	w = XtCreateManagedWidget ("Events ->", menuButtonWidgetClass,
-		Form, args, 7);
-	add_popup (w);
+		Form, args, 6);
+	CreateMaskMenu (w, "DisplayMask", &Display_mask);
 /*
  * The debug button.
  */
@@ -286,6 +491,20 @@ char **argv;
  * The timestamp interval button
  */
 	w = MakeTimestampButton (w, TSSecs);
+/*
+ * The log file settings button and popup callback.  The Shell will parent
+ * the popup shell, and also let the settings pop down when the Shell does.
+ */
+	XtSetArg (args[0], XtNfromHoriz, w);
+	XtSetArg (args[1], XtNfromVert, NULL);
+	XtSetArg (args[2], XtNtop, XtChainTop);
+	XtSetArg (args[3], XtNbottom, XtChainTop);
+	XtSetArg (args[4], XtNleft, XtChainLeft);
+	XtSetArg (args[5], XtNright, XtChainLeft);
+	XtSetArg (args[6], XtNmenuName, "EventMasks");
+	w = XtCreateManagedWidget ("logfile", commandWidgetClass,
+				   Form, args, 7);
+	XtAddCallback (w, XtNcallback, PopupLogSettings, Shell);
 /*
  * Now the big, hairy, text widget.
  */
@@ -313,6 +532,14 @@ char **argv;
  */
 	msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
 	reconfig (625, 600, 500, 150);
+/*
+ * Log a message about our log file, if there is one
+ */
+	if (Log_file)
+		sprintf (buf, "Logging to file '%s'", Log_path);
+	else
+		sprintf (buf, "No log file specified.");
+	LogMessage (EF_INFO, EL_NAME, buf);
 /*
  * Now we wait.
  */
@@ -425,20 +652,228 @@ int deflt;
 
 
 
-add_popup (w)
+/*ARGSUSED*/
+static void
+PopupLogSettings (w, client_data, call_data)
 Widget w;
+XtPointer client_data;
+XtPointer call_data;
 /*
- * Add the event popup to this widget.
+ * Create the log settings button and the associated dialog popup
  */
 {
-	Widget pulldown;
-	int i, ev_popup_cb ();
+	static Widget shell = NULL;
+
+	/*
+	 * If we don't yet have a shell, we need to create it first
+	 */
+	if (! shell)
+	{
+		Widget top = (Widget) client_data;
+		shell = CreateLogSettings (w, top);
+	}
+
+	XtPopup (shell, XtGrabNone);
+	XtSetSensitive (w, False);
+}
+
+
+
+
+static Widget
+CreateLogSettings (w, top)
+Widget w;	/* the button which will pop us up */
+Widget top;	/* our top-level parent 	   */
+{
+	static XtPopdownIDRec pop_rec;
+	Widget shell, dialog, toggle, mbutton;
+	Arg args[10];
+	Cardinal n;
+	Position root_x, root_y;
+	Dimension width, height;
+	Dimension root_width, root_height;
+
+	/*
+	 * We need a popup shell, parented by the 'top' widget
+	 * passed in as client data.
+	 */
+	shell = XtCreatePopupShell ("logpopup", transientShellWidgetClass,
+				    top, NULL, 0);
+	XtSetMappedWhenManaged (shell, False);
+
+	/*
+	 * Our shell's single child, the dialog widget.
+	 */
+	n = 0;
+	XtSetArg (args[n], XtNvalue, Log_path);  n++;
+	XtSetArg (args[n], XtNicon, Scroll); n++;
+	dialog = XtCreateManagedWidget ("logdialog", dialogWidgetClass,
+					shell, args, n);
+
+	/*
+	 * Now start adding the buttons we need.  The most basic is the one
+	 * for popping down the shell.  We also add a popdown callback to
+	 * the top shell so that this shell pops down when it does.
+	 */
+	pop_rec.shell_widget = shell;
+	pop_rec.enable_widget = w;
+	XawDialogAddButton (dialog, "dismiss", XtCallbackPopdown,
+			    (XtPointer) &pop_rec);
+	XtAddCallback (top, XtNpopdownCallback, XtCallbackPopdown,
+		       (XtPointer) &pop_rec);
+
+	/*
+	 * Toggle button for activating and deactivating file logging
+	 */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, (Log_enabled) ? "Enabled" : "Disabled");
+	++n;
+	toggle = XtCreateManagedWidget ("toggle", commandWidgetClass,
+					dialog, args, n);
+	XtAddCallback (toggle, XtNcallback, LogToggle, (XtPointer)dialog);
+
+	/*
+	 * Now most importantly, create a pulldown menu for changing the mask
+	 */
+	mbutton = XtCreateManagedWidget ("mask", menuButtonWidgetClass,
+					 dialog, NULL, 0);
+	CreateMaskMenu (mbutton, "FileMask", &Log_mask);
+
+	/*
+	 * Realize the shell to get it to calculate its size; note that 
+	 * mapped_when_managed is false, so its window will not be mapped.
+	 */
+	XtRealizeWidget (shell);
+
+	/*
+	 * Get its size, and use this to position it entirely on the screen.
+	 */
+	n = 0;
+	XtSetArg (args[n], XtNwidth, &width); n++;
+	XtSetArg (args[n], XtNheight, &height); n++;
+	XtGetValues (shell, args, n);
+	root_width = WidthOfScreen(XtScreen(shell));
+	root_height = HeightOfScreen(XtScreen(shell));
+	XtTranslateCoords (w, 5, 5, &root_x, &root_y);
+	if (root_x + width + 5 > root_width)
+		root_x = root_width - width - 5;  /* minus any borders */
+	if (root_y + height + 5 > root_height)
+		root_y = root_height - height - 5;
+	n = 0;
+	XtSetArg (args[n], XtNx, root_x); n++;
+	XtSetArg (args[n], XtNy, root_y); n++;
+	XtSetValues (shell, args, n);
+	XtSetMappedWhenManaged (shell, True);
+	return (shell);
+}
+
+
+
+
+/*ARGSUSED*/
+static void
+LogToggle (w, client_data, call_data)
+Widget w;
+XtPointer client_data;
+XtPointer call_data;
+/*
+ * Change the status of file logging.  If we're currently enabled, just
+ * change to disable.  If we have to enable, check the file path in the
+ * dialog widget value.  If the path has changed, we need to close the any
+ * former log file and try to open a new one.
+ */
+{
+	Widget dialog = (Widget) client_data;
+	char *filepath;
+	Arg arg;
+	char buf[128];
+
+	if (Log_enabled == TRUE)
+	{
+		Log_enabled = FALSE;
+		XtSetArg (arg, XtNlabel, "Disabled");
+		XtSetValues (w, &arg, (Cardinal)1);
+		LogMessage (EF_DEBUG, EL_NAME, "File logging disabled.");
+		return;
+	}
+
+	filepath = XawDialogGetValueString (dialog);
+	if (Log_path[0] && streq(filepath, Log_path))
+	{
+		/*
+		 * File path is still the same, so just re-enable logging
+		 */
+		Log_enabled = TRUE;
+		XtSetArg (arg, XtNlabel, "Enabled");
+		XtSetValues (w, &arg, (Cardinal)1);
+		LogMessage (EF_DEBUG, EL_NAME, "File logging enabled.");
+		return;
+	}
+
+	/*
+	 * Oh well, do the tough stuff.  If we have a log file currently,
+	 * then close it.  Then try to open the new one.
+	 */
+	if (Log_file)
+	{
+		fclose (Log_file);
+		sprintf (buf, "Log file %s closed.", Log_path);
+		LogMessage (EF_INFO, EL_NAME, buf);
+	}
+	Log_file = NULL;
+	strcpy (Log_path, filepath);
+
+	if (filepath[0])	/* avoid empty strings */
+	{
+		Log_file = fopen (Log_path, "w");
+		if (! Log_file)
+		{
+			sprintf (buf, "Error %d opening log file '%s'",
+				 errno, filepath);
+			LogMessage (EF_PROBLEM, EL_NAME, buf);
+		}
+		else
+		{
+			sprintf (buf, "Log file %s opened.", filepath);
+			LogMessage (EF_INFO, EL_NAME, buf);
+		}
+	}
+	else
+	{
+		LogMessage (EF_PROBLEM, EL_NAME, 
+			    "Could not open log file, no file name specified");
+	}
+
+	Log_enabled = (Log_file) ? TRUE : FALSE;
+	XtSetArg (arg, XtNlabel, (Log_enabled) ? "Enabled" : "Disabled");
+	XtSetValues (w, &arg, (Cardinal)1);
+	sprintf (buf, "File logging %s.", 
+		 (Log_enabled) ? "enabled" : "disabled");
+	LogMessage (EF_DEBUG, EL_NAME, buf);
+}
+
+
+
+
+static void
+CreateMaskMenu (button, name, maskp)
+Widget button;	/* The menu button used to pop up this menu		*/
+char *name;	/* The name to give this menu; should be unique 	*/
+int *maskp;	/* Pointer to the mask field which will be changed	*/
+/*
+ * Add the event popup menu to this widget.
+ */
+{
+	Widget pulldown, w;
+	int i;
 	Arg args[2];
 /*
  * Make the pulldown.
  */
-	pulldown = XtCreatePopupShell ("EventMasks", simpleMenuWidgetClass,
-		Top, NULL, ZERO);
+	pulldown = XtCreatePopupShell (name, simpleMenuWidgetClass,
+				       button, NULL, ZERO);
+	XtSetArg (args[0], XtNmenuName, name);
+	XtSetValues (button, args, (Cardinal)1);
 /*
  * Add the entries.  In Ardent land, we can not set the bitmap in at 
  * creation time, for whatever reason.
@@ -447,11 +882,12 @@ Widget w;
 	for (i = 0; EMap[i].em_flag; i++)
 	{
 		XtSetArg (args[1], XtNleftBitmap,
-			EMap[i].em_flag & Emask ? Check : None);
-		EMap[i].em_w = w = XtCreateManagedWidget (EMap[i].em_name,
-			smeBSBObjectClass, pulldown, args, 2);
-		XtAddCallback (w, XtNcallback, (XtCallbackProc) ev_popup_cb, 
-			(XtPointer) i);
+			EMap[i].em_flag & (*maskp) ? Check : None);
+		w = XtCreateManagedWidget (EMap[i].em_name, smeBSBObjectClass,
+					   pulldown, args, 2);
+		XtAddCallback (w, XtNcallback, 
+			       (XtCallbackProc) ChangeMaskCallback,
+			       (XtPointer) maskp);
 	}
 }
 
@@ -460,27 +896,43 @@ Widget w;
 
 
 /*ARGSUSED*/
-ev_popup_cb (w, index, junk)
+static void
+ChangeMaskCallback (w, client_data, call_data)
 Widget w;
-int index, junk;
+XtPointer client_data;
+XtPointer call_data;
 /*
- * Deal with the event popup.
+ * Deal with the event popup.  The client_data is a pointer to the global
+ * mask variable which we are changing.  The menu entry object making the
+ * callback, w, must also have its left bitmap changed.  We get the flag
+ * being changed from the name of the widget.
  */
 {
+	int *mask = (int *)client_data;
+	int i;
 	Arg args[2];
+
+	for (i = 0; EMap[i].em_flag; ++i)
+	{
+		if (streq(EMap[i].em_name, XtName(w)))
+			break;
+	}
+	if (!EMap[i].em_flag)	/* flag not found, for whatever reason */
+		return;
 /*
  * Tweak the event mask bit.
  */
-	Emask ^= EMap[index].em_flag;
+	(*mask) ^= EMap[i].em_flag;
 /*
  * Modify the menu accordingly.
  */
 	XtSetArg (args[0], XtNleftBitmap,
-			EMap[index].em_flag & Emask ? Check : None);
-	XtSetValues (EMap[index].em_w, args, 1);
+		  EMap[i].em_flag & (*mask) ? Check : None);
+	XtSetValues (w, args, (Cardinal)1);
 /*
- * Broadcast the new mask.
+ * Update the global mask and broadcast it.
  */
+	Emask |= (*mask);
 	SendEMask ();
 }
 
@@ -525,7 +977,7 @@ struct message *msg;
  */
 	if (msg->m_proto == MT_LOG)
 	{
-		do_log ('-', msg->m_from, msg->m_data);
+		DoLog (msg->m_from, msg->m_data);
 		return (0);
 	}
 /*
@@ -542,40 +994,8 @@ struct message *msg;
 	else if (msg->m_proto == MT_ELOG)
 	{
 		struct msg_elog *el = (struct msg_elog *) msg->m_data;
-		int i;
-		char code = '?';
-	/*
-	 * If somebody's tweaking the event mask, we'll ignore it.
-	 */
-	 	if (Emask & EF_SETMASK)
-			return (0);
-	/*
-	 * If this is in our mask, we log it.
-	 */
-		else if (Emask & el->el_flag || Emask == 0 ||
-				PassDebug (el->el_flag, msg->m_from))
-		{
-			for (i = 0; EMap[i].em_flag; i++)
-				if (EMap[i].em_flag & el->el_flag)
-					code = EMap[i].em_code;
-			do_log (code, msg->m_from, el->el_text);
-		}
-	/*
-	 * Otherwise assume that somebody is out of sync with the
-	 * event mask, and we send it out to the world.
-	 */
-		else
-		{
-			static int nsend = 0;
-			if ((nsend++ % 15) == 0)
-				SendEMask ();
-		}
-	/*
-	 * Things in the PROBLEM and EMERGENCY classes get sent back to 
-	 * mother.
-	 */
-		if (Mother && el->el_flag & (EF_PROBLEM | EF_EMERGENCY))
-			SendToMother (el, msg->m_from);
+
+		LogMessage (el->el_flag, msg->m_from, el->el_text);
 		return (0);
 	}
 /*
@@ -604,7 +1024,7 @@ struct message *msg;
 			break;
 		}
 		if (Emask & EF_CLIENT || Emask == 0)
-			do_log ('C', client->mh_client, mb);
+			LogMessage (EF_CLIENT, client->mh_client, mb);
 		break;
 	   case MH_SHUTDOWN:
 		exit (0);
@@ -612,7 +1032,7 @@ struct message *msg;
 	   default:
 	   	sprintf (mb, "Strange message type: %d %d", msg->m_proto,
 			client->mh_type);
-	   	do_log ('P', "EventLogger", mb);
+	   	LogMessage (EF_PROBLEM, "EventLogger", mb);
 		break;
 	}
 	return (0);
@@ -620,19 +1040,119 @@ struct message *msg;
 
 
 
-
-
-do_log (code, from, msg)
-char code, *from, *msg;
-{
-	static char fmtbuf[300];
-	static char last_msg[300];
-	static int repeat_count = 0;
+static void
+LogMessage (flag, from, text)
+int flag;
+char *from;
+char *text;
 /*
- * Format the message to be logged.
+ * Check our flag and masks and write the log message to whomever wants it
  */
-	sprintf (fmtbuf, "%c %-14s%s\n", code, from, msg);
+{
+	int i;
+	char code;
+	char *msg;
 
+	/*
+	 * If somebody's tweaking the event mask, we'll ignore it.
+	 */
+	 	if (flag & EF_SETMASK)
+			return;
+	/*
+	 * If this is in our mask, we log it.  Assume flags are in order of
+	 * importance, and take the first code character present in the
+	 * mask and exit the loop, rather than overwrite it with the
+	 * presence of less important flags.
+	 */
+	code = '?';
+	for (i = 0; EMap[i].em_flag; i++)
+		if (EMap[i].em_flag & flag)
+		{
+			code = EMap[i].em_code;
+			break;
+		}
+	/*
+	 * Things in the PROBLEM and EMERGENCY classes get sent back to 
+	 * mother.
+	 */
+	if (Mother && (flag & (EF_PROBLEM | EF_EMERGENCY)))
+		SendToMother (code, from, text);
+	/*
+	 * If we need to log this message, format it
+	 */
+	if ((Emask & flag) || Emask == 0 ||
+	    PassDebug (flag, from))
+	{
+		msg = FormatMessage (code, from, text);
+		if (!msg)
+			return;
+	}
+	else
+	{
+		/*
+		 * Otherwise assume that somebody is out of sync with the
+		 * event mask, and we send it out to the world.
+		 */
+		static int nsend = 0;
+		if ((nsend++ % 15) == 0)
+			SendEMask ();
+			return;
+	}
+	/*
+	 * Now find out what gets this message and send it along
+	 */
+	if ((flag & Log_mask) || PassDebug (flag, from))
+		AppendToLogFile (msg);
+	if ((flag & Display_mask) || PassDebug (flag, from))
+		AppendToDisplay (msg);
+}
+
+
+
+
+static void
+DoLog (from, msg)
+char *from;
+char *msg;
+/*
+ * Log a message that has no flags.  Assign a code of '-' and
+ * send it everywhere.
+ */
+{
+	char *fmt;
+
+	fmt = FormatMessage ('-', from, msg);
+	AppendToLogFile (fmt);
+	AppendToDisplay (fmt);
+}
+
+
+
+static char *
+FormatMessage (code, from_in, msg_in)
+char code;
+char *from_in;
+char *msg_in;
+/*
+ * Format the code, from, and msg strings into the log message.  If the
+ * message should not be logged for repeat reasons, NULL is returned.
+ */
+{
+#	define FMTLEN 256
+	static char fmtbuf[FMTLEN];
+	static char last_msg[FMTLEN];
+	static int repeat_count = 0;
+	char msg[FMTLEN];
+	char from[16];
+/*
+ * Format the message to be logged.  For robustness, make sure the msg is
+ * not too long for our buffer.
+ */
+	strncpy (from, from_in, 15);
+	from[15] = '\0';
+	strncpy (msg, msg_in, FMTLEN - 30);
+	msg[FMTLEN - 30] = '\0';
+	sprintf (fmtbuf, "%c %-16s%s\n", code, from, msg);
 /*
  * See if we've seen this message before: if so, print the repeat count
  * at regular intervals; otherwise reset repeat count and proceed as usual.
@@ -646,12 +1166,12 @@ char code, *from, *msg;
 		    ((repeat_count < 50) && !(repeat_count % 10)) ||
 		    (!(repeat_count % 50)))
 		{
-			sprintf (fmtbuf,"%c %-14s%s, repeated %d times\n",
+			sprintf (fmtbuf,"%c %-16s%s, %d repeats\n",
 				 'R', from, msg, repeat_count);
 		}
 		else if (repeat_count > 5)
 		{
-			return;
+			return NULL;
 		}
 		/*
 		 * Else leave fmtbuf unchanged
@@ -671,13 +1191,29 @@ char code, *from, *msg;
 		repeat_count = 1;
 	}
 
-	AppendToLog (fmtbuf);
+	return (fmtbuf);
 }
 
 
 
 static void
-AppendToLog (fmtbuf)
+AppendToLogFile (fmtbuf)
+char *fmtbuf;
+/*
+ * Actually append the text to the log file
+ */
+{
+	if (Log_file && Log_enabled)
+	{
+		fprintf (Log_file, fmtbuf);
+		fflush (Log_file);
+	}
+}
+
+
+
+static void
+AppendToDisplay (fmtbuf)
 char *fmtbuf;
 /*
  * Actually append the text to the log file and to the text widget buffer
@@ -685,12 +1221,6 @@ char *fmtbuf;
 {
 	Arg args[10];
 	XawTextBlock tb;
-
-	if (Log_file)
-	{
-		fprintf (Log_file, fmtbuf);
-		fflush (Log_file);
-	}
 
 	tb.firstPos = 0;
 	tb.length = strlen (fmtbuf);
@@ -732,7 +1262,7 @@ clearbutton ()
 {
 	Arg args[2];
 
-	do_log (' ',"","");
+	AppendToLogFile ("\n");
 	XtSetArg (args[0], XtNstring, "");
 	XtSetValues (Text, args, 1);
 	XawTextDisplay (Text);
@@ -802,7 +1332,7 @@ struct dm_msg *dmsg;
 		break;
 
 	   default:
-	   	do_log ('P', "DM", "Funky DM message");
+	   	LogMessage (EF_PROBLEM, "DM", "Funky DM message");
 	}
 }
 
@@ -931,26 +1461,19 @@ long junk;
 
 
 void
-SendToMother (el, from)
-struct msg_elog *el;
+SendToMother (code, from, text)
+char code;
 char *from;
+char *text;
 /*
  * Problem messages go back to the data store.
  */
 {
-	int i;
-	char code;
 	char line[1000], mom[80];
-/*
- * Get a code.
- */
-	for (i = 0; EMap[i].em_flag; i++)
-		if (EMap[i].em_flag & el->el_flag)
-			code = EMap[i].em_code;
 /*
  * Put together a message.
  */
-	sprintf (line, " %c %s %s", code, from, el->el_text);
+	sprintf (line, " %c %s %s", code, from, text);
 	sprintf (mom, "Event Logger@%s", Mother);
 	msg_send (mom, MT_LOG, FALSE, line, strlen (line) + 1);
 }
@@ -1151,15 +1674,17 @@ void *param;
  */
 {
 	char buf[100];
+	char *msg;
 
-	sprintf (buf, "T %-14sTimestamp: ", EL_NAME);
+	sprintf (buf, "Timestamp: ");
 #ifdef notdef
 	TC_EncodeTime (t, (t->zt_Sec % 3600 == 0) ? TC_Full : TC_TimeOnly,
 		       buf + strlen(buf));
 #endif
 	TC_EncodeTime (t, TC_Full, buf + strlen(buf));
-	strcat(buf,"\n");
-	AppendToLog (buf);
+	msg = FormatMessage ('T', EL_NAME, buf);
+	AppendToLogFile (msg);
+	AppendToDisplay (msg);
 }
 
 
