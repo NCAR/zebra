@@ -29,7 +29,7 @@
 # include <message.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: ColorTable.c,v 2.7 1995-08-28 21:49:05 granger Exp $")
+RCSID ("$Id: ColorTable.c,v 2.8 1995-10-12 16:41:23 corbet Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that
@@ -187,8 +187,11 @@ char *name;
 	struct dm_ctable *repl;
 	CTable *ct;
 	union usy_value v;
-
-	repl = dm_ColorTable (name);
+/*
+ * Make an attempt to get the table.
+ */
+	if (! (repl = dm_ColorTable (name)))
+		return (NULL);
 /*
  * Otherwise it's time to allocate and fill in a ctable structure.
  */

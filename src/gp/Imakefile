@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.27 1995-09-11 22:24:56 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.28 1995-10-12 16:41:29 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -45,6 +45,7 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
 # else
    MAPDEFINE=
 # endif
+/* DEFINES = $(SHMDEFINES) $(MAPDEFINE) -DC_PT_HISTOGRAM=1 /* -DXDEBUG */
 DEFINES = $(SHMDEFINES) $(MAPDEFINE) /* -DXDEBUG */
 
 /*
@@ -64,6 +65,18 @@ FOBJDIR = FObjDir
 FOBJDIR = .
 # endif
 
+OBJS =  ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
+	AxisControl.o ColorTable.o ConstAltPlot.o Contour.o \
+	DataMenu.o derive.o DrawText.o EventQueue.o FieldMenu.o FillContour.o \
+	FrameCache.o GraphProc.o GridAccess.o Histogram.o Icons.o \
+	InsertWidget.o $(LABELOBJS) LayoutControl.o Lightning.o \
+	LimitWidgets.o LLEvent.o ModelWidget.o MovieControl.o Ov_Grid.o \
+	Overlay.o OverlayTimes.o PDMonitor.o PlotControl.o PlotExec.o \
+	PlotPrim.o PositionWidget.o Projection.o RasterPlot.o RBand.o \
+	Skewt.o TimeSeries.o Track.o UserEvent.o Utilities.o \
+	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
+	XYObservation.o XYWind.o
+
 FOBJS = $(FOBJDIR)/rgrid.o $(FOBJDIR)/bints.o $(FOBJDIR)/cfit.o
 
 COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
@@ -76,7 +89,7 @@ COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
 	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
-	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o
+	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o Histogram.o
 
 OBJS =	$(COBJS) $(FOBJS)
 
@@ -92,7 +105,7 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	Utilities.c VectorGrid.c XSection.c XYCommon.c XYContour.c \
 	XYGraph.c XYObservation.c XYWind.c derive.c  sfont_1.c \
 	PDMonitor.c FieldMenu.c ActiveArea.c ModelWidget.c OverlayTimes.c \
-	alloca.c Projection.c Ov_Grid.c
+	alloca.c Projection.c Ov_Grid.c Histogram.c
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \

@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.52 1995-09-29 20:00:52 burghart Exp $")
+RCSID("$Id: Overlay.c,v 2.53 1995-10-12 16:41:31 corbet Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -158,7 +158,9 @@ static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, bool *, float *, bool *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
-			char *, bool *, float *, int *));
+			char *, bool *, float *, int *, PlatformId **, int *));
+static void	ov_LocPlot FP ((char *, char *, Location *, ZebTime *, char *,
+			int, LabelOpt, char *, float, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 static void	ov_ZapMap FP ((MapPoints *));
@@ -1579,17 +1581,18 @@ int update;
 {
 	char *plist[MaxPlatforms];
 	char label[40], icon[40];
-	int nplat, plat, px, py, fg, xh, yh, width, height;
+	int nplat, plat, fg, npid, pid, expid, nexcl;
 	bool tlabel;
 	Location loc;
-	float x, y, asize;
+	float asize;
 	LabelOpt opt;
 	ZebTime loctime;
+	PlatformId *pids, *expids;
 /*
  * Do our initialization.
  */
 	if (! ov_LocSetup (comp, plist, &nplat, icon, &opt, label, &tlabel,
-			 &asize, &fg))
+			 &asize, &fg, &expids, &nexcl))
 		return;
 	SetClip (FALSE);
 /*
@@ -1598,107 +1601,166 @@ int update;
 	for (plat = 0; plat < nplat; plat++)
 	{
 	/*
-	 * Find this platform.
+	 * If we can find a location on this platform directly, we do so,
+	 * plot it, and get on with our lives.
 	 */
-		if (! FancyGetLocation (comp, plist[plat], &PlotTime,
+		if (FancyGetLocation (comp, plist[plat], &PlotTime,
 					&loctime, &loc))
-			continue;
-	/*
-	 * Convert to pixel space, then offset to put the hot spot of
-	 * the icon there.
-	 */
-		prj_Project (loc.l_lat, loc.l_lon, &x, &y);
-	/*
-	 * Though we set the clip above, I_PositionIcon clears it.  So we
-	 * resort to some manual clipping.
-	 */
-		if (x < Xlo || x > Xhi || y < Ylo || y > Yhi)
-			continue;
-		px = XPIX (x);
-		py = YPIX (y);
-		I_PositionIcon (comp, plist[plat], &loctime, icon, px, py, fg);
-		(void) I_GetPMap (icon, &xh, &yh, &width, &height);
-	/*
-	 * Annotate beneath the icon if called for.
-	 */
-	 	if (opt != NoLabel)
 		{
-			char *plabel;
-			if ((plabel = strrchr (plist[plat], '/')))
-				plabel++;
-			else
-				plabel = plist[plat];
-			XSetFillStyle (Disp, Gcontext, FillSolid);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				px + width/2 - xh, py + height - yh, 
-				(opt == LabelString) ? label : plabel,
-				0.0, asize, JustifyCenter, JustifyTop);
-			XSetFillStyle (Disp, Gcontext, FillStippled);
+			ov_LocPlot (comp, plist[plat], &loc, &loctime, icon,
+					fg, opt, label, asize, tlabel);
+			continue;
 		}
 	/*
-	 * Also look into time labelling.
+	 * Otherwise let's see if we can regexp it.
 	 */
-		if (tlabel)
+		if (! (pids = ds_GatherPlatforms (plist[plat], &npid, FALSE,
+				FALSE)))
 		{
-			int m, d, h, min, ptm, ptd;
-			bool tlocal = FALSE;
-			int tzoffset = 0;
-			char *tzstr;
-			char lstr[40];
+			msg_ELog (EF_PROBLEM, "Unknown platform: %s",
+					plist[plat]);
+			continue;
+		}
+	/*
+	 * We got a list of platform id's; let's plot them, except for
+	 * any excluded ones.
+	 */
+		for (pid = 0; pid < npid; pid++)
+		{
+			char *pname = ds_PlatformName (pids[pid]);
 		/*
-		 * See if this time should be displayed in the location's
-		 * local time.
+		 * Check for exclusion.
 		 */
-			(void) pda_Search (Pd, comp, "local-time",plist[plat], 
-					   &tlocal, SYMT_BOOL);
-			tzstr = "z";
-			if (tlocal)
-			{
-				if (! pda_Search (Pd, comp, "timezone-offset",
-						  plist[plat],
-						  (char *)&tzoffset, SYMT_INT))
-				{
-					msg_ELog(EF_PROBLEM,
-                   "no 'timezone-offset' parameter, though 'local-time' true");
-				}
-				else
-				{
-				/* 
-				 * Local time is GMT time plus the timezones
-				 * offset in minutes from GMT (i.e., minutes
-				 * east of Greenwich).  So eastern hemisphere
-				 * has positive offsets.
-				 */
-					loctime.zt_Sec += tzoffset * 60;
-					tzstr = "loc";
-				}
-			}
+			for (expid = 0; expid < nexcl; expid++)
+				if (pids[pid] == expids[expid])
+					break;
+			if (expid < nexcl)
+				continue;
 		/*
-		 * Format up the date.  Only put in the month/day portion
-		 * if it differs from the plot time.
+		 * OK, we're doing this one.
 		 */
-			TC_ZtSplit (&loctime, 0, &m, &d, &h, &min, 0, 0);
-			TC_ZtSplit (&PlotTime, 0, &ptm, &ptd, 0, 0, 0, 0);
-			if (m == ptm && d == ptd)
-				sprintf (lstr, "%d:%02d", h, min);
-			else
-				sprintf (lstr, "%d/%d,%d:%02d", m, d, h, min);
-			if (tlocal)
-				sprintf (lstr+strlen(lstr)," %s",tzstr);
-		/*
-		 * Put it onto the screen.
-		 */
-			XSetFillStyle (Disp, Gcontext, FillSolid);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				px + width, py, lstr,
-				0.0, asize, JustifyLeft, JustifyTop);
-			XSetFillStyle (Disp, Gcontext, FillStippled);
+			if (! FancyGetLocation (comp, pname,  &PlotTime,
+					&loctime, &loc))
+				continue;
+			ov_LocPlot (comp, pname, &loc, &loctime, icon, fg,
+					opt, label, asize, tlabel);
 		}
 	}
 /*
  * Clean up and we are done.
  */
+	if (nexcl > 0)
+		free (expids);
 	ResetGC ();
+}
+
+
+
+
+static void
+ov_LocPlot (comp, pname, loc, loctime, icon, fg, opt, label, asize, tlabel)
+char *pname, *icon, *comp, *label;
+Location *loc;
+ZebTime *loctime;
+int fg, tlabel;
+LabelOpt opt;
+float asize;
+/*
+ * Actually plot a location.
+ */
+{
+	float x, y;
+	int px, py, xh, yh, width, height;
+/*
+ * Convert to pixel space, then offset to put the hot spot of
+ * the icon there.
+ */
+	prj_Project (loc->l_lat, loc->l_lon, &x, &y);
+/*
+ * Though we set the clip above, I_PositionIcon clears it.  So we
+ * resort to some manual clipping.
+ */
+	if (x < Xlo || x > Xhi || y < Ylo || y > Yhi)
+		return;
+	px = XPIX (x);
+	py = YPIX (y);
+	I_PositionIcon (comp, pname, loctime, icon, px, py, fg);
+	(void) I_GetPMap (icon, &xh, &yh, &width, &height);
+/*
+ * Annotate beneath the icon if called for.
+ */
+	if (opt != NoLabel)
+	{
+		char *plabel;
+		if ((plabel = strrchr (pname, '/')))
+			plabel++;
+		else
+			plabel = pname;
+		XSetFillStyle (Disp, Gcontext, FillSolid);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				px + width/2 - xh, py + height - yh, 
+				(opt == LabelString) ? label : plabel,
+				0.0, asize, JustifyCenter, JustifyTop);
+		XSetFillStyle (Disp, Gcontext, FillStippled);
+	}
+/*
+ * Also look into time labelling.
+ */
+	if (tlabel)
+	{
+		int m, d, h, min, ptm, ptd;
+		bool tlocal = FALSE;
+		int tzoffset = 0;
+		char *tzstr;
+		char lstr[40];
+	/*
+	 * See if this time should be displayed in the location's
+	 * local time.
+	 */
+		(void) pda_Search (Pd, comp, "local-time", pname,
+				&tlocal, SYMT_BOOL);
+		tzstr = "z";
+		if (tlocal)
+		{
+			if (! pda_Search (Pd, comp, "timezone-offset",
+					pname, (char *)&tzoffset, SYMT_INT))
+			{
+				msg_ELog(EF_PROBLEM,
+						"no 'timezone-offset' parameter, though 'local-time' true");
+			}
+			else
+			{
+			/* 
+			 * Local time is GMT time plus the timezones
+			 * offset in minutes from GMT (i.e., minutes
+			 * east of Greenwich).  So eastern hemisphere
+			 * has positive offsets.
+			 */
+				loctime->zt_Sec += tzoffset * 60;
+				tzstr = "loc";
+			}
+		}
+	/*
+	 * Format up the date.  Only put in the month/day portion
+	 * if it differs from the plot time.
+	 */
+		TC_ZtSplit (loctime, 0, &m, &d, &h, &min, 0, 0);
+		TC_ZtSplit (&PlotTime, 0, &ptm, &ptd, 0, 0, 0, 0);
+		if (m == ptm && d == ptd)
+			sprintf (lstr, "%d:%02d", h, min);
+		else
+			sprintf (lstr, "%d/%d,%d:%02d", m, d, h, min);
+		if (tlocal)
+			sprintf (lstr+strlen(lstr)," %s",tzstr);
+	/*
+	 * Put it onto the screen.
+	 */
+		XSetFillStyle (Disp, Gcontext, FillSolid);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				px + width, py, lstr,
+				0.0, asize, JustifyLeft, JustifyTop);
+		XSetFillStyle (Disp, Gcontext, FillStippled);
+	}
 }
 
 
@@ -1706,19 +1768,24 @@ int update;
 
 
 
+
 static int
-ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize, fg)
+ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize, fg, expids,
+		nexcl)
 char *comp, **plist, *label, *icon;
 int *nplat;
 bool *tlabel;
 LabelOpt *opt;
 float *asize;
-int *fg;
+int *fg, *nexcl;
+PlatformId **expids;
 /*
  * Do the setup required to plot locations.
  */
 {
-	static char platform[PlatformListLen];	/* XXX */
+	static char platform[PlatformListLen];	/* XXX static */
+	char explat[PlatformListLen], *exlist[MaxPlatforms];
+	int i;
 	char color[40];
 	XColor xc;
 	XGCValues vals;
@@ -1731,6 +1798,21 @@ int *fg;
 	{
 		msg_ELog (EF_PROBLEM, "No platforms for location plot");
 		return (FALSE);
+	}
+/*
+ * Check for an exclude list.
+ */
+	if (pda_Search (Pd, comp, "exclude", NULL, explat, SYMT_STRING))
+	{
+		*nexcl = CommaParse (explat, exlist);
+		*expids = (PlatformId *) malloc (*nexcl * sizeof (PlatformId));
+		for (i = 0; i < *nexcl; i++)
+			(*expids)[i] = ds_LookupPlatform (exlist[i]);
+	}
+	else
+	{
+		*expids = 0;
+		*nexcl = 0;
 	}
 /*
  * Color.
@@ -1753,13 +1835,6 @@ int *fg;
 		msg_ELog (EF_PROBLEM, "No location icon for %s", plist[0]);
 		return (FALSE);
 	}
-# ifdef notdef
-	if (! (*icon = ov_GetIcon (iconname)))
-	{
-		msg_ELog (EF_PROBLEM, "Can't find icon '%s'", iconname);
-		return (FALSE);
-	}
-# endif
 /*
  * Labeling
  */
@@ -1779,13 +1854,6 @@ int *fg;
 /*
  * Now that we seem to have everything, fix up the graphics context.
  */
-# ifdef notdef
-	vals.foreground = xc.pixel;
-	vals.fill_style = FillStippled;
-	vals.stipple = (*icon)->oi_pixmap;
-	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
-			&vals);
-# endif
 	vals.foreground = xc.pixel;
 	XChangeGC (Disp, Gcontext, GCForeground, &vals);
 	return (TRUE);

@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.57 1995-09-27 16:13:09 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.58 1995-10-12 16:41:25 corbet Exp $")
 
 /*
  * Default resources.
@@ -335,6 +335,7 @@ finish_setup ()
 	lc_Init ();		/* Layout control		*/
 	pdm_Init ();		/* Plot description monitoring	*/
 	dm_SetupVariables ();	/* dm indirect variables	*/
+	px_Init ();		/* Plot exec table		*/
 /*
  * Tell DM that we're here.
  */

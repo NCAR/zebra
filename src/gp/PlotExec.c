@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.48 1995-09-21 21:15:53 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.49 1995-10-12 16:41:33 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -62,7 +62,8 @@ typedef struct
 # define PT_XSECT	2
 # define PT_TSERIES	3
 # define PT_XYGRAPH	4
-# define N_PTYPES	5	/* Increase this as plot types are added */
+# define PT_HISTOGRAM	5
+# define N_PTYPES	6	/* Increase this as plot types are added */
 
 int TriggerGlobal = 0;		/* Update on component may trigger a global */
 
@@ -73,6 +74,7 @@ name_to_num Pt_table[] =
 	{"xsect",	PT_XSECT	},
 	{"tseries",	PT_TSERIES	},
 	{"xygraph",	PT_XYGRAPH	},
+	{"histogram",	PT_HISTOGRAM    },
 	{NULL,		0		}
 };
 
@@ -92,7 +94,8 @@ name_to_num Pt_table[] =
 # define RT_SIMPLE	10
 # define RT_OBS		11
 # define RT_STATION	12	/* Station plot (not vector any more) 	*/
-# define N_RTYPES	13	/* Increase this as rep. types are added */
+# define RT_BARCHART	13	/* For histograms	*/
+# define N_RTYPES	14	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -110,6 +113,8 @@ name_to_num Rt_table[] =
 	{"tseries",		RT_TSERIES	},
 	{"simple",		RT_SIMPLE	},
 	{"obs",			RT_OBS		},
+	{"barchart",		RT_BARCHART     },
+	{"bar",			RT_BARCHART     },
 	{NULL,			0		}
 };
 
@@ -193,6 +198,11 @@ static void _UncompiledFunction () { }
 	extern void	xy_Observation ();
 # endif
 
+# if C_PT_HISTOGRAM
+	extern void	HG_Init ();
+	extern void	HG_BarChart ();
+# endif
+
 /*
  * How many plot components in our plot description and which
  * component are we currently dealing with?
@@ -241,11 +251,13 @@ char	*component;
 			temptime.ds_yymmdd, temptime.ds_hhmmss, component);
 		return;
 	}
+# ifdef notdef /* Finally moved to GraphProc.c */
 /*
  * Initialize the table of plot functions if necessary
  */
 	if (! Table_built)
 		px_Init ();
+# endif
 /*
  * Get the white pixel value
  */
@@ -793,6 +805,13 @@ px_Init ()
 	Plot_routines[PT_XYGRAPH][RT_WIND] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XYGRAPH][RT_OBS] = UNCOMPILED_FUNCTION;
+# endif
+# if C_PT_HISTOGRAM
+	Plot_routines[PT_HISTOGRAM][RT_INIT] = HG_Init;
+	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = HG_BarChart;
+# else
+	Plot_routines[PT_HISTOGRAM][RT_INIT] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = UNCOMPILED_FUNCTION;
 # endif
 /*
  * Done
