@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.10 1992-02-07 17:56:19 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.11 1992-07-02 17:52:22 issadmin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -901,6 +901,7 @@ for IS_CTYPE only:
 	struct proc_entry *this_proc;
 	char           *move_file;
 	int             find_file();
+	char *ptr_proc;
 
 	for (this_proc = cfg->proc; this_proc; this_proc = this_proc->next) {
 
@@ -908,17 +909,20 @@ for IS_CTYPE only:
 
 			clean_up_process_list(cfg, this_proc);
 
-			if (WIFEXITED(exit_status)) {
+			ptr_proc = last_part(cfg->process, '/');
 
+			if (WIFEXITED(exit_status)) {
 				/* process exited using exit() */
 				msg_ELog(EF_INFO,
-				 "%s p=%s, p=%d, has exited with status %d",
-					 name, cfg->process, pid,
+				 "%s      [%d]%s has exited with status %d",
+					 name, pid, ptr_proc,
 					 WEXITSTATUS(exit_status));
-			} else {/* processes terminated due to a signal */
+			} else {
+
+				/* processes terminated due to a signal */
 				msg_ELog(EF_INFO,
-					 "%s (proc=%s, pid=%d) has terminated due to signal %d",
-					 name, cfg->process, pid,
+					 "%s      [%d]%s has has terminated due to signal %d",
+					 name, pid, ptr_proc,
 					 WTERMSIG(exit_status));
 			}
 			switch (cfg->type) {
@@ -1263,8 +1267,12 @@ last_part(str, cc)
 
 	temp = strrchr(str, cc);
 
-	if (temp)
-		return (temp);
-	else
+	if (temp) {
+		temp++;
+		if (strlen(temp))
+			return (temp);
+		else
+			return (str);
+	} else
 		return (str);
 }
