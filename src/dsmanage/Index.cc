@@ -30,7 +30,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.3 1993-10-25 21:34:06 corbet Exp $");
 
 //
 // Forwards.
@@ -196,7 +196,7 @@ PlatformIndex::findPlat (const char *name) const
 
 	if (! table.get (name, vp))
 		return (0);
-	return (vp);
+	return ((struct PlatInfo *) vp);
 }
 
 
