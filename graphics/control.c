@@ -1103,13 +1103,15 @@ float *x, *y;
 
 
 
-
 int
 G_put_target (cov, x, y)
-overlay cov;
-float x, y;
+overlay	cov;
+float	x, y;
 /*
- * Put the workstation target somewhere
+ * Put the workstation target somewhere (an overlay is passed in instead
+ * of just a workstation, since we need to know what coordinate system
+ * to use)
+ *
  * Entry:
  *	COV	is the overlay of interest.
  * Exit:
@@ -1121,6 +1123,9 @@ float x, y;
 	struct device *dev = ov->ov_ws->ws_dev;
 	int px, py;
 
+	if (! dev->gd_put_target)
+		return (GE_DEVICE_UNABLE);
+
 	px = W_TO_DC (x, ov->ov_x0, ov->ov_x1, dev->gd_xres);
 	py = W_TO_DC (y, ov->ov_y0, ov->ov_y1, dev->gd_yres);
 
@@ -1129,6 +1134,25 @@ float x, y;
 	return (GE_OK);
 }
 
+
+
+
+int
+G_untarget (cov)
+overlay	cov;
+/*
+ * Undisplay the target on the chosen device
+ */
+{
+	struct overlay *ov = (struct overlay *) cov;
+	struct device *dev = ov->ov_ws->ws_dev;
+
+	if (! dev->gd_untarget)
+		return (GE_DEVICE_UNABLE);
+
+	(*dev->gd_untarget) (ov->ov_ws->ws_tag);
+	return (GE_OK);
+}
 
 
 
