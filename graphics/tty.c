@@ -6,7 +6,7 @@
 # ifdef VMS
 # include <iodef.h>
 # endif
-# ifdef UNIX
+# ifdef unix
 # include <sys/file.h>
 # endif
 # include "graphics.h"
@@ -36,7 +36,7 @@ struct tty_tag **tag;
 	if (s_error (status))
 		return (GE_BAD_DEVICE);
 # endif
-# ifdef UNIX
+# ifdef unix
 	t->tty_channel = open (device, O_RDWR);
 	if (t->tty_channel < 0)
 		return (GE_BAD_DEVICE);
@@ -115,7 +115,7 @@ struct tty_tag *tag;
 		ui_error ("IOSB QIO error %d", iosb[0]);
 # endif
 
-# ifdef UNIX
+# ifdef unix
 	if (write (tag->tty_channel, tag->tty_buf,
 		tag->tty_bufp - tag->tty_buf) < 0)
 		perror ("Graphics tty write error");
@@ -188,7 +188,7 @@ struct tty_tag *tag;
 	lib$free_ef (&tag->tty_ef);
 	sys$close (tag->tty_channel);
 # endif
-# ifdef UNIX
+# ifdef unix
 	close (tag->tty_channel);
 # endif
 	relvm (tag);

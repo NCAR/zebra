@@ -10,14 +10,14 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.6 1991-09-18 22:43:44 burghart Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.7 1991-11-15 17:14:44 burghart Exp $";
 /*
  * The tag structure
  */
 # define DBUFLEN 1024
 struct ps_tag
 {
-# ifdef UNIX
+# ifdef unix
 	FILE	*pt_file;	/* File pointer to the device	*/
 	int	pt_pipe;	/* Piped into lpr?		*/
 	char	*pt_devname;	/* printer name for lpr		*/
@@ -93,7 +93,7 @@ struct device *dev;
 	char *getenv ();
 	double atof();
 
-# ifdef UNIX
+# ifdef unix
 	if (strchr (device, '/'))
 	/*
 	 * Open up a file name 'device'
@@ -556,7 +556,7 @@ struct ps_tag *ptp;
  * Write out the command buffer
  */
 {
-# ifdef UNIX
+# ifdef unix
 	fwrite (ptp->pt_buf, 1, ptp->pt_bufp - ptp->pt_buf, ptp->pt_file);
 # endif
 /*
