@@ -349,6 +349,18 @@ F_GetUnits( FieldId id )
 
 
 
+bool
+F_CanYield( FieldId src, FieldId wanted, double *slope, double *intercept )
+//
+// Return true iff 'src' can yield 'wanted', with at most a linear conversion
+//
+{
+    const Field* fsrc = (const Field*)src;
+    const Field* fwanted = (const Field*)wanted;
+    return fsrc->CanYield( *fwanted, slope, intercept );
+}
+
+
 
 FieldId
 F_FieldId( const Field& f )
