@@ -1,4 +1,5 @@
 /* 5/87 jc */
+/* $Id: device.c,v 1.4 1989-08-07 14:19:48 corbet Exp $ */
 /*
  * Handle device specifics.
  */
@@ -18,6 +19,11 @@ extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
 extern int x11_pixel (), x11_put_target ();
+# endif
+# ifdef DEV_XTITAN
+extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
+extern int xt_poly (), xt_pick (), xt_target (), xt_color ();
+extern int xt_pixel (), xt_put_target ();
 # endif
 # ifdef DEV_RAMTEK
 extern int rm_open (), rm_clear (), rm_flush (), rm_poly (), rm_color_map ();
@@ -215,6 +221,47 @@ struct device D_tab[] =
 		___,		/* (no)	viewport adjustment	*/
 		___,		/* readscreen			*/
 		x11_pick,			/* (no) pick		*/
+	},
+# endif
+
+/*
+ * X11.3, with Ardent titan extensions.  The open routine may well make
+ * changes to this structure, depending on what we actually get.
+ */
+# ifdef DEV_XTITAN
+	{
+		"titan",
+		3, { "titan-700", "titan700", "titan500" },
+		GDF_VECTOR | GDF_TOP,
+		256,			/* x11_open will modify...	*/
+		500, 500,		/* Our resolution for now */
+		1.0,			/* Square pixels (X assumption) */
+		100, 100,
+		3,			/* 3 buttons			*/
+		0,			/* Background color		*/
+		xt_open,		/* The open routine		*/
+		xt_close,		/* close			*/
+		xt_flush,		/* Flush			*/
+		___,			/* (no) flush w/o screen renew	*/
+		xt_color,		/* Set color table		*/
+		xt_poly,		/* Draw polyline		*/
+		xt_pixel,		/* Pixel fill			*/
+		___,			/* Text				*/
+		___,			/* Set clip window		*/
+		xt_clear,		/* Clear screen			*/
+		___,			/* Polygon fill			*/
+		___,			/* (no) Segment init		*/
+		___,			/* (no) Segment clear		*/
+		___,			/* (no) Segment select		*/
+		___,			/* (no) Segment end		*/
+		___,			/* (no) Segment attributes	*/
+		xt_target,		/* Read target			*/
+		xt_put_target,		/* (no) Put target		*/
+		___,			/* Color assignment		*/
+		___,		/* Exposure checking		*/
+		___,		/* (no)	viewport adjustment	*/
+		___,		/* readscreen			*/
+		xt_pick,			/* (no) pick		*/
 	},
 # endif
 
