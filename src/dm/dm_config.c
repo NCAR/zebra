@@ -31,7 +31,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.17 1994-11-19 00:28:42 burghart Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.18 1994-11-20 19:11:22 granger Exp $")
 
 
 /*
@@ -320,6 +320,20 @@ struct cf_window *wp;
 	plot_description pd;
 	char **comps;
 /*
+ * In case we are saving a config which has never been displayed...
+ */
+	if (! wp->cfw_pd)
+	{
+		if (wp->cfw_pd = pda_GetPD (wp->cfw_desc))
+			wp->cfw_pd = pd_CopyPD (wp->cfw_pd);
+		else
+		{
+			msg_ELog(EF_EMERGENCY, "%s: window %s wants bad PD %s",
+				 "savepd", wp->cfw_name, wp->cfw_desc);
+			return;
+		}
+	}
+/*
  * Make a copy of the plot description for this window, and change it's name
  * to be what we think it should be.
  */
@@ -419,15 +433,17 @@ struct config *cfg;
 	/*
 	 * Get this window on the screen.  The sleep is there to avoid
 	 * "connection * refused" problems caused by too many processes
-	 * trying to hook into the X server at once.
+	 * trying to hook into the X server at once.  Of course, we don't
+	 * need to sleep after the last window is displayed.
 	 */
 		new = DisplayWindow (wp);
 		newcount += new ? 1 : 0;
 
-		if (new && (newcount % SleepAfter) == 0)
+		if (new && ((newcount % SleepAfter) == 0) && 
+		    (win < cfg->c_nwin - 1))
 		{
 			msg_ELog (EF_DEBUG, "Sleeping for %d seconds (%d/%d)",
-				SleepFor, newcount, SleepAfter);
+				  SleepFor, newcount, SleepAfter);
 			sleep (SleepFor);
 		}
 	/*
@@ -588,8 +604,8 @@ struct cf_window *win;
 		win->cfw_pd = pd_CopyPD (win->cfw_pd);
 	else
 	{
-		msg_ELog (EF_EMERGENCY, "Window %s wants bad PD %s",
-			win->cfw_name, win->cfw_desc);
+		msg_ELog (EF_EMERGENCY, "%s: window %s wants bad PD %s",
+			  "create_win", win->cfw_name, win->cfw_desc);
 		return;
 	}
 	win->cfw_tmpforce = TRUE;

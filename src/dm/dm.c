@@ -1,5 +1,5 @@
 /*
- * The MOCCA display manager.
+ * The zeb display manager.
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -46,7 +46,7 @@
 static void CallXHelp ();
 static bool UseXHelp = TRUE;
 
-MAKE_RCSID ("$Id: dm.c,v 2.52 1994-11-19 00:28:25 burghart Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.53 1994-11-20 19:11:18 granger Exp $")
 
 
 /*
@@ -267,7 +267,6 @@ struct ui_command *cmds;
 	   case DMC_CONFIG:
 	   	def_config (cmds + 1);
 		break;
-
 	/*
 	 * Begin a plot description
 	 */
@@ -390,7 +389,7 @@ struct ui_command *cmds;
 	 */
 	   case DMC_CFGSAVE:
 		SaveConfig (Cur_config, cmds[1].uc_ctype == UTT_END ?
-                            Cur_config : UPTR (cmds[1]), /*update*/ TRUE);
+			    Cur_config : UPTR (cmds[1]), /*update*/ TRUE);
 		break;
 	/*
 	 * With one arg, re-save the config by the given name.  The optional

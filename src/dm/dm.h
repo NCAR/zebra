@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.13 1994-11-19 00:28:29 burghart Exp $ */
+/* $Id: dm.h,v 2.14 1994-11-20 19:11:20 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -247,13 +247,13 @@ void	badwin FP((char *name));
 int	list_cfg FP((char *name, int type, union usy_value *v, int junk));
 void	def_bmap FP((char *name));
 void	list FP((char *opt_name));
+plot_description find_pd FP((char *name));
 void	WritePD FP((char *name, char *filename));
 void	StorePD FP((char *name, char *copyname, char *filename));
 void	def_pd FP((struct ui_command *cmds));
 void	def_config FP((struct ui_command *cmds));
 void	display FP((struct ui_command *cmds));
 void	pdwrite FP((plot_description pd, char *filename));
-plot_description	find_pd FP((char *name));
 
 
 /*
