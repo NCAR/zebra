@@ -4,7 +4,7 @@
 
 SCRIPTS = zplotbatch class2ascii dfsince disclaim ftpplots \
           issclass logimages zplotlast sendclass ztsplit \
-          zconfig zplotd 
+          zconfig zplotd zplotloop
 
 DISTFILES = Imakefile $(SCRIPTS) proj_env
 
@@ -22,6 +22,7 @@ InstallNamedTarget(install,sendclass,$(INSTBINFLAGS),$(BINDIR),sendclass)
 InstallNamedTarget(install,ztsplit,$(INSTBINFLAGS),$(BINDIR),ztsplit)
 InstallNamedTarget(install,zconfig,$(INSTBINFLAGS),$(BINDIR),zconfig)
 InstallNamedTarget(install,zplotd,$(INSTBINFLAGS),$(BINDIR),zplotd)
+InstallNamedTarget(install,zplotloop,$(INSTBINFLAGS),$(BINDIR),zplotloop)
 
 DistfilesTarget($(DISTFILES))
 
