@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.25 1993-11-30 22:14:03 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.26 1993-12-01 17:10:58 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,7 +38,6 @@ int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
 static void	pc_SetTimeTrigger FP ((int, char *));
 static void	pc_PlotAlarm FP ((UItime *, char *));
-static void	pc_FrameAlarm FP (());
 static void	pc_Plot FP ((char *));
 static void	pc_NextFrame FP (());
 static void	pc_Notification FP ((PlatformId, int, UItime *));
@@ -676,29 +675,30 @@ struct ui_command *cmds;
 	pdm_ScheduleUpdate ();
 }
 
-pc_UnZoom ( ) 
+
+
+
+pc_UnZoom () 
 /*
  * Pop one level of coords off the stack.
  */
 {
-   /*
-    * Pop the most recent zoom coords and force a replot
-    */
-   lc_UnZoom(1);
-   fc_InvalidateCache ();
-   Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
-   Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
-   pdm_ScheduleUpdate ();
+/*
+ * Try to unzoom a level and force a replot if we actually do
+ */
+	if (lc_UnZoom (1))
+	{
+		fc_InvalidateCache ();
+		Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
+		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
+		pdm_ScheduleUpdate ();
+	}
 }
-
-
-
-
 
 
 
 void
 pc_TriggerGlobal()
 {
-    Eq_AddEvent (PDisplay, pc_Plot, "global", 7, Augment);
+    Eq_AddEvent (PDisplay, pc_Plot, "global", 7, Override);
 }
