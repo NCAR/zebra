@@ -13,7 +13,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.14 1995-06-29 21:37:42 granger Exp $")
+RCSID ("$Id: zfdump.c,v 1.15 1996-11-19 09:22:03 granger Exp $")
 
 extern int optind;
 
@@ -82,6 +82,7 @@ char **argv;
 /*
  * Loop through remaining filename args
  */
+	F_Init ();
 	for (i = optind; i < argc; ++i)
 	{
 		failure += DumpFile (argv[i], 
@@ -102,7 +103,7 @@ int dump_free, dump_header, dump_all;
  * Returns non-zero on FAILURE!
  */
 {
-	int fd, t, ssps, hdrlen, magic;
+	int fd, t, ssps = 0, hdrlen, magic;
 	char atime[30];
 	zn_Header hdr;
 	ZebTime *zt = NULL;
@@ -454,7 +455,7 @@ RGrid *rg;
  */
 {
 	int fld;
-	void *buf;
+	void *buf = NULL;
 	char *blank_fmt = " - - - - ";
 
 	/*
@@ -628,3 +629,14 @@ void *arg;
 }
 
 
+
+/*
+ * To avoid linking in the whole library, since none of our use of DataChunks
+ * will require it.
+ */
+char *
+ds_PlatformName (id)
+int id;
+{
+	return ("unknown");
+}
