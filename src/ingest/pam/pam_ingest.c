@@ -33,7 +33,7 @@
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: pam_ingest.c,v 2.5 1992-10-12 21:48:13 corbet Exp $")
+MAKE_RCSID ("$Id: pam_ingest.c,v 2.6 1992-11-10 19:20:18 burghart Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
@@ -580,7 +580,7 @@ time	begin, end;
 	dsp = Ms;
 	for (sta = 0; sta < Nsta; sta++)
 	{
-		dsp->ds_field = fld_number ("hum2vt");
+		dsp->ds_field = fld_number ("vt");
 		dsp++;
 	}
 /*
@@ -612,7 +612,7 @@ time	begin, end;
 		 * reference altitude. 
 		 */
 			num = 2.0 * 9.81 * (1000.0*Locs[sta].l_alt - ref);
-			den = 287.0 * (2 * (*vt++) +
+			den = 287.0 * (2 * (273.15 + *vt++) +
 					(1000.0*Locs[sta].l_alt - ref)*0.0065);
 			*p++ *= exp (num/den);
 		}
