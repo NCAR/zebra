@@ -8,6 +8,7 @@ displaysize = 400	# default to 400 km on a side
 
 REarth = 6378.0		# Earth radius, km
 
+import commands
 import getopt
 import math
 import os
@@ -192,11 +193,10 @@ try:
     #
     # use platloc to get platform location at the plot time
     #
-    try:
-        locstring = os.popen("platloc -s -t %d %s" %(plottime, platform),
-                             "r").read()
-    except:
-        print "platloc error"
+    cmd = "platloc -s -t %d %s" % (plottime, platform)
+    status, locstring = commands.getstatusoutput(cmd)
+    if (status != 0):
+        print "Error from platloc: %s" % locstring
         sys.exit(1)
 
     lat, lon, datatime = string.split(locstring)
