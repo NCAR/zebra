@@ -33,7 +33,7 @@
 # include <timer.h>
 # include <pd.h>
 
-RCSID ("$Id: fccclock.c,v 2.14 1998-10-28 21:21:27 corbet Exp $")
+RCSID ("$Id: fccclock.c,v 2.15 1998-12-17 00:39:33 burghart Exp $")
 
 /*
  * Default resources.
@@ -83,7 +83,7 @@ static void ChangeState FP((enum wstate new));
 static void inspectPD FP((void));
 
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;

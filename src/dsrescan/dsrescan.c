@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsrescan.c,v 1.11 1997-05-29 13:39:05 granger Exp $")
+RCSID ("$Id: dsrescan.c,v 1.12 1998-12-17 00:39:09 burghart Exp $")
 
 
 void
@@ -63,7 +63,7 @@ handler ()
 }
 
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;

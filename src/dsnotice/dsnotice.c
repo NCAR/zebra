@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.7 1997-05-10 20:53:45 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.8 1998-12-17 00:38:41 burghart Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
@@ -78,7 +78,8 @@ Message *msg;
 }
 
 
-void
+
+int
 main (argc, argv)
 int argc;
 char **argv;
