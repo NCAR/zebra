@@ -37,7 +37,14 @@ $project="$ztop/project/lake_ice";
 	  "iss3/class", 	"iss3 class",
 	  "iss3/prof915l",	"iss3 prof915l",
 	  "iss3/rass915",	"iss3 rass",
-	  "iss3/surface_met",	"iss3 surfmet"
+	  "iss3/surface_met",	"iss3 surfmet",
+
+	  "bea",       		"class-bea class",
+	  "bel",       		"class-bel class",
+	  "tim",       		"class-tim class",
+	  "own",       		"class-own class",
+	  "alg",       		"class-alg class",
+	  "sud",       		"class-sud class"
 	  );
 
 %Queue = ();
@@ -129,7 +136,7 @@ if ($since)
 {
     # If we're only plotting since a given time, get our platform list from 
     # the dfsince script.
-    print "Opening dfsince -since $since ...\n";
+    print "Opening dfsince $since ...\n";
     open (DS, "dfsince $since 2> /dev/null |") || 
 	die "dfsince: $!";
     $timeout = 0;
