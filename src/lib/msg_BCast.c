@@ -1,7 +1,6 @@
 /*
  * Network broadcast code.
  */
-static char *rcsid = "$Id: msg_BCast.c,v 2.4 1993-08-04 17:17:10 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,15 +19,17 @@ static char *rcsid = "$Id: msg_BCast.c,v 2.4 1993-08-04 17:17:10 granger Exp $";
  * maintenance or updates for its software.
  */
 
-# include "defs.h"
-# include "message.h"
-
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <sys/time.h>
 # include <netinet/in.h>
 # include <errno.h>
 
+# include "defs.h"
+# define MESSAGE_LIBRARY
+# include "message.h"
+
+RCSID("$Id: msg_BCast.c,v 2.5 1995-04-15 00:48:44 granger Exp $")
 
 /*
  * An open UDP socket looks like this:
@@ -44,8 +45,7 @@ typedef struct _BCConn
 /*
  * The array of such connections, indexed by file descriptor.
  */
-# define MAXCONN 64
-static BCConn Connections[MAXCONN];
+static BCConn Connections[ FD_MAP_SIZE ];
 
 
 
@@ -155,7 +155,7 @@ int fd;
 
 
 
-
+int
 msg_PollBCast (fd)
 int fd;
 /*
@@ -163,6 +163,7 @@ int fd;
  */
 {
 	fd_set fds;
+	int ret;
 	static struct timeval tv = { 0 , 0 };
 
 	for (;;)
@@ -172,8 +173,8 @@ int fd;
 	 */
 		FD_ZERO (&fds);
 		FD_SET (fd, &fds);
-		if (select (fd + 1, &fds, 0, 0, &tv) <= 0)
-			return;
+		if ((ret = select (fd + 1, &fds, 0, 0, &tv)) <= 0)
+			return (ret);
 	/*
 	 * If so, dispatch it.
 	 */
