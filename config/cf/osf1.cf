@@ -22,7 +22,7 @@ XCOMM operating system:  OSName
 #define SystemMTDefines -D_REENTRANT
 #define HasPoll			YES
 #define HasVFork                NO
-#define InstallCmd installbsd
+#define InstallCmd installbsd -o $$USER
 #define RanlibCmd ranlib -t
 #if OSMajorVersion > 1 || OSMinorVersion > 0
 #define ModernOSF1		YES
