@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.7 1991-01-29 16:51:01 corbet Exp $ */
+/* $Id: message.h,v 1.8 1991-04-25 23:01:59 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -9,6 +9,7 @@
 # define MT_ELOG	4	/* Extended event logger		*/
 # define MT_SOUND	5	/* Sound effects			*/
 # define MT_DATASTORE	6	/* Data store internal protocol		*/
+# define MT_IMAGEXFR	7	/* Image transfer			*/
 
 /*
  * Message handler protocol message types.
@@ -113,10 +114,11 @@ struct msg_elog
 # define EF_DEBUG	0x08		/* Purely debugging stuff	*/
 # define EF_INFO	0x10		/* Informational message	*/
 
+# define EF_SETMASK	0x10000000	/* Set the event mask		*/
 
 
 /*
- * Flags.
+ * Message Flags.
  */
 # define MF_BROADCAST	0x0001	/* Broadcast message	*/
 
