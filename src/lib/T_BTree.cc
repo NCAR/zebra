@@ -17,15 +17,13 @@
 #include <time.h>	// Need time() to seed srand()
 #include <string>
 
-#include "Logger.hh"
-#include "BTreeFile.hh"
-#include "SerialZTime.hh"
+#include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.28 2000-06-08 16:29:37 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.29 2000-11-21 23:09:47 granger Exp $")
 #endif
 
-typedef BTreeFile<ZTime,ZTime> TimeFileTree;
+typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
 typedef BTreeFile<string,string> StringFileTree;
 typedef BTreeFile<long,long> LongFileTree;
 
@@ -40,7 +38,7 @@ typedef long test_key;
 //typedef string test_key;
 //typedef ZTime test_key;
 
-typedef BTreeFile<test_key,test_key> default_tree;
+typedef TimeFileTree default_tree;
 
 static const int Debug = 0;
 
@@ -136,6 +134,38 @@ Counter<string>::operator()()
 }
 
 
+template <>
+ZTime
+Counter<ZTime>::operator()()
+{
+    n += 3600;
+    return n;
+}
+
+
+// Generate DataFileCore values
+template <>
+DataFileCore 
+Counter<DataFileCore>::operator()()
+{
+	string s;
+	n += 3600;
+	if (! (cin >> s))
+	{
+		char buf[16];
+		sprintf (buf, "zzz%08ld", n);
+		s = buf;
+	}
+	DataFileCore dfc;
+	strcpy (dfc.dfc_name, s.c_str());
+	dfc.dfc_begin = n;
+	dfc.dfc_end = n + 3599;
+	dfc.dfc_nsample = 3599;
+	dfc.dfc_rev = n;
+	return dfc;
+}
+
+
 template <class T>
 struct tree_member // predicate
 {
@@ -218,7 +248,8 @@ T_Compare (test_tree &tree, vector<key_type> &keys,
 	// Given a tree, keys, and values, verify the tree contains all
 	// the keys and has the correct values
 	int err = 0;
-	vector<key_type>::iterator k, v;
+	vector<key_type>::iterator k;
+	vector<value_type>::iterator v;
 	value_type value;
 
 	for (k = keys.begin(), v = values.begin(); k != keys.end();
@@ -244,10 +275,11 @@ T_Compare (test_tree &tree, vector<key_type> &keys,
 
 
 int 
-T_Insert (test_tree &tree, vector<key_type> &keys, vector<key_type> &values)
+T_Insert (test_tree &tree, vector<key_type> &keys, vector<value_type> &values)
 {
 	int err = 0;
-	vector<key_type>::iterator k, v;
+	vector<key_type>::iterator k;
+	vector<value_type>::iterator v;
 
 	// Do the insertions
 	//cout << " ...inserting keys: ";
@@ -531,12 +563,14 @@ TestTree (test_tree &tree, int N)
 
 	int err = 0;
 	vector<key_type> keys(N);
+	vector<value_type> values(N);
 	generate (keys.begin(), keys.end(), Counter<key_type>(1));
+	generate (values.begin(), values.end(), Counter<value_type>(1));
 
 	// Insert the sequential keys and values and test.
 	cout << "Sequential insert... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
-	err += T_Insert (tree, keys, keys);
+	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 	Summarize(cout, tree);
 	err += T_Traversal (tree);
@@ -553,7 +587,7 @@ TestTree (test_tree &tree, int N)
 	// Insert the sequential keys and values and test.
 	cout << "Sequential insert... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
-	err += T_Insert (tree, keys, keys);
+	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 
 	// Reverse removal
@@ -564,7 +598,7 @@ TestTree (test_tree &tree, int N)
 	// Insert the sequential keys and values and test.
 	cout << "Sequential test and erase... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
-	err += T_Insert (tree, keys, keys);
+	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 	tree.Erase ();
 
@@ -578,7 +612,7 @@ TestTree (test_tree &tree, int N)
 		cout << "***** Tree not empty after Erase()" << endl;
 	}
 	// Make sure operations fail on an empty tree
-	key_type value;
+	value_type value;
 	err += (tree.Find (keys[0]));
 	err += (tree.Remove (keys[0]));
 	err += (tree.First ());
@@ -590,7 +624,7 @@ TestTree (test_tree &tree, int N)
 	// Sequential insert and partial removal and re-insert
 	cout << "Sequential insert and partial removal... " 
 	     << *keys.begin() << " to " << keys.back() << endl;
-	err += T_Insert (tree, keys, keys);
+	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 	Summarize(cout, tree);
 
@@ -614,7 +648,7 @@ TestTree (test_tree &tree, int N)
 	reverse (keys.begin(), keys.end());
 	cout << "Reverse insert... "
 	     << *keys.begin() << " to " << keys.back() << endl;
-	err += T_Insert (tree, keys, keys);
+	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 	Summarize(cout, tree);
 
@@ -626,7 +660,6 @@ TestTree (test_tree &tree, int N)
 
 	// Random overwrites, new values
 	cout << "Random overwrites... " << endl;
-	vector<key_type> values = keys;
 	random_shuffle (keys.begin(), keys.end());
 	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
@@ -649,7 +682,7 @@ TestTree (test_tree &tree, int N)
 		if (T_Reopen (tree))
 			return (err+1);
 		cout << "Random insertions... " << i+1 << endl;
-		err += T_Insert (tree, keys, keys);
+		err += T_Insert (tree, keys, values);
 		err += tree.Check ();
 		Summarize(cout, tree);
 		if (T_Reopen (tree))
@@ -674,6 +707,7 @@ TestTree (test_tree &tree, int N)
 
 
 template <class T>
+int
 TestTree (T &tree, const char *name, int N)
 {
 	cout << "-----------------================----------------" << endl;

@@ -3,9 +3,11 @@
  */
 
 
-#include "SerialZTime.hh"
-
+#include "T_BTree.hh"
 #include "BTreeFile.cc"
+
+template class BTree<ZTime,DataFileCore>;
+template class BTreeFile<ZTime,DataFileCore>;
 
 template class BTree<ZTime,ZTime>;
 template class BTreeFile<ZTime,ZTime>;
