@@ -39,7 +39,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.25 1996-11-19 07:10:35 granger Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.26 1998-07-21 23:37:35 burghart Exp $")
 
 
 # define MAXPLAT	1024
@@ -315,7 +315,7 @@ ZebTime *begin, *end;
  * Check all sources at once for the first and last file available.
  */
 	df = ds_FindBefore (index, &ZT_OMEGA);
-	if (df == 0)
+	if (df <= 0)
 	{
 		/* no data whatsoever */
 		end->zt_Sec = end->zt_MicroSec = 0;	
