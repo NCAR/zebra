@@ -92,7 +92,7 @@ char *text;
 {
 	int	cheight, desc, width;
 	char	*cp;
-	float	xoffset, yoffset;
+	float	xoffset, yoffset, fsx, fsy;
 	float	cos_rot = cos (DEG_TO_RAD (rot));
 	float	sin_rot = sin (DEG_TO_RAD (rot));
 /*
@@ -150,15 +150,18 @@ char *text;
 /*
  * Find the starting points, putting in the necessary rotation
  */
-	*sx = x - (int)(cos_rot * xoffset - sin_rot * yoffset);
-	*sy = y - (int)(sin_rot * aspect * xoffset + cos_rot * yoffset);
+	fsx = x - (cos_rot * xoffset - sin_rot * yoffset);
+	fsy = y - (sin_rot * aspect * xoffset + cos_rot * yoffset);
+
+	*sx = (int)(fsx + 0.5);
+	*sy = (int)(fsy + 0.5);
 /*
  * Find the ending points
  */
-	*ex = *sx + (int)(cos_rot * scale * width - 
-		sin_rot * scale * (cheight - 1));
-	*ey = *sy + (int)(sin_rot * aspect * scale * width + 
-		cos_rot * scale * (cheight - 1));
+	*ex = (int)(fsx + (cos_rot * scale * width - 
+		sin_rot * scale * (cheight - 1)) + 0.5);
+	*ey = (int)(fsy + (sin_rot * aspect * scale * width + 
+		cos_rot * scale * (cheight - 1)) + 0.5);
 }
 
 
