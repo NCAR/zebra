@@ -32,7 +32,7 @@
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.11 1992-03-31 23:55:05 burghart Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.12 1992-06-29 21:41:54 pai Exp $")
 
 
 /*
@@ -473,22 +473,49 @@ char *name;
 	int type;
 	SValue v;
 	char fname[200];
+	char delim = ',';	/* a token delimiter for strtok() */
+	char * ccd;		/* current configs directory */
+	char * ConfigPath;
+	
 /*
- * Look up this config.
+ * If ConfigPath is defined, get it, otherwise set it to "."
+ */
+	ConfigPath = (char *)getenv("CONFIG_PATH");
+	if(ConfigPath == NULL)
+		ccd = NULL;
+	else
+		ccd = strtok(ConfigPath, &delim);
+
+/*
+ * Look up this config in the configs table.
  */
  	if (usy_g_symbol (Configs, name, &type, &v))
 		return ((struct config *) v.us_v_ptr);
 /*
- * If we didn't find it, look for a file by this name in the default
- * config directory, load it if it exists, then try again.
+ * If we didn't find it in the table, search through ConfigPath to try and
+ * find it, load it if it exists, then try again.
  */
-	sprintf (fname, "read %s/%s", ConfigDir, name);
-	if (access (fname + 5, R_OK))
-		ui_error ("Unknown configuration: '%s'\n", name);
-	ui_perform (fname);
- 	if (usy_g_symbol (Configs, name, &type, &v))
-		return ((struct config *) v.us_v_ptr);
-	ui_error ("Unknown configuration: '%s'\n", name);
+	while(1)
+	{
+		if(ccd != NULL)
+			strcpy(ConfigDir, ccd);
+		else
+			strcpy(ConfigDir, ".");
+
+		sprintf (fname, "read %s/%s", ConfigDir, name);
+		if (access (fname + 5, F_OK) == 0)
+		{
+			ui_perform (fname);
+ 			if (usy_g_symbol (Configs, name, &type, &v))
+				return ((struct config *) v.us_v_ptr);
+			ui_error ("Unknown configuration: '%s'\n", name);
+		}
+
+		if(ccd == NULL)
+			ui_error ("Unknown configuration: '%s'\n", name);
+	
+		ccd = strtok(NULL, &delim);
+	}
 }
 
 
