@@ -53,7 +53,7 @@ static char Xrcsid[] = "$XConsortium: SmeMenu.c,v 1.9 89/12/13 15:42:48 kit Exp 
 
 #define ONE_HUNDRED 100
 
-#define DEBUG
+/*#define DEBUG*/
 
 #ifdef DEBUG
 #define ENTER(msg,w) ui_printf("SmeMenu: %s entering %s\n", 	\

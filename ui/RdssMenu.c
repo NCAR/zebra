@@ -43,6 +43,7 @@
 #include "RdssMenuP.h"
 #include "SmeMenu.h"
 #include <X11/Xaw/SmeBSB.h>
+#include <X11/Xaw/MenuButton.h>
 #include <X11/Xaw/Cardinals.h>
 
 #include <X11/Xmu/Initer.h>
@@ -50,7 +51,7 @@
 
 #define streq(a, b)        ( strcmp((a), (b)) == 0 )
 
-#define DEBUG
+/*#define DEBUG*/
 
 #ifdef DEBUG
 #define ENTER(msg,w) ui_printf("RdssMenu: %s entering %s\n", 	\
@@ -142,7 +143,8 @@ static XtGeometryResult GeometryManager();
 /*
  * Action Routine Definitions
  */
-static void Highlight(), Unhighlight(), Notify(), PositionMenuAction();
+static void PositionMenuAction(), PositionAndPopupMenuAction();
+static void Highlight(), Unhighlight(), Notify();
 static void DisableHighlight(), EnableHighlight(), Unmap();
 
 /* 
@@ -154,7 +156,6 @@ static Dimension GetMenuWidth(), GetMenuHeight();
 static Widget FindMenu();
 static SmeObject GetEventEntry();
 static void MoveMenu();
-static void MoveMenuAndPopup();
 
 static XtActionsRec actionsList[] =
 {
@@ -625,6 +626,60 @@ Widget w;
  * 
  ************************************************************/
 
+/*ARGSUSED*/
+static Widget
+GetMenu(w, event, params, num_params)
+Widget w;
+XEvent *event;
+String *params;
+Cardinal *num_params;
+{
+	String menu_name = NULL;
+	Widget menu;
+	
+	if (*num_params == 0)
+	{
+		Arg arg;
+
+		XtSetArg(arg, XtNmenuName, &menu_name);
+		XtGetValues(w, &arg, (Cardinal)1 );
+		if (!menu_name)
+		{
+			char error_buf[BUFSIZ];
+			sprintf(error_buf, "%s: %s",
+				"Xaw - RdssMenuWidget",
+				"position menu action could not retrieve menuName");
+			XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
+			return(NULL);
+		}
+	}
+	else if (*num_params == (Cardinal)1 )
+	{
+		menu_name = params[0];
+	}
+	else
+	{
+		char error_buf[BUFSIZ];
+		sprintf(error_buf, "%s %s",
+			"Xaw - RdssMenuWidget: position menu action expects zero or one",
+			"parameter which is the name of the menu.");
+		XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
+		return (NULL);
+	}
+	
+	if ((menu = FindMenu(w, menu_name)) == NULL) {
+		char error_buf[BUFSIZ];
+		sprintf(error_buf, "%s '%s'",
+			"Xaw - RdssMenuWidget: could not find menu named: ", menu_name);
+		XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
+		return (NULL);
+	}
+
+	return (menu);
+}
+
+
+
 /*      Function Name: PositionMenuAction
  *      Description: Positions the simple menu widget.
  *      Arguments: w - a widget (no the simple menu widget.)
@@ -632,8 +687,10 @@ Widget w;
  *                 params, num_params - parameters passed to the routine.
  *                                      we expect the name of the menu here.
  *      Returns: none
+ *
+ * If no parameters, and if the event widget is a MenuButton, the menu
+ * name will be retrieved from the menuName resource.
  */
-
 /* ARGSUSED */
 static void
 PositionMenuAction(w, event, params, num_params)
@@ -644,51 +701,127 @@ Cardinal * num_params;
 { 
   Widget menu;
   XPoint loc;
+  Position x,y;
 
-  if (*num_params != 1) {
-    char error_buf[BUFSIZ];
-    sprintf(error_buf, "%s %s",
-	    "Xaw - RdssMenuWidget: position menu action expects only one",
-	    "parameter which is the name of the menu.");
-    XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
-    return;
-  }
+  menu = GetMenu(w, event, params, num_params);
+  if (!menu) return;
 
-  if ( (menu = FindMenu(w, params[0])) == NULL) {
-    char error_buf[BUFSIZ];
-    sprintf(error_buf, "%s '%s'",
-	    "Xaw - RdssMenuWidget: could not find menu named: ", params[0]);
-    XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
-    return;
-  }
-  
   switch (event->type) {
   case ButtonPress:
   case ButtonRelease:
     loc.x = event->xbutton.x_root;
     loc.y = event->xbutton.y_root;
-    PositionMenu(menu, &loc);
-    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   case EnterNotify:
   case LeaveNotify:
     loc.x = event->xcrossing.x_root;
     loc.y = event->xcrossing.y_root;
-    PositionMenu(menu, &loc);
-    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   case MotionNotify:
     loc.x = event->xmotion.x_root;
     loc.y = event->xmotion.y_root;
-    PositionMenu(menu, &loc);
-    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   default:
-    PositionMenu(menu, NULL);
-    MoveMenu(w, (Position) loc.x, (Position) loc.y);
+    PositionMenu(menu, NULL, &x, &y);
+    MoveMenu(menu, x, y, 0, 0);
+    return;
     break;
   }
+  PositionMenu(menu, &loc, &x, &y);
+  MoveMenu(menu, x, y, 0, 0);
 }  
+
+
+/*
+ * Positions, moves, pops up, and warps pointer all in a single action.
+ * Must all be in one action because pointer warping requires the distance
+ * the menu was moved in MoveMenu().
+ *
+ * If no parameters, and if the event widget is a MenuButton, the menu
+ * name will be retrieved from the menuName resource.
+ */
+/* ARGSUSED */
+static void
+PositionAndPopupMenuAction(w, event, params, num_params)
+Widget w;
+XEvent * event;
+String * params;
+Cardinal * num_params;
+{ 
+	Widget menu;
+	XPoint loc;
+	Position x, y;
+	Position dx, dy;
+	Boolean spring_loaded;
+
+	menu = GetMenu(w, event, params, num_params);
+	if (!menu) return;
+
+	switch (event->type) {
+	   case ButtonPress:
+	   case ButtonRelease:
+		loc.x = event->xbutton.x_root;
+		loc.y = event->xbutton.y_root;
+		PositionMenu(menu, &loc, &x, &y);
+		break;
+	   case EnterNotify:
+	   case LeaveNotify:
+		loc.x = event->xcrossing.x_root;
+		loc.y = event->xcrossing.y_root;
+		PositionMenu(menu, &loc, &x, &y);
+		break;
+	   case MotionNotify:
+		loc.x = event->xmotion.x_root;
+		loc.y = event->xmotion.y_root;
+		PositionMenu(menu, &loc, &x, &y);
+		break;
+	   default:
+		PositionMenu(menu, NULL, &x, &y);
+		break;
+	}
+	MoveMenu(menu, x, y, &dx, &dy);
+
+	/*
+	 * Now that we've set the position, pop it up so that we can
+	 * warp the pointer into the new popup.  We must assume that the popup
+	 * has not been moved far enough left to cause a submenu to
+	 * immediately popup when the pointer appears in its entry.
+	 */
+	if (event->type == ButtonPress)
+		spring_loaded = True;
+	else if (event->type == KeyPress || event->type == EnterNotify)
+		spring_loaded = False;
+	else 
+	{
+		XtAppWarningMsg(XtWidgetToApplicationContext(w),
+				"invalidPopup","unsupportedOperation","RdssMenu",
+"Pop-up menu creation is only supported on ButtonPress, KeyPress or EnterNotify events.",
+				(String *)NULL, (Cardinal *)NULL);
+		spring_loaded = False;
+	}
+	
+	if (spring_loaded) 
+		XtPopupSpringLoaded(menu);
+	else 
+		XtPopup(menu, XtGrabNonexclusive);
+	
+	/*
+	 * We also warp the pointer by the amount we had to move the
+	 * widget, so that the pointer stays in the place the caller
+	 * expected it (i.e. the top left of the menu or a particular entry)
+	 */
+	if (dx || dy)
+	{
+		XWarpPointer (XtDisplay(menu), RootWindowOfScreen(XtScreen(menu)), 
+			      None, 0, 0, 0, 0, dx, dy);
+	}
+	
+	/*
+	 * And we're done.
+	 */
+}  
+
+
 
 /************************************************************
  *
@@ -1017,7 +1150,7 @@ Widget w;
 
 /*	Function Name: RdssMenuPositionAndPopup
  *	Description: Positions, moves, and popups menu, warping pointer
- *		as necessaryonce menu popped up
+ *		as necessary once menu popped up.
  *	Arguments: w - the smw widget.
  *		   locn - initial suggestion for coordinates of menu
  *		   grab - kind of grab to use to popup widget
@@ -1036,8 +1169,18 @@ RdssMenuPositionAndPopup(w, locn, grab)
    XtGrabKind grab;
 #endif
 {
-    PositionMenu(w, locn);
-    MoveMenuAndPopup(w, (Position)locn->x, (Position)locn->y, grab);
+    Position x, y;
+    Position dx, dy;
+
+    PositionMenu(w, locn, &x, &y);
+    MoveMenu(w, x, y, &dx, &dy);
+    XtPopup(w, grab);
+
+    if (dx || dy)
+    {
+	XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
+		      None, 0, 0, 0, 0, dx, dy);
+    }
 } 
 
 
@@ -1180,6 +1323,8 @@ Dimension *width_ret, *height_ret;
 	    *height_ret = height;
     }
 }
+
+
     
 /*	Function Name: AddPositionAction
  *	Description: Adds the XawPositionSimpleMenu action to the global
@@ -1188,7 +1333,6 @@ Dimension *width_ret, *height_ret;
  *                 data - NOT USED.
  *	Returns: none.
  */
-
 /* ARGSUSED */
 static void
 AddPositionAction(app_con, data)
@@ -1196,11 +1340,15 @@ XtAppContext app_con;
 caddr_t data;
 {
     static XtActionsRec pos_action[] = {
-        { "RdssPositionSimpleMenu", PositionMenuAction },
+        { "PositionRdssMenu", PositionMenuAction },
+	{ "RdssPositionSimpleMenu", PositionMenuAction },
+	{ "PositionAndPopupRdssMenu", PositionAndPopupMenuAction }
     };
 
     XtAppAddActions(app_con, pos_action, XtNumber(pos_action));
 }
+
+
 
 /*	Function Name: FindMenu
  *	Description: Find the menu give a name and reference widget.
@@ -1208,7 +1356,6 @@ caddr_t data;
  *                 name   - the menu widget's name.
  *	Returns: the menu widget or NULL.
  */
-
 static Widget 
 FindMenu(widget, name)
 Widget widget;
@@ -1228,17 +1375,21 @@ String name;
  *	Description: Places the menu
  *	Arguments: w - the simple menu widget.
  *                 location - a pointer the the position or NULL.
- *	Returns: new location
+ *	Returns: new location in x, y
  */
 static void
-PositionMenu(w, location)
+PositionMenu(w, location, x, y)
 Widget w;
 XPoint * location;
+Position *x;
+Position *y;
 {
     RdssMenuWidget smw = (RdssMenuWidget) w;
     SmeObject entry;
     XPoint t_point;
     
+    *x = 0;
+    *y = 0;
     if (location == NULL) {
 	Window junk1, junk2;
 	int root_x, root_y, junkX, junkY;
@@ -1270,7 +1421,11 @@ XPoint * location;
     location->x -= (Position) 10;  /* Fixed for consistency */
     
     if (smw->rdss_menu.popup_entry == NULL)
+    {
         entry = smw->rdss_menu.label;
+	if (!entry && (smw->composite.num_children > 0))
+		entry = (SmeObject)smw->composite.children[0];
+    }
     else
 	entry = smw->rdss_menu.popup_entry;
 
@@ -1280,8 +1435,11 @@ XPoint * location;
 	location->y -= 5;
 
    /*
-    * Location specified, but widget not yet moved
+    * Location specified, but widget not yet actually moved.
+    * Return the calculated location.
     */
+    *x = location->x;
+    *y = location->y;
 }
 
 
@@ -1290,60 +1448,14 @@ XPoint * location;
  *                   to be fully visible if menu_on_screen is TRUE.
  *	Arguments: w - the simple menu widget.
  *                 x, y - the current location of the widget.
- *	Returns: none 
+ *		   dx, dy - returns amount moved if non-NULL
+ *	Returns: dx, dy 
  */
 static void
-MoveMenu(w, x, y)
+MoveMenu(w, x, y, rdx, rdy)
 Widget w;
 Position x, y;
-{
-    Arg arglist[2];
-    Cardinal num_args = 0;
-    RdssMenuWidget smw = (RdssMenuWidget) w;
-    Position dx = 0, dy = 0;
-    
-    if (smw->rdss_menu.menu_on_screen) 
-    {
-	int width = w->core.width + 2 * w->core.border_width;
-	int height = w->core.height + 2 * w->core.border_width;
-	
-	if (x >= 0) {
-	    int scr_width = WidthOfScreen(XtScreen(w));
-	    if (x + width > scr_width)
-		dx = (scr_width - width) - x;
-	}
-	if (x < 0) 
-	    dx = 0 - x;
-	
-	if (y >= 0) {
-	    int scr_height = HeightOfScreen(XtScreen(w));
-	    if (y + height > scr_height)
-		dy = (scr_height - height) - y;
-	}
-	if (y < 0)
-	    dy = 0 - y;
-    }
-    
-    XtSetArg(arglist[num_args], XtNx, x+dx); num_args++;
-    XtSetArg(arglist[num_args], XtNy, y+dy); num_args++;
-    XtSetValues(w, arglist, num_args);
-}
-
-
-/*	Function Name: MoveMenuAndPopup
- *	Description: Actually moves the menu, may force it to
- *                   to be fully visible if menu_on_screen is TRUE,
- *		     pops up menu, and warps pointer if necessary
- *	Arguments: w - the simple menu widget.
- *                 x, y - the current location of the widget.
- *	  	   grab - grab kind for popping up widget.
- *	Returns: none 
- */
-static void
-MoveMenuAndPopup(w, x, y, grab)
-Widget w;
-Position x, y;
-XtGrabKind grab;
+Position *rdx, *rdy;
 {
     Arg arglist[2];
     Cardinal num_args = 0;
@@ -1376,29 +1488,10 @@ XtGrabKind grab;
     XtSetArg(arglist[num_args], XtNy, y+dy); num_args++;
     XtSetValues(w, arglist, num_args);
 
-    /*
-     * Now that we've set the position, pop it up so that we can
-     * warp the pointer into the new popup.  We must assume that the popup
-     * has not been moved far enough left to cause a submenu to
-     * immediately popup when the pointer appears in its entry.
-     */
-    XtPopup (w, grab);
-
-    /*
-     * We also warp the pointer by the amount we had to move the
-     * widget, so that the pointer stays in the place the caller
-     * expected it (i.e. the top left of the menu or a particular entry)
-     */
-    if (dx || dy)
-    {
-	    XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
-			  None, 0, 0, 0, 0, dx, dy);
-    }
-
-    /*
-     * And we're done.
-     */
+    if (rdx) *rdx = dx;
+    if (rdy) *rdy = dy;
 }
+
 
 
 /*	Function Name: ChangeCursorOnGrab
