@@ -5,7 +5,7 @@
 # include "config.h"
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.17 1990-03-29 15:45:47 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.18 1990-04-09 14:33:31 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -263,7 +263,10 @@ struct device *dev;
  * Initialize fonts.
  */
 	for (i = 0; i < MAXFONT; i++)
+	{
+		tag->x_fmap[i] = -1;
 		tag->x_fonts[i] = 0;
+	}
 	tag->x_fnames = 0;
 /*
  * All done.
@@ -1253,7 +1256,7 @@ float rot;
 /*
  * Do the query.
  */
-	if (! tag->x_fmap[pixsize])
+	if (tag->x_fmap[pixsize] < 0)
 		c_panic ("No font for pixsize %d", pixsize);
 	xfp = tag->x_fonts[tag->x_fmap[pixsize]];
 	XTextExtents (xfp, text, strlen (text), &dir, height, desc, &xc);
@@ -1281,7 +1284,7 @@ float rot;
 /*
  * They should always have asked us first.
  */
-	if (! (f = tag->x_fmap[pixsize]))
+	if ((f = tag->x_fmap[pixsize]) < 0)
 		c_panic ("No font for pixsize %d", pixsize);
 /*
  * For color displays, fill in the color value.
