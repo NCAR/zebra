@@ -94,6 +94,10 @@ extern char *path, *xhelpPath;
 #include "./bitmaps/xhelp.forward.xbm"
 #include "./bitmaps/xhelp.backward.xbm"
 #define COPYRIGHT_MSG  "(C) 1991, Mark Newsome\nAuburn University"
+
+static char rcsid[] =
+	"$Id: xhelp.c,v 1.3 1993-03-13 00:59:56 granger Exp $";
+
 static String indexButtonStr, searchButtonStr;
 
 static String fallback_resources[] = {
@@ -970,7 +974,7 @@ static void GetAppHelpData()
 /*------------------------*/
 {
     int         type, format, nitems, left;
-    char        *retdata, *i, *j;
+    unsigned char *retdata, *i, *j;
 
    /*** Hooks to allow apps to call us ***/
    if (XGetWindowProperty(XtDisplay(toplevel), 
@@ -1380,8 +1384,11 @@ char **argv;
       switch (event.type) {
          case PropertyNotify:
             if  (event.xproperty.window == root) {  
-               if (event.xproperty.atom == XHELP_FILE)
-                   GetAppHelpData();
+               if (event.xproperty.atom == XHELP_FILE) {
+		      /* help requested somewhere, make ourselves visible */
+		      XRaiseWindow(dsp, XtWindow(toplevel));
+                      GetAppHelpData();
+	           }
                }
             else
  	       XtDispatchEvent(&event);
