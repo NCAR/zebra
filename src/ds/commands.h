@@ -1,5 +1,5 @@
 /*
- * $Id: commands.h,v 1.1 1991-01-16 22:06:46 corbet Exp $
+ * $Id: commands.h,v 1.2 1991-02-26 19:06:30 corbet Exp $
  *
  * Command keywords for the data store daemon.
  */
@@ -15,3 +15,6 @@
 # define DK_DISCRETE	10
 # define DK_DIRECTORY	11
 # define DK_SUBPLATFORM	12
+# define DK_MAXSAMPLES	13
+# define DK_TRUNCATE	14
+# define DK_EVERY	15
