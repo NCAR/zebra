@@ -1,7 +1,7 @@
 /*
  * Network broadcast code.
  */
-static char *rcsid = "$Id: msg_BCast.c,v 2.3 1991-11-22 20:41:12 kris Exp $";
+static char *rcsid = "$Id: msg_BCast.c,v 2.4 1993-08-04 17:17:10 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,7 +20,7 @@ static char *rcsid = "$Id: msg_BCast.c,v 2.3 1991-11-22 20:41:12 kris Exp $";
  * maintenance or updates for its software.
  */
 
-# include "../include/defs.h"
+# include "defs.h"
 # include "message.h"
 
 # include <sys/types.h>
@@ -80,7 +80,7 @@ int (*handler) ();
 /*
  * Turn on broadcasting with this socket.
  */
-	if (setsockopt (s, SOL_SOCKET, SO_BROADCAST, &on, sizeof (on)) < 0)
+	if (setsockopt (s,SOL_SOCKET,SO_BROADCAST,(char *)&on,sizeof(on)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d enabling broadcast", errno);
 		close (s);

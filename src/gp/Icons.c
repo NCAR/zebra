@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$id$";
+static char *rcsid = "$Id: Icons.c,v 2.15 1993-08-04 17:16:36 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -354,9 +354,9 @@ int *fg, *bg, disable;
 	else
 		pd_Retrieve (Pd, comp, "platform", platform, SYMT_STRING);
 	if (! pda_Search (Pd, comp, "icon", platform, iname, SYMT_STRING))
-		return (NULL);
+		return (0);
 	if (! strcmp (iname, "none"))
-		return (NULL);
+		return (0);
 /*
  * Figure out colors.
  */
@@ -384,7 +384,7 @@ int *fg, *bg, disable;
 		BitmapSuccess)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to read icon file '%s'", fname);
-		return (NULL);
+		return (0);
 	}
 /*
  * Remember this one.

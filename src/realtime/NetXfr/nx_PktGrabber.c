@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
+static char *rcsid = "$Id: nx_PktGrabber.c,v 3.2 1993-08-04 17:17:42 granger Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -76,14 +76,10 @@ int index;
 static int ChildPid;
 
 
+static void	CreateChild FP((void));
+static void	CreateShmSeg FP((void));
+static void	ChildMain FP((void));
 
-
-# ifdef __STDC__
-	static void	CreateChild (void);
-	static void	CreateShmSeg (void);
-	static void	ChildMain (void);
-# else
-# endif
 
 /*
  * All code here is NetXfr parent stuff.  Child code begins after the
@@ -147,7 +143,11 @@ CreateShmSeg ()
  */
 {
 	int len = sizeof (struct ShmHeader) + NPACKET*PKTSIZE - 1;
-	char *cseg, *shmat ();
+	char *cseg;
+#ifndef SVR4
+	char *shmat ();
+#endif
+
 /*
  * Make the segment exist.
  */
@@ -238,12 +238,9 @@ ShutdownSeg ()
 /*
  * Child forwards.
  */
-# ifdef __STDC__
-	static int ChMsgHandler (Message *);
-	static int ChNXMessage (Message *);
-	static void HUP (void);
-# else
-# endif
+static int ChMsgHandler FP((Message *));
+static int ChNXMessage FP((Message *));
+static void HUP FP((int));
 
 
 static void
@@ -260,7 +257,10 @@ ChildMain ()
 	msg_connect (ChMsgHandler, CHILDNAME);
 	msg_ELog (EF_INFO, "I exist!");
 	msg_AddProtoHandler (MT_NETXFR, ChNXMessage);
+#ifndef SVR4
+/*	priocntl(P_PID, PRIO_PROCESS,              */
 	setpriority (PRIO_PROCESS, 0, -19);
+#endif
 /*
  * Wait for things to happen.
  */
@@ -371,8 +371,10 @@ char *data;
 
 
 
+/*ARGSUSED*/
 static void
-HUP ()
+HUP (dummy)
+int dummy;
 {
 	msg_ELog (EF_INFO, "Hanging up");
 	exit (1);

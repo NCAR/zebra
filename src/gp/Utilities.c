@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.10 1993-07-01 20:14:44 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.11 1993-08-04 17:16:49 granger Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -346,6 +346,9 @@ UItime    t;
  */
 {
         struct tm       syst;
+#ifdef SVR4
+	char tz[20];
+#endif
 
         syst.tm_year = t.ds_yymmdd/10000;
         syst.tm_mon = (t.ds_yymmdd/100) % 100 - 1;
@@ -353,12 +356,21 @@ UItime    t;
         syst.tm_hour = t.ds_hhmmss/10000;
         syst.tm_min = t.ds_hhmmss/100 % 100;
         syst.tm_sec = t.ds_hhmmss % 100;
+#ifdef SVR4
+        strcpy (tz, "TZ=GMT");
+        putenv (tz);
+        timezone = 0;
+        altzone = 0;
+        daylight = 0;
+        syst.tm_wday = syst.tm_yday = 0;
+        syst.tm_isdst = -1;
+        return (mktime (&syst));
+#else
         syst.tm_zone = (char *) 0;
         syst.tm_wday = syst.tm_isdst = syst.tm_yday = 0;
         return (timegm (&syst));
+#endif
 }
-
-
 
 
 

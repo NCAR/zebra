@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.19 1993-07-01 20:12:42 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.20 1993-08-04 17:15:38 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -246,7 +246,7 @@ int *nsamp;
 		ncvarget1 (id, tvar, &index, &offset);
 
 	begin->zt_Sec = base + (int) offset;
-	begin->zt_MicroSec = offset - aint (offset);
+	begin->zt_MicroSec = (offset - (int)offset) * 10e+6;
 
 	index = maxrec - 1;
 	if (dtype == NC_FLOAT)
@@ -258,7 +258,7 @@ int *nsamp;
 		ncvarget1 (id, tvar, &index, &offset);
 
 	end->zt_Sec = base + (int) offset;
-	end->zt_MicroSec = offset - aint (offset);
+	end->zt_MicroSec = (offset - (int)offset) * 10e+6;
 /*
  * Clean up and return.
  */
@@ -1663,7 +1663,7 @@ ZebTime *dest;
 	{
 		double t = tag->nc_times[begin + i];
 		dest->zt_Sec = tag->nc_base + (long) t;
-		dest->zt_MicroSec = (long) ((t - aint (t)) * 1000000);
+		dest->zt_MicroSec = (long) ((t - (int) t) * 10e+6);
 		dest++;
 	}
 }
@@ -1979,8 +1979,8 @@ TimeSpec which;
 		for (i = 0; t >= 0 && i < n; i++)
 		{
 			dest->zt_Sec = tag->nc_base + (int) tag->nc_times[t];
-			dest->zt_MicroSec = 1000000*(tag->nc_times[t] -
-					aint (tag->nc_times[t]));
+			dest->zt_MicroSec = 10e+6 * (tag->nc_times[t] -
+						     (int) tag->nc_times[t]);
 			dest++;
 			t--;
 		}
@@ -1990,8 +1990,8 @@ TimeSpec which;
 		for (i = 0; t < tag->nc_ntime && i < n; i++)
 		{
 			dest->zt_Sec = tag->nc_base + (int) tag->nc_times[t];
-			dest->zt_MicroSec = 1000000*(tag->nc_times[t] -
-					aint (tag->nc_times[t]));
+			dest->zt_MicroSec = 10e6 * (tag->nc_times[t] -
+						    (int) tag->nc_times[t]);
 			dest--;
 			t++;
 		}
@@ -2299,7 +2299,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.19 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.20 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3209,8 +3209,8 @@ Location *locs;
 	for (i = 0; i < tag->nc_ntime && i < max; i++)
 	{
 		times->zt_Sec = tag->nc_base + (int) tag->nc_times[i];
-		times->zt_MicroSec = 1000000*(tag->nc_times[i] -
-					aint (tag->nc_times[i]));
+		times->zt_MicroSec = 10e+6 * (tag->nc_times[i] -
+					      (int) tag->nc_times[i]);
 		times++;
 		*locs++ = (tag->nc_locs) ? tag->nc_locs[i] : tag->nc_sloc;
 	}

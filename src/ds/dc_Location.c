@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Location.c,v 1.2 1992-01-22 23:22:58 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Location.c,v 1.3 1993-08-04 17:15:55 granger Exp $")
 
 
 
@@ -112,9 +112,9 @@ Location *loc;
  * Sanity checking.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Location, "Loc get"))
-		return;
+		return (0);
 	if (sample < 0 || sample >= dc_GetNSample (dc))
-		return (NULL);
+		return (0);
 /*
  * Now just pull out the info.
  */

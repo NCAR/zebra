@@ -5,7 +5,7 @@
 SRCS = dsdwidget.c
 OBJS = dsdwidget.o
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile dsdwidget.ad
 
 NormalProgramTarget(dsdwidget, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

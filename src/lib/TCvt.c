@@ -20,10 +20,10 @@
  */
 
 # include "defs.h"
+# include <time.h>
 # include <sys/types.h>
-# include <sys/time.h>
-MAKE_RCSID ("$Id: TCvt.c,v 2.7 1993-07-01 20:16:37 granger Exp $");
 
+MAKE_RCSID ("$Id: TCvt.c,v 2.8 1993-08-04 17:17:08 granger Exp $");
 
 /*
  * The months of the year.
@@ -62,6 +62,9 @@ UItime *fcc;
  */
 {
 	struct tm t;
+#ifdef SVR4
+        char tz[20];
+#endif
 
 	t.tm_year = fcc->ds_yymmdd/10000;
 	t.tm_mon = (fcc->ds_yymmdd/100) % 100 - 1;
@@ -69,10 +72,21 @@ UItime *fcc;
 	t.tm_hour = fcc->ds_hhmmss/10000;
 	t.tm_min = (fcc->ds_hhmmss/100) % 100;
 	t.tm_sec = fcc->ds_hhmmss % 100;
-	t.tm_zone = (char *) 0;
-	t.tm_wday = t.tm_isdst = t.tm_yday = 0;
-
+#ifdef SVR4
+        strcpy (tz, "TZ=GMT");
+        putenv (tz);
+        timezone = 0;
+        altzone = 0;
+        daylight = 0;
+        t.tm_wday = t.tm_yday = 0;
+        t.tm_isdst = -1;
+	return (mktime (&t));
+#else
+        t.tm_zone = (char *) 0;
+	t.tm_wday = t.tm_yday = t.tm_isdst = 0;
 	return (timegm (&t));
+#endif
+
 }
 
 
@@ -122,9 +136,6 @@ UItime *ui;
 }
 
 
-
-
-
 void
 TC_UIToZt (ui, zt)
 const UItime *ui;
@@ -134,18 +145,31 @@ ZebTime *zt;
  */
 {
 	struct tm t;
-
+#ifdef SVR4
+	char tz[20];
+#endif
 	t.tm_year = ui->ds_yymmdd/10000;
 	t.tm_mon = (ui->ds_yymmdd/100) % 100 - 1;
 	t.tm_mday = ui->ds_yymmdd % 100;
 	t.tm_hour = ui->ds_hhmmss/10000;
 	t.tm_min = (ui->ds_hhmmss/100) % 100;
 	t.tm_sec = ui->ds_hhmmss % 100;
-	t.tm_zone = (char *) 0;
-	t.tm_wday = t.tm_isdst = t.tm_yday = 0;
-
-	zt->zt_Sec = timegm (&t);
 	zt->zt_MicroSec = 0;
+#ifdef SVR4
+	strcpy (tz, "TZ=GMT");
+        putenv (tz);
+        timezone = 0;
+        altzone = 0;
+        daylight = 0;
+        t.tm_wday = t.tm_yday = 0;
+        t.tm_isdst = -1;
+	zt->zt_Sec = mktime (&t);
+#else
+        t.tm_zone = (char *) 0;
+        t.tm_wday = t.tm_yday = t.tm_isdst = 0;
+	zt->zt_Sec = timegm (&t);
+#endif
+
 }
 
 
@@ -228,6 +252,9 @@ int year, month, day, hour, minute, second, microsec;
  */
 {
 	struct tm t;
+#ifdef SVR4
+	char tz[20];
+#endif
 
 	t.tm_year = year;
 	t.tm_mon = month-1;
@@ -235,9 +262,20 @@ int year, month, day, hour, minute, second, microsec;
 	t.tm_hour = hour;
 	t.tm_min = minute;
 	t.tm_sec = second;
-	t.tm_zone = (char *) 0;
-	t.tm_wday = t.tm_isdst = t.tm_yday = 0;
-
+	zt->zt_MicroSec = 0;
+#ifdef SVR4
+	strcpy (tz, "TZ=GMT");
+        putenv (tz);
+        timezone = 0;
+        altzone = 0;
+        daylight = 0;
+        t.tm_wday = t.tm_yday = 0;
+        t.tm_isdst = -1;
+	zt->zt_Sec = mktime (&t);
+#else
+        t.tm_zone = (char *) 0;
+        t.tm_wday = t.tm_yday = t.tm_isdst = 0;
 	zt->zt_Sec = timegm (&t);
-	zt->zt_MicroSec = microsec;
+#endif
+
 }

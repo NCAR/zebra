@@ -22,12 +22,12 @@
 
 # include <stdio.h>
 # include <stream.h>
+# include <GetOpt.h>	// libg++ option parser.
 # include <fcntl.h>
 # include <errno.h>
 # include <unistd.h>
 # include <string.h>
 # include <signal.h>
-# include <GetOpt.h>	// libg++ option parser.
 // # include <stdlib.h>
 
 extern "C"
@@ -46,7 +46,7 @@ extern "C"
 # include "Tape.h"
 
 
-static char *rcsid = "$Id: TapeIndex.cc,v 1.3 1993-06-07 20:29:47 corbet Exp $";
+static char *rcsid = "$Id: TapeIndex.cc,v 1.4 1993-08-04 17:16:21 granger Exp $";
 
 
 //

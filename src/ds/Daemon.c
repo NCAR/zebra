@@ -23,7 +23,11 @@
 # define DS_DAEMON
 
 # include <sys/types.h>
-# include <sys/vfs.h>
+# ifdef SVR4
+#    include <sys/statvfs.h>
+# else
+#    include <sys/vfs.h>
+# endif
 # include <fcntl.h>
 # include <errno.h>
 # include <copyright.h>
@@ -35,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.21 1993-07-09 19:51:22 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.22 1993-08-04 17:15:48 granger Exp $")
 
 
 
@@ -967,24 +971,27 @@ union usy_value *argv, *rv;
  * [Command line function] return the amount of the disk that is free.
  */
 {
+#ifndef SVR4
 	struct statfs sfs;
+#else
+	struct statvfs sfs;
+#endif
 /*
  * Stat the file system.
  */
+#ifndef SVR4
 	if (statfs (argv->us_v_ptr, &sfs))
 		msg_ELog (EF_PROBLEM, "Statfs failed, errno %d", errno);
+#else
+	if (statvfs (argv->us_v_ptr, &sfs))
+		msg_ELog (EF_PROBLEM, "Statfs failed, errno %d", errno);
+#endif
 /*
  * Calculate the return value.
  */
 	rv->us_v_int = sfs.f_bavail;
 	*rt = SYMT_INT;
 }
-
-
-
-
-
-
 
 
 

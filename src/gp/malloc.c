@@ -651,7 +651,11 @@ realloc (mem, n)
 
     if ((new = malloc (n)) == 0)
       return 0;
+#ifdef SVR4
+    memmove (new, mem, tocopy);
+#else
     bcopy (mem, new, tocopy);
+#endif
     free (mem);
     return new;
   }
@@ -684,6 +688,7 @@ memalign (alignment, size)
 }
 
 #ifndef HPUX
+#ifndef SVR4
 /* This runs into trouble with getpagesize on HPUX.
    Patching out seems cleaner than the ugly fix needed.  */
 char *
@@ -691,9 +696,10 @@ valloc (size)
 {
   return memalign (getpagesize (), size);
 }
+#endif /* not SVR4 */
 #endif /* not HPUX */
 #endif /* not VMS */
-
+/**/
 #ifdef MSTATS
 /* Return statistics describing allocation of blocks of size 2**n. */
 

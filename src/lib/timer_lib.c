@@ -22,7 +22,7 @@
 # include "defs.h"
 # include "timer.h"
 # include "message.h"
-MAKE_RCSID ("$Id: timer_lib.c,v 2.5 1993-07-01 20:16:44 granger Exp $");
+MAKE_RCSID ("$Id: timer_lib.c,v 2.6 1993-08-04 17:17:12 granger Exp $");
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 
@@ -66,6 +66,21 @@ tl_Init ()
 		msg_AddProtoHandler (MT_TIMER, tl_ProtoHandler);
 	}
 }
+
+
+
+
+static void inline
+tl_SendToTimer (data, len)
+void *data;
+int len;
+/*
+ * Send something to the timer.
+ */
+{
+	msg_send (TIMER_PROC_NAME, MT_TIMER, FALSE, data, len);
+}
+
 
 
 
@@ -357,21 +372,6 @@ struct tm_alarm *te;
  * We can now clear the slot.
  */
 	Events[slot].te_status = Empty;
-}
-
-
-
-
-
-static void inline
-tl_SendToTimer (data, len)
-void *data;
-int len;
-/*
- * Send something to the timer.
- */
-{
-	msg_send (TIMER_PROC_NAME, MT_TIMER, FALSE, data, len);
 }
 
 

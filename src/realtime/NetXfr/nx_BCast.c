@@ -18,10 +18,15 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 3.2 1993-07-01 20:17:21 granger Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 3.3 1993-08-04 17:17:40 granger Exp $";
 
 # include <sys/time.h>
+#ifdef SVR4
+# include <sys/file.h>
+# include <signal.h>
+#else
 # include <sys/signal.h>
+#endif
 
 # include "defs.h"
 # include "message.h"
@@ -75,7 +80,7 @@ static tx_BCast *FindBCP FP ((int));
 static void FlushRetrans FP ((UItime *, void *));
 static void ZapBCast FP ((UItime *, tx_BCast *));
 void Delay FP ((void));
-void Alarm FP ((void));
+void Alarm FP ((int));
 static int BCastPlain FP ((tx_BCast *, DataBCChunk *, char *, int));
 static int BCastRLE FP ((tx_BCast *, DataBCChunk *, char *, int));
 static int RLEncode FP ((unsigned char *, DataBCChunk *, int));
@@ -534,7 +539,11 @@ Delay ()
 {
 	struct itimerval iv;
 
+#ifdef SVR4
+	sighold(SIGALRM);
+#else
 	sigblock (sigmask (SIGALRM));
+#endif
 	signal (SIGALRM, Alarm);
 /*
  * Set up the timer.
@@ -551,8 +560,10 @@ Delay ()
 
 
 
+/*ARGSUSED*/
 void
-Alarm ()
+Alarm (dummy)
+int dummy;
 {
 	/* yawn */
 }

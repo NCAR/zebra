@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pd.c,v 2.2 1992-10-27 18:05:35 burghart Exp $";
+static char *rcsid = "$Id: dm_pd.c,v 2.3 1993-08-04 17:15:22 granger Exp $";
 /*
  * Plot description related routines.
  */
@@ -19,6 +19,7 @@ static char *rcsid = "$Id: dm_pd.c,v 2.2 1992-10-27 18:05:35 burghart Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 # include <sys/types.h>
 # include <sys/param.h>
 # include <sys/file.h>
@@ -28,7 +29,9 @@ static char *rcsid = "$Id: dm_pd.c,v 2.2 1992-10-27 18:05:35 burghart Exp $";
 # include <ui_symbol.h>
 # include <ui_error.h>
 # include <pd.h>
-
+#ifdef SVR4
+# include <unistd.h>
+#endif
 
 
 
@@ -47,8 +50,13 @@ char *file;
  */
 	if ((fd = open (file, O_RDONLY)) < 0)
 		ui_error ("Unable to open '%s'\n", file);
+#if defined(SVR4)
+	rpd.rp_len = lseek (fd, 0, SEEK_END);
+	(void) lseek (fd, 0, SEEK_SET);
+#else
 	rpd.rp_len = lseek (fd, 0, L_XTND);
 	(void) lseek (fd, 0, L_SET);
+#endif
 /*
  * Just pull it in.
  */
@@ -95,7 +103,11 @@ char *dir;
 /*
  * Move there.
  */
+#ifdef SVR4
+	getcwd (wd,(size_t)(MAXPATHLEN+1));
+#else
 	getwd (wd);
+#endif
 	chdir (dir);
 /*
  * Now read through it.

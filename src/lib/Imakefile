@@ -61,6 +61,6 @@ tconvert: tconvert.c convert.o $(DEPLIBS)
 	$(LIBZEB) $(LIBRDSS) $(XLIBS) $(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
 
 clean::
-	$(RM) -f tconvert
+	$(RM) tconvert
 
 DistfilesTarget($(DISTFILES))

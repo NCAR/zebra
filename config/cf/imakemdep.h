@@ -127,6 +127,10 @@
 #define DEFAULT_CPP "/usr/lpp/X11/Xamples/util/cpp/cpp"
 #endif
 
+#ifdef solaris
+#define DEFAULT_CPP "/usr/ccs/lib/cpp"
+#endif
+
 /*
  * Step 5:  cpp_argv
  *     The following table contains the cpp flags that should be passed to 
@@ -243,7 +247,10 @@ char *cpp_argv[ARGUMENTS] = {
 # endif
 # ifdef DELL
 	"-DDELL",
+# endif
 #endif
+#ifdef solaris
+	"-Dsolaris",
 #endif
 };
 #else /* else MAKEDEPEND */

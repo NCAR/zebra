@@ -31,7 +31,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.9 1993-07-01 20:14:20 granger Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.10 1993-08-04 17:16:33 granger Exp $")
 
 
 /*
@@ -290,7 +290,7 @@ ZebTime *t;
 	if (pid == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "Bad platform %s", plat);
-		return (NULL);
+		return (0);
 	}
 /*
  * Check out filter attributes.

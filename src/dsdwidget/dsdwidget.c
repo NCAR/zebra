@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: dsdwidget.c,v 1.14 1993-07-20 21:06:45 burghart Exp $";
+static char *rcsid = "$Id: dsdwidget.c,v 1.15 1993-08-04 17:16:16 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -236,7 +236,7 @@ ZebTime *begin, *end;
  */
 	ds_GetDataSource (index, 0, &dsi);
 	start = dsi.dsrc_FFile;
-	if (start == NULL)
+	if (start == 0)
 	{
 		end->zt_Sec = end->zt_MicroSec = 0;	
 		begin->zt_Sec = begin->zt_MicroSec = 0;	

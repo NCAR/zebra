@@ -19,11 +19,10 @@ all::	pd-utils.elc
 pd-utils.elc:	pd-utils.el
 	$(ECOMPILE) `pwd`/pd-utils.el
 
+InstallNonExec(pd-utils.elc,$(LIBDIR))
+
 clean::
 	$(RM) pd-utils.elc
-
-install:: pd-utils.elc
-	install -m 0444 pd-utils.elc $(LIBDIR)
 
 DependTarget()
 LintTarget()

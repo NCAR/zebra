@@ -15,17 +15,20 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.3 1993-07-01 20:11:51 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1993-08-04 17:15:13 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+ETC = etc
+LIBS = lib ds
 
 /*
  * "lib" and "ds" must come first, in that order.  Thereafter it's
  * alphabetical but really doesn't matter.
  */
-SUBDIRS = lib ds datautil dm dsdelete dsdump dsdwidget dsmanage dsrescan \
-	etc EventLogger fccclock gettime gp ingest \
+SUBDIRS = $(LIBS) datautil dm dsdelete dsdump dsdwidget dsmanage \
+	dsrescan $(ETC) EventLogger fccclock gettime gp ingest \
 	msg msg_ping mstatus mtap Optimizer pdmon prt_Notify realtime \
 	settime Sound timer tweakcolor xhelp zebstop zmon zquery zrun
 
@@ -46,3 +49,10 @@ InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
 
+TARGET = all
+
+programs:
+	$(MAKE) $(MFLAGS) ETC= LIBS= $(TARGET)
+
+libraries:
+	$(MAKE) $(MFLAGS) SUBDIRS='$(LIBS)' $(TARGET)

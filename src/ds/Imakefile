@@ -2,9 +2,10 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.13 1993-07-01 20:12:49 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.14 1993-08-04 17:15:51 granger Exp $"
 
-LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
+LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(LIBREGEXP)
+
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 CLIBS=$(LIBGCC)
 

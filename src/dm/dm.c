@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.32 1993-07-01 20:12:27 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.33 1993-08-04 17:15:19 granger Exp $")
 
 
 /*
@@ -249,7 +249,7 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_REMOVE:
-	   	remove (UPTR (cmds[1]), UPTR (cmds[2]));
+	   	z_remove (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 
 	   case DMC_ADD:
@@ -1010,7 +1010,7 @@ char *comp, *param, *value;
 
 
 
-remove (pdn, comp)
+z_remove (pdn, comp)
 char *pdn, *comp;
 /*
  * Remove this component from this window.

@@ -23,7 +23,11 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.9 1993-05-25 07:03:22 granger Exp $")
+#ifdef SVR4
+# include <string.h>
+#endif
+
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.10 1993-08-04 17:15:58 granger Exp $")
 
 /*
  * TODO:
@@ -97,7 +101,7 @@ static void		dc_MoreLocs FP((DataChunk *, int));
 static AuxTrans * 	dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
 static int		dc_TrMoreData FP ((DataChunk *, int));
 static int 		dc_PrintSaAttr FP ((char *, char *));
-static int		dc_TrCompareSamples FP((TransSample *, TransSample *));
+static int		dc_TrCompareSamples FP((const void *, const void *));
 
 
 static DataChunk *
@@ -490,6 +494,31 @@ int sample, *len;
 
 
 
+
+
+static int
+dc_TrCompareSamples (a1, a2)
+const void *a1;
+const void *a2;
+/*
+ * Return -1 if time of s1 before s2, 0 if time of s1 == s2, and 
+ * 1 if time of s1 after s2
+ */
+{
+        TransSample *s1 = (TransSample *) a1;
+        TransSample *s2 = (TransSample *) a2;
+
+	if (TC_Less(s1->ats_Time, s2->ats_Time))
+		return -1;
+	else if (TC_Less(s2->ats_Time, s1->ats_Time))
+		return 1;
+	else
+		return 0;
+}
+
+
+
+
 void
 dc_SortSamples (dc)
 DataChunk *dc;
@@ -534,8 +563,13 @@ DataChunk *dc;
 					  ST_PLATFORMS, NULL);
 	if (!list)
 	{
-		qsort ((char *)(tp->at_Samples), tp->at_NSample,
+#ifdef SVR4
+		qsort ((void *)(tp->at_Samples), (size_t) tp->at_NSample,
 		       sizeof (TransSample), dc_TrCompareSamples);
+#else
+		qsort ((char *)(tp->at_Samples), (size_t) tp->at_NSample,
+		       sizeof (TransSample), dc_TrCompareSamples);
+#endif
 		return ;
 	}
 /*
@@ -550,33 +584,19 @@ DataChunk *dc;
 		sr[i].trans = tp->at_Samples[i];
 		sr[i].pid = list[i];
 	}
-	qsort ((char *)sr, tp->at_NSample,
+#ifdef SVR4
+	qsort ((void *)sr, (size_t) tp->at_NSample,
 	       sizeof (struct sortrecord), dc_TrCompareSamples);
+#else
+	qsort ((char *)sr, (size_t) tp->at_NSample,
+	       sizeof (struct sortrecord), dc_TrCompareSamples);
+#endif
 	for (i = 0; i < tp->at_NSample; ++i)
 	{
 		tp->at_Samples[i] = sr[i].trans;
 		list[i] = sr[i].pid;
 	}
 	free (sr);
-}
-
-
-
-static int
-dc_TrCompareSamples (s1, s2)
-TransSample *s1;
-TransSample *s2;
-/*
- * Return -1 if time of s1 before s2, 0 if time of s1 == s2, and 
- * 1 if time of s1 after s2
- */
-{
-	if (TC_Less(s1->ats_Time, s2->ats_Time))
-		return -1;
-	else if (TC_Less(s2->ats_Time, s1->ats_Time))
-		return 1;
-	else
-		return 0;
 }
 
 
@@ -873,9 +893,15 @@ int sample, newsize;
 	Dc_RawAdd (dc, diff);
 	if ((sample + 1) < tp->at_NSample)
 	{
+#ifdef SVR4
+		memcpy ((char *) dc->dc_Data + ts[1].ats_Offset + diff,
+			(char *) dc->dc_Data + ts[1].ats_Offset,
+			oldlen - ts[1].ats_Offset);
+#else
 		bcopy ((char *) dc->dc_Data + ts[1].ats_Offset,
 			(char *) dc->dc_Data + ts[1].ats_Offset + diff,
 			oldlen - ts[1].ats_Offset);
+#endif
 		for (i = sample + 1; i < tp->at_NSample; i++)
 			tp->at_Samples[i].ats_Offset += diff;
 	}

@@ -1,7 +1,7 @@
 /*
  * Interface to the sound generator.
  */
-static char *rcsid = "$Id: Sound_lib.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+static char *rcsid = "$Id: Sound_lib.c,v 2.2 1993-08-04 17:17:05 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,13 +19,13 @@ static char *rcsid = "$Id: Sound_lib.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# ifdef SUNOS_4_1
+# if defined(SUNOS_4_1) || defined(SVR4)
 # include <unistd.h>
 # else
 # include <sys/file.h>
 # endif
 # include "defs.h"
-# include "../include/message.h"
+# include "message.h"
 
 
 

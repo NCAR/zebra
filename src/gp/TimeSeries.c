@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.11 1992-12-22 18:07:30 granger Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.12 1993-08-04 17:16:47 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -454,7 +454,11 @@ float 	*center, *step;
 	 */
 		if (dolabel)
 		{
-			sprintf (string, "%d", nint (tick));
+/*
+ *			sprintf (string, "%d", nint (tick));  // original 
+ */
+			sprintf (string, "%d", (double)((long)(tick+0.5)));
+				                         /* cast instead */
 			DrawText (Graphics, d, Gcontext, 
 				Pix_left - 0.005 * gwidth, YPIX (tick), string,
 				0.0, TSScale, JustifyRight, JustifyBottom);
@@ -493,7 +497,11 @@ float 	*center, *step;
 	 */
 		if (dolabel)
 		{
-			sprintf (string, "%d", nint (tick));
+/*
+ *			sprintf (string, "%d", nint (tick));  // original 
+ */
+			sprintf (string, "%d", (double)((long)(tick+0.5)));
+				                         /* cast instead */
 			DrawText (Graphics, d, Gcontext, 
 				Pix_right + 0.005 * gwidth, YPIX (tick), 
 				string, 0.0, TSScale, JustifyLeft, 
@@ -817,6 +825,10 @@ long	*step;
 	long	span, diff;
 	short	i, nstep;
 	struct tm	*tm;
+#ifdef SVR4
+	char tz[20];
+	struct tm zt;
+#endif
 /*
  * Find the appropriate step in the table
  */
@@ -830,7 +842,20 @@ long	*step;
 
 	tm = gmtime (&(first->zt_Sec));
 	tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
+#ifdef SVR4
+        strcpy (tz, "TZ=GMT");
+        putenv (tz);
+        timezone = 0;
+        altzone = 0;
+        daylight = 0;
+        zt.tm_wday = zt.tm_yday = 0;
+        zt.tm_isdst = -1;
+
+	first->zt_Sec = mktime (tm);
+#else
 	first->zt_Sec = timegm (tm);
+#endif
+
 
 	nstep = (begin->zt_Sec - first->zt_Sec) / *step;
 	first->zt_Sec += nstep * (*step);

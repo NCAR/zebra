@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.4 1993-07-01 20:12:37 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.5 1993-08-04 17:15:30 granger Exp $")
 
 
 
@@ -312,6 +312,7 @@ int len, sample;
 
 int
 bf_OpenFile (fname, dp, write, rtag)
+char *fname;
 DataFile *dp;
 bool write;
 char **rtag;

@@ -52,13 +52,18 @@ done
 case "$mode" in
 "")
 	;;
-*)
-	case "$owner" in
-	"")
-		flags="$flags -u root"
-		;;
-	esac
-	;;
+#		Commented 7/27/93 gjg so that owner flags does not default
+#		to '-u root' when mode set but no owner set, otherwise there
+#		are warnings about -u option only being available to root.
+#		Uncomment this if you want to install as root and set the
+#		owner to root by default.
+#*)
+#	case "$owner" in
+#	"")
+#		flags="$flags -u root"
+#		;;
+#	esac
+#	;;
 esac
 
 if [ x$src = x ] 
@@ -122,7 +127,11 @@ fi
 
 # This rm is commented out because some people want to be able to
 # install through symbolic links.  Uncomment it if it offends you.
-# rm -f $dst/$srcbase
+# 
+# Uncommented 7/27/93 to avoid errors when the destination file exists and
+# we don't have write permission for it
+#
+rm -f $dst/$srcbase
 (cd $srcdir ; $installcmd -f $dst $flags $src)
 
 if [ x$dostrip = xstrip ]

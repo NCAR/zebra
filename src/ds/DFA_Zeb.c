@@ -31,8 +31,11 @@
 # include "dslib.h"
 # include "znfile.h"
 # include "ds_fields.h"
+#ifdef SYS4
+#  include <string.h>
+#endif
 
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.14 1993-06-01 15:11:46 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.15 1993-08-04 17:15:44 granger Exp $");
 
 
 /*
@@ -931,19 +934,35 @@ int sample;
 /*
  * Shift the various tables around.
  */
+#ifdef SVR4
+	memcpy  (tag->zt_Time + sample + 1, tag->zt_Time + sample,
+			nmove*sizeof (ZebTime));
+#else
 	bcopy (tag->zt_Time + sample, tag->zt_Time + sample + 1,
 			nmove*sizeof (ZebTime));
+#endif
+#ifdef SVR4
+	memcpy (zn_FindSampStr (tag, sample + 1),
+		zn_FindSampStr (tag, sample),
+		zn_SASize (hdr, nmove));
+#else
 	bcopy (zn_FindSampStr (tag, sample),
 		zn_FindSampStr (tag, sample + 1),
 		zn_SASize (hdr, nmove));
+#endif
 	tag->zt_Sync |= SF_HEADER | SF_TIME | SF_SAMPLE;
 /*
  * If there are locations do them too.
  */
 	if (hdr->znh_OffLoc >= 0)
 	{
+#ifdef SVR4
+		memcpy (tag->zt_Locs + sample + 1, tag->zt_Locs + sample,
+			nmove*sizeof (Location));
+#else
 		bcopy (tag->zt_Locs + sample, tag->zt_Locs + sample + 1,
 			nmove*sizeof (Location));
+#endif
 		tag->zt_Sync |= SF_LOCATION;
 	}
 /*
@@ -951,8 +970,13 @@ int sample;
  */
 	if (hdr->znh_OffRg >= 0)
 	{
+#ifdef SVR4
+		memcpy (tag->zt_Rg + sample + 1, tag->zt_Rg + sample,
+			nmove*sizeof (RGrid));
+#else
 		bcopy (tag->zt_Rg + sample, tag->zt_Rg + sample + 1,
 			nmove*sizeof (RGrid));
+#endif
 		tag->zt_Sync |= SF_RGRID;
 	}
 /*
@@ -960,8 +984,13 @@ int sample;
  */
 	if (hdr->znh_OffAttr >= 0)
 	{
+#ifdef SVR4
+		memcpy (tag->zt_Attr + sample + 1, tag->zt_Attr + sample,
+			nmove*sizeof (zn_Sample));
+#else
 		bcopy (tag->zt_Attr + sample, tag->zt_Attr + sample + 1,
 			nmove*sizeof (zn_Sample));
+#endif
 		tag->zt_Sync |= SF_ATTR;
 		tag->zt_Attr[sample].znf_Size = 0;
 		tag->zt_Attr[sample].znf_Offset = 0;

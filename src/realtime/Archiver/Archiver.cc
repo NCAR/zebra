@@ -32,7 +32,11 @@
 # include <sys/ioctl.h>
 # include <sys/mtio.h>
 # include <sys/wait.h>
+#ifdef SVR4
+# include <sys/statvfs.h>
+#else
 # include <sys/vfs.h>
+#endif
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -46,7 +50,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.22 1993-05-13 20:29:31 corbet Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.23 1993-08-04 17:17:28 granger Exp $")
 
 /*
  * Issues:
@@ -996,8 +1000,11 @@ DoTheWriteThing(explicit_finish)
 	ZebTime daystart;
 	ZebTime zt;	/* The current time, the time this write begins */
 	char datafile[120];
+#ifdef SVR4
+	struct statvfs buf;
+#else
 	struct statfs buf;
-
+#endif
 /*
  * Special check -- if this is the first dump of a new day, and not
  *		    already a fresh tape, we clean up everything

@@ -25,7 +25,11 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.5 1993-05-04 21:42:11 granger Exp $")
+#ifdef SVR4
+#   include <libgen.h>
+#endif
+
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.6 1993-08-04 17:15:53 granger Exp $")
 
 
 /*
@@ -259,7 +263,11 @@ char *pattern;
  */
 {
 	AttrADE *ade;
+#ifdef SVR4
+	char *cp, *value;
+#else
 	char *re_comp (), *re_exec (), *cp, *value;
+#endif
 /*
  * Look for our block.
  */
@@ -269,7 +277,11 @@ char *pattern;
  * If we have a pattern, compile it now.
  */
 	if (pattern)
+#ifdef SVR4
+		regcmp (pattern, (char*)0);
+#else
 		re_comp (pattern);
+#endif
 /*
  * Go through all of the attributes now.
  */
@@ -286,7 +298,11 @@ char *pattern;
 	/*
 	 * Pass it to the function.
 	 */
+#ifdef SVR4
+		if (! pattern || !regex (pattern, cp))
+#else
 		if (! pattern || re_exec (cp))
+#endif
 			ret = (*func) (cp, value);
 		value[-1] = '=';
 		if (ret)
@@ -414,8 +430,11 @@ int *natts;
 	static char **local_vals = NULL;
 	int num_atts, count;
 	AttrADE *ade;
+#ifdef SVR4
+	char *cp, *value;
+#else
 	char *re_comp (), *re_exec (), *cp, *value;
-
+#endif
 	if (natts)
 		*natts = 0;
 /*
@@ -427,7 +446,11 @@ int *natts;
  * If we have a pattern, compile it now.
  */
 	if (pattern)
+#ifdef SVR4
+		regcmp (pattern, (char*)0);
+#else
 		re_comp (pattern);
+#endif
 /*
  * Get some memory. Rather than realloc we free and malloc since we
  * we don't need to copy the old stuff.
@@ -457,7 +480,11 @@ int *natts;
 		for (value = cp; *value != '='; value++)
 			;
 		*value++ = '\0';
+#ifdef SVR4
+		if (! pattern || !regex (pattern, cp))
+#else
 		if (! pattern || re_exec (cp))
+#endif
 		{
 			local_keys[count] = cp;
 			local_vals[count] = value;

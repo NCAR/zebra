@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.10 1993-07-01 20:11:39 granger Exp $
+/**/# $Id: Project.tmpl,v 1.11 1993-08-04 17:14:55 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -268,6 +268,10 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define PamCfgLibrary LoaderLibPrefix -lunp
 #endif
 
+#ifndef RegexpLibrary
+#define RegexpLibrary	/**/	/* expect it to be in the system libraries */
+#endif
+
 #ifndef TermcapLibrary
 #define TermcapLibrary LoaderLibPrefix -ltermcap
 #endif
@@ -277,7 +281,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #ifndef SystemLibraries
-#define SystemLibraries $(MATHLIB) $(TERMCAPLIB)
+#   if SystemV || SystemV4
+#      define SystemLibraries LoaderLibPrefix -lgen $(MATHLIB) $(TERMCAPLIB)
+#   else
+#      define SystemLibraries $(MATHLIB) $(TERMCAPLIB)
+#   endif
 #endif
 
 /*////////////////////////////////////////////// Compiler options /////////*/
@@ -504,6 +512,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
             XLIBS = XLibraries
           MATHLIB = MathLibrary
        TERMCAPLIB = TermcapLibrary
+        LIBREGEXP = RegexpLibrary
     SYS_LIBRARIES = SystemLibraries
 
           DEPLIBS = $(LIBZEB)
@@ -528,12 +537,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
 #ifdef FortranCompiler
               F77 = FortranCompiler
-               FC = $(F77)
+               FC = FortranCompiler
 #endif
       FORTOPTIONS = FortOptions
    FORTDEBUGFLAGS = FortDebugFlags
            FFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS)
-          FCFLAGS = $(FFLAGS)
+          FCFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS)
 
               UIC = UicCmd
             ARADD = ArAdd
@@ -550,4 +559,3 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  * in Imake.rules, which is included after the project template (this file).
  */
 #include <Zeb.rules>
-

@@ -31,13 +31,16 @@
 # include <netinet/in.h>
 # include <sys/filio.h>
 # include <signal.h>
+#ifdef SVR4
+# include <sys/file.h>
+#endif
 
 # include "defs.h"
 # include <copyright.h>
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.11 1993-07-20 20:42:27 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.12 1993-08-04 17:17:17 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -183,7 +186,7 @@ main ()
 	Inet_table = usy_c_stbl ("Inet_table");
 	InetGripeTable = usy_c_stbl ("InetGripeTable");
 	InetAvoidTable = usy_c_stbl ("InetAvoidTable");
-	signal (SIGPIPE, psig);
+	signal (SIGPIPE, (void *)psig);
 /*
  * Create Unix and Internet sockets.
  */
@@ -218,11 +221,11 @@ main ()
 		{
 			wfds = WriteFds;
 			nsel = select (Nfd, &fds, &wfds, (fd_set *) 0,
-					(char *) 0);
+					(struct timeval *) NULL);
 		}
 		else
 			nsel = select (Nfd, &fds, (fd_set *) 0, (fd_set *) 0,
-				(char *) 0);
+				(struct timeval *) NULL);
 	/*
 	 * See what happened.
 	 */
@@ -445,7 +448,8 @@ NewInConnection ()
 		perror ("Accept error on UNIX socket");
 		exit (1);
 	}
-	setsockopt (conn, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one));
+	setsockopt (conn, SOL_SOCKET, SO_REUSEADDR, 
+		    (char *)&one, sizeof (one));
 /*
  * Put together a connection structure, and add it to the queue.
  */
@@ -1415,7 +1419,8 @@ char *host;
 		alarm (0);
 		return (0);
 	}
-	setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one));
+	setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, 
+		    (char *)&one, sizeof (one));
 	alarm (0);
 /*
  * Mark this thing for nonblocking I/O.

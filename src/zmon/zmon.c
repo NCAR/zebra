@@ -11,7 +11,7 @@
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: zmon.c,v 1.1 1992-03-05 21:44:27 corbet Exp $")
+MAKE_RCSID ("$Id: zmon.c,v 1.2 1993-08-04 17:17:56 granger Exp $")
 
 typedef enum { S_OK, S_DEAD } State;
 
@@ -106,7 +106,8 @@ char **argv;
 	tl_AddRelativeEvent (Scan, 0, 10*INCFRAC, 20*INCFRAC);
 	DoPing ();
         XtRealizeWidget (Top);
-        XtAppAddInput (Appc, msg_get_fd (), XtInputReadMask, MsgInput, 0);
+        XtAppAddInput (Appc, msg_get_fd (), (XtPointer)XtInputReadMask, 
+		       MsgInput, 0);
         XtAppMainLoop (Appc);
 }
 

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.3 $ $Date: 1992-01-09 20:46:24 $";
+char *Version = "$Revision: 2.4 $ $Date: 1993-08-04 17:17:47 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -27,7 +27,7 @@ char *Version = "$Revision: 2.3 $ $Date: 1992-01-09 20:46:24 $";
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "timer.h"
-MAKE_RCSID ("$Id: timer.c,v 2.3 1992-01-09 20:46:24 corbet Exp $");
+MAKE_RCSID ("$Id: timer.c,v 2.4 1993-08-04 17:17:47 granger Exp $");
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -77,7 +77,11 @@ int Status FP ((char *));
 
 main ()
 {
+#ifdef SVR4
+        struct sigaction svec;
+#else
 	struct sigvec svec;
+#endif
 	struct timeval timeout;
 	fd_set fds;
 	int mfd;
