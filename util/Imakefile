@@ -1,0 +1,59 @@
+/* $Id: Imakefile,v 1.1 1993-05-12 15:24:27 case Exp $
+ *
+ * Various library routines, program routines, and scripts.
+ * In general, the install.lib target must be performed first
+ * to install the library object files into the Zeb library.
+ * Then the programs can be compiled and linked once the library
+ * is complete
+ */
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 1993-05-12 15:24:27 case Exp $"
+
+#define PassCDebugFlags /* 'CDEBUGFLAGS=$(CDEBUGFLAGS)' */
+
+LOCALLIB = libutil.a
+
+EXTRA_DEFINES = -DNETACCESS
+
+LIBOBJS = strcpyUC.o bio.o fixdir.o swap4.o vm.o batch.o sprintrmt.o \
+	  disk.o cpanic.o bfile.o parsetime.o ntdsk_client.o rtape_lib.o \
+	  getgnum.o log_time.o tcpip.o met_formulas.o
+
+
+LIBSRCS = $(LIBOBJS:.o=.c)
+
+SRCS =  $(LIBSRCS)
+
+HEADERS = met_formulas.h 
+
+DISTFILES = Imakefile Makefile $(LIBSRCS) $(HEADERS) 
+
+NormalLibraryTarget ($(LOCALLIB), $(LIBOBJS))
+
+InstallObjectsIntoLibrary($(LIBRDSSUTIL),$(LIBOBJS))
+
+BuildIncludes($(HEADERS),.,.)
+
+LintTarget()
+
+DependTarget()
+
+DistfilesTarget($(DISTFILES))
+
+

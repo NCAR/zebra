@@ -1,0 +1,86 @@
+MFVERSION="$Id: Imakefile,v 1.1 1993-05-12 15:21:50 case Exp $"
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+LOCALLIB = uilib.a
+
+LIBS = $(LIBRDSSUTIL) $(XLIBS)
+
+DEPLIBS = $(LOCALLIB) $(LIBRDSSUTIL)
+
+UI_LF = $(LIBDIR)/ui.lf
+
+INCLUDES = $(XINCLUDES)
+
+#if (SystemV)
+EXTRA_DEFINES = -DSYSV $(XWINDOWSFLAG) -DLF=\"$(UI_LF)\" -DSMEMENU -I.
+#else
+EXTRA_DEFINES = -DBSD $(XWINDOWSFLAG) -DLF=\"$(UI_LF)\" -DSMEMENU -I.
+#endif
+
+BINSRCS = uic.c uib.c
+
+# if (UseXWindows || (UseOpenWindows && !OldOpenWin))
+   SMEMENUOBJS=SmeMenu.o RdssMenu.o
+# else
+   SMEMENUOBJS=
+# endif
+
+LIBOBJS= $(SMEMENUOBJS) ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o \
+	ui_util.o \
+	ui_ctable.o ui_state.o ui_expr.o ui_keys.o ui_types.o ui_token.o \
+	ui_prompt.o ui_parser.o ui_menu.o ui_interrupt.o ui_tty.o ui_cmds.o \
+	ui_cstack.o ui_output.o ui_function.o ui_string.o ui_window.o \
+	ui_wPulldown.o ui_wList.o ui_wAppl.o ui_OutHook.o ui_globals.o \
+	ui_wForm.o
+
+LIBSRCS = $(LIBOBJS:.o=.c)
+
+SRCS= 	$(BINSRCS) $(LIBSRCS) 
+
+HEADERS = SmeMenu.h RdssMenu.h ui.h ui_symbol.h ui_param.h ui_error.h ui_date.h ui_expr.h 
+
+DISTFILES = Imakefile Makefile bootstrap.state ui_commands ui_commands. make-lf menu ui.state $(SRCS) $(HEADERS)
+
+AllTarget ($(LIBOBJS))
+
+NormalLibraryTarget ($(LOCALLIB), $(LIBOBJS))
+
+NormalProgramTarget (uib,uib.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+NormalProgramTarget(uic,uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UILoadFileTarget_3(ui.lf,ui.state,ui_commands.,make-lf)
+
+InstallObjectsIntoLibrary($(LIBRDSSUI),$(LIBOBJS))
+
+BuildIncludes($(HEADERS),.,.)
+
+DependTarget()
+
+saber_uic:
+	#setopt ansi
+	#load $(CFLAGS) uic.c ui.c ui_w*.c ui.a -Bstatic $(LIBS)
+
+ui.o:
+	$(CC) $(CFLAGS) -DUIDIR=\"$(TOP)\" -c ui.c
+
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+
