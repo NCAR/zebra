@@ -1,0 +1,38 @@
+#!/bin/csh
+#
+# This script updates the version number in the AC_INIT macro for all 
+# configure.in files below this directory.  By default, use the current 
+# <yyyymmdd> as the new version.
+#
+set default_version = `date +%Y%m%d`
+
+echo -n "New version [$default_version]: "
+set version = $<:q
+
+if ("$version" == "") set version = "$default_version"
+echo "The new version is '$version'"
+
+foreach file (`find . -name configure.in -print`)
+	echo -n "\tchanging $file    "
+	# big ugly sed to change the second parameter of AC_INIT macros
+	cat $file | sed "s/AC_INIT(\([^,)]*\).\([^,)]*\). *\([^,)]*\)./AC_INIT(\1, [$version], \3)/g" > $file.new
+	if ($status == 0) then
+		echo "OK"
+		mv $file.new $file
+
+		pushd $file:h >& /dev/null
+		echo -n "\tRunning autoconf in $file:h    "
+		autoconf
+		if ($status == 0) then
+			echo "OK"
+		else
+			echo "error!"
+			exit 1
+		endif
+		popd >& /dev/null
+	else
+		echo "error!"
+		exit 1
+	endif
+end
+
