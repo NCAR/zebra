@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.8 1992-01-30 21:11:33 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.9 1992-04-20 21:27:47 granger Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -754,7 +754,7 @@ bool realized;
 
 
 
-void
+static void
 uw_MenuDestroy (doomed, realized)
 struct mb_menu *doomed;
 bool realized;
