@@ -37,7 +37,7 @@
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.11 1992-04-08 17:14:15 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.12 1992-09-09 15:39:26 corbet Exp $")
 
 
 
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.11 1992-04-08 17:14:15 corbet Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.12 1992-09-09 15:39:26 corbet Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -403,10 +403,12 @@ int fd;
 /*
  * Deal with events as long as they keep coming.
  */
+	sync ();
  	while (XtAppPending (Appc))
 	{
 		XtAppNextEvent (Appc, &event);
 		XtDispatchEvent (&event);
+		sync ();
 	}
 	return (0);
 }
