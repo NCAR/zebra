@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.9 1993-11-30 23:31:17 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.10 1993-12-03 22:13:23 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -532,6 +532,7 @@ prog.flow:: objs							@@\
 
 
 #ifndef BuildIncludes
+#ifdef SunArchitecture	/* we can only use -p on Sun's, not SystemV (HPs) */
 #define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
 includes::								@@\
 	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
@@ -539,6 +540,15 @@ includes::								@@\
 		$(RM) $$i; \						@@\
 		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
 	done)
+#else
+#define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
+includes::								@@\
+	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
+	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
+		$(RM) $$i; \						@@\
+		$(CP) $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+	done)
+#endif /* SunArchitecture */
 #endif /* BuildIncludes */
 
 #ifndef InstallLibFile
@@ -547,7 +557,7 @@ install::								@@\
 	MakeDir($(LIBDIR)/dstsubdir)					@@\
 	@(set -x; cd $(LIBDIR)/dstsubdir; for i in srclist; do \	@@\
 		$(RM) $$i; \						@@\
-		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+		$(CP) $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
 	done)
 #endif /* BuildIncludes */
 
@@ -576,7 +586,7 @@ distfiles::								@@\
 	for i in dirs ;\						@@\
 	do \								@@\
 		(cd $$i ; \						@@\
-		   $(MAKE) $(MFLAGS) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
+		   $(MAKE) $(MFLAGS) MAKE=$(MAKE) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
 	done
 #endif
 
@@ -601,7 +611,7 @@ NamedTargetSubdirs(install.lib,dirs,"installing libraries",\
 #ifndef MakefileAdditions
 #define MakefileAdditions()						@@\
 mf:: Makefile								@@\
-	$(MAKE) $(MFLAGS) depend					@@\
+	$(MAKE) $(MFLAGS) MAKE=$(MAKE) depend				@@\
 									@@\
 distfiles::								@@\
 									@@\
@@ -628,10 +638,9 @@ install::								@@\
 
 /*
  * This is almost a direct copy from Imake.rules, except for passing
- * the MFLAGS variable along with the MAKE command.  This is so that
- * the value of MAKE can be passed by setting MFLAGS at the command-line
- * like so:
- * <make program> MFLAGS='MAKE=<make program>'
+ * the MFLAGS and MAKE variables along with the MAKE command.  This is so that
+ * the make program can be set at the top-level make command:
+ * <make program> 'MAKE=<make program>'
  */
 /*
  * MakeMakeSubdirs - generate rules to recursively recreate Makefiles as part
@@ -660,7 +669,7 @@ target::								@@\
 		/?*) newtop=  upprefix=  ;; \				@@\
 		*) upprefix=../ ;; \					@@\
 		esac; \							@@\
-		$(MAKE) $(MFLAGS) $${sub}dirMakefiles \			@@\
+		$(MAKE) $(MFLAGS) MAKE=$(MAKE) $${sub}dirMakefiles \	@@\
 		   UPPREFIX=$$upprefix NEWTOP=$$newtop \		@@\
 		   MAKEFILE_SUBDIR=$$i NEW_CURRENT_DIR=$(CURRENT_DIR)/$$i;\ @@\
 	done
