@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.27 1997-09-18 21:58:23 ishikawa Exp $ */
+/* $Id: Imakefile,v 1.28 1998-03-17 18:27:24 corbet Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -91,7 +91,7 @@ SpecialObjectRule($(XUIOBJS),/**/,$(XINCLUDES) $(RDSSINCLUDES))
 SpecialObjectRule($(XOBJS),/**/,$(XINCLUDES))
 SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
 SpecialObjectRule($(CFGOBJS),/**/,$(DIRDEFINES) $(RDSSINCLUDES))
-SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
+SpecialObjectRule(GraphicsW.o,GraphicsW.c GraphicsW.h GraphicsWP.h,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
 
 /*
  * rpcgen rules

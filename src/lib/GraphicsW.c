@@ -40,7 +40,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-RCSID("$Id: GraphicsW.c,v 2.22 1997-01-10 17:49:33 burghart Exp $")
+RCSID("$Id: GraphicsW.c,v 2.23 1998-03-17 18:27:22 corbet Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -67,12 +67,6 @@ static void gw_GetVisualAndColormap (/* Graphics w, Visual **visual,
 static void gw_CreateFrame(/* Graphics w, int frame */);
 static void gw_DestroyFrame(/* Graphics w, int frame */);
 
-/*
- * The following is vintage Ardent.  Maybe it should go away.
- */
-# ifdef use_XB
-#	include <X11/XB.h>
-# endif
 
 
 static void Initialize(), Realize(), Destroy(), Redraw(), Resize();
@@ -196,28 +190,8 @@ XSetWindowAttributes	*attributes;
 /*
  * Make the window and get its attributes
  */
-# ifdef use_XB
-	if (! strncmp ("Ardent", ServerVendor (XtDisplay (w)), 6))
-	{
-		w->graphics.ardent_server = True;
-		w->core.window = XBCreateWindow (XtDisplay (w), 
-			(w->core.parent ? 
-			 w->core.parent->core.window : w->core.screen->root),
-			 w->core.x, w->core.y, w->core.width, w->core.height, 
-			 w->core.border_width, w->core.depth, InputOutput, 
-			 visual, 2, True, *value_mask, attributes);
-	}
-	else
-	{
-		w->graphics.ardent_server = False;
-		XtCreateWindow (w, (unsigned int) InputOutput, visual, 
-				*value_mask, attributes);
-	}
-# else
 	XtCreateWindow ((Widget) w, (unsigned int) InputOutput, visual, 
 			*value_mask, attributes);
-# endif /* use_XB */
-
 /*
  * Get the GC that travels with the widget
  */
@@ -265,18 +239,6 @@ XSetWindowAttributes	*attributes;
  */
 	w->graphics.draw_frame = 0;
 	w->graphics.display_frame = 0;
-
-# ifdef use_XB
-/*
- * Initialize XB stuff if we're using it
- */
-	if (w->graphics.ardent_server)
-	{
-		w->graphics.display_buffer = 0;
-		w->graphics.frame_in_buffer[0] = 0;
-		w->graphics.frame_in_buffer[1] = 0;
-	}
-# endif
 }
 
 
@@ -298,6 +260,10 @@ Colormap	*colormap;
  */
 	*visual = DefaultVisualOfScreen (w->core.screen);
 	*depth = DefaultDepthOfScreen (w->core.screen);
+	*colormap = DefaultColormapOfScreen (w->core.screen);
+	msg_ELog (EF_DEBUG, "Got visual 0x%x with depth %d", *visual, *depth);
+
+# ifdef OLD_NASTY_STUFF
 	if ((*visual)->class == PseudoColor && (*depth == 8 || *depth == 1))
 	{
 		*colormap = DefaultColormapOfScreen (w->core.screen);
@@ -347,6 +313,7 @@ Colormap	*colormap;
 	msg_ELog (EF_DEBUG, "Graphics widget using non-default %d-bit visual", 
 		  *depth);
 	msg_ELog (EF_DEBUG, "and creating its own colormap. :-(");
+# endif
 }
 
 
@@ -405,15 +372,6 @@ Region		region;
 			w->graphics.display_frame);
 		return;
 	}
-# ifdef use_XB
-/*
- * Make sure the current XB draw buffer is the same as the display buffer
- */
-	if (w->graphics.ardent_server)
-		XBSetDrawBuffer (XtDisplay (w), XtWindow (w), 
-			w->graphics.display_buffer, 0);
-# endif
-
 /*
  * Do a CopyArea to copy the current frame into the window
  */
@@ -812,6 +770,23 @@ GraphicsWidget	w;
 }
 
 
+
+int
+GWBDepth (w)
+GraphicsWidget w;
+/*
+ * Return the "byte depth" of the display.  There is an assumption here
+ * that 24-bit color is done in 32-bit words.  It's probably a good
+ * assumption.  In any case, the raster code can't cope if it's otherwise.
+ */
+{
+	int bd = (int) w->core.depth/8;
+	return (bd == 3 ? 4 : bd);
+}
+
+
+
+
 void
 GWResize (w, width, height)
 GraphicsWidget	w;
@@ -908,35 +883,11 @@ unsigned int	frame;
  * OK, this is a legal frame to display
  */
 	w->graphics.display_frame = frame;
-
-# ifdef use_XB
-/*
- * Use the XB buffer not being displayed as the draw buffer
- */
-	if (w->graphics.ardent_server)
-	{
-		use_buffer = w->graphics.display_buffer ^ 0x1;
-		XBSetDrawBuffer (XtDisplay (w), XtWindow (w), use_buffer, 0);
-	}
-# endif
-
 /*
  * Do a CopyArea of the frame into the window
  */
 	XCopyArea (XtDisplay (w), w->graphics.frames[frame], XtWindow (w), 
 		w->graphics.gc, 0, 0, w->core.width, w->core.height, 0, 0);
-
-# ifdef use_XB
-/*
- * Now display the XB buffer we just wrote into
- */
-	if (w->graphics.ardent_server)
-	{
-		XBSetDisplayBuffer (XtDisplay (w), XtWindow (w), use_buffer);
-		w->graphics.display_buffer = use_buffer;
-		w->graphics.frame_in_buffer[use_buffer] = frame;
-	}
-# endif
 }
 
 
@@ -972,6 +923,9 @@ int p;
 	else
 		return (0);
 }
+
+
+
 
 
 

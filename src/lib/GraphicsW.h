@@ -53,6 +53,7 @@ extern Pixmap	GWFrame (/* GraphicsWidget */);
 extern int	GWWidth (/* GraphicsWidget */);
 extern int	GWHeight (/* GraphicsWidget */);
 extern int	GWDepth (/* GraphicsWidget */);
+extern int	GWBDepth (/* GraphicsWidget */);
 extern void	GWPlotRoutine (/* GraphicsWidget, void (*)(), caddr_t */);
 extern void	GWText (/* GraphicsWidget, String, int, int, float, 
 			float, Pixel, int, int */);
