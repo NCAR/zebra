@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.66 1997-05-15 21:27:16 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.67 1997-10-03 23:45:48 ishikawa Exp $")
 
 
 /*
@@ -448,9 +448,25 @@ int *shifted;
 	alt = Alt;
 	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
 	zt = PlotTime;
-	if(! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim, &x0, &y0,
-			       &x1, &y1, &alt, shifted)))
+
+	if ( !strcasecmp(fname, "vorticity"))
+	{
+           if (! (dc = GetVorticity ( &zt, c, platform, fname, &xdim, &ydim, 
+				     &x0, &y0, &x1, &y1, &alt, shifted )))
+	     return;
+        }
+	else
+	  if (!strcasecmp(fname, "divergence"))
+	  {
+	    if (! (dc = GetVorticity ( &zt, c, platform, fname, &xdim, &ydim, 
+				       &x0, &y0, &x1, &y1, &alt, shifted )))
+	     return;
+          }
+	  else
+	    if(! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim, 
+				   &x0, &y0, &x1, &y1, &alt, shifted )))
 		return;
+
 	rgrid = (float *)dc_RGGetGrid(dc, 0, F_Lookup(fname), &loc, &rg, &len);
 /*
  * Get the badvalue flag and altitude units.
