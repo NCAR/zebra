@@ -1,8 +1,8 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 1.6 1990-11-15 16:28:52 corbet Exp $";
-char *Version = "$Revision: 1.6 $ $Date: 1990-11-15 16:28:52 $";
+static char *rcsid = "$Id: timer.c,v 2.0 1991-06-14 22:56:24 corbet Exp $";
+char *Version = "$Revision: 2.0 $ $Date: 1991-06-14 22:56:24 $";
 
 # include <sys/types.h>
 # include <sys/time.h>

@@ -1,7 +1,7 @@
 /*
  * Access routines for the timer module.
  */
-static char *rcsid = "$Id: timer_lib.c,v 1.4 1991-02-08 23:08:02 corbet Exp $";
+static char *rcsid = "$Id: timer_lib.c,v 2.0 1991-06-14 22:56:24 corbet Exp $";
 
 # include "../include/defs.h"
 # include "timer.h"

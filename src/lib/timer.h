@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 1.4 1990-06-11 16:37:19 corbet Exp $ */
+/* $Id: timer.h,v 2.0 1991-06-14 22:56:24 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */

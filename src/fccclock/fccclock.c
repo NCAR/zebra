@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: fccclock.c,v 1.4 1991-06-14 22:31:24 corbet Exp $";
+static char *rcsid = "$Id: fccclock.c,v 2.0 1991-06-14 22:56:24 corbet Exp $";
 /*
  * The FCC clock program.
  */
