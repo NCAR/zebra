@@ -49,6 +49,8 @@ typedef struct {
 	GC		gc;		/* Graphics context */
 	Pixmap		*frames;	/* Pixmaps for the frames */
 # ifdef  SHM
+	Boolean		shm_possible;	/* True if shared memory possible */
+	Boolean		*frame_shared;	/* Remember if pixmap shared or not */
 	char		**frameaddr;	/* Pointer to pixmap data if SHM */
 	XShmSegmentInfo *shminfo;	/* Pointer to shared memory segments */
 	XImage		**image;	/* Used to create shm pixmap  */

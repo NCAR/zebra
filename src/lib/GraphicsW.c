@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.11 1993-10-22 21:33:45 corbet Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.12 1993-12-14 03:09:09 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,12 +40,24 @@ static char *rcsid = "$Id: GraphicsW.c,v 2.11 1993-10-22 21:33:45 corbet Exp $";
 # include <pd.h>
 # include "GraphicsWP.h"
 
+/*
+ * The SHM definition just tells us that we can link with the shared
+ * memory functions; it does not mean use of the X shared memory
+ * extension will always be possible, it just means we'll always at least
+ * attempt it.  We try to account for shared memory failures when possible
+ * by resorting to the slower, non-shared approach.
+ */
+
 # ifdef SHM
 # include <sys/ipc.h>
 # include <sys/shm.h>
 # include <X11/extensions/XShm.h>
-Pixmap gw_GetShmPixmap();
+static Pixmap gw_GetShmPixmap();
+static void gw_SetShmPossible();
 # endif
+
+static void gw_CreateFrame(/* Graphics w, int frame */);
+static void gw_DestroyFrame(/* Graphics w, int frame */);
 
 /*
  * The following is vintage Ardent.  Maybe it should go away.
@@ -55,9 +67,10 @@ Pixmap gw_GetShmPixmap();
 # endif
 
 
-void	Realize (), Destroy (), Redraw (), Resize (), ChangeManaged ();
-Boolean	SetValues ();
-XtGeometryResult	GeometryManager ();
+static void Initialize(), Realize(), Destroy(), Redraw(), Resize();
+static void ChangeManaged();
+static Boolean SetValues ();
+static XtGeometryResult GeometryManager ();
 
 static XtResource resources[] =
 {
@@ -83,7 +96,7 @@ GraphicsClassRec graphicsClassRec =
 	/* class_initialize	*/	NULL,
 	/* class_part_initialize*/	NULL,
 	/* class_inited		*/	FALSE,
-	/* initialize		*/	NULL,
+	/* initialize		*/	Initialize,
 	/* initialize_hook	*/	NULL,
 	/* realize		*/	Realize,
 	/* actions		*/	NULL,
@@ -127,7 +140,37 @@ GraphicsClassRec graphicsClassRec =
 WidgetClass graphicsWidgetClass = (WidgetClass)&graphicsClassRec;
 
 
-void
+
+static void
+Initialize (request, w)
+GraphicsWidget request;
+GraphicsWidget w;
+{
+/*
+ * Police the public members and initialize our private members
+ */
+	if (request->graphics.frame_count < 0)
+		w->graphics.frame_count = 0;
+	w->graphics.gc = None;
+	w->graphics.frames = NULL;
+# ifdef SHM
+	w->graphics.shm_possible = False;
+	w->graphics.frameaddr = (char **) NULL;
+	w->graphics.frame_shared = (Boolean *) NULL;
+	w->graphics.shminfo = (XShmSegmentInfo *) NULL;
+	w->graphics.image = (XImage **) NULL;
+# endif
+/*
+ * Initialize the draw and display frame numbers
+ */
+	w->graphics.draw_frame = 0;
+	w->graphics.display_frame = 0;
+}
+
+
+
+
+static void
 Realize (w, value_mask, attributes)
 GraphicsWidget	w;
 XtValueMask		*value_mask;
@@ -156,7 +199,6 @@ XSetWindowAttributes	*attributes;
 		XtError ("No visual matches for realizing a GraphicsWidget");
 
 	w->core.depth = depth;
-
 /*
  * Make the window and get its attributes
  */
@@ -195,11 +237,15 @@ XSetWindowAttributes	*attributes;
 		w->graphics.frames = (Pixmap *) 
 			XtMalloc (w->graphics.frame_count * sizeof (Pixmap));
 # ifdef SHM
+		gw_SetShmPossible (w);
 		if(GWShmPossible(w))
 		{
 			w->graphics.frameaddr = (char **) 
 				XtMalloc (w->graphics.frame_count * 
 				sizeof (char *));
+			w->graphics.frame_shared = (Boolean *) 
+				XtMalloc (w->graphics.frame_count * 
+				sizeof (Boolean));
 			w->graphics.shminfo = (XShmSegmentInfo *) 
 				XtMalloc (w->graphics.frame_count * 
 				sizeof (XShmSegmentInfo));
@@ -209,23 +255,14 @@ XSetWindowAttributes	*attributes;
 		}
 # endif
 	}
-	else w->graphics.frames = NULL;
+	else 
+		w->graphics.frames = NULL;
 	
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
 		w->core.background_pixel);
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
-# ifdef SHM
-		if(GWShmPossible(w))
-			w->graphics.frames[i] = gw_GetShmPixmap(w,
-				w->core.width, w->core.height, 
-				w->core.depth, i);
-		else
-# endif
-			w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
-				XtWindow (w), w->core.width, w->core.height, 
-				w->core.depth);
-		
+		gw_CreateFrame (w, i);
 		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
 			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
@@ -250,21 +287,20 @@ XSetWindowAttributes	*attributes;
 }
 
 
-void
+
+
+static void
 Destroy (w)
 GraphicsWidget	w;
 {
 	int	i;
 
 	for (i = 0; i < w->graphics.frame_count; i++)
-# ifdef SHM
-		if(GWShmPossible(w))
-			GWZapShmPixmap(w, i);
-		else
-# endif
-			XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
+		gw_DestroyFrame (w, i);
 
-	XtFree ((char *) w->composite.children);
+	if (w->composite.children)
+		XtFree ((char *) w->composite.children);
+	w->composite.children = NULL;
 	if (w->graphics.frames)
 		XtFree ((char *) w->graphics.frames);
 # ifdef SHM
@@ -276,12 +312,16 @@ GraphicsWidget	w;
 			XtFree ((char *) w->graphics.shminfo);
 		if (w->graphics.image)
 			XtFree ((char *) w->graphics.image);
+		if (w->graphics.frame_shared)
+			XtFree ((char *) w->graphics.frame_shared);
 	}
 # endif
 }
 
 
-void
+
+
+static void
 Redraw (w, event, region)
 GraphicsWidget	w;
 XEvent		*event;
@@ -315,15 +355,16 @@ Region		region;
 /*
  * Do a CopyArea to copy the current frame into the window
  */
-	XCopyArea (XtDisplay (w),w->graphics.frames[w->graphics.display_frame], 
-		XtWindow (w), w->graphics.gc, 0, 0, w->core.width, 
-		w->core.height, 0, 0);
+	XCopyArea (XtDisplay (w),
+		   w->graphics.frames[w->graphics.display_frame], 
+		   XtWindow (w), w->graphics.gc, 0, 0, w->core.width, 
+		   w->core.height, 0, 0);
 }
 
 
 
 
-void
+static void
 Resize (w)
 GraphicsWidget	w;
 {
@@ -340,29 +381,22 @@ GraphicsWidget	w;
 		return;
 
 /*
- * Free the old pixmaps, get new pixmaps and clear them out
+ * Free the old pixmaps, get new pixmaps using the new window sizes,
+ * and clear them out
  */
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
 		w->core.background_pixel);
 
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
-# ifdef SHM
-		if(GWShmPossible(w))
-		{
-			GWZapShmPixmap(w, i);
-			w->graphics.frames[i] = gw_GetShmPixmap(w,
-				w->core.width, w->core.height, 
-				w->core.depth, i);
-		}
-		else
-# endif
-		{
-			XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
-			w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
-				XtWindow (w), w->core.width, w->core.height, 
-				w->core.depth);
-		}
+		gw_DestroyFrame (w, i);
+	/*
+	 * This time use our new core width, height, and depth
+	 */
+		gw_CreateFrame (w, i);
+	/*
+	 * Clear the new frame
+	 */
 		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
 			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
@@ -376,7 +410,9 @@ GraphicsWidget	w;
 }
 
 
-Boolean
+
+
+static Boolean
 SetValues (current, request, new)
 GraphicsWidget	current, request, new;
 /*
@@ -410,13 +446,7 @@ GraphicsWidget	current, request, new;
 	 * Release excess pixmaps (if any) 
 	 */
 		for (i = newcount; i < oldcount; i++)
-# ifdef SHM
-			if(GWShmPossible(new))
-				GWZapShmPixmap(new, i);
-			else
-# endif
-				XFreePixmap (XtDisplay (new), 
-					new->graphics.frames[i]);
+			gw_DestroyFrame (new, i);
 	/*
 	 * Reallocate the space for the pixmap array 
 	 * and create pixmaps if necessary 
@@ -430,6 +460,9 @@ GraphicsWidget	current, request, new;
 			new->graphics.frameaddr = (char **) XtRealloc (
 				(char *) new->graphics.frameaddr, 
 				newcount * sizeof (char *));
+			new->graphics.frame_shared = (Boolean *) XtRealloc (
+				(char *) new->graphics.frame_shared,
+				newcount * sizeof (Boolean));
 			new->graphics.shminfo = (XShmSegmentInfo *) XtRealloc (
 				(char *) new->graphics.shminfo, 
 				newcount * sizeof (XShmSegmentInfo));
@@ -440,19 +473,7 @@ GraphicsWidget	current, request, new;
 # endif
 		for (i = oldcount; i < newcount; i++)
 		{
-# ifdef SHM
-			if(GWShmPossible(new))
-				new->graphics.frames[i] = gw_GetShmPixmap(new,
-					new->core.width, new->core.height, 
-					new->core.depth, i);
-			else
-# endif
-				new->graphics.frames[i] = 
-					XCreatePixmap (XtDisplay (new), 
-					XtWindow (new),
-					new->core.width, new->core.height, 
-					new->core.depth);
-			
+			gw_CreateFrame (new, i);
 			XFillRectangle (XtDisplay (new), 
 				new->graphics.frames[i], new->graphics.gc, 
 				0, 0, new->core.width, new->core.height);
@@ -462,7 +483,8 @@ GraphicsWidget	current, request, new;
 }
 
 
-XtGeometryResult
+
+static XtGeometryResult
 GeometryManager (w, request, reply)
 Widget	w;
 XtWidgetGeometry	*request, *reply;
@@ -492,7 +514,8 @@ XtWidgetGeometry	*request, *reply;
 }
 
 
-void
+
+static void
 ChangeManaged (w)
 Widget	w;
 {
@@ -500,8 +523,190 @@ Widget	w;
 }
 
 
+static void
+gw_CreateFrame (w, i)
+GraphicsWidget w;
+int i;
+{
+# ifdef SHM
+	w->graphics.frames[i] = None;
+	if(GWShmPossible(w))
+	{
+		w->graphics.frame_shared[i] = False;
+		w->graphics.frames[i] = gw_GetShmPixmap(w,
+			w->core.width, w->core.height, 
+			w->core.depth, i);
+		if (w->graphics.frames[i] != None)
+			w->graphics.frame_shared[i] = True;
+	}
 /*
- * Convenience routines
+ * If the shared memory attempt failed, go the conventional route
+ */
+	if (w->graphics.frames[i] == None)
+# endif
+		w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
+			XtWindow (w), w->core.width, w->core.height, 
+			w->core.depth);
+}
+
+
+
+static void
+gw_DestroyFrame (w, i)
+GraphicsWidget w;
+int i;
+/*
+ * Destroy a frame according to whether its shared or not
+ */
+{
+# ifdef SHM
+	if (GWFrameShared (w, i))
+		GWZapShmPixmap (w, i);
+	else if (w->graphics.frames[i] != None)
+# endif
+		XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
+	w->graphics.frames[i] = None;
+}
+
+
+
+# ifdef SHM
+/* 
+ * Private shared memory routines
+ */
+
+static void
+gw_SetShmPossible(w)
+GraphicsWidget w;
+/*
+ *  Set private member according to whether we think shared memory is possible
+ */
+{
+#	define HOSTLEN 50
+	int maj, min, sp;
+	char host[HOSTLEN];
+	Display *dpy = XtDisplay(w);
+	Boolean possible;
+	int n;
+	char *c;
+/*
+ * First see if the server even supports the extension
+ */
+	possible = XShmQueryVersion(dpy, &maj, &min, &sp);
+	possible = possible && sp;
+	msg_ELog(EF_DEBUG, "XShmExt: %s supported by display %s",
+		 possible ? "IS" : "NOT", dpy->display_name);
+	if (!possible)
+	{
+		w->graphics.shm_possible = False;
+		return;
+	}
+/*
+ * Then check that server and client are on the same host,
+ * otherwise we can't very well share memory, can we?  If the
+ * display name is "unix:?.?" or ":?.?", we'll assume the server is
+ * local.  The whole heuristic is rather flawed, but it should be
+ * accurate most of the time.
+ */
+	n = (c = strchr(dpy->display_name, ':')) ? 
+	   (int)(c - dpy->display_name) : strlen(dpy->display_name);
+	gethostname(host, HOSTLEN);
+	host[HOSTLEN - 1] = '\0';
+	if (!n || (!strncmp(dpy->display_name, "unix", n)))
+		possible = True;
+	else if (n == strlen(host))
+		possible = !strncmp(host, dpy->display_name, n);
+	else
+		possible = False;
+	msg_ELog(EF_DEBUG, 
+		 "XShm %s: server %s, client at %s",
+		 possible ? "possible" : "NOT possible",
+		 dpy->display_name, host);
+	w->graphics.shm_possible = (possible) ? True : False;
+}
+
+
+
+
+static Pixmap  
+gw_GetShmPixmap(w, width, height, depth, index)
+GraphicsWidget w;
+int width, height, depth, index;
+/*
+ *  Return a shared memory Pixap.
+ */
+{
+	Display *disp = XtDisplay(w);
+	Pixmap pixmap;
+	int bpl;
+	struct shmid_ds buf;
+	Boolean failure = False;
+/*
+ *  Create the shared memory image.
+ */
+	w->graphics.image[index] = XShmCreateImage(disp, 0, depth, ZPixmap, 0, 
+		w->graphics.shminfo + index, width, height);
+	bpl = w->graphics.image[index]->bytes_per_line;
+	msg_ELog(EF_DEBUG, "gw attempting SHM: width %d, bytes/line %d",
+		 width, bpl);
+/*
+ *  Create the shared memory segment
+ */
+	w->graphics.shminfo[index].shmid = shmget(IPC_PRIVATE, bpl * height, 
+						  IPC_CREAT|0777);
+	if (w->graphics.shminfo[index].shmid < 0)
+	{
+		failure = True;
+		msg_ELog(EF_PROBLEM, "gw frame %d: SHM get failure (%d)!", 
+			 index, errno);
+	}
+	if (!failure)
+		w->graphics.shminfo[index].shmaddr = (char *) 
+			shmat(w->graphics.shminfo[index].shmid, 0, 0);
+	if (!failure && (w->graphics.shminfo[index].shmaddr == ((char *) -1)))
+	{
+		failure = True;
+		msg_ELog(EF_PROBLEM, "gw frame %d: SHM attach failure (%d)!", 
+			 index, errno);
+	}
+	if (failure)
+	{
+		XtFree((char *) w->graphics.image[index]);
+		return (None);
+	}
+	w->graphics.shminfo[index].readOnly = False;
+	msg_ELog(EF_DEBUG,"%s shmid %d shmaddr 0x%X readOnly %d shmseg %d",
+		 "shminfo",
+		 w->graphics.shminfo[index].shmid,
+		 w->graphics.shminfo[index].shmaddr,
+		 w->graphics.shminfo[index].readOnly,
+		 w->graphics.shminfo[index].shmseg);
+/*
+ *  Hook everything together and create the shared memory pixmap.
+ */
+	w->graphics.frameaddr[index] =  w->graphics.shminfo[index].shmaddr;
+	w->graphics.image[index]->data =  w->graphics.shminfo[index].shmaddr;
+	XShmAttach(disp, w->graphics.shminfo + index);
+	pixmap = XShmCreatePixmap(disp, XtWindow(w),
+	       w->graphics.shminfo[index].shmaddr,w->graphics.shminfo+index,
+		width, height, depth);
+	XSync(disp, False);
+	if(shmctl(w->graphics.shminfo[index].shmid, IPC_RMID, 0) < 0)
+		msg_ELog(EF_PROBLEM, "SHM remove failure (%d)!", errno);
+/*
+ *  Return the pixmap id.
+ */
+	return(pixmap);		
+}
+
+# endif /* SHM --- end private shared memory routines */
+
+
+
+/*
+ * ======================================================================
+ * 			   Convenience Routines
+ * ----------------------------------------------------------------------
  */
 
 Pixmap
@@ -689,18 +894,21 @@ int p;
 }
 
 
-/*
- *  Shared Memory Routines
- */
 
 # ifdef SHM
+/*
+ * Shared Memory Convenience Routines
+ */
 
 int 
 GWGetBPL(w, p)
 GraphicsWidget w;
 int p;
 {
- 	return(w->graphics.image[p]->bytes_per_line);
+	if (w->graphics.image)
+		return (w->graphics.image[p]->bytes_per_line);
+	else
+		return (0);
 }
 
 
@@ -709,8 +917,14 @@ char *
 GWGetFrameAddr(w, p)
 GraphicsWidget w;
 int p;
+/*
+ * Returns NULL if shared memory access is not possible for this frame.
+ */
 {
- 	return(w->graphics.frameaddr[p]);
+	if (GWFrameShared (w, p))
+		return (w->graphics.frameaddr[p]);
+	else
+		return (NULL);
 }
 
 
@@ -719,113 +933,31 @@ int
 GWShmPossible(w)
 GraphicsWidget w;
 /*
- *  Return true if we can do shared memory.
+ * If the widget has not been realized, it is not possible to know
+ * whether the shared memory extension is available.  In which case,
+ * this function returns False.
  */
 {
-	static int known = FALSE, possible;
-
-	if(known)
-		return(possible);
-
-	known = TRUE;
-	{
-#		define HOSTLEN 50
-		int maj, min, sp;
-		char host[HOSTLEN];
-		Display *dpy = XtDisplay(w);
-		int n;
-		char *c;
-	/*
-	 * First see if the server even supports the extension
-	 */
-		possible = XShmQueryVersion(dpy, &maj, &min, &sp);
-		possible = possible && sp;
-		msg_ELog(EF_DEBUG, "XShmExt: %s supported by display %s",
-			 possible ? "IS" : "NOT", dpy->display_name);
-		if (!possible)
-			return(possible);
-	/*
-	 * Then check that server and client are on the same host, otherwise we
-	 * can't very well share memory, can we?  If the display name is
-	 * "unix:?.?" or ":?.?", we'll assume the server is local.  The whole
-	 * heuristic is rather flawed, but it should be accurate most of the time.
-	 */
-		n = (c = strchr(dpy->display_name, ':')) ? 
-			(int)(c - dpy->display_name) : strlen(dpy->display_name);
-		gethostname(host, HOSTLEN);
-		host[HOSTLEN - 1] = '\0';
-		if (!n || (!strncmp(dpy->display_name, "unix", n)))
-			possible = TRUE;
-		else if (n == strlen(host))
-			possible = !strncmp(host, dpy->display_name, n);
-		else
-			possible = FALSE;
-		msg_ELog(EF_DEBUG, 
-			 "XShmExt: %s, server %s, client at %s",
-			 possible ? "True" : "False",
-			 dpy->display_name, host);
-		return(possible);
-	}
+	return (w->graphics.shm_possible);
 }
 
 
 
-
-Pixmap  
-gw_GetShmPixmap(w, width, height, depth, index)
+int
+GWFrameShared(w, p)
 GraphicsWidget w;
-int width, height, depth, index;
+int p;
 /*
- *  Return a shared memory Pixap.
+ * Returns True iff this frame of the Graphics widget is shared and can
+ * be accessed directly, via the address returned by GWGetFrameAddr().
  */
 {
-	Display *disp = XtDisplay(w);
-	Pixmap pixmap;
-	int bpl;
-	struct shmid_ds buf;
-/*
- *  Create the shared memory image.
- */
-	w->graphics.image[index] = XShmCreateImage(disp, 0, depth, ZPixmap, 0, 
-		w->graphics.shminfo + index, width, height);
-	bpl = w->graphics.image[index]->bytes_per_line;
-	msg_ELog(EF_DEBUG, "SHM width %d bytes/line %d", width, bpl);
-
-/*
- *  Create the shared memory segment
- */
-	w->graphics.shminfo[index].shmid=shmget(IPC_PRIVATE, bpl * height, 
-		IPC_CREAT|0777);
-	if(w->graphics.shminfo[index].shmid < 0)
-		msg_ELog(EF_EMERGENCY, "SHM get failure (%d)!", errno);
-	w->graphics.shminfo[index].shmaddr = (char *) 
-		shmat(w->graphics.shminfo[index].shmid, 0, 0);
-	if(w->graphics.shminfo[index].shmaddr == ((char *) -1))
-		msg_ELog(EF_EMERGENCY, "SHM attach failure (%d)!",errno);
-	w->graphics.shminfo[index].readOnly = False;
-	msg_ELog(EF_DEBUG,"shminfo shmid %d shmaddr 0x%X readOnly %d shmseg %d",
-		w->graphics.shminfo[index].shmid,
-		w->graphics.shminfo[index].shmaddr,
-		w->graphics.shminfo[index].readOnly,
-		w->graphics.shminfo[index].shmseg);
-	
-/*
- *  Hook everything together and create the shared memory pixmap.
- */
-	w->graphics.frameaddr[index] =  w->graphics.shminfo[index].shmaddr;
-	w->graphics.image[index]->data =  w->graphics.shminfo[index].shmaddr;
-	XShmAttach(disp, w->graphics.shminfo + index);
-	pixmap = XShmCreatePixmap(disp, XtWindow(w),
-	       w->graphics.shminfo[index].shmaddr,w->graphics.shminfo+index,
-		width, height, depth);
-	XSync(disp, False);
-	if(shmctl(w->graphics.shminfo[index].shmid, IPC_RMID, 0) < 0)
-		msg_ELog(EF_PROBLEM, "SHM remove failure (%d)!", errno);
-/*
- *  Return the pixmap id.
- */
-	return(pixmap);		
+	if (w->graphics.frame_shared)
+		return (w->graphics.frame_shared[p]);
+	else
+		return (False);
 }
+
 
 
 void
@@ -838,16 +970,16 @@ int index;
 {
 	Display *disp = XtDisplay(w);
 	
-	XShmDetach(disp, w->graphics.shminfo + index);
-	XFreePixmap(disp, w->graphics.frames[index]);
-	XtFree((char *) w->graphics.image[index]);
-	if(shmdt(w->graphics.shminfo[index].shmaddr) < 0)
-		msg_ELog(EF_PROBLEM, "SHM detach failure (%d)!", errno);
-
+	if (GWFrameShared (w, index))
+	{
+		XShmDetach(disp, w->graphics.shminfo + index);
+		XFreePixmap(disp, w->graphics.frames[index]);
+		XtFree((char *) w->graphics.image[index]);
+		if(shmdt(w->graphics.shminfo[index].shmaddr) < 0)
+			msg_ELog(EF_PROBLEM,"SHM detach failure (%d)!",errno);
+		w->graphics.frame_shared[index] = False;
+		w->graphics.frames[index] = None;
+	}
 }
 
-
-# endif
-
-
-
+# endif /* SHM --- end shared memory convenience routines */
