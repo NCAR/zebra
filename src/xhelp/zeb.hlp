@@ -1,79 +1,76 @@
-17
+19
 000000%000000Welcome to the Wide World of Zeb
-808
+824
 
 / INTRODUCTION /
 
-Zeb integrates meteorological data from multiple and
-diverse platforms into a single display.  Zeb operates as
-a real-time field operations and control tool and also as
-a post-processing visualization tool.
+Welcome to Zeb!  Zeb collects and integrates meteorological
+data from diverse platforms into a single software system. 
+Zeb operates as a real-time field operations and control
+tool and also as a post-processing visualization tool.
 
 / USING HELP /
 
 This is the on-line help facility for Zeb.  Help can be
 obtained in several ways.  To see all of the topics for
 which help is available, press the <Topics> button, the
-leftmost icon above the title bar "Welcome to the Wide
-World of Zeb".  The <Up> and <Down> icon buttons, the
-second and third icons from the left, move up and down
-through the list of topics.  The <Search> button, picturing
-the magnifying glass, provides a search facility for
-finding references to a text string within a single topic. 
-Click the <Down> icon for more information on using Help...
-moreonhelp   More Help with Using Help
-1369
+leftmost icon above the title bar "Welcome to the Wide World
+of Zeb".  The <Up> and <Down> icon buttons, the second and
+third icons from the left, move up and down through the list
+of topics.  The <Search> button, picturing the magnifying
+glass, provides a search facility for finding text
+references within a single topic.  
+
+Click the <Down> icon for more information on using Help...  moreonhelp   More Help with Using Help
+1368
 
 / SCROLLING HELP WINDOWS /
 
 Often, a help topic includes more text than fits inside the
 help window.  In these cases a scroll bar will appear at
-the left side of the window.  Click the middle mouse button
-inside the scroll bar, and while holding the button down,
-move the mouse up and down to scroll text through the
+the left side of the help window.  Click the middle mouse
+button inside the scroll bar, and while holding the button
+down, move the mouse up and down to scroll text through the
 window.  Clicking the left or right mouse buttons inside
 the scroll bar scrolls the text down and up, respectively.
 
 / HOW HELP TOPICS ARE ORGANIZED /
 
-Zeb's help information is divided into many topics.  All of
-the topics can be reached by moving up and down through the
+Zeb's help information is divided into topics.  All of the
+topics can be reached by moving up and down through the
 topic list using the <Up> and <Down> icon buttons. 
 Likewise, clicking on the <Topics> icon pops up a list of
 all of the help topics.  Any of the topics listed can be
 viewed by clicking on the topic name in the list.  Also,
 many of the help topics will be displayed automatically
-when help is requested in other parts of Zeb, such as from
-the Icon Bar help menu, one of the Zeb widgets, or a plot
-window icon.
+when help is requested in other parts of Zeb, such as in
+the Icon Bar help menu, one of the Zeb widgets, or a
+Graphics Window icon.
 
 / EXITING HELP /
 
-Click on the <Quit> button, found above the row of icon
-buttons in the help window, to remove the help window.  If
-help is requested at a later time, the help window will
-automatically pop up again.  If the help window is already
-on the screen (though it may be hidden by other windows),
-any help topics requested will be shown in the help window.
-
-
-buttonmaps   Graphics Window Buttons
-2000
+To remove the help window, click on the <Quit> button found
+above the row of icon buttons in the help window.  If help
+is requested at a later time, the help window will
+automatically pop up again.  If a help window is already on
+the screen (though it may be hidden by other windows), any
+help topics requested will be shown in that help window.  buttonmaps   Graphics Window Buttons
+1985
 
 / BUTTON TO COMMAND MAPPING /
 
-        Zeb uses button-to-command mappings to map
-keystrokes and mouse button clicks in the graphics window
-to many of the functions available in the graphics window. 
-To perform one of the actions listed in the following
-table, simply press the indicated key or mouse button while
-the cursor is in the graphics window where you wish the
-action performed.  In the table, a letter refers to the key
-on the keyboard.  LMB indicates left mouse button, MMB the
-middle, and RMB the right.  Prepending Shift- to the button
-indicates that the shift key should be held down while the
-mouse button is pressed.  So Shift-LMB means 'hold the
-shift key and press the left mouse button.'
+Zeb uses "button-to-command mappings" to map keystrokes and
+mouse button clicks in a graphics window to many of the
+graphics window functions.  To perform one of the actions
+listed in the following table, simply press the indicated
+key or mouse button while the cursor is in the graphics
+window where you wish the action performed.  In the table,
+a letter refers to the key on the keyboard.  LMB indicates
+left mouse button, MMB the middle, and RMB the right. 
+Prepending Shift- to the button name indicates that the
+shift key should be held down while the mouse button is
+pressed.  So Shift-LMB means 'hold the shift key down and
+press the left mouse button.'
 
 Button or Key		Graphics Window Action
 ----------------------- ----------------------------------
@@ -198,33 +195,33 @@ The movie controller window can be removed by pressing the
 controller leaves the graphics window in the mode and time
 last set by the movie controller.  
 altitude     Changing Altitude
-523
+528
 
 / CHANGING THE ALTITUDE OF A CONSTANT-ALTITUDE PLOT /
 
-When the graphics window is dislaying a constant-altitude
-plot, and the base field contains several different
+When a Graphics Window is dislaying a constant-altitude
+plot, and its base field contains several different
 altitudes (or elevation angles), it is possible to change
 the altitude of the plot.
 
 The following keystrokes may be used to step up and
 down in altitude:
 
-	Up Arrow	Move up one step in altitude.
+	<Up Arrow>	Move up one step in altitude.
 
-	Down Arrow	Move down one step in altitude.
+	<Down Arrow>	Move down one step in altitude.
 
-	Page Up		Move up to the highest altitude
+	<Page Up>	Move up to the highest altitude
 			available.
 
-	Page Down	Move down to the lowest altitude
+	<Page Down>	Move down to the lowest altitude
 			available.
 zooming      Zooming a Graphics Window
-1368
+1369
 
 / ZOOMING /
 
-Zooming involves enlarging an area of a graphics window to
+Zooming involves enlarging an area of a Graphics Window to
 obtain a narrower perspective and to distinguish greater
 detail in a plot.  To zoom an area of a graphics window,
 follow these steps:
@@ -241,7 +238,7 @@ follow these steps:
        delineating an area of the window as you move 
        the mouse.  
 
-   4.  If at any time you wish to cancel the zoom
+   4.  If at any time you wish to cancel the zoom,
        while still pressing the left mouse button, 
        simply press the middle or right mouse buttons
        without releasing the left mouse button.
@@ -249,7 +246,7 @@ follow these steps:
        cancelled, and the mouse buttons can then 
        be released.
 
-   5.  When the box in the window outlines the area
+   5.  When the box in the window encloses the area
        you wish to zoom, let go of the mouse button.
        The area enclosed by the box will be enlarged
        to fill the entire graphics window.
@@ -339,7 +336,7 @@ to disable or re-enable an overlay, follow these steps:
 
 	The icon will change color, typically to gray, to
 indicate that an overlay has been disabled.getposition  Displaying Coordinates with Get Position
-2473
+2964
 
 / THE GET POSITION WIDGET /
 
@@ -347,91 +344,119 @@ The Get Position Widget allows the user to click on a point
 in the graphics window and see the location of that point
 in latitude and longitude coordinates.  The Get Position
 widget also reports distances relative to a named origin
-using azimuth and range, and x and y offsets; range, x, and
-y can be displayed in kilometers or nautical miles.  There
-are three steps to using the Get Position Widget, popping
-it up, entering an origin, and picking the points.
+using azimuth and range, and x and y offsets.  The relative
+range can be displayed in either kilometers or nautical
+miles.  There are three steps to using the Get Position
+Widget, popping it up, entering an origin, and picking
+points in the graphics window.
 
-	1.  To pop up the Get Position Widget, type a 'g'
-	    in the graphics window for which you wish to
-	    display location coordinates.
+   1.  Pop up the Get Position Widget by typing a 'g'
+       in the graphics window for which you wish to
+       display location coordinates.  To display the
+       lat/lon coordinates for a point in the graphics
+       window, click the left button at the point. 
+       The coordinates will be shown in the Get Position
+       window.  However, the relative coordinates will
+       not be shown since an origin has not yet been
+       specified.
 
-	2.  Enter an origin for the relative measurements.
-	    The origin name should be typed into the blank
-	    box, second from both the left and the bottom of
-	    the window.  For STORM-FEST, the origin can
-	    be one of the following locations:
+   2.  Enter an origin for the relative measurements.
+       The origin name should be typed into the blank
+       box, second from both the left and the bottom of
+       the window.  For STORM-FEST, the origin can
+       be one of the following locations:
 
-		ops-ctr		Richards-Gebaur Ops Center
-		cp3		CP-3 Radar
-		cp4		CP-4 Radar
-		mhr		Mile-High Radar
-		okc		Twin Lakes, OK Nexrad
-		fdr		Frederick, OK Nexrad
-		cim		NSSL Cimarron
-		hot
-		chill
-		osk		Oskaloosa
-		aster		Aster
-		array		Center of boundary layer
-				array
+	ops-ctr		Richards-Gebaur Ops Center
+	cp3		CP-3 Radar
+	cp4		CP-4 Radar
+	mhr		Mile-High Radar
+	okc		Twin Lakes, OK Nexrad
+	fdr		Frederick, OK Nexrad
+	cim		NSSL Cimarron
+	hot
+	chill
+	osk		Oskaloosa
+	aster		Aster
+	array		Center of boundary layer
+			array
 		
-	    In addition, many of the CLASS, NSSL CLASS,
-	    NWS sounding, and profiler site locations
-	    are available.  Use the ID name as the
-	    origin name.
+       In addition, many of the CLASS, NSSL CLASS,
+       NWS sounding, and profiler site locations
+       are available.  Use the ID name as the
+       origin name.
 
-	3.  To get the location of a point in the graphics
-	    window, click the left mouse button on the
-	    point.  The coordinates of the point will be
-	    displayed in the Get Position window.  If
-	    you see the message "Unable to locate origin:
-	    xxx", then the origin name could not be found
-	    and must be changed.  You can click the left
-	    mouse button on as many points as you like;
-	    each time the coordinates of the point you
-	    clicked will be shown in the Get Position
-	    window.  You can also change the origin at
-	    any time by typing a new origin name into
-	    the origin box.
+   3.  To get the location of a point in the graphics
+       window, click the left mouse button on the
+       point.  The coordinates of the point will be
+       displayed in the Get Position window.  If
+       you see the message "Unable to locate origin:
+       xxx", then the origin name could not be found
+       and should be changed.  You can click the left
+       mouse button on as many points as you like;
+       each time the coordinates of the point you
+       clicked will be shown in the Get Position
+       window.  You can also change the origin at
+       any time by typing a new origin name into
+       the origin box.
+
 
 / CHANGING COORDINATE UNITS /
 
 You can change the units and formats which the Get Position
 widget uses to display coordinates.  There are two toggle
 buttons in the lower left corner of the Get Position
-window.  The bottom button toggles the units of range, x,
-and y between nautical miles and kilometers.  The button
-just above the bottom button toggles the format of the
-lat/lon coordinates between deg/min/sec and decimal degrees.
+window.  The bottom button toggles the units of the range
+between nautical miles and kilometers.  The other toggle
+button alternates the format of the lat/lon coordinates
+between deg/min/sec and decimal degrees.  Once a point has
+been selected in the graphics window, any unit changes will
+display the coordinates of the point in the new units.
 
 / REMOVING THE GET POSITION WIDGET /
 
 To remove the Get Position Widget, click on the <Zap> 
 button at the top of the window.
-overlaytimes Overlay Times Widget
-521
+overlaytimes Finding Data Times for a Plot
+1701
 
-/ OVERLAY TIMES WIDGET /
+/ THE OVERLAY TIMES WIDGET /
 
+The Graphics Window plots the latest data available with a
+time occurring before the window's plot time, but it does
+not show the actual time of the data used for each platform
+in the plot.  The Overlay Times widget shows this
+information: it displays the time at which the data was
+collected for each data platform represented in the
+graphics window.
 
-The Overlay Times Widget displays the time at which the data
-was collected for each data platform used in the graphics
-window.  Note that this time may be different from the time
-displayed in the graphics window.  The widget can be popped
-up in one of two ways:
+The widget may be popped up in two ways.  Either select the
+"Popup overlay times window" entry from the left-button
+menu of the <Zeb> icon (in the lower-left corner of the
+graphics window), or type 't' anywhere inside the graphics
+window.
 
-	-  Select the
+The Overlay Times window will appear containing a list of
+all of the platforms being plotted in the graphics window,
+except for static overlays like maps, grids, and locations.
+Next to each platform name, the widget displays the time of
+the data which the graphics window is presently plotting. 
+For example, suppose the plot time is
+"3-Mar-1992,14:45:00".  If GOES satellite data is only
+sampled on the half-hour, then the Overlay Times widget
+will display a time of "3-Mar-1992,14:30:00" next to the
+platform name "goes".  This is the time for which the
+satellite image being displayed is valid.  If the 14:30
+image were missing, this information would be reflected in
+the widget by a "goes" platform time of 14:00.  The times
+shown in the Overlay Times window will ALWAYS be correct,
+even if the graphics window is in movie mode.  The overlay
+times will always correspond to the frame currently visible
+in the graphics window, even while stepping backward and
+forward through frames and while running a movie.
 
-		Popup overlay times window
-
-	    entry of the left button menu of the Zeb icon
-	    in the graphics window.
-
-	-  Or, type 't' in the graphics window.
-
-	To remove the Overlay Times Widget, click on the
-Zap button.historytime  Setting a History Time
+To remove the Overlay Times Widget, click on the <Zap>
+button.
+historytime  Setting a History Time
 4312
 Setting a History Time
 
@@ -545,7 +570,7 @@ done by:
 	2.  Click on the scrollbar area of the movie
 	    controller to manually loop through the frames
 	    of the movie.icons        Using the Icons in the Graphics Window
-1034
+1049
 
 / GRAPHICS WINDOW ICONS /
 
@@ -560,7 +585,9 @@ field from the icon bar, then clicking on the target window.
 	The icons at the bottom of each window are used to 
 control the contents of the data present in that window.  
 There is one icon present for each data type and/or overlay.
-Different menus are associated with each mouse buttons.  
+Each mouse button activates a different menu within each
+platform icon.
+
 Generally the icon menus on the left button allow users to 
 change plotting limits/intervals, remove a field or 
 disable/reenable a field.  The middle buttons generally 
@@ -614,7 +641,7 @@ and the values within it may be changed.
 	    Or, to abandon any changes, click on the
 	    Cancel button.
 displayconfigChanging Display Configurations
-907
+909
 Changing Display Configurations
 
 	A display configuration refers to the number, size
@@ -640,7 +667,8 @@ menu under the Zeb icon of the IconBar.
 
 	While the new configuration is being drawn some
 or all of the currently visible windows may disappear.
-shutdown    Ending the Zeb Universe
+
+shutdown     Ending the Zeb Universe
 1195
 
 / SHUTTING DOWN ZEB /
@@ -803,7 +831,7 @@ The programs 'xwd' and 'xpr' are part of the standard MIT
 X11 Release 5 distribution, and the 'xwd2ps' program is
 freely distributed software.
 components   Planets in the Zeb Solar System
-1435
+2607
 
 / ZEB SYSTEM COMPONENTS /
 
@@ -811,10 +839,10 @@ The entire Zeb system comprises many programs.  The most
 obvious programs are those which display windows on the
 workstation screen.  However, these programs rely on other
 programs for retrieving and storing data, and for passing
-messages between each other.  To help you navigate the Zeb
-solar system, this help topic describes the more obvious
-planets of the system: the Icon Bar, the Event Logger,
-the Graphics Windows, and the Time Widget.
+messages between each other.  To aid navigation of the Zeb
+solar system, this help topic describes the display
+components of the system: the Icon Bar, the Event Logger,
+Graphics Windows, and the Time Widget.
 
 / THE ICON BAR /
 
@@ -826,17 +854,45 @@ some clue about the use of the Icon.  Usually the icons
 have a blue background and a yellow foreground.  Each icon
 is a button which pops up a menu when pressed.  To choose
 an item from an icon menu, press and hold the left mouse
-button inside the icon.  The menu will appear; while still
-holding down the mouse button, drag the selection bar to
-the item you wish to choose and release the mouse button. 
+button inside the icon.  Once the menu appears, and while
+still holding down the mouse button, drag the selection bar
+to the item you wish to choose and release the mouse
+button.
+
 Some icon menus have sub-menus.  Sub-menu items will have
 an arrow at the left side of the menu.  To open a sub-menu,
-drag the cursor to the far right of the sub-menu name. 
-Select a sub-menu item by releasing the mouse button over
+drag the cursor to the far right of the sub-menu name, then
+select a sub-menu item by releasing the mouse button over
 the name of the item.
 
-It is easy to confuse the Icon Bar with the icons 
+It is easy to confuse the Icon Bar with the icons in a
+Graphics Window.  However, only the Icon Bar contains the
+<Help> icon---the icon with the question mark.
 
+See the topic "The Icon Bar Icons" for a description of
+each of the icons in the Icon Bar.
+
+/ THE EVENT LOGGER /
+
+The Event Logger is an important part of the Zeb display
+because it provides feedback, information, and error
+messages from all of the other Zeb processes.  Like the
+Icon Bar, the Event Logger will always be on the screen
+regardless of the current configuration.  If Zeb appears to
+be operating incorrectly, or not at all, check for messages
+in the Event Logger.   The message window in the Event
+Logger can be scrolled backward and forward over old
+messages using the scroll bar on the left side of the
+window.
+
+The <Clear> button erases the message window.  The <Ctl:>
+button toggles control of the Event Logger between Zeb's
+display manager and the X server window manager.  If you
+want to move or resize the Event Logger window using the
+window manager, click on the <Ctl:> button until it reads
+"Ctl: WM" (for 'window manager has control').  The <Events>
+and <Debug> menu buttons are used primarily for development
+and real-time operations.
 
 xygraph      Using X-Y Graphs
 1245
@@ -879,3 +935,25 @@ Changing Color and Representation
 points is allowed, then menus to do this will be found by
 clicking the right mouse button on the icons in the graphics
 window.
+iconbar      The Icon Bar Icons
+580
+
+/ THE ICON BAR ICONS /
+
+This topic describes the purpose and function of each of the
+icon menus on the Icon Bar.  In particular, the topic covers
+the Icon Bar for the STORM-FEST CD distribution, but the
+information here will be readily applicable to many project
+configurations.
+
+The Icon Bar performs "global" Zeb functions---functions
+which are useful or applicable to more than one window or
+process in the Zeb display.  Most of the icon menus specify
+platforms and fields for addition to one of the Graphics
+Windows in the display.  Each of these icons is described
+below.  
+documentationGuide to Zeb Documentation
+33
+
+/ GUIDE TO ZEB DOCUMENTATION /
+
