@@ -1,7 +1,7 @@
 /*
  * Send sound files to the audio port.
  */
-static char *rcsid = "$Id: Sound.c,v 1.2 1991-04-28 17:37:36 corbet Exp $";
+static char *rcsid = "$Id: Sound.c,v 1.3 1991-07-18 23:05:48 corbet Exp $";
 # include <sys/types.h>
 # include <unistd.h>
 # include <fcntl.h>
@@ -12,7 +12,7 @@ static char *rcsid = "$Id: Sound.c,v 1.2 1991-04-28 17:37:36 corbet Exp $";
 # include "../include/timer.h"
 
 
-int Message ();
+int IMessage ();
 int Enabled = FALSE;
 int SoundDev = -1;
 stbl Sounds;
@@ -36,7 +36,7 @@ main ()
 /*
  * Hook into the message system.
  */
-	if (! msg_connect (Message, "Sound"))
+	if (! msg_connect (IMessage, "Sound"))
 	{
 		printf ("Unable to connect to message handler\n");
 		exit (1);
@@ -55,7 +55,7 @@ main ()
 
 
 
-Message (msg)
+IMessage (msg)
 struct message *msg;
 {
 	if (msg->m_proto == MT_SOUND)
