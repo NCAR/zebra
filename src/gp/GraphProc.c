@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.14 1991-12-13 15:35:09 kris Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.15 1992-01-24 18:15:32 corbet Exp $")
 
 /*
  * Default resources.
@@ -627,6 +627,7 @@ struct dm_msg *dmsg;
 {
 	struct dm_dial *dmd;
 	struct dm_history *dmh;
+	date uidate;
 
 	switch (dmsg->dmm_type)
 	{
@@ -660,11 +661,13 @@ struct dm_msg *dmsg;
 	   	ChangeParam ((struct dm_parchange *) dmsg);
 		break;
 	/*
-	 * History mode.
+	 * History mode.  Comes through in the new time format, which we are
+	 * not quite prepared to deal with yet.
 	 */
 	   case DM_HISTORY:
 	   	dmh = (struct dm_history *) dmsg;
-	   	HistoryMode (&dmh->dmm_time);
+		TC_ZtToUI (&dmh->dmm_time, &uidate);
+	   	HistoryMode (&uidate);
 		break;
 	/*
 	 * Real time mode.
