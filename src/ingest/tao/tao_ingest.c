@@ -1,5 +1,5 @@
 /*
- * $Id: tao_ingest.c,v 1.3 1994-02-01 08:48:19 granger Exp $
+ * $Id: tao_ingest.c,v 1.4 1994-02-02 19:44:29 burghart Exp $
  *
  * Ingest TAO moorings data as an irregular grid
  *
@@ -33,7 +33,7 @@
 #include <copyright.h>
 
 #ifndef lint
-MAKE_RCSID("$Id: tao_ingest.c,v 1.3 1994-02-01 08:48:19 granger Exp $")
+MAKE_RCSID("$Id: tao_ingest.c,v 1.4 1994-02-02 19:44:29 burghart Exp $")
 #endif
 
 # define NUMBER(arr)		((unsigned long)(sizeof(arr)/sizeof(arr[0])))
@@ -252,7 +252,7 @@ ZebTimeFromJulian(zt, jday)
 
 	if (!base.zt_Sec)
 		TC_ZtAssemble (&base, 93, 1, 1, 0, 0, 0, 0);
-	zt->zt_Sec = base.zt_Sec + ((jday - 2448989UL) * 24 * 60 * 60);
+	zt->zt_Sec = base.zt_Sec + ((jday - 2448989) * 24 * 60 * 60);
 }
 
 
