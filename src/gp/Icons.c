@@ -261,9 +261,10 @@ I_DoIcons ()
  * Put in the icons.
  */
 {
-	int xpos = 5, comp, disable = 0;
+	int xpos = 5, comp;
 	int fg, bg;
 	char **comps = pd_CompList (Pd), platform[500], *qual = NULL;
+	bool disable = FALSE;
 	Pixmap icon;
 	struct IconList *ilp;
 /* 
@@ -550,8 +551,8 @@ char *colorcomp;
  * Put in the icons.
  */
 {
-        int disable, fg, bg;
-        int seconds, ntime, update;
+        int fg, bg, seconds, ntime, update;
+	bool disable;
 	ZebTime timenow, datatime;
         char comp[40], platform[500], repr[40];
 	char agelimit[40], color[40];
