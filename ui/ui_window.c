@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.30 1993-04-12 17:30:45 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.31 1993-04-29 18:57:47 burghart Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -1338,12 +1338,14 @@ Widget parent;
 	if (! gw)
 		ui_error ("uw_IWRealize: undefined internal widget '%s'", 
 			name);
+# ifdef notdef
 /*
  * Make sure this is the right type of widget.
  */
 	if ((frame->fw_flags & WF_NOFRAME) == 0)
 		ui_error ("(APPL BUG): uw_IWRealize on non-int widget %s", 
 			name);
+# endif
 /*
  * Do it.
  */
