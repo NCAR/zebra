@@ -19,11 +19,12 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
+# include <math.h>
+# include <X11/Intrinsic.h>
+
 # include <config.h>
 # include <defs.h>
-# include <X11/Intrinsic.h>
-# include <math.h>
-# include <string.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <message.h>
@@ -32,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Ov_Grid.c,v 2.1 1995-08-03 20:59:58 corbet Exp $")
+MAKE_RCSID ("$Id: Ov_Grid.c,v 2.2 1995-08-07 22:29:16 granger Exp $")
 
 /*
  * Some macros.  I'm not sure they are all used here.
