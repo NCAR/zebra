@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.49 1994-12-09 18:32:35 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.50 1995-04-07 16:50:25 burghart Exp $")
 
 
 /*
@@ -1541,7 +1541,7 @@ bool	update;
 	if ((org = ds_PlatformDataOrg (pid)) == OrgImage)
 		image = TRUE;
 	else if (org == Org3dGrid || org == Org2dGrid || org == OrgIRGrid ||
-		 org == OrgScalar /* for NSpace */)
+		 org == OrgNSpace)
 		image = FALSE;
 	else
 	{
