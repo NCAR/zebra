@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.1 1994-03-19 20:48:54 burghart Exp $";
+static char *rcsid = "$Id: ModelWidget.c,v 2.2 1994-04-15 19:54:06 burghart Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -47,6 +47,8 @@ static Widget	WModel = NULL;	/* The outer form for the model widget	*/
 static Widget 	StatusLabel;	/* Where the current status goes	*/
 static Widget 	WFrate;
 static Widget	FrameButton[NCACHE];	/* Button for each frame	*/
+static Widget	UseButton[NCACHE];	/* Toggle use of frames in loop	*/
+static Widget	WAllNone;		/* Toggle use of all/no frames	*/
 static Widget	RadioGroup;		/* Radio group ID for frame btns*/
 static Widget	WValidOrIssue;		/* valid/issue radio pair	*/
 static Widget	WIssueTime;		/* text widget for issue time	*/
@@ -69,13 +71,10 @@ static ZebTime	IssueTime;		/* Issue time for model data	*/
 static bool	MyMovie = FALSE;
 
 /*
- * CurrentFrame is the frame we are supposed to be actually looking at.
- * DisplayedFrame is what we really *are* looking at.  They diverge when
- * multiple update events happen before we can actually update the screen,
- * due to system load.
+ * The last frame we asked to be displayed (CurrentFrame), and the frame
+ * that's actually up right now (DisplayedFrame).
  */
-static int 	CurrentFrame;
-static int 	DisplayedFrame;
+static int 	CurrentFrame, DisplayedFrame;
 
 /*
  * Forward definitions.
@@ -98,6 +97,7 @@ static void	mw_Cursor FP ((Widget, Cursor, int));
 static void	mw_FrameStep FP ((Widget, XEvent *, String *, Cardinal *));
 static void	mw_ValidOrIssue FP ((Widget, XtPointer, XtPointer));
 static void	mw_NewIssueTime FP ((Widget, XtPointer, XtPointer));
+static void	mw_UseAllOrNone FP ((Widget, XtPointer, XtPointer));
 
 
 
@@ -130,13 +130,19 @@ XtAppContext appc;
 	Arg	args[20];
 	char	string[40];
 	int	n, i;
-	char	*oneofmany = "<Btn1Down>,<Btn1Up>: set() notify()";
-	char	*updown = "<Btn1Down>: set() \n\
+	Pixmap	pm;
+	static char	oneofmany[] = "<Btn1Down>,<Btn1Up>: set() notify()";
+	static char	updown[] = "<Btn1Down>: set() \n\
 			   <Btn1Up>: FrameStep() unset() \n\
 			   <Btn3Down>: set() \n\
 			   <Btn3Up>: FrameStep() unset()";
-	XtActionsRec	actions[] = {
-		{"FrameStep", mw_FrameStep},
+	static XtActionsRec	actions[] = {{"FrameStep", mw_FrameStep}};
+	static char		allnone_bits[] = 
+	{
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0xff, 0x9f, 
+		0xfd, 0x7f, 0x11, 0x91, 0xfd, 0x7f, 0x11, 0xd1, 0xfc, 0x7f, 
+		0xff, 0xdf, 0xfc, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 
+		0x00, 0x00
 	};
 /*
  * Create a form widget to hold everything.
@@ -211,7 +217,8 @@ XtAppContext appc;
 		n = 0;
 		XtSetArg (args[n], XtNfromHoriz, w); n++;
 		XtSetArg (args[n], XtNfromVert, above); n++;
-		XtSetArg (args[n], XtNwidth, 30); n++;
+		XtSetArg (args[n], XtNwidth, 35); n++;
+		XtSetArg (args[n], XtNresize, False); n++;
 		XtSetArg (args[n], XtNlabel, "XX"); n++;
 		XtSetArg (args[n], XtNradioGroup, FrameButton[0]); n++;
 	/*
@@ -229,6 +236,46 @@ XtAppContext appc;
  * Use the first button to identify the radio group
  */
 	RadioGroup = FrameButton[0];
+/*
+ * Sister buttons for the frame buttons to toggle which frames will be used
+ * in a loop.  We manage them as we need them.
+ */
+	above = w;
+	w = NULL;
+	
+	for (i = 0; i < NCACHE; i++)
+	{
+		n = 0;
+		XtSetArg (args[n], XtNfromHoriz, w); n++;
+		XtSetArg (args[n], XtNfromVert, above); n++;
+		XtSetArg (args[n], XtNvertDistance, 0); n++;
+		XtSetArg (args[n], XtNwidth, 35); n++;
+		XtSetArg (args[n], XtNheight, 8); n++;
+		XtSetArg (args[n], XtNstate, True); n++;
+		XtSetArg (args[n], XtNresize, False); n++;
+		XtSetArg (args[n], XtNlabel, " "); n++;
+
+		sprintf (string, "UseButton%d", i);
+		w = UseButton[i] = XtCreateWidget (string, toggleWidgetClass,
+						   form, args, n);
+	}
+/*
+ * Toggle to use all/none.
+ */
+	pm = XCreateBitmapFromData (XtDisplay (parent), 
+				    RootWindowOfScreen (XtScreen (parent)), 
+				    allnone_bits, 31, 8);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNvertDistance, 0); n++;
+	XtSetArg (args[n], XtNwidth, 39); n++;
+	XtSetArg (args[n], XtNheight, 8); n++;
+	XtSetArg (args[n], XtNbitmap, pm); n++;
+
+	w = WAllNone = XtCreateManagedWidget ("AllNone", commandWidgetClass, 
+					      form, args, n);
+	XtAddCallback (w, XtNcallback, mw_UseAllOrNone, (XtPointer) i);
 /*
  * Start loop button
  */
@@ -310,6 +357,7 @@ XtAppContext appc;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNstate, ValidationMode); n++;
 	XtSetArg (args[n], XtNradioData, 'V'); n++;
 	w = WValidOrIssue = XtCreateManagedWidget ("valid", toggleWidgetClass, 
 						   form, args, n);
@@ -319,6 +367,7 @@ XtAppContext appc;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNstate, !ValidationMode); n++;
 	XtSetArg (args[n], XtNradioData, 'I'); n++;
 	XtSetArg (args[n], XtNradioGroup, WValidOrIssue); n++;
 	w = XtCreateManagedWidget ("issue", toggleWidgetClass, form, args, n);
@@ -416,7 +465,7 @@ mw_Update ()
 	XtSetArg (arg, XtNstring, string);
 	XtSetValues (WFrate, &arg, 1);
 /*
- * Label and manage the frame radio buttons we need right now
+ * Label and manage the frame buttons we need right now
  */
 	mw_GetFrameOffsets ();
 
@@ -429,6 +478,20 @@ mw_Update ()
 
 	XtManageChildren (FrameButton, Nframes);
 	XtUnmanageChildren (FrameButton + Nframes, NCACHE - Nframes);
+/*
+ * Manage the right number of use-frame toggle buttons and put the all/none
+ * button in the right place.
+ */
+	XtManageChildren (UseButton, Nframes);
+	XtUnmanageChildren (UseButton + Nframes, NCACHE - Nframes);
+
+	XtSetArg (arg, XtNfromHoriz, UseButton[Nframes - 1]);
+	XtSetValues (WAllNone, &arg, 1);
+/*
+ * Start with all frames included in the loop
+ */
+	for (i = 0; i < Nframes; i++)
+		XtCallActionProc (UseButton[i], "set", NULL, NULL, 0);
 /*
  * Update the status and highlight the appropriate frame button
  */
@@ -571,9 +634,15 @@ XtPointer	junk1, junk2;
 	MovieMode = FALSE;
 	MyMovie = FALSE;
 	PlotMode = History;
+/*
+ * Update the PD and make sure it gets back to the display manager and pdmon
+ * at some point
+ */
 	pd_Store (Pd, "global", "plot-mode", "history", SYMT_STRING);
-	pd_Store (Pd, "global", "movie-mode", (char *) &MovieMode, SYMT_BOOL);
+	pd_Store (Pd, "global", "movie-mode", "false", SYMT_STRING);
+
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
+	pdm_ScheduleUpdate ();
 }
 
 
@@ -650,28 +719,38 @@ int *which;
  */
 {
 	char	string[50], *info;
+	Boolean	use_frame;
 	int	frame = *which, next, interval;
 /*
- * Update the message.
+ * Do the frame generation if this frame is wanted in the loop
  */
-	sprintf (string, "Generating %d hr forecast frame", 
-		 Foffsets[frame] / 3600);
-	mw_SetStatus (string);
+	XtVaGetValues (UseButton[frame], XtNstate, &use_frame, NULL);
+
+	if (use_frame)
+	{
+	/*
+	 * Update the message.
+	 */
+		sprintf (string, "Generating %d hr forecast frame", 
+			 Foffsets[frame] / 3600);
+		mw_SetStatus (string);
+	/*
+	 * Do the frame by using the toggle widget callback.  We choose the
+	 * right button by its "radioData", which is just the frame 
+	 * number + 1.
+	 */
+		XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
+		fc_MarkFramesByOffset (Foffsets, Nframes);
+	/*
+	 * The loop might have been stopped during the X action that goes with
+	 * XawToggleSetCurrent().  If so, bail out before we try to start
+	 * another frame.
+	 */
+		if (! MovieMode)
+			return;
+	}
 /*
- * Do the frame by using the toggle widget callback.  We choose the right
- * button by its "radioData", which is just the frame number + 1.
- */
-	XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
-	fc_MarkFramesByOffset (Foffsets, Nframes);
-/*
- * The loop might have been stopped during the X action that goes with
- * XawToggleSetCurrent().  If so, bail out before we try to start another 
- * frame.
- */
-	if (! MovieMode)
-		return;
-/*
- * If we're not done, arrange to have the next frame done.
+ * If this isn't the last frame, arrange to have the next frame done.
  */
 	if ((next = frame + 1) < Nframes)
 	{
@@ -683,7 +762,7 @@ int *which;
  * Otherwise now it's time to start the loop sequence.
  */
 	mw_SetStatus ("Running");
-	DisplayedFrame = CurrentFrame = Nframes + 1;
+	CurrentFrame = DisplayedFrame;
 	mw_NextFrame ();
 /*
  * Start the timer to do the rest.
@@ -693,8 +772,8 @@ int *which;
 
 	if (TimerSlot < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Movie won't start.");
-		mw_SetStatus ("Timer problem...movie won't start");
+		msg_ELog (EF_PROBLEM, "Loop won't start.");
+		mw_SetStatus ("Timer problem...loop won't start");
 	}
 }
 
@@ -804,6 +883,8 @@ mw_NextFrame ()
  * Arrange to have the next frame displayed.
  */
 {
+	static Boolean	pausing = False;
+	Boolean	use_frame;
 /*
  * If we are out of sync -- the last update not yet done -- blow this one
  * off completely.
@@ -811,16 +892,38 @@ mw_NextFrame ()
 	if (CurrentFrame != DisplayedFrame)
 		return;
 /*
- * Increment the frame count.  We allow it to go one over the number of frames
- * around, to implement a one-cycle pause at the end of the movie.
+ * Start at the beginning of the loop if we just paused
  */
-	if (++CurrentFrame > Nframes)
-		CurrentFrame = 0;
+	if (pausing)
+	{
+		CurrentFrame = -1;
+		pausing = False;
+	}
+/*
+ * Increment until we find an enabled frame.
+ */
+	use_frame = False;
+	while (! use_frame)
+	{
+		if (++CurrentFrame == Nframes)
+		{
+		/*
+		 * If we've hit the end of the list, just redisplay the last
+		 * good frame to cause a one cycle pause at the end of the loop
+		 */
+			pausing = True;
+			CurrentFrame = DisplayedFrame;
+			break;
+		}
+
+		XtVaGetValues (UseButton[CurrentFrame], XtNstate, &use_frame,
+			       NULL);
+	}
 /*
  * Now schedule an update of the next frame.
  */
 	Eq_AddEvent (PDisplay, mw_DoNextFrame, &CurrentFrame, sizeof (int), 
-		     Bounce);
+		     Augment);
 }
 
 
@@ -834,16 +937,11 @@ int *which;
  */
 {
 	int	frame = *which;
-
-	char	string[20];
 /*
  * Do the frame by using the toggle widget callback.  We choose the right
  * button by its "radioData", which is just the frame number + 1.
  */
-	if (frame >= 0 && frame < Nframes)
-		XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
-
-	DisplayedFrame = frame;
+	XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
 }
 
 
@@ -922,8 +1020,11 @@ XtPointer	cdata, junk;
 		PlotTime.zt_Sec += ForecastOffset;
 	TC_EncodeTime (&PlotTime, TC_Full, string);
 	pd_Store (Pd, "global", "plot-time", string, SYMT_STRING);
-
+/*
+ * Make sure DM and pdmon get the changes
+ */
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
+	pdm_ScheduleUpdate ();
 /*
  * Replot
  */
@@ -991,6 +1092,7 @@ Cardinal	*num_params;
  */
 {
 	int	step, frame;
+	Boolean	use_frame;
 /*
  * Don't do anything if a movie is running
  */
@@ -1002,15 +1104,25 @@ Cardinal	*num_params;
 	step = (event->type == ButtonRelease && 
 		event->xbutton.button == Button1) ? -1 : 1;
 /*
- * Figure out the new frame and display it
+ * Find the next loop-enabled frame and display it
  */
-	frame = DisplayedFrame + step;
+	frame = DisplayedFrame;
+	use_frame = False;
 
-	if (frame < 0)
-		frame = Nframes - 1;
-
-	if (frame > Nframes - 1)
-		frame = 0;
+	while (! use_frame)
+	{
+		frame = (frame + Nframes + step) % Nframes;
+	/*
+	 * If we go all the way around and don't find a frame, just keep
+	 * the one we have.
+	 */
+		if (frame == DisplayedFrame)
+			break;
+	/*
+	 * See if this frame is enabled for use in the loop
+	 */
+		XtVaGetValues (UseButton[frame], XtNstate, &use_frame, NULL);
+	}
 /*
  * We select the FrameButton by its "radioData", which is just the frame 
  * number + 1.
@@ -1042,14 +1154,18 @@ XtPointer	id_ptr, junk;
 	if ((id == 'V' && ValidationMode) || (id == 'I' && !ValidationMode))
 		return;
 /*
- * Otherwise, update the PD and let plot control know about it
+ * Otherwise update
  */
 	ValidationMode = (id == 'V');
-	pd_Store (Pd, "global", "validation-mode", (char *)&ValidationMode, 
-		  SYMT_BOOL);
-
-	Eq_AddEvent (PWhenever, pc_ParamChange, "validation-mode", 16, 
-		     Augment);
+	parameter ("global", "validation-mode", 
+		   ValidationMode ? "true" : "false");
+/*
+ * Tweak plot time
+ */
+	if (ValidationMode)
+		PlotTime.zt_Sec += ForecastOffset;
+	else
+		PlotTime.zt_Sec -= ForecastOffset;
 }
 
 
@@ -1065,6 +1181,7 @@ XtPointer	junk1, junk2;
 {
 	Arg	arg;
 	char	*itstring, scratch[40];
+	ZebTime	prevtime;
 /*
  * Make the issue time "Apply" widget insensitive again
  */
@@ -1079,6 +1196,8 @@ XtPointer	junk1, junk2;
  * If we can't read a good time from the string, just go back to the old
  * issue time.
  */
+	prevtime = IssueTime;
+
 	if (! TC_DecodeTime (itstring, &IssueTime))
 	{
 	/*
@@ -1092,15 +1211,46 @@ XtPointer	junk1, junk2;
 
 		return;
 	}
+
+	if (TC_Eq (prevtime, IssueTime))
+		return;
 /*
- * Update the PD and let plot control know about it.
+ * Update the PD
  */
 	PlotTime = IssueTime;
 	if (ValidationMode)
 		PlotTime.zt_Sec += ForecastOffset;
 
 	TC_EncodeTime (&PlotTime, TC_Full, scratch);
-	pd_Store (Pd, "global", "plot-time", scratch, SYMT_STRING);
+	parameter ("global", "plot-time", scratch);
+}
 
-	Eq_AddEvent (PWhenever, pc_ParamChange, "plot-time", 10, Augment);
+
+
+
+static void
+mw_UseAllOrNone (w, junk1, junk2)
+Widget	w;
+XtPointer	junk1, junk2;
+/*
+ * If any frames are set to be used in the loop, turn them all off.  Otherwise
+ * turn them all on.
+ */
+{
+	int	i;
+	Boolean	state, any_on = False;
+/*
+ * See if any of the frames are currently "enabled"
+ */
+	for (i = 0; i < Nframes; i++)
+	{
+		XtVaGetValues (UseButton[i], XtNstate, &state, NULL);
+		any_on |= state;
+	}
+/*
+ * If any were on, turn them all off, otherwise turn them all on
+ */
+	for (i = 0; i < Nframes; i++)
+		XtCallActionProc (UseButton[i], any_on ? "unset" : "set",
+				  NULL, NULL, 0);
 }
