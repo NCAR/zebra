@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.7 1992-08-10 17:30:54 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.8 1992-11-06 17:59:08 burghart Exp $");
 
 
 /*
@@ -1562,6 +1562,7 @@ int ndetail;
 	float badval;
 	FieldId *fids;
 	int nfield, tbegin, tend, dcsamp = dc_GetNSample (dc), samp;
+	bool metdata = dc_IsSubClassOf (dc->dc_Class, DCC_MetData);
 	SValue v;
 /*
  * Get the file open for starters.
@@ -1569,14 +1570,21 @@ int ndetail;
 	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return (0);
 /*
- * If bad value flags are relevant, make sure they get what they want.
+ * Met data stuff
  */
-	if (dc_IsSubClassOf (dc->dc_Class, DCC_MetData))
+	if (metdata)
 	{
-		badval = ds_GetDetail ("badval", details, ndetail, &v) ?
-				v.us_v_float : 99999.9;
-		dc_SetBadval (dc, badval);
-		fids = dc_GetFields (dc, &nfield);
+		badval = dc_GetBadval (dc);
+	/*
+	 * Complain for now if the user requests a bad value flag 
+	 * and it doesn't match the one from the file
+	 */
+		if (ds_GetDetail ("badval", details, ndetail, &v) &&
+			v.us_v_float != badval)
+		{
+			msg_ELog (EF_PROBLEM, "User/file badval mismatch!");
+			return (0);
+		}
 	}
 /*
  * Get the time indices.
