@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.9 1990-09-11 09:36:43 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.10 1990-09-17 10:23:09 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -52,7 +52,7 @@ char **argv;
  */
 	fixdir_t ("DMLOADFILE", "/fcc/lib", "dm.lf", loadfile, ".lf");
 	ui_init (loadfile, TRUE, FALSE);
-	ui_setup ("DisplayMgr", argc, argv, (char *) 0);
+	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 /*
  * Create our symbol tables.
  */
@@ -333,9 +333,20 @@ struct ui_command *cmds;
 	{
 		struct cf_window *wp = cfg->c_wins + win, *exist;
 	/*
-	 * Fix up this window on the screen.
+	 * If this is a widget window, deal with it separately.
 	 */
-		if (! (exist = lookup_win (wp->cfw_name, FALSE)))
+	 	if (wp->cfw_flags & CF_WIDGET)
+		{
+			uw_ForceOverride (wp->cfw_name);
+			uw_SetGeometry (wp->cfw_name, wp->cfw_x, wp->cfw_y,
+				wp->cfw_dx, wp->cfw_dy);
+			uw_popup (wp->cfw_name);
+		}
+	/*
+	 * Otherwise it's a graphics window.  If it does not yet exist, we
+	 * have to create it.
+	 */
+		else if (! (exist = lookup_win (wp->cfw_name, FALSE)))
 		{
 			msg_ELog (EF_DEBUG, "Create win %s", wp->cfw_name);
 			create_win (wp);
@@ -343,6 +354,9 @@ struct ui_command *cmds;
 			if ((win % 4) == 0)
 				sleep (1);
 		}
+	/*
+	 * If it does exist, deal with the PD, and send it a new config.
+	 */
 		else
 		{
 			msg_ELog (EF_DEBUG, "Existing win %s", wp->cfw_name);
@@ -436,16 +450,27 @@ struct ui_command *cmds;
 disp_suspend (name, type, v, junk)
 char *name;
 int type, junk;
-union usy_value v;
+SValue *v;
 /*
  * Suspend this window.
  */
 {
 	struct dm_msg dmsg;
-
-	dmsg.dmm_type = DM_SUSPEND;
-	msg_send (name, MT_DISPLAYMGR, FALSE, (char *) &dmsg,
-		sizeof (struct dm_msg));
+	struct cf_window *wp = (struct cf_window *) v->us_v_ptr;
+/*
+ * If it's a widget, just pop it down.
+ */
+	if (wp->cfw_flags & CF_WIDGET)
+		uw_popdown (name);
+/*
+ * Otherwise we have to tell it to go away.
+ */
+ 	else
+	{
+		dmsg.dmm_type = DM_SUSPEND;
+		msg_send (name, MT_DISPLAYMGR, FALSE, (char *) &dmsg,
+			sizeof (struct dm_msg));
+	}
 	return (TRUE);
 }
 
@@ -581,8 +606,8 @@ struct dm_msg *dmsg;
 		msg_ELog (EF_DEBUG, "Hello received from '%s' win %x", from,
 			dmh->dmm_win);
 		win->cfw_win = dmh->dmm_win;
-		config_win (win);
 		send_default (win);
+		config_win (win);
 		break;
 	/*
 	 * A button report
