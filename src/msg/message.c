@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.27 1995-04-25 21:11:09 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.28 1995-04-27 13:56:43 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -1520,6 +1520,11 @@ int fd;
  * Clean up FDs
  */
 	FD_CLR (fd, &Allfds);
+	if (FD_ISSET (fd, &WriteFds))
+	{
+		FD_CLR (fd, &WriteFds);
+		NWriteFd--;
+	}
 	Fd_map[fd] = NULL;
 	shutdown (fd, 2);
 	close (fd);
@@ -2058,14 +2063,6 @@ struct message *msg;
  */
 {
 	struct connection *conp;
-
-#ifdef notdef /* should have been done in ReadMessage */
-/*
- * Copy in the REAL sender of the message.
- */
-	if (! Fd_map[fd]->c_inet)
-	 	strcpy (msg->m_from, Fd_map[fd]->c_name);
-#endif
 /*
  * Hand off copies to any eavesdroppers.
  */
@@ -2127,7 +2124,8 @@ char *recip;
 static void
 Alarm ()
 {
-	send_log (EF_DEBUG, "Got alarm");
+	send_log (EF_DEBUG, "alarm: timeout (%d seconds) for %s",
+		  INETCTIME, "internet connection");
 }
 
 
@@ -2215,7 +2213,8 @@ char *host;
 		SValue v;
 		if (errno == EINTR)	/* timeout */
 		{
-			send_log(EF_PROBLEM, "Timeout -- avoiding %s", host);
+			send_log(EF_PROBLEM, "connection timeout, avoiding %s",
+				 host);
 			usy_s_symbol (InetAvoidTable, host, SYMT_INT, &v);
 		}
 		if (! usy_defined (InetGripeTable, host))
