@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.9 1992-03-19 22:40:25 corbet Exp $ */
+/* $Id: defs.h,v 2.10 1992-04-08 16:56:00 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -93,12 +93,12 @@ void	SetupConfigVariables FP ((void));
 
  /* New time format utilities */
 
-long	TC_ZtToSys FP ((ZebTime *));
+long	TC_ZtToSys FP ((const ZebTime *));
 void	TC_SysToZt FP ((long, ZebTime *));
-void	TC_UIToZt FP ((date *, ZebTime *));
-void	TC_ZtToUI FP ((ZebTime *, date *));
-void	TC_EncodeTime FP ((ZebTime *, TimePrintFormat, char *));
-void	TC_ZtSplit FP ((ZebTime *, int *, int *, int *, int *, int *,
+void	TC_UIToZt FP ((const date *, ZebTime *));
+void	TC_ZtToUI FP ((const ZebTime *, date *));
+void	TC_EncodeTime FP ((const ZebTime *, TimePrintFormat, char *));
+void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 		int *, int *));
 void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
 
