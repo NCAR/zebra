@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.21 1995-07-06 04:50:45 granger Exp $ */
+/* $Id: message.h,v 2.22 1996-08-16 16:38:40 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -230,9 +230,11 @@ struct msg_elog
 					   meant to be sent to the logger */
 # define EF_ALL		0x3f		/* All events mask		*/
 
-# define EF_SETMASK	0x10000000	/* Set the event mask		*/
+# define EF_SETMASK	0x10000000	/* SET the event mask		*/
+# define EF_ORMASK	0x20000000	/* OR the event mask		*/
 
-# define EVENT_LOGGER_NAME	"Event logger"
+# define EVENT_LOGGER_NAME	"Logger"
+# define EVENT_LOGGER_GROUP	"EventLoggers"
 
 /*
  * Message Flags.
@@ -258,6 +260,7 @@ struct msg_elog
  * Standard group names recognized by the message manager
  */
 # define MSG_CLIENT_EVENTS	"Client events"
+# define MSG_EVERYBODY		"Everybody"
 
 /*
  * Message tap protocol.
