@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.1 1996-11-19 08:15:36 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.2 1997-01-14 17:47:55 granger Exp $")
 
 
 /*
@@ -157,9 +157,15 @@ static void dt_DecodeSubplats FP ((FILE *fp, const PlatformClass *spc,
 void
 dt_InitDirectories ()
 {
+	char *dir;
+
 	strcpy (DefDataDir, GetDataDir());
 	RemDataDir[0] = '\0';
 	DisableRemote = FALSE;
+	if ((dir = getenv("DS_DATA_DIR")) != NULL)
+	{
+		strcpy (DefDataDir, dir);
+	}
 }
 
 

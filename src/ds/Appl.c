@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.47 1996-12-13 18:31:56 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.48 1997-01-14 17:47:51 granger Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -178,6 +178,10 @@ ds_InitAPI ()
 	if (once++)
 		ds_FreeCache ();
 	ds_InitPFCaches ();
+/*
+ * Initialize platform directories.
+ */
+	dt_InitDirectories ();
 }
 
 
@@ -191,7 +195,6 @@ ds_Initialize()
 {
 	Standalone = 0;
 	ds_InitAPI ();
-	dt_InitDirectories ();
 	return (ds_Connect ());
 }
 
