@@ -18,13 +18,15 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsrescan.c,v 1.7 1994-11-19 00:31:44 burghart Exp $";
 
-# include "defs.h"
-# include "message.h"
+# include <string.h>
+
+# include <defs.h>
+# include <message.h>
 # include <copyright.h>
-# include "DataStore.h"
+# include <DataStore.h>
 
+RCSID ("$Id: dsrescan.c,v 1.8 1995-04-19 14:48:40 granger Exp $")
 
 #ifdef notdef	/* do we need this if we don't call getenv()? */
 /*
@@ -59,7 +61,14 @@ char *prog;
 }
 
 
+static int
+handler ()
+{
+	return (0);
+}
 
+
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -86,7 +95,7 @@ char **argv;
  */
 	usy_init ();
 	sprintf (pname, "Rescan-%d", getpid ());
-	msg_connect (0, pname);
+	msg_connect (handler, pname);
 	ds_Initialize ();
 /*
  * Figure out the params, then do the dirty work.
