@@ -47,7 +47,7 @@ Testing mode which reads bytes from file and sends to consumer
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.11 2000-05-24 22:33:28 granger Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.12 2000-06-02 21:09:25 granger Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -252,7 +252,7 @@ char **argv;
 	if (conn.c_Consumer && ! strcmp (conn.c_Consumer, "print"))
 		conn.c_Consumer = NULL;
 /* 
- * Hook in.  (Colon is not a valid character in message names.)
+ * Hook in.  (Use dash, colon is not a valid character in message names.)
  */
 	sprintf (buf, "%s-%s", name, conn.c_Port);
 	if (! msg_connect (MHandler, buf))
@@ -733,9 +733,16 @@ int len;	/* number of bytes to send from data array */
 		msg_send (conn->c_Consumer, MT_SLDATA, FALSE, sld,
 			  sld->sl_len + sizeof (SLdata) - 1);
 	}
+	else if (conn->c_Mode == TextMode)
+	{
+	    /* Print the text with the line separations and flush it out. */
+	    fprintf (stdout, "%s\n", data);
+	    fflush (stdout);
+	}
 	else
 	{
-		printf ("%s\n", data);
+	    /* Write the bytes to stdout. */
+	    fwrite (data, len, 1, stdout);
 	}
 }
 
