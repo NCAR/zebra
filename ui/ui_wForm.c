@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.5 1992-08-10 16:31:50 burghart Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.6 1992-12-18 21:10:30 corbet Exp $";
 
 
 # define MAXENTRY 100
@@ -678,6 +678,31 @@ char *form, *ent, *text;
 	XtSetValues (fe->fe_Widget, args, 1);
 	uw_sync ();
 }
+
+
+
+
+
+void
+uw_FormMenu (form, ent, menu)
+char *form, *ent, *menu;
+/*
+ * Tweak the menu in a form entry.
+ */
+{
+	Arg args[2];
+	FormEntry *fe = uw_FindEntry (form, ent);
+	XtTranslations ttrans;
+	char ctrans[256];
+/*
+ * Make a new set of translations and store them into the widget.
+ */
+	uw_IWRealize (menu, Top);
+	sprintf (ctrans, PDATrans, fe->fe_Frame->fw_name, menu);
+	ttrans = XtParseTranslationTable (ctrans);
+	XtOverrideTranslations (fe->fe_Widget, ttrans);
+}
+
 
 
 

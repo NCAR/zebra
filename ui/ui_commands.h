@@ -1,4 +1,4 @@
-/* $Id: ui_commands.h,v 1.9 1992-01-30 21:09:01 corbet Exp $ */
+/* $Id: ui_commands.h,v 1.10 1992-12-18 21:10:30 corbet Exp $ */
 /*
  * This file defines all of the command keyword numbers.  It absolutely MUST
  * match the numbers given in the state transition information, or things
@@ -122,6 +122,7 @@
 # define UIC_BLANK	-95
 # define UIC_FORMTEXT	-96
 # define UIC_PULLDOWN	-97
+# define UIC_FORMMENU	-98
 
 /*
  * Control structure commands have their own range.  The UI dispatcher is

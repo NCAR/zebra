@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.19 1992-08-04 22:19:35 burghart Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.20 1992-12-18 21:10:30 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -609,6 +609,9 @@ bool exec;
 	 */
 	   case UIC_FORMTEXT:
 	   	uw_FormText (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]));
+		return (TRUE);
+	   case UIC_FORMMENU:
+	   	uw_FormMenu (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]));
 		return (TRUE);
 # endif
 	/*
