@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.23 1994-11-01 21:48:29 corbet Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.24 1994-11-17 07:39:10 granger Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -858,8 +858,11 @@ char 		*c;		/* Plot description component */
 	else if (xyOrg == OrgNSpace)
 	{
 	/*
-	 * Stuff for n-space vectors
-	 * FIX THIS ONE TOO
+	 * N-Space vectors
+	 *
+	 * FIX THIS ONE TOO:
+	 * Not broken since the size of nspace dimensions cannot change
+	 * between samples of the same datachunk.
 	 */
 		xy_NSpaceVector (dc, fids, fcount, &dcveclen);
 		dcpts *= dcveclen;
