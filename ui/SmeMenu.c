@@ -1,5 +1,5 @@
 #if ( !defined(lint) && !defined(SABER) )
-static char rcsid[] = "$Id: SmeMenu.c,v 1.15 2001-11-30 00:42:05 granger Exp $";
+static char rcsid[] = "$Id: SmeMenu.c,v 1.16 2002-07-11 19:33:50 burghart Exp $";
 #endif 
 
 /*
@@ -38,6 +38,8 @@ static char rcsid[] = "$Id: SmeMenu.c,v 1.15 2001-11-30 00:42:05 granger Exp $";
  * lifted directly from SmeBSB.c.  Only things having to do with the
  * sub-menu abstraction were written by VJ.
  */
+
+#ifdef XSUPPORT
 
 #include <stdio.h>
 #include <X11/IntrinsicP.h>
@@ -874,3 +876,4 @@ SmeMenuPoppedUp (w)
 }
 
 
+#endif /* XSUPPORT */

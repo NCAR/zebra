@@ -1,4 +1,4 @@
-/* $Id: RdssMenu.c,v 1.11 2001-11-30 00:42:05 granger Exp $ */
+/* $Id: RdssMenu.c,v 1.12 2002-07-11 19:33:50 burghart Exp $ */
 /*
  * Hacked up version of SimpleMenu to provide some useful stuff -- in
  * particular, better cascading menus.
@@ -35,6 +35,8 @@
  *          MIT X Consortium 
  *          kit@expo.lcs.mit.edu
  */
+
+#ifdef XSUPPORT
 
 #include <stdio.h>
 #include <X11/IntrinsicP.h>
@@ -1854,3 +1856,5 @@ XEvent * event;
 	   XtName(w), x_loc, y_loc);)
     return(NULL);
 }
+
+#endif /* XSUPPORT */
