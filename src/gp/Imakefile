@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.1 1992-08-20 13:26:26 granger Exp $ 
+/**/# $Id: Imakefile,v 1.2 1992-09-15 15:53:11 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -39,7 +39,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
-	XYObservation.o GraphProc.o
+	XYObservation.o GraphProc.o PDMonitor.o
 
 SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c BndWidget.c \
 	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
@@ -49,7 +49,8 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c BndWidget.c \
 	Overlay.c PlotControl.c PlotExec.c PlotPrim.c PositionWidget.c \
 	RBand.c RasterPlot.c Skewt.c TimeSeries.c Track.c UserEvent.c \
 	Utilities.c VectorGrid.c XSection.c XYCommon.c XYContour.c \
-	XYGraph.c XYObservation.c XYWind.c derive.c malloc.c sfont_1.c
+	XYGraph.c XYObservation.c XYWind.c derive.c malloc.c sfont_1.c \
+	PDMonitor.c
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	GraphicsW.h GraphicsWP.h LLEvent.h Label.h LabelP.h \
