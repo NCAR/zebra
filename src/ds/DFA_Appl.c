@@ -32,7 +32,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.1 1995-07-06 10:21:21 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.2 1995-11-19 16:14:48 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -711,7 +711,7 @@ int ndetail;
 	 * as a single block.  The answer is at least one.
 	 */
 		ds_FindBlock (dfile, dfnext, dc, &p, sample, wc, &block_size);
-		msg_ELog((block_size >= 25) ? EF_INFO : EF_DEBUG,
+		msg_ELog((block_size >= 25) ? EF_DEBUG : EF_DEVELOP,
 			 "%s block of %i samples to %s",
 			 (wc == wc_Append) ? "appending" :
 			 ((wc == wc_Insert) ? "inserting" : 
