@@ -26,7 +26,7 @@
 
 #ifndef lint
 static char *rcsid = 
-	"$Id: ssmi_ingest.c,v 1.2 1993-06-17 04:55:57 granger Exp $";
+	"$Id: ssmi_ingest.c,v 1.3 1993-06-17 11:42:07 granger Exp $";
 #endif
 
 #include <time.h>
@@ -47,7 +47,12 @@ static char *rcsid =
 #define DEG_TO_RAD(x)	((x)*(double)0.017453293)
 #define PLATFORM 	"ssmi"		/* default platform name */
 #define DC_BLOCK_SIZE	0		/* # samples before storing a DC  */
-#define OURNAME		"SSMI IN"
+#define OURNAME		"SSMI Attack"
+#define TAPE_ERRORS	10		/* # tape errors to abort after */
+#define DEFAULT_RESOLUTION (12.5)	/* km */
+
+#define StoreBlocks(a,b,c,d) ((NoDataStore)?(TRUE):\
+			      (ds_StoreBlocks(a,b,c,d)))
 
 static int NextRecs FP(( int fd, SSMI_LogicalRec *lrecs, int *nlogical ));
 static void WriteRecs FP(( int fd, SSMI_LogicalRec *lrecs, int nlogical ));
@@ -57,12 +62,14 @@ static int ReadTape FP((int fd, SSMI_LogicalRec *lrecs, int *nlogical,
 static int ProcessTape FP((int tape_fd, int echo_fd, SSMI_LogicalRec *lrecs,
 			   int is_tape));
 static DataChunk *CreateDC ();
-static int ScanWithinLimits FP((SSMI_LogicalRec *lrec));
+static int ScanWithinLimits FP((SSMI_LogicalRec *lrec, int check_lon));
 static int IsGarbage FP((OUTDAT_BLOCK *dat));
+static void IngestImage FP((SquareScan *ss));
 static void BuildImage FP((SquareScan *ss, DataChunk *dc));
 static void FillGrid FP((unsigned char *image, SquareScan *ss, 
 			 GridMap *gm, Channel ch));
 static void Log FP((int flags, SSMI_LogicalRec *lrec, int nrec));
+void ReportGridMapStats FP((SquareScan *ss, GridMap *gm));
 
 /*
  * Large buffer data that is best left global, holds one physical record
@@ -70,6 +77,7 @@ static void Log FP((int flags, SSMI_LogicalRec *lrec, int nrec));
  */
 SSMI_LogicalRec LRecs[16];
 char 		*Platform = PLATFORM;
+float		Resolution = DEFAULT_RESOLUTION;
 
 struct SSMI_Field {
 	char *name;
@@ -99,14 +107,14 @@ FieldId Fids[ NUM_FIELDS ];
 
 ScaleInfo Scales[ NUM_FIELDS ] = /* real value = data/s_Scale + s_Offset */
 {
-	{ 1.0, 200.0 },/* Assuming temperatures (K) from 200 (-73 C) to 456 */
-	{ 1.0, 200.0 },
-	{ 1.0, 200.0 },
-	{ 1.0, 200.0 },
-	{ 1.0, 200.0 },
-	{ 1.0, 200.0 },
-	{ 1.0, 200.0 },
-	{ 1.0, 0.0 }   /* The surface-type index */
+	{ 1.41667, 120.0 },	/* Assuming temps (K) from 100 to 320 */
+	{ 1.41667, 120.0 },
+	{ 1.41667, 120.0 },
+	{ 1.41667, 120.0 },
+	{ 1.41667, 120.0 },
+	{ 1.41667, 120.0 },
+	{ 1.41667, 120.0 },
+	{ 1.0, 	   0.0 }   	/* The surface-type index */
 };
 
 
@@ -114,47 +122,39 @@ ScaleInfo Scales[ NUM_FIELDS ] = /* real value = data/s_Scale + s_Offset */
 /*
  * Let's talk strategy:
  *
-
  * We'll ingest these fields into a grid: ta19v, ta19h, ta22v, ta37v,
  * ta37h, ta85v, ta85h, and sfcidx.  The 'ta' fields are all antenna
  * temperatures, 'sfcidx' is the surface-type index.  At some point we may
  * want to ingest 'tb' (brightness temperatures) as well.
-
  *
-
  * The two 85 Ghz channels have twice the resolution of the 5 lower
  * frequency channels.  This means two different RGrid info structures, one
  * for the low channels and one for the high.
-
  *
-
  * Use a DCC_RGrid class DataChunk, until an appropriate scale and offset
  * can be found for each field.  In which case, the scale and offset will
  * be stored in an array parallel to the Fields and Fids arrays.  The array
  * of ScaleInfo structures will be needed in dc_ImgSetup() and used to fill
  * in the grid in FillGrid().
-
  *
-
  * We cannot possibly ingest every image, and we're only interested in
  * those near Darwin.  So define a lat/lon range and reject all images for
  * which the lat/lon of the first scan cell is not in this range.
-
- *	
  */
-
 
 static void
 Usage (prog)
 char *prog;
 {
 	printf ("Usage: %s [ingest options] [-p <plat>] ", prog);
-	printf ("[-o <file>] <tapedev>\n");
+	printf ("[-o <file>] [-r <res>] <tapedev>\n");
 	printf ("where...\n   <plat> is the name of a platform, ");
 	printf ("default: '%s'\n",PLATFORM);
 	printf ("   <file> is a file to echo valid logical records to\n");
 	printf ("   <tapedev>, if not a valid tape device, ");
 	printf ("is a file produced by -o\n");
+	printf ("   <res> is the resolution in km.  The default ");
+	printf ("resolution is %f km.\n", DEFAULT_RESOLUTION);
 	IngestUsage ();
 }
 	
@@ -171,6 +171,7 @@ char	**argv;
 	int is_tape;	/* non-zero if we're reading a tape (== skip EOF) */
 	int nlog;
 	SSMI_LogicalRec *lrec;
+	int pt;		/* return value from process tape */
 
 	mprof_stop();
 /*
@@ -189,6 +190,18 @@ char	**argv;
 		{
 			ofile = argv[i+1];
 			IngestRemoveOptions(&argc, argv, i, 2);
+		}
+		else if (!strcmp(argv[i], "-r") && (i+1 < argc))
+		{
+			Resolution = atof(argv[i+1]);
+			IngestRemoveOptions(&argc, argv, i, 2);
+			if (Resolution <= 0.0)
+			{
+				printf ("Illegal resolution: %f",
+					Resolution);
+				Usage (argv[0]);
+				exit (1);
+			}
 		}
 		else
 			++i;
@@ -253,12 +266,14 @@ char	**argv;
  */
 /*	mprof_restart("mprof.data2");	*/
 
-	ProcessTape (fd, echo_fd, LRecs, is_tape);
+	pt = ProcessTape (fd, echo_fd, LRecs, is_tape);
+	if (pt >= 0)
+		IngestLog (EF_INFO,"Finished after %d records",pt);
 
 	if (ofile) 
 		close(echo_fd);
 	close(fd);
-	return (0);
+	return ((pt < 0) ? pt : 0);
 }
 
 
@@ -283,8 +298,15 @@ int fd;
 SSMI_LogicalRec *lrecs;
 int *nlog;
 int is_tape;
+/*
+ * Returns > 0 if another block of logical records has been read,
+ *	   = 0 if EOF or EOM
+ *	   < 0 if error, leaves error number in errno
+ */
 {
 	int size;
+	int errcnt;
+
 	/*
 	 * To make sure we read the whole tape, ignore errors and try
 	 * to blast through them.  Don't stop unless we detect EOM,
@@ -292,23 +314,29 @@ int is_tape;
 	 *
 	 * Of course, if we're reading a file, quit at the first EOF.
 	 */
+	errcnt = 0;
 	while ((size = NextRecs (fd, lrecs, nlog)) <= 0)
 	{
-		if (size < 0)		/* skip errors */
-			continue;
-		if (is_tape)		/* otherwise (size==0) <==> EOF */
+		if ((size == 0) && !is_tape)		/* end of file */
+			return FALSE;
+		if ((size == 0) && is_tape)
 		{
 			size = NextRecs (fd, lrecs, nlog); /* skip EOF */
-			if (size == 0) 	/* EOM --- end of media */
-				return FALSE;
-			if (size > 0)  	/* got something, send it along */
-				return TRUE;
-			/* otherwise an error, so drop out and try again */
+			if (size >= 0)	/* either EOM or some data */
+				return (size);
 		}
-		else
-			return FALSE;			/* end of file */
+		if (size < 0)		/* skip errors (size < 0) */
+		{
+			++errcnt;
+			if (errcnt > TAPE_ERRORS)
+			{
+				IngestLog (EF_EMERGENCY,
+				   "Aborting from tape error #%d", errno);
+				return (size);
+			}
+		}
 	}
-	return TRUE;
+	return (size);
 }
 
 
@@ -321,25 +349,20 @@ int is_tape;
 /*
  * Read one physical record after another, combining scan pairs in 
  * logical records into SquareScan's and converting the squares into
- * RGrid DataChunk's. Return non-zero if we successfully read some data.
+ * RGrid DataChunk's. Return number records read or an error < 0.
  */
 {
 	SquareScan square;
-	DataChunk *dc;
-	int scanpairs;		/* Number consecutive A/B scans added 	*/
-	int lastpair;		/* Number of last scan used to build img*/
-	int nlog;
-	int i;
+	int nlog;		/* Number logical records in block	*/
+	int rt;			/* return value from ReadTape		*/
+	int i;			/* Loop over logical records in block	*/
 	int nrecs = 0;		/* total number logical records read	*/
-	int inbounds;
-	long log_orbit;		/* orbit number to log next		*/
+	int inbounds = 0;	/* Whether previous scan was valid 	*/
+	long log_orbit = 0;	/* orbit number to log next		*/
+	int nimages = 0;	/* Number images ingested so far	*/
 
-	dc = CreateDC();
 	SqClear (&square);
-	scanpairs = lastpair = 0;
-	inbounds = 0;		/* Whether previous scan was valid 	*/
-	log_orbit = 0;
-	while (ReadTape (fd, lrecs, &nlog, is_tape))
+	while ((rt = ReadTape (fd, lrecs, &nlog, is_tape)) > 0)
 	{
 		/*
 		 * Process the individual scans in each logical record
@@ -359,35 +382,35 @@ int is_tape;
 			/*
 			 * If we still haven't found a scan we want,
 			 * keep going.  If the previous one was no good,
-			 * we don't have any bookkeeping to do either
+			 * we don't have any bookkeeping to do either.
+			 * Only check longitude limits if the previous
+			 * scan was not inbounds (i.e. the square is
+			 * empty).
 			 */
-			if (!ScanWithinLimits (lrecs+i))
+			if (!ScanWithinLimits (lrecs+i, !inbounds))
 			{
 				if (!inbounds)
 					continue;
 				else
 					inbounds = 0;
 			}
-			else
+			else if (!inbounds)
 			{
 				/*
 				 * Beginning to find scans in the right place
 				 */
-				if (!inbounds)
-				{
-				   IngestLog (EF_INFO, 
+				IngestLog (EF_INFO, 
 				   "Beginning to read image of scans...");
-				   inbounds = 1;
-				}
+				inbounds = 1;
 			}
 
 			Log (EF_DEBUG, lrecs+i, nrecs+i);
 			if (inbounds)
 			{
-				decode_ssmi (1, 0, 1, i+1, (char *)(lrecs+i));
+				decode_ssmi (1, 0, 1, i+1, (char *)lrecs);
 				/*
 				 * More complications: the decoded scan pair
-				 * may be garbage.  If so, ignore it
+				 * may be garbage.  If so, ignore it.
 				 */
 				if (IsGarbage(C_OUTDAT))
 				{
@@ -397,15 +420,10 @@ int is_tape;
 			        }
 				else
 				{
-					++scanpairs;
 					SqAddLRec (&square, C_OUTDAT);
 				}
 			}
-			else
-			{
-				IngestLog (EF_DEBUG, 
-					   "Out-of-limit scan ending image");
-			}
+
 			/*
 			 * Write this record no matter what.  If inbounds,
 			 * it will be part of the image.  If not, it will
@@ -413,38 +431,46 @@ int is_tape;
 			 */
 			WriteRecs (echo_fd, lrecs+i, 1);
 
-			if (SqIsFull(&square) && (scanpairs-lastpair >= 8) &&
-			    ((scanpairs % 32 == 0) || (!inbounds)))
+			if (inbounds)
 			{
-				lastpair = scanpairs;
-				BuildImage (&square, dc);
-				if (dc_GetNSample(dc) >= DC_BLOCK_SIZE)
-				{
-					ds_StoreBlocks (dc, TRUE, NULL, 0);
-					dc_DestroyDC (dc);
-					dc = CreateDC ();
-				}
+				/*
+				 * As long as we're getting scans inbounds,
+				 * keep reading and keep adding to the square
+				 */
+				continue;
+			}
+			IngestLog (EF_DEBUG, 
+				   "Out-of-limit scan closing image");
+			/*
+			 * So we know we have now left our latitude
+			 * boundaries, so its time to build an image from
+			 * the scans in our square.  Of course, squares 
+			 * with few scans are useless and ignored.
+			 */
+			if (SqNumScans(&square) > 32)
+			{
+				IngestImage (&square);
+				++nimages;
+			}
+			else
+			{
+				IngestLog (EF_PROBLEM,
+					   "Only %d scans, image not built",
+					   SqNumScans(&square));
 			}
 
-			if (!inbounds)	/* Clear out scans */
-			{
-				IngestLog (EF_DEBUG, 
+			/* Clear out scans */
+			IngestLog (EF_DEBUG, 
 				   "Scans now out of limits, clearing image");
-				scanpairs = 0;
-				lastpair = 0;
-				SqClear (&square);
-			}
+			SqClear (&square);
 		}
 		nrecs += nlog;
+
 	} /* while ReadTape() */
 
-	if (dc_GetNSample(dc) > 0)
-	{
-		ds_StoreBlocks (dc, TRUE, NULL, 0);
-	}
-	dc_DestroyDC (dc);
-	IngestLog(EF_INFO,"Finished file of %i logical records",nrecs);
-	return (nrecs);
+	IngestLog(EF_INFO, "Read %i logical records, created %i images", 
+		  nrecs, nimages);
+	return ((rt < 0) ? rt : nrecs);
 }
 
 
@@ -479,8 +505,6 @@ int *nlog;
 
 
 
-
-
 static void
 WriteRecs (fd, lrecs, nlog)
 int fd;
@@ -496,7 +520,6 @@ int nlog;
 		fsync(fd);
 	}
 }
-
 
 
 
@@ -572,35 +595,45 @@ OUTDAT_BLOCK *dat;
 	
 
 static int
-ScanWithinLimits (lrec)
-SSMI_LogicalRec *lrec;
+ScanWithinLimits (lrec, check_lon)
+SSMI_LogicalRec *lrec;	/* the record to check				*/
+int check_lon;		/* nonzero if interested in checking lon limits */
 /*
- * Determine if this scan is within lat/lon limits in which we're
+ * Determine if this scan is within the lat/lon limits in which we're
  * interested in, using the first A-scan lat and lon from logical record
  */
 {
 	/*
 	 * Do the comparison with the biased/scaled short rather than
-	 * convert every lat/lon from the logical record
+	 * convert every lat/lon from the logical record.  Trying to center
+	 * images over Berrimah: -12.45722 lat, 130.92528 lon.  One
+	 * 128-cell (12.5 km/cell) is about 14 degrees wide.  The
+	 * longitudinal separation between orbits is about 25 degrees, so
+	 * use that distance to make sure we get at least one image every
+	 * 24 hours.  Sun-synchronous satellites cover the whole earth
+	 * every 24 hours in 14 orbits, passing over each spot at approx.
+	 * the same local time every 24 hours.  Cells can be scanned either
+	 * E-W or W-E, so check that lon of both ends of scan are within
+	 * limits.  This means we'll at least get the one pass per day that
+	 * passes closest to Darwin.
 	 */
-	static const short
-	   north_lat = (short)(((-12.45722 + 20.0) + 90.0)*1.0e+2);
-	static const short
-	   south_lat = (short)(((-12.45722 - 20.0) + 90.0)*1.0e+2);
-	static const short
-	   west_lon = (short)((130.92528 - 20.0)*1.0e+2);
-	static const short
-	   east_lon = (short)((130.92528 + 10.0)*1.0e+2);
+	static const unsigned short
+	   north_lat = ((-2.0 + 90.0)*1.0e+2);
+	static const unsigned short
+	   south_lat = ((-22.0 + 90.0)*1.0e+2);
+	static const unsigned short
+	   west_lon = ((112.0)*1.0e+2);
+	static const unsigned short
+	   east_lon = ((137.0)*1.0e+2);
 
-	/*
-	 * Our current limits are 20 degrees W, and 10 degrees N and S of the
-	 * Darwin radar site at Berrimah.
-	 */
-	if ((lrec->a_lon[0] > east_lon) || (lrec->a_lon[0] < west_lon) ||
-	    (lrec->a_lat[0] > north_lat) || (lrec->a_lat[0] < south_lat))
+	if ((lrec->a_lat[0] > north_lat) || (lrec->a_lat[0] < south_lat))
 		return (FALSE);
-	else
+	if (!check_lon)
 		return (TRUE);
+	if ((lrec->a_lon[0] > east_lon) || (lrec->a_lon[0] < west_lon) ||
+	    (lrec->a_lon[127] > east_lon) || (lrec->a_lon[127] < west_lon))
+		return (FALSE);
+	return (TRUE);
 }
 
 
@@ -633,14 +666,34 @@ DataChunk 	*dc;
 
 
 static void
+IngestImage (ss)
+SquareScan *ss;
+/*
+ * Build an image out of this SquareScan, add it to a DataChunk,
+ * and ingest the DataChunk.
+ */
+{
+	DataChunk *dc;
+
+	dc = CreateDC ();
+	IngestLog (EF_INFO, "Building an image from %d scans...", 
+		   SqNumScans(ss));
+	BuildImage (ss, dc);
+	StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+}
+
+
+
+static void
 BuildImage (ss, dc)
 SquareScan *ss;
 DataChunk *dc;
 /*
- * Create grid maps, fill a grid of values, and add it to the
- * DataChunk.  The grid and the grid mapping will be different for the 
- * low-frequency channels: the grid is only 64x64 instead of 128x128 
- * for the two high-frequency channels.
+ * Create grid maps, fill a grid of values, and add it to the DataChunk.
+ * The grid mapping will be different between the low-frequency and
+ * hi-frequency channels: lo-freq channels have only 64 values per scan,
+ * every other scan.
  */
 {
 	GridMap gm;	/* Grid map used for lo-freq and re-used for high */
@@ -651,85 +704,57 @@ DataChunk *dc;
 	unsigned char *image;	/* Space for grid values for this sample  */
 	int i;
 
-	IngestLog (EF_DEBUG, "Building an image...");
 	/*
 	 * Establish an order for our scans
 	 */
 	SqOrder (ss);
+	sample = dc_GetNSample(dc);
+	SqZebTime (ss, &zt);
+	SqOrigin (ss, &origin);
 
-	/*
-	 * Start with low-frequency channels, 64x64 grid, 25km resolution
+	/* 
+	 * Apparently all fields have to have the same geometry,
+	 * so we'll have to ingest lo-freq data in a higher res than
+	 * actually exists.  For now go with 12.5 km resolution.
 	 */
-#ifdef notdef	/* Apparently all fields have to have the same geometry,
-		   so we'll have to ingest lo-freq data in a higher res than
-		   actually exists.
-		 */
-	info.rg_Xspacing = 25.0;
-	info.rg_Yspacing = 25.0;
-	info.rg_Zspacing = 0.0;
-	info.rg_nX = 64;
-	info.rg_nY = 64;
-	info.rg_nZ = 1;
-#endif
-	/*
-	 * Instead of 128x128 at 12.5, we'll try 105x105 at 15km res to help
-	 * smooth over the gaps from bad scans
-	 */
-	info.rg_Xspacing = 15;
-	info.rg_Yspacing = 15;
-	info.rg_Zspacing = 0.0;
-	info.rg_nX = 100;
-	info.rg_nY = 80;
-	info.rg_nZ = 1;
+	SqGridInfo (ss, Resolution, &info);
 
 	/*
 	 * Allocate space for the grid values.  This memory is used for
 	 * all channels.
 	 */
-	image = (unsigned char *)malloc( 128*128*sizeof(unsigned char) );
+	image = (unsigned char *)
+		malloc(info.rg_nX * info.rg_nY * sizeof(unsigned char));
 
 	/*
 	 * Now just build our grid map by specifying a low-freq channel.
 	 * The grid map will be the same for all 5 low-freq channels.
 	 */
 	BuildGridMap (ss, &gm, &info, ch19v);
-
-	sample = dc_GetNSample(dc);
-	SqZebTime (ss, &zt);
-	SqOrigin (ss, &origin);
+	IngestLog (EF_DEBUG, "Filling five lower frequencies");
 	for (i = 0; i < 5; ++i)		/* The five lower frequencies */
 	{
 		FillGrid (image, ss, &gm, Fields[i].channel);
 		dc_ImgAddImage (dc, sample, Fids[i],
 				&origin, &info, &zt, image, /*len*/ 0);
 	}
+	ReportGridMapStats (ss, &gm);
 	FreeGridMap (&gm);
 
 	/*
-	 * Now for high-frequency channels, 128x128 grid, 12.5 km resolution
-	 */
-#ifdef notdef				/* use the same one set above */
-	info.rg_Xspacing = 12.5;
-	info.rg_Yspacing = 12.5;
-	info.rg_Zspacing = 0.0;
-	info.rg_nX = 128;
-	info.rg_nY = 128;
-	info.rg_nZ = 1;
-#endif
-
-	/*
-	 * Now just build our grid map by specifying a high-freq channel.
+	 * Now build our grid map by specifying a high-freq channel.
 	 */
 	BuildGridMap (ss, &gm, &info, ch85v);
-
-	for (i = 5; i < 8; ++i)	/* The two higher frequencies and sfc-type */
+	IngestLog (EF_DEBUG, "Filling two high frequencies and sfc types");
+	for (i = 5; i < 8; ++i)
 	{
 		FillGrid (image, ss, &gm, Fields[i].channel);
 		dc_ImgAddImage (dc, sample, Fids[i],
 				&origin, &info, &zt, image, /*len*/ 0);
 	}
-
+	ReportGridMapStats (ss, &gm);
 	FreeGridMap (&gm);
+
 	free (image);
 	IngestLog (EF_INFO, "Finished building and adding the image.");
 }
@@ -769,4 +794,39 @@ Channel ch;
 				 Scales[fld].s_Offset) * Scales[fld].s_Scale);
 		}
 	}
+}
+
+
+void
+ReportGridMapStats (ss, gm)
+SquareScan *ss;
+GridMap *gm;
+/*
+ * Log grid map statistics to EF_DEVELOP log
+ */
+{
+	char buf[128];
+	int npts, ncells;
+
+	npts = gm->gm_info.rg_nX * gm->gm_info.rg_nY;
+	ncells = SqNumScans(ss) * 128;
+	sprintf (buf, "%12s: npts=%d; ncells=%d; hits=%d; ","Scan>Buckets",
+		 npts, ncells, gm->gm_sqr_hits);
+	sprintf (buf+strlen(buf),"pctgrid=%5.2f; pctcells=%5.2f; ", 
+		 (float)gm->gm_sqr_hits / npts * 100.0,
+		 (float)gm->gm_sqr_hits / ncells * 100.0);
+	sprintf (buf+strlen(buf), "avg c/b=%.1f",
+		 (float)ncells / (float)gm->gm_sqr_hits);
+	IngestLog (EF_DEVELOP, "%s", buf);
+	sprintf (buf, "%12s: maxrad=%d; avgrad=%.1f; ","Buckets>Grid",
+		 gm->gm_max_radius, gm->gm_avg_radius);
+	sprintf (buf+strlen(buf), "pts_searched=%d, perbucket=%.1f; ",
+		 gm->gm_cells, (float)gm->gm_cells / npts);
+	IngestLog (EF_DEVELOP, "%s", buf);
+	sprintf (buf, "%12s: avg_dist=%.1f; max_dist=%.1f; res=%.1f km; ",
+		 "GridStats", gm->gm_avg_dist, gm->gm_max_dist,
+		 gm->gm_info.rg_Xspacing);
+	sprintf (buf+strlen(buf), "nX=%d; nY=%d", gm->gm_info.rg_nX,
+		 gm->gm_info.rg_nY);
+	IngestLog (EF_DEVELOP, "%s", buf);
 }
