@@ -27,9 +27,9 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.1 1996-04-30 18:35:43 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.2 1996-05-01 15:18:13 granger Exp $")
 
-static int ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
+static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
 static char *PlatDirectory FP ((PlatformId pid));
 static char *PlatFileName FP ((PlatformId pid, ZebTime *when));
@@ -145,7 +145,7 @@ char **argv;
 		plist = ds_SearchPlatforms (NULL, &total, FALSE, FALSE);
 		for (i = 0; i < total; ++i)
 		{
-			ds_RequestNotify (plist[i], 0, (void*)ReceiveNotify);
+			ds_RequestNotify (plist[i], 0, ReceiveNotify);
 		}
 		if (plist) free (plist);
 	}
@@ -164,7 +164,7 @@ char **argv;
 				for (j = 0; j < nplat; ++j)
 				{
 					ds_RequestNotify (plist[j], 0,
-						  (void*)ReceiveNotify);
+						  	  ReceiveNotify);
 				}
 				free (plist);
 				total += nplat;
@@ -184,7 +184,7 @@ char **argv;
 
 
 
-static int
+static void
 ReceiveNotify (pid, param, when, nsample, ucode)
 PlatformId pid;
 int param;
@@ -212,7 +212,6 @@ UpdCode ucode;
 		tbuf, nsample, (ucode == UpdOverwrite) ? "owr" :
 		((ucode == UpdInsert) ? "ins" : "app"));
 	fflush (stdout);
-	return (0);
 }
 
 
