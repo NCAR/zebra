@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.32 1995-06-09 15:56:16 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.33 1995-06-29 20:55:46 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -209,6 +209,10 @@ XCOMM -----------------------------------------------------------------------
 #define OpenWindowsVersion 3
 #endif
 
+#ifndef HasHDF
+#define HasHDF NO
+#endif
+
 /*
  * If we're supposed to be building the part of RDSS we need, define
  * symbols appropriately.
@@ -268,6 +272,17 @@ XCOMM -----------------------------------------------------------------------
 #else
 #   ifndef NetCDFIncludes
 #      define NetCDFIncludes -I$(NETCDFINCDIR)
+#   endif
+#endif
+
+#ifndef HDFIncDir
+#   define HDFIncDir /**/
+#   ifndef HDFIncludes
+#      define HDFIncludes /**/
+#   endif
+#else
+#   ifndef HDFIncludes
+#         define HDFIncludes -I$(HDFINCDIR)
 #   endif
 #endif
 
@@ -333,6 +348,17 @@ XCOMM -----------------------------------------------------------------------
 #else
 #   ifndef NetCDFLibrary
 #      define NetCDFLibrary -L$(NETCDFLIBDIR) LoaderLibPrefix -lnetcdf
+#   endif
+#endif
+
+#ifndef HDFLibDir
+#   define HDFLibDir /**/
+#   ifndef HDFLibrary
+#      define HDFLibrary LoaderLibPrefix -ldf
+#   endif
+#else
+#   ifndef HDFLibrary
+#      define HDFLibrary -L$(HDFLIBDIR) LoaderLibPrefix -ldf
 #   endif
 #endif
 
@@ -511,6 +537,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif /* UseMosaic */
 #endif
 
+#if HasHDF
+#define HDFDefines -DHDF_INTERFACE
+#else
+#define HDFDefines /**/
+#endif
+
 #if BuildXHelp	/* we'll only support if we're told we're building it */
 #define XHelpDefines -DSUPPORT_XHELP
 #else
@@ -648,6 +680,9 @@ XCOMM -----------------------------------------------------------------------
  */
        RDSSINCDIR = RDSSIncDir
      NETCDFINCDIR = NetCDFIncDir
+#if HasHDF
+        HDFINCDIR = HDFIncDir
+#endif
           XINCDIR = XIncDir
 
 /*
@@ -659,16 +694,17 @@ XCOMM -----------------------------------------------------------------------
      RDSSINCLUDES = RDSSIncludes
         XINCLUDES = XIncludes
    NETCDFINCLUDES = NetCDFIncludes
+#if HasHDF
+      HDFINCLUDES = HDFIncludes
+#endif
    CONFIGINCLUDES =
 
 /* 
  * Project-wide include directories.  
  * Local Imakefiles use the INCLUDES variable
  */
-   EXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) \
-                    $(NETCDFINCLUDES) $(CONFIGINCLUDES)
-   CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) \
-                       $(NETCDFINCLUDES) $(CONFIGINCLUDES)
+   EXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
+   CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
 /*
  * We redefine the order of the ALLINCLUDES variable here so that top
  * includes will be first on the compiler command line, but the include
@@ -688,6 +724,7 @@ XCOMM -----------------------------------------------------------------------
   RDSS_EXTRA_DEFS = ExtraDefines $(AUTO_DEFINES) -DUNIX
        SHMDEFINES = ShmDefines
      XHELPDEFINES = XHelpDefines
+       HDFDEFINES = HDFDefines
 /*
  * For RDSS source which needs to know to compile X windows support
  */
@@ -713,6 +750,9 @@ XCOMM -----------------------------------------------------------------------
  */
        RDSSLIBDIR = RDSSLibDir
      NETCDFLIBDIR = NetCDFLibDir
+#if HasHDF
+        HDFLIBDIR = HDFLibDir
+#endif
           XLIBDIR = XLibDir
 
 /*
@@ -724,6 +764,9 @@ XCOMM -----------------------------------------------------------------------
            LIBZEB = ZebLibrary
          LIBZEBDS = ZebDSLibrary
         LIBNETCDF = NetCDFLibrary
+#if HasHDF
+           LIBHDF = HDFLibrary
+#endif
           LIBPCAP = PCAPLibrary
             FLIBS = FortranLibraries
           LIBRDSS = RDSSLibrary
