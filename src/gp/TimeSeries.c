@@ -1,6 +1,10 @@
 /*
  * Time Series Plotting
  */
+static char *rcsid = "$Id: TimeSeries.c,v 2.1 1991-08-07 22:03:18 corbet Exp $";
+
+# include <config.h>
+# if C_PT_TSERIES
 
 # include <math.h>
 # include <ctype.h>
@@ -761,3 +765,7 @@ int	nstep;
 		JoinMiter);
 }
 
+
+
+
+# endif  /* C_PT_TSERIES */
