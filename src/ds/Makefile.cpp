@@ -1,11 +1,11 @@
-MFVERSION="$Id: Makefile.cpp,v 1.2 1991-09-26 21:31:36 kris Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.3 1991-09-26 22:50:31 gracio Exp $"
 
 # ifdef sun
 /*
  * Sun options
  */
 CC=gcc
-CFLAGS= -g -O -I/fcc/include -I/rdss/include
+CFLAGS= -g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
 LIBS=../lib/libfcc.a -lrdss -ltermcap -lnetcdf -lm
 XLIBS=-lXaw -lXmu -lXt -lXext -lX11
 # endif
