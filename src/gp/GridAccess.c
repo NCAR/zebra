@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.18 1994-04-22 17:58:10 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.19 1994-06-28 20:03:16 corbet Exp $")
 
 
 
@@ -998,7 +998,7 @@ float *org;			/* This variables origin*/
 	unsigned long nvals;
 	float *vals;
 	float delta, spacing;
-	int i;
+	int i, onecross = 0;
 
 	if (dc_Type (dc, fid) != DCT_Float)
 	{
@@ -1015,7 +1015,13 @@ float *org;			/* This variables origin*/
 	for (i = 2; i < nvals; i++)
 	{
 		delta = vals[i] - vals[i-1];
-		if (fabs (delta - spacing) > 0.001)
+	/*
+	 * Check for a change in the spacing.  Allow for exactly one
+	 * weirdness at (presumably) the international date line.  Does
+	 * this look like a kludge to you, too?
+	 */
+		if (fabs (delta - spacing) > 0.001 && vals[i] > -170.0 &&
+			vals[i-1] < 170.0 && ! onecross++)
 		{
 			msg_ELog (EF_DEBUG, 
 				  "ga_NSSimpleGrid: Irregular %s step",
