@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 1.3 1991-02-26 19:07:39 corbet Exp $
+ * $Id: DataStore.h,v 1.4 1991-04-11 22:00:48 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -25,6 +25,17 @@ typedef enum {
 typedef int PlatformId;
 # define BadPlatform -1
 
+
+/*
+ * Scale and bias info for integer-encoded fields. (OrgImage)
+ */
+typedef struct _ScaleInfo
+{
+	float	s_Scale;		/* real value = data/s_scale	*/
+	float	s_Offset;		/*   + s_Offset			*/
+} ScaleInfo;
+
+
 /*
  * Irregular grids look like this.
  */
@@ -48,6 +59,15 @@ typedef struct _RGrid
 
 
 /*
+ * For raster image datasets, we have this info.
+ */
+typedef struct _RastImg
+{
+	RGrid 	*ri_rg;			/* Geometry info		*/
+	ScaleInfo *ri_scale;		/* Scaling information		*/
+} RastImg;
+
+/*
  * These and more are crammed into the data object via one of these unions:
  */
 typedef union _Dunion
@@ -55,7 +75,9 @@ typedef union _Dunion
 	IRGrid	d_irgrid;
 	RGrid	d_rgrid;
 	int	*d_length;		/* Outline length		*/
+	RastImg d_img;			/* Image description		*/
 } Dunion;
+
 
 /*
  * The data object format.
@@ -116,6 +138,8 @@ typedef enum
 	void		ds_RequestNotify (PlatformId, int, void (*)());
 	void		ds_CancelNotify (void);
 	int		ds_DataTimes (PlatformId, time *, int,TimeSpec,time *);
+	int		ds_GetObsSamples (PlatformId, time *, time *,
+					Location *, int);
 # else
 	int		ds_Initialize ();
 	PlatformId	ds_LookupPlatform ();
@@ -129,6 +153,7 @@ typedef enum
 	void		ds_RequestNotify ();
 	void		ds_CancelNotify ();
 	int		ds_DataTimes ();
+	int		ds_GetObsSamples ();
 # endif
 
 
