@@ -1,3 +1,5 @@
+# ifndef _CDATA_SERVER_H
+# define _CDATA_SERVER_H
 /******************************************************************
  * CDATA_SERVER.H
  *
@@ -364,4 +366,4 @@ typedef struct { /* Native Floating Point format */
   char source_name[LAB_LEN];   /* Radar, Algorithm name etc */
 
 } cd_grid_info_t;
-
+# endif

@@ -82,7 +82,7 @@ open_server_sock(port)
 	}
 
 	/* set socket options */
-	setsockopt(protofd,SOL_SOCKET,SO_DONTLINGER,0,0);
+	setsockopt(protofd,SOL_SOCKET,~(SO_LINGER),0,0);
 	setsockopt(protofd,SOL_SOCKET,SO_REUSEADDR,0,0);
 	 
 	loc_soc.sin_port = htons(port);

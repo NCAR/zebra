@@ -6,7 +6,7 @@
 #include "cdata_server.h"
 
 typedef struct {
-        long    year,month,day,hour,min,sec;
+        long    year, month, day, hour, min, sec;
         long    unix_time;
 } date_time_t;
 

@@ -1,7 +1,7 @@
 /*
  * Generic data ingest from RAP's data servers.
  */
-static char *rcsid = "$Id: RAP_DsIngest.c,v 1.2 1993-03-24 22:47:32 kris Exp $";
+static char *rcsid = "$Id: RAP_DsIngest.c,v 1.3 1993-07-08 22:46:32 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,6 +25,7 @@ static char *rcsid = "$Id: RAP_DsIngest.c,v 1.2 1993-03-24 22:47:32 kris Exp $";
 
 # include <signal.h>
 # include <stdio.h>
+# include <math.h>
 
 # include <defs.h>
 # include <message.h>
@@ -69,7 +70,7 @@ static void		add_grid FP ((DataChunk *, FieldId, unsigned char *[],
 /*
  * Other routines.
  */
-extern unsigned char	*get_data ();
+extern unsigned char	*get_cidd_data ();
 extern int 		print_reply ();
 extern int 		print_info ();
 
@@ -78,15 +79,21 @@ extern int 		print_info ();
  */
 static char	Host[STRLEN];		/* Host name where data server is */
 					/*	running.		  */ 
-static int	Port;			/* Port number of data.		  */
-static int	Frequency;		/* Frequency of data requests in  */
+static int	Port = 0;		/* Port number of data.		  */
+static int	Frequency = 0;		/* Frequency of data requests in  */
 					/*	seconds.		  */
 static char	Platform[STRLEN];	/* Platform name.		  */
-static int	Levels;			/* Number of levels to ask for.	  */	
-static float	LevelSpacing;		/* Spacing in km between levels.  */	
-static float	FirstLevel;		/* First level for data.	  */
+
+static int	Levels = 1;		/* Number of levels to ask for.	  */
+static float	LevelSpacing = 1.0;	/* Spacing in km between levels.  */
+	
+static float	FirstLevel = 0.0;	/* First level for data.	  */
 static int	NumFields = 0;		/* Number of fields.		  */
 static ZebTime	LastDataTime;		/* Time we last got data.	  */
+
+static float	SiteLat = -999.0;	/* Site lat in degrees		*/
+static float	SiteLon = -999.0;	/* Site lon in degrees		*/
+
 
 
 main (argc, argv)
@@ -107,7 +114,7 @@ char	**argv;
 /*
  * Hook into the Zeb world.
  */
-	fixdir ("DSI_LOAD_FILE", LIBDIR, "ds_ingest.lf", loadfile);
+	fixdir ("DSI_LOAD_FILE", LIBDIR, "RAP_DsIngest.lf", loadfile);
 	if (argc > 2)
 	{
 		ui_init (loadfile, FALSE, TRUE);
@@ -177,6 +184,32 @@ Go ()
  */
 {
 /*
+ * Sanity checks
+ */
+	if (NumFields == 0)
+	{
+		msg_ELog (EF_EMERGENCY, "No fields specified");
+		exit (1);
+	}
+
+	if (SiteLat < -90 || SiteLat > 90 || SiteLon < -180 || SiteLon > 180)
+	{
+		msg_ELog (EF_EMERGENCY, "Bad site_lat and/or site_lon");
+		exit (1);
+	}
+
+	if (Port == 0)
+	{
+		msg_ELog (EF_EMERGENCY, "Port number not specified");
+		exit (1);
+	}
+
+	if (Frequency == 0)
+	{
+		msg_ELog (EF_EMERGENCY, "No request frequency specified");
+		exit (1);
+	}
+/*
  * Get data periodically.
  */
 	tl_AddRelativeEvent (request_data, NULL, 0, Frequency * INCFRAC);
@@ -222,10 +255,11 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "host", Host, SYMT_STRING, STRLEN);
 	usy_c_indirect (vtable, "port", &Port, SYMT_INT, 0);
 	usy_c_indirect (vtable, "frequency", &Frequency, SYMT_INT, 0);
-	usy_c_indirect (vtable, "platform", Platform, SYMT_STRING, STRLEN);
 	usy_c_indirect (vtable, "levels", &Levels, SYMT_INT, 0);
 	usy_c_indirect (vtable, "levelspacing", &LevelSpacing, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "firstlevel", &FirstLevel, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "site_lat", &SiteLat, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "site_lon", &SiteLon, SYMT_FLOAT, 0);
 }
 
 
@@ -260,26 +294,38 @@ int	field, level;
  */
 	com.time_cent = LastDataTime.zt_Sec;
 /*
- * What area of the grid to get.
- */	
-	com.min_x = -1000.0;
-	com.max_x = 1000.0;
-	com.min_y = -1000.0;
-	com.max_y = 1000.0;
+ * Time.
+ */
+	tl_Time (&zt);
+	com.time_min = zt.zt_Sec; 
+	com.time_max = zt.zt_Sec;
+/*
+ * What area of the grid to get. (Just grab everything within 1000 km of
+ * the site.)
+ */
+	com.lat_origin = SiteLat;
+	com.lon_origin = SiteLon;
+	com.ht_origin = 0;
 
-	com.min_z = FirstLevel + level * LevelSpacing - .5 * LevelSpacing;
-	com.max_z = FirstLevel + level * LevelSpacing + .5 * LevelSpacing;
+	com.min_x = -1000;
+	com.max_x = 1000;
+
+	com.min_y = -1000;
+	com.max_y = 1000;
+/*
+ * Vertical level to get.
+ */
+	com.min_z = (long)(FirstLevel + (level - 0.5) * LevelSpacing);
+	com.max_z = (long)(FirstLevel + (level + 0.5) * LevelSpacing);
 /*
  * What field to get.
  */
 	com.data_field = field;
 	com.data_type = CHAR;
 /*
- * Time.
+ * No additional request data.
  */
-	tl_Time (&zt);
-	com.time_min = zt.zt_Sec; 
-	com.time_max = zt.zt_Sec;
+	com.add_data_len = 0;
 
 	return (com);
 }
@@ -295,7 +341,7 @@ request_data ()
 	bool		gotsomedata = FALSE;
 	cd_command_t	com;
 	unsigned char	*buffer[MAXZ];
-	cd_grid_info_t	info[MAXZ];
+	cd_grid_info_t	info;
 	cd_reply_t	reply[MAXZ];
 	DataChunk	*dc;
 	FieldId		fieldlist[MAXFIELDS];
@@ -330,8 +376,8 @@ request_data ()
 		{
 			com = form_request (FieldList[i].fl_number, j);
 			buffer[numz] = NULL;
-			buffer[numz] = get_data (&com, &reply[numz], 
-				&info[numz], Host, Port);
+			buffer[numz] = get_cidd_data (&com, &reply[numz], 
+				&info, Host, Port);
 		/*
 		 * Print out the reply.
 		 */
@@ -344,7 +390,7 @@ request_data ()
 			if (reply[numz].status & REQUEST_SATISFIED)
 			{
 				msg_ELog (EF_DEBUG, "Data received for %s",
-					info[numz].field_name);
+					info.field_name);
 			}
 			else if (reply[numz].status & NO_DATA)
 			{
@@ -366,7 +412,7 @@ request_data ()
 		 * Print out the info we got.
 		 */
 # ifdef notdef
-			print_info (&info[numz], stdout);
+			print_info (&info, stdout);
 # endif
 		/*
  		 * See if we got any data.
@@ -381,7 +427,8 @@ request_data ()
 	 * Add this grid to the data chunk.
 	 */
 		if (numz > 0)
-			add_grid (dc, fieldlist[i], buffer, info, reply, numz);
+			add_grid (dc, fieldlist[i], buffer, &info, reply, 
+				  numz);
 		for (j = 0; j < numz; j++)
 			if (buffer[j])
 				free (buffer[j]);
@@ -402,7 +449,7 @@ add_grid (dc, fid, buffer, info, reply, numz)
 DataChunk	*dc;
 FieldId		fid;
 unsigned char	*buffer[MAXZ];
-cd_grid_info_t	info[MAXZ];
+cd_grid_info_t	*info;
 cd_reply_t	reply[MAXZ];
 int		numz;
 /*
@@ -421,16 +468,15 @@ int		numz;
 /*
  * Origin.
  */
-	cvt_Origin (info[0].lat_origin, info[0].lon_origin);
-	cvt_ToLatLon (info[0].min_x, info[0].min_y, &origin.l_lat, 
-		&origin.l_lon);
-	origin.l_alt = info[0].min_z;	/* in km */
+	cvt_Origin (info->lat_origin, info->lon_origin);
+	cvt_ToLatLon (info->min_x, info->min_y, &origin.l_lat, &origin.l_lon);
+	origin.l_alt = FirstLevel; /* km */
 /*
  * Grid spacing.
  */
 	rg.rg_Xspacing = reply[0].dx;
 	rg.rg_Yspacing = reply[0].dy;
-	rg.rg_Zspacing = reply[0].dz;
+	rg.rg_Zspacing = LevelSpacing;
 	rg.rg_nX = reply[0].nx;
 	rg.rg_nY = reply[0].ny;
 	rg.rg_nZ = numz;

@@ -20,12 +20,12 @@
  */
 
 unsigned char *
-get_data(command,reply,grid_info,host_name,port)
-	cd_command_t *command;	/* Native floating point command structure */
-	cd_reply_t	*reply;		/* Native floating point reply structure */		
-	cd_grid_info_t * grid_info;/* Native floating point grid_info structure */
-	char	*host_name;
-	int		*port;
+get_cidd_data(command,reply,grid_info,host_name,port)
+	cd_command_t	*command;
+	cd_reply_t	*reply;	
+	cd_grid_info_t	*grid_info;
+	char		*host_name;
+	int		port;
 {
 	unsigned char *c_ptr;	/* The pointer to the data */
 	int	sockfd;
@@ -40,22 +40,21 @@ get_data(command,reply,grid_info,host_name,port)
 	com.primary_com |= GET_INFO;	/* This routine always gets grid info */
 
 	if((sockfd = open_client_sock(host_name,port)) < 0 ) {
+		fprintf (stderr, "get_cidd_data - ");
 		switch(sockfd) {
 			case -1:
-				fprintf(stderr,"Could not find host name: %s\n",host_name);
-			break;
-
+			    fprintf (stderr, "Could not find host name: %s\n",
+				host_name);
+			    break;
 			case -2:
-				fprintf(stderr,"Could not setup socket\n");
-			break;
-
+			    fprintf(stderr,"Could not setup socket\n");
+			    break;
 			case -3:
-				fprintf(stderr,"Could not connect to socket\n");
-			break;
-
+			    fprintf(stderr,"Could not connect to socket\n");
+			    break;
 			default:
-				fprintf(stderr,"Unknown Socket connection error\n");
-			break;
+			    fprintf(stderr,"Unknown Socket connection error\n");
+			    break;
 		}
 		return(NULL);
 	}
@@ -142,8 +141,9 @@ convert_command(com,comm)
 	com->data_field = comm->data_field;
 	com->data_type = comm->data_type;
 	com->add_data_len = 0;
-
+# ifdef notdef
 	to_netl(com,(sizeof (*com)/sizeof(long)));
+# endif
 }
 
 /******************************************************************************
@@ -155,8 +155,9 @@ convert_reply(reply,rep)
 	cd_reply_t	*reply;
 	cdata_reply_t *rep;
 {
+# ifdef notdef
 	to_hostl(rep,(sizeof (*rep)/sizeof(long)));
-
+# endif
 	reply->status = rep->status;
 	reply->orient = rep->orient;
 	reply->nx = rep->nx;
@@ -193,7 +194,9 @@ convert_info(g_info,info)
 	cdata_info_t *info;
 {
 	/* 43 longs in current info structure */
+# ifdef notdef
 	to_hostl(info,43);
+# endif
 
 	g_info->order = info->order;
 	g_info->data_field = info->data_field;
