@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.22 1993-09-30 22:07:33 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.23 1993-10-05 03:10:33 granger Exp $")
 #endif
 
 /*
@@ -1015,7 +1015,7 @@ int ndetail;
 	/*
 	 * Now we just shove the sample out.
 	 */
-		if (dfa_PutSample (dfile, dc, sample, wc))
+		if (dfa_PutSample (dfile, dc, sample, wc, details, ndetail))
 		{
 		/*
 		 * Keep track of this.
@@ -1110,10 +1110,10 @@ int ndetail;
 			 ((wc == wc_Insert) ? "inserting" : 
 			  "overwriting"), block_size, p.dp_name);
 	/*
-	 * Now we write whatever block we found, or if we have just a
-	 * single sample, use dfa_PutSample() instead
+	 * Now we write whatever block we found
 	 */
-		if (dfa_PutBlock (dfile, dc, sample, block_size, wc))
+		if (dfa_PutBlock (dfile, dc, sample, block_size, wc, 
+				  details, ndetail))
 		{
 		/*
 		 * Keep track of successful writes
@@ -1147,12 +1147,12 @@ int ndetail;
 	} /* while (sample < nsample) */
 
 	/*
-	 * Close open files and free memory in DFA
+	 * Close open files and free memory
 	 */
 	if (ds_GetDetail (DD_FORCE_CLOSURE, details, ndetail, NULL))
 	{
-		msg_ELog (EF_DEBUG, "DFA: forced closure");
-		dfa_ForceClosure ();
+		msg_ELog (EF_DEBUG, "ds: forced closure, freeing all memory");
+		ds_ForceClosure ();
 	}
 	ds_FreeWLock (dc->dc_Platform);
 	return (ndone == nsample);
@@ -2161,6 +2161,8 @@ ds_ForceClosure()
  * to DataChunk free chains, to GetList free chains, to cached structures.
  */
 {
+	int i;
+
 	dfa_ForceClosure();
 	dc_ForceClosure();
 	dgl_ForceClosure();
