@@ -16,8 +16,11 @@ def main():
     subsetDir = '/scr/data/iop_subsets'
     subsetLink = 'spol_subset'
 
-    stdList = ['particles', 'particles/pdesc', 'precip.basic', 'precip.hourly', 'precip.storm',
-	'rain', 'rain/basic', 'rain/hourly','rain/storm',  'spol', 'sweepfiles']
+    stdPlatforms = ['ncgrids', 'particles', 'particles/pdesc', 'precip.basic',
+                    'precip.hourly', 'precip.storm', 'rain', 'rain/basic',
+                    'rain/hourly','rain/storm',  'spol', 'sweepfiles']
+
+    extraPlatforms = ['radar_composite', 'goes', 'mesonet']
 
 #    UsageStr = 'name_of_iop'
     if len(sys.argv) != 1:
@@ -32,10 +35,12 @@ def main():
 	sys.exit(-2)
     os.mkdir(newDir)
 
-    for d in stdList:
+    allPlatforms = stdPlatforms + extraPlatforms;
+    for d in allPlatforms:
 	os.mkdir(os.path.join(newDir, d))
 
     os.chdir('/scr/data')
+
     safeunlink(spolLink)
     os.symlink(theLink, spolLink)
 
