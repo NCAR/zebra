@@ -24,12 +24,13 @@
 # include <sys/time.h>
 # include <sys/file.h>
 # include <sys/stropts.h>
+# include <rpc/rpc.h>
 # include <defs.h>
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: adradInput.c,v 2.4 1996-12-10 21:27:17 granger Exp $")
+RCSID("$Id: adradInput.c,v 2.5 1997-02-03 16:41:06 granger Exp $")
 
 /*
  * Adrad includes for xdr, etc.
@@ -39,7 +40,7 @@ RCSID("$Id: adradInput.c,v 2.4 1996-12-10 21:27:17 granger Exp $")
 #include "portable.h"
 #include "sunrise_head.h"
 #include "cvrt.h"
-#include "xdr.h"
+/* #include "xdr.h" */
 
 
 static int zero = 0;

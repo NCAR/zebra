@@ -26,6 +26,7 @@
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
+# include <rpc/rpc.h>
 
 # include <ui.h>
 # include <config.h>
@@ -38,7 +39,7 @@
 # include "radar_ingest.h"
 # include "display.h"
  
-RCSID("$Id: adrad_ingest.c,v 2.11 1996-12-10 21:27:19 granger Exp $")
+RCSID("$Id: adrad_ingest.c,v 2.12 1997-02-03 16:41:06 granger Exp $")
 
 /* 
  * Adrad includes for xdr, etc.
@@ -47,7 +48,7 @@ RCSID("$Id: adrad_ingest.c,v 2.11 1996-12-10 21:27:19 granger Exp $")
 #include "portable.h"
 #include "sunrise_head.h"
 #include "cvrt.h"
-#include "xdr.h"
+/* #include "xdr.h" */
 
 
 /*
@@ -158,7 +159,7 @@ char **argv;
 /* set things up to parse args & init the ui file.	*/
 	sprintf (ourname, "Adrad_%x", getpid ());
 	msg_connect (MHandler, ourname);
-	msg_DeathHandler (die);
+	msg_DeathHandler ((int (*)())die);
 	fixdir ("RI_LOAD_FILE", GetLibDir(), "adrad_ingest.lf", loadfile);
 	if (argc > 1)
 	{
@@ -179,7 +180,7 @@ char **argv;
  * Time to go in to UI mode.
  */
 	ui_get_command ("initial", "Adrad>", Dispatcher, 0);
-	die ();
+	die (0);
 }
 
 
@@ -318,6 +319,7 @@ struct ui_command *cmds;
 }
 
 
+/* ARGSUSED */
 void
 die (sig)
 int sig;
@@ -373,7 +375,7 @@ Go ()
 	if (NField <= 0)
 	{
 		msg_ELog (EF_EMERGENCY, "No fields given");
-		die ();
+		die (0);
 	}
 /*
  * Set up our shared memory segment.
@@ -382,7 +384,7 @@ Go ()
 				    Fields)))
 	{
 		msg_ELog (EF_EMERGENCY, "No shm segment");
-		die ();
+		die (0);
 	}
 	IX_LockMemory (ShmDesc);
 	IX_Initialize (ShmDesc, 0xff);
@@ -465,7 +467,7 @@ Go ()
 	 * Get another beam.
 	 */
 		if (! (beam = GetBeam ()))
-			die ();
+			die (0);
 	/*
 	 * Rasterize it.
 	 */
@@ -682,7 +684,7 @@ Message *msg;
 	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
 
 	if (msg->m_proto == MT_MESSAGE && tmpl->mh_type == MH_DIE)
-		die ();
+		die (0);
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 }
 

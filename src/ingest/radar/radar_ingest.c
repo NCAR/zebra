@@ -47,7 +47,7 @@ static void SetRealTime ();
 # include "display.h"
 # include "BeamBuffer.h"
 
-RCSID("$Id: radar_ingest.c,v 2.15 1996-12-10 20:50:53 granger Exp $")
+RCSID("$Id: radar_ingest.c,v 2.16 1997-02-03 16:41:07 granger Exp $")
 
 /*
  * Define globals here.
@@ -161,7 +161,7 @@ static void BeamWait FP ((void));
 static void SetupBeamDelay FP ((void));
 static void WakeUp FP ((int signal));
 static void reset FP ((void));
-void die FP ((void));
+int	    die FP ((int));
 
 
 
@@ -183,7 +183,7 @@ char **argv;
  */
 	sprintf (ourname, "RadarIngest_%x", getpid ());
 	msg_connect (MHandler, ourname);
-	msg_DeathHandler (die);
+	msg_DeathHandler ((int (*)())die);
 	fixdir ("RI_LOAD_FILE", GetLibDir(), "radar_ingest.lf", loadfile);
 	if (argc > 1)
 	{
@@ -206,7 +206,7 @@ char **argv;
  * Time to go in to UI mode.
  */
 	ui_get_command ("initial", "Radar>", Dispatcher, 0);
-	die ();
+	die (0);
 }
 
 
@@ -424,14 +424,14 @@ Go ()
 	/*
 	 * Set up our beam input source.
 	 */
-		signal (SIGINT, die);
+		signal (SIGINT, (void (*)())die);
 	/*
 	 * Definition checking.
 	 */
 		if (NField <= 0)
 		{
 			msg_ELog (EF_EMERGENCY, "No fields given");
-			die ();
+			die (0);
 		}
 	/*
 	 * Go into window mode, with our popup.
@@ -444,7 +444,7 @@ Go ()
 					    NFrames, Fields)))
 		{
 			msg_ELog (EF_EMERGENCY, "No shm segment");
-			die ();
+			die (0);
 		}
 		IX_LockMemory (ShmDesc);
 		IX_Initialize (ShmDesc, 0xff);
@@ -864,7 +864,7 @@ Message *msg;
 	{
 	    case MT_MESSAGE:
 		if (tmpl->mh_type == MH_DIE)
-			die ();
+			die (0);
 		break;
 	    case MT_COMMAND:
 		reset ();
@@ -1018,8 +1018,9 @@ int sig;
 }
 
 
-void
-die ()
+int
+die (sig)
+int sig;
 /*
  * Finish gracefully.
  */
@@ -1027,6 +1028,7 @@ die ()
         reset ();
         ui_finish ();
         exit (0);
+	return (0);
 }
 
 

@@ -140,7 +140,7 @@ char **argv;
  */
 	sprintf (ourname, "UFIngest_%x", getpid ());
 	msg_connect (MHandler, ourname);
-	msg_DeathHandler (die);
+	msg_DeathHandler ((int (*)())die);
 	fixdir ("RI_LOAD_FILE", GetLibDir(), "UFIngest.lf", loadfile);
 	if (argc > 1)
 	{
@@ -159,7 +159,7 @@ char **argv;
  * Time to go in to UI mode.
  */
 	ui_get_command ("initial", "UFIngest>", Dispatcher, 0);
-	die ();
+	die (0);
 }
 
 
@@ -364,7 +364,7 @@ Go ()
 	if (NField <= 0)
 	{
 		msg_ELog (EF_EMERGENCY, "No fields given");
-		die ();
+		die (0);
 	}
 /*
  * Set up our shared memory segment.
@@ -373,7 +373,7 @@ Go ()
 				    Fields)))
 	{
 		msg_ELog (EF_EMERGENCY, "No shm segment");
-		die ();
+		die (0);
 	}
 	IX_LockMemory (ShmDesc);
 	IX_Initialize (ShmDesc, 0xff);
@@ -639,7 +639,7 @@ Message *msg;
 	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
 
 	if (msg->m_proto == MT_MESSAGE && tmpl->mh_type == MH_DIE)
-		die ();
+		die (0);
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 }
 

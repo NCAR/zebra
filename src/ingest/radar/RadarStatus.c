@@ -35,7 +35,7 @@
 # include "timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.6 1996-12-10 21:27:07 granger Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.7 1997-02-03 16:41:04 granger Exp $";
 
 # define PI		3.1415927
 # define DEG_TO_RAD(x)	(((x) * 0.017453293))
@@ -176,7 +176,7 @@ char **argv;
 	if (argc > 1)
 	{
 		Visible = Override = TRUE;
-		wm ();
+		wm (0, 0, 0);
 	}
 	XtAppMainLoop (Appc);
 # ifdef notdef
@@ -368,7 +368,7 @@ int x, y, w, h;
 
 
 
-
+/* ARGSUSED */
 void
 wm (w, a, b)
 Widget w;
