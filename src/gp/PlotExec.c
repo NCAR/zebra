@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.33 1993-10-18 19:29:00 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.34 1993-11-09 22:54:08 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -644,7 +644,7 @@ px_GetAltitude ()
  * component controls it.
  */
 {
-	char altcomp[120], **comps = pd_CompList (Pd), plat[80];
+	char altcomp[120], **comps = pd_CompList (Pd), plat[240];
 	bool control;
 	int i;
 /*

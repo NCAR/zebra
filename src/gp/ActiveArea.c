@@ -26,7 +26,7 @@
 # include "GraphProc.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: ActiveArea.c,v 2.3 1993-11-09 22:23:13 corbet Exp $")
+MAKE_RCSID ("$Id: ActiveArea.c,v 2.4 1993-11-09 22:54:05 corbet Exp $")
 
 /*
  * List creation parameters.
@@ -204,10 +204,7 @@ AAList *list;
  * Make sure this isn't the current list.
  */
 	if (list == CurrentAreas)
-	{
-		msg_ELog (EF_INFO, "Free current areas");
 		CurrentAreas = 0;
-	}
 /*
  * Go through and do the columns.
  */
