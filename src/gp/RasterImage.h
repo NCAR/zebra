@@ -40,6 +40,7 @@ typedef struct _DestImage
 extern DestImage *
 ri_CreateImage (int frame, int x, int y, int w, int h, int transparent);
 extern DestImage *ri_GetDestImage (int, int, int, int, int);
+extern DestImage *ri_GetTransparentImage (int, int, int, int, int);
 extern DestImage *ri_MakeMemImage (int, int, void *, int, int);	
 extern void ri_ShipImage (DestImage *);
 
