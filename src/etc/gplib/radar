@@ -8,7 +8,7 @@ require contour
 define widget radar-middle intmenu 'radar middle'
 	title 'Radar options'
 	line
-	submenu 'Fields...' 'popup FChooser'
+	entry 'Fields...' 'popup FChooser'
 	submenu 'Representation' 'radar-rep'
 	submenu 'Color tables' Color-tables
 	line
