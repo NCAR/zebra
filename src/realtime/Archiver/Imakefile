@@ -1,5 +1,5 @@
 /* Archiver Imakefile -*- C -*-
- * $Id: Imakefile,v 1.13 1997-06-20 21:02:15 granger Exp $
+ * $Id: Imakefile,v 1.14 1997-06-26 15:27:23 granger Exp $
  */
 
 SRCS = Archiver.c Database.c Arq.c
@@ -14,7 +14,7 @@ CompleteProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Archiver)
 
 DBOBJS = Arq.o Database.o
-CompleteProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(LIBZEBRA), /**/)
+CompleteProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(LIBZEBRA), $(LIBNDBM))
 
 DependTarget()
 LintTarget()
