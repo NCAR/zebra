@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.9 1993-05-20 18:45:21 granger Exp $
+! $Id: Graphproc.ad,v 1.10 1993-06-12 22:22:45 burghart Exp $
 !
 ! The Graphics process resource file.
 !
@@ -114,6 +114,7 @@ Graphproc.?.form.background:	gray95
 ! Movie widget resources.
 !
 *movie*Command*font: 	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*movie*MenuButton*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *movieStatus*font: 	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *movieform*Text.translations: #override \n\
 	<Key>Return:	no-op(RingBell) \n\
@@ -127,6 +128,8 @@ Graphproc.?.form.background:	gray95
 *movie*Text*background: gray90
 *movie*Command*borderColor: red
 *movie*Command*background: Gray90
+*movie*MenuButton*borderColor: red
+*movie*MenuButton*background: Gray90
 *movie.background: gray95
 *movie.borderWidth:	1
 *movie.borderColor:	MidnightBlue
