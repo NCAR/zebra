@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.1.1.1  1995/01/26  21:02:49  granger
+ * import dsprint from NEXUS into base zebra distribution
+ *
  * Revision 1.7  1994/06/27  19:34:48  martin
  * initial solaris edits
  *
@@ -66,7 +69,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.1.1.1 1995-01-26 21:02:49 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.2 1995-02-10 00:44:59 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -101,9 +104,12 @@ int             errno;
 char           *sys_errlist[];
 #endif
 
-enum {
-    OBS_BEGIN, OBS_END, OBS_RETRIEVE, OBS_LIST, OBS_FIRST_GOOD, OBS_LAST_GOOD, OBS_INTERVAL
-}               action;		/* type of transaction */
+enum
+{
+    OBS_BEGIN, OBS_END, OBS_RETRIEVE, OBS_LIST, OBS_FIRST_GOOD, 
+    OBS_LAST_GOOD, OBS_INTERVAL
+}
+action;		/* type of transaction */
 
  /*
   * If field limits are specified, store here, and also save the limit field
@@ -211,9 +217,10 @@ main (int argc, char *argv[])
 	char            mon[4];
 	int             n;
 	*(mon + 3) = 0;
-	if ((n = sscanf (time_string,
-		    "%d%*c%c%c%c%*c%d%*c%d%*c%d%*c%d",
-		    &day, mon, mon + 1, mon + 2, &year, &hour, &min, &sec) != 8)) {
+	if ((n = sscanf (time_string, "%d%*c%c%c%c%*c%d%*c%d%*c%d%*c%d",
+			 &day, mon, mon + 1, mon + 2, 
+			 &year, &hour, &min, &sec) != 8))
+	{
 
 	    msg_ELog (EF_PROBLEM, "incorrect date,time format\n");
 	    exit (0);
@@ -266,13 +273,20 @@ main (int argc, char *argv[])
 
       case OBS_LIST:
 
-	if (!(n_times = ds_GetObsTimes (pid, &sample_time, times, MAX_OBS, NULL))) {
-	    msg_ELog (EF_PROBLEM, "unable to find entry before %02d-%s-%02d,%02d:%02d:%02d",
-		day, mname[month - 1], year, hour, min, sec);
+	if (!(n_times = ds_GetObsTimes (pid, &sample_time, times, 
+					MAX_OBS, NULL)))
+	{
+	    msg_ELog(EF_PROBLEM, 
+		     "unable to find entry before %02d-%s-%02d,%02d:%02d:%02d",
+		     day, mname[month - 1], year, hour, min, sec);
 	    exit (0);
-	} else {
-	    for (i = 0; i < n_times; i++) {
-		TC_ZtSplit (&times[i], &year, &month, &day, &hour, &min, &sec, &usec);
+	}
+	else
+	{
+	    for (i = 0; i < n_times; i++)
+	    {
+		TC_ZtSplit (&times[i], &year, &month, &day, &hour, 
+			    &min, &sec, &usec);
 		printf ("%02d-%s-%02d,%02d:%02d:%02d\n",
 		    day, mname[month - 1], year, hour, min, sec);
 	    }
@@ -300,7 +314,7 @@ main (int argc, char *argv[])
 		times,
 		(FieldId *) fids, fid_count,
 		(dsDetail *) NULL, 0);
-	    /* if there are limits on this fetch, then get the limiting field */
+	    /* if there are limits on this fetch, get the limiting field */
 	    if (action == OBS_INTERVAL) {
 		dc_limit = ds_FetchObs (pid, DCC_Scalar,
 		    times,
@@ -414,7 +428,8 @@ main (int argc, char *argv[])
 			limit_val = dc_GetScalar (dc_limit, i, limit_fid);
 			if (limit_val == missval)
 			    within_limits = 0;
-			else if (limit_val < lower_limit || limit_val > upper_limit)
+			else if (limit_val < lower_limit || 
+				 limit_val > upper_limit)
 			    within_limits = 0;
 		    }
 		    if (within_limits) {
@@ -433,7 +448,8 @@ main (int argc, char *argv[])
 			}
 			if (print_age) {
 			    dc_GetTime (dc, i, &this_time);
-			    printf ("%7.1f ", (tv.tv_sec - this_time.zt_Sec) / 60.0);
+			    printf ("%7.1f ", 
+				    (tv.tv_sec - this_time.zt_Sec) / 60.0);
 			}
 			if (print_zt) {
 			    dc_GetTime (dc, i, &this_time);
@@ -465,14 +481,16 @@ main (int argc, char *argv[])
 		if (ptr) {
 		    fwrite (ptr, buflen, 1, stdout);
 		} else {
-		    msg_ELog (EF_PROBLEM, "can't access sample 0 in data chunk");
+		    msg_ELog (EF_PROBLEM,
+			      "can't access sample 0 in data chunk");
 		    exit (0);
 		}
 		break;
 	    }
 	} else {
-	    msg_ELog (EF_PROBLEM, "unable to fetch entry for %02d-%s-%02d,%02d:%02d:%02d",
-		day, mname[month - 1], year, hour, min, sec);
+	    msg_ELog (EF_PROBLEM,
+		      "unable to fetch entry for %02d-%s-%02d,%02d:%02d:%02d",
+		      day, mname[month - 1], year, hour, min, sec);
 	    exit (0);
 	}
 
@@ -508,7 +526,7 @@ field_init (ztime)
 	fid_count++;
 	ptr = strtok (NULL, ":");
     }
-    /* If there were no fields specified, then print out all available fields */
+    /* If no fields specified, then print out all available fields */
     if (fid_count == 0) {
 	nf = MAX_FIDS;
 	fid_count = ds_GetFields (pid, ztime, &nf, fids);
@@ -594,6 +612,35 @@ MHandler (Message * msg)
     return (0);
 }
 
+
+void
+usage (myname)
+char *myname;
+{
+	printf ("usage: %s -p <plat> <action> %s\n",
+		 myname, "[options]");
+	printf ("where:\n");
+	printf ("   <plat> is the platform of interest, and\n");
+	printf ("   <action> must be one of the following:\n");
+	printf ("      -r    Retrieve the observation\n");
+	printf ("      -b    Beginning of observation\n");
+	printf ("      -e    End of observation\n");
+	printf ("      -l    List observations\n");
+	printf ("      -g <first|last>\n");
+	printf ("            Either the first or last good observation\n");
+	printf ("      -i field:start:stop\n");
+	printf ("available options:\n");
+	printf ("   -f field(format):...\n");
+	printf ("   -t dd-mmm-yy,hh:mm:ss\n");
+	printf ("   -n\n");
+	printf ("   -a\n");
+	printf ("   -z\n");
+	printf ("   -s\n");
+	printf ("   -m\n");
+	printf ("   -h       This message.\n");
+}
+
+
 /******************************************************************************
 
  Function: get command line options
@@ -601,13 +648,13 @@ MHandler (Message * msg)
  Called by: main
 
 ******************************************************************************/
-#define USAGEmsg "-p platform -r|b|e|g <first|last>|l [-f field(format):...] [-t dd-mmm-yy,hh:mm:ss] [-n] [-a] [-z] [-s] [-m] [-i field:start:stop]"
+
 
 int
 getopts (int argc, char *argv[])
 {
 
-    char            c;
+    int             c;
     int             err = 0;
     extern char    *optarg;
     extern int      optind;
@@ -616,8 +663,12 @@ getopts (int argc, char *argv[])
     char            limit_string[100];
     double          tempd;
 
-    while ((c = getopt (argc, argv, "p:rlf:t:benazg:smi:")) != -1) {
+    while ((c = getopt (argc, argv, "p:rlf:t:benazg:smi:h")) != -1) {
 	switch (c) {
+
+	  case 'h':
+	    usage (argv[0]);
+	    exit (0);
 
 	  case 'm':
 	    print_missing = 1;
@@ -730,8 +781,7 @@ getopts (int argc, char *argv[])
 	err++;
 
     if (err) {
-	fprintf (stderr, "usage: %s %s\n", myname, USAGEmsg);
-	exit (0);
-
+	usage (myname);
+	exit (9);
     }
 }
