@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.6 1989-08-25 11:11:28 burghart Exp $	*/
+/* $Id: dev_x11.c,v 1.7 1989-09-07 15:55:30 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -648,6 +648,28 @@ unsigned int base;
  */
  	for (i = 0; i < npix; i++)
 		data[i] = (data[i] == 127) ? 0 : data[i] + base;
+}
+
+
+
+
+x11_clip (ctag, x0, y0, x1, y1)
+char	*ctag;
+int	x0, y0, x1, y1;
+/*
+ * Set the "hardware" clip window
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+	XRectangle	rect;
+
+	rect.x = x0;
+	rect.y = tag->x_yres - y1;
+	rect.width = x1 - x0 + 1;
+	rect.height = y1 - y0 + 1;	
+
+	XSetClipRectangles (tag->x_display, tag->x_gc, 0, 0, &rect, 1, 
+		Unsorted);
 }
 
 # endif /* DEV_X11 */
