@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.40 1996-03-12 02:24:48 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.41 1996-05-01 20:29:43 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -21,7 +21,8 @@ DEBUGGER = xgdb
 #ifdef DebugFlag
 DEBUG = -DDEBUG -DNoBuffer -DDEBUGGER="\"$(DEBUGGER)\""
 #endif
-DEFINES = $(HDFDEFINES) $(DEBUG) /* -DTEST_TIME_UNITS */
+DEFINES = $(DEBUG) /* -DTEST_TIME_UNITS */
+DEPEND_DEFINES = $(HDFDEFINES)
 
 #CCOPTIONS=
 #CCOPTIONS=-pipe -pg
@@ -80,6 +81,8 @@ DISTFILES = Imakefile $(SRCS) $(TESTSRCS) $(PRIVATE_HEADERS) \
 DMNOBJS = $(DSOBJS) $(DSLIBOBJS) $(DCOBJS)
 CompleteProgramTarget(dsDaemon, $(DMNOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
+SpecialObjectRule(DFA_HDF.o,/**/,$(HDFDEFINES))
+
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
 /*
@@ -89,7 +92,8 @@ NormalLibraryTarget (ZebDS, $(DSLIBOBJS) $(DCOBJS))
 
 InstallLibrary (ZebDS, $(LIBDIR))
 
-BuildIncludes($(HEADERS),.,.)
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 /*
  * Dump routines.

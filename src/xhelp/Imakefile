@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.5 1993-10-21 21:29:14 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 1996-05-01 20:30:10 granger Exp $"
 
 OBJS =  xhelp.o fileServices.o Directory.o DirectoryMgr.o MultiList.o \
 	RegExp.o ScrolledList.o
@@ -39,7 +39,8 @@ HEADERS = xhelp.h
 
 ComplexProgramTarget(xhelp)
 
-BuildIncludes($(HEADERS),.,.)
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 #ifdef notdef
 InstallNonExec(xhelp.hlp,$(LIBDIR))

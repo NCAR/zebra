@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.43 1996-03-12 02:20:34 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.44 1996-05-01 20:29:21 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -110,15 +110,23 @@ XCOMM -----------------------------------------------------------------------
 #define UseInstalled /* since makedepend is assumed installed */
 #endif
 
+/*
+ * We expect UseInstalledImake to be defined instead of UseInstalled
+ * whenever we need to use the installed imake binary and config files
+ */
+#ifndef UseInstalledImake
+#define UseInstalledImake NO
+#endif
+
 #ifndef UseInstalledZebra
 #define UseInstalledZebra YES
 #endif
 
 #ifndef BuildIncRoot
-#define BuildIncRoot $(TOP)/include
+#define BuildIncRoot $(TOP)/share
 #endif
 #ifndef BuildIncTop
-#define BuildIncTop ..	/* Relative to $(TOP)/include */
+#define BuildIncTop ..	/* Relative to $(TOP)/share */
 #endif
 
 #ifndef BaseDir
@@ -142,7 +150,11 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 #ifndef ConfigDir
-#define ConfigDir $(TOP)/config
+#define ConfigDir $(LIBDIR)/config/cf
+#endif
+
+#ifndef ProjConfigDir
+#define ProjConfigDir $(LIBDIR)/config/project
 #endif
 
 #ifndef DependDir
@@ -224,12 +236,13 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 #if BuildRDSS
-# define RDSSDir BaseDir
 # define RDSSLibDir $(LIBDIR)
 # if UseInstalledZebra
+#  define RDSSDir $(LIBDIR)
 #  define RDSSUILibrary $(LIBDIR)/librdssui.a
 #  define RDSSUtilLibrary $(LIBDIR)/librdssutil.a
 # else
+#  define RDSSDir $(TOP)
 #  define RDSSUILibrary $(TOP)/ui/librdssui.a
 #  define RDSSUtilLibrary $(TOP)/util/librdssutil.a
 # endif
@@ -665,7 +678,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifdef ImakeSubCmdHelper
 #undef ImakeSubCmdHelper
 #endif
-#ifdef notdef /* UseInstalled */
+#if UseInstalledImake
 #define ImakeSubCmdHelper $(IMAKE_CMD)
 #else
 #define ImakeSubCmdHelper $$imakeprefix$(IMAKE) -I$$imakeprefix$(PROJECTSRC) \
@@ -699,27 +712,39 @@ XCOMM -----------------------------------------------------------------------
  * At the moment, this section sets the DEPEND command to an installed version,
  * while IMAKE and MKDIRHIER are set to the distributed locations
  */
+#if UseInstalledImake
+            IMAKE = $(BINDIR)/imake
+        MKDIRHIER = $(BINDIR)/mkdirhier
+#else
             IMAKE = $(IMAKESRC)/imake
-           DEPEND = makedepend		/* Assumes in path */
         MKDIRHIER = BourneShell $(SCRIPTSRC)/mkdirhier.sh
+#endif
+           DEPEND = makedepend		/* Assumes in path */
 
         CONFIGSRC = $(TOP)/config
-       PROJECTSRC = $(CONFIGSRC)/project
+    PROJCONFIGDIR = ProjConfigDir
           UTILSRC = $(CONFIGSRC)/util
         SCRIPTSRC = $(CONFIGSRC)/util
            DOCSRC = $(TOP)/doc
          IMAKESRC = $(CONFIGSRC)/imake
         DEPENDSRC = DependDir
-   IMAKE_INCLUDES = -I$(NEWTOP)$(PROJECTSRC) -I$(NEWTOP)$(IRULESRC)
 
      AUTO_DEFINES = AutoDefines
        IMAKE_AUTO = $(AUTO_DEFINES) -DAutoDefines='$(AUTO_DEFINES)'
-         IRULESRC = $(CONFIGSRC)/cf
+   IMAKE_INCLUDES = -I$(PROJECTSRC) -I$(IRULESRC)
        IMAKE_ARGS = $(IMAKE_INCLUDES) $(IMAKE_DEFINES) $(IMAKE_AUTO)
-        IMAKE_CMD = $(NEWTOP)$(IMAKE) $(IMAKE_ARGS)
+#if UseInstalledImake
+       PROJECTSRC = $(PROJCONFIGDIR)
+         IRULESRC = $(CONFIGDIR)
+        IMAKE_CMD = $(IMAKE) -DUseInstalledImake $(IMAKE_ARGS)
+#else
+       PROJECTSRC = $(CONFIGSRC)/project
+         IRULESRC = $(CONFIGSRC)/cf
+        IMAKE_CMD = $(IMAKE) $(IMAKE_ARGS)
+#endif
      ICONFIGFILES = $(PROJECTSRC)/Project.tmpl $(PROJECTSRC)/Zebra.rules \
                     $(PROJECTSRC)/config.h $(IRULESRC)/Imake.tmpl \
-                    $(IRULESRC)/site.def $(IRULESRC)/Imake.rules
+                    $(PROJECTSRC)/site.def $(IRULESRC)/Imake.rules
 
 /*
  * Include directories
@@ -737,9 +762,15 @@ XCOMM -----------------------------------------------------------------------
 /*
  * Directory include options; only the TOP_INCLUDES option will always exist
  * on the command line.  The others, except for RDSSIncludes, are empty
- * by default.
+ * by default.  If we've been told to use the installed imake, then we use
+ * the installed include files also; otherwise, the include files come from
+ * the top include directory.
  */
+#if UseInstalledImake
+     TOP_INCLUDES = -I$(INCDIR)
+#else
      TOP_INCLUDES = -I$(BUILDINCDIR)
+#endif
      RDSSINCLUDES = RDSSIncludes
         XINCLUDES = XIncludes
    NETCDFINCLUDES = NetCDFIncludes
@@ -797,6 +828,15 @@ CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
                     '-DLIBDIR="$(DEFLIBDIR)"' '-DDATADIR="$(DEFDATADIR)"' \
                     '-DRDSSDIR="$(DEFRDSSDIR)"'
 
+/*
+ * RDSS UI has special needs when compiling load files.  So we explicitly
+ * tell it where to get the defaults file according to UseInstalledZebra.
+ * If UseInstalledZebra is true, then RDSSDIR will be LIBDIR or RDSSDir,
+ * depending upon BuildRDSS.  If UseInstalledZebra is false, then
+ * RDSSDIR will be TOP, unless BuildRDSS is false.
+ */
+       UIRDSSROOT = $(RDSSDIR)
+       UIDEFSFILE = $(UIRDSSROOT)/ui/ui_commands
 /*
  * Library directories
  */

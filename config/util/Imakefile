@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.3 1995-06-29 20:51:29 granger Exp $
+XCOMM $Id: Imakefile,v 1.4 1996-05-01 20:29:36 granger Exp $
 #if UseCCMakeDepend
 MDEP_DIR = makedepend
 #endif
@@ -10,7 +10,7 @@ DISTFILES = Imakefile bsdinst.sh checkSysV.sh crayar.sh install.sh \
 
 all:: $(PROGRAMS)
 
-CppScriptTarget(zmkmf,zmkmf.cpp,/* cpp args */,/*$(ICONFIGFILES)*/)
+CppScriptTarget(zmkmf,zmkmf.cpp,-DBINDIR='"'"$(BINDIR)"'"' -DCONFIGDIRSPEC='"'"-I$(PROJCONFIGDIR) -I$(CONFIGDIR)"'"',$(ICONFIGFILES))
 InstallNamedProg(zmkmf,zmkmf,$(BINDIR))
 
 #if UseCCMakeDepend

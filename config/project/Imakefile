@@ -1,5 +1,6 @@
-/*
- * $Id: Imakefile,v 1.6 1995-05-24 23:42:14 granger Exp $
+/* -*- C -*-
+ *
+ * $Id: Imakefile,v 1.7 1996-05-01 20:29:19 granger Exp $
  *
  * Basically just install config.h into the include directory,
  * and make sure the necessary files are distributed.
@@ -9,10 +10,20 @@ all::
 
 HEADERS = Xosdefs.h version.h config.h
 
-DISTFILES = Imakefile $(HEADERS) Project.tmpl Build.tmpl README site.def \
-	    Zebra-Imake.doc appendix.doc Zebra.rules config.h.dist
+CFGFILES = $(HEADERS) Project.tmpl Build.tmpl site.def Docs.rules Zebra.rules \
+	   config.h.dist
 
-BuildIncludes($(HEADERS),.,.)
+DISTFILES = Imakefile $(HEADERS) Project.tmpl Build.tmpl README site.def \
+	    Docs.rules Zebra.rules config.h.dist
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
+/*
+ * Put our config files under the library config directory where binary
+ * distributions can find them.
+ */
+InstallMultipleDestFlags(install,$(CFGFILES),$(PROJCONFIGDIR),$(INSTDATFLAGS))
 
 depend::
 

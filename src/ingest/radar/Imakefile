@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.15 1995-09-20 20:45:33 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.16 1996-05-01 20:29:57 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBPCAP)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -31,6 +31,8 @@ OBJS =	radar_ingest.o adrad_ingest.o adradInput.o Input.o mtape.o \
 HDRS =  Ethernet.h HouseKeeping.h RadarInfo.h Types.h cvrt.h display.h \
 	portable.h radar.h radar_ingest.h radinfo.h raw.h sunrise_head.h \
 	sunrise_time.h xdr.h
+
+HEADERS = BeamBuffer.h
 
 APPDEFAULTS = radar_ingest.ad adrad_ingest.ad UFIngest.ad RadarStatus.ad
 
@@ -77,7 +79,8 @@ UILoadFileTarget(adrad_ingest.lf,adrad_ingest.state)
 
 UILoadFileTarget(UFIngest.lf,UFIngest.state)
 
-BuildIncludes (BeamBuffer.h,.,.)
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 InstallProgramSetUID(radar_ingest,$(BINDIR))
 

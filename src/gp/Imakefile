@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.31 1996-04-16 00:21:55 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.32 1996-05-01 20:29:48 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -46,7 +46,8 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
 # else
    MAPDEFINE=
 # endif
-DEFINES = $(SHMDEFINES) $(MAPDEFINE) /* -DXDEBUG */
+/* DEFINES = -DXDEBUG */
+DEPEND_DEFINES = $(SHMDEFINES) $(MAPDEFINE)
 
 /*
  * Projection.c needs the proj include directory when projections defined
@@ -114,6 +115,11 @@ DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
 
 CompleteProgramTarget(gp, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+SpecialObjectRule(RasterPlot.o,/**/,$(SHMDEFINES) $(MAPDEFINE))
+SpecialObjectRule(FrameCache.o,/**/,$(SHMDEFINES))
+MAPOBJS = ConstAltPlot.o Ov_Grid.o Projection.o
+SpecialObjectRule($(MAPOBJS),/**/,$(MAPDEFINE))
 
 UILoadFileDepsTarget(graphproc.lf, GraphProc.state, GraphProc.widgets)
 

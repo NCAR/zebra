@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1995-05-24 22:08:24 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1996-05-01 20:29:53 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -31,7 +31,8 @@ AllTarget(SLGrabber)
 NormalProgramTarget(SLGrabber,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 InstallProgramWithFlags(SLGrabber,$(BINDIR),-s)
 
-BuildIncludes($(HEADERS),.,.)
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 DependTarget()
 LintTarget()

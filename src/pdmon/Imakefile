@@ -18,7 +18,9 @@ DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
  * elisp files.
  */
 CompleteProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
-BuildIncludes (pdmon.h,.,.)
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 #if HaveEmacs
 PDUTILS = pd-utils.elc

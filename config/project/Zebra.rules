@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.7 1996-03-15 15:46:07 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.8 1996-05-01 20:29:24 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -136,7 +136,9 @@ InstallNonExecFile(loadfile,$(LIBDIR))				@@\
 								@@\
 loadfile: uisrc deps						@@\
 	RemoveFile(loadfile)					@@\
-	echo read uisrc \; \					@@\
+	echo set 'ui$$rdss_root' '"$(UIRDSSROOT)"' \; \		@@\
+	     set 'ui$$defs_file' '"$(UIDEFSFILE)"' \; \		@@\
+	     read uisrc \; \					@@\
 	     set 'ui$$pager_mode' false \; \			@@\
 	     save loadfile all | $(UIC)				@@\
 								@@\
@@ -187,7 +189,9 @@ InstallNonExecFile(loadfile,$(LIBDIR))				@@\
 								@@\
 loadfile: uisrc							@@\
 	RemoveFile(loadfile)					@@\
-	echo 'read uisrc ; save loadfile all ; exit' | $(UIC)	@@\
+	echo set 'ui$$rdss_root' '"$(UIRDSSROOT)"' \; \		@@\
+	     set 'ui$$defs_file' '"$(UIDEFSFILE)"' \; \		@@\
+	     'read uisrc ; save loadfile all ; exit' | $(UIC)	@@\
 								@@\
 clean::								@@\
 	RemoveFile(loadfile)
@@ -204,7 +208,9 @@ clean::								@@\
 								@@\
 loadfile: uisrc							@@\
 	RemoveFile(loadfile)					@@\
-	echo read uisrc \; \					@@\
+	echo set 'ui$$rdss_root' '"$(UIRDSSROOT)"' \; \		@@\
+	     set 'ui$$defs_file' '"$(UIDEFSFILE)"' \; \		@@\
+	     read uisrc \; \					@@\
 	     set 'ui$$pager_mode' false \; \			@@\
 	     save loadfile all | $(UIC)				@@\
 								@@\
@@ -235,7 +241,9 @@ loadfile: uisrc depfiles					@@\
 	RemoveFile(loadfile)					@@\
 	$(CPP) $(ALLDEFINES) uisrc \				@@\
 		| sed -e '/^#/d' > /tmp/uisrc.TMP; \ 		@@\
-	echo read /tmp/uisrc.TMP \; \				@@\
+	echo set 'ui$$rdss_root' '"$(UIRDSSROOT)"' \; \		@@\
+	     set 'ui$$defs_file' '"$(UIDEFSFILE)"' \; \		@@\
+	     read /tmp/uisrc.TMP \; \				@@\
 	     set 'ui$$pager_mode' false \; \			@@\
 	     save loadfile all | $(UIC) ; \			@@\
 	rm -f /tmp/uisrc.TMP					@@\
@@ -550,31 +558,6 @@ InstallNamedTarget(install,file.ad,$(INSTAPPFLAGS),$(XAPPLOADDIR),class)
  * The following rules re-define rules in Imake.rules, and so will need
  * be checked when grafting newer releases of Imake.
  *=======================================================================*/
-
-/*
- * We must actually redefine the BuildIncludes rule since we want to
- * use copies rather than links to include files.
- */
-#ifdef BuildIncludes
-#undef BuildIncludes
-#endif
-#ifdef SunArchitecture	/* we can only use -p on Sun's, not SystemV (HPs) */
-#define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
-includes::								@@\
-	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
-	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
-		$(RM) $$i; \						@@\
-		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
-	done)
-#else
-#define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
-includes::								@@\
-	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
-	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
-		$(RM) $$i; \						@@\
-		$(CP) $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
-	done)
-#endif /* SunArchitecture */
 
 
 /*

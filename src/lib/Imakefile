@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.16 1995-06-29 22:50:36 granger Exp $ */
+/* $Id: Imakefile,v 1.17 1996-05-01 20:30:01 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -32,7 +32,7 @@ WRITEVSRC=
  * Graphics widget needs to know whether to try shared memory, and the
  * ConfigVars routines need to the various default directory paths.
  */
-DEFINES = $(SHMDEFINES) $(DIRDEFINES)
+DEPEND_DEFINES = $(SHMDEFINES) $(DIRDEFINES)
 
 TESTSRCS = cvt_test.c re_test.c msg_test.c
 
@@ -58,9 +58,13 @@ DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile
 
 NormalLibraryTarget (Zeb, $(OBJS))
 
+SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES))
+SpecialObjectRule(ConfigVars.o,/**/,$(DIRDEFINES))
+
 InstallLibrary (Zeb, $(LIBDIR))
 
-BuildIncludes ($(HEADERS),.,.)
+BuildIncludesTop ($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 DependTarget()
 

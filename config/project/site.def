@@ -150,4 +150,16 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #define InstallFlags -c
 #endif
 
+/*
+ * We want to explicitly add BINDIR to the imake path rather
+ * than assume, so we change this default here, prior to Imake.tmpl
+ */
+#ifndef ImakeCmd
+#if UseInstalledImake
+#define ImakeCmd $(BINDIR)/imake
+#else
+#define ImakeCmd $(IMAKESRC)/imake
+#endif
+#endif
+
 #endif /* AfterVendorCF */

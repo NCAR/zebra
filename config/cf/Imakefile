@@ -85,8 +85,6 @@ DISTFILES = $(INSTFILES) Imakefile README site.sample
 
 all::
 
-#ifdef notdef
 InstallMultipleDestFlags(install,$(INSTFILES),$(CONFIGDIR),$(INSTDATFLAGS))
-#endif
 
 DistfilesTarget($(DISTFILES))
