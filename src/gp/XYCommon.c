@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.7 1992-08-10 18:07:08 barrett Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.8 1993-03-09 21:27:23 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,6 +30,7 @@ static char *rcsid = "$Id: XYCommon.c,v 1.7 1992-08-10 18:07:08 barrett Exp $";
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
+# include <netcdf.h>	/* needed for infinity kluge below */
 # include "derive.h"
 # include "GraphProc.h"
 # include "GC.h"
@@ -482,13 +483,32 @@ int             npts;
  */
 {
    int  i;
-   if ( !update && data )
+   bool haveminmax = !update;
+
+   for (i = 0; i < npts; i++)
    {
-        *min = data[0];
-        *max = data[0];
-   }
-   for ( i = 0; i < npts; i++)
-   {
+   /*
+    * Kluge test to bypass infinities in floating data.  We have some
+    * files that contain them and they tend to screw up autoscaling...
+    * (XDR_F_INFINITY comes from netcdf.h)
+    */
+	if (data[i].type == 'f' && data[i].val.f == XDR_F_INFINITY)
+	{
+		msg_ELog (EF_DEBUG, "Ignoring infinity while autoscaling");
+		continue;
+	}
+   /*
+    * Initialize the min and max if they don't exist yet
+    */
+	if (! haveminmax)
+	{
+		*min = data[i];
+		*max = data[i];
+		haveminmax = TRUE;
+	}
+   /*
+    * Update the min and max based on this point
+    */
         if ( lc_CompareData( &(data[i]), max ) > 0 )
                         *max = data[i];
         if ( lc_CompareData( &(data[i]), min ) < 0 )
