@@ -11,8 +11,8 @@
 
 
 
-def_config (name)
-char *name;
+def_config (cmds)
+struct ui_command *cmds;
 /*
  * Define a new configuration.
  */
@@ -23,8 +23,17 @@ char *name;
 /*
  * Initialize our new configuration structure.
  */
-	strcpy (cfg->c_name, name);
+	strcpy (cfg->c_name, UPTR (*cmds));
 	cfg->c_nwin = 0;
+/*
+ * Link counts.
+ */
+	if (cmds[1].uc_ctype == UTT_END)
+		cfg->c_nlink = 0;
+	else if (UINT (cmds[1]) < 0 || UINT (cmds[1]) >= 10)
+		ui_cl_error (TRUE, cmds[1].uc_col, "Preposterous link count");
+	else
+		cfg->c_nlink = UINT (cmds[1]);
 /*
  * Get the rest of the info.
  */
@@ -38,7 +47,7 @@ char *name;
  * Define the new configuration.
  */
 	v.us_v_ptr = (char *) cfg;
-	usy_s_symbol (Configs, name, SYMT_POINTER, &v);
+	usy_s_symbol (Configs, UPTR (*cmds), SYMT_POINTER, &v);
 }
 
 
@@ -64,6 +73,7 @@ struct ui_command *cmds;
 	   case DMC_WINDOW:
 		win = cfg->c_wins + cfg->c_nwin;
 		strcpy (win->cfw_name, UPTR (cmds[1]));
+		win->cfw_linkpar = 0;
 		win->cfw_x = UINT (cmds[2]);
 		win->cfw_y = UINT (cmds[3]);
 		win->cfw_dx = UINT (cmds[4]);
@@ -106,6 +116,18 @@ struct ui_command *cmds;
 	{
 	   case DMC_DESCRIPTION:
 	   	strcpy (win->cfw_desc, UPTR (cmds[1]));
+		if (win->cfw_linkpar)
+			ui_warning ("LINKPD overrides DESCRIPTION");
+		break;
+
+	   case DMC_LINKPD:
+		if (UINT (cmds[1]) <= 0 || UINT (cmds[1]) > 10)
+			ui_cl_error (TRUE, cmds[1].uc_col,
+				"Preposterous link count");
+	   	if (! strcmp (win->cfw_desc, "(undefined"))
+			ui_warning ("LINKPD overrides DESCRIPTION");
+		win->cfw_linkpar = UINT (cmds[1]);
+		sprintf (win->cfw_desc, "dm$link%02d", win->cfw_linkpar);
 		break;
 
 	   case DMC_BUTTONMAP:
