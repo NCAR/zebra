@@ -1,4 +1,11 @@
-/* sprintrmt(buf,arg) does what sprintf(buf,"%r",arg) used to */
+static char *rcsid = "$Id: sprintrmt.c,v 1.2 1993-09-27 18:28:42 case Exp $"
+
+/* sprintrmt(buf,arg) does what sprintf(buf,"%r",arg) used to
+ * 9/93 - calls to this routine were removed from ui, suds, robot which now 
+ * use the variable argument C routines.  Any other programs still calling
+ * this routine should follow suit
+ */
+
 # ifdef VMS
 	sprintrmt(buf, fmt, arg)
 	char   *buf, *fmt;
