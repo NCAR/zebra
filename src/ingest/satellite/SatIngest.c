@@ -1,0 +1,859 @@
+/*
+ * Consume GOES images into the data store.
+ */
+/*		Copyright (C) 1992 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+static char *rcsid = "$Id";
+
+# include <copyright.h>
+# include <unistd.h>
+# include <errno.h>
+# include <math.h>
+# include <stdio.h>
+# include <dirent.h>
+# include <config.h>
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <DataStore.h>
+# include <DataChunk.h>
+
+# include "keywords.h"
+
+
+/*
+ * Our platform
+ */
+# define PF_LEN 80
+char		Platname[PF_LEN] = "";
+PlatformId	Plat;
+
+/*
+ * The image and its size
+ */
+unsigned char	*Image;
+int	Nx, Ny;
+
+/*
+ * Grid information
+ */
+int	GridX = 0, GridY = 0;
+float	KmResolution = 0.0;
+float	Minlon, Maxlon, Minlat, Maxlat;
+float	Latstep, Lonstep;
+int 	HaveLimits = FALSE;
+
+/*
+ * Image unpacking info
+ */
+int	Nbytes, Prefixlen, Linelen, Xres, Yres;
+
+/*
+ * Image limits in line/elem coordinates
+ */
+int	Minelem, Maxelem, Minline, Maxline;
+
+/*
+ * Origin latitude to use
+ */
+float	OriginLat = -999.0;
+
+/*
+ * Structure describing a file to ingest
+ */
+# define MAXFILES 10
+struct _InFile
+{
+	char	*name;
+	char	*field;
+} Infile[MAXFILES];
+
+int Nfiles = 0;
+
+/*
+ * Useful stuff
+ */
+# define BETWEEN(x,lower,upper)	(((x)-(lower))*((x)-(upper)) <= 0)
+# define DEG_TO_RAD(x)	((x)*0.017453292)
+# define RAD_TO_DEG(x)	((x)*57.29577951)
+# define DEG_TO_KM(x)	((x)*111.3238367) /* on a great circle */
+# define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
+
+int	Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+/*
+ * Prototypes
+ */
+static int	Dispatcher FP ((int, struct ui_command *));
+static void	UserLimits FP ((struct ui_command *));
+static void	AddFile FP ((struct ui_command *));
+static void	Ingest FP ((void));
+static void	TimeCheck FP ((ZebTime *));
+static void	swapfour FP ((int *, int));
+static void	FileLimits FP ((void));
+static int	MDispatcher FP ((struct message *));
+static void *	DoFile FP ((char *));
+static void	GetFileTime FP ((char *, ZebTime *));
+static void	Die FP ((void));
+static inline unsigned char	imageval FP ((int, int));
+
+
+
+
+main (argc, argv)
+int argc;
+char **argv;
+/*
+ * Ingest a GOES visible and/or IR image
+ */
+{
+	SValue	v;
+	stbl	vtable;
+	char	loadfile[200];
+/*
+ * Connect to the message handler
+ */
+	msg_connect (MDispatcher, "SatIngest");
+	msg_DeathHandler (Die);
+/*
+ * UI stuff
+ */
+	fixdir ("SI_LOAD_FILE", LIBDIR, "SatIngest.lf", loadfile);
+
+	if (argc > 1)
+	{
+		ui_init (loadfile, FALSE, TRUE);
+		v.us_v_ptr = argv[1];
+		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
+			SYMT_STRING, &v);
+	}
+	else
+		ui_init (loadfile, TRUE, FALSE);
+
+	ui_setup ("SatIngest", &argc, argv, 0);
+/*
+ * Initialization
+ */
+	ds_Initialize ();
+
+	vtable = usy_g_stbl ("ui$variable_table");
+	usy_c_indirect (vtable, "originLat", &OriginLat, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "kmResolution", &KmResolution, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "platform", &Platname, SYMT_STRING, PF_LEN);
+	usy_c_indirect (vtable, "gridX", &GridX, SYMT_INT, 0);
+	usy_c_indirect (vtable, "gridY", &GridY, SYMT_INT, 0);
+/*
+ * Get on with it
+ */
+	ui_get_command ("initial", "SatIngest>", Dispatcher, 0);
+	ui_finish ();
+	exit (0);
+}
+
+
+
+
+static void
+Die ()
+/*
+ * Uh-oh.  Get out now.
+ */
+{
+	ui_finish ();
+	exit (1);
+}
+
+
+
+
+static int
+Dispatcher (junk, cmds)
+int	junk;
+struct ui_command	*cmds;
+/*
+ * The command dispatcher.
+ */
+{
+	switch (UKEY (*cmds))
+	{
+	/*
+	 * Time to actually do things.
+	 */
+	    case KW_GO:
+		Ingest ();
+		break;
+	/*
+	 * lat/lon limits
+	 */
+	    case KW_LIMITS:
+		UserLimits (cmds + 1);
+		break;
+	/*
+	 * File
+	 */
+	    case KW_FILE:
+		AddFile (cmds + 1);
+		break;
+	/*
+	 * Unknown command
+	 */
+	    default:
+		msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
+		break;
+	}
+	return (TRUE);
+}
+
+
+
+
+static void
+UserLimits (cmds)
+struct ui_command	*cmds;
+/*
+ * Get user specified lat/lon limits for the grid
+ */
+{
+	Minlat = UFLOAT (cmds[0]);
+	Minlon = UFLOAT (cmds[1]);
+	Maxlat = UFLOAT (cmds[2]);
+	Maxlon = UFLOAT (cmds[3]);
+	HaveLimits = TRUE;
+}
+
+
+
+
+static void
+AddFile (cmds)
+struct ui_command	*cmds;
+/*
+ * Add a file to be ingested
+ */
+{
+/*
+ * Sanity check
+ */
+	if (Nfiles == MAXFILES) 
+	{
+		msg_ELog (EF_PROBLEM, "Only %d files can be ingested", 
+			MAXFILES);
+		return;
+	}
+/*
+ * Add the file to the list
+ */
+	Infile[Nfiles].name = (char *) malloc (strlen (UPTR (cmds[0])) + 1);
+	strcpy (Infile[Nfiles].name, UPTR (cmds[0]));
+
+	Infile[Nfiles].field = (char *) malloc (strlen (UPTR (cmds[1])) + 1);
+	strcpy (Infile[Nfiles].field, UPTR (cmds[1]));
+
+	Nfiles++;
+}
+
+
+
+static void
+Ingest ()
+/*
+ * Begin the ingest process
+ */
+{
+	int	f, nfields = 0, ngood = 0;
+	void	*grid;
+	Location	loc;
+	RGrid		rg;
+	FieldId		fid[MAXFILES];
+	ScaleInfo	scale[MAXFILES];
+	DataChunk	*dc;
+	ZebTime		t;
+/*
+ * Make sure we have lat/lon limits and a platform name
+ */
+	if (! HaveLimits)
+	{
+		msg_ELog (EF_PROBLEM, "Lat/lon limits must be specified!");
+		Die ();
+	}
+
+	if (! Platname[0])
+	{
+		msg_ELog (EF_PROBLEM, "No platform specified");
+		Die ();
+	}
+/*
+ * Figure out grid spacing
+ */
+	if (GridX && GridY)
+	{
+		if (KmResolution != 0.0)
+			msg_ELog (EF_INFO, 
+				"Gridsize overrides kmResolution setting");
+
+		Latstep = (Maxlat - Minlat) / (GridY - 1);
+		Lonstep = (Maxlon - Minlon) / (GridX - 1);
+	}
+	else if (KmResolution != 0.0)
+	{
+		Latstep = Lonstep = KM_TO_DEG (KmResolution);
+
+		GridX = (int)((Maxlon - Minlon) / Lonstep) + 1;
+		GridY = (int)((Maxlat - Minlat) / Latstep) + 1;
+
+		Maxlon = Minlon + Lonstep * (GridX - 1);
+		Maxlat = Minlat + Latstep * (GridY - 1);
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, 
+			"gridX and gridY or kmResolution must be given");
+		Die ();
+	}
+
+	msg_ELog (EF_INFO, "Lat. limits: %.2f to %.2f every %.2f",
+		Minlat, Maxlat, Latstep);
+	msg_ELog (EF_INFO, "Lon. limits: %.2f to %.2f every %.2f",
+		Minlon, Maxlon, Lonstep);
+
+/*
+ * Build the location and rgrid information
+ */
+	loc.l_lat = Minlat;
+	loc.l_lon = Minlon;
+	loc.l_alt = 0.000;
+
+	rg.rg_Xspacing = DEG_TO_KM (Lonstep) * cos (DEG_TO_RAD(OriginLat));
+	rg.rg_Yspacing = DEG_TO_KM (Latstep);
+	rg.rg_Zspacing = 0.0;
+
+	rg.rg_nX = GridX;
+	rg.rg_nY = GridY;
+	rg.rg_nZ = 1;
+/*
+ * Check data times in the files and leave only the latest one(s) for ingest
+ */
+	TimeCheck (&t);
+/*
+ * Build a field list
+ */
+	nfields = Nfiles;
+
+	F_Init ();
+	for (f = 0; f < nfields; f++)
+	{
+		fid[f] = F_DeclareField (Infile[f].field, "", "");
+
+		scale[f].s_Scale = 1.0;
+		scale[f].s_Offset = 0.0;
+	}
+/*
+ * Get our platform
+ */
+	if ((Plat = ds_LookupPlatform (Platname)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad platform '%s'", Platname);
+		Die ();
+	}
+/*
+ * Create and initialize a data chunk
+ */
+	dc = dc_CreateDC (DCC_Image);
+	dc->dc_Platform = Plat;
+	dc_ImgSetup (dc, nfields, fid, scale);
+/*
+ * Build and insert the grids
+ */
+	for (f = 0; f < Nfiles; f++)
+	{
+		if ((grid = DoFile (Infile[f].name)) == NULL)
+			continue;
+
+		ngood++;
+		dc_ImgAddImage (dc, 0, fid[f], &loc, &rg, &t, grid, 
+			GridX * GridY);
+	}
+/*
+ * Write out the data chunk.  Finally.
+ */
+	if (ngood > 0)
+	{
+		ds_Store (dc, 1, NULL, 0);
+		msg_ELog (EF_INFO, "Successfully ingested %d of %d images",
+			ngood, Nfiles);
+	}
+	else
+		msg_ELog (EF_INFO, "Exiting with nothing ingested");
+/*
+ * Free the stuff we allocated
+ */
+	dc_DestroyDC (dc);
+	for (f = 0; f < Nfiles; f++)
+	{
+		free (Infile[f].name);
+		free (Infile[f].field);
+	}
+}
+	
+
+
+
+
+static void
+TimeCheck (t)
+ZebTime *t;
+/*
+ * Check data times in the files and leave only the latest one(s) for ingest
+ */
+{
+	ZebTime	ftime;
+	int	f, prev, ngood;
+/*
+ * Run through the file list, leaving only one(s) with the latest time
+ */
+	t->zt_Sec = t->zt_MicroSec = 0;
+
+	for (f = 0; f < Nfiles; f++)
+	{
+		GetFileTime (Infile[f].name, &ftime);
+		if (ftime.zt_Sec < t->zt_Sec)
+		{
+		/*
+		 * Remove files with older times from the list
+		 */
+			msg_ELog (EF_INFO, 
+				"Not ingesting %s due to time mismatch",
+				Infile[f].name);
+
+			free (Infile[f].name);
+			free (Infile[f].field);
+
+			continue;
+		}
+		else if (ftime.zt_Sec > t->zt_Sec)
+		{
+		/*
+		 * Copy to the beginning of the list if we hit a later time
+		 */
+			Infile[0] = Infile[f];
+			ngood = 0;
+			*t = ftime;
+		}
+	/*
+	 * Increment the good count and clean out the file entry if we
+	 * have moved it
+	 */
+		if (f != ngood++)
+		{
+			free (Infile[f].name);
+			free (Infile[f].field);
+		}
+	}
+
+	Nfiles = ngood;
+}
+
+
+
+
+static void *
+DoFile (fname)
+char	*fname;
+/*
+ * Read the named GOES area file, remapping into a grid and returning that
+ * grid.  The caller is expected to free the grid when finished with it.
+ * NULL is returned on failure.
+ */
+{
+	FILE	*infile;
+	int	header[64], nav_cod[128];
+	unsigned char	*grid;
+	int	i, j, line, elem, status, stuff[128], one = 1;
+	float	dummy, fline, felem, lat, lon;
+	char	source[5], *c;
+/*
+ * Open the input file
+ */
+	infile = fopen (fname, "r");
+	if (infile == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d opening file '%s'\n", errno,
+			fname);
+		return (NULL);
+	}
+
+	msg_ELog (EF_INFO, "Reading %s", fname);
+/*
+ * Read the 256 byte "area directory" header and the 512 byte
+ * navigation codicil and swap bytes around in each one.  
+ * NOTE: We don't swap in those portions which contain text
+ */
+	fread ((void *) header, 4, 64, infile);
+	swapfour (header, 20);
+	swapfour (header + 32, 19);
+
+	fread ((void *) nav_cod, 4, 128, infile);
+	swapfour (nav_cod + 1, 39);
+/*
+ * Verify that this is a GOES image
+ */
+	if (strncmp (nav_cod, "GOES", 4))
+	{
+		char	imtype[4];
+
+		strncpy (imtype, nav_cod, 4);
+		imtype[4] = '\0';
+
+		msg_ELog (EF_PROBLEM, "'%s' contains a '%s' image, not GOES",
+			fname, imtype);
+		fclose (infile);
+		return (NULL);
+	}
+/*
+ * Resolution (# of satellite units per image unit)
+ */
+	Xres = header[11];
+	Yres = header[12];
+/*
+ * If it isn't one byte data, we can't handle it (for now)
+ */
+	Nbytes = header[10];
+	if (Nbytes != 1)
+	{
+		msg_ELog (EF_EMERGENCY, "Can't deal with %d byte GOES data",
+			Nbytes);
+		return (NULL);
+	}
+/*
+ * Image size (Nx x Ny), bytes per element and prefix length
+ */
+	Ny = header[8];
+	Nx = header[9];
+	Prefixlen = header[14];
+
+	Linelen = Nx * Nbytes + Prefixlen;
+/*
+ * Source name from header word 51 (convert to lower case and remove spaces)
+ */
+	strncpy (source, header + 51, 4);
+	source[4] = '\0';
+
+	for (i = 0; i < 4; i++)
+	{
+		c = source + i;
+		if (*c == ' ')
+			*c = '\0';
+		else
+			*c = tolower (*c);
+	}
+/*
+ * 512 byte extra header for "aaa" areas (we ignore it for now)
+ */
+	if (! strcmp (source, "aaa"))
+		fread ((void *) stuff, 4, 128, infile);
+/*
+ * Read the image data
+ */
+	Image = (unsigned char *) malloc (Linelen * Ny);
+	fread ((void *) Image, 1, Linelen * Ny, infile);
+/*
+ * We're done with the file
+ */
+	fclose (infile);
+/*
+ * Element and line limits
+ */
+	Minline = header[5];
+	Maxline = Minline + (Ny - 1) * Yres;
+
+	Minelem = header[6];
+	Maxelem = Minelem + (Nx - 1) * Xres;
+/*
+ * Initialize the navigation stuff
+ */
+	status = nvxini_ (&one, nav_cod);
+	if (status < 0)
+	{
+		msg_ELog (EF_PROBLEM, 
+			"Bad navigation initialization for file '%s'", fname);
+		free (Image);
+		return (NULL);
+	}
+/*
+ * Allocate the grid
+ */
+	grid = (unsigned char *) malloc (GridX * GridY * sizeof (char));
+/*
+ * Fill in the grid (This is the meat of the program, the rest is more or
+ * less incidental.)
+ */
+	for (j = 0; j < GridY; j++)
+	{
+		if (! ((j+1) % 20))
+			msg_ELog (EF_DEBUG, "%s: line %d of %d", fname,
+				j + 1, GridY);
+
+		lat = Maxlat - j * Latstep;
+
+		for (i = 0; i < GridX; i++)
+		{
+		/*
+		 * Translate lat/lon into line and element in the image
+		 * (NOTE: nvxeas expects west longitudes to be positive, hence
+		 * the sign change)
+		 */
+			lon = -(Minlon + i * Lonstep);
+			status = nvxeas_ (&lat, &lon, &dummy, &fline, &felem,
+				&dummy);
+
+			line = (int)(fline + 0.5);
+			elem = (int)(felem + 0.5);
+		/*
+		 * Assign this grid point
+		 */
+			if (status == 0)
+				grid[GridX * j + i] = imageval (line, elem);
+			else
+				grid[GridX * j + i] = 0;
+		}
+	}
+
+	free (Image);
+	return (grid);
+}
+
+
+
+
+static void
+GetFileTime (fname, t)
+char	*fname;
+ZebTime	*t;
+/*
+ * Return the time of the specified area file
+ */
+{
+	int	year, month, day, hour, minute, second, header[5];
+	FILE	*infile;
+/*
+ * Open the file
+ */
+	infile = fopen (fname, "r");
+	if (infile == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d opening file '%s'\n", errno,
+			fname);
+		t->zt_Sec = t->zt_MicroSec = 0;
+		return;
+	}
+/*
+ * Read the first piece of the area directory and do the appropriate byte
+ * swapping.
+ */
+	fread ((void *) header, 4, 5, infile);
+	swapfour (header, 5);
+	fclose (infile);
+/*
+ * Extract the date.
+ */
+	year = header[3] / 1000;
+	if ((year % 4) == 0)
+		Mdays[2] = 29;	/* February has 29 days in leap years */
+
+	day = header[3] % 1000;
+	month = 1;
+	while (day > Mdays[month])
+		day -= Mdays[month++];
+/*
+ * Time
+ */
+	hour = header[4] / 10000;
+	minute = (header[4] / 100) % 100;
+	second = header[4] % 100;
+/*
+ * Build a zeb time out of the pieces and we're done
+ */
+	TC_ZtAssemble (t, year, month, day, hour, minute, second, 0);
+	return;
+}
+
+
+
+
+
+static void
+swapfour (array, count)
+int	*array, count;
+/*
+ * Swap byte order (0123 -> 3210) for 'count' longwords in 'array'
+ */
+{
+	int	i;
+	char	*bytes, swapped[4];
+
+	for (i = 0; i < count; i++)
+	{
+		bytes = (char *) &(array[i]);
+		swapped[0] = bytes[3];
+		swapped[1] = bytes[2];
+		swapped[2] = bytes[1];
+		swapped[3] = bytes[0];
+		memcpy (bytes, swapped, 4);
+	}
+}
+
+
+
+
+void
+FileLimits ()
+{
+	float	fline, felem, dummy, lat, lon;
+	int	status;
+/*
+ * Find the lat/lon limits based on the corners of the image
+ * (NOTE: nvxsae returns W longitudes as positive, so we change the sign)
+ */
+	Minlat = Minlon = 999.0;
+	Maxlat = Maxlon = -999.0;
+	status = 0;
+
+	fline = Minline; felem = Minelem;
+	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
+	lon *= -1;
+	Minlat = lat < Minlat ? lat : Minlat;
+	Minlon = lon < Minlon ? lon : Minlon;
+	Maxlat = lat > Maxlat ? lat : Maxlat;
+	Maxlon = lon > Maxlon ? lon : Maxlon;
+
+	fline = Minline; felem = Maxelem;
+	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
+	lon *= -1;
+	Minlat = lat < Minlat ? lat : Minlat;
+	Minlon = lon < Minlon ? lon : Minlon;
+	Maxlat = lat > Maxlat ? lat : Maxlat;
+	Maxlon = lon > Maxlon ? lon : Maxlon;
+
+	fline = Maxline; felem = Minelem;
+	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
+	lon *= -1;
+	Minlat = lat < Minlat ? lat : Minlat;
+	Minlon = lon < Minlon ? lon : Minlon;
+	Maxlat = lat > Maxlat ? lat : Maxlat;
+	Maxlon = lon > Maxlon ? lon : Maxlon;
+
+	fline = Maxline; felem = Maxelem;
+	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
+	lon *= -1;
+	Minlat = lat < Minlat ? lat : Minlat;
+	Minlon = lon < Minlon ? lon : Minlon;
+	Maxlat = lat > Maxlat ? lat : Maxlat;
+	Maxlon = lon > Maxlon ? lon : Maxlon;
+/*
+ * Look for problems.  If the status is < 0 here, it means one
+ * or more of the "corners" of the image is off of the globe and the user
+ * needs to choose the limits for the remapping explicitly.
+ */
+	if (status < 0)
+	{
+		msg_ELog (EF_PROBLEM, 
+			"Explicit bounds must be set for this image");
+		exit (1);
+	}
+/*
+ * Find the lat/lon steps
+ */
+	Latstep = (Maxlat - Minlat) / (GridY - 1);
+	Lonstep = (Maxlon - Minlon) / (GridX - 1);
+
+	msg_ELog (EF_INFO, "Lat. limits: %.2f to %.2f every %.2f",
+		Minlat, Maxlat, Latstep);
+	msg_ELog (EF_INFO, "Lon. limits: %.2f to %.2f every %.2f",
+		Minlon, Maxlon, Lonstep);
+
+	HaveLimits = TRUE;
+}
+
+
+
+
+static inline unsigned char
+imageval (line, elem)
+int	line, elem;
+/*
+ * Return the image value associated with satellite line/elem coordinates
+ */
+{
+	int	image_x, image_y, pos;
+	unsigned int	val;
+
+	if (BETWEEN(line, Minline, Maxline) && BETWEEN(elem, Minelem, Maxelem))
+	{
+	/*
+	 * Translate from satellite coordinates to image coordinates
+	 */
+		image_x = (int)((float)(elem - Minelem) / Xres + 0.5);
+		image_y = (int)((float)(line - Minline) / Yres + 0.5);
+	/*
+	 * Find the offset into the image
+	 */
+		pos = image_y * Linelen + Prefixlen + image_x * Nbytes;
+	/*
+	 * Unpack the appropriate number of bytes
+	 */
+		switch (Nbytes)
+		{
+		    case 1:
+			return (Image[pos]);
+			break;
+		    default:
+			msg_ELog (EF_EMERGENCY, 
+				"Exiting.  Cannot handle %d byte values.", 
+				Nbytes);
+			exit (1);
+		}
+	}
+	else
+		return ((unsigned char) 0xff);
+}
+
+
+
+
+static int
+MDispatcher (msg)
+struct message *msg;
+/*
+ * Deal with a message.
+ */
+{
+	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
+
+	switch (msg->m_proto)
+	{
+	   case MT_MESSAGE:
+		if (tmpl->mh_type == MH_DIE)
+		{
+			ui_finish ();
+			exit (1);
+		}
+		break;
+	}
+	return (0);
+}   	
