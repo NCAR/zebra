@@ -23,14 +23,13 @@
 # include <sys/types.h>
 # include <sys/time.h>
 # include <sys/file.h>
-# include <sys/stropts.h>
 # include <rpc/rpc.h>
 # include <defs.h>
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: adradInput.c,v 2.6 1997-04-28 03:39:23 granger Exp $")
+RCSID("$Id: adradInput.c,v 2.7 1999-03-11 17:37:20 burghart Exp $")
 
 /*
  * Adrad includes for xdr, etc.

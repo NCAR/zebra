@@ -25,7 +25,6 @@
 # include <sys/socket.h>
 # include <sys/file.h>
 # include <sys/ioctl.h>
-# include <sys/stropts.h>
 # include <net/if.h>
 # include <netinet/in.h>
 # include <net/nit_if.h>
@@ -42,7 +41,7 @@
 # include "BeamBuffer.h"
 /* # include "Ethernet.h" */
 
-RCSID("$Id: Input.c,v 2.10 1996-12-10 20:50:45 granger Exp $")
+RCSID("$Id: Input.c,v 2.11 1999-03-11 17:37:20 burghart Exp $")
 
 static int zero = 0;
 
