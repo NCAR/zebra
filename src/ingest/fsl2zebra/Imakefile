@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 2002-05-28 23:46:28 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 2002-05-28 23:49:52 burghart Exp $"
 
 LIBS = 
 SYSLIBS = -lnetcdf_c++ -lnetcdf $(LIBUDUNITS)
@@ -29,7 +29,6 @@ DISTFILES = Imakefile $(SRCS) $(HDRS)
 
 AllTarget(fsl2zebra)
 CccProgramTarget(fsl2zebra,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
-InstallProgram(fsl2zebra,$(BINDIR))
 
 DependTarget()
 
