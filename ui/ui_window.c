@@ -47,7 +47,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.7 1990-03-02 17:45:00 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.8 1990-03-02 18:31:34 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -2301,11 +2301,13 @@ struct mb_menu *menu;
 		XtAddCallback (menu->mbm_pulldown, XtNpopupCallback,
 			uw_mb_popup, menu);
 	}
+# ifdef notdef
 /*
  * For menus with mark expressions, go through and set the initial values.
  */
 	if (menu->mbm_expr)
 		uw_mb_set_marks (menu, TRUE);
+# endif
 }
 
 
