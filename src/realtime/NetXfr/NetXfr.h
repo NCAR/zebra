@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 1.3 1991-06-06 03:48:31 corbet Exp $ */
+/* $Id: NetXfr.h,v 1.4 1991-06-06 23:20:42 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -14,7 +14,9 @@ typedef enum
 	NMT_DataDone,		/* End of data transfer			*/
 	NMT_DontSend,		/* Stop sending me something		*/
 	NMT_DataBCast,		/* Broadcast do_data chunk		*/
+	NMT_DataBRetrans,	/* Data retransmission (bcast)		*/
 	NMT_DataOffsets,	/* Offsets for bcast data		*/
+	NMT_Retransmit,		/* Please retransmit something		*/
 } NetMsgType;
 
 /*
@@ -73,6 +75,17 @@ typedef struct _DataBCChunk
 } DataBCChunk;
 
 /*
+ * BCast retransmission request.
+ */
+typedef struct _DataRetransRq
+{
+	NetMsgType	dh_MsgType;	/* == NMT_Retransmit		*/
+	int		dh_DataSeq;	/* Associated sequence		*/
+	int		dh_Chunk;	/* Chunk number			*/
+	struct _DataRetransRq *dh_Next;	/* For queueing			*/
+} DataRetransRq;
+
+/*
  * Array of offsets for bcast, since we don't preserve them separately.
  */
 typedef struct _DataOffsets
@@ -109,6 +122,7 @@ extern int Broadcast;
 	void DoBCast (PlatformId, DataObject *);
 	void ReceiveSetup (int);
 	void SendOut (PlatformId, void *, int);
+	void Retransmit (DataRetransRq *);
 # else
 	void BCastSetup ();
 	int BCastHandler ();

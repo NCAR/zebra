@@ -5,6 +5,7 @@ static char *rcsid = "$Id";
 
 # include <defs.h>
 # include <message.h>
+# include <timer.h>
 # include "DataStore.h"
 # include "NetXfr.h"
 
@@ -62,11 +63,14 @@ typedef struct _InProgress
 	DataObject	*ip_DObj;	/* The data object	*/
 	DataOffsets	ip_Offsets;	/* Offset struct, if needed	*/
 	char		*ip_Arrived;	/* Indications of arrived packets*/
+	char		ip_Source[MAX_NAME_LEN]; /* Who is sending these */
 	struct _InProgress *ip_Next;	/* Next in chain	*/
 	short		ip_NBCast;	/* # of arrived bcast pkts	*/
 	short		ip_NBExpect;	/* # expected			*/
 	char		ip_BCast;	/* Broadcast packets coming	*/
 	char		ip_Done;	/* DONE packet arrived	*/
+	short		ip_TReq;	/* Timer request	*/
+	short		ip_NRetrans;	/* Number of requests	*/
 } InProgress;
 
 InProgress *IPList = 0;
@@ -82,7 +86,7 @@ InProgress *IPList = 0;
 	static int NXMessage (Message *);
 	static void SendChunk (PlatformId, void *, int, int, int);
 	static DataObject *GetData (PlatformId, time *, int);
-	static void NewData (DataHdr *);
+	static void NewData (char *, DataHdr *);
 	InProgress *FindIP (int);
 	static void ContData (DataContinue *);
 	static void Done (int);
@@ -90,6 +94,9 @@ InProgress *IPList = 0;
 	static void IncOffsets (DataOffsets *);
 	static void UnknownBCast (DataBCChunk *, int);
 	static void FindQueued (int);
+	static void ZapIP (InProgress *);
+	static void Timeout (time *, int);
+	static void AskRetrans (InProgress *, int);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -108,6 +115,9 @@ InProgress *IPList = 0;
 	static void IncOffsets ();
 	static void UnknownBCast ();
 	static void FindQueued ();
+	static void ZapIP ();
+	static void Timeout ();
+	static void AskRetrans ();
 # endif
 
 /*
@@ -552,7 +562,7 @@ struct message *msg;
 	 * New data coming in.
 	 */
 	   case NMT_DataHdr:
-	   	NewData ((DataHdr *) tmpl);
+	   	NewData (msg->m_from, (DataHdr *) tmpl);
 		break;
 
 	/*
@@ -576,6 +586,13 @@ struct message *msg;
 	   	IncOffsets ((DataOffsets *) tmpl);
 		break;
 
+	/*
+	 * A retransmission request, alas.
+	 */
+	   case NMT_Retransmit:
+	   	Retransmit ((DataRetransRq *) tmpl);
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown data proto type: %d",
 				tmpl->dh_MsgType);
@@ -588,7 +605,8 @@ struct message *msg;
 
 
 static void
-NewData (hdr)
+NewData (from, hdr)
+char *from;
 DataHdr *hdr;
 /*
  * A new data stream is beginning.
@@ -596,8 +614,8 @@ DataHdr *hdr;
 {
 	InProgress *ip = ALLOC (InProgress);
 
-	msg_ELog (EF_INFO, "Begin data %s, seq %d, t %d %06d",
-		hdr->dh_Platform, hdr->dh_DataSeq,
+	msg_ELog (EF_INFO, "Begin data %s from %s, seq %d, t %d %06d",
+		hdr->dh_Platform, from, hdr->dh_DataSeq,
 		hdr->dh_DObj.do_end.ds_yymmdd, hdr->dh_DObj.do_end.ds_hhmmss);
 /*
  * Fill in our IP structure.
@@ -615,6 +633,7 @@ DataHdr *hdr;
 	ip->ip_DObj->do_id = ip->ip_Plat;
 	ip->ip_Arrived = 0;
 	ip->ip_Done = FALSE;
+	strcpy (ip->ip_Source, from);
 /*
  * Add it to the list
  */
@@ -625,7 +644,8 @@ DataHdr *hdr;
  */
 	if (ip->ip_BCast = hdr->dh_BCast)
 	{
-		ip->ip_NBCast = ip->ip_NBExpect = 0;
+		ip->ip_NRetrans = ip->ip_NBCast = 0;
+		ip->ip_NBExpect = 1; /* Expect at least this many	*/
 		FindQueued (ip->ip_Seq);
 	}
 	msg_ELog (EF_DEBUG,"BCast is %d for seq %d", ip->ip_BCast, ip->ip_Seq);
@@ -716,7 +736,8 @@ char *data;
 /*
  * Make sure this is what we think it is.
  */
-	if (chunk->dh_MsgType != NMT_DataBCast)
+	if (chunk->dh_MsgType != NMT_DataBCast &&
+			chunk->dh_MsgType != NMT_DataBRetrans)
 	{
 		msg_ELog (EF_PROBLEM, "Funky msg type %d bcast",
 			chunk->dh_MsgType);
@@ -730,9 +751,16 @@ char *data;
 		chunk->dh_Size, chunk->dh_Offset);
 	if (! (ip = FindIP (chunk->dh_DataSeq)))
 	{
-		UnknownBCast (chunk, len);
+		if (chunk->dh_MsgType != NMT_DataBRetrans)
+			UnknownBCast (chunk, len);
 		return (0);
 	}
+/*
+ * If this is a retransmit, see if it's one we need.
+ */
+	if (chunk->dh_MsgType == NMT_DataBRetrans && ip->ip_Arrived &&
+			ip->ip_Arrived[chunk->dh_Chunk])
+		return;
 /*
  * If this is the first broadcast packet, do some setup.
  */
@@ -865,12 +893,88 @@ int seq;
 		return;
 	}
 /*
- * Otherwise just mark as "done" and hope it comes in eventually.
- * Set a timeout eventually.
+ * Otherwise, we wait a little longer before complaining.
  */
 	msg_ELog (EF_INFO, "IP DONE, but %d segs missing",
 		ip->ip_NBExpect - ip->ip_NBCast);
 	ip->ip_Done = TRUE;
+	ip->ip_TReq = tl_AddRelativeEvent (Timeout, (void *) ip->ip_Seq, 
+			BCInitialWait*INCFRAC, 0);
+}
+
+
+
+
+static void
+Timeout (t, seq)
+time *t;
+int seq;
+/*
+ * This is the retransmit timeout routine.
+ */
+{
+	InProgress *ip = FindIP (seq);
+	int ch;
+/*
+ * If we don't find our InProgress structure, that can only mean that
+ * the data arrived and it was flushed out.  So we can happily just quit.
+ */
+	if (! ip)
+	{
+		msg_ELog (EF_INFO, "Timeout with no IP on %d", seq);
+		return;
+	}
+/*
+ * If we have exceeded the number of timeouts we are willing to deal with,
+ * we give up on this.  If any data has arrived at all, finish out the IP
+ * to preserve it; otherwise just dump it.
+ */
+	if (++(ip->ip_NRetrans) > BCRetransMax)
+	{
+		msg_ELog (EF_INFO, "Too many timeouts on %d", seq);
+		if (ip->ip_NBCast > 0)
+			FinishIP (ip);
+		else
+			ZapIP (ip);
+		return;
+	}
+/*
+ * We've not yet exhausted our patience.  Go through and ask for
+ * retransmits on everything we lack.
+ */
+	if (ip->ip_NBCast == 0)
+		AskRetrans (ip, 0);
+	else
+		for (ch = 0; ch < ip->ip_NBExpect; ch++)
+			if (! ip->ip_Arrived[ch])
+				AskRetrans (ip, ch);
+/*
+ * Schedule a new timer request on this IP.
+ */
+	ip->ip_TReq = tl_AddRelativeEvent (Timeout, (void *) seq,
+			BCRetransWait*INCFRAC, 0);
+}
+
+
+
+
+static void
+AskRetrans (ip, chunk)
+InProgress *ip;
+int chunk;
+/*
+ * Ask to have this chunk retransmitted.
+ */
+{
+	DataRetransRq req;
+
+	msg_ELog (EF_INFO, "Beg retrans of seq %d ch %d from '%s'", ip->ip_Seq,
+		chunk, ip->ip_Source);
+
+	req.dh_MsgType = NMT_Retransmit;
+	req.dh_DataSeq = ip->ip_Seq;
+	req.dh_Chunk = chunk;
+	msg_send (ip->ip_Source, MT_NETXFR, 0, &req, sizeof (req));
 }
 
 
@@ -883,8 +987,7 @@ InProgress *ip;
  * This one is done.
  */
 {
-	InProgress *zap;
-	int seq = ip->ip_Seq, i;
+	int i;
 /*
  * If this is a broadcast-distributed chunk, apply the data offsets.
  */
@@ -898,6 +1001,18 @@ InProgress *ip;
  */
 	msg_ELog (EF_INFO, "Store sequence %d", ip->ip_Seq);
 	ds_PutData (ip->ip_DObj, FALSE);
+	ZapIP (ip);
+}
+
+
+
+
+static void
+ZapIP (ip)
+InProgress *ip;
+{
+	InProgress *zap;
+	int seq = ip->ip_Seq;
 /*
  * Clear this entry out of the inprogress list.
  */

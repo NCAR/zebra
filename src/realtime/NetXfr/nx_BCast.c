@@ -1,7 +1,7 @@
 /*
  * Handling of broadcast stuff.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 1.1 1991-06-06 03:48:31 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 1.2 1991-06-06 23:20:42 corbet Exp $";
 
 
 # include "../include/defs.h"
@@ -17,6 +17,62 @@ static char *rcsid = "$Id: nx_BCast.c,v 1.1 1991-06-06 03:48:31 corbet Exp $";
  * The channel on which we do our broadcasting.
  */
 static int BCastChannel = 0;
+
+/*
+ * The following is used to keep track of broadcast sequences in progress,
+ * and in the retransmit wait state.
+ */
+typedef struct _tx_BCast
+{
+	int	txb_Seq;	/* The sequence number of this one	*/
+	int	txb_NChunk;	/* How many chunks			*/
+	DataBCChunk **txb_Chunks;	/* The actual data chunks	*/
+	struct _tx_BCast *txb_Next;	/* List link			*/
+} tx_BCast;
+
+tx_BCast *Tx_Current = 0;	/* Currently active sequences		*/
+tx_BCast *Tx_Free = 0;		/* The struct lookaside list		*/
+
+DataBCChunk *Ch_Free = 0;	/* Data chunk lookaside list		*/
+
+/*
+ * How much data can we put into one UDP packet?  The UDP spec allows
+ * us up to around 8K.  But we know that this data is going over an
+ * ethernet for the near future, so, since we are fragmenting the data
+ * anyway, we might as well avoid further fragmentation at the IP level.
+ *
+ * IP header = 20 bytes.  UDP = 8 bytes.
+ */
+# define CBYTES (1500 - 28)	/* Space available to us in packet */
+# define MAXDATA (CBYTES - sizeof (DataBCChunk) + 1)	/* Space for data */
+
+/*
+ * Bookkeeping for retransmission requests.  This stuff is
+ * kept around to avoid rebroadcasting stuff multiple times.
+ * Actual retransmissions are only done once a second (at most),
+ * so that duplicates can be filtered out.
+ */
+static DataRetransRq *RetransPending = 0;
+static DataRetransRq *RetransFree = 0;
+static int RetransTreq = -1;		/* Timer request number	*/
+
+/*
+ * Routines.
+ */
+# ifdef __STDC__
+	static tx_BCast *NewBCast (int, int);
+	static DataBCChunk *GetBCastPacket (tx_BCast *, int);
+	static tx_BCast *FindBCP (int);
+	static void FlushRetrans (time *, void *);
+	static void ZapBCast (time *, tx_BCast *);
+# else
+	static tx_BCast *NewBCast ();
+	static DataBCChunk *GetBCastPacket ();
+	static tx_BCast *FindBCP ();
+	static void FlushRetrans ();
+	static void ZapBCast ();
+# endif
+
 
 
 void
@@ -74,10 +130,15 @@ DataObject *dobj;
  * Broadcast this data to the world.
  */
 {
-	DataBCChunk *chunk;
+	tx_BCast *bcp;
+	DataBCChunk *chunk, template;
 	DataOffsets offsets;
 	int fld, nchunk;
 	char *cdata = (char *) dobj->do_data;
+/*
+ * Set up to output this sequence.
+ */
+	bcp = NewBCast (Seq, dobj->do_nbyte);
 /*
  * Send out the offsets first, through normal channels.  Note that this
  * assumes that the data arrays are allocated in one big chunk.
@@ -88,51 +149,275 @@ DataObject *dobj;
 	offsets.dh_DataSeq = Seq;
 	SendOut (plat, &offsets, sizeof (offsets));
 /*
- * Allocate memory for our chunk, and figure out how much we can do in
- * each packet.  The point here is to create packets that won't get fragmented
- * on the ethernet on their way out.
- *
- * IP header = 20 bytes.  UDP = 8 bytes.
+ * Fill in the header info in our template packet.
  */
-# define CBYTES (1500 - 28)
-
-	chunk = (DataBCChunk *) malloc (CBYTES);
-	chunk->dh_Size = CBYTES - sizeof (DataBCChunk) + 1;
-/*
- * Fill in other static info in the chunk.
- */
-	chunk->dh_MsgType = NMT_DataBCast;
-	chunk->dh_DataSeq = Seq;
-	chunk->dh_Offset = 0;
-	chunk->dh_DataSize = dobj->do_nbyte;
-	chunk->dh_NChunk = (dobj->do_nbyte + chunk->dh_Size -1)/chunk->dh_Size;
-	chunk->dh_Chunk = 0;
-	chunk->dh_ID = Pid;
-	msg_ELog (EF_DEBUG, "BCast in %d chunks of %d", chunk->dh_NChunk,
-		chunk->dh_Size);
+	template.dh_MsgType = NMT_DataBCast;
+	template.dh_DataSeq = Seq;
+	template.dh_Offset = 0;
+	template.dh_DataSize = dobj->do_nbyte;
+	template.dh_NChunk = bcp->txb_NChunk;
+	template.dh_Size = MAXDATA;
+	template.dh_Chunk = 0;
+	template.dh_ID = Pid;
+	msg_ELog (EF_DEBUG, "BCast in %d chunks of %d", template.dh_NChunk,
+		template.dh_Size);
 /*
  * Now we blast them out.
  */
-	for (; chunk->dh_Chunk < chunk->dh_NChunk - 1; (chunk->dh_Chunk)++)
+	for (; template.dh_Chunk < template.dh_NChunk - 1; template.dh_Chunk++)
 	{
+	/*
+	 * Allocate an outgoing packet and fill in header and data.
+	 */
+		chunk = GetBCastPacket (bcp, template.dh_Chunk);
+		*chunk = template;
 		memcpy (chunk->dh_data, cdata, chunk->dh_Size);
+	/*
+	 * Send it out and update info.
+	 */
 		msg_BCast (BCastChannel, chunk, CBYTES);
 		cdata += chunk->dh_Size;
-		chunk->dh_Offset += chunk->dh_Size;
+		template.dh_Offset += chunk->dh_Size;
 	}
 /*
  * Don't forget the last one.
  */
+	chunk = GetBCastPacket (bcp, template.dh_Chunk);
+	*chunk = template;
 	chunk->dh_Size = dobj->do_nbyte - chunk->dh_Offset;
 	memcpy (chunk->dh_data, cdata, chunk->dh_Size);
 	msg_BCast (BCastChannel, chunk, CBYTES);
 /*
- * Free up and we're done.
+ * Add the timeout that will eventually cause all this to go away.
  */
-	free (chunk);
+	tl_AddRelativeEvent (ZapBCast, bcp, BCastSave*INCFRAC, 0);
 }
 
 
 
 
 
+
+static tx_BCast *
+NewBCast (seq, len)
+int seq, len;
+/*
+ * Set up a new broadcast for this sequence.
+ */
+{
+	tx_BCast *ret;
+/*
+ * Get a structure.
+ */
+	if (Tx_Free)
+	{
+		ret = Tx_Free;
+		Tx_Free = ret->txb_Next;
+	}
+	else
+		ret = ALLOC (tx_BCast);
+/*
+ * Fill it in and add it to the list.
+ */
+	ret->txb_Seq = seq;
+	ret->txb_NChunk = (len + MAXDATA + 1)/MAXDATA;
+	ret->txb_Chunks = (DataBCChunk **)
+			malloc (ret->txb_NChunk * sizeof (DataBCChunk *));
+	ret->txb_Next = Tx_Current;
+	Tx_Current = ret;
+	return (ret);
+}
+
+
+
+
+static DataBCChunk *
+GetBCastPacket (bcp, number)
+tx_BCast *bcp;
+int number;
+/*
+ * Get a packet to send out.
+ */
+{
+	DataBCChunk *pkt;
+/*
+ * Get the packet itself.
+ */
+	if (Ch_Free)
+	{
+		pkt = Ch_Free;
+		Ch_Free = pkt->dh_Next;
+	}
+	else
+		pkt = (DataBCChunk *) malloc (CBYTES);
+/*
+ * Stuff it into the broadcast block, and we're done.
+ */
+	return (bcp->txb_Chunks[number] = pkt);
+}
+
+
+
+
+static void
+ZapBCast (t, bcp)
+time *t;
+tx_BCast *bcp;
+/*
+ * Age out this set of broadcast data.
+ */
+{
+	tx_BCast *last;
+	int ch;
+/*
+ * Remove this structure from the current list.
+ */
+	if (bcp == Tx_Current)
+		Tx_Current = bcp->txb_Next;
+	else
+	{
+		for (last = Tx_Current; last; last = last->txb_Next)
+			if (last->txb_Next == bcp)
+				break;
+		if (last)
+			last->txb_Next = bcp->txb_Next;
+		else
+			msg_ELog (EF_PROBLEM,"Bcast %d vanished",bcp->txb_Seq);
+	}
+/*
+ * Go through and free each of the packet chunks.
+ */
+	for (ch = 0; ch < bcp->txb_NChunk; ch++)
+	{
+		bcp->txb_Chunks[ch]->dh_Next = Ch_Free;
+		Ch_Free = bcp->txb_Chunks[ch];
+	}
+/*
+ * Free the structure and we're done.
+ */
+	bcp->txb_Next = Tx_Free;
+	Tx_Free = bcp;
+}
+
+
+
+
+
+void
+Retransmit (rq)
+DataRetransRq *rq;
+/*
+ * Deal with a retransmit request.
+ */
+{
+	DataRetransRq *ent;
+	tx_BCast *bcp;
+/*
+ * Search the current pending list to see if somebody has already asked
+ * for this one.
+ */
+	for (ent = RetransPending; ent; ent = ent->dh_Next)
+		if (ent->dh_DataSeq == rq->dh_DataSeq &&
+				ent->dh_Chunk == rq->dh_Chunk)
+		{
+			msg_ELog (EF_INFO, "Dup retrans %d %d",rq->dh_DataSeq,
+					rq->dh_Chunk);
+			return;
+		}
+/*
+ * See also if we can deal with this sequence at all.
+ */
+	if (! (bcp = FindBCP (rq->dh_DataSeq)))
+	{
+		msg_ELog (EF_INFO, "Retrans rq on missing seq %d",
+				rq->dh_DataSeq);
+		return;
+	}
+/*
+ * OK, add this one to the list.
+ */
+	if (RetransFree)
+	{
+		ent = RetransFree;
+		RetransFree = ent->dh_Next;
+	}
+	else
+		ent = ALLOC (DataRetransRq);
+	*ent = *rq;
+	ent->dh_Next = RetransPending;
+	RetransPending = ent;
+/*
+ * If there is not a timer request pending to flush these guys out,
+ * put in in now.
+ */
+	if (RetransTreq < 0)
+		RetransTreq = tl_AddRelativeEvent (FlushRetrans, 0,INCFRAC, 0);
+}
+
+
+
+
+static tx_BCast *
+FindBCP (seq)
+int seq;
+/*
+ * Find the broadcast block for this sequence.
+ */
+{
+	tx_BCast *bcp;
+
+	for (bcp = Tx_Current; bcp; bcp = bcp->txb_Next)
+		if (bcp->txb_Seq == seq)
+			break;
+	return (bcp);
+}
+
+
+
+
+
+
+static void
+FlushRetrans (t, junk)
+time *t;
+void *junk;
+/*
+ * Actually cause retransmits to happen.
+ */
+{
+	tx_BCast *bcp;
+	DataRetransRq *req;
+	int nretrans = 0;
+/*
+ * Deal with each entry on the list.
+ */
+	while (RetransPending)
+	{
+	/*
+	 * Remove this one.
+	 */
+	 	req = RetransPending;
+		RetransPending = req->dh_Next;
+	/*
+	 * Find the broadcast structure that can satisfy this one, and
+	 * send out the chunk.
+	 */
+	 	if (bcp = FindBCP (req->dh_DataSeq))
+			msg_BCast (BCastChannel,bcp->txb_Chunks[req->dh_Chunk],
+					 CBYTES);
+		else
+			msg_ELog (EF_INFO, "Cant retrans %d %d",
+				req->dh_DataSeq, req->dh_Chunk);
+	/*
+	 * Free up this entry.
+	 */
+		req->dh_Next = RetransFree;
+		RetransFree = req;
+		nretrans++;
+	}
+/*
+ * No timer request pending.
+ */
+	msg_ELog (EF_INFO, "%d frames retransmitted", nretrans);
+	RetransTreq = -1;
+}
