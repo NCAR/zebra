@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.20 1995-05-24 22:30:41 granger Exp $ */
+/* $Id: message.h,v 2.21 1995-07-06 04:50:45 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -277,7 +277,11 @@ struct msg_mtap
  */
 int msg_DispatchQueued FP ((void));
 int msg_incoming FP ((int));
+#ifdef __cplusplus
+int msg_connect FP ((int (*handler) (Message *), char *));
+#else
 int msg_connect FP ((int (*handler) (), char *));
+#endif
 int msg_Connected FP ((void));
 void msg_disconnect FP ((void));
 void msg_send FP ((char *, int, int, void *, int));
