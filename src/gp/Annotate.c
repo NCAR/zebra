@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.12 1992-12-16 18:06:32 erik Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.13 1993-03-05 15:46:26 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -741,7 +741,7 @@ int datalen, begin, space;
 {
 	int limit, left;
 	float scale;
-	char string[40], color[40];
+	char string[40], color[40], *strrchr (), *sp;
 	XColor xc;
 /*
  * Get annotation parameters.
@@ -749,8 +749,18 @@ int datalen, begin, space;
 	An_GetSideParams (comp, &scale, &limit);
 /*
  * Get data.
+ * Changed 3/5 jc -- some annotation strings have spaces in them!  So we look
+ * 		     for the last one as designating the color -- nobody 
+ *		     better make any damn color names with spaces...
  */
-	sscanf (data, "%s %s", string, color);
+	/* sscanf (data, "%s %s", string, color); */
+	if (! (sp = strrchr (data, ' ')))
+	{
+		msg_ELog (EF_PROBLEM, "Trashed annot string: %s", data);
+		return;
+	}
+	*sp = '\0';
+	strcpy (color, sp + 1);
 	ct_GetColorByName (color, &xc);
 /*
  * Draw the string.
@@ -758,7 +768,7 @@ int datalen, begin, space;
 	left = An_GetLeft ();
         XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
-        	left, begin, string, 0.0, scale, JustifyLeft, JustifyTop);
+        	left, begin, data, 0.0, scale, JustifyLeft, JustifyTop);
 }
 
 
