@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.27 2001-01-17 20:29:04 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.28 2001-01-17 23:21:43 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -34,9 +34,6 @@ INGEST = ingest
 #endif
 #if BuildOptimizer
 OPTIMIZER_DIR = Optimizer
-#endif
-#if BuildDataUtilities
-DATAUTIL = datautil
 #endif
 #if BuildRealtimeDataStoreTools
 REALTIME = realtime
