@@ -33,7 +33,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-MAKE_RCSID ("$Id: xmgrpipe.c,v 1.1 1994-10-26 00:02:39 granger Exp $")
+MAKE_RCSID ("$Id: xmgrpipe.c,v 1.2 1995-04-20 13:43:33 granger Exp $")
 
 static void Spew FP((DataChunk *dc, FieldId field, ZebTime *end));
 static void PipeData FP((PlatformId pid, ZebTime *begin, ZebTime *end,
@@ -210,6 +210,55 @@ ZebTime *zt;
 	return (1);
 }
 
+/*
+ * I had to store these in arrays because the sun cc compiler did not
+ * like @ and newlines in string literals.  Arghh.
+ */
+static char *Preamble[] = {
+	"@page 5",
+	"@page inout 5",
+	"@link page off",
+	"@with g0",
+	"@g0 on",
+	"@g0 label off",
+	"@g0 hidden false",
+	"@g0 type xy",
+	"@g0 autoscale type AUTO",
+	"@g0 fixedpoint off",
+	"@g0 fixedpoint type 0",
+	"@g0 fixedpoint xy 0.000000, 0.000000",
+	"@g0 fixedpoint format general general",
+	"@g0 fixedpoint prec 6, 6",
+	"@    title color 4",
+	"@    subtitle color 4",
+	NULL
+};
+
+static char *Xaxis[] = {
+	"@    xaxis  tick on",
+	"@    xaxis  label \"Time\"",
+	"@    xaxis  ticklabel type spec",
+	"@    xaxis  ticklabel prec 1",
+	"@    xaxis  ticklabel format decimal",
+	"@    xaxis  ticklabel layout horizontal",
+	"@    xaxis  ticklabel skip 0",
+	"@    xaxis  ticklabel stagger 0",
+	"@    xaxis  ticklabel op bottom",
+	"@    xaxis  ticklabel sign normal",
+	"@    xaxis  ticklabel start type auto",
+	"@    xaxis  ticklabel start 0.000000",
+	"@    xaxis  ticklabel stop type auto",
+	"@    xaxis  ticklabel stop 0.000000",
+	"@    xaxis  ticklabel char size 1.000000",
+	"@    xaxis  ticklabel font 4",
+	"@    xaxis  ticklabel color 1",
+	"@    xaxis  ticklabel linewidth 1",
+	"@    xaxis  tick major grid off",
+	"@    xaxis  tick minor grid off",
+	"@    xaxis  tick op both",
+	"@    xaxis  tick type spec",
+	NULL
+};
 
 
 static void
@@ -227,6 +276,7 @@ int nfields;
 	DataChunk *dc;
 	int i;
 	int isecs;
+	char **line;
 	ZebTime lt;
 	TimePrintFormat tc;
 	char buf[256];
@@ -234,54 +284,18 @@ int nfields;
 /*
  * First set some ACE/gr parameters, especially the time ticks.
  */
-	printf ("\
-@page 5
-@page inout 5
-@link page off
-@with g0
-@g0 on
-@g0 label off
-@g0 hidden false
-@g0 type xy
-@g0 autoscale type AUTO
-@g0 fixedpoint off
-@g0 fixedpoint type 0
-@g0 fixedpoint xy 0.000000, 0.000000
-@g0 fixedpoint format general general
-@g0 fixedpoint prec 6, 6
-@    title color 4
-@    subtitle color 4
-");
+	line = Preamble;
+	while (*line)
+		printf ("%s\n", *line++);
 	TC_EncodeTime (begin, TC_Full, buf);
 	strcat (buf, " - ");
 	TC_EncodeTime (end, TC_Full, buf+strlen(buf));
 	printf ("@    subtitle \"%s\"\n", buf);
 	printf ("@    title \"%s: %s (%s)\"\n", ds_PlatformName(pid),
 		F_GetName (fids[0]), F_GetUnits (fids[0]));
-	printf ("\
-@    xaxis  tick on
-@    xaxis  label \"Time\"
-@    xaxis  ticklabel type spec
-@    xaxis  ticklabel prec 1
-@    xaxis  ticklabel format decimal
-@    xaxis  ticklabel layout horizontal
-@    xaxis  ticklabel skip 0
-@    xaxis  ticklabel stagger 0
-@    xaxis  ticklabel op bottom
-@    xaxis  ticklabel sign normal
-@    xaxis  ticklabel start type auto
-@    xaxis  ticklabel start 0.000000
-@    xaxis  ticklabel stop type auto
-@    xaxis  ticklabel stop 0.000000
-@    xaxis  ticklabel char size 1.000000
-@    xaxis  ticklabel font 4
-@    xaxis  ticklabel color 1
-@    xaxis  ticklabel linewidth 1
-@    xaxis  tick major grid off
-@    xaxis  tick minor grid off
-@    xaxis  tick op both
-@    xaxis  tick type spec
-");
+	line = Xaxis;
+	while (*line)
+		printf ("%s\n", *line++);
 	isecs = (end->zt_Sec - begin->zt_Sec) / (NTIMETICKS + 1);
 	tc = TC_TimeOnly;
 	lt = *begin;
