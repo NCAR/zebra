@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.4 1989-09-25 14:31:17 corbet Exp $ */
+/* $Id: ui_tty.c,v 1.5 1989-09-25 14:51:56 corbet Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -24,9 +24,24 @@
 # endif
 
 # ifdef BSD
+# include <sys/types.h>
 # include <sys/fcntl.h>
 # include <termios.h>
 # endif
+
+/*
+ * Implementation of X watching...currently BSD only.
+ */
+# ifdef BSD
+# ifdef XSUPPORT
+# define MAXFD 10
+static int Nfd = 0;	/* Number of FD's to watch	*/
+typedef void (*void_function_pointer) ();
+static int Fds[MAXFD];
+static void_function_pointer Fd_funcs [MAXFD];
+# endif
+# endif
+
 
 # include <ctype.h>
 # include "ui.h"
@@ -836,7 +851,50 @@ tty_readch ()
  * Perform a one-char terminal read, with arrow key recognition.
  */
 {
-	char c = tty_do_read (0);
+	char c;
+	int i, nset;
+	
+# ifdef XSUPPORT
+	if (Nfd > 0)
+	{
+		fd_set fset, ret;
+		int width;
+
+		FD_ZERO (&ret);
+		while (Nfd > 0 && ! FD_ISSET (TT_chan, &ret))
+		{
+		/*
+		 * Set up the file descriptor list.
+		 */
+			FD_ZERO (&fset);
+			FD_SET (TT_chan, &fset);
+			width = TT_chan;
+			for (i = 0; i < Nfd; i++)
+			{
+				FD_SET (Fds[i], &fset);
+				if (Fds[i] > width)
+					width = Fds[i];
+			}
+			width++;
+			ret = fset;
+		/*
+		 * Wait for something.
+		 */
+			nset = select (width, &ret, 0, 0, 0);
+		/*
+		 * Dispatch any incoming stuff.
+		 */
+		 	for (i = 0; i < Nfd && nset > 0; i++)
+				if (FD_ISSET (Fds[i], &ret))
+				{
+					(*Fd_funcs[i]) (Fds[i]);
+					nset--;
+				}
+		}
+	}
+# endif
+	c = tty_do_read (0);
+	
 	return (Has_arrows ? tty_map (c) : c);
 }
 
@@ -1086,5 +1144,60 @@ tty_nlines ()
  * Return the number of lines on the terminal screen.
  */
 {
-	return (N_lines);
+	return (N_lines ? N_lines : 24);
 }
+
+
+
+
+# ifdef XSUPPORT
+
+tty_watch (fd, func)
+int fd;
+void_function_pointer func;
+/*
+ * Watch this FD for events.
+ */
+{
+/*
+ * Make sure we have room.
+ */
+	if (Nfd >= MAXFD)
+		ui_error ("(BUG) FD table overflow");
+/* 
+ * Add this function.
+ */
+	Fds[Nfd] = fd;
+	Fd_funcs[Nfd++] = func;
+}
+
+
+
+tty_nowatch (fd)
+int fd;
+/*
+ * Stop watching.
+ */
+{
+	int i;
+/*
+ * Find this file descriptor.
+ */
+	for (i = 0; i < Nfd; i++)
+		if (Fds[i] == fd)
+			break;
+	if (i >= Nfd)
+		c_panic ("Nowatch on unwatched FD %d\n", fd);
+/*
+ * Remove it.
+ */
+	for (; i < Nfd - 1; i++)
+	{
+		Fds[i] = Fds[i + 1];
+		Fd_funcs[i] = Fd_funcs[i + 1];
+	}
+	Nfd--;
+}
+
+# endif
+
