@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.8 1994-04-19 22:08:18 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.9 1994-04-26 20:03:35 corbet Exp $")
 
 
 /*
@@ -267,8 +267,22 @@ SetupFields ()
 	if (! usy_g_symbol (VTable, "icon_component", &type, &v))
 		return (Funky ("no icon component"));
 	strcpy (IComp, v.us_v_ptr);
-	if (! pd_Retrieve (Pd, IComp, "platform", Platform, SYMT_STRING))
-		return (Funky ("No platform!"));
+/*
+ * Assume that if our area type is not "icon" we need to see what our
+ * real platform should be.
+ */
+	usy_g_symbol (VTable, "area_type", &type, &v);
+	if (! strcmp (v.us_v_ptr, "icon"))
+	{
+		if (! pd_Retrieve (Pd, IComp, "platform", Platform,
+				SYMT_STRING))
+			return (Funky ("No platform!"));
+	}
+	else
+	{
+		usy_g_symbol (VTable, "icon_platform", &type, &v);
+		strcpy (Platform, v.us_v_ptr);
+	}
 /*
  * If we are dealing with a comma-separated list of platforms, just
  * use the first.  This may not be the ideal behavior, but then, what is?
