@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.6 1992-03-13 17:44:15 corbet Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.7 1992-09-23 21:10:11 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -308,7 +308,7 @@ pw_PosStatus ()
 /*
  * Calculate x and y.
  */
-	sprintf (string, "x: %.0f km  y: %.0f km\n\n", subx, suby);
+	sprintf (string, "x: %.1f km  y: %.1f km\n\n", subx, suby);
 	strcat (label, string);
 /*
  * Say what its relative to.
