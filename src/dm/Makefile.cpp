@@ -1,60 +1,64 @@
-MFVERSION="$Id: Makefile.cpp,v 1.2 1991-09-26 17:16:16 gracio Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 20:32:14 corbet Exp $"
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+# include "../include/config.h"
 
 # ifdef sun
 /*
  * Sun options
  */
 CC=gcc
-CFLAGS=-g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
-LIBS=../lib/libfcc.a -lrdss -ltermcap -lXaw -lXmu -lXt -lXext -lX11 -lm
+CFLAGS=-g -O -I$(FCCINC) -I$(RDSSINC)
+LIBS=ZebLibrary -lrdss -ltermcap -lXaw -lXmu -lXt -lXext -lX11 -lm
 # endif
-
-# ifdef titan
-/*
- * Ardent options
- */
-CFLAGS = -g -DUNIX -43 -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
-LIBS=../lib/libfcc.a -lrdss -ltermcap -L/usr/lib/X11 -lXaw -lXmu -lXt -lXext -lX11 -lm
-# endif
-
-BINDIR=../bin
-LIBDIR=../lib
-HDIR=../include
 
 OBJS= dm.o dm_pd.o dm_ui.o dm_color.o DialBox.o dm_pick.o
 
 all:	dm dm.lf
 
 install:	dm dm.lf include
-	install -c dm $(BINDIR)
-	install -c dm.lf $(LIBDIR)
+	install -c dm D_BINDIR
+	install -c dm.lf D_LIBDIR
 
 include:
-	install -c -m 0444 dm.h $(HDIR);
+	install -c -m 0444 dm.h D_FCCINC
 
 dm:	$(OBJS)
 	$(CC) $(CFLAGS) -o dm $(OBJS) $(LIBS)
 
 dm.o:	dm.h
 
-graphproc:	graphproc.c
-	$(CC) $(CFLAGS) -o graphproc -I/rdss/include graphproc.c $(LIBS)
-
 dm.lf:	dm.state
 	uic < make-lf
 
 clean:
-	rm -f *~ dm graphproc *.o dm.lf
+	rm -f *~ dm graphproc *.o dm.lf Makefile.bak
 
-Makefile: Makefile.cpp
+Makefile: mf
+
+mf:
 	mv Makefile Makefile~
 	cp Makefile.cpp Makefile.c
 	echo "# DO NOT EDIT -- EDIT Makefile.cpp INSTEAD" > Makefile
-	cc -E Makefile.c >> Makefile
+	cc -E -DMAKING_MAKEFILE Makefile.c | cat -s >> Makefile
 	rm -f Makefile.c
-
-coda:
-	(cd $(ZEBHOME)/fcc; CODA=$(ZEBHOME)/fcc/.codarc; export CODA; coda dm)
+	make depend
 
 depend:
 	makedepend $(CFLAGS) *.c
