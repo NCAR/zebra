@@ -62,7 +62,7 @@ bool	DisplayUp = False;
  * Data file variables.
  */
 FILE	*Fptr;
-char	*Fname = "dsdwidget.tmp";
+char	*Fname = "/tmp/dsdwidget.tmp";
 static struct fname
 {
 	int	flag;
@@ -152,7 +152,8 @@ char	**argv;
  * Display the widget and wait for something to happen.
  */
         XtRealizeWidget (Top);
-        XtAppAddInput (Appc, msg_get_fd (), XtInputReadMask, MsgInput, 0);
+        XtAppAddInput (Appc, msg_get_fd (), (XtPointer) XtInputReadMask, 
+		(XtInputCallbackProc) MsgInput, (XtPointer) 0);
         XtAppMainLoop (Appc);
 }
 
@@ -336,7 +337,8 @@ CreateDSDWidget ()
         XtSetArg (args[n], XtNfromHoriz, button);               n++;
         XtSetArg (args[n], XtNfromVert, NULL);                  n++;
         die = XtCreateManagedWidget ("die", commandWidgetClass, Form, args, n);
-        XtAddCallback (die, XtNcallback, Die, 0);
+        XtAddCallback (die, XtNcallback, (XtCallbackProc) Die, 
+		(XtPointer) 0);
 /*
  * A big viewport.
  */
@@ -445,7 +447,8 @@ AddPlatforms ()
 		GetTimes (p, &begin, &end);
         	Entry[nplat] = XtCreateManagedWidget (p->dp_name, 
 			commandWidgetClass, Box, NULL, 0);
-		XtAddCallback (Entry[nplat], XtNcallback, PopupDisplay, i);
+		XtAddCallback (Entry[nplat], XtNcallback, 
+			(XtCallbackProc) PopupDisplay, (XtPointer) i);
 
 		SetEntry (nplat, &begin, &end);
 		nplat++;
