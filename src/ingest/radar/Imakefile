@@ -15,9 +15,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.9 1995-04-07 21:05:23 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.10 1995-05-24 22:09:47 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBPCAP)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \
 	Rasterize.c StatusWidget.c XDisplay.c ds_consumer.c adradFieldList.c \
@@ -40,16 +41,19 @@ PARAMS = cp4.params adrad.params mhr.params nexrad-kmlb.params \
 
 DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) $(STATES) $(PARAMS)
 
-NormalProgramTargetNoInstall(radar_ingest,radar_ingest.o mtape.o Rasterize.o
-	StatusWidget.o Input.o cp2.o PCapInput.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
+AllTarget(radar_ingest)
+NormalProgramTarget(radar_ingest,radar_ingest.o mtape.o Rasterize.o
+    StatusWidget.o Input.o cp2.o PCapInput.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(adrad_ingest,adrad_ingest.o Rasterize.o 
+AllTarget(adrad_ingest)
+NormalProgramTarget(adrad_ingest,adrad_ingest.o Rasterize.o 
 	adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(adradFieldList,
+CompleteProgramTarget(adradFieldList,
 	adradFieldList.o adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(UFIngest,UFIngest.o Rasterize.o 
+AllTarget(UFIngest)
+NormalProgramTarget(UFIngest,UFIngest.o Rasterize.o 
 	UFInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
@@ -70,7 +74,7 @@ InstallAppDefaults(adrad_ingest)
 
 InstallAppDefaults(UFIngest)
 
-NormalProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 LintTarget()
 DependTarget()

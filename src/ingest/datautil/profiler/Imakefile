@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.3 1994-01-21 11:48:11 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.4 1995-05-24 22:07:27 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -21,8 +21,8 @@ XCOMM ---------------------------------------------------------------------
  */
 
 
-LOCAL_LIBRARIES=\
-	$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 
@@ -35,14 +35,13 @@ HDRS =	pc_cmds.h
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) prof_convert.state README \
 	    profiler.names profiler.txt
 
-NormalProgramTarget(prof_convert,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), 
-		    $(SYSLIBS))
+CompleteProgramTarget(prof_convert,$(OBJS),$(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 UILoadFileTarget(prof_convert.lf, prof_convert.state)
 
-TestProgramTarget(pc_test,$(OBJS),$(DEPLIBS),$(LOCAL_LIBRARIES),$(SYSLIBS))
+TestProgramTarget(pc_test,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-CflowTarget(prof_convert, $(OBJS),)
+CflowTarget(prof_convert, $(OBJS), /**/)
 
 DependTarget()
 LintTarget()

@@ -15,9 +15,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-06-07 18:59:55 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1995-05-24 22:10:31 granger Exp $"
 
 LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
@@ -27,7 +28,7 @@ SRCS = trmm_sonde.c
 
 DISTFILES = trmm_sonde.c Imakefile
 
-NormalProgramTarget(trmm_sonde, trmm_sonde.o, $(DEPLIBS), $(LOCAL_LIBS), 
+CompleteProgramTarget(trmm_sonde, trmm_sonde.o, $(DEPLIBS), $(LOCAL_LIBS), 
 		$(SYSLIBS))
 
 DistfilesTarget($(DISTFILES))

@@ -1,4 +1,5 @@
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(FLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 OBJS = ers1.o bints.o
 
-NormalProgramTarget(ers1, $(OBJS), $(DEPLIBS), $(LIBS),$(SYSLIBS))
+CompleteProgramTarget(ers1, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

@@ -15,18 +15,18 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1994-01-21 11:49:58 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1995-05-24 22:09:43 granger Exp $"
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(LIBUNP) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 SRCS = profs_ingest.c
 OBJS = profs_ingest.o
 
 DISTFILES = Imakefile $(SRCS) profs_realtime
 
-NormalProgramTargetNoInstall(profs_ingest,profs_ingest.o,
-		$(DEPLIBS), $(LIBS) $(LIBUNP) $(XLIBS),$(SYSLIBS))
-
+AllTarget(profs_ingest)
+NormalProgramTarget(profs_ingest,profs_ingest.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 InstallProgramWithFlags(profs_ingest,$(BINDIR),-s)
 
 DependTarget()

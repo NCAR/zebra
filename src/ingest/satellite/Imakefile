@@ -15,18 +15,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.9 1995-03-10 23:21:52 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.10 1995-05-24 22:09:57 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) \
 	$(LIBMCIDAS) $(FLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS) $(LIBMCIDAS)
-
-/*!
- *! Note that these programs require the MCIDAS objects in ingest/mcidas
- *! to be installed in the Zeb library
- *!
- */
 
 SRCS = SatIngest.c GMSIngest.c area_dump.c areadump.c GriddedGOES.c
 
@@ -40,13 +35,13 @@ DISTFILES = Imakefile $(SRCS) SatIngest.state big.sat \
 	    keywords.h sat.init satheader nvxgoes.f \
 	    hackgms.c harp.ini README mcidas_read.c satingest.doc
 
-NormalProgramTarget(SatIngest,SatIngest.o $(OBJS),
+CompleteProgramTarget(SatIngest,SatIngest.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(GMSIngest,GMSIngest.o $(OBJS),
+CompleteProgramTarget(GMSIngest,GMSIngest.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(GriddedGOES,GriddedGOES.o $(OBJS),
+CompleteProgramTarget(GriddedGOES,GriddedGOES.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 TestProgramTarget(testSatIngest,testSatIngest.o $(OBJS),

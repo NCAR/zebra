@@ -15,14 +15,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 1994-06-29 21:32:25 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1995-05-24 22:10:02 granger Exp $"
 
 PROOF=/net/CenterLine/bin/proof
 
 LIBMP = /local/src/prog-tools/mprof/libc_mp.a
 
-LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) \
-		$(LIBNETCDF) $(XLIBS) $(FLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(FLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
 LINTOPTS = -nuvxz
@@ -38,9 +38,9 @@ HDRS = outdat.h ssmi_record.h scan.h
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(TSRCS) $(HDRS)
 
-NormalProgramTarget(ssmi_ingest, $(IOBJS), $(DEPLIBS), $(LOCAL_LIBS),/**/)
+CompleteProgramTarget(ssmi_ingest, $(IOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/**/)
+TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/*syslibs*/)
 
 DistfilesTarget($(DISTFILES))
 
@@ -55,7 +55,7 @@ osaber:	$(IOBJS)
 	# load $(CFLAGS) $(IOBJS)
 	# load -G decode.o
 	# load -G /locallib/librdss.a
-	# load $(CFLAGS) $(IOBJS) -Bstatic $(LOCAL_LIBS) $(LIBGCC)
+	# load $(CFLAGS) $(IOBJS) -Bstatic $(LIBS) $(LIBGCC)
 	# link
 
 saber: decode.o
@@ -63,6 +63,6 @@ saber: decode.o
 	# load $(CFLAGS) $(SRCS)
 	# load -G decode.o
 	# load -G /locallib/librdss.a
-	# load $(CFLAGS) -Bstatic $(LOCAL_LIBS) $(LIBGCC)
+	# load $(CFLAGS) -Bstatic $(LIBS) $(LIBGCC)
 	# link
 

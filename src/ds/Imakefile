@@ -1,13 +1,14 @@
-/*
+/* -*- C -*-
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.27 1995-05-01 16:07:05 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.28 1995-05-24 22:07:36 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
 LIBMPROF=/dt/granger/libc_mp.a
-SYSLIBS=/* $(LIBMPROF) */
+/* SYSLIBS= $(LIBMPROF) */
+SYSLIBS= $(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
 /**/#LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 /**/#LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.1/libgcc.a
@@ -55,16 +56,12 @@ UTILSRCS = rfdump.c zfdump.c GRIBdump.c
 /*
  * For debugging
  */
-TESTSRCS = dstest.c dctest.c nstest.c nxtest.c aline.c
-
+TESTSRCS = dstest.c dctest.c nstest.c aline.c
 
 /*
- * All of the sources in this directory, for the make depend
- * For now, test programs are included as well, but this would
- * need to be changed if it is decided that they will not be
- * distributed with the general distribution
+ * All of the sources in this directory, for the make depend.
  */
-SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
+SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS) $(TESTSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
@@ -74,8 +71,8 @@ HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state
 
-NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),\
-		    $(DEPLIBS), $(LIBS), /**/)
+DMNOBJS = $(DSOBJS) $(DSLIBOBJS) $(DCOBJS)
+CompleteProgramTarget(dsDaemon, $(DMNOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
@@ -91,18 +88,22 @@ BuildIncludes($(HEADERS),.,.)
 /*
  * Dump routines.
  */
-NormalProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
+CompleteProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
 
-NormalProgramTarget (zfdump, zfdump.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS), \
-		     $(LIBS), /**/)
+ZFOBJS = zfdump.o $(DSLIBOBJS) $(DCOBJS)
+CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-NormalProgramTarget (GRIBdump, GRIBdump.o GRIB.o, $(DEPLIBS), $(LIBS), /**/)
+GDOBJS = GRIBdump.o GRIB.o
+CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
 
 /*
  * Test routines.
  */
-TestProgramTarget (nstest, nstest.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),\
-		  $(LIBS), $(SYSLIBS))
+NSOBJS = nstest.o $(DSLIBOBJS) $(DCOBJS)
+TestProgramTarget (nstest, $(NSOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+APOBJS = apple.o $(DSLIBOBJS) $(DCOBJS)
+TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 	# setopt ansi
@@ -113,8 +114,8 @@ cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 
 CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 
-TestProgramTarget (aline, aline.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),\
-		   $(LIBS), $(SYSLIBS))
+ALOBJS = aline.o $(DSLIBOBJS) $(DCOBJS)
+TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are

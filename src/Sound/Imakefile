@@ -4,8 +4,9 @@ OBJS = Sound.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) Imakefile
+SYSLIBS = $(LIBREGEXP)
 
-NormalProgramTarget(Sound, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(Sound, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DependTarget()
 LintTarget()
 DistfilesTarget($(DISTFILES))

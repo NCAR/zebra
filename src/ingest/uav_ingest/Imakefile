@@ -15,9 +15,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1994-04-15 20:14:01 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1995-05-24 22:10:35 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 LINTOPTS = -nuvxz
 
@@ -28,7 +29,7 @@ HEADERS = uav.h serial_svr.h
 
 DISTFILES = $(SRCS) ($HEADERS) Imakefile 
 
-NormalProgramTarget(uav_ingest, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget(uav_ingest, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 DependTarget()
 LintTarget()

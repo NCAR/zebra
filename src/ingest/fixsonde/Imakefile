@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1994-04-15 20:26:37 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1995-05-24 22:08:48 granger Exp $"
 
 LIBS = $(LIBNETCDF)
 SYS_LIBRARIES =
@@ -27,7 +27,7 @@ OBJS = fixsonde.o
 
 DISTFILES = $(SRCS) ($HEADERS) Imakefile 
 
-NormalProgramTarget(fixsonde, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget(fixsonde, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
 
 DependTarget()
 LintTarget()

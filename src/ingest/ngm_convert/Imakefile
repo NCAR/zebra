@@ -15,9 +15,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1994-04-15 20:28:08 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1995-05-24 22:09:08 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 LINTOPTS = -nuvxz
 
@@ -26,7 +27,7 @@ OBJS = ngm_convert.o
 
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(ngm_convert, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget(ngm_convert, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 DependTarget()
 LintTarget()

@@ -14,6 +14,7 @@ HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h ZTime.h \
 
 DSMLIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(C++LIBS)
 TILIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(C++LIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
 	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
@@ -23,15 +24,8 @@ APPDEFAULTS = dsmanage.ad
 
 DISTFILES = $(SRCS) $(HEADERS) $(APPDEFAULTS) Imakefile
 
-#ifdef SGIArchitecture
-.SUFFIXES:	.cc
-
-.cc.o:
-	$(C++) $(C++FLAGS) -U_SGI_SOURCE -c $<
-# endif
-
-CccProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),/**/)
-CccProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),/**/)
+CccProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),$(SYSLIBS))
+CccProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),$(SYSLIBS))
 
 InstallAppDefaults(dsmanage)
 

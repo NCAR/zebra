@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.1 1994-04-15 20:24:50 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.2 1995-05-24 22:09:17 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -22,8 +22,8 @@ XCOMM ---------------------------------------------------------------------
 
 DEPLIBS= $(LIBZEBDS) $(LIBZEB)
 
-LOCAL_LIBRARIES=\
-	$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 
@@ -40,8 +40,7 @@ DOCS = nwsascii.doc
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) nwsascii.state \
 	    $(SCRIPTS) $(DOCS) surf.example uav.stations
 
-NormalProgramTarget(nwsascii,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), 
-		    $(SYSLIBS))
+CompleteProgramTarget(nwsascii,$(OBJS),$(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 UILoadFileTarget(nwsascii.lf, nwsascii.state)
 

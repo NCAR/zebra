@@ -1,15 +1,16 @@
 /*
- * Imakefile for the data store dumper
+ * Imakefile for the data store data destroyer
  */
 
 SRCS = dsdelete.c
 OBJS = dsdelete.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(dsdelete, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(dsdelete, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget()
 LintTarget()

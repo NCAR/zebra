@@ -15,10 +15,11 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1994-01-21 11:49:32 granger Exp $
+MFVERSION="$Id: Imakefile,v 1.5 1995-05-24 22:09:13 granger Exp $
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) \
 	$(LIBMCIDAS) $(FLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 XCOMM nvxrect.f contains the appropriate nvxeas,nvxini,nvxopt,nvxsae
 XCOMM routines for nowrad.  It must be compiled and linked here.
@@ -35,7 +36,7 @@ DISTFILES = Imakefile $(SRCS) nvxrect.f
  *!
  */
 
-NormalProgramTarget(NowradIngest,$(OBJS),$(DEPLIBS),$(LIBS),/**/)
+CompleteProgramTarget(NowradIngest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 LintTarget()
 DependTarget()

@@ -15,27 +15,27 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 1994-10-13 23:05:03 sobol Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1995-05-24 22:09:28 granger Exp $"
 
 LIBPAMUTIL = $(RDSSDIR)/pam/util/libpamutil.a
 LIBMDA = $(RDSSDIR)/pam/mda/libmda.a
 LIBUNP = $(RDSSDIR)/pam/cfg/access/libunp.a
 PAMLIBS = $(LIBMDA) $(LIBUNP) $(LIBPAMUTIL) $(LIBMDA)
-LIBS = $(LIBZEBDS) $(LIBZEB) $(PAMLIBS) $(LIBRDSS) $(LIBNETCDF) $(FLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(PAMLIBS) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(FLIBS) $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 SRCS = pam_ingest.c daypam_ingest.c
 OBJS = pam_ingest.o daypam_ingest.o
 
 DISTFILES = Imakefile pam_ingest.c daypam_ingest.c
 
-NormalProgramTargetNoInstall(pam_ingest, pam_ingest.o,
-		$(DEPLIBS), $(LIBS) $(XLIBS),$(SYSLIBS))
+all:: pam_ingest daypam_ingest
 
+NormalProgramTarget(pam_ingest, pam_ingest.o, $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallProgramWithFlags(pam_ingest,$(BINDIR),-s)
 
-NormalProgramTargetNoInstall(daypam_ingest, daypam_ingest.o,
-		$(DEPLIBS), $(LIBS) $(XLIBS),$(SYSLIBS))
-
+NormalProgramTarget(daypam_ingest,daypam_ingest.o,$(DEPLIBS),
+	$(LIBS),$(SYSLIBS))
 InstallProgramWithFlags(daypam_ingest,$(BINDIR),-s)
 
 DependTarget()

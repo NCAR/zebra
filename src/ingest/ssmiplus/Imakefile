@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1994-11-16 19:25:56 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1995-05-24 22:10:07 granger Exp $"
 
 PROOF=/net/CenterLine/bin/proof
 
@@ -48,6 +48,7 @@ LIBTCL = $(SRC)/tcl7.3/libtcl.a
 LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) \
 		/* /usr/local/lib/libtclx.a */ /usr/local/lib/libtcl.a \
 		$(LIBNETCDF) $(XLIBS) $(FLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
@@ -76,14 +77,14 @@ HDRS = SquareScan.h GridMap.h Source.h Scan.h level1b.h outdat.h rss.h \
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(TSRCS) $(HDRS)
 
 CccProgramTarget (ssmiplus,$(CCOBJS),$(DEPLIBS),
-                  $(LOCAL_LIBS),/**/)
+                  $(LOCAL_LIBS),$(SYSLIBS))
 
 ssmiplus.tc: $(CCOBJS) $(DEPLIBS)
 	$(RM) $@
 	$(PROOF) $(PROOFOPTS) $(C++) -o $@ $(CCOBJS) $(LDOPTIONS) \
 		$(LOCAL_LIBS) $(LDLIBS)  $(EXTRA_LOAD_FLAGS)
 
-TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/**/)
+TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/*syslibs*/)
 
 DistfilesTarget($(DISTFILES))
 

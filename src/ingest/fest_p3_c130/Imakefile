@@ -15,9 +15,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.7 1994-01-21 11:49:06 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1995-05-24 22:08:43 granger Exp $"
 
-LOCAL_LIBRARIES = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
@@ -38,16 +39,19 @@ DISTFILES = $(SRCS) Imakefile $(FSRCS) $(README) $(MISC)
 /* CDEBUGFLAGS = -g -pg -static */
 /* CDEBUGFLAGS = -g */
 
-NormalProgramTarget(p3fest_ingest,p3fest_ingest.o $(OBJS),$(DEPLIBS),
-				$(LOCAL_LIBRARIES),/**/)
+CompleteProgramTarget(p3fest_ingest,p3fest_ingest.o $(OBJS),$(DEPLIBS),
+			$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(c130fest_ingest,c130fest_ingest.o $(OBJS),$(DEPLIBS),
-				$(LOCAL_LIBRARIES),/**/)
+CompleteProgramTarget(c130fest_ingest,c130fest_ingest.o $(OBJS),$(DEPLIBS),
+				$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(acqual,acqual.o,/**/,$(LIBNETCDF),/**/)
+AllTarget(acqual)
+NormalProgramTarget(acqual,acqual.o,/**/,$(LIBNETCDF),/**/)
 InstallProgramWithFlags(acqual,$(BINDIR),-s)
-NormalProgramTargetNoInstall(windsname,windsname.o,/**/,$(LIBNETCDF),/**/)
+AllTarget(windsname)
+NormalProgramTarget(windsname,windsname.o,/**/,$(LIBNETCDF),/**/)
 InstallProgramWithFlags(windsname,$(BINDIR),-s)
+
 DependTarget()
 
 DistfilesTarget($(DISTFILES))
