@@ -10,7 +10,7 @@
 # include "ui_error.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_cstack.c,v 1.3 1989-06-05 14:11:10 corbet Exp $";
+static char *Rcsid = "$Id: ui_cstack.c,v 1.4 1989-06-05 16:03:51 corbet Exp $";
 
 /*
  * The list of free cs_entry structures.  Whenever we need a new one,
@@ -195,6 +195,8 @@ ucs_pop_cstack ()
 		usy_rel_string (old->cs_test);
 	if (old->cs_type == CST_FOREACH)
 		usy_rel_string (old->cs_cvar);
+	if (old->cs_type == CST_MODE && old->cs_mode == M_COMMAND)
+		ut_rel_ctx (old->cs_tctx);
 /*
  * Put the old entry onto the free list.
  */
@@ -391,6 +393,7 @@ ucs_tty_cmode ()
 	Cs->cs_mode = M_COMMAND;
 	Cs->cs_exec = TRUE;
 	Cs->cs_test = 0;
+	ut_new_ctx ();
 /*
  * Put together an input source for it.
  */
