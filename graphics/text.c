@@ -1,0 +1,587 @@
+/* 5/87 jc */
+/*
+ * Routines for performing text operations.
+ */
+# include "param.h"
+# include "graphics.h"
+# include "workstation.h"
+# include "device.h"
+# include "oplist.h"
+# include "overlay.h"
+# include "pixel.h"
+# ifdef VMS
+# include "lib_include:lib_proto.h"
+# endif
+
+
+
+/*
+ * A font directory entry.  (For TeX fonts)
+ */
+struct font_dir
+{
+	short	fd_pheight;	/* Character pixel height	*/
+	short	fd_pwidth;	/* Character pixel width	*/
+	short	fd_ref_y;	/* Reference point Y coordinate */
+	short	fd_ref_x;	/* Reference point X coordinate */
+	int	fd_rastor;	/* Offset to raster info	*/
+	int	fd_tfm_width;	/* The TFM width of a character */
+};
+
+# ifndef VMS
+# define globalref extern
+# endif
+
+globalref char *Gt_sf_0[128], *Gt_sf_1[128];
+globalref struct font_dir Pf0_dir[];
+globalref int Pf0_rasters[];
+/*
+ * The description of a text font.
+ */
+# define MAXFONT	20
+static struct font
+{
+	int	f_type;		/* Font type -- see below		*/
+	char	**f_data;	/* Stroke table (vector font)		*/
+	int	*f_rast;	/* Rastor information			*/
+	struct font_dir	*f_fdir;	/* Font directory		*/
+} F_table[MAXFONT] = 
+{
+/*
+ * The old GKS stroke font.
+ */
+	{	GFT_STROKE,	Gt_sf_0,	___,	___	},
+	{	GFT_STROKE,	Gt_sf_1,	___,	___	},
+	{	GFT_PIXEL,	___,	Pf0_rasters,   Pf0_dir  },
+};
+
+static int N_font = 3;
+
+
+
+
+
+gt_get_start (x, y, font, scale, hjust, vjust, text, sx, sy, ex, ey)
+int x, y, font, hjust, vjust, *sx, *sy, *ex, *ey;
+float scale;
+char *text;
+/*
+ * Figure out the start point for a line of text.
+ * Entry:
+ *	X, Y	is the user-given start point, in device coordinates.
+ *	FONT	is the ID of the font to use.
+ *	SCALE	is the scaling of the text.
+ *	HJUST	is the horizontal justification.
+ *	VJUST	is the vertical justification.
+ *	TEXT	is the actual text string.
+ * Exit:
+ *	SX, SY	is the real start point, with justification and scaling
+ *		taken into account.
+ *	EX, EY	are the ending points of the text string.
+ */
+{
+	int cheight, width, desc;
+	char *cp;
+/*
+ * Get our character size info.
+ */
+ 	if (F_table[font].f_type == GFT_PIXEL)
+	{
+		scale = 1.0;	/* Pixel fonts aren't scalable */
+		gt_pix_dim (font, text, &width, &cheight, &desc);
+	}
+	else
+	{
+	/*
+	 * Get the character height.  This particular measure, which includes 
+	 * descenders, may be excessive, but we'll try it.
+	 */
+		cp = F_table[font].f_data[0];
+	 	cheight = cp[0] - cp[3];
+		desc = cp[2] - cp[3];	/* Descender size */
+	   	width = gt_line_width (text, font);
+	}
+/*
+ * Now, calculate the real Y position, since it's easier.
+ */
+ 	switch (vjust)
+	{
+	  case GT_BOTTOM:
+	  	*sy = y;
+		break;
+	  case GT_BASELINE:
+	  	*sy = y - scale * (float) desc + 0.5;
+		break;
+	  case GT_TOP:
+	  	*sy = y - (int) (scale * (float) (cheight - 1));
+		break;
+	  case GT_CENTER:
+	  	*sy = y - (int) (scale * (float) ((cheight/2) - 1));
+		break;
+	}
+/*
+ * Figure out the X position.
+ */
+ 	switch (hjust)
+	{
+	   case GT_LEFT:
+	   	*sx = x;
+		break;
+	   case GT_RIGHT:
+		*sx = x - (int) (scale * (float) width);
+		break;
+	   case GT_CENTER:
+		*sx = x - (int) (scale * ((float) width)/2.0);
+		break;
+	}
+/*
+ * Figure the end points.
+ */
+ 	*ex = *sx + (int) (scale * (float) width);
+	*ey = *sy + (int) (scale * (float) (cheight - 1));
+}
+
+
+
+
+gt_line_width (text, font)
+char *text;
+int font;
+/*
+ * Return the pixel with of an unscaled line of text.
+ */
+{
+	int len = 0;
+	char *cp;
+
+	while (*text)
+	{
+		cp = F_table[font].f_data[*text++];
+		len += cp[3] - cp[2];
+	}
+	return (len);
+}
+
+
+
+
+gt_do_text (wstn, ov, color, x, y, font, scale, text, dev)
+struct workstation *wstn;
+struct overlay *ov;
+int color, x, y, font, scale, dev;
+char *text;
+/*
+ * Actually perform a text operation.
+ */
+{
+	if (F_table[font].f_type == GFT_STROKE)
+		gt_stroke (wstn, ov, color, x, y, font, scale, text, dev);
+	else
+		gt_pixel (wstn, ov, color, x, y, font, text, dev);
+}
+
+
+
+
+
+gt_pixel (wstn, ov, color, x, y, font, text, dev)
+struct workstation *wstn;
+struct overlay *ov;
+int color, x, y, font, dev;
+char *text;
+/*
+ * Put out pixel text.
+ */
+{
+	int xd, yd, baseline, px, row, col;
+	char *data, c;
+	int *rastp;
+/*
+ * Get the dimensions of this string in pixel space.  Since some devices
+ * are unhappy about odd dimensions, we will just round both dimensions
+ * up to even numbers.
+ */
+	gt_pix_dim (font, text, &xd, &yd, &baseline);
+	xd = (xd + 1) & ~0x1;
+	yd = (yd + 1) & ~0x1;
+/*
+ * Check against the clip window.  If this text is entirely without the
+ * window, we just drop the operation on the floor.
+ */
+ 	if ((x + xd) <= ov->ov_cx0 || x > ov->ov_cx1 ||
+	    (y + yd) <= ov->ov_cy0 || y > ov->ov_cy1)
+		return;
+/*
+ * Allocate enough memory to hold the pixel info.
+ */
+ 	data = getvm (xd * yd);
+	memset (data, wstn->ws_dev->gd_background, xd * yd);
+/*
+ * Now it's time to actually bitmap the data.
+ */
+	px = 0;
+	for (c = *text++; c; c = *text++)
+	{
+		struct font_dir *dir = F_table[font].f_fdir + c;
+	/*
+	 * Handle blanks separately, since they are not actually part of
+	 * the font file.  Instead, just advance by the width of the
+	 * character "x".
+	 */
+	 	if (c == ' ')
+		{
+			px += F_table[font].f_fdir['x'].fd_pwidth;
+			continue;
+		}
+	/*
+	 * Everything else is a little harder.  Find the rastor info, then
+	 * pass through each rastor line.
+	 */
+		rastp = F_table[font].f_rast + dir->fd_rastor;
+		for (row = 0; row < dir->fd_pheight; row++)
+		{
+			int memline = baseline + dir->fd_ref_y - row;
+			gt_px_map (data + memline*xd + px, rastp,
+				dir->fd_pwidth, color,
+				wstn->ws_dev->gd_background);
+			rastp += (dir->fd_pwidth + 31)/32;
+		}
+	/*
+	 * Advance our X position, taking into account a negative reference
+	 * point.
+	 */
+		px += dir->fd_pwidth;
+		if (dir->fd_ref_x < 0)
+			px -= dir->fd_ref_x;
+	}
+/*
+ * If the text does not lie entirely with the clip window, trim it down
+ * to something that does fit.
+ */
+	if ((ov->ov_ws->ws_dev->gd_flags & GDF_HCW) == 0 && (x < ov->ov_cx0 ||
+			y < ov->ov_cy0 || (x + xd) > ov->ov_cx1 ||
+			(y + yd) > ov->ov_cy1))
+	{
+		int nx0, ny0, nx1, ny1;
+		char *new = gp_carve_window (data, x, y, x + xd - 1,
+			y + yd - 1, ov->ov_cx0, ov->ov_cy0, ov->ov_cx1,
+			ov->ov_cy1, &nx0, &ny0, &nx1, &ny1);
+		relvm (data);
+		data = new;
+		x = nx0; y = ny0;
+		xd = nx1 - nx0 + 1;  yd = ny1 - ny0 + 1;
+	}
+/*
+ * Finally, ship the data out to the device.
+ */
+	if (dev)
+	{
+		if (wstn->ws_dev->gd_flags & GDF_TOP)	/* XXX */
+			gp_invert (data, xd, yd);
+		(*wstn->ws_dev->gd_pixel) (wstn->ws_tag, x, y, xd, yd, data,
+				GP_BYTE, GPO_RASTOR);
+	}
+	else if (ov->ov_flags & OVF_PIXMAP)
+		gp_insert (data, GP_BYTE, xd, yd, ov->ov_pmap, x, y);
+	else
+		c_panic ("I can't hack oplist inserts yet");
+	relvm (data);
+}
+
+
+
+
+gt_px_map (dest, rastp, width, color, bg)
+char *dest;
+int *rastp, width, color, bg;
+/*
+ * Pixel-map one line of rastor data.
+ */
+{
+	int bit, nword = (width + 31)/32;
+# ifdef SUN
+	static char stbl[32] = { 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11,
+		10, 9, 8, 23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28,
+		27, 26, 25, 24 };
+# endif
+
+	for (; nword > 0; nword--)
+	{
+		int rdata = swap4 (*rastp++), ndo = (width > 32) ? 32 : width;
+		for (bit = 0; bit < ndo; bit++)
+# ifdef VMS
+			*dest++ = (rdata & (1 << (31 - bit))) ? color : bg;
+# else
+			*dest++ = (rdata & (1 << stbl[bit])) ? color : bg;
+# endif
+		width -= 32;
+	}
+}
+
+
+
+
+
+gt_pix_dim (font, text, xd, yd, baseline)
+int font;
+char *text;
+int *xd, *yd, *baseline;
+/*
+ * Return the dimensions of this text array.
+ */
+{
+	int height = 0, below = 0, width = 0;
+	struct font_dir *fp = F_table[font].f_fdir;
+
+	while (*text)
+	{
+		char c = *text++;
+		int b;
+	/*
+	 * If this is a blank, give it the width of an "x".
+	 */
+	 	if (c == ' ')
+		{
+			width += fp['x'].fd_pwidth;
+			continue;
+		}
+	/*
+	 * Increment the width by the width of this character.  If the
+	 * X reference point is negative (the usual case), widen the
+	 * string by that much more.
+	 */
+		width += fp[c].fd_pwidth;
+		if (fp[c].fd_ref_x < 0)
+			width -= fp[c].fd_ref_x;
+	/*
+	 * Figure out the height above and below the baseline.
+	 */
+	 	if (fp[c].fd_ref_y + 1 > height)
+			height = fp[c].fd_ref_y + 1;
+		b = fp[c].fd_pheight - fp[c].fd_ref_y - 1;
+		if (b > below)
+			below = b;
+# ifdef notdef
+	printf ("%c: cd %d x %d, ref (%d,%d), w: %d, h: %d, b: %d\n", c,
+		fp[c].fd_pwidth, fp[c].fd_pheight, fp[c].fd_ref_x,
+		fp[c].fd_ref_y, width, height, below);
+# endif
+	}
+	*xd = width;
+	*yd = height + below;
+	*baseline = below;
+}
+
+
+
+
+
+gt_stroke (wstn, ov, color, x, y, font, scale, text, dev)
+struct workstation *wstn;
+struct overlay *ov;
+int color, x, y, font, scale, dev;
+char *text;
+/*
+ * Handle the actual generation of stroke text.
+ */
+{
+	int pdata[200], *pdp, xpos = x, cbase;
+	char *cp;
+/*
+ * Get the character height.  This particular measure, which includes 
+ * descenders, may be excessive, but we'll try it.
+ */
+	cp = F_table[font].f_data[0];
+ 	cbase = cp[3];
+/*
+ * Now step through each character.
+ */
+ 	while (*text)
+	{
+		int npoint = 0, npair;
+		char *point;
+	/*
+	 * Locate the vector info.
+	 */
+	 	cp = F_table[font].f_data[*text++];
+		point = cp + 4;
+	/*
+	 * Special case for blanks -- don't draw any lines.
+	 */
+		if (text[-1] == ' ')
+		{
+		 	xpos += ((cp[3] - cp[2])*scale)/100;
+			continue;
+		}
+	/*
+	 * Now step through and draw the lines.
+	 */
+		pdp = pdata;
+	 	for (npair = 0; npair < cp[0]; npair++)
+		{
+		/*
+		 * Check for the end of a group of lines, and put out our
+		 * info if this is such an end.
+		 */
+			if (*point == -128)
+			{
+				if (! dev)
+				{
+					if (ov->ov_flags & OVF_PIXMAP)
+						gp_pl (ov, color, GPLT_SOLID,
+							npoint, pdata);
+					else
+						gc_pl_clip(ov,color,GPLT_SOLID,
+							npoint, pdata, FALSE);
+				}
+				else /* if (wstn->ws_dev->gd_flags & GDF_HCW)*/
+					(*wstn->ws_dev->gd_polyline)
+						(wstn->ws_tag, color,
+						GPLT_SOLID, npoint, pdata);
+				npoint = 0;
+				pdp = pdata;
+				point += 2;
+			}
+		/*
+		 * Otherwise throw in another set of points.
+		 */
+		 	else
+			{
+				*pdp++ = xpos+((*point++ - cp[2]) * scale)/100;
+				*pdp++ = y + ((*point++ - cbase) * scale)/100;
+				npoint++;
+			}
+		}
+	/*
+	 * Advance the X position to the next character slot.
+	 */
+	 	xpos += ((cp[3] - cp[2])*scale)/100;
+	}
+}
+		
+
+
+gt_f_height (font)
+int font;
+/*
+ * Return the nominal height, in pixels, of this font.
+ */
+{
+	char *cp;
+
+	if (F_table[font].f_type == GFT_STROKE)
+	{
+		cp = F_table[font].f_data[0];
+	 	return (cp[0] - cp[3]);
+	}
+	else
+		return (F_table[font].f_fdir['('].fd_pheight);
+}
+
+
+
+
+
+gt_load_font (file)
+char *file;
+/*
+ * Load up a TeX font, returning a font descriptor.
+ */
+{
+	int fd, len, *ip, nread = 0, fontno, *ifont, i;
+	char *data, *dp;
+/*
+ * Try to open the file.
+ */
+ 	if ((fd = open (file, 0)) < 0)
+		return (GE_BAD_FILE);
+/*
+ * Figure out how big it is, allocate memory, and read it in.
+ */
+	len = lseek (fd, (long) 0, 2);
+	dp = data = getvm (len);
+	lseek (fd, 0, 0);
+	while ((nread += read (fd, dp, len)) < len)
+		;
+/*
+ * Allocate a font table entry.
+ */
+ 	fontno = N_font++;
+	F_table[fontno].f_type = GFT_PIXEL;
+/*
+ * Search back for the font ID, and then the actual font directory.
+ */
+	len = len/4 - 1;
+	for (ip = (int *) data; ip[len] == 0; len--)
+		;
+	F_table[fontno].f_fdir = (struct font_dir *) (ip + swap4 (ip[len-1]));
+/*
+ * Now go through and swap all of the data in the font directory, since
+ * we will be referring to it often.
+ */
+	ifont = (int *) F_table[fontno].f_fdir;
+	for (i = 0; i < 512; i++)
+		ifont[i] = swap4 (ifont[i]);
+# ifdef notdef
+	for (i = 'a'; i < 'm'; i++)
+	{
+		struct font_dir *fp = F_table[fontno].f_fdir + i;
+		printf ("%c:\th: %d, w: %d, ref (%d,%d), rast %d\n", i,
+			fp->fd_pheight, fp->fd_pwidth, fp->fd_ref_x,
+			fp->fd_ref_y, fp->fd_rastor);
+	}
+# endif
+/*
+ * Store the rest of the info away.
+ */
+ 	F_table[fontno].f_rast = ip;
+/*
+ * Close the file and return our info.
+ */
+ 	close (fd);
+	return (fontno);
+}
+
+
+
+
+
+# ifdef VMS
+int
+swap4 (v)
+int v;
+/*
+ * Return v, with the 4 bytes swapped into VAX order.
+ */
+{
+	char *cp = (char *) &v, swap[4];
+	int *ip;
+
+	swap[0] = cp[3];
+	swap[1] = cp[2];
+	swap[2] = cp[1];
+	swap[3] = cp[0];
+	ip = (int *) swap;
+	return (*ip);
+}
+# else
+
+int
+swap4 (v)
+int v;
+{
+	return (v);
+}
+# endif
+
+
+
+
+gt_font_type (font)
+int font;
+/*
+ * Return the integer type of this font.
+ */
+{
+	return (F_table[font].f_type);
+}
