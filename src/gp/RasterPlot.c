@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.23 1995-08-28 21:41:42 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.24 1995-09-11 07:46:35 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -393,10 +393,9 @@ float *leftcol_out, *toprow_out;
 	}
 	if (*xhi > (int)(Clip.x + Clip.width))
 	{
-		rightcol -= (*xhi - (int)(Clip.x - Clip.width)) * colinc;
+		rightcol -= (*xhi - (int)(Clip.x + Clip.width)) * colinc;
 		*xhi = Clip.x + Clip.width;
 	}
-
 	if (*yhi < Clip.y)
 	{
 		toprow += (Clip.y - *yhi) * rowinc;
