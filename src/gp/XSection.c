@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.27 1995-05-19 19:29:08 burghart Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,11 +35,15 @@ static char *rcsid = "$Id: XSection.c,v 2.27 1995-05-19 19:29:08 burghart Exp $"
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include "GC.h"
 # include "GraphProc.h"
+# include "Contour.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
+
+RCSID ("$Id: XSection.c,v 2.28 1995-06-29 23:34:46 granger Exp $")
 
 /*
  * General definitions
@@ -115,7 +119,6 @@ int	Hgrid, Vgrid;
  * Cross-section endpoints
  */
 static float	X0 = 0.0, X1 = 0.0, Y0 = 0.0, Y1 = 0.0;
-static ZebTime	T0;
 
 /*
  * Pixel limits for the plot
@@ -281,7 +284,7 @@ UItime	*t;
 	else
 	{
 		AltUnits = AU_kmMSL;	/* really unknown */
-		if (P_hgt = 0.0)
+		if (P_hgt == 0.0)
 		{
 			P_bot = 0.0;
 			P_hgt = 10.0;
@@ -607,7 +610,6 @@ bool	update;
 	char	ufldname[20], vfldname[20], *pnames[MaxPlatforms];
 	char	cname[20], style[16];
 	int	nplat;
-	float	unitlen;
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
  * plots so we don't have plots with different endpoints overlaying each
@@ -705,14 +707,14 @@ bool	update;
 
 	if (Do_vectors)
 	{
-		sprintf (Scratch, "%s %d %f %f %f", "10m/s", Ccolor.pixel, 
+		sprintf (Scratch, "%s %li %f %f %f", "10m/s", Ccolor.pixel, 
 			 10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
 		An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
 				 40, FALSE, FALSE);
 	}
 	else
 	{
-		sprintf (Scratch, "m/s %d %d", Ccolor.pixel, 
+		sprintf (Scratch, "m/s %li %d", Ccolor.pixel, 
 			 (int)(Wind_scale * USABLE_HEIGHT));
 		An_AddAnnotProc (An_BarbLegend, c, Scratch, strlen (Scratch), 
 				 100, FALSE, FALSE);
@@ -1011,7 +1013,7 @@ int	nplat;
  * responsible for calling xs_FreeZZ_DPlane() to destroy the plane.
  */
 {
-	int	p, pt, npts, zndx, zndx_prev, nobs, incr;
+	int	p, pt, npts, zndx, zndx_prev, incr;
 	int	row, col, vdim, hdim;
 	float	badvalue, fdatum, val, val_prev, frac, *data, *zdata;
 	float	z, zpos, zstep, z_prev;
@@ -1612,8 +1614,8 @@ ZebTime	*times;
  */
 {
 	int	pt, plat, npts, iz, zndx, zndx_prev, ih, iv, hdim, vdim;
-	int	i, j, diff, offset;
-	float	val, x, y, z, val_prev, x_prev, y_prev, z_prev, t_prev;
+	int	i, j, offset;
+	float	val, x, y, z, val_prev, x_prev, y_prev, z_prev;
 	float	zstep, hlen, frac, badvalue;
 	float	fdata, *xpos = NULL, *ypos = NULL, zpos;
 	float	xhighest, yhighest, zhighest;
@@ -1927,16 +1929,26 @@ ZebTime	*dtime;
 		switch (AltUnits)
 		{
 		    case AU_kmMSL:
+		    case AU_kmAGL:
 			P_bot = 0.0;
 			P_hgt = 12.0;
 			break;
 		    case AU_mMSL:
+		    case AU_mAGL:
 			P_bot = 0.0;
 			P_hgt = 12000.0;
 			break;
 		    case AU_mb:
 			P_bot = 1000.0;
 			P_hgt = -900.0;
+			break;
+		    case AU_sigma:
+			P_bot = 1.0;
+			P_hgt = -1.0;
+			break;
+		    case AU_level:
+			P_bot = 0;
+			P_hgt = 20;
 			break;
 		}
 	}
@@ -2131,6 +2143,7 @@ int	nalts;
 	for (a = 0; a < nalts - 1; a++)
 		if (ALMOST_BETWEEN (z, alts[a], alts[a+1], 0.001))
 			return (a);
+	return (-1);
 }
 
 
@@ -2448,8 +2461,8 @@ float	**xpp, **ypp;
  * be freed by the caller.
  */
 {
-	float	*xpos, *ypos, lat, lon, *wspd, *wdir, *wtime, *dummy;
-	float	ws, wd, t, dt, site_x, site_y, badvalue;
+	float	*xpos, *ypos, lat, lon;
+	float	site_x, site_y, badvalue;
 	int	i, pt, npts, navail;
 	bool	have_lat, have_lon;
 	float	snd_s_lat (), snd_s_lon ();
@@ -2880,9 +2893,8 @@ float		*alts;
 {
 	int	i, ndims, dimorder = 0;
 	float	*lat, *lon, *dc_alts, latspacing, lonspacing;
-	float	delta, olat, olon, *grid, *nsdata, *dname;
+	float	delta, olat, olon, *grid, *nsdata;
 	FieldId	lat_id, lon_id, alt_id, dim_id;
-	bool	have_lat, have_lon, have_alt, good_order, alts_regular;
 	char	*dnames[DC_MaxDimension];
 	unsigned long	dsizes[DC_MaxDimension];
 	RGrid	rg;
