@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.8 1993-11-18 00:24:32 corbet Exp $
+! $Id: dm.widgets,v 1.9 1993-11-18 00:32:13 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -40,6 +40,13 @@ define widget pd-menu intmenu 'PD Templates'
 	entry 'Wind profile' 'cw_setpd wind-template'
 endmenu
 
+
+
+
+procedure cw_setpd pd string
+	formtext #ui$form pdname #pd
+endprocedure
+
 	
 define widget bmap-menu intmenu 'Button Maps'
 	title 'Select a Button Map'
@@ -61,19 +68,19 @@ define widget NewWindow form 'Window creation'
 	blank wname '--' width 190
 	newline
 	label l2 'Plot description: '
-	blank pdname 'template' width 190
+	blank pdname 'cap-template' width 190
 	newline
 	label l5 'Button map:       '
 	blank bmap 'default' width 190
 	newline
-	pulldown pdlist 'Select Plot Description' menu 'pd-menu'
-	pulldown bmaps 'Select Button Map' menu 'bmap-menu'
+	pulldown pdlist 'Plot Descriptions ->' menu 'pd-menu'
+	pulldown bmaps 'Button Maps ->' menu 'bmap-menu'
 	newline 
 	label l3 'PD Force?'
 	button forcepd 'no' command 'ToggleFormButton forcepd' width 40
 !	newline
 	label l4 '    '
-	button doit 'Create Window' command 'DoWindowCreate'
+	button doit 'Create Window' color red command 'DoWindowCreate'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
 endform
 
@@ -100,6 +107,13 @@ procedure DoWindowCreate
 	local pdname getftext(ui$form,"pdname")
 	local bmap getftext(ui$form,"bmap")
 	local forcepd getftext(ui$form,"forcepd")
+!
+! Make sure they gave a name.
+!
+	if (name = '"--"')
+		beep
+		return
+	endif
 !
 ! Get the forcepd flag right.
 !
