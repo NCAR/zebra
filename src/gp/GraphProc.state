@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.5 1991-02-07 16:25:02 corbet Exp $
+! $Id: GraphProc.state,v 1.6 1991-02-21 16:09:16 corbet Exp $
 !
 ! State entries for the graphics process.
 !
@@ -41,6 +41,9 @@ define state initial
 	endinput
 	input 'activate' 16
 		next act-widget
+	endinput
+	input 'polyline' 17
+		next poly-platform
 	endinput
 enddef
 
@@ -185,6 +188,22 @@ define state act-sf-label
 	endinput
 enddef
 
+
+define state poly-platform
+	input string
+		next poly-opt-edit
+	endinput
+enddef
+
+
+define state poly-opt-edit
+	input 'edit' 0
+		next ust$no_more
+	endinput
+	input EOS
+		done
+	endinput
+enddef
 
 
 !
