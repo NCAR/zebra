@@ -12,7 +12,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.14 1992-10-16 15:16:28 case Exp $";
+static char *rcsid = "$Id: control.c,v 1.15 1993-03-24 21:56:26 case Exp $";
 static int Trace = 0;
 
 /*
@@ -281,7 +281,7 @@ struct workstation *wstn;
 			if (ov->ov_flags & OVF_PIXMAP)
 				highest = ov;
 		if (! highest)
-			c_panic ("pmap_update with no pmaps");
+			c_panic ("pmap_update with no pmaps", 0);
 		for (ov = wstn->ws_overlay; ov != highest; ov = ov->ov_next)
 			if ((ov->ov_flags & OVF_PIXMAP) == 0)
 				gop_cvt_pmap (wstn, ov);
@@ -340,7 +340,7 @@ struct workstation *wstn;
 		{
 			(*wstn->ws_dev->gd_s_select) (wstn->ws_tag,
 				ov->ov_number, ov->ov_priority);
-			gop_update (wstn, ov);
+			gop_update (wstn, ov, ov->ov_flags & OVF_ADDITIVE);
 			(*wstn->ws_dev->gd_s_end) (wstn->ws_tag,
 					ov->ov_number);
 		}
@@ -352,7 +352,8 @@ struct workstation *wstn;
 	 	else
 		{
 			if (ov->ov_flags & OVF_VISIBLE)
-				gop_update (wstn, ov);
+				gop_update (wstn, ov, 
+                                    ov->ov_flags & OVF_ADDITIVE);
 		}
 		ov->ov_flags &= ~OVF_MODIFIED;
 	}
@@ -1262,8 +1263,8 @@ overlay cov;
 /*
  * Release the overlay structure.
  */
-	memset (ov, 0, sizeof (struct overlay));
- 	relvm (ov);
+	memset ((char *) ov, 0, sizeof (struct overlay));
+ 	relvm ((char *) ov);
 }
 
 
