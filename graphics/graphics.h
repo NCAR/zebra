@@ -118,6 +118,7 @@ extern char *G_messages[];
 int G_clear (overlay ov);
 int G_clip_window (overlay ov, double x0, double y0, double x1, double y1);
 int G_close (ws sta);
+int G_get_colors (ws sta, int ncolor, int *base);
 overlay G_new_overlay (ws stn, int priority);
 int G_open (char *device, char *type, ws *workstation, int flags);
 ws G_ov_to_ws (char *cov);
@@ -128,7 +129,6 @@ int G_put_target (overlay cov, double x, double y);
 int G_redraw (ws sta);
 int G_set_color_map (ws sta, int base, int ncolor, float *red, float *green,
 	float *blue);
-int G_get_colors (ws sta, int ncolor, int *base);
 int G_set_coords (overlay ov, double x0, double y0, double x1, double y1);
 int G_target (overlay ov, float *x, float *y);
 int G_tex_font (char *font);
@@ -143,6 +143,11 @@ int G_viewport (overlay ov, double x0, double y0, double x1, double y1);
 int G_visible (overlay ov, int state);
 int G_w_inquire (ws sta, int item, int *value);
 int G_wc_to_px (overlay ov, double wx, double wy, int px, int py);
+int G_wr_box (overlay ov, int font, double height, int hjust, int vjust, 
+	double x, double y, double rot, char *text, float *x0, float *y0,
+	float *x1, float *y1);
+int G_write (overlay ov, int color, int font, double height, int hjust,
+	int vjust, double x, double y, double rot, char *text);
 int G_ws_clear (ws sta);
 int G_zap_overlay (overlay ov);
 int gt_font_type (int font);
@@ -150,6 +155,7 @@ int gt_font_type (int font);
 int G_clear ();
 int G_clip_window ();
 int G_close ();
+int G_get_colors ();
 overlay G_new_overlay ();
 int G_open ();
 ws G_ov_to_ws ();
@@ -169,6 +175,8 @@ int G_viewport ();
 int G_visible ();
 int G_w_inquire ();
 int G_wc_to_px ();
+int G_wr_box ();
+int G_write ();
 int G_ws_clear ();
 int G_zap_overlay ();
 int gt_font_type ();
