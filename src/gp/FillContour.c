@@ -249,6 +249,7 @@ float	*min, *max;
 
 	if (i == Nx * Ny)
 	{
+		*min = *max = 0.0;
 		msg_log ("No good values in array to be contoured!");
 		return;
 	}
