@@ -7,12 +7,13 @@
 # include "../include/message.h"
 # include "GraphProc.h"
 # include "DrawText.h"
+# include "GC.h"
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
  * want to have to worry about clipping)
  */
-static GC	Gcontext;
+static GC	AnGcontext;
 
 /*
  * Top annotation stuff
@@ -27,9 +28,16 @@ static float	Annot_Scale = TOPANNOTHEIGHT;
  */
 static int	SA_position;	/* Current position		*/
 static int	SA_space;	/* How much space each gets	*/
+static int	SA_first;
 
 static int	Ncomps;		/* How many components		*/
 
+
+# ifdef __STDC__
+	static void An_Divider (int, int, int);
+# else
+	static void An_Divider ();
+# endif
 
 
 
@@ -60,6 +68,7 @@ int nc;
 	Ncomps = nc;
 	SA_position  = (1.0 - F_Y1) * height;
 	SA_space = ((F_Y1 - F_Y0) * height)/ (float) Ncomps;
+	SA_first = TRUE;
 }
 
 
@@ -167,14 +176,14 @@ Pixel	color;
 /*
  * Make sure we have a graphics context
  */
-	if (! Gcontext)
-		Gcontext = XCreateGC (XtDisplay (Graphics), GWFrame (Graphics),
+	if (! AnGcontext)
+		AnGcontext = XCreateGC(XtDisplay (Graphics),GWFrame (Graphics),
 			0, NULL);
 /*
  * Draw the string up to the break, if any
  */
-	XSetForeground (XtDisplay (Graphics), Gcontext, color);
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, Annot_xpos, 
+	XSetForeground (XtDisplay (Graphics), AnGcontext, color);
+	DrawText (Graphics, GWFrame (Graphics), AnGcontext, Annot_xpos, 
 		Annot_ypos, cstring, 0.0, Annot_Scale, JustifyLeft, 
 		JustifyTop);
 	Annot_xpos += swidth;
@@ -208,12 +217,45 @@ int	*top, *bottom, *left, *right;
 {
 	int	width = GWWidth (Graphics);
 
-	*top = SA_position;
+	if (! SA_first)
+		An_Divider (SA_position, F_X1 * width, width);
+	else
+		SA_first = FALSE;
+
+	*top = SA_position + 1;
 	SA_position += SA_space;
-	*bottom = SA_position - 1;
+	*bottom = SA_position - 2;
 
 	*left = F_X1 * width;
 	*right = width;
 }
 
 
+
+void
+An_SAUsed (bottom)
+int bottom;
+/*
+ * Tell how far we really went.
+ */
+{
+	SA_position = bottom + 1;
+}
+
+
+
+
+static void
+An_Divider (y, x1, x2)
+int y, x1, x2;
+/*
+ * Draw the divider line.
+ */
+{
+	char color[40];
+	XColor xc;
+
+	ResetGC ();
+	SetColor ("global", "divider-color", "sa", "gray50");
+	XDrawLine (Disp, GWFrame (Graphics), Gcontext, x1, y, x2, y);
+}
