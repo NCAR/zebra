@@ -11,7 +11,7 @@
 
 extern char *malloc ();
 
-static char *rcsid = "$Id: ui_function.c,v 1.6 1992-01-30 21:10:06 corbet Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.7 1992-11-03 21:56:49 burghart Exp $";
 
 /*
  * These structures represent functions.
@@ -162,7 +162,7 @@ int *argt;
 		if (arglist)
 			ui_error ("Function '%s' takes no arguments",
 				fp->f_name);
-		return;
+		return (0);
 	}
 /*
  * OK, let's work through the args.
