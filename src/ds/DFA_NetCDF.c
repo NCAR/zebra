@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 1.4 1991-03-08 18:45:13 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 1.5 1991-04-02 21:02:10 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -578,9 +578,12 @@ NCTag *tag;
  * Synchronize this file.
  */
 {
+/*
+ * Update to the file itself, then reload the times array.
+ */
 	ncsync (tag->nc_id);
+	return (dnc_GetTimes (tag));
 	/* msg_ELog (EF_PROBLEM, "NC sync, but I'm not really ready"); */
-	return (TRUE);
 }
 
 
