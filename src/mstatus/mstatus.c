@@ -1,7 +1,6 @@
 /*
  * Message server status grabber.
  */
-static char *rcsid = "$Id: mstatus.c,v 2.3 1994-05-21 07:21:18 granger Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,21 +19,86 @@ static char *rcsid = "$Id: mstatus.c,v 2.3 1994-05-21 07:21:18 granger Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
+
 # include <defs.h>
 # include <message.h>
 # include <copyright.h>
 
+RCSID("$Id: mstatus.c,v 2.4 1995-04-20 07:51:56 granger Exp $")
+
+static char Username[128] = { '\0' };
+static int ShowUser = 0;
+
+
+static void
+usage ()
+{
+	printf ("usage: mstatus [-help] [-user] [host ...]\n");
+	printf ("   -h   Help\n   -u   Username of message handler\n");
+}
+
+
 int
-main ()
+main (argc, argv)
+int argc;
+char *argv[];
 {
 	int handler ();
 	struct mh_template tm;
+	char **hosts = NULL;
+	char manager[ 128 ];
+	int i, nhost = 0;
 
 	if (! msg_connect (handler, "Status reporter"))
 		exit (1);
+
+	for (i = 1; i < argc; ++i)
+	{
+		int optlen = strlen(argv[i]);
+		if (optlen < 2 || argv[i][0] != '-')
+		{
+			if (! hosts)
+				hosts = (char **) 
+					malloc (argc * sizeof(char *));
+			hosts[nhost++] = argv[i];
+		}
+		else if (! strncmp (argv[i], "-help", optlen))
+		{	
+			usage ();
+			exit (0);
+		}
+		else if (! strncmp (argv[i], "-user", optlen))
+			ShowUser = 1;
+		else
+		{
+			printf ("unknown option %s\n", argv[i]);
+			usage ();
+			exit (1);
+		}
+	}
+
 	tm.mh_type = MH_STATS;
-	msg_send (MSG_MGR_NAME, MT_MESSAGE, 0, &tm, sizeof (tm));
-	msg_await ();
+	if (hosts == NULL)
+	{
+		msg_send (MSG_MGR_NAME, MT_MESSAGE, 0, &tm, sizeof (tm));
+		msg_await ();
+	}
+	else
+	{
+		for (i = 0; i < nhost; ++i)
+		{
+			if (ShowUser)
+				Username[0] = '\0';
+			else
+				printf ("----- %s\n", hosts[i]);
+			sprintf (manager, "%s@%s", MSG_MGR_NAME, hosts[i]);
+			msg_send (manager, MT_MESSAGE, 0, &tm, sizeof (tm));
+			msg_await ();
+		}
+		free (hosts);
+	}
+
 	exit (0);
 }
 
@@ -44,10 +108,26 @@ int
 handler (msg)
 struct message *msg;
 {
+	struct mh_stats *mhs = (struct mh_stats *) msg->m_data;
+
 	if (msg->m_proto != MT_MESSAGE)
 		return (0);
-	if (msg->m_len == 0)
+	if (mhs->mh_type != MH_STATS)
+	{
+		fprintf (stderr, "unexpected message type %d\n", mhs->mh_type);
 		return (1);
-	printf ("%s\n", msg->m_data);
+	}
+	if (mhs->mh_text[0] == '\0')
+		return (1);
+	if (! ShowUser)
+		printf ("%s\n", mhs->mh_text);
+	else if (! Username[0])
+	{
+		int i = 0;
+		char *paren = strchr (mhs->mh_text, '(');
+		while (++paren && *paren != ')')
+			Username[i++] = *paren;
+		printf ("%s\n", Username);
+	}
 	return (0);
 }
