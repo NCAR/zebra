@@ -29,7 +29,7 @@ class Main (Frame):
 	# Make sure that the ZEBRA_MASTER environment variable is set (since
 	# it's needed by startup and newdisplay)
 	#
-	def_zebra_master = "zebu.gate.net"
+	def_zebra_master = "zebu.gate.rtf"
 
 	try:
 	    zebra_master = os.environ["ZEBRA_MASTER"]

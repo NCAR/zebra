@@ -1,4 +1,4 @@
-#!/usr/bin/python2.1
+#!/usr/local/bin/python2.2
 
 """
 build a directory containing links to a subset of the available RHIs,

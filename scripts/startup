@@ -22,7 +22,7 @@ endif
 # Fire up Zebra with the datastore running on ZEBRA_MASTER 
 # and the display on the local machine 
 #
-setenv XAPPLRESDIR /zebra/lib/resources
+setenv XAPPLRESDIR /usr/local/zebra/lib/resources
 zstart -n -dshost $ZEBRA_MASTER -dsonly /ops/zebra
 $execdir/newdisplay &
 
@@ -52,9 +52,9 @@ if ( `hostname` == $ZEBRA_MASTER && $need_extras ) then
     set hyidlog = $logdir/hyid.out
 
     /bin/mv -f $rainlog $rainlog.save > /dev/null
-    /ops/bin/startboth >& $rainlog
+    startboth >& $rainlog
     /bin/mv -f $hyidlog $hyidlog.save > /dev/null
-    /ops/bin/starthyid < /dev/null >& $hyidlog &
+    starthyid < /dev/null >& $hyidlog &
 
     # 
     # Start up building of selected sweepfile links
