@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.3 1991-12-16 17:18:41 corbet Exp $ */
+/* $Id: message.h,v 2.4 1992-02-11 18:24:51 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -53,6 +53,8 @@
 # define MH_STATS	-6	/* Message handler stats.		*/
 # define MH_NETCLOSE	-7	/* Close network connection		*/
 # define MH_PID		-8	/* Report PID				*/
+# define MH_CQUERY	-9	/* Does this client exist?		*/
+# define MH_CQREPLY	-10	/* Reply to CQUERY			*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 
@@ -83,6 +85,15 @@
 struct mh_template
 {
 	int	mh_type;	/* The message type		*/
+};
+
+/*
+ * Boolean reply (i.e. cquery)
+ */
+struct mh_BoolRepl
+{
+	int mh_type;
+	int mh_reply;
 };
 
 /*
@@ -189,43 +200,24 @@ struct msg_elog
 /*
  * Message lib routines.
  */
-# ifdef __STDC__
-	int msg_DispatchQueued (void);
-	int msg_incoming (int);
-	int msg_connect (int (*handler) (), char *);
-	void msg_send (char *, int, int, void *, int);
-	void msg_join (char *);
-	void msg_log (/* char *, ... */);
-	void msg_ELog ();
-	void msg_add_fd (int, int (*handler) ());
-	int msg_get_fd (void);
-	int msg_await (void);
-	int msg_Search (int proto, int (*func) (), void * param);
-	void msg_AddProtoHandler (int, int (*) ());
-	/* query protocol */
-	void msg_SendQuery (char *, int (*) ());
-	void msg_AnswerQuery (char *, char *);
-	void msg_FinishQuery (char *);
-	void msg_SetQueryHandler (int (*) ());
-# else
-	int msg_DispatchQueued ();
-	int msg_incoming ();
-	int msg_connect ();
-	void msg_send ();
-	void msg_join ();
-	void msg_log ();
-	void msg_ELog ();
-	void msg_add_fd ();
-	int msg_get_fd ();
-	int msg_await ();
-	int msg_Search ();
-	void msg_AddProtoHandler ();
-	/* query protocol */
-	void msg_SendQuery ();
-	void msg_AnswerQuery ();
-	void msg_FinishQuery ();
-	void msg_SetQueryHandler ();
-# endif
+int msg_DispatchQueued FP ((void));
+int msg_incoming FP ((int));
+int msg_connect FP ((int (*handler) (), char *));
+void msg_send FP ((char *, int, int, void *, int));
+void msg_join FP ((char *));
+void msg_log FP ((/* char *, ... */));
+void msg_ELog FP (());
+void msg_add_fd FP ((int, int (*handler) ()));
+int msg_get_fd FP ((void));
+int msg_await FP ((void));
+int msg_Search FP ((int proto, int (*func) (), void * param));
+void msg_AddProtoHandler FP ((int, int (*) ()));
+int msg_QueryClient FP ((char *));
+/* query protocol */
+void msg_SendQuery FP ((char *, int (*) ()));
+void msg_AnswerQuery FP ((char *, char *));
+void msg_FinishQuery FP ((char *));
+void msg_SetQueryHandler FP ((int (*) ()));
 
 
 /*
@@ -233,10 +225,5 @@ struct msg_elog
  */
 # define MAXBCAST 1500
 
-# ifdef __STDC__
-	void	msg_BCast (int, void *, int);
-	int	msg_BCSetup (int, int, int (*) ());
-# else
-	void	msg_BCast ();
-	int	msg_BCSetup ();
-# endif
+void	msg_BCast FP ((int, void *, int));
+int	msg_BCSetup FP ((int, int, int (*) ()));

@@ -1,7 +1,6 @@
 /*
  * The message handler.
  */
-static char *rcsid = "$Id: message.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,6 +37,7 @@ static char *rcsid = "$Id: message.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
 # include "message.h"
 # include <ui_symbol.h>
 
+MAKE_RCSID ("$Id: message.c,v 2.2 1992-02-11 18:24:51 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -138,31 +138,18 @@ static int S_npipe = 0, S_ndisc = 0, S_NDRead = 0, S_NDWrite = 0;
 /*
  * Forwards.
  */
-# ifdef __STDC__
-	struct connection *FindRecipient (char *);
-	struct connection *MakeConnection (char *);
-	void	Greeting (int, struct message *);
-	void	add_to_group (struct connection *, char *, struct message *);
-	void	FixAddress (Message *);
-	void	MsgProtocol (int, Message *);
-	void	AnswerPing (int, Message *);
-	static	Message *ReadMessage (int);
-	static void DelayWrite (Connection *, struct iovec *, int, int);
-	static void DoDelayedWrite (fd_set *);
-	static int TryWrite (Connection *);
-# else
-	struct connection *FindRecipient ();
-	struct connection *MakeConnection ();
-	void	Greeting ();
-	void	add_to_group ();
-	void	FixAddress ();
-	void	MsgProtocol ();
-	void	AnswerPing ();
-	static	Message *ReadMessage ();
-	static void DelayWrite ();
-	static void DoDelayedWrite ();
-	static int TryWrite ();
-# endif
+struct connection *FindRecipient FP ((char *));
+struct connection *MakeConnection FP ((char *));
+void	Greeting FP ((int, struct message *));
+void	add_to_group FP ((struct connection *, char *, struct message *));
+void	FixAddress FP ((char *));
+void	MsgProtocol FP ((int, Message *));
+void	AnswerPing FP ((int, Message *));
+static	Message *ReadMessage FP ((int));
+static void DelayWrite FP ((Connection *, struct iovec *, int, int));
+static void DoDelayedWrite FP ((fd_set *));
+static int TryWrite FP ((Connection *));
+static void ClientQuery FP ((int, Message *));
 
 
 
@@ -744,7 +731,7 @@ fd_set *fds;
 	 */
 	 	if (msg = ReadMessage (fd))
 		{
-			FixAddress (msg);
+			FixAddress (msg->m_to);
 			Fd_map[fd]->c_nsend++;
 			Fd_map[fd]->c_bnsend += msg->m_len;
 			dispatch (fd, msg);
@@ -819,15 +806,15 @@ int fd;
 
 
 void
-FixAddress (msg)
-Message *msg;
+FixAddress (addr)
+char *addr;
 /*
  * Remove the "@host" from the destination, if we're that host.
  */
 {
 	char *at, *strrchr ();
 
-	at = strrchr (msg->m_to, '@');
+	at = strrchr (addr, '@');
 	if (at && ! strcmp (at + 1, Hostname))
 		*at = '\0';
 }
@@ -1081,10 +1068,79 @@ Message *msg;
 	   case MH_PID:
 	   	Fd_map[fd]->c_pid = ((struct mh_pid *) tm)->mh_pid;
 		break;
- 
+ 	/*
+	 * Client query.
+	 */
+	   case MH_CQUERY:
+	   	ClientQuery (fd, msg);
+		break;
+	/*
+	 * For client query responses, we just route them on through.
+	 */
+	   case MH_CQREPLY:
+	   	route (fd, msg);
+		break;
+
 	   default:
 		send_log ("Funky MESSAGE type: %d\n", tm->mh_type);
 		break;
+	}
+}
+
+
+
+
+
+static void
+ClientQuery (fd, qmsg)
+int fd;
+Message *qmsg;
+/*
+ * Deal with a client query.
+ */
+{
+	Connection *conp = Fd_map[fd];
+	struct mh_ident *mhi = (struct mh_ident *) qmsg->m_data;
+	struct mh_BoolRepl mb;
+	Message msg;
+	char *at, *strchr ();
+/*
+ * Format up a reply.
+ */
+	mb.mh_type = MH_CQREPLY;
+	strcpy (msg.m_to, qmsg->m_from);
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_proto = MT_MESSAGE;
+	msg.m_flags = 0;
+	msg.m_data = (char *) &mb;
+	msg.m_len = sizeof (mb);
+/*
+ * If this is a local process, just try to look it up, and send back a
+ * reply.
+ */
+	FixAddress (mhi->mh_name);
+	if (! (at = strchr (mhi->mh_name, '@')))
+	{
+		mb.mh_reply = usy_defined (Proc_table, mhi->mh_name);
+		send_msg (conp, &msg);
+	}
+/*
+ * If they are after a non-local process, we need to at least insure that
+ * we can reach the far end.  If so, we defer the problem to them; otherwise
+ * we say no.
+ */
+	else if (! FindRecipient (mhi->mh_name))
+	{
+		mb.mh_reply = FALSE;
+		send_msg (conp, &msg);
+	}
+/*
+ * Otherwise we need to route this one on through to a remote msg.
+ */
+	else
+	{
+		strcat (qmsg->m_to, at);
+		route (fd, qmsg);
 	}
 }
 

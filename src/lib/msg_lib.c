@@ -1,7 +1,6 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 2.3 1991-12-04 18:47:25 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,6 +27,7 @@ static char *rcsid = "$Id: msg_lib.c,v 2.3 1991-12-04 18:47:25 corbet Exp $";
 # include <sys/uio.h>
 # include "../include/defs.h"
 # include "message.h"
+MAKE_RCSID ("$Id: msg_lib.c,v 2.4 1992-02-11 18:24:51 corbet Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -71,25 +71,15 @@ ProtoHandlers[MAXPROTO] = { 0 };
 /*
  * Forward routines.
  */
-# ifdef __STDC__
-	static struct mqueue *msg_NewMq (struct message *);
-	static void msg_RemQueue (struct mqueue *);
-	static int msg_SrchAck (struct message *, struct mh_ack *);
-	static int msg_ELHandler (struct message *);
-	static int msg_PingHandler (Message *);
-	static int msg_QueryHandler (Message *);
-	static int msg_DefaultQH (char *);
-	static void msg_SendPID (void);
-# else
-	static struct mqueue *msg_NewMq ();
-	static void msg_RemQueue ();
-	static int msg_SrchAck ();
-	static int msg_ELHandler ();
-	static int msg_PingHandler ();
-	static int msg_QueryHandler ();
-	static int msg_DefaultQH ();
-	static void msg_SendPID ();
-# endif
+static struct mqueue *msg_NewMq FP ((struct message *));
+static void msg_RemQueue FP ((struct mqueue *));
+static int msg_SrchAck FP ((struct message *, struct mh_ack *));
+static int msg_ELHandler FP ((struct message *));
+static int msg_PingHandler FP ((Message *));
+static int msg_QueryHandler FP ((Message *));
+static int msg_DefaultQH FP ((char *));
+static void msg_SendPID FP ((void));
+static int msg_CQReply FP ((struct message *, int *));
 
 /*
  * How much data we write at once.
@@ -97,11 +87,13 @@ ProtoHandlers[MAXPROTO] = { 0 };
 # define DCHUNK 512
 
 /*
- * Ardent doesn't provide writev!  Berkeley my ass...
+ * Ardent doesn't provide writev!
  */
 # ifdef titan
 # define writev fcc_writev
 # endif
+
+
 
 
 msg_connect (handler, ident)
@@ -401,7 +393,8 @@ int fd;
  */
 {
 	static struct message msg;
-	static char data[20480];	/* XXX */
+# define MAX_MESSAGE 20480
+	static char data[MAX_MESSAGE];	/* XXX */
 /*
  * Read in the message, and possibly any extra text.
  */
@@ -413,7 +406,12 @@ int fd;
 		return (0);
 	}
 	if (msg.m_len > 0)
+	{
+		if (msg.m_len > MAX_MESSAGE)
+			msg_ELog (EF_EMERGENCY, "Message too long (%d)", 
+					msg.m_len);
 		msg_netread (Msg_fd, data, msg.m_len);
+	}
 	msg.m_data = data;
 	
 	return (&msg);
@@ -919,3 +917,52 @@ int (*func) ();
 {
 	Query_Handler = func;
 }
+
+
+
+
+int
+msg_QueryClient (client)
+char *client;
+/*
+ * Return TRUE iff this client exists.
+ */
+{
+	struct mh_ident mhi;
+	int reply;
+/*
+ * Format and send the query.
+ */
+	mhi.mh_type = MH_CQUERY;
+	strcpy (mhi.mh_name, client);
+	msg_send (MSG_MGR_NAME, MT_MESSAGE, FALSE, &mhi, sizeof (mhi));
+/*
+ * Now we await the reply.
+ */
+	msg_Search (MT_MESSAGE, msg_CQReply, &reply);
+	return (reply);
+}
+
+
+
+
+
+
+static int
+msg_CQReply (msg, reply)
+struct message *msg;
+int *reply;
+/*
+ * Search out a message reply and return it.
+ */
+{
+	struct mh_BoolRepl *mb = (struct mh_BoolRepl *) msg->m_data;
+
+	if (mb->mh_type == MH_CQREPLY)
+	{
+		*reply = mb->mh_reply;
+		return (0);
+	}
+	return (1);
+}
+
