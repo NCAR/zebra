@@ -34,6 +34,7 @@ extern "C"
 {
 // #	include <tar.h>
 #	include <defs.h>
+#	include <ds_fields.h>
 	void exit (int);
 	extern int dfa_FindFormat (const char *);	// XXX
 	extern int dfa_QueryDate (int, const char *, ZebTime *, ZebTime *, 
@@ -46,7 +47,7 @@ extern "C"
 # include "Tape.h"
 
 
-static char *rcsid = "$Id: TapeIndex.cc,v 1.7 1995-01-17 22:03:05 burghart Exp $";
+RCSID ("$Id: TapeIndex.cc,v 1.8 1995-07-06 05:07:00 granger Exp $")
 
 
 //
