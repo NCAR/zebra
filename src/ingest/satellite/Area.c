@@ -17,7 +17,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: Area.c,v 1.8 2003-01-29 17:19:35 burghart Exp $")
+RCSID("$Id: Area.c,v 1.9 2004-08-26 19:50:31 burghart Exp $")
 
 
 static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -400,18 +400,25 @@ SetGrid (AreaGrid *ag, RGrid *rg, Location *loc)
 /*
  * Build the location and rgrid information
  */
-	loc->l_lat = ag->minlat;
-	loc->l_lon = ag->minlon;
-	loc->l_alt = 0.000;
+	if (loc)
+	{
+	  loc->l_lat = ag->minlat;
+	  loc->l_lon = ag->minlon;
+	  loc->l_alt = 0.000;
+	}
 
-	rg->rg_Xspacing = DEG_TO_KM (ag->lonstep) * 
-		cos (DEG_TO_RAD(ag->origin_lat));
-	rg->rg_Yspacing = DEG_TO_KM (ag->latstep);
-	rg->rg_Zspacing = 0.0;
+	if (rg)
+	{
+	  rg->rg_Xspacing = DEG_TO_KM (ag->lonstep) * 
+	    cos (DEG_TO_RAD(ag->origin_lat));
+	  rg->rg_Yspacing = DEG_TO_KM (ag->latstep);
+	  rg->rg_Zspacing = 0.0;
 
-	rg->rg_nX = ag->gridX;
-	rg->rg_nY = ag->gridY;
-	rg->rg_nZ = 1;
+	  rg->rg_nX = ag->gridX;
+	  rg->rg_nY = ag->gridY;
+	  rg->rg_nZ = 1;
+	}
+
 	return (1);
 }
 
