@@ -1,0 +1,57 @@
+
+!
+! Syntax plot description for testing pd_Load parser in pdlib.c
+	!
+error: parameter precedes first component
+		!
+
+	GLOBAL
+	pd-name:	syntax
+
+	plot-type:	CAP
+
+plot-mode:	real-time
+	trigger:	10m
+!
+map
+	platform:	coare
+	representation:	overlay
+!
+	field:		map
+!
+
+	color:		yellow
+line-width:	1
+icon-middle-menu:	simple-color
+	icon:		map
+
+c_gms:	! No value when expected
+c_gms
+	altitude		0.0	! this line should get skipped
+	platform:	gms
+	field:		ir
+	representation:	raster
+	color-table:	ir_gray
+	raster-color-table:	ir_gray
+	contour-color-table:	Contour
+	filled-contour-color-table:	Contour
+	icon:		satellite
+	icon-left-menu:		raster-left	! Comments at right
+	icon-middle-menu:	gms-middle	! should be ignored and not
+	icon-right-menu:	DataAvailable	! become part of param value
+	ir-center:	280.0
+!
+   ir-highlight:	205
+   ir-highlight-color:	red	! Make sure these are there 
+   ir-highlight-range:	6.0
+	ir-step:	12
+	require:	gms
+	scale-mode:	manual
+
+! Detect possible colon omission or too many words on component line !
+!
+one two	
+should_be_empty_component
+
+last_comp
+	ending:		true	! Can we end w/out newline?
