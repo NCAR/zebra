@@ -4,13 +4,18 @@ import sys
 import os
 import string
 import time
+import re
 from Tkinter import *
 import tkSimpleDialog
 
 class EnterPosition( Frame ):
 
-    def __init__( self ):
-        self.myname = "PositionEntry"
+    def __init__( self, plat, title ):
+
+        if (plat == "all"):
+	        self.myname = "PositionEntry"
+	else:
+		self.myname = "%s" % plat
         
         #
         # Initialize our Frame self
@@ -24,7 +29,8 @@ class EnterPosition( Frame ):
         #
         # title
         #
-        self.title = Label( self, text="Position Entry" )
+	if (plat == "all"): title = "Position Entry" 
+        self.title = Label( self, text=title )
         self.title.pack( side=TOP )
 
         #
@@ -41,24 +47,30 @@ class EnterPosition( Frame ):
         #
         # status label
         #
-        self.status = Label( self, text="", fg="blue3" )
+        self.status = Label( self, text="\n", fg="blue3" )
         self.status.pack( side=BOTTOM, fill=X )
         
         #
         # platform buttons
         #
         self.platform = StringVar()
+        plats = ["n308d", "n42rf", "arat", "merlin"]
 
-        frame = Frame( self )
-        frame.pack( side=LEFT )
+	if (plat == "all"):
+
+	        frame = Frame( self )
+		frame.pack( side=LEFT )
         
-        plats = ["n308d", "n42rf", "arat", "falcon"]
-        self.platform.set( plats[0] )
+	        self.platform.set( plats[0] )
 
-        for p in plats:
-            b = Radiobutton( frame, text=p, variable=self.platform,
-                             value=p )
-            b.pack( anchor=W )
+		for p in plats:
+		            b = Radiobutton( frame, text=p, 
+					     variable=self.platform,
+					     value=p )
+			    b.pack( anchor=W )
+
+	else:
+		self.platform.set( plat )
 
         #
         # VOR buttons
@@ -105,6 +117,7 @@ class EnterPosition( Frame ):
         Label( frame, text="hh:mm[:ss]", width=14 ).pack( side=LEFT )
         self.time_entry = Entry( frame, width=entrywidth )
         self.time_entry.pack( side=RIGHT )
+	self.time_pattern = re.compile ("[0-2]?[0-9]:[0-5]?[0-9](:[0-5]?[0-9])?")
     #
     # Return the current az, range, alt, and time values
     #
@@ -132,7 +145,7 @@ class EnterPosition( Frame ):
         string = self.alt_entry.get()
         try:
             alt = eval( string )
-            if (type( range ) != type( 1 ) and type( range ) != type( 1.0 )):
+            if (type( alt ) != type( 1 ) and type( alt ) != type( 1.0 )):
                 raise NameError
         except:
             self.SetStatus( "Bad altitude '%s'" % string, "red3" )
@@ -145,19 +158,22 @@ class EnterPosition( Frame ):
         #
         string = self.time_entry.get()
         try:
+	    if ( self.time_pattern.match (string) == None ):
+	        raise NameError
+	    time = string;
             #
             # Make sure the time is interpreted as GMT
             #
-            os.putenv( "TZ", "GMT" )
+            #os.putenv( "TZ", "GMT" )
             #
             # Warning!  The +%s on date (return Unix time in seconds)
             # is non-standard.  This will work for Linux only!
             #
-            lines = os.popen( "date -d'%s' +%%s" % string, "r" ).readlines()
-            print lines[0]
-            time = eval( lines[0] )
-            if (type( range ) != type( 1 )):
-                raise NameError
+            #lines = os.popen( "date -d'%s' +%%s" % string, "r" ).readlines()
+            #print lines[0]
+            #time = eval( lines[0] )
+            #if (type( range ) != type( 1 )):
+            #    raise NameError
         except:
             self.SetStatus( "Bad time string '%s'" % string, "red3" )
             self.time_entry.delete( 0, END )
@@ -172,27 +188,33 @@ class EnterPosition( Frame ):
         #
         alt = alt / 5280.0 * 1.609344;
         
-        return ( azim, range, alt )
+        return ( azim, range, alt, time )
         
     def Enter( self ):
-        self.lasttime = time.time()
-        self.DoPoint( self.lasttime )
+        # self.lasttime = time.time()
+	self.DoPoint ()
         
     def RedoLast( self ):
-        self.DoPoint( self.lasttime )
+         self.DoPoint( self.lasttime )
 
-    def DoPoint( self, time ):
+    def DoPoint( self ):
         try:
-            azim, range, alt = self.GetVals()
+            azim, range, alt, time = self.GetVals()
         except:
             return
         
-        command = "actrack %s -vor %s %.1f %.1f %.3f %.0f" % \
+        command = "actrack %s -vor %s %.1f %.1f %.3f %s" % \
                   (self.platform.get(), self.vor.get(), azim, range, alt, time)
-        os.system( command )
+        lines = os.popen( command, "r" ).readlines()
+	print "vor_position: ", lines[0]
+        #print lines[0]
+	#os.system( command )
+	when, lat, lon, junk = re.split ("\s+", lines[0])[-4:]
 
-        self.SetStatus( "Entered: %s %.0f deg @ %.1f nm, %s" %
-                        (self.vor.get(), azim, range, self.time_entry.get()) )
+        self.SetStatus("Entered: %s %.0f deg @ %.1f nm, %s\n"
+		       "%s    Lat: %.3f    Lon: %.3f" %
+		       (self.vor.get(), azim, range, self.time_entry.get(), \
+		       when, float(lat), float(lon)) )
         
     #
     # Set the status text, with optional color
@@ -211,12 +233,24 @@ class EnterPosition( Frame ):
 if __name__ == "__main__":
 
     name = sys.argv[0]
+    plane = "all"
+    title = "Position Entry"
 
-    if len( sys.argv ) != 1:
-        print "Usage: %s" % sys.argv[0]
+    if len( sys.argv ) > 3:
+        print "Usage: %s [platform[title]]" % sys.argv[0]
         sys.exit( 1 )
+    if len( sys.argv ) >= 2:
+        plane = sys.argv[1]
+	title = plane
+    if len( sys.argv ) == 3:
+        title = sys.argv[2]
+
+    if (plane not in ["all", "n308d", "n42rf", "arat", "merlin"]):
+        print "unrecognized platform name %s" % plane
+	sys.exit(1)
 
     #
     # There isn't one of me out there already, so I get to exist...
     #
-    EnterPosition().mainloop()
+    EnterPosition(plane,title).mainloop()
+
