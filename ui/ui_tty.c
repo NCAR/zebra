@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.7 1990-06-06 13:28:29 corbet Exp $ */
+/* $Id: ui_tty.c,v 1.8 1991-10-18 20:20:52 burghart Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -43,8 +43,8 @@ static void_function_pointer Fd_funcs [MAXFD];
 # endif
 /* # endif */
 
-
 # include <ctype.h>
+# include <errno.h>
 # include "ui.h"
 # include "ui_tty.h"
 
@@ -832,7 +832,12 @@ int time;
 		ioctl (TT_chan, TCSETS, &Ui_params);
 # endif
 	}
-	status = read (TT_chan, &c, 1);
+/*
+ * Read until we're successful or we get an error other than EINTR
+ */
+	while ((status = read (TT_chan, &c, 1)) < 0 && errno == EINTR)
+		/* nothing */;
+
 	if (time) /* Restore immediately */
 	{
 		Ui_params.c_cc[VTIME] = 0;
@@ -889,9 +894,12 @@ tty_readch ()
 			width++;
 			ret = fset;
 		/*
-		 * Wait for something.
+		 * Wait until we get a successful select or an error other
+		 * than EINTR.
 		 */
-			nset = select (width, &ret, 0, 0, 0);
+			while ((nset = select (width, &ret, 0, 0, 0)) < 0 &&
+				errno == EINTR)
+				/* nothing */;
 		/*
 		 * Dispatch any incoming stuff.
 		 */
