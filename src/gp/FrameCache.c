@@ -25,16 +25,30 @@
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
+# include <DataStore.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.4 1992-05-27 16:36:16 kris Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.5 1992-07-07 23:55:37 kris Exp $")
 
-# define BFLEN 500
-# define FLEN 1024
-# define OLEN 1024
-# define PMODE 0666
+# define BFLEN		500
+# define FLEN		40
+# define PLEN		1024
+# define OLEN		1024
+# define PMODE		0666
 # define InvalidEntry	-1
-# define FREE -2
+# define FREE		-2
+# define PAIRBLOCK	10
+
+
+/*
+ * PlatformId/FieldId pairs.
+ */
+typedef struct pf_pair
+{
+	PlatformId	pfp_platform;
+	FieldId		pfp_field;
+} PF_Pair;
+
 
 /*
  * An entry in the frame cache.  Entries are indexed by the frame number.
@@ -43,7 +57,8 @@ static struct FrameCache
 {
 	ZebTime	fc_time;	/* The time of this entry		*/
 	char	fc_base[BFLEN];	/* Base field				*/
-	char	fc_fields[FLEN]; /* Other fields			*/
+	PF_Pair	*fc_pairs;	/* Platform/field pairs.		*/
+	int	fc_numpairs;	/* Number of platform/field pairs.	*/
 	float	fc_alt;		/* Altitude (for now) of this frame	*/
 	int	fc_lru;		/* LRU counter				*/
 	bool	fc_keep;	/* Save this frame if possible.		*/
@@ -54,6 +69,7 @@ static struct FrameCache
 	char	fc_info[OLEN];	/* Holds info about the frame.  Used by */
 				/* the overlay widget.		        */
 } FCache[NCACHE];
+
 
 /*
  *  Table indicating which pixmaps are free and which are occupied by a
@@ -91,6 +107,8 @@ static int	fc_GetFreeFrame FP ((void));
 static int	fc_GetFreePixmap FP ((void));
 void		fc_SetNumFrames FP ((int));
 char		*fc_GetInfo FP ((int));
+static int	fc_SetPFPairs FP ((char **, PF_Pair **));
+static int	fc_ComparePairs FP ((PF_Pair *, int, PF_Pair *, int));
 
 
 void
@@ -110,6 +128,9 @@ fc_InvalidateCache ()
 	for (i = 0; i < NCACHE; i++)
 	{
 		FCache[i].fc_valid = FCache[i].fc_keep = FALSE;
+		if (FCache[i].fc_pairs)
+			free (FCache[i].fc_pairs);
+		FCache[i].fc_pairs = NULL;
 		BufferTable[i] = FREE;
 		FreePixmaps[i] = InvalidEntry;
 	}
@@ -162,9 +183,7 @@ int number;
  */
 {
 	char **complist;
-	int findex, i;
-	char platform[BFLEN], field[BFLEN];
-	time uitime;
+	int findex;
 /*
  * Sanity checking.
  */
@@ -187,6 +206,9 @@ int number;
  * Add the info.
  */
 	complist = pd_CompList (Pd);
+/*
+ * Fill in the base field.
+ */
 	FCache[findex].fc_base[0] = '\0';
 	(void) (pd_Retrieve (Pd, complist[1], "field", FCache[findex].fc_base,
 			SYMT_STRING) ||
@@ -194,13 +216,56 @@ int number;
 			FCache[findex].fc_base, SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "u-field",
 			FCache[findex].fc_base, SYMT_STRING));
+/*
+ * Get altitude.
+ */
 	FCache[findex].fc_alt = 0.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &FCache[findex].fc_alt,
 		SYMT_FLOAT);
-	FCache[findex].fc_fields[0] = '\0';
-	i = 2;
-	while(complist[i])
+/*
+ * Platform field pairs.
+ */
+	FCache[findex].fc_numpairs = fc_SetPFPairs (complist, 
+		&FCache[findex].fc_pairs);
+/*
+ * Everything else.
+ */
+	FCache[findex].fc_time = *when;
+	FCache[findex].fc_lru = ++Lru;
+	FCache[findex].fc_valid = TRUE;
+	FCache[findex].fc_keep = FALSE;
+	FCache[findex].fc_index = number;
+	FCache[findex].fc_inmem = TRUE;
+	FreePixmaps[number] = findex;
+}
+
+
+static int
+fc_SetPFPairs (complist, fc_pairs)
+char	**complist;
+PF_Pair	**fc_pairs;
+/*
+ * Set up the Platform/Field pair portion of the FCache.
+ */
+{
+	int	numpairs = 0, numblocks = PAIRBLOCK;
+	int	i = 2, j;
+	int	nplats;
+	char	field[FLEN], platform[PLEN];
+	char	*pnames[PLEN];
+	PF_Pair	*pairs;
+/*
+ * Allocate some memory.
+ */
+	pairs = (PF_Pair *) malloc (PAIRBLOCK * sizeof (PF_Pair));
+/*
+ * Loop through each component.
+ */
+	while (complist[i])
 	{
+	/*
+	 * Get the field and platform parameters from the plot description.
+	 */
 		field[0] = '\0';
 		(void) (pd_Retrieve (Pd, complist[i], "field", field,
 				SYMT_STRING) ||
@@ -211,37 +276,75 @@ int number;
 		platform[0] = '\0';
 		pd_Retrieve (Pd, complist[i], "platform", platform, 
 			SYMT_STRING);
-
-		strcat(FCache[findex].fc_fields, platform);
-		strcat(FCache[findex].fc_fields, field);
+	/*
+	 * Loop through platform names, if necessary, storing the pairs.
+	 */
+		nplats = CommaParse (platform, pnames);
+		for (j = 0; j < nplats; j++)
+		{
+		/*
+		 * Allocate more memory if necessary.
+		 */
+			if (numpairs >= numblocks)
+			{
+				numblocks += PAIRBLOCK;
+				pairs = (PF_Pair *) realloc (pairs, 
+					numblocks * sizeof (PF_Pair));
+			}
+		/*
+		 * Store a pair.
+		 */
+			pairs[numpairs].pfp_platform = 							ds_LookupPlatform (pnames[j]);
+			pairs[numpairs].pfp_field = F_Lookup (field);
+			numpairs++;
+		}
 		i++;
 	}
-	FCache[findex].fc_time = *when;
-	FCache[findex].fc_lru = ++Lru;
-	FCache[findex].fc_valid = TRUE;
-	FCache[findex].fc_keep = FALSE;
-	FCache[findex].fc_index = number;
-	FCache[findex].fc_inmem = TRUE;
-	FreePixmaps[number] = findex;
-	TC_ZtToUI (when, &uitime);
-	sprintf(FCache[findex].fc_info, "%-15s%-11s%-12s%2d:%02d\n", 
-		complist[1], platform, FCache[findex].fc_base, 
-		uitime.ds_hhmmss/10000, (uitime.ds_hhmmss/100)%100);  
+	*fc_pairs = pairs;
+	return (numpairs);
+}
+
+
+static int
+fc_ComparePairs (p1, nump1, p2, nump2)
+PF_Pair	*p1, *p2;
+int	nump1, nump2;
+/*
+ * Compare p1 and p2, return true if they are the same.
+ */
+{
+	int	i;
+/*
+ * Is a match even possible?
+ */
+	if (nump1 != nump2)
+		return (FALSE);
+/*
+ * Do they match?
+ */
+	for (i = 0; i < nump1; i++)
+		if ((p1[i].pfp_platform != p2[i].pfp_platform) ||
+			(p1[i].pfp_field != p2[i].pfp_field))
+				return (FALSE);
+/*
+ * Yes they do.
+ */
+	return (TRUE);
 }
 
 
 int
 fc_LookupFrame (when)
-ZebTime *when;
+ZebTime	*when;
 /*
  * Try to find a cache entry that matches PD at this time and return its
  * pixmap index.
  */
 {
-	int i, pindex, flag;
-	float alt;
-	char **complist, base[BFLEN], field[BFLEN], fieldlist[FLEN];
-	char platform[BFLEN];
+	int	i, pindex, flag, numpairs;
+	float	alt;
+	char	**complist, base[BFLEN];
+	PF_Pair	*pairs = NULL;
 /*
  * Get the base field from the PD.
  */
@@ -254,49 +357,37 @@ ZebTime *when;
 /*
  * Get the other fields from the PD.
  */
-	fieldlist[0] = '\0';
-	i = 2;
-	while(complist[i])
-	{
-		field[0] = '\0';
-		(void) (pd_Retrieve (Pd, complist[i], "field", field,
-				SYMT_STRING) ||
-			pd_Retrieve (Pd, complist[i], "color-code-field",
-				field, SYMT_STRING) ||
-			pd_Retrieve (Pd, complist[i], "u-field",
-				field, SYMT_STRING));
-		platform[0] = '\0';
-		pd_Retrieve (Pd, complist[i], "platform", platform, 
-			SYMT_STRING);
-
-		strcat(fieldlist, platform);
-		strcat(fieldlist, field);
-		i++;
-	}
+	numpairs = fc_SetPFPairs (complist, &pairs);
+/*
+ * Get the altitude.
+ */
 	alt = 0.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 /*
  * Now go searching.
  */
 	for (i = 0; i < MaxFrames; i++)
-		if (FCache[i].fc_valid && 
-		    FCache[i].fc_time.zt_Sec == when->zt_Sec &&
-		    FCache[i].fc_time.zt_MicroSec == when->zt_MicroSec &&
-		    FCache[i].fc_alt >= (alt - 0.1) &&
-		    FCache[i].fc_alt <= (alt + 0.1) &&
-		    ! strcmp (FCache[i].fc_base, base) &&
-		    ! strcmp (FCache[i].fc_fields, fieldlist))
+	    if (FCache[i].fc_valid && 
+		FCache[i].fc_time.zt_Sec == when->zt_Sec &&
+		FCache[i].fc_time.zt_MicroSec == when->zt_MicroSec &&
+		FCache[i].fc_alt >= (alt - 0.1) &&
+		FCache[i].fc_alt <= (alt + 0.1) &&
+		! strcmp (FCache[i].fc_base, base) &&
+		fc_ComparePairs (FCache[i].fc_pairs, FCache[i].fc_numpairs, 
+			pairs, numpairs))
+	    {
+		if (pairs) free (pairs);
+		FCache[i].fc_lru = ++Lru;
+		if(! FCache[i].fc_inmem)
 		{
-			FCache[i].fc_lru = ++Lru;
-			if(! FCache[i].fc_inmem)
-			{
-				pindex = fc_GetFreePixmap();
-				flag = fc_FileToPixmap(i, pindex); 
-				if(! flag) return(-1);
-			}
-			else pindex = FCache[i].fc_index;
-		    	return (pindex);
+			pindex = fc_GetFreePixmap();
+			flag = fc_FileToPixmap(i, pindex); 
+			if(! flag) return(-1);
 		}
+		else pindex = FCache[i].fc_index;
+	    	return (pindex);
+	    }
+	if (pairs) free (pairs);
 	return (-1);
 }
 
@@ -314,16 +405,16 @@ fc_GetFrame ()
 
 void
 fc_MarkFrames (times, ntime)
-ZebTime *times;
-int ntime;
+ZebTime	*times;
+int	ntime;
 /*
  * Go through and mark all frames that match one of these times to be kept.
  */
 {
-	int frame, t, i;
-	float alt;
-	char base[BFLEN], **complist = pd_CompList (Pd);
-	char field[BFLEN], platform[BFLEN], fieldlist[FLEN];
+	int	frame, t, numpairs;
+	float	alt;
+	char	base[BFLEN], **complist = pd_CompList (Pd);
+	PF_Pair	*pairs = NULL;
 /*
  * Get the current base field, and only mark those which match.
  */
@@ -335,25 +426,10 @@ int ntime;
 /*
  *  Get the other fields fromthe PD.
  */
-	fieldlist[0] = '\0';
-	i = 2;
-	while(complist[i])
-	{
-		field[0] = '\0';
-		(void) (pd_Retrieve (Pd, complist[i], "field", field,
-				SYMT_STRING) ||
-			pd_Retrieve (Pd, complist[i], "color-code-field",
-				field, SYMT_STRING) ||
-			pd_Retrieve (Pd, complist[i], "u-field",
-				field, SYMT_STRING));
-		platform[0] = '\0';
-		pd_Retrieve (Pd, complist[i], "platform", platform, 
-			SYMT_STRING);
-
-		strcat(fieldlist, platform);
-		strcat(fieldlist, field);
-		i++;
-	}
+	numpairs = fc_SetPFPairs (complist, &pairs);
+/*
+ * Get the altitude.
+ */
 	alt = 0.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 /*
@@ -365,15 +441,19 @@ int ntime;
 
 		fc->fc_keep = FALSE;
 		for (t = 0; fc->fc_valid && t < ntime; t++)
+		{
 			if (fc->fc_time.zt_Sec == times[t].zt_Sec &&
 			    fc->fc_time.zt_MicroSec == times[t].zt_MicroSec &&
 			    fc->fc_alt == alt && 
 			    ! strcmp (fc->fc_base, base) &&
-			    ! strcmp (fc->fc_fields, fieldlist))
+			    fc_ComparePairs (fc->fc_pairs, fc->fc_numpairs,
+				pairs, numpairs))
 			{
 				fc->fc_keep = TRUE;
 				break;
 			}
+			if (pairs) free (pairs);
+		}
 	}
 }
 
@@ -616,7 +696,12 @@ fc_GetFreePixmap ()
 	
 	i = (kframe >= 0) ? kframe : minframe;
 	if (! fc_PixmapToFile (FreePixmaps[i]))
+	{
 		FCache[FreePixmaps[i]].fc_valid = FALSE;
+		if (FCache[FreePixmaps[i]].fc_pairs)
+			free (FCache[FreePixmaps[i]].fc_pairs);
+		FCache[FreePixmaps[i]].fc_pairs = NULL;
+	}
 	return(i);
 }
 
@@ -649,6 +734,9 @@ fc_GetFreeFrame ()
 	
 	i = (kframe >= 0) ? kframe : minframe;
 	FCache[i].fc_keep = FCache[i].fc_valid = FALSE;
+	if (FCache[i].fc_pairs)
+		free (FCache[i].fc_pairs);
+	FCache[i].fc_pairs = NULL;
 	if(FCache[i].fc_inmem)
 		FreePixmaps[FCache[i].fc_index] = FREE;
 	else
@@ -673,7 +761,12 @@ int n;
 	{
 		if (FreePixmaps[i] >= 0)
 			if(! fc_PixmapToFile (FreePixmaps[i]))
+			{
 				FCache[FreePixmaps[i]].fc_valid = FALSE;
+				if (FCache[FreePixmaps[i]].fc_pairs)
+					free (FCache[FreePixmaps[i]].fc_pairs);
+				FCache[FreePixmaps[i]].fc_pairs = NULL;
+			}
 		FreePixmaps[i] = InvalidEntry;
 	}
 }
@@ -687,13 +780,13 @@ fc_PrintCache ()
 {
 	int i;
 
-for(i = 0; i < MaxFrames; i++)
-  if(FCache[i].fc_valid)
-    msg_ELog(EF_DEBUG, "FCache[%d] base %s alt %f  lru %d  keep %d  valid %d inmem %d  index %d ", 
-	i, FCache[i].fc_base,
-	FCache[i].fc_alt, FCache[i].fc_lru,
-	FCache[i].fc_keep, FCache[i].fc_valid,
-	FCache[i].fc_inmem, FCache[i].fc_index);
+	for(i = 0; i < MaxFrames; i++)
+  		if(FCache[i].fc_valid)
+    			msg_ELog(EF_DEBUG, "FCache[%d] base %s alt %f  lru %d  keep %d  valid %d inmem %d  index %d ", 
+				i, FCache[i].fc_base,
+				FCache[i].fc_alt, FCache[i].fc_lru,
+				FCache[i].fc_keep, FCache[i].fc_valid,
+				FCache[i].fc_inmem, FCache[i].fc_index);
 }
 
 
@@ -757,6 +850,9 @@ fc_GetFreeFile ()
 	}
 	offset = (kframe >= 0) ? kframe : minframe;
 	FCache[BufferTable[offset]].fc_valid = FALSE;
+	if (FCache[BufferTable[offset]].fc_pairs)
+		free (FCache[BufferTable[offset]].fc_pairs);
+	FCache[BufferTable[offset]].fc_pairs = NULL;
 	BufferTable[offset] = FREE;
 	return(offset);
 }	
