@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.25 1996-11-19 15:09:49 granger Exp $
+XCOMM $Id: Imakefile,v 1.26 1996-11-20 21:19:09 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -41,7 +41,7 @@ XCOMM difference between World and Everything is that Everything does not
 XCOMM do a clean first.
 XCOMM 
 XCOMM If someone really wants to do an 'all', they have to ask for it 
-XCOMM explicitly.  Now that UseInstalledZeb exists and can be set to NO,
+XCOMM explicitly.  Now that UseInstalledZebra exists and can be set to NO,
 XCOMM a 'make all' is a reasonable thing to do.
 
 default::
@@ -89,7 +89,7 @@ TESTSUBDIRS = src
 
 TestSubdirs($(TESTSUBDIRS))
 
-#if 1 /* !UseInstalledZebra */
+#if !UseInstalledZebra
 #define MAKE_INCLUDES \
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes @@\
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
