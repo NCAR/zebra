@@ -1,7 +1,7 @@
 /*
  * The new event logger.
  */
-static char *rcsid = "$Id: EventLogger.c,v 2.2 1991-09-17 19:29:32 kris Exp $";
+static char *rcsid = "$Id: EventLogger.c,v 2.3 1991-09-26 18:42:56 gracio Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -36,6 +36,7 @@ static char *rcsid = "$Id: EventLogger.c,v 2.2 1991-09-17 19:29:32 kris Exp $";
 # include "defs.h"
 # include "../include/message.h"
 # include "../include/dm.h"
+# include "../include/config.h"
 # include "copyright.h"
 
 
@@ -72,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.2 1991-09-17 19:29:32 kris Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.3 1991-09-26 18:42:56 gracio Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -137,7 +138,7 @@ char **argv;
 /*
  * Open our log file.
  */
-	Log_file = fopen ("/fcc/etc/LogFile", "w");
+	Log_file = fopen (strcat(ETCDIR, "/LogFile"), "w");
 # endif
 	if (getenv ("EVENT_MASK"))
 		Emask = atoi (getenv ("EVENT_MASK"));
