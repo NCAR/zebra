@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_xtitan.c,v 1.1 1989-08-07 14:21:34 corbet Exp $ */
+/* $Id: dev_xtitan.c,v 1.2 1989-08-07 15:58:04 corbet Exp $ */
 /*
  * Graphics driver for the X window system, version 11.3, with Titan 
  * enhancements.
@@ -44,6 +44,9 @@ struct xtag
 	Pixmap	x_ptr_pixmap;	/* Pixmap to save data covered by pointer */
 	WindowHandle *x_handle;	/* Direct window handle.	*/
 	XdColor x_cmap[NCOLOR];	/* The color map		*/
+	unsigned char x_rmap[NCOLOR], x_bmap[NCOLOR], x_gmap[NCOLOR];
+				/* Direct color maps		*/
+
 };
 
 
@@ -100,7 +103,6 @@ struct device *dev;
 		return (GE_BAD_DEVICE);
 	}
 	screen = DefaultScreen (tag->x_display);
-	printf ("Screen is %d\n", screen);
 	tag->x_mono = DefaultDepth (tag->x_display, screen) == 1;
 	tag->x_fg = WhitePixel (tag->x_display, screen);
 	tag->x_bg = BlackPixel (tag->x_display, screen);
@@ -167,16 +169,13 @@ struct device *dev;
 	printf ("Waiting for expose...\n");
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
 	printf ("Got it.\n");
-	XClearWindow (tag->x_display, tag->x_window);
+	/* XClearWindow (tag->x_display, tag->x_window); */
 	XSync (tag->x_display, False);
 /*
  * Get the direct graphics handle.
  */
-	printf ("Getting handle...\n"); fflush (stdout);
 	tag->x_handle = XdCreateWindowHandle (tag->x_display, tag->x_window);
-	printf ("got %x\n\n", tag->x_handle); fflush (stdout);
 	XdSetZFunction (tag->x_handle, Z_FUNC_NONE);
-	printf ("Zfunc done\n"); fflush (stdout);
 /*
  * All done.
  */
@@ -212,7 +211,7 @@ char *ctag;
 {
 	struct xtag *tag = (struct xtag *) ctag;
 
-	XClearWindow (tag->x_display, tag->x_window);
+	/* XClearWindow (tag->x_display, tag->x_window); */
 /*
  * Clear the pointer, too
  */
@@ -223,6 +222,7 @@ char *ctag;
 	XFillRectangle (tag->x_display, tag->x_ptr_pixmap, tag->x_gc, 
 		0, 0, PTR_SIZE + 2, PTR_SIZE + 2);
 	XSetFunction (tag->x_display, tag->x_gc, GXcopy);
+	xt_flush (ctag);
 }
 
 
@@ -426,8 +426,11 @@ float *r, *g, *b;
  */
  	for (col = 0; col < ncolor; col++)
 	{
+		tag->x_rmap[col + base] = (unsigned char) (*r * 255.);
 		tag->x_cmap[col + base].r = *r++;
+		tag->x_bmap[col + base] = (unsigned char) (*b * 255.);
 		tag->x_cmap[col + base].b = *b++;
+		tag->x_gmap[col + base] = (unsigned char) (*g * 255.);
 		tag->x_cmap[col + base].g = *g++;
 	}
 	return (GE_OK);
@@ -453,10 +456,7 @@ int x, y, xs, ys, size, org;
  * Perform a flush first, since this stuff seems to go through a separate
  * channel....
  */
-	printf ("Pfill (%d, %d) %dx%d\n", x, y, xs, ys);
 	xt_flush (ctag);
-	if (x == 500 && y == 600)
-		return;
 /*
  * Allocate enough space to copy the data over.
  */
@@ -486,9 +486,9 @@ int x, y, xs, ys, size, org;
  */
 	for (i = 0; i < xs*ys; i++)
 	{
-		*cp++ = (unsigned char) (tag->x_cmap[*dp].r * 255);
-		*cp++ = (unsigned char) (tag->x_cmap[*dp++].g * 255);
-		*cp++ = (unsigned char) (tag->x_cmap[*dp].b * 255);
+		*cp++ = tag->x_rmap[*dp];
+		*cp++ = tag->x_gmap[*dp];
+		*cp++ = tag->x_bmap[*dp++];
 	}
 /*
  * Ship out the image.
