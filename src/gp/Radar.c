@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.2 1997-05-14 00:38:20 granger Exp $")
+RCSID ("$Id: Radar.c,v 2.3 1997-05-16 16:51:32 granger Exp $")
 
 
 static char *ScanNames[5] = 
@@ -492,10 +492,7 @@ r_NewAlt (char *comp, float alt)
 
 
 static int
-r_AlreadyThere (alts, nalt, new)
-float *alts;
-int nalt;
-float new;
+r_AlreadyThere (float *alts, int nalt, float new)
 /*
  * See if this altitude is already present in the list.
  */
@@ -513,11 +510,7 @@ float new;
 
 
 static void
-r_Insert (alts, nalt, scan, new)
-float *alts;
-int *nalt;
-R_ScanMode scan;
-float new;
+r_Insert (float *alts, int *nalt, R_ScanMode scan, float new)
 /*
  * Add this altitude to the list, in a sorted manner.  Ugly, linear
  * check, but this list is always short.
