@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.4 1993-03-31 22:23:51 granger Exp $
+/**/# $Id: Project.tmpl,v 1.5 1993-04-02 23:17:29 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -489,14 +489,15 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
                CC = CCompiler
               C++ = CccCompiler
-#if UseOpenWindows
+#if UseOpenWindows && OpenWindowsVersion < 3
         CCOPTIONS = CCOptions CCStaticOption
 #else
         CCOPTIONS = CCOptions 
 #endif /* UseOpenWindows */
       CDEBUGFLAGS = CDebugFlags
          C++FLAGS = CccOptions $(CFLAGS)
-          C++LIBS = CccLibs /* variable should be explicitly included for c++ progs */
+          C++LIBS = CccLibs /* variable should be explicitly included in 	*/
+                            /* targets for c++ progs 				*/
 /*
  * Only set the Fortran compiler explicitly if a value has been defined.
  * Otherwise we'll default to Make's implicit rule value
