@@ -30,7 +30,7 @@
 # include <defs.h>
 # include <map.h>
 
-RCSID("$Id: Overlay.c,v 2.60 1997-02-10 20:28:58 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.61 1997-06-24 18:32:57 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -822,7 +822,12 @@ int npts;
     static int		polysize = 0;
     int	i;
 
-    if (! poly || polysize < npts)
+    if (! poly)
+    {
+	poly = (XPoint *) malloc (npts * sizeof (XPoint));
+	polysize = npts;
+    }
+    else if (polysize < npts)
     {
 	poly = (XPoint *) realloc (poly, npts * sizeof (XPoint));
 	polysize = npts;
