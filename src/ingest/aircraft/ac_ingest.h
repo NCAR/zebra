@@ -88,7 +88,8 @@ int	Fd;
 /*
  * The data object to store.
  */
-DataObject	Dobj;
+DataChunk	*Dc;
+FieldId		Fid;
 
 /*
  * Command constants go here.

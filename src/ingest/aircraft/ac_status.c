@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_status.c,v 1.9 1992-04-09 18:40:34 granger Exp $";
+static char *rcsid = "$Id: ac_status.c,v 1.10 1995-09-20 16:56:19 burghart Exp $";
 
 # include <copyright.h>
 # include <X11/X.h>
@@ -48,7 +48,8 @@ static Widget	PosButton, AltButton, StatusLabel, TransLabel, TransText;
 static Widget	ClrButton;
 static char	Platform[STRLEN];
 static Ac_Data	Aircraft;
-static time	Delta, AcTime, SaveTime[MAXOURS];
+static int	Delta;
+static ZebTime	AcTime, SaveTime[MAXOURS];
 static char	TitleStr[200], StatusStr[MAXOURS][200], AcIngestName[STRLEN];
 static char	AcPlatforms[200];
 static char	LabelString[MAXOURS * 200];
@@ -57,45 +58,24 @@ XtAppContext	Actx;
 
 XtAppContext	Appc;
 
-# ifdef __STDC__
-	static Widget MakeStatusWidget (int, Widget, XtAppContext);
-	static void StatusWindow (Widget);
-	static void Add_Trans (void);
-	static void Change_Trans (void);
-	static void Del_Trans (void);
-	static int Die (void);
-	static int Dispatcher (int, struct ui_command *);
-	static void Notification (PlatformId, int, time *);
-	static void SetStatus(int, int);
-	static void SetLabel(Widget, char *);
-	static void SetupIndirect ();
-	static void SetupNotify ();
-	static void Go ();
-	static int DoXevent ();
-	static void ChangeAlt ();
-	static void ClearStatus ();
-	int MsgDispatcher (struct message *);
-	static void DeltaUpdate (time *, int);
-# else
-	static Widget MakeStatusWidget ();
-	static void StatusWindow ();
-	static void Add_Trans ();
-	static void Change_Trans ();
-	static void Del_Trans ();
-	static int Die ();
-	static int Dispatcher();
-	static void Notification ();
-	static void SetStatus();
-	static void SetLabel();
-	static void SetupIndirect ();
-	static void SetupNotify ();
-	static void Go ();
-	static int DoXevent ();
-	static void ChangeAlt ();
-	static void ClearStatus ();
-	int MsgDispatcher ();
-	static void DeltaUpdate ();
-# endif
+static Widget MakeStatusWidget FP((int, Widget, XtAppContext));
+static void StatusWindow FP((Widget));
+static void Add_Trans FP((void));
+static void Change_Trans FP((void));
+static void Del_Trans FP((void));
+static int Die FP((void));
+static int Dispatcher FP((int, struct ui_command *));
+static void Notification FP((PlatformId, int, ZebTime *));
+static void SetStatus FP((int, int));
+static void SetLabel FP((Widget, char *));
+static void SetupIndirect FP((void));
+static void SetupNotify FP((void));
+static void Go FP((void));
+static int DoXevent FP((void));
+static void ChangeAlt FP((void));
+static void ClearStatus FP((void));
+int MsgDispatcher FP((struct message *));
+static void DeltaUpdate FP((ZebTime *, int));
 
 
 main (argc, argv)
@@ -110,7 +90,7 @@ char	**argv;
 
 	msg_ELog (EF_DEBUG, "Ac_Status begins...");
 
-	fixdir ("ACSLOADFILE", LIBDIR, "ac_status.lf", loadfile);
+	fixdir ("ACSLOADFILE", GetLibDir(), "ac_status.lf", loadfile);
 
 	if (argc > 1)
 	{
@@ -128,7 +108,7 @@ char	**argv;
 	SetupIndirect ();
 	
 	for (i = 0; i < MAXOURS; i++)
-		SaveTime[i].ds_yymmdd = SaveTime[i].ds_hhmmss = 0;
+		SaveTime[i].zt_Sec = SaveTime[i].zt_MicroSec = 0;
 
 	signal (SIGINT, Die);
 	signal (SIGTERM, Die);
@@ -187,19 +167,21 @@ static void
 Notification (pid, global, t)
 PlatformId	pid;
 int		global;
-time		*t;
+ZebTime		*t;
 /*
  * When data becomes avaiable update the status window.
  */
 {
-	DataObject	*dobj;
-	char		*fields[1], platforms[200], *pnames[MAXAC];
-	int		i, itsat = -1, numfields, nplat;
-	time		curtime;
+	DataChunk	*dc;
+	char		platforms[200], *pnames[MAXAC];
+	FieldId		fid = F_Lookup ("transponder");
+	int		i, itsat = -1, nplat;
+	Location	loc;
+	ZebTime		curtime;
 
 	strcpy (Platform, ds_PlatformName (pid));
-	msg_ELog (EF_DEBUG, "Data available on %s at %d %d.", Platform,
-		t->ds_yymmdd, t->ds_hhmmss);
+	msg_ELog (EF_DEBUG, "Data available at %s.", Platform,
+		  TC_AscTime (t, TC_Full));
 /*
  * Make sure it's a platform we're still interested in.
  */
@@ -215,30 +197,36 @@ time		*t;
 /*
  * If it is then set the status label and save the time for future use.
  */
-	if ((itsat >= 0) && (itsat < nplat))
+	if ((itsat < 0) || (itsat >= nplat))
 	{
-		AcTime = *t;
-		tl_GetTime (&curtime);
-		ud_sub_date (&curtime, &AcTime, &Delta);
-		SaveTime[itsat] = AcTime;
-		fields[0] = "trans";
-		numfields = 1;
-		if ((dobj = ds_GetData (pid, fields, numfields, t, t, 
-			OrgScalar, 0.0, BADVAL)) == 0)
-		{
-			msg_ELog (EF_PROBLEM, "Get failed for %s.", Platform);
-			return;
-		}
-		if (DoFeet)
-			Aircraft.altitude = dobj->do_aloc->l_alt / M_PER_FT;
-		else 
-			Aircraft.altitude = dobj->do_aloc->l_alt;
-		Aircraft.latitude = dobj->do_aloc->l_lat;
-		Aircraft.longitude = dobj->do_aloc->l_lon;
-		Aircraft.transponder = (int) dobj->do_data[0][0];
-		ds_FreeDataObject (dobj);
-		SetStatus(itsat, nplat);
+		dc_DestroyDC (dc);
+		return;
 	}
+
+	AcTime = *t;
+	tl_Time (&curtime);
+	Delta = curtime.zt_Sec - AcTime.zt_Sec;
+	SaveTime[itsat] = AcTime;
+	fid = F_Lookup ("transponder");
+	if ((dc = ds_Fetch (pid, DCC_Scalar, t, t, &fid, 1, NULL, 0)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Get failed for %s @ %s.", Platform,
+			  TC_AscTime (t, TC_Full));
+		return;
+	}
+
+	dc_GetLoc (dc, 0, &loc);
+	if (DoFeet)
+		Aircraft.altitude = loc.l_alt / M_PER_FT;
+	else 
+		Aircraft.altitude = loc.l_alt;
+	Aircraft.latitude = loc.l_lat;
+	Aircraft.longitude = loc.l_lon;
+	Aircraft.transponder = *(int *) dc_GetMData (dc, 0, fid, NULL);
+	
+	SetStatus(itsat, nplat);
+
+	dc_DestroyDC (dc);
 }
 
 
@@ -612,12 +600,10 @@ int	itsat;
 	if (! SWMade)
 		return;
 
-	sprintf(string,"%-9s%6o%10.0f%8.2f%8.2f%4d:%02d:%02d%4d:%02d:%02d\n",
+	sprintf(string,"%-9s%6o%10.0f%8.2f%8.2f  %s %3d:%02d\n",
 		Platform, Aircraft.transponder, Aircraft.altitude, 
 		Aircraft.latitude, Aircraft.longitude, 
-		AcTime.ds_hhmmss/10000, (AcTime.ds_hhmmss/100) % 100,
-		AcTime.ds_hhmmss % 100, Delta.ds_hhmmss/10000,
-		(Delta.ds_hhmmss/100) % 100, Delta.ds_hhmmss % 100);
+		TC_AscTime (&AcTime, TC_TimeOnly), Delta / 60, Delta % 60);
 	strncpy (StatusStr[itsat], string, strlen (string));
 	LabelString[0] = '\0';
 	for (i = 0; i < nplat; i++)
@@ -701,16 +687,16 @@ struct message	*msg;
 
 static void
 DeltaUpdate (t, junk)
-time	*t;
+ZebTime	*t;
 int	junk;
 /*
  * Update the delta times
  */
 {
-	int	i;
-	time	curtime, delta;
+	int	i, delta;
+	ZebTime	curtime;
 
-	tl_GetTime (&curtime);
+	tl_Time (&curtime);
 /*
  * Update the delta for all of the interesting platforms
  */
@@ -721,11 +707,10 @@ int	junk;
 		if (! *StatusStr[i])
 			continue;
 
-		ud_sub_date (&curtime, &SaveTime[i], &delta);
+		delta = curtime.zt_Sec - SaveTime[i].zt_Sec;
 
-		sprintf (StatusStr[i] + 51, "%4d:%02d:%02d\n",
-			delta.ds_hhmmss/10000, (delta.ds_hhmmss/100) % 100, 
-			delta.ds_hhmmss % 100);
+		sprintf (StatusStr[i] + 51, "%4d:%02d\n",
+			 delta / 60, delta % 60);
 
 		strcat (LabelString, StatusStr[i]);
 	}

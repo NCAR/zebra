@@ -1,7 +1,7 @@
 /*
  *  Ingest aircraft data from the FAA black box.
  */
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*		Copyright (C) 1991-95 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.7 1992-04-09 18:49:01 granger Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.8 1995-09-20 16:56:15 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -149,7 +149,6 @@ Die ()
  */
 	sleep (2);
 	n_written = write (Fd, "+++", 3);
-  	n_written = write (Fd, endcmd, 1);
 	sleep (2);
 	n_written = write (Fd, "at h0", 5);
   	n_written = write (Fd, endcmd, 1);
@@ -165,11 +164,13 @@ char	**argv;
 {
 	SValue	v;
 	char	loadfile[100];
+	FieldId	fid;
+	DC_ElemType	type_int = DCT_Integer;
 /*
  * Initialize.
  */
 	msg_connect (MsgDispatcher, "Ac_Ingest");
-	fixdir ("ACILOADFILE", LIBDIR, "ac_ingest.lf", loadfile);
+	fixdir ("ACILOADFILE", GetLibDir(), "ac_ingest.lf", loadfile);
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);
@@ -183,22 +184,25 @@ char	**argv;
 	ui_setup ("ac_ingest", &argc, argv, 0);
 	SetupIndirect ();
 	ds_Initialize ();
-	Dobj.do_org = OrgScalar;
-	Dobj.do_badval = BADVAL;
-	Dobj.do_flags = 0;
-	Dobj.do_nfield = 1;
-	Dobj.do_fields[0] = "trans";
-	Dobj.do_data[0] = ALLOC(float);
-	Dobj.do_aloc = ALLOC(Location);
-	
+/*
+ * Create and initialize a data chunk with one integer field (transponder code)
+ */
+	Dc = NULL;
+	Dc = dc_CreateDC (DCC_MetData);
+
+	Fid = F_Lookup ("transponder");
+	dc_SetupUniformFields (Dc, 1, 1, &Fid, sizeof (int));
+	dc_SetBadval (Dc, BADVAL);
+	dc_SetFieldTypes (Dc, 1, &Fid, &type_int);
+/*
+ * Deal with signals
+ */	
 	signal (SIGINT, Die);
 	signal (SIGTERM, Die);
 /*
  * Go into UI mode.
  */
 	ui_get_command ("initial", "ac_ingest>", Dispatcher, 0);
-	free (Dobj.do_data);
-	free (Dobj.do_aloc);
 	Die ();
 }
 
@@ -348,7 +352,7 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "dial_out", DialOut, SYMT_STRING, STRLEN);
 	usy_c_indirect (vtable, "baud_rate", &BaudRate, SYMT_INT, 0);
 	usy_c_indirect (vtable, "our_aircraft", OurAircraft, SYMT_STRING, 
-		BUFLEN);
+			BUFLEN);
 	usy_c_indirect (vtable, "range_res", &RangeRes, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "azimuth_res", &AzimuthRes, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "radar_lat", &RadarLat, SYMT_FLOAT, 0);
@@ -583,23 +587,30 @@ Ac_Data	aircraft;
  * Put the aircraft data in the data store.
  */
 {
-	time	t;
+	ZebTime		zt, samp_time;
+	Location	loc;
 	
-	tl_GetTime (&t);
-	if ((Dobj.do_id = ds_LookupPlatform (Ac_Platform)) == BadPlatform)
+	tl_Time (&zt);
+	msg_ELog (EF_INFO, "Got %d @ %s", aircraft.transponder, 
+		  TC_AscTime (&zt, TC_TimeOnly));
+
+	if ((Dc->dc_Platform = ds_LookupPlatform (Ac_Platform)) == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "Unknown platform '%s'", Ac_Platform);
 		return;
 	}
-	Dobj.do_begin = t;
-	Dobj.do_end = t;
-	Dobj.do_times = &t;
-	Dobj.do_npoint = 1;
-	Dobj.do_data[0][0] = aircraft.transponder;
-	Dobj.do_aloc->l_alt = aircraft.altitude; 
-	Dobj.do_aloc->l_lat = aircraft.latitude; 
-	Dobj.do_aloc->l_lon = aircraft.longitude; 
-	ds_PutData (&Dobj, FALSE);
+
+	loc.l_lat = aircraft.latitude;
+	loc.l_lon = aircraft.longitude;
+	loc.l_alt = aircraft.altitude;
+
+	dc_SetLoc (Dc, 0, &loc);
+	dc_AddMData (Dc, &zt, Fid, sizeof (int), 0, 1, &aircraft.transponder);
+	dc_GetTime (Dc, 0, &samp_time);
+	msg_ELog (EF_INFO, "and stored it with time %s", 
+		  TC_AscTime (&samp_time, TC_TimeOnly));
+	
+	ds_Store (Dc, 0, NULL, 0);
 # ifdef notdef
 	if (CheckValues (aircraft))
 		ds_PutData (&Dobj, FALSE);
