@@ -703,7 +703,7 @@ XCOMM the platform-specific parameters - edit site.def to change
       LINTLIBFLAG = LintLibFlag
          LINTOPTS = LintOpts
                LN = LnCmd
-             MAKE = MakeCmd
+/*           MAKE = MakeCmd -- We want to be able use recursive $(MAKE) */
                MV = MvCmd
                CP = CpCmd
 #if DoRanlibCmd
