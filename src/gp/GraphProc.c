@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.8 1990-06-12 11:41:54 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.9 1990-07-08 12:52:15 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -30,7 +30,7 @@ static String Resources[] = {
 	"	*arrow*font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*",
 	"	*Text*height:	20",
 	"	*title*borderWidth: 0",
-	"	*Command*font:	-*-times-medium-i-*-*-*-120-*-*-*-*-*-*",
+/*	"	*Command*font:	-*-times-medium-i-*-*-*-120-*-*-*-*-*-*", */
 	0,
 };
 
@@ -56,6 +56,9 @@ enum pmode PlotMode = NoMode;
 enum wstate WindowState = DOWN;
 bool MovieMode = FALSE;
 Cursor BusyCursor, NormalCursor;	/* Our cursors			*/
+int	Pltype;
+float	Xlo, Xhi, Ylo, Yhi;
+int	Alt;
 
 /*
  * Forward routine definitions.
@@ -70,6 +73,22 @@ extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
  * Routines called through the event queue mechanism.
  */
 void eq_reconfig (), eq_sync ();
+
+
+
+
+
+GPShutDown ()
+/*
+ * Finish up and quit.
+ */
+{
+	ui_finish ();
+	exit (0);
+}
+
+
+
 
 
 
@@ -88,10 +107,11 @@ char **argv;
 	msg_connect (msg_handler, Ourname);
 	msg_join ("Graphproc");
 	msg_join ("TimeChange");
+	msg_DeathHandler (GPShutDown);
 /*
  * Hand off our information to the UI, and initialize things.
  */
-	ui_init ("/fcc/lib/graphproc.lf", FALSE, TRUE);
+	ui_init ("../lib/graphproc.lf", FALSE, TRUE);
 	ui_setup ("Graphproc", argc, argv, Resources);
 /*
  * Now we have to go into the UI, and finish our setup later.  This is
@@ -174,22 +194,17 @@ finish_setup ()
 	ui_ErrorOutputRoutine (UiErrorReport);
 	ui_OutputRoutine (UiPfHandler, UiPfHandler);
 /*
+ * UI widgets.
+ */
+	mc_DefMovieWidget ();
+/*
  * Pull in the widget definition file.
  */
-	ui_perform ("read /fcc/gp/Widgets");
+	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "ourname",
+		Ourname, SYMT_STRING, 40);
+	ui_perform ("read ../gp/Widgets");
+	fc_InvalidateCache ();
 }
-
-
-
-GPShutDown ()
-/*
- * Finish up and quit.
- */
-{
-	ui_finish ();
-	exit (0);
-}
-
 
 
 
@@ -218,7 +233,8 @@ struct message *msg;
 	   case MT_MESSAGE:
 	   	if (tm->mh_type == MH_SHUTDOWN)
 			GPShutDown ();
-		msg_log ("Unknown MESSAGE proto type: %d", tm->mh_type);
+		msg_ELog (EF_PROBLEM, "Unknown MESSAGE proto type: %d",
+			tm->mh_type);
 		break;
 	 /*
 	  * Timer.
@@ -288,20 +304,18 @@ struct ui_command *cmds;
 	   	if (first++)
 			finish_setup ();
 		else
-			msg_log ("Somebody typed RUN again");
+			msg_ELog (EF_PROBLEM, "Somebody typed RUN again");
 		lle_MainLoop ();
 		break;
 	/*
 	 * DM for sending literal commands back to the display manager.
 	 */
 	   case GPC_DM:
-	   	msg_log ("DM cmd '%s'", UPTR (cmds[1]));
 		dme.dmm_type = DM_EVENT;
 		strcpy (dme.dmm_data, UPTR (cmds[1]));
 		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
 			sizeof (dme));
 		break;
-
 	/*
 	 * Change a PD parameter.
 	 */
@@ -309,8 +323,31 @@ struct ui_command *cmds;
 		parameter (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]));
 		break;
 
+	/*
+	 * Altitude stepping.
+	 */
+	   case GPC_ALTSTEP:
+	   	alt_Step (UINT (cmds[1]));
+		break;
+
+	/*
+	 * Predefined features.
+	 */
+	   case GPC_FEATURE:
+	   	ov_Feature (cmds + 1);
+		break;
+	/*
+	 * Movie control.
+	 */
+	   case GPC_MOVIE:
+	   	if (UKEY (cmds[1]))
+			mc_MovieRun ();
+		else
+			mc_MovieStop ();
+		break;
+
 	   default:
-	   	msg_log ("Unknown kw %d", UKEY (*cmds));
+	   	msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
 		break;
 	}
 	return (TRUE);
@@ -327,6 +364,7 @@ struct dm_msg *dmsg;
  */
 {
 	struct dm_dial *dmd;
+	struct dm_history *dmh;
 
 	switch (dmsg->dmm_type)
 	{
@@ -341,7 +379,7 @@ struct dm_msg *dmsg;
 	 * Ribbit.
 	 */
 	   case DM_DIE:
-	   	msg_log ("DM decreed shutdown");
+	   	msg_ELog (EF_INFO, "DM decreed shutdown");
 		GPShutDown ();
 	/*
 	 * Suspend.
@@ -363,7 +401,8 @@ struct dm_msg *dmsg;
 	 * History mode.
 	 */
 	   case DM_HISTORY:
-	   	HistoryMode ((struct dm_history *) dmsg);
+	   	dmh = (struct dm_history *) dmsg;
+	   	HistoryMode (&dmh->dmm_time);
 		break;
 	/*
 	 * Real time mode.
@@ -388,13 +427,14 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_DIAL:
 		dmd = (struct dm_dial *) dmsg;
-	   	msg_log ("DIAL: '%s' %d", dmd->dmm_param, dmd->dmm_motion);
+		DialEvent (dmd);
 		break;
 	/*
 	 * ???
 	 */
 	   default:
-	   	msg_log ("Unknown DM Message type: %d", dmsg->dmm_type);
+	   	msg_ELog (EF_PROBLEM, "Unknown DM Message type: %d",
+			dmsg->dmm_type);
 		break;
 	}
 }
@@ -452,6 +492,10 @@ int len;
 		ChangeState (UP);
 	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), NormalCursor);
 /*
+ * Invalidate the frame cache.
+ */
+	fc_InvalidateCache ();
+/*
  * Force the window to the bottom.
  */
 # ifdef notdef
@@ -461,7 +505,7 @@ int len;
  * Force a redisplay.
  */
 	if (Pd)
-		Eq_AddEvent (PDisplay, px_PlotExec, "global", 7, Override);
+		Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
 	/* ...... */
 }
 
@@ -574,6 +618,10 @@ struct dm_pdchange *dmp;
 	rpd.rp_data = dmp->dmm_pdesc;
 	Pd = pd_Load (&rpd);
 /*
+ * Invalidate the frame cache.
+ */
+	fc_InvalidateCache ();
+/*
  * Now we need to set up to display the new PD.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
@@ -595,8 +643,8 @@ struct dm_parchange *dmp;
  */
 	if (! Pd)
 	{
-		msg_log ("Param change (%s/%s/%s) with no PD", dmp->dmm_comp,
-			dmp->dmm_param, dmp->dmm_value);
+		msg_ELog (EF_PROBLEM, "Param change (%s/%s/%s) with no PD",
+			dmp->dmm_comp, dmp->dmm_param, dmp->dmm_value);
 		return;
 	}
 /*
@@ -626,8 +674,8 @@ char *comp, *param, *value;
  */
 	if (! Pd)
 	{
-		msg_log ("Param change (%s/%s/%s) with no PD", comp, param,
-				value);
+		msg_ELog (EF_PROBLEM, "Param change (%s/%s/%s) with no PD",
+			comp, param, value);
 		return;
 	}
 /*
@@ -637,7 +685,8 @@ char *comp, *param, *value;
 /*
  * Now reset things.
  */
-	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+	Eq_AddEvent (PDisplay, pc_ParamChange, param, strlen (param) + 1,
+			Override);
 /*
  * We'll also eventually want to ship the PD back to DM.
  */
@@ -677,8 +726,8 @@ struct dm_pdchange *dmp;
 
 
 
-HistoryMode (dmh)
-struct dm_history *dmh;
+HistoryMode (when)
+time *when;
 /*
  * Go into history mode.
  */
@@ -688,7 +737,8 @@ struct dm_history *dmh;
  */
 	if (! Pd)
 	{
-		msg_log ("History mode requested with no plot description!");
+		msg_ELog (EF_PROBLEM,
+			"History mode requested with no plot description!");
 		return;
 	}
 /*
@@ -698,12 +748,61 @@ struct dm_history *dmh;
 /*
  * Stash the plot time into the PD.
  */
-	pd_Store (Pd, "global", "plot-time", (char*)&dmh->dmm_time, SYMT_DATE);
+	pd_Store (Pd, "global", "plot-time", (char*) when, SYMT_DATE);
+	PlotTime = *when;
 /*
  * Now reset things.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
+
+
+
+
+
+DialEvent (dmd)
+struct dm_dial *dmd;
+/*
+ * Deal with a dial event.
+ */
+{
+/*
+ * Figure out what they want.
+ */
+	if (! strcmp (dmd->dmm_param, "time"))
+		DialTime (dmd->dmm_motion);
+	else if (! strcmp (dmd->dmm_param, "movieframe"))
+		mc_Dial (dmd->dmm_motion);
+	else if (! strcmp (dmd->dmm_param, "altitude"))
+		alt_Step (dmd->dmm_motion);
+	else
+	{
+		msg_ELog (EF_PROBLEM, "Unknown dial param: %s",dmd->dmm_param);
+		return;
+	}
+}
+
+
+
+
+
+DialTime (motion)
+int motion;
+/*
+ * Simple (for now) time control through dials.
+ */
+{
+	if (motion > 0)
+		pmu_dadd (&PlotTime.ds_yymmdd, &PlotTime.ds_hhmmss, 100);
+	else
+		pmu_dsub (&PlotTime.ds_yymmdd, &PlotTime.ds_hhmmss, 100);
+	HistoryMode (&PlotTime);
+}
+
+
+
+
+
 
 
 
@@ -718,7 +817,8 @@ RealTimeMode ()
  */
 	if (! Pd)
 	{
-		msg_log ("Real-time mode requested with no plot description!");
+		msg_ELog (EF_PROBLEM,
+			"Real-time mode requested with no plot description!");
 		return;
 	}
 /*
@@ -825,7 +925,7 @@ char *line;
  * Report errors generated in UI.
  */
 {
-	msg_log ("UI ERROR: %s", line);
+	msg_ELog (EF_PROBLEM, "UI ERROR: %s", line);
 }
 
 
@@ -846,5 +946,5 @@ char *line;
 	strcpy (tbuf, line);
 	while (nl = strchr (tbuf, '\n'))
 		*nl = ' ';
-	msg_log ("ui_printf('%s')", tbuf);
+	msg_ELog (EF_INFO, "ui_printf('%s')", tbuf);
 }
