@@ -1,7 +1,6 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.10 1991-11-13 22:03:24 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -43,6 +42,8 @@ static char *rcsid = "$Id: GraphProc.c,v 2.10 1991-11-13 22:03:24 corbet Exp $";
 # include "EventQueue.h"
 # include "GC.h"
 # include "GraphProc.h"
+
+MAKE_RCSID ("$Id: GraphProc.c,v 2.11 1991-12-04 20:50:43 corbet Exp $")
 
 /*
  * Default resources.
@@ -114,7 +115,7 @@ static char **Argv;
 int	msg_handler (), dispatcher (), xtEvent ();
 void	SendEndpoints ();
 
-static void DMButton (), UiErrorReport (), UiPfHandler ();
+static void UiErrorReport (), UiPfHandler ();
 
 extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 extern void Ue_MotionEvent ();
@@ -126,8 +127,10 @@ void eq_reconfig (), eq_sync ();
 
 # ifdef __STDC__
 	static void NewTime (time *);
+	static int AnswerQuery (char *);
 # else
 	static void NewTime ();
+	static int AnswerQuery ();
 # endif
 
 
@@ -148,7 +151,7 @@ GPShutDown ()
 		for(i = 0; i < FrameCount; i++)
 			GWZapShmPixmap(Graphics, i);
 # endif
-	sprintf(filename, "%s/%s%dFrameFile", FrameFilePath, Ourname, getpid());
+	sprintf(filename, "%s/%s%dFrameFile",FrameFilePath, Ourname, getpid());
 	unlink(filename);
 	exit (0);
 }
@@ -175,6 +178,7 @@ char **argv;
 	msg_join ("Graphproc");
 	msg_join ("TimeChange");
 	msg_DeathHandler (GPShutDown);
+	msg_SetQueryHandler (AnswerQuery);
 /*
  * Hand off our information to the UI, and initialize things.
  */
@@ -357,7 +361,7 @@ struct message *msg;
 
 
 
-
+/* ARGSUSED */
 int
 xtEvent (fd)
 int fd;
@@ -412,7 +416,7 @@ greet_dm ()
 
 
 
-
+/* ARGSUSED */
 dispatcher (junk, cmds)
 int junk;
 struct ui_command *cmds;
@@ -646,7 +650,7 @@ struct dm_msg *dmsg;
 
 
 
-
+/* ARGSUSED */
 void
 eq_reconfig (dmsg, len)
 struct dm_msg *dmsg;
@@ -906,7 +910,6 @@ struct dm_pdchange *dmp;
 {
 	raw_plot_description rpd;
 	plot_description pd;
-	int xxx;
 /*
  * Go ahead and recompile the PD now.
  */
@@ -1053,7 +1056,7 @@ RealTimeMode ()
 
 
 
-
+/* ARGSUSED */
 static void
 NewTime (t)
 time *t;
@@ -1076,7 +1079,7 @@ time *t;
 
 
 
-
+/* ARGSUSED */
 pd_defined (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1097,6 +1100,7 @@ union usy_value *argv, *retv;
 }
 
 
+/* ARGSUSED */
 pd_removeparam (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1116,6 +1120,7 @@ union usy_value *argv, *retv;
 
 
 
+/* ARGSUSED */
 pd_param (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1145,6 +1150,9 @@ union usy_value *argv, *retv;
 	}
 }
 	
+
+
+/* ARGSUSED */
 pd_paramsearch (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1175,6 +1183,8 @@ union usy_value *argv, *retv;
 }
 
 
+
+/* ARGSUSED */
 substr_remove (narg, argv, argt, retv, rett)
 int 	narg, *argt, *rett;
 union usy_value	*argv, *retv;
@@ -1206,6 +1216,9 @@ union usy_value	*argv, *retv;
 }
 	
 
+
+
+/* ARGSUSED */
 strlength (narg, argv, argt, retv, rett)
 int 	narg, *argt, *rett;
 union usy_value	*argv, *retv;
@@ -1252,7 +1265,7 @@ char *line;
  * Clean out NL's.
  */
 	strcpy (tbuf, line);
-	while (nl = strchr (tbuf, '\n'))
+	while ((nl = strchr (tbuf, '\n')) != 0)
 		*nl = ' ';
 	msg_ELog (EF_INFO, "ui_printf('%s')", tbuf);
 }
@@ -1324,4 +1337,43 @@ struct ui_command *cmds;
 	msg_ELog (EF_DEBUG, 
 		"Sent endpoints (%.2f,%.2f) (%.2f,%.2f) to '%s/%s'", x0, y0,
 		x1, y1, win, comp);
+}
+
+
+
+
+
+
+
+static int
+AnswerQuery (who)
+char *who;
+/*
+ * Answer a query from this person.
+ */
+{
+	char abuf[200];
+	raw_plot_description *rpd;
+/*
+ * Basic stuff.
+ */
+	msg_ELog (EF_DEBUG, "Query from %s", who);
+	sprintf (abuf, 
+	   "Graphics process %s, window %s, coords [%.2f %.2f] -> [%.2f %.2f]",
+		Ourname, WindowState == UP ? "UP" : "DOWN", Xlo, Ylo, Xhi,Yhi);
+	msg_AnswerQuery (who, abuf);
+/*
+ * Send back the PD -- they asked for it!
+ */
+	if (! Pd)
+		msg_AnswerQuery (who, "No plot description loaded");
+	else
+	{
+		rpd = pd_Unload (Pd);
+		msg_AnswerQuery (who, " ");
+		msg_AnswerQuery (who, rpd->rp_data);
+		pd_RPDRelease (rpd);
+	}
+	msg_FinishQuery (who);
+	return (0);
 }
