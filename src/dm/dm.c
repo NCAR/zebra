@@ -32,7 +32,7 @@
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.10 1992-02-07 21:02:24 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.11 1992-03-31 23:55:05 burghart Exp $")
 
 
 /*
@@ -149,14 +149,13 @@ char **argv;
 /*
  * If a file appears on the command line, open it.
  */
-	ERRORCATCH
-		if (argc > 1)
-			ut_open_file (argv[1], TRUE);
-	ENDCATCH
+	if (argc > 1)
+		ut_open_file (argv[1], TRUE);
 /*
  * Interpret commands.
  */
 	tw_DefTimeWidget (tw_cb, "Overall system time control");
+	aw_DefAlarmWidget ();
 	ui_get_command ("dm-initial", "DM>", dm_dispatcher, 0);
 	dm_shutdown ();
 }
