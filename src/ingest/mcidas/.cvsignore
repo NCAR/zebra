@@ -1,6 +1,15 @@
 Makefile
+nvxdmsp.f
 nvxgoes.f
+nvxgraf.f
 nvxgvar.f
+nvxlamb.f
+nvxmerc.f
+nvxmoll.f
+nvxmsat.f
 nvxps.f
 nvxradr.f
 nvxrect.f
+nvxsin.f
+nvxtanc.f
+nvxtiro.f
