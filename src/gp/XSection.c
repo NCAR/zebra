@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.34 1995-09-25 18:00:38 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.35 1996-01-10 19:07:48 granger Exp $")
 
 /*
  * General definitions
@@ -3127,7 +3127,8 @@ bool	update;
 	int	nplat, nsteps;
 	char	platform[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[20], cname[20], hcolor[20];
-	char	param[50], outrange[40], *igrid = 0;
+	char	param[50], outrange[40];
+	unsigned char *igrid = 0;
 	float	center, step, step_per_color, hrange, hvalue, alt;
 	float	*fgrid = 0;
 	float	xleft, xright, yleft, yright, max, min, d_left, d_right;
@@ -3287,8 +3288,8 @@ bool	update;
 				     NULL, 0)))
 			return;
 
-		igrid = (char *) dc_ImgGetImage (dc, 0, fid, &loc, &rg, 
-						 NULL, &scale);
+		igrid = (unsigned char *) 
+			dc_ImgGetImage (dc, 0, fid, &loc, &rg, NULL, &scale);
 	/*
 	 * In kluged RHI raster files, x is the horizontal dimension, and y
 	 * is the vertical dimension.
