@@ -1,15 +1,14 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.7 1990-03-27 10:50:29 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.8 1992-01-30 21:09:54 corbet Exp $ */
 /*
  * Expression handling.
  */
 # include <ctype.h>
 # include <math.h>
 
-# include "ui_param.h"
+# include "ui.h"
 # include "ui_expr.h"
 # include "ui_error.h"
-# include "ui_symbol.h"
 # include "ui_globals.h"
 # include "ui_date.h"
 # include "ui_cstack.h"
@@ -57,6 +56,11 @@ struct parse_tree *ue_get_node (), *ue_fcall (), *ue_arglist ();
 struct parse_tree * ue_expr (), *ue_conj (), *ue_rexpr (), *ue_mexpr ();
 struct parse_tree *ue_term (), *ue_efactor (), *ue_factor (), *ue_item ();
 
+# ifdef __STDC__
+	void ue_free_result (int, SValue *);
+# else
+	void ue_free_result ();
+# endif
 
 /*
  * The relational operator conversion table.
@@ -1298,8 +1302,10 @@ int *type;
  * then have to reallocate the string before passing it back.
  */
  	ue_ieval (tree, v, type);
+# ifdef notdef
 	if (*type == SYMT_STRING)
 		v->us_v_ptr = usy_string (v->us_v_ptr);
+# endif
 }
 
 
@@ -1324,6 +1330,8 @@ int *type;
 	   case NT_CONST:
 		*v = tree->pt_v;
 		*type = tree->pt_dtype;
+		if (*type == SYMT_STRING)
+			v->us_v_ptr = usy_string (v->us_v_ptr);
 		return (TRUE);
 	/*
 	 * If it is a symbol node, we look up the symbol and return that value.
@@ -1378,25 +1386,11 @@ union usy_value *v;
 		*type = SYMT_INT;
 		v->us_v_int = 0;
 	}
-# ifdef notdef
-		ui_error ("Undefined symbol: '%s'", tree->pt_v.us_v_ptr);
-# endif
-
-# ifdef notdef
 /*
- * If it is not a string, we're done.
+ * Reallocate a string, since it will get zapped later.
  */
- 	if (*type != SYMT_STRING)
-		return (TRUE);
-/*
- * This is a string.  Let's see if it can be interpreted.
- */
-	string = v->us_v_ptr;
- 	uit_interp (string, type, v);
-	if (*type == SYMT_STRING)	/* Still! */
-		ui_error ("Unable to parse value '%s' of symbol '%s'", string,
-			tree->pt_v.us_v_ptr);
-# endif
+ 	if (*type == SYMT_STRING)
+		v->us_v_ptr = usy_string (v->us_v_ptr);
 	return (TRUE);
 }
 
@@ -1482,6 +1476,7 @@ union usy_value *v;
 /*
  * Now we need to worry about type compatibility.
  */
+	ERRORCATCH
  	ue_type_coerce (&leftt, &leftv, &rightt, &rightv);
 /*
  * Figure out what to do.
@@ -1504,6 +1499,9 @@ union usy_value *v;
 	   	ue_do_exp (leftt, &leftv, &rightv, type, v);
 		break;
 	}
+	ENDCATCH
+	ue_free_result (leftt, &leftv);
+	ue_free_result (rightt, &rightv);
 }
 
 
@@ -1812,6 +1810,7 @@ union usy_value *v;
  * Deal with type compatibility.  Here, we do essentially the same thing
  * as for the arithmetic operators.
  */
+	ERRORCATCH
  	ue_type_coerce (&leftt, &leftv, &rightt, &rightv);
 /*
  * Figure out what to do.
@@ -1838,6 +1837,9 @@ union usy_value *v;
 	   	ue_do_neq (leftt, &leftv, &rightv, v);
 		break;
 	}
+	ENDCATCH
+	ue_free_result (leftt, &leftv);
+	ue_free_result (rightt, &rightv);
 }
 
 
@@ -2032,4 +2034,20 @@ union usy_value *v1, *v2, *result;
 	   	result->us_v_int = strcmp (v1->us_v_ptr, v2->us_v_ptr) != 0;
 		break;
 	}
+}
+
+
+
+
+
+void
+ue_free_result (type, v)
+int type;
+SValue *v;
+/*
+ * Free the result of a tree evaluation.
+ */
+{
+	if (type == SYMT_STRING)
+		usy_rel_string (v->us_v_ptr);
 }
