@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.11 1997-04-17 16:07:20 corbet Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.12 1997-06-30 21:26:32 ishikawa Exp $")
 
 
 /*
@@ -59,6 +59,7 @@ typedef struct _GradsTag
 	FieldId *gt_fids;		/* The field ID's		*/
 	int	*gt_nlevels;		/* How many levels/field	*/
 	int	gt_swap;		/* Data need to be swapped	*/
+        bool    gt_ismodel;             /* It is a Model platform       */
 } GradsTag;
 
 
@@ -90,8 +91,14 @@ P_GetFields (dgr_GetFields);
 P_Setup (dgr_Setup);
 P_GetAlts (dgr_GetAlts);
 P_GetTimes (dgr_GetTimes);
+P_GetAssociatedFiles (dgr_GetAssociatedFiles);
 
 
+/*
+ * Grads_model format methods.
+ */
+P_QueryTime (dgr_ModelQueryTime);
+P_GetForecastTimes (dgr_GetForecastTimes);
 
 /*
  * GRADS.
@@ -119,19 +126,59 @@ static DataFormat gradsFormatRec =
 	dgr_GetData,			/* Get the data			*/
 	dgr_GetAlts,			/* Get altitude info		*/
 	fmt_DataTimes,			/* Get data times		*/
-	___,				/* Get forecast times		*/
+	___,            		/* Get forecast times		*/
 	___,				/* Create a new file		*/
 	___,				/* Write to file		*/
 	___,				/* Write block to a file	*/
 	dgr_GetObsSamples,		/* Get observation samples	*/
 	dgr_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	dgr_GetTimes			/* Get times			*/
+	dgr_GetTimes,			/* Get times			*/
+	dgr_GetAssociatedFiles          /* Get associated files         */
 };
 
 
 DataFormat *gradsFormat = (DataFormat *) &gradsFormatRec;
 
+/*
+ * GRADS_MODEL.
+ */
+static DataFormat gradsmodelFormatRec =
+{
+	"GRADSModel",
+	FTGradsModel,
+	".ctl",				/* hope ".ctl" covers it 	*/
+
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof (GradsOpenFile),
+	TRUE,				/* read-only			*/
+
+	FORMAT_INIT,			/* dynamic class members	*/
+
+	dgr_ModelQueryTime,		/* Query times			*/
+	___,				/* Make file name		*/
+
+	dgr_Setup,			/* setup			*/
+	dgr_OpenFile,			/* Open				*/
+	dgr_CloseFile,			/* Close			*/
+	___,				/* Synchronize			*/
+	dgr_GetData,      		/* Get the data			*/
+	dgr_GetAlts,			/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	dgr_GetForecastTimes,		/* Get forecast times		*/
+	___,				/* Create a new file		*/
+	___,				/* Write to file		*/
+	___,				/* Write block to a file	*/
+	dgr_GetObsSamples,		/* Get observation samples	*/
+	dgr_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	dgr_GetTimes,	       	        /* Get times			*/
+	dgr_GetAssociatedFiles          /* Get associated files         */
+};
+
+
+DataFormat *gradsmodelFormat = (DataFormat *) &gradsmodelFormatRec;
 
 /*
  * Forwards.
@@ -582,6 +629,9 @@ bool write;
 	if (dgr_DoOpen (tag, fname, TRUE))
 	{
 		dgr_SetTimes (tag);
+		/* Set this field for model platorms */
+		if (ds_IsModelPlatform(dp->df_platform)) tag->gt_ismodel=TRUE;
+		else tag->gt_ismodel=FALSE;
 		return (TRUE);
 	}
 	else
@@ -620,6 +670,31 @@ int *nsample;
 	return (ret);
 }
 
+static int
+dgr_ModelQueryTime (file, begin, end, nsample)
+char *file;
+ZebTime *begin, *end;
+int *nsample;
+/*
+ * Query times in this file.
+ */
+{
+	GradsTag *tag;
+	int ret;
+
+	tag = (GradsTag *) malloc (sizeof(GradsTag));
+	ret = dgr_DoOpen (tag, file, FALSE);
+	if (ret)
+	{
+		*begin = tag->gt_begin;
+		*nsample = 1;
+		*end=*begin;
+	
+	}
+	dgr_CleanTag (tag);
+	free (tag);
+	return (ret);
+}
 
 
 
@@ -794,6 +869,8 @@ int ndetail;
 	float *grid, alttarget;
 	SValue v;
 	int start;	/* where to start adding samples to dc */
+	int forecast_offset; /* Stores the forecast offset */ 
+	int fileoffset;      /* will store the forecast time offset in file */
 /*
  * Find the dimensions first.
  */
@@ -844,12 +921,77 @@ int ndetail;
  */
 	lvlsize = tag->gt_rg.rg_nX * tag->gt_rg.rg_nY * sizeof (float);
 	grid = (float *) malloc (lvlsize*((level >= 0) ? 1: tag->gt_rg.rg_nZ));
-/*
- * Time to blast through the samples and store the data.
- */
-	start = dc_GetNSample (dc);
-	for (sample = begin; sample < begin + nsample; sample++)
+
+	if (tag->gt_ismodel)
 	{
+
+/*
+ * We are handling model platform data. We need to handle forecast times 
+ * here. The forecast_offset is given in seconds here.
+ */
+          forecast_offset = ds_GetDetail (DD_FORECAST_OFFSET, 
+		details, ndetail, &v) ? v.us_v_int : 0;
+
+          if (tag->gt_itype!=IT_Seconds)
+	  {
+		msg_ELog (EF_PROBLEM, 
+			"IT_Months not accepted for Model yet");
+		sample=0;	
+	  }
+	  if (forecast_offset)
+	  {
+		fileoffset=tag->gt_tincr;
+		for (i=1;i<tag->gt_ntime; i++) 
+			if (fileoffset!=forecast_offset) 
+				fileoffset+=tag->gt_tincr;
+			else break;
+		fileoffset=i;
+	  } else fileoffset=0;
+
+
+/*
+ * Get the sample and store the data.
+ */
+	  start = dc_GetNSample (dc);
+	  sample = fileoffset;
+
+	/* dgr_CalcTime (tag, sample, &zt); */
+	  for (field = 0; field < nfield; field++)
+	  {
+		int nlev;
+	/*
+	 * Blow off coord vars and fields we don't have
+	 */
+		if (fids[field] == lat || fids[field] == lon ||
+			fids[field] == alt)
+			continue;
+		if ((index = dgr_FindIndex (tag, fids[field])) < 0)
+			continue;
+		nlev = (level >= 0) ? 1 : tag->gt_nlevels[index];
+	/*
+	 * Find the offset for this field, snarf it, and store.
+	 */
+		offset = dgr_FOffset (tag, sample, index,
+			(level > 0) ? level : 0);
+
+		lseek (tag->gt_dfd, offset, SEEK_SET);
+		read (tag->gt_dfd, grid, lvlsize*nlev);
+		if (tag->gt_swap)
+			dgr_SwapFloats (grid,
+				(lvlsize*nlev)/sizeof (float));
+		dc_NSAddSample (dc, tag->gt_times+sample, 
+				start, fids[field], grid);
+	  }
+	}
+	else
+	{
+/*
+ * We are looking for a non model platform. Time to blast through the 
+ * samples and store the data.
+ */
+	  start = dc_GetNSample (dc);
+	  for (sample = begin; sample < begin + nsample; sample++)
+	  {
 		/* dgr_CalcTime (tag, sample, &zt); */
 		for (field = 0; field < nfield; field++)
 		{
@@ -867,7 +1009,8 @@ int ndetail;
 		 * Find the offset for this field, snarf it, and store.
 		 */
 			offset = dgr_FOffset (tag, sample, index,
-					(level > 0) ? level : 0);
+				(level > 0) ? level : 0);
+
 			lseek (tag->gt_dfd, offset, SEEK_SET);
 			read (tag->gt_dfd, grid, lvlsize*nlev);
 			if (tag->gt_swap)
@@ -876,10 +1019,12 @@ int ndetail;
 			dc_NSAddSample (dc, tag->gt_times+sample, 
 					start+sample-begin, fids[field], grid);
 		}
+	  }
 	}
 	free (grid);
 	return (TRUE);
 }
+
 
 
 
@@ -926,7 +1071,7 @@ dgr_FOffset (tag, sample, index, level)
 GradsTag *tag;
 int sample, index, level;
 /*
- * Return the offset in the data file for the given sample, field index,
+ * Return the offset in the data file for the given sample, field index
  * and level.
  */
 {
@@ -939,19 +1084,23 @@ int sample, index, level;
 		level = 0;
 	else if (level >= tag->gt_nlevels[index])
 		level = tag->gt_nlevels[index] - 1;	/* Careful here */
+
 /*
  * Figure the offset into a sample for this field.  Then if we want the
  * first sample we're done.
  */
 	for (i = 0; i < index; i++)
 		soffset += tag->gt_nlevels[i]*levsize;
-	if (sample == 0)
-		return ((off_t) (soffset + level*levsize));
+
 /*
  * OK, we have to figure the size of an entire sample.
  */
 	for (i = 0; i < tag->gt_nfield; i++)
 		ssize += tag->gt_nlevels[i]*levsize;
+
+	if (sample == 0) 
+		return ((off_t) (soffset + level*levsize));
+
 	return ((off_t) (sample*ssize + soffset + level*levsize));
 }
 
@@ -1059,10 +1208,108 @@ int *ntime;
 {
 	GradsTag *tag = TAGP(ofp);
 
-	*ntime = tag->gt_ntime;
+	/* Different handling for model platforms */
+	if (tag->gt_ismodel) *ntime=1;
+	else *ntime = tag->gt_ntime;
+
 	if (!tag->gt_times)
 		dgr_SetTimes (tag);
 	return (tag->gt_times);
+}
+
+
+
+
+static char **
+dgr_GetAssociatedFiles (df, nfiles)
+DataFile *df;
+int *nfiles;
+{
+  /* Some pieces of code borrowed from dgr_DoOpen and dgr_OpenData. Thanks! */
+
+  char *cfname;
+  char **filenames;
+  int  n;
+  char realname[120], *slash;
+  FILE *cfile;
+  char *cfwords[32];
+  int nw;
+  int i;
+
+  cfname = ds_FilePath (df->df_platform, df->df_index);
+
+/*
+ * Try opening up our control file.
+ */
+        if ((cfile = fopen (cfname, "r")) == NULL)
+        {
+                msg_ELog (EF_PROBLEM, "Error opening %s, %d", cfname, errno);
+                return (0);
+        }
+/*
+ * Now we blast through it and look for the data file name.
+ */
+ 
+        while (dgr_GetCtlLine (cfile, cfwords, &nw))
+               if (!strcasecmp (cfwords[0], "DSET")) break;
+
+ 	fclose (cfile);
+/*
+ * Grads convention allows the data file name to start with "^", meaning
+ * look in the same directory as the control file.
+ */
+        if (cfwords[1][0] == '^')
+        {
+                strcpy (realname, cfname);
+                if ((slash = strrchr (realname, '/')))
+                        slash++;
+                else
+                        slash = realname;
+                strcpy (slash, cfwords[1] + 1);
+        }
+        else
+                strcpy (realname, cfwords[1]);
+
+/* 
+ * Allocate memory to store this file name and return. 
+ */
+        filenames = (char **) malloc ( 2*sizeof(char *) );
+
+	filenames[0]=(char *) malloc (strlen(cfname)+1);
+	sprintf (filenames[0],"%s",cfname);
+
+        filenames[1]=(char *) malloc (strlen(realname)+1);
+	sprintf (filenames[1],"%s", realname );
+
+	*nfiles=2;
+	return filenames;
+}
+
+
+
+dgr_GetForecastTimes (of, times, ntimes)
+OpenFile *of;
+int *times;
+int *ntimes;
+{
+/*
+ * Return an array of available forecast offset times (in seconds) for 
+ * this file.
+ */
+
+	GradsTag   *tag = TAGP (of);
+	int     count=0, i, offset, forecasttime=0;
+
+	offset = tag->gt_tincr;
+	for (i = 1; i < tag->gt_ntime; i++)
+	{
+		forecasttime+=offset;
+		times[count++] = forecasttime;
+	}
+
+   if (ntimes)	 *ntimes = count;
+
+   return (TRUE);
 }
 
 
