@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.2  1995/02/10  00:44:59  granger
+ * add skeleton usage function; remove warning from returning getopt to char
+ *
  * Revision 1.1.1.1  1995/01/26  21:02:49  granger
  * import dsprint from NEXUS into base zebra distribution
  *
@@ -69,7 +72,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.2 1995-02-10 00:44:59 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.3 1995-05-05 22:35:48 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -147,7 +150,10 @@ char            print_missing = 0;	/* set if we want missingval printed */
 
 /*************************************************************************** */
 
-main (int argc, char *argv[])
+int
+main (argc, argv)
+int argc;
+char *argv[];
 {
 
     char           *bufptr;
@@ -577,7 +583,8 @@ field_init (ztime)
 
 /****************************************************************************/
 int
-MHandler (Message * msg)
+MHandler (msg)
+Message *msg;
 /*
  * process incoming zeb IPC messages.
  */
@@ -604,9 +611,11 @@ MHandler (Message * msg)
 	  case MH_MURDER:
 	    exit (0);
 	  default:
+	    break;
 	}
 #endif /* NEXUS */
       default:
+	break;
     }
 
     return (0);
@@ -651,7 +660,9 @@ char *myname;
 
 
 int
-getopts (int argc, char *argv[])
+getopts (argc, argv)
+int argc;
+char *argv[];
 {
 
     int             c;
