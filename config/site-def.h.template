@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.29 1997-03-11 16:14:57 case Exp $
+/**/# $Id: site-def.h.template,v 1.30 1997-08-07 19:58:27 ishikawa Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -227,7 +227,11 @@
  *  
  */
 
+# if defined(AIXArchitecture) && !UseGcc
+# define CCOptions -O -qlanglvl=ansi -U__STR__
+# else
 # define CCOptions -O   
+# endif
 # define FortOptions -O 
 
 
@@ -283,9 +287,13 @@
  *  
  */  
 
+# ifdef  AIXArchitecture
+# define FortranCompiler  f77
+# define FortranLibraries -lxlf -lxlf90
+# else
 # define FortranPath /usr/lang/SC1.0.1
 # define FortranLibraries -lF77
-
+# endif
 
 
 /*
@@ -315,8 +323,11 @@
  *	  # define TermcapLibrary -lncurses
  */
 
+# ifdef  AIXArchitecture
+# define TermcapLibrary	-lcurses
+# else
 # define TermcapLibrary -ltermcap
-
+# endif
 
 
 /*========================================================================
