@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.5 1993-03-23 20:23:34 granger Exp $
+! $Id: DisplayMgr.ad,v 1.6 1993-05-26 19:33:45 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -45,6 +45,9 @@ dm.?.form.Background:	gray95
 *iconbar.horizDistance:	2
 *iconbar*MenuButton.foreground:	yellow
 *iconbar*MenuButton.background: MidnightBlue
+*iconbar*MenuButton.translations: \
+	#override \n\
+	<ButtonPress>:	reset() PositionAndPopupRdssMenu()
 *iconbar*Box.background: CadetBlue
 *iconbar*Form.background: CadetBlue
 *SimpleMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
