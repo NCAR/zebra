@@ -1,7 +1,7 @@
 /*
  * Convert a composite surface data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: surf_convert.c,v 1.1 1992-11-11 17:29:17 burghart Exp $";
+static char *rcsid = "$Id: surf_convert.c,v 1.2 1992-11-25 18:14:26 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,6 +24,7 @@ static char *rcsid = "$Id: surf_convert.c,v 1.1 1992-11-11 17:29:17 burghart Exp
 # include <copyright.h>
 
 # include <stdio.h>
+# include <math.h>
 
 # include <defs.h>
 # include <message.h>
@@ -35,31 +36,33 @@ static char *rcsid = "$Id: surf_convert.c,v 1.1 1992-11-11 17:29:17 burghart Exp
 # include "netcdf.h"
 
 
+
 # define STRLEN		80
 # define CDF_STR_LEN	11
 # define MAXFIELDS	50
-# define MAXPLATS	100
-# define BADVAL		99999.0
+# define MAXPLATS	1024
+# define BADVAL		-9999.0
 # define CDF_BAD	-999.0
-# define INTBADVAL	-127
+# define INTFILLVAL	-1
+
+# define DEG_TO_RAD(x)	((x)*0.017453292)
 
 /*
- * Subplatform names and other info.
+ * Subplatform names and locations.
  */
-char		*Platforms[MAXPLATS];
-
-/*
- * List of locations to accompany other subplatform info.
- */
+char		*SubPlats[MAXPLATS];
+int		SubPids[MAXPLATS];
 Location	Locs[MAXPLATS];
 
 /*
- * Info for netCDF vs. Zeb field names.
+ * Info for STORM Project Office netCDF vs. Zeb field names.
  */
 struct field_list
 {
 	char	*fl_cdffield;
 	char	*fl_zebfield;
+	char	*fl_units;
+	float	fl_scale, fl_offset;
 	FieldId	fl_fid;
 	float	fl_data[MAXPLATS];
 }FieldList[MAXFIELDS];
@@ -72,21 +75,27 @@ int		Die FP ((void));
 static int	Dispatcher FP ((int, struct ui_command *));
 static void	Go FP ((void));
 static void	NewField FP ((struct ui_command *));
-static void	NewPlatform FP ((struct ui_command *));
-static int	CdfToZt FP ((short, char, char, char, char, ZebTime *));
+static void	NewSubplatform FP ((struct ui_command *));
+static bool	CdfToZt FP ((short, char, char, char, char, ZebTime *));
 static int	ZtEqual FP ((ZebTime, ZebTime));
 static void	InitFieldData FP ((void));
 static int	GetPlatIndex FP ((char *));
 static void	fix_up_plat FP ((char *));
-
+static void	SetupLocals FP ((void));
+static void	DoLocals FP ((int));
 
 /*
  * Global stuff.
  */
 static int	NumFields = 0;		/* Number of fields.		*/
-static int	NumPlats = 0;		/* Number of platforms.		*/
+static int	NumFileFields = 0;	/* # of fields from input file	*/
+static int	NumLocalFields = 0;	/* # of calculated fields	*/
+static int	NumSubplats = 0;	/* Number of platforms.		*/
 static char	InputFile[STRLEN];	/* Name of the input file.	*/
 static char	PlatformName[STRLEN];	/* Name of the platform.	*/
+static int	WspdNdx;		/* index of wind speed field	*/
+static int	WdirNdx;		/* index of wind dir. field	*/
+
 
 
 main (argc, argv)
@@ -94,13 +103,15 @@ int	argc;
 char	**argv;
 {
 	char	loadfile[200];
+	int	i;
 	SValue	v;
 /*
  * Check arguments.
  */
-	if (argc < 3)
+	if (argc < 4)
 	{
-		printf ("Usage: surf_convert <input file> <platform> [surface fields]\n");
+		printf ("Usage: %s <input_file> <platform> [<command_file>]\n",
+			argv[0]);
 		exit (0);
 	}
 	strcpy (InputFile, argv[1]);
@@ -148,8 +159,8 @@ struct ui_command	*cmds;
 	/*
 	 * Define a sub-platform.
 	 */
-		case SC_PLATFORM:
-			NewPlatform (cmds + 1);
+		case SC_SUBPLATFORM:
+			NewSubplatform (cmds + 1);
 			break;
 	/*
 	 * Define a field.
@@ -175,24 +186,23 @@ Go ()
  * Start converting some data.
  */
 {
-	int	i, r, f;
+	int	i, f, t_offset;
 	int	ndims, plat_index;
-	int	cdfid, recordid, latid, lonid, altid, stnid;
+	int	cdfid, recordid, stnid;
 	int	yearid, monthid, dayid, hourid, minuteid;
 	int	varid[MAXFIELDS];
 	char	station_id[STRLEN];
-	long	records, index[1]; 
+	long	records, r;
 	long	start[1], start2[2], count[1], count2[2];
 	short	year; 
-	char	month, day, hour, minute, platform[STRLEN];
-	float	lat, lon, alt;
+	char	month, day, hour, minute;
 	nc_type	type;
-	float	float_val[1];
-	short	short_val[1];
-	char	byte_val[1];
+	float	val, float_val;
+	short	short_val;
+	char	byte_val;
 	DataChunk	*dc;
 	FieldId		fids[MAXFIELDS];
-	PlatformId	pids[MAXPLATS];
+	PlatformId	pid;
 	ZebTime	zt, last_zt;
 /*
  * Open the input file.
@@ -211,35 +221,39 @@ Go ()
 	hourid = ncvarid (cdfid, "hour");
 	minuteid = ncvarid (cdfid, "minute");
 /*
- * Get the variable id's for lat/lon/alt.
- */
-	latid = ncvarid (cdfid, "lat");
-	lonid = ncvarid (cdfid, "lon");
-	altid = ncvarid (cdfid, "stn_height");
-/*
  * Variable id for station_id.
  */
 	stnid = ncvarid (cdfid, "stn_id");
 /*
- * Get the rest of the variable id's and fid's.
+ * Set up the locally calculated variables
+ */
+	SetupLocals ();
+/*
+ * Get the netCDF variable id's and zeb fid's.
  */
 	for (i = 0; i < NumFields; i++)
 	{
 	/*
-	 * NetCDF id.
+	 * netCDF ID (only for those we're reading from the file
 	 */
-		varid[i] = ncvarid (cdfid, FieldList[i].fl_cdffield);
+		if (i < NumFileFields)
+			varid[i] = ncvarid (cdfid, FieldList[i].fl_cdffield);
 	/*
-	 * Zeb field id.
+	 * Zeb ID
 	 */
-		fids[i] = F_Lookup (FieldList[i].fl_zebfield);
+		fids[i] = F_DeclareField (FieldList[i].fl_zebfield, 
+			FieldList[i].fl_zebfield, FieldList[i].fl_units);
 		FieldList[i].fl_fid = fids[i];
 	}
 /*
- * Get the platform id's.
+ * Get the main platform id.
  */
-	for (i = 0; i < NumPlats; i++)
-		pids[i] = ds_LookupPlatform (Platforms[i]);
+	if ((pid = ds_LookupPlatform (PlatformName)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "No platform '%s' in data store", 
+			PlatformName);
+		Die ();
+	}
 /*
  * How many records in this file?
  */
@@ -258,23 +272,8 @@ Go ()
  */
 	for (r = 0; r < records; r++)
 	{
-	/*
-	 * Set up the index into the file.
-	 */
-		index[0] = r;
-	/*
-	 * Access the time.
-	 */
-		ncvarget1 (cdfid, yearid, index, &year);
-		ncvarget1 (cdfid, monthid, index, &month);
-		ncvarget1 (cdfid, dayid, index, &day);
-		ncvarget1 (cdfid, hourid, index, &hour);
-		ncvarget1 (cdfid, minuteid, index, &minute);
-	/*
-	 * Get a ZebTime.
-	 */
-		if (! CdfToZt (year, month, day, hour, minute, &zt))
-			continue;
+		if (((r + 1) % 200) == 0)
+			msg_ELog (EF_DEBUG, "Record %d", r + 1);
 	/*
 	 * Get a sub-platform name.
 	 */
@@ -284,26 +283,33 @@ Go ()
 		count2[1] = CDF_STR_LEN;
 		ncvarget (cdfid, stnid, start2, count2, (void *) station_id);
 		fix_up_plat (station_id);
-		sprintf (platform, "%s/%s", PlatformName, station_id);
-		if ((plat_index = GetPlatIndex (platform)) < 0)
+		if ((plat_index = GetPlatIndex (station_id)) < 0)
 		{
-			msg_ELog (EF_PROBLEM, "No match for '%s'.", platform);
-			break;
+			msg_ELog (EF_PROBLEM, "No match for '%s'", station_id);
+			continue;
 		}
 	/*
-	 * Access latitude, longitude, and altitude.
+	 * Access the time.
 	 */
-		ncvarget1 (cdfid, latid, index, &lat);
-		ncvarget1 (cdfid, lonid, index, &lon);
-		ncvarget1 (cdfid, altid, index, &alt);
-	
-		Locs[plat_index].l_lat = lat;
-		Locs[plat_index].l_lon = lon;
-		Locs[plat_index].l_alt = alt;
+		ncvarget1 (cdfid, yearid, &r, &year);
+		ncvarget1 (cdfid, monthid, &r, &month);
+		ncvarget1 (cdfid, dayid, &r, &day);
+		ncvarget1 (cdfid, hourid, &r, &hour);
+		ncvarget1 (cdfid, minuteid, &r, &minute);
 	/*
-	 * Access all data fields.
+	 * Get a ZebTime
 	 */
-		for (f = 0; f < NumFields; f++)
+		if (! CdfToZt (year, month, day, hour, minute, &zt))
+		{
+			msg_ELog (EF_PROBLEM, 
+				"\nBad time %02d%02d%02d %02d%02d00\n",
+				year, month, day, hour, minute);
+			continue;
+		}
+	/*
+	 * Grab all requested fields from the file
+	 */
+		for (f = 0; f < NumFileFields; f++)
 		{
 		/*
 		 * Get the dimensions and data type.
@@ -317,60 +323,56 @@ Go ()
 			}
 			else
 			{
-				msg_ELog (EF_PROBLEM, "Unexpected dimension %d",
-					ndims);
+				msg_ELog (EF_PROBLEM, 
+					"Unexpected dimension %d", ndims);
 				continue;
 			}
 		/*
 		 * Get the data.
 		 */
-			float_val[0] =  short_val[0] =  byte_val[0] = NULL;
-			if (type == NC_FLOAT)
+			switch (type)
 			{
+			    case NC_FLOAT:
 				ncvarget (cdfid, varid[f], start, count, 
-					(void *) float_val); 
-			}
-			else if (type == NC_SHORT)
-			{
+					(void *)(&float_val)); 
+
+				val = (float_val == CDF_BAD) ? BADVAL : 
+					float_val;
+				break;
+			    case NC_SHORT:
 				ncvarget (cdfid, varid[f], start, count, 
-					(void *) short_val); 
-			}
-			else if (type == NC_BYTE)
-			{
+					(void *)(&short_val)); 
+
+				val = (short_val == INTFILLVAL) ? BADVAL : 
+					(short) short_val;
+				break;
+			    case NC_BYTE:
 				ncvarget (cdfid, varid[f], start, count, 
-					(void *) byte_val); 
+					(void *)(&byte_val)); 
+
+				val = (byte_val == INTFILLVAL) ? BADVAL :
+					(float) byte_val;  
+				break;
+			    default:
+				msg_ELog (EF_EMERGENCY, 
+					"Can't deal with type %d source data",
+					type);
+				Die ();
 			}
 		/*
-		 * Save all the data as a float.
-		 */	
-			if (type == NC_FLOAT)
-			{
-				if (float_val[0] == CDF_BAD)
-				    FieldList[f].fl_data[plat_index] = 
-					BADVAL;
-				else
-				    FieldList[f].fl_data[plat_index] = 
-					float_val[0]; 
-			}
-			else if (type == NC_SHORT)
-			{
-				if (short_val[0] == INTBADVAL)
-				    FieldList[f].fl_data[plat_index] = 
-					BADVAL;
-				else
-				    FieldList[f].fl_data[plat_index] = 
-					(float) short_val[0]; 
-			}
-			else if (type == NC_BYTE)
-			{
-				if (byte_val[0] == INTBADVAL)
-				    FieldList[f].fl_data[plat_index] = 
-					BADVAL;
-				else
-				    FieldList[f].fl_data[plat_index] = 
-					(float) byte_val[0];  
-			}
+		 * Store the value, applying the scale and offset
+		 */
+			if (val != BADVAL)
+				FieldList[f].fl_data[plat_index] = val *
+					FieldList[f].fl_scale + 
+					FieldList[f].fl_offset;
+			else
+				FieldList[f].fl_data[plat_index] = BADVAL;
 		}
+	/*
+	 * Do the locally calculated fields
+	 */
+		DoLocals (plat_index);
 	/*
 	 * Time to start a new data_chunk?
 	 */
@@ -385,17 +387,9 @@ Go ()
 		 * Create a new data chunk.
 		 */	
 			dc = dc_CreateDC (DCC_IRGrid);
-			if ((dc->dc_Platform = ds_LookupPlatform (PlatformName))
-				== BadPlatform)
-			{
-				msg_ELog (EF_PROBLEM, "Bad Platform '%s'.", 
-					PlatformName);
-				continue;
-			}
-		/*
-		 * Set up the new data chunk.
-		 */
-			dc_IRSetup (dc, NumPlats, pids, Locs, NumFields, fids); 
+			dc->dc_Platform = pid;
+			dc_IRSetup (dc, NumSubplats, SubPids, Locs, NumFields, 
+				fids); 
 			dc_SetBadval (dc, BADVAL);
 		/*
 		 * Store all the grids in the data chunk.
@@ -442,34 +436,130 @@ struct ui_command *cmds;
 /*
  * Remeber the stuff.
  */
-	FieldList[NumFields].fl_cdffield = usy_string (UPTR (*cmds));
+	FieldList[NumFields].fl_cdffield = usy_string (UPTR (cmds[0]));
 	FieldList[NumFields].fl_zebfield = usy_string (UPTR (cmds[1]));
+	FieldList[NumFields].fl_units = usy_string (UPTR (cmds[2]));
+	FieldList[NumFields].fl_scale = UFLOAT (cmds[3]);
+	FieldList[NumFields].fl_offset = UFLOAT (cmds[4]);
+	NumFileFields++;
 	NumFields++;
 }
 
 
 static void
-NewPlatform (cmds)
+NewSubplatform (cmds)
 struct ui_command *cmds;
 /*
  * Add another sub-platform to the list.
  */
 {
+	int	p;
+	char	fullname[STRLEN];
 /*
  * Make sure we don't have too many.
  */
-	if (NumPlats >= MAXPLATS)
+	if (NumSubplats >= MAXPLATS)
 	{
 		msg_ELog (EF_PROBLEM, "Too many sub-platforms.");
 		return;
 	}
 /*
- * Remeber the stuff.
+ * Remember the stuff.
  */
-	Platforms[NumPlats] = usy_string (UPTR (*cmds));
-	NumPlats++;
+	p = NumSubplats++;
+
+	SubPlats[p] = usy_string (UPTR (cmds[0]));
+	Locs[p].l_lat = UFLOAT (cmds[1]);
+	Locs[p].l_lon = UFLOAT (cmds[2]);
+	Locs[p].l_alt = UFLOAT (cmds[3]);
+
+	sprintf (fullname, "%s/%s", PlatformName, SubPlats[p]);
+	if ((SubPids[p] = ds_LookupPlatform (fullname)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Platform '%s' unknown to data store", 
+			fullname);
+		Die ();
+	}
 }
 
+
+
+static void
+SetupLocals ()
+/*
+ * Set up for the locally calculated fields, which get added to the end
+ * of the field list.
+ */
+{
+	int	i;
+/*
+ * u wind
+ */
+	FieldList[NumFields].fl_cdffield = "(none)";
+	FieldList[NumFields].fl_zebfield = "u_wind";
+	FieldList[NumFields].fl_units = "m/s";
+	FieldList[NumFields].fl_scale = 1.0;
+	FieldList[NumFields].fl_offset = 0.0;
+	NumFields++;
+	NumLocalFields++;
+/*
+ * v wind
+ */
+	FieldList[NumFields].fl_cdffield = "(none)";
+	FieldList[NumFields].fl_zebfield = "v_wind";
+	FieldList[NumFields].fl_units = "m/s";
+	FieldList[NumFields].fl_scale = 1.0;
+	FieldList[NumFields].fl_offset = 0.0;
+	NumFields++;
+	NumLocalFields++;
+/*
+ * Find the indices for wspd and wdir
+ */
+	WspdNdx = WdirNdx = -1;
+	for (i = 0; i < NumFileFields; i++)
+	{
+		if (! strcmp (FieldList[i].fl_zebfield, "wspd"))
+			WspdNdx = i;
+
+		if (! strcmp (FieldList[i].fl_zebfield, "wdir"))
+			WdirNdx = i;
+	}
+}
+
+
+
+static void
+DoLocals (plat_index)
+int	plat_index;
+/*
+ * Do the variables we aren't reading from the netCDF file
+ */
+{
+	int	fndx = NumFileFields;
+	float	u, v, ws, wd;
+/*
+ * u wind and v wind
+ */
+	u = BADVAL;
+	v = BADVAL;
+
+	if (WspdNdx >= 0 && WdirNdx >= 0)
+	{
+		ws = FieldList[WspdNdx].fl_data[plat_index];
+		wd = FieldList[WdirNdx].fl_data[plat_index];
+
+		if (ws != BADVAL && wd != BADVAL)
+		{
+			u = ws * cos (DEG_TO_RAD (270.0 - wd));
+			v = ws * sin (DEG_TO_RAD (270.0 - wd));
+		}
+	}
+
+	FieldList[fndx++].fl_data[plat_index] = u;
+	FieldList[fndx++].fl_data[plat_index] = v;
+}
+		
+	
 
 
 int
@@ -485,37 +575,34 @@ Die ()
 
 
 
-static int
+static bool
 CdfToZt (year, month, day, hour, minute, zt)
 short	year;
 char	month, day, hour, minute;
 ZebTime	*zt;
 /*
- * Convert time from its netcdf representation to ZebTime.
+ * Convert time from its netcdf representation to ZebTime
  */
 {
-	int	iyear, imonth, iday, ihour, iminute;
-/*
- * Convert to integers.
- */
-	iyear = (int) year - 1900;
-	imonth = (int) month;
-	iday = (int) day;
-	ihour = (int) hour;
-	iminute = (int) minute;
+	int	nearest;
 /*
  * Check for badvalues in the time.
  */	
-	if ((iyear == INTBADVAL) || (imonth == INTBADVAL) ||
-	    (iday == INTBADVAL) || (ihour == INTBADVAL))
+	if ((year == INTFILLVAL) || (month == INTFILLVAL) || 
+	    (day == INTFILLVAL))
 		return (FALSE);
 
-	if (iminute == INTBADVAL)
-		iminute = 0;
+	if (hour == INTFILLVAL)
+		hour = 0;
+
+	if (minute == INTFILLVAL)
+		minute = 0;
 /*
  * Get a ZebTime.
  */
-	TC_ZtAssemble (zt, iyear, imonth, iday, ihour, iminute, 0, 0);
+	TC_ZtAssemble (zt, (int)(year - 1900), (int) month, (int) day, 
+		(int) hour, (int) minute, 0, 0);
+	
 	return (TRUE);
 }
 
@@ -540,33 +627,32 @@ InitFieldData ()
 {
 	int	i, j;
 
-	for (i = 0; i < NumPlats; i++)
+	for (i = 0; i < NumSubplats; i++)
 	{
 		for (j = 0; j < NumFields; j++)
 			FieldList[j].fl_data[i] = BADVAL;
-		Locs[i].l_lat = BADVAL;
-		Locs[i].l_lon = BADVAL;
-		Locs[i].l_alt = BADVAL;
 	}
 }
 
 
 static int
-GetPlatIndex (platform)
-char	*platform;
+GetPlatIndex (subplat)
+char	*subplat;
 /*
  * Return the index into the platform list of the platform.
  */
 {
 	int	i;
 
-	for (i = 0; i < NumPlats; i++)
-	{
-		if (strcmp (platform, Platforms[i]) == 0)
+	for (i = 0; i < NumSubplats; i++)
+		if (! strcmp (subplat, SubPlats[i]))
 			return (i);
-	}
+
 	return (-1);
 }
+
+
+
 
 static void
 fix_up_plat (platform)
@@ -577,12 +663,14 @@ char	*platform;
  */
 {
 	int	i = 0;
-
-	while (platform[i] != ' ')
-	{
+/*
+ * Remove trailing spaces
+ */
+	for (i = strlen (platform) - 1; platform[i] == ' '; i--)
+		platform[i] = '\0';
+/*
+ * Change to lower case
+ */
+	for (i = 0; i < strlen (platform); i++)
 		platform[i] = tolower (platform[i]);
-		i++;
-	}
-	platform[i] = '\0';
 }
-
