@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.7 1991-02-14 16:55:35 corbet Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.8 1991-02-14 19:57:55 corbet Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -625,7 +625,8 @@ int *type;
  *		    of the eval flag.  I wonder how long elseif was
  *		    broken this way?
  */
-	if (! Cs->cs_exec && ! (state->sta_vpact.act_flags & STAF_EVAL))
+	if (! Cs->cs_exec && ! (Cs->cs_next && Cs->cs_next->cs_exec &&
+			(state->sta_vpact.act_flags & STAF_EVAL)))
 	{
 		*type = SYMT_INT;
 		v->us_v_int = 0;
