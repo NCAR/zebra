@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.16 1993-05-06 23:24:21 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.17 1993-05-10 17:00:10 corbet Exp $")
 #endif
 
 # include "netcdf.h"
@@ -2297,7 +2297,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.16 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.17 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3212,7 +3212,7 @@ Location *locs;
 		times++;
 		*locs++ = (tag->nc_locs) ? tag->nc_locs[i] : tag->nc_sloc;
 	}
-	return (1);
+	return (i);
 }
 
 
