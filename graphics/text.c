@@ -2,6 +2,7 @@
 /*
  * Routines for performing text operations.
  */
+# include <math.h>
 # include "param.h"
 # include "graphics.h"
 # include "workstation.h"
@@ -18,6 +19,8 @@
 # else
 #	define SWAP(v) swap4 (v)
 # endif
+
+# define DEG_TO_RAD(x)	((x) * 0.017453292)
 
 /*
  * A font directory entry.  (For TeX fonts)
@@ -65,9 +68,10 @@ static int N_font = 3;
 
 
 
-gt_get_start (x, y, font, scale, hjust, vjust, text, sx, sy, ex, ey)
+gt_get_start (x, y, font, scale, hjust, vjust, rot, aspect, text, 
+	sx, sy, ex, ey)
 int x, y, font, hjust, vjust, *sx, *sy, *ex, *ey;
-float scale;
+float scale, rot, aspect;
 char *text;
 /*
  * Figure out the start point for a line of text.
@@ -77,15 +81,20 @@ char *text;
  *	SCALE	is the scaling of the text.
  *	HJUST	is the horizontal justification.
  *	VJUST	is the vertical justification.
+ *	ROT	is the rotation in degrees counterclockwise from horizontal.
+ *	ASPECT	is the pixel aspect ratio of the device being used.
  *	TEXT	is the actual text string.
  * Exit:
- *	SX, SY	is the real start point, with justification and scaling
- *		taken into account.
- *	EX, EY	are the ending points of the text string.
+ *	SX, SY	is the real start point, with justification, scaling and
+ *		rotation taken into account.
+ *	EX, EY	is the ending point
  */
 {
-	int cheight, width, desc;
-	char *cp;
+	int	cheight, desc, width;
+	char	*cp;
+	float	xoffset, yoffset;
+	float	cos_rot = cos (DEG_TO_RAD (rot));
+	float	sin_rot = sin (DEG_TO_RAD (rot));
 /*
  * Get our character size info.
  */
@@ -106,43 +115,50 @@ char *text;
 	   	width = gt_line_width (text, font);
 	}
 /*
- * Now, calculate the real Y position, since it's easier.
+ * Find the y offset for the given justification (ignoring rotation for now)
  */
  	switch (vjust)
 	{
 	  case GT_BOTTOM:
-	  	*sy = y;
+		yoffset = 0.0;
 		break;
 	  case GT_BASELINE:
-	  	*sy = y - scale * (float) desc + 0.5;
+		yoffset = scale * (float) desc + 0.5;
 		break;
 	  case GT_TOP:
-	  	*sy = y - (int) (scale * (float) (cheight - 1));
+		yoffset = scale * (float)(cheight - 1);
 		break;
 	  case GT_CENTER:
-	  	*sy = y - (int) (scale * (float) ((cheight/2) - 1));
+		yoffset = scale * (float)((cheight / 2) - 1);
 		break;
 	}
 /*
- * Figure out the X position.
+ * Find the x offset for the given justification (ignoring rotation for now)
  */
  	switch (hjust)
 	{
 	   case GT_LEFT:
-	   	*sx = x;
+		xoffset = 0.0;
 		break;
 	   case GT_RIGHT:
-		*sx = x - (int) (scale * (float) width);
+		xoffset = scale * (float) width;
 		break;
 	   case GT_CENTER:
-		*sx = x - (int) (scale * ((float) width)/2.0);
+		xoffset = scale * (float) width / 2.0;
 		break;
 	}
 /*
- * Figure the end points.
+ * Find the starting points, putting in the necessary rotation
  */
- 	*ex = *sx + (int) (scale * (float) width);
-	*ey = *sy + (int) (scale * (float) (cheight - 1));
+	*sx = x - (int)(cos_rot * xoffset - sin_rot * yoffset);
+	*sy = y - (int)(sin_rot * aspect * xoffset + cos_rot * yoffset);
+/*
+ * Find the ending points
+ */
+	*ex = *sx + (int)(cos_rot * scale * width - 
+		sin_rot * scale * (cheight - 1));
+	*ey = *sy + (int)(sin_rot * aspect * scale * width + 
+		cos_rot * scale * (cheight - 1));
 }
 
 
@@ -152,7 +168,7 @@ gt_line_width (text, font)
 char *text;
 int font;
 /*
- * Return the pixel with of an unscaled line of text.
+ * Return the pixel width of an unscaled line of text.
  */
 {
 	int len = 0;
@@ -169,17 +185,18 @@ int font;
 
 
 
-gt_do_text (wstn, ov, color, x, y, font, scale, text, dev)
+gt_do_text (wstn, ov, color, x, y, font, scale, rot, text, dev)
 struct workstation *wstn;
 struct overlay *ov;
 int color, x, y, font, scale, dev;
 char *text;
+float	rot;
 /*
  * Actually perform a text operation.
  */
 {
 	if (F_table[font].f_type == GFT_STROKE)
-		gt_stroke (wstn, ov, color, x, y, font, scale, text, dev);
+		gt_stroke (wstn, ov, color, x, y, font, scale, rot, text, dev);
 	else
 		gt_pixel (wstn, ov, color, x, y, font, text, dev);
 }
@@ -380,17 +397,22 @@ int *xd, *yd, *baseline;
 
 
 
-gt_stroke (wstn, ov, color, x, y, font, scale, text, dev)
+gt_stroke (wstn, ov, color, x, y, font, scale, rot, text, dev)
 struct workstation *wstn;
 struct overlay *ov;
 int color, x, y, font, scale, dev;
 char *text;
+float rot;
 /*
  * Handle the actual generation of stroke text.
  */
 {
-	int pdata[200], *pdp, xpos = x, cbase;
+	int pdata[200], *pdp, xpos = x, ypos = y, cbase;
 	char *cp;
+	float	del_x, del_y;
+	float	cos_rot = cos (DEG_TO_RAD (rot));
+	float	sin_rot = sin (DEG_TO_RAD (rot));
+	float	aspect = ov->ov_ws->ws_dev->gd_aspect;
 /*
  * Get the character height.  This particular measure, which includes 
  * descenders, may be excessive, but we'll try it.
@@ -414,7 +436,8 @@ char *text;
 	 */
 		if (text[-1] == ' ')
 		{
-		 	xpos += ((cp[3] - cp[2])*scale)/100;
+		 	xpos += cos_rot * ((cp[3] - cp[2])*scale)/100;
+			ypos += sin_rot * ((cp[3] - cp[2])*scale)/100;
 			continue;
 		}
 	/*
@@ -451,15 +474,27 @@ char *text;
 		 */
 		 	else
 			{
-				*pdp++ = xpos+((*point++ - cp[2]) * scale)/100;
-				*pdp++ = y + ((*point++ - cbase) * scale)/100;
+			/*
+			 * Delta position (unrotated)
+			 */
+				del_x = (*point++ - cp[2]) * scale / 100.0;
+				del_y = (*point++ - cbase) * scale / 100.0;
+			/*
+			 * New point, with rotation
+			 */
+				*pdp++ = xpos + del_x * cos_rot -
+					del_y * sin_rot;
+				*pdp++ = ypos + del_x * sin_rot + 
+					del_y * cos_rot;
+
 				npoint++;
 			}
 		}
 	/*
-	 * Advance the X position to the next character slot.
+	 * Advance the position to the next character slot.
 	 */
-	 	xpos += ((cp[3] - cp[2])*scale)/100;
+	 	xpos += cos_rot * ((cp[3] - cp[2])*scale)/100;
+	 	ypos += sin_rot * aspect * ((cp[3] - cp[2])*scale)/100;
 	}
 }
 		
