@@ -67,8 +67,8 @@ int nc;
  * Initialize the stuff for side annotation.
  */
 	Ncomps = nc;
-	SA_position  = (1.0 - F_Y1) * height;
-	SA_space = ((F_Y1 - F_Y0) * height)/ (float) Ncomps;
+	SA_position  = (1.0 - F_Y1) * USABLE_HEIGHT;
+	SA_space = ((F_Y1 - F_Y0) * USABLE_HEIGHT)/ (float) Ncomps;
 	SA_first = TRUE;
 }
 
