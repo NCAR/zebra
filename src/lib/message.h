@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.2 1991-12-04 18:47:25 corbet Exp $ */
+/* $Id: message.h,v 2.3 1991-12-16 17:18:41 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -33,6 +33,14 @@
 # define MT_ACINGEST	11	/* Aircraft ingest			*/
 # define MT_SLDATA	12	/* Serial line data grabber		*/
 # define MT_QUERY	13	/* General status query protocol	*/
+
+/*
+ * Preallocated chunks of protocol numbers for various groups.
+ */
+# define MT_NEXUS_BASE	30	/* 20 protos for NEXUS			*/
+# define MT_ISS_BASE	50	/* and 20 for ISS			*/
+	/* Next available: 70 */
+
 
 /*
  * Message handler protocol message types.
