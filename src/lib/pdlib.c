@@ -23,8 +23,9 @@
 # include <ui_date.h>
 # include <ui_expr.h>		/* XXX */
 # include <message.h>
+# include <defs.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.9 1992-01-28 18:09:34 corbet Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.10 1992-01-29 15:54:06 barrett Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
