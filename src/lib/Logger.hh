@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.7 1998-08-27 22:35:27 granger Exp $
+ * $Id: Logger.hh,v 1.8 1998-10-20 20:44:43 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -237,6 +237,7 @@ public:
 		buf << "'" << strerror(errno) << "' (" << errno << "): ";
 		buf << s;
 		Problem (buf.str());
+		return true;
 	}
 
 	Logger (const string &_context = "")
@@ -252,6 +253,7 @@ public:
 	Logger& operator= (const Logger &log)
 	{
 		Declare (log.context);
+		return *this;
 	}
 
 	/*
@@ -300,7 +302,9 @@ public:
 	{ }
 
 	virtual bool Log (int /*levels*/, const string &/*msg*/)
-	{ }
+	{
+		return false;
+	}
 
 	virtual Logger *Clone (const string &name) const
 	{
@@ -367,6 +371,7 @@ public:
 	{
 		log = 0;
 		Assign (send);
+		return *this;
 	}
 
 	/*
@@ -424,7 +429,7 @@ public:
 
 protected:
 
-	Assign (const Sender &send)
+	void Assign (const Sender &send)
 	{
 		Logger::operator= (send);
 		if (log)

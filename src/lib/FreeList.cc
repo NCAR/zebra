@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: FreeList.cc,v 1.12 1998-08-27 22:37:39 granger Exp $");
+//RCSID ("$Id: FreeList.cc,v 1.13 1998-10-20 20:44:42 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -18,8 +18,8 @@
 
 // Constructor
 
-FreeList::FreeList (BlockFile &bf, Block &b, SyncBlock *parent) : 
-	SyncBlock (bf, b), RefBlock (b, parent),
+FreeList::FreeList (BlockFile &bf_, Block &b, SyncBlock *parent_) : 
+	SyncBlock (bf_, b), RefBlock (b, parent_),
 	ncache(0),
 	nfree(0),
 	blocks(0),
@@ -389,14 +389,14 @@ FreeList::encode (SerialBuffer &sbuf)
 {
 	sbuf << nfree;
 	stats.nfree = nfree;
-	sbuf << stats;
+	sbuf << (const FreeStats)stats;
 
 	bf->log.Debug ("Writing free list blocks:");
 	for (int i = 0; i < nfree; ++i)
 	{
 		bf->log.Debug (Printf("   %d bytes @ %d",
 				      blocks[i].length, blocks[i].offset));
-		sbuf << blocks[i];
+		sbuf << (const FreeBlock)blocks[i];
 	}
 	return (0);
 }

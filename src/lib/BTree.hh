@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.16 1998-09-15 20:56:58 granger Exp $
+ * $Id: BTree.hh,v 1.17 1998-10-20 20:44:40 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -15,13 +15,49 @@
 
 class SerialStream;
 
-
 /*
- * Opaque forward references.
- */
+ * Opaque forward references.  */
+template <class K, class T> class BTree;
 template <class K, class T> class BTreeNode;
 template <class K, class T> struct Shortcut;
 class BTreeStats;
+
+
+/*
+ * Effectively a namespace to hide types which the class definitions
+ * need but do not need to be public.  This gets over problems in 
+ * Sun's CC with nested classes.
+ */
+class BTreeP
+{
+public:
+	class Node
+	{
+	public:
+		//BTreeNode<K,T> *local;	// Memory cache
+		void *local;		// Memory cache
+		unsigned long addr;	// Persistent address
+
+		Node () : local(0), addr(0) { }
+		inline void translate (SerialStream &ss);
+	};
+
+	/*
+	 * Statistics we care about.
+	 */
+	class Stats
+	{
+	public:
+		unsigned long nNodes;
+		unsigned long nKeys;
+		unsigned long nLeaves;
+		void translate (SerialStream &ss);
+		void reset () { nNodes = nKeys = nLeaves = 0; }
+		ostream &report (ostream &out) const;
+		Stats() { reset(); }
+	};
+};
+
 
 /// BTree database access class
 
@@ -46,23 +82,10 @@ public:
 	typedef T value_type;
 	typedef BTreeNode<K,T> node_type;
 
-	/*
-	 * Statistics we care about.
-	 */
-	class Stats
-	{
-	public:
-		unsigned long nNodes;
-		unsigned long nKeys;
-		unsigned long nLeaves;
-		void translate (SerialStream &ss);
-		void reset () { nNodes = nKeys = nLeaves = 0; }
-		Stats() { reset(); }
-		ostream &report (ostream &out, BTree<K,T> *t = 0) const;
-	};
+	typedef BTreeP::Stats Stats;
 
 public:
-	static const int DEFAULT_ORDER = 128;
+	enum { DEFAULT_ORDER = 128 };
 
 	/// Insert key and value into the tree.
 
@@ -131,37 +154,37 @@ public:
 	/* 
 	 * Return info about this tree.
 	 */
-	inline int Empty ()
+	inline int Empty () const
 	{
 		return (depth == -1);
 	}
 
-	inline int Order ()
+	inline int Order () const
 	{
 		return (order);
 	}
 
-	inline int Depth ()
+	inline int Depth () const
 	{
 		return depth;
 	}
 
-	inline unsigned long numKeys ()
+	inline unsigned long numKeys () const
 	{
 		return stats.nKeys;
 	}
 
-	inline int elementFixed ()
+	inline int elementFixed () const
 	{
 		return elem_size_fixed;
 	};
 
-	inline long elementSize ()
+	inline long elementSize () const
 	{
 		return elem_size;
 	};
 
-	inline long elementSize (int *fixed)
+	inline long elementSize (int *fixed) const
 	{
 		if (fixed) *fixed = elem_size_fixed;
 		return elem_size;
@@ -178,14 +201,16 @@ public:
 	virtual void collectStats (BTreeStats &);
 
 	// Return the known and immediately available tree statistics.
-	virtual const BTree<K,T>::Stats &currentStats ()
-	{
-		return stats;
-	}
-
-	void currentStats (BTree<K,T>::Stats &s)
+	void currentStats (BTreeP::Stats &s) const
 	{
 		s = stats;
+	}
+
+	ostream &reportStats (ostream &out, const BTreeP::Stats &s) const;
+
+	virtual ostream &reportStats (ostream &out) const
+	{
+		return reportStats (out, stats);
 	}
 
 	/// Print all the nodes of the tree to 'out', indented by depth
@@ -214,28 +239,17 @@ public:
 
 	virtual void Reopen () { }
 
-	// Explicitly release this tree and all its keys and resources,
-	// wherever they may be.
+	// Explicitly release all keys and resources of this tree,
+	// wherever they may be.  The BTree object itself may still
+	// need to be deleted.
 	//
-	virtual void Destroy () 
-	{
-		delete this;
-	}
+	virtual void Destroy ();
 
 	virtual ~BTree ();
 
 protected:
 
-	struct Node
-	{
-		//BTreeNode<K,T> *local;	// Memory cache
-		void *local;		// Memory cache
-		unsigned long addr;	// Persistent address
-
-		Node () : local(0), addr(0) { }
-
-		inline void translate (SerialStream &ss);
-	};
+	typedef BTreeP::Node Node;
 
 	// Allow our persistent state to be translated, usually by 
 	// a persistent subclass implementation, without actually being

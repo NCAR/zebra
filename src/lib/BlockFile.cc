@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.17 1998-09-23 16:59:40 burghart Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.18 1998-10-20 20:44:41 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -100,11 +100,12 @@ BlockFile::BlockFile () : log("BlockFile")
 
 
 
-BlockFile::BlockFile (const char *path, int app_magic = 0, 
-		      int flags = BF_NONE) : log("BlockFile")
+BlockFile::BlockFile (const char *path_, 
+		      int app_magic /* = 0 */, 
+		      int flags_ /* = BF_NONE */) : log("BlockFile")
 {
 	init ();
-	Open (path, app_magic, flags);
+	Open (path_, app_magic, flags_);
 }
 
 
@@ -113,10 +114,10 @@ BlockFile::BlockFile (const char *path, int app_magic = 0,
  * any existing file.
  */
 int
-BlockFile::Create (const char *path, unsigned long app_magic = 0, 
-		   int flags = BF_NONE)
+BlockFile::Create (const char *path_, unsigned long app_magic /* = 0 */, 
+		   int flags_ /* = BF_NONE */)
 {
-	return (Open (path, app_magic, flags | BF_CREATE));
+	return (Open (path_, app_magic, flags_ | BF_CREATE));
 }
 
 
@@ -125,11 +126,11 @@ BlockFile::Create (const char *path, unsigned long app_magic = 0,
  * Open the given file path, creating the file if necessary.
  */
 int
-BlockFile::Open (const char *path, unsigned long app_magic = 0, 
-		 int flags_ = BF_NONE)
+BlockFile::Open (const char *path_, unsigned long app_magic /* = 0 */, 
+		 int flags_ /* = BF_NONE */)
 {
 	Format fmt("Open(%s,%0x,%i)");
-	EnterBlock eb(log, fmt % path % app_magic % flags_);
+	EnterBlock eb(log, fmt % path_ % app_magic % flags_);
 	if (fp)			// Close any currently open file
 		Close();
 
@@ -138,11 +139,11 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 
 	log && log.Debug (Format("%s file: %s") %
 			  ((flags_ & BF_CREATE) ? "Creating" : "Opening") %
-			  path);
+			  path_);
 
 	// Initialize path
-	this->path = (char *) malloc (strlen(path)+1);
-	strcpy (this->path, path);
+	this->path = (char *) malloc (strlen(path_)+1);
+	strcpy (this->path, path_);
 
 	// Create (truncate an existing) file iff explicitly requested
 	// or the file entry does not already exist.
@@ -189,10 +190,11 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 		create = 1;
 		// Pad the header block first to the correct size
 		long len = header->bf_length;
-		char pad[ len ];
+		char *pad = new char[ len ];
 		memset (pad, 0, len);
 		write (0, pad, len);
 		header->mark();
+		delete[] pad;
 	}
 
 	// Once we have a header, we can associate our auxillary blocks
@@ -223,7 +225,7 @@ BlockFile::Path ()
  * Set the application's header block.
  */
 int
-BlockFile::setHeader (Block &b, unsigned long app_magic)
+BlockFile::setHeader (const Block &b, unsigned long app_magic)
 {
 	WriteLock ();
 	header->app_header = b;
@@ -510,6 +512,15 @@ BlockFile::Free (BlkOffset addr, BlkSize len)
 	WriteLock ();
 	free (addr, len);
 	journal->Record (Journal::BlockRemoved, addr, len);
+	/*
+	 * If this block was the application header, that header
+	 * is no longer valid.
+	 */
+	if (addr == header->app_header.offset)
+	{
+		log.Info ("App header freed; resetting BlockFile header");
+		setHeader (Block());
+	}
 	Unlock ();
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: SerialStream.hh,v 1.6 1998-09-24 15:02:24 burghart Exp $
+ * $Id: SerialStream.hh,v 1.7 1998-10-20 20:44:45 granger Exp $
  *
  */
 #ifndef _SerialStream_hh_
@@ -197,7 +197,7 @@ public:
 	/** Encode a null-terminated fixed-length array of characters. */
 	inline int cstring (char *s)
 	{
-		cstring (s, 0);
+		return cstring (s, 0);
 	}
 
 	virtual int cstring (char *s, long /*maxlen*/);
@@ -293,7 +293,7 @@ public:
 	   the virtual method with a meaningless max length. */
 	inline int cstring (char *s)
 	{
-		cstring (s, 0);
+		return cstring (s, 0);
 	}
 
 	virtual int cstring (char *s, long /*maxlen*/);
@@ -372,6 +372,7 @@ inline SerialBuffer & operator>> (SerialBuffer &sbuf, T &t)
 	*ds >> t;
 	return (sbuf);
 }
+
 
 
 #ifdef notyet			// g++ reports "not implemented yet"...

@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.11 1998-09-21 23:21:27 granger Exp $
+ * $Id: BTreeFile.hh,v 1.12 1998-10-20 20:44:40 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -14,6 +14,40 @@
 #include "Logger.hh"
 
 template <class K, class T> class BlockNode;
+template <class K, class T> class BTreeFile;
+
+
+class BTreeFileP
+{
+public:
+	/*
+	 * Statistics we care about.
+	 */
+	class FileStatsPart
+	{
+	public:
+		unsigned long nodesRead;
+		unsigned long nodesWritten;
+		unsigned long overflowBytes;	// persistent
+		// Bytes allocated to us in file
+		unsigned long allocBytes;
+		void translate (SerialStream &ss);
+		void reset ()
+		{ 
+			nodesRead = nodesWritten = 0; 
+			overflowBytes = 0;
+			allocBytes = 0;
+		}
+		FileStatsPart() { reset(); }
+	};
+
+	class FileStats : public BTreeP::Stats
+	{
+	public:
+		FileStatsPart file;
+	};
+};
+
 
 /*
  * We subclass the basic BTree interface, override the "factory methods",
@@ -24,34 +58,8 @@ template <class K, class T>
 class BTreeFile : virtual public BTree<K,T>, virtual public TranslateBlock
 {
 public:
-	/*
-	 * Statistics we care about.
-	 */
-	class FileStats
-	{
-	public:
-		unsigned long nodesRead;
-		unsigned long nodesWritten;
-		unsigned long overflowBytes;	// persistent
-		// Bytes allocated to us in file
-		unsigned long allocBytes;
 
-		void translate (SerialStream &ss);
-		void reset ()
-		{ 
-			nodesRead = nodesWritten = 0; 
-			overflowBytes = 0;
-			allocBytes = 0;
-		}
-		FileStats() { reset(); }
-	};
-
-	class Stats : /*virtual*/ public BTree<K,T>::Stats
-	{
-	public:
-		FileStats file;
-		ostream &report (ostream &out, BTreeFile<K,T> *t = 0) const;
-	};
+	typedef BTreeFileP::FileStats Stats;
 
 public:
 	/* ----------------
@@ -123,27 +131,30 @@ public:
 	// Return the current block sizes for branch nodes and leaves.
 	// If the tree is empty, these may still be zero.
 	//
-	long leafBlockSize ()
+	long leafBlockSize () const
 	{
 		return leaf_size;
 	}
 
-	long nodeBlockSize ()
+	long nodeBlockSize () const
 	{
 		return node_size;
 	}
 
-	virtual const BTree<K,T>::Stats & currentStats ()
-	{
-		static BTreeFile<K,T>::Stats s;
-		BTreeFile<K,T>::currentStats (s);
-		return s;
-	}
-
-	void currentStats (BTreeFile<K,T>::Stats &s)
+	void currentStats (FileStats &s) const
 	{
 		BTree<K,T>::currentStats (s);
 		s.file = BTreeFile<K,T>::fstats;
+	}
+
+	ostream &reportStats (ostream &out, 
+			      const BTreeFileP::FileStats &s) const;
+
+	virtual ostream &reportStats (ostream &out) const
+	{
+		FileStats s;
+		currentStats (s);
+		return reportStats (out, s);
 	}
 
 	virtual void translate (SerialStream &ss);
@@ -162,8 +173,6 @@ protected:
 	virtual void mark ();
 
 	friend BlockNode<K,T>;
-	friend Stats;
-	friend FileStats;
 
 	/// Resurrect a reference to a node
 	virtual BTreeNode<K,T> *get (Node &, int depth);
@@ -197,7 +206,7 @@ protected:
 
 	Sender log;
 
-	FileStats fstats;
+	BTreeFileP::FileStatsPart fstats;
 };
 
 

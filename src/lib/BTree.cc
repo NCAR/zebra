@@ -14,7 +14,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.19 1998-09-17 00:51:32 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.20 1998-10-20 20:44:39 granger Exp $")
 
 //#include "Logger.hh"
 #include "BTreeP.hh"
@@ -57,36 +57,41 @@ BTree<K,T>::Setup (int _order, long sz, int fix)
 
 
 
-template <class K, class T>
 inline void
-BTree<K,T>::Stats::translate (SerialStream &ss)
+BTreeP::Stats::translate (SerialStream &ss)
 {
 	ss << nNodes << nKeys << nLeaves;
 }
 
 
-template <class K, class T>
-ostream &BTree<K,T>::Stats::report (ostream &out, BTree<K,T> *t) const
+ostream &
+BTreeP::Stats::report (ostream &out) const
 {
 	out << "Nodes: " << nNodes
 	    << "; Keys: " << nKeys
 	    << "; Leaves: " << nLeaves;
 	out << endl;
-	if (t)
-	{
-		int m = t->Order();
-		out << "Depth: " << t->Depth() << "; Order: " << m << "; ";
-		int minnodes = 0;
-		if (t->numKeys() > 0)
-			minnodes = ((t->numKeys() - 1) / (m - 1)) + 1;
-		int pctnodes = 0;
-		if (nNodes > 0)
-			pctnodes = (int)(100.0*minnodes/(float)nNodes);
-		out << "Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
-		out << endl;
-	}
 	return out;
 }
+
+
+template <class K, class T>
+ostream &BTree<K,T>::reportStats (ostream &out, const BTreeP::Stats &s) const
+{
+	s.report (out);
+	int m = Order();
+	out << "Depth: " << Depth() << "; Order: " << m << "; ";
+	int minnodes = 0;
+	if (numKeys() > 0)
+		minnodes = ((numKeys() - 1) / (m - 1)) + 1;
+	int pctnodes = 0;
+	if (s.nNodes > 0)
+		pctnodes = (int)(100.0*minnodes/(float)s.nNodes);
+	out << "Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
+	out << endl;
+	return out;
+}
+
 
 
 template <class K, class T>
@@ -103,6 +108,15 @@ BTree<K,T>::translate (SerialStream &ss)
 template <class K, class T>
 BTree<K,T>::~BTree ()
 {
+	Destroy ();
+}
+
+
+
+template <class K, class T>
+void
+BTree<K,T>::Destroy ()
+{
 	// Root will only be non-zero if we are non-empty, and if the
 	// subclass has not already taken care of freeing node memory
 	// for us.
@@ -110,6 +124,8 @@ BTree<K,T>::~BTree ()
 		delete root;
 	if (current)
 		delete current;
+	root = 0;
+	current = 0;
 }
 
 
@@ -398,9 +414,9 @@ BTree<K,T>::get (Node &node, int /*depth*/)
 
 template <class K, class T>
 BTreeNode<K,T> *
-BTree<K,T>::make (int depth)
+BTree<K,T>::make (int depth_)
 {
-	return new BTreeNode<K,T> (*this, depth);
+	return new BTreeNode<K,T> (*this, depth_);
 }
 
 

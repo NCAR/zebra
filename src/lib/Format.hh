@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.5 1998-08-27 22:37:07 granger Exp $
+ * $Id: Format.hh,v 1.6 1998-10-20 20:44:42 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -194,12 +194,6 @@ public:
 	/// Return error string for a given error
 	const string &errstr (Error e)
 	{
-		static const string blank("");
-		static const string bad("*bad format*");
-		static const string missing("*missing format*");
-		static const string mismatch("*type mismatch*");
-		static const string unknown("*unknown error*");
-
 		switch (e)
 		{
 		case OK:
@@ -216,6 +210,16 @@ public:
 	}
 
 protected:
+
+	// Error messages
+	static const string blank;
+	static const string bad;
+	static const string missing;
+	static const string mismatch;
+	static const string unknown;
+
+	// Flag string
+	static const char *Specifiers;
 
 	string parse_format (char *temp, char *flag)
 	{
@@ -237,8 +241,6 @@ protected:
 
 	string next_format (char *flag = 0)
 	{
-		static const char *Specifiers = "iduoxXfeEgGcsp%";
-
 		// Find the next % format operator in the lhs
 		// and extract the whole format specifier
 
@@ -302,13 +304,14 @@ public:
 	/// Apply an argument list using a buffer of size 'n'
 	Printf (unsigned int n, const char *s ...) : Format(s)
 	{
-		char sbuf[n];
+		char *sbuf = new char[n];
 		va_list vl;
 		va_start (vl, s);
 		vsprintf (sbuf, s, vl);
 		va_end (vl);
 		buf = sbuf;
 		pos = fmt.length();
+		delete[] sbuf;
 	}
 };
 

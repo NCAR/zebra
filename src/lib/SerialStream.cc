@@ -5,7 +5,7 @@
 //#include <defs.h>
 //#undef bool
 
-//RCSID ("$Id: SerialStream.cc,v 1.5 1998-05-15 19:37:02 granger Exp $")
+//RCSID ("$Id: SerialStream.cc,v 1.6 1998-10-20 20:44:45 granger Exp $")
 
 #include "SerialStream.hh"
 #include "SerialBuffer.hh"
@@ -93,7 +93,6 @@ SerialEncodeStream::SerialEncodeStream (SerialBuffer &buf) :
 int
 SerialEncodeStream::translate (string &s)
 {
-	static const char zero[4] = { '\0', '\0', '\0', '\0' };
 	int len = s.length();
 	int pad = 4 - (len % 4);
 	len += pad;

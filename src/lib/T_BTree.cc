@@ -4,11 +4,12 @@
 
 #include <iostream.h>
 #include <fstream.h>
+#include <strstream.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector>
-#include <function.h>
+//#include <function.h>
 #include <algorithm>
 
 #include <time.h>	// Need time() to seed srand()
@@ -17,8 +18,11 @@
 #include "Logger.hh"
 #include "BTreeFile.hh"
 #include "SerialZTime.hh"
-//#include "BTreeFile.cc"
 //#include "BTreeStats.hh"
+
+#ifdef RCSID
+RCSID("$Id: T_BTree.cc,v 1.26 1998-10-20 20:44:45 granger Exp $")
+#endif
 
 typedef BTreeFile<ZTime,ZTime> TimeFileTree;
 typedef BTreeFile<string,string> StringFileTree;
@@ -37,7 +41,7 @@ typedef long test_key;
 
 typedef BTreeFile<test_key,test_key> default_tree;
 
-static int Debug = 0;
+static const int Debug = 0;
 
 #ifdef notdef
 #ifdef linux
@@ -66,12 +70,13 @@ int __getfpucw ()
  * Use a template of tree type so we can get the correct stats type.
  */
 template <class T>
+void
 Summarize (ostream &out, T &t)
 {
 	out << " ----- " << endl;
-	typename T::Stats cs;
-	t.currentStats (cs);
-	cs.report (out, &t);
+	// typename T::Stats cs;
+	// t.currentStats (cs);
+	t.reportStats (out);
 	out << " ----- " << endl;
 
 #ifdef notdef
@@ -109,7 +114,7 @@ template <class K>
 struct Counter
 {
 	typedef K result_type;
-	typedef long counter_type;
+	typedef unsigned long counter_type;
 
 	Counter (counter_type _n = counter_type()) : n(_n) {}
 	K operator()();
@@ -130,7 +135,13 @@ string
 Counter<string>::operator()()
 {
 	string s;
-	cin >> s;
+	++n;
+	if (! (cin >> s))
+	{
+		char buf[16];
+		sprintf (buf, "zzz%08d", n);
+		return buf;
+	}
 	return s;
 }
 
@@ -163,8 +174,8 @@ class TreeTest
 {
 public:
 
-	typedef typename test_tree::key_type key_type;
-	typedef typename test_tree::value_type value_type;
+	typedef /*typename*/ test_tree::key_type key_type;
+	typedef /*typename*/ test_tree::value_type value_type;
 
 int 
 T_Members (test_tree &tree, vector<key_type> &keys)
@@ -173,9 +184,18 @@ T_Members (test_tree &tree, vector<key_type> &keys)
 	int err = 0;
 	vector<key_type>::iterator k;
 
+#ifdef NO_LOGICAL_PREDICATES
+	tree_member<test_tree> member(tree);
+	for (k = keys.begin(); k != keys.end(); ++k)
+	{
+		if (! member(*k))
+			break;
+	}
+#else
 	k = find_if (keys.begin(), keys.end(), 
 		     compose1(logical_not<bool>(), 
 			      tree_member<test_tree>(tree)));
+#endif
 	if (k != keys.end())
 	{
 		cout << "***** Member error: missing key: " << *k << endl;
@@ -664,7 +684,7 @@ TestTree (test_tree &tree, int N)
 
 
 template <class T>
-TestTree (T &tree, string name, int N)
+TestTree (T &tree, const char *name, int N)
 {
 	cout << "-----------------================----------------" << endl;
 	int err = 0;
@@ -706,6 +726,7 @@ int main (int argc, char *argv[])
 		tree.Check();
 		if (Debug) tree.Print(cout);
 		err += TestTree (tree, "default", N);
+		tree.Destroy();
 	}
 	if (err) cout << "***** ";
 	cout << err << " errors." << endl;
@@ -730,6 +751,9 @@ int main (int argc, char *argv[])
 			err += TestTree (stree, "string", N);
 			TimeTree ttree(o);
 			err += TestTree (ttree, "time", N);
+			ltree.Destroy();
+			stree.Destroy();
+			ttree.Destroy();
 		}
 		{
 			// Now the file trees with our shared blockfile
@@ -739,6 +763,8 @@ int main (int argc, char *argv[])
 			sftree.setElementSize (12);
 			sftree.setKeySize (12);
 			err += TestTree (sftree, "string file", N);
+			lftree.Destroy();
+			sftree.Destroy();
 		}
 		{
 			// Now file trees with default access
@@ -748,12 +774,15 @@ int main (int argc, char *argv[])
 			sftree.setElementSize (12);
 			sftree.setKeySize (12);
 			err += TestTree (sftree, "string excl file", N);
+			lftree.Destroy();
+			sftree.Destroy();
 		}
 		// Throw in a default file to exercise actually
 		// closing and opening the blockfile on reopen()
 		unlink ("btree.bf");
 	        TimeFileTree tftree (o);
 		err += TestTree (tftree, "time default file", N);
+		tftree.Destroy();
 	}
 	
 	if (err) cout << "***** ";

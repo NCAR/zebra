@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.14 1998-09-22 14:28:44 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.15 1998-10-20 20:44:40 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -33,9 +33,9 @@ template <class K, class T>
 class BlockNode : virtual public BTreeNode<K,T>, virtual public TranslateBlock
 {
 public:
-	BlockNode (BlockFile &bf, BTreeFile<K,T> &t, int depth) :
-		SyncBlock (bf), 
-		BTreeNode<K,T> (t, depth),
+	BlockNode (BlockFile &bf_, BTreeFile<K,T> &t, int depth_) :
+		SyncBlock (bf_), 
+		BTreeNode<K,T> (t, depth_),
 		overflow (),
 		filetree (t)
 	{ }
@@ -108,27 +108,27 @@ template class BTreeFile<K,T>::Stats;
 
 
 template <class K, class T>
-BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order, long sz, int fix) :
-	BTree(0, 0, 0),
+BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order_, long sz, int fix) :
+	BTree<K,T>(0, 0, 0),
 	SyncBlock (_bf),
 	bf (&_bf),
 	our_bf(0)
 {
-	Init (order, sz, fix);
+	Init (order_, sz, fix);
 	OpenHeader ();
 }
 
 
 
 template <class K, class T>
-BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
-	BTree(0, 0, 0),
+BTreeFile<K,T>::BTreeFile (int order_, long sz, int fix) :
+	BTree<K,T>(0, 0, 0),
 	SyncBlock (*(new BlockFile ("btree.bf", MAGIC, 
 				    BlockFile::BF_EXCLUSIVE))),
 	bf (SyncBlock::bf),
 	our_bf(1)
 {
-	Init (order, sz, fix);
+	Init (order_, sz, fix);
 	OpenHeader ();
 }
 
@@ -136,14 +136,14 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 
 
 template <class K, class T>
-BTreeFile<K,T>::BTreeFile (const char *fname, int order, long sz, int fix) :
-	BTree(0, 0, 0),
+BTreeFile<K,T>::BTreeFile (const char *fname, int order_, long sz, int fix) :
+	BTree<K,T>(0, 0, 0),
 	SyncBlock (*(new BlockFile (fname, MAGIC,
 				    BlockFile::BF_EXCLUSIVE))),
 	bf (SyncBlock::bf),
 	our_bf(1)
 {
-	Init (order, sz, fix);
+	Init (order_, sz, fix);
 	OpenHeader ();
 }
 
@@ -151,13 +151,13 @@ BTreeFile<K,T>::BTreeFile (const char *fname, int order, long sz, int fix) :
 
 template <class K, class T>
 BTreeFile<K,T>::BTreeFile (BlkOffset addr, BlockFile &_bf, 
-			   int order, long sz, int fix) : 
-	BTree(0, 0, 0),
+			   int order_, long sz, int fix) : 
+	BTree<K,T>(0, 0, 0),
 	SyncBlock (_bf),
 	bf (&_bf),
 	our_bf(0)
 {
-	Init (order, sz, fix);
+	Init (order_, sz, fix);
 	if (addr)
 	{
 		// Open a tree on an existing block.
@@ -207,9 +207,9 @@ BTreeFile<K,T>::Reopen ()
 
 template <class K, class T>
 void
-BTreeFile<K,T>::Init (int order, long sz, int fix)
+BTreeFile<K,T>::Init (int order_, long sz, int fix)
 {
-	Setup (order, sz, fix);		// Do our superclass setup
+	Setup (order_, sz, fix);	// Do our superclass setup
 	key_size = 0;
 	key_size_fixed = 0;
 	node_size = 0;
@@ -325,7 +325,7 @@ BTreeFile<K,T>::Destroy ()
 	Erase ();
 	assert (Empty());
 	free ();
-	delete this;
+	BTree<K,T>::Destroy();
 }
 
 
@@ -581,9 +581,8 @@ BTreeFile<K,T>::mark ()
 
 
 
-template <class K, class T>
 void
-BTreeFile<K,T>::FileStats::translate (SerialStream &ss)
+BTreeFileP::FileStatsPart::translate (SerialStream &ss)
 {
 	// Only the overflow and allocated bytes are persistent.  Read and
 	// write counts last only as long as our block file object.
@@ -592,27 +591,27 @@ BTreeFile<K,T>::FileStats::translate (SerialStream &ss)
 
 
 template <class K, class T>
-ostream &BTreeFile<K,T>::Stats::report (ostream &out, BTreeFile<K,T> *t) const
-{ 
-	BTree<K,T>::Stats::report (out, t);
-	out << "Nodes read: " << file.nodesRead 
-	    << "; written: " << file.nodesWritten
-	    << "; Bytes alloc: " << file.allocBytes
-	    << "; overflow: " << file.overflowBytes << endl;
-	if (t)
-	{
-		out << "Leaf blk size: " << t->leafBlockSize()
-		    << "; branch: " << t->nodeBlockSize();
-		long slop = file.allocBytes;
-		slop -= (nLeaves * t->leafBlockSize());
-		slop -= ((nNodes - nLeaves) * t->nodeBlockSize());
-		out << "; slop: " << slop;
-		out << "; Nodes cached: " << t->ncache 
-		    << "; max cache: " << t->maxcache;
-		out << endl;
-	}
+ostream &
+BTreeFile<K,T>::reportStats (ostream &out, 
+			     const BTreeFileP::FileStats &s) const
+{
+	BTree<K,T>::reportStats (out, s);
+	out << "Nodes read: " << s.file.nodesRead 
+	    << "; written: " << s.file.nodesWritten
+	    << "; Bytes alloc: " << s.file.allocBytes
+	    << "; overflow: " << s.file.overflowBytes << endl;
+	out << "Leaf blk size: " << leafBlockSize()
+	    << "; branch: " << nodeBlockSize();
+	long slop = s.file.allocBytes;
+	slop -= (s.nLeaves * leafBlockSize());
+	slop -= ((s.nNodes - s.nLeaves) * nodeBlockSize());
+	out << "; slop: " << slop;
+	out << "; Nodes cached: " << ncache 
+	    << "; max cache: " << maxcache;
+	out << endl;
 	return out;
 }
+
 
 
 template <class K, class T>
@@ -621,7 +620,7 @@ BTreeFile<K,T>::translate (SerialStream &ss)
 {
 	// Translate our superclass state:
 	TranslateBlock::translate (ss);
-	BTree::translate (ss);
+	BTree<K,T>::translate (ss);
 
 	// Translate our own persistent state
 	ss << key_size << key_size_fixed;
@@ -668,7 +667,7 @@ int
 BTreeFile<K,T>::setElementSize (int vs, int fixed)
 {
 	enterWrite ();
-	int done = BTree::setElementSize (vs, fixed);
+	int done = BTree<K,T>::setElementSize (vs, fixed);
 	if (done)
 	{
 		leaf_size = 0;

@@ -1,5 +1,5 @@
 /*
- * $Id: SerialBuffer.hh,v 1.3 1998-02-25 22:17:28 burghart Exp $
+ * $Id: SerialBuffer.hh,v 1.4 1998-10-20 20:44:44 granger Exp $
  *
  * A simple Buffer subclassed and complicated with methods to help
  * serialize and deserialize objects to/from the buffer.
@@ -42,8 +42,8 @@ public:
 	{ }
 
 	/// Create a buffer with an initial length, at least as long as BUFFER
-	SerialBuffer (long len = BUFFER_ZONE, int zone = BUFFER_ZONE) :
-		Buffer(len, zone),
+	SerialBuffer (long len = BUFFER_ZONE, int zone_ = BUFFER_ZONE) :
+		Buffer(len, zone_),
 		cs(0), es(0), ds(0)
 	{ }
 

@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: Journal.cc,v 1.10 1998-09-16 21:26:06 granger Exp $");
+//RCSID ("$Id: Journal.cc,v 1.11 1998-10-20 20:44:43 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -43,8 +43,8 @@ Journal::ChangeName (ChangeType c)
 
 // Constructor
 
-Journal::Journal (BlockFile &bf, Block &b, SyncBlock *parent) :
-	SyncBlock (bf, b), RefBlock (b, parent)
+Journal::Journal (BlockFile &bf_, Block &b, SyncBlock *parent_) :
+	SyncBlock (bf_, b), RefBlock (b, parent_)
 {
 	// cout << "Constructing Journal" << endl;
 	max = MaxEntries;
@@ -69,15 +69,15 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 {
 	readSync ();
 
-	int changed;
+	int diff = 1;
 	if (rev >= (unsigned long)bf->header->revision || first == last)
 	{
-		changed = 0;
+		diff = 0;
 	}
 	else if (rev < entries[(last+max-1)%max].block.revision)
 	{
 		// The oldest entry is after the rev, so consider it changed
-		changed = 1;
+		diff = 1;
 	}
 	else
 	{
@@ -87,7 +87,7 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 		// words, don't make blocks read sync with changes
 		// they just wrote.
 		// 
-		changed = 0;
+		diff = 0;
 		int i = first;
 		while (i != last && entries[i].block.revision > rev)
 		{
@@ -96,13 +96,13 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 			    b->offset + b->length > offset &&
 			    offset + length > b->offset)
 			{
-				changed = 1;
+				diff = 1;
 				break;
 			}
 			i = (i + 1) % max;
 		}
 	}
-	return changed;
+	return diff;
 }
 
 
@@ -154,7 +154,7 @@ Journal::encode (SerialBuffer &sbuf)
 	sbuf << max << first << last;
 	for (int i = 0; i < max; ++i)
 	{
-		sbuf << entries[i];
+		sbuf << (const JournalEntry)entries[i];
 	}
 	return (0);
 }

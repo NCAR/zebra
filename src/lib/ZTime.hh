@@ -1,6 +1,6 @@
 // Some -*- C++ -*- goodies for dealing with ZebraTimes.
 //
-// $Id: ZTime.hh,v 1.2 1998-03-05 04:54:25 granger Exp $
+// $Id: ZTime.hh,v 1.3 1998-10-20 20:44:46 granger Exp $
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -160,7 +160,14 @@ struct ZTime : public ZebraTime
 			     msecs % 1000000);
 	}
 
-	inline ZTime operator= (const ZebraTime &src)
+	inline ZTime &operator= (const ZebraTime &src)
+	{
+		zt_Sec = src.zt_Sec;
+		zt_MicroSec = src.zt_MicroSec;
+		return *this;
+	}
+
+	inline ZTime &operator= (const ZTime &src)
 	{
 		zt_Sec = src.zt_Sec;
 		zt_MicroSec = src.zt_MicroSec;
