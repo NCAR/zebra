@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.14 1994-07-07 22:01:04 corbet Exp $
+ * $Id: class_ingest.c,v 2.15 1994-07-11 21:40:52 corbet Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.14 1994-07-07 22:01:04 corbet Exp $")
+   "$Id: class_ingest.c,v 2.15 1994-07-11 21:40:52 corbet Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -222,7 +222,7 @@ ERRORCATCH
  * Send everything to the data store
  */
 	IngestLog(EF_DEBUG,"%s: Sending data to DataStore",plat);
-	if (!ds_Store( Dchunk, /*newfile*/ TRUE, (dsDetail *)0, 0))
+	if (!ds_StoreBlocks (Dchunk, /*newfile*/ TRUE, (dsDetail *)0, 0))
 	{
 		IngestLog(EF_EMERGENCY,"%s: Data store failed",plat);
 	}
