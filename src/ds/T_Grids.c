@@ -347,7 +347,7 @@ char *arg;
 		dc_SetFieldBadval (dc, fields[fld], &badval);
 		dc_IRAddMissing (dc, &begin, 0, 1, fields[fld]);
 	}
-	err += CheckFill (dc);
+	err += CheckFill (dc, fields, nfield);
 	err += !ds_Store (dc, TRUE, NULL, 0);
 	dc_Destroy (dc);
 
