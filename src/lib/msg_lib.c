@@ -28,7 +28,7 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.13 1993-04-28 15:48:40 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.14 1993-05-04 19:33:31 corbet Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -384,6 +384,8 @@ msg_await ()
 		fds = Fd_list;
 		if ((nsel = select (Max_fd + 1, &fds, 0, 0, 0)) < 0)
 		{
+			if (errno == EINTR) /* gdb attach can cause this */
+				continue;
 			printf ("Return code %d from msg select", errno);
 			return (-1);
 		}
