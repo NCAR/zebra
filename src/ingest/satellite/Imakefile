@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1994-02-21 20:15:24 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1995-03-10 23:21:52 burghart Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) \
 	$(LIBMCIDAS) $(FLIBS)
@@ -28,7 +28,7 @@ DEPLIBS = $(LIBZEB) $(LIBZEBDS) $(LIBMCIDAS)
  *!
  */
 
-SRCS = SatIngest.c GMSIngest.c area_dump.c areadump.c
+SRCS = SatIngest.c GMSIngest.c area_dump.c areadump.c GriddedGOES.c
 
 OBJS = nvxgoes.o
 
@@ -44,6 +44,9 @@ NormalProgramTarget(SatIngest,SatIngest.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 NormalProgramTarget(GMSIngest,GMSIngest.o $(OBJS),
+		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+NormalProgramTarget(GriddedGOES,GriddedGOES.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 TestProgramTarget(testSatIngest,testSatIngest.o $(OBJS),
