@@ -23,11 +23,13 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
+# ifdef notdef
 #ifdef SVR4
 # include <string.h>
 #endif
+# endif
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.11 1993-08-12 18:27:41 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.12 1993-12-22 18:22:07 corbet Exp $")
 
 /*
  * TODO:

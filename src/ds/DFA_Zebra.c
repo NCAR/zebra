@@ -36,7 +36,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.18 1993-09-14 18:01:20 granger Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.19 1993-12-22 18:22:04 corbet Exp $")
 # endif
 
 /*

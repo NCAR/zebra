@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.23 1993-11-05 15:44:07 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.24 1993-12-22 18:21:59 corbet Exp $")
 #endif
 
 # include "netcdf.h"
@@ -140,12 +140,12 @@ static int 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double));
 static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
-static int	dnc_ReadNSpace FP((DataChunk *dc, NCTag *tag, long begin,
-				long nsamp, FieldId *fids, int nfield, 
-				float badval));
+static int	dnc_ReadNSpace FP((DataChunk *, NCTag *, long,
+				long, FieldId *, long, 
+				double));
 static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag, 
 			 ZebTime *t, int begin, int nsamp, FieldId *fids, 
-			 int nfield, float badval));
+			 int nfield, double badval));
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, long, long));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
 static void	dnc_ApplyBadval FP ((NCTag *, int varid, 
@@ -1028,7 +1028,7 @@ FieldId *fields;
 		for (j = (is_static ? 0 : 1); j < ndims; ++j)
 		{
 			ncdiminq (tag->nc_id, dims[j], names[nsdims], 
-				  &(sizes[nsdims]));
+				  (long *) &(sizes[nsdims]));
 			++nsdims;
 		}
 		/*
@@ -2312,7 +2312,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.23 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.24 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2862,12 +2862,12 @@ long *start;
 		for (i = 0; i < nsample; i++)
 			ftime[i] = (float)tag->nc_times[*start + i];
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
-				   &nsample, ftime);
+				   (long *) &nsample, ftime);
 		free(ftime);
 	}
 	else
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start,
-				   &nsample, tag->nc_times + *start);
+				   (long *) &nsample, tag->nc_times + *start);
 
 	if (status < 0)
 		dnc_NCError("New times write");
