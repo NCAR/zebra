@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.6 1998-06-03 17:22:19 corbet Exp $")
+RCSID ("$Id: Radar.c,v 2.7 1998-08-18 16:09:22 corbet Exp $")
 
 
 static char *ScanNames[5] = 
@@ -48,7 +48,7 @@ r_ScanModeAtt (R_ScanMode i)
  * too much time loading when usually the first few will satisfy.
  * Must be smaller than MAXALT in AltControl.c
  */
-#define MAXALT 30
+#define MAXALT 60
 
 /*
  * Be if hereforth attempted here the description of the parameters
@@ -700,6 +700,9 @@ R_ScanMode *scan;
 			      r_ScanModeAtt(attr), times);
 # endif
 	ntime = ds_AttrTimes (pid, &PlotTime, 1, DsBefore, NULL, 
+			      r_ScanModeAtt(attr), times);
+	if (ntime < 1)
+		ntime = ds_AttrTimes (pid, &PlotTime, MAXALT, DsBefore, NULL, 
 			      r_ScanModeAtt(attr), times);
 	if (ntime < 1)
 		msg_ELog (EF_DEBUG, "r_latest: no '%s' scan found", 

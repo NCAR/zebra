@@ -27,7 +27,7 @@
 # include <stdlib.h>
 # include <X11/Intrinsic.h>
 
-# define TIMING
+
 # ifdef TIMING
 # include <sys/time.h>
 # include <sys/resource.h>
@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.74 1998-06-03 17:22:14 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.75 1998-08-18 16:09:20 corbet Exp $")
 
 
 /*

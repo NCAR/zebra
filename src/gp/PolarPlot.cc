@@ -273,6 +273,12 @@ ScanConverter::Setup (PolarBeam *pb)
 	float sin1, sin2, cos1, cos2, sinc, cosc; // trig funcs of edges
 	int far = 0;
 //
+// Deal with (hopefully) one-time PRECIP98 problem: drop data with
+// weird elevations.
+//
+	if (pb->pb_ScanMode == SM_RHI && pb->pb_Elevation >= 89.0)
+		return (0);
+//
 // What is the rotational angle of this beam.  Kludge it to look the
 // way we want in the RHI case.
 //
