@@ -1,10 +1,11 @@
 /*
  * This is the main program for the data store daemon.
  */
-static char *rcsid = "$Id: Daemon.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: Daemon.c,v 1.3 1991-02-26 19:03:58 corbet Exp $";
 
 # include <sys/types.h>
 # include <dirent.h>
+# include <errno.h>
 # include "../config/config.h"
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -25,13 +26,44 @@ static char *rcsid = "$Id: Daemon.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 	void Shutdown (void);
 	static void DataScan (void);
 	static void ScanFile (Platform *, char *);
+	static void mh_message (struct message *);
+	static void ds_message (char *, struct dsp_Template *);
+	static void dp_NewFile (char *, struct dsp_CreateFile *);
+	static void dp_AbortNewFile (struct dsp_AbortNewFile *);
+	static void dp_UpdateFile (struct dsp_UpdateFile *);
+	static void dp_DeleteData (Platform *, int);
+	static void ZapDF (DataFile *);
+	static void SetUpEvery (struct ui_command *);
+	static void ExecEvery (time *, int);
+	static void Truncate (struct ui_command *);
 # else
 	static int msg_Handler ();
 	static int ui_Handler ();
 	void Shutdown ();
 	static void DataScan ();
 	static void ScanFile ();
+	static void mh_message ();
+	static void ds_message ();
+	static void dp_NewFile ();
+	static void dp_AbortNewFile ();
+	static void dp_UpdateFile ();
+	static void dp_DeleteData ();
+	static void ZapDF ();
+	static void SetUpEvery ();
+	static void ExecEvery ();
+	static void Truncate ();
 # endif
+
+
+/*
+ * Our data structure for the EVERY command.
+ */
+# define MAXEVERY 10
+int NEvery = 0;
+char *ECmds[MAXEVERY];
+
+
+
 
 
 
@@ -59,6 +91,17 @@ char **argv;
 		DefDataDir, SYMT_STRING, 80);
 	InitSharedMemory ();
 	dt_InitTables ();
+	dap_Init ();
+/*
+ * Set up the init file.
+ */
+	if (argc > 1)
+	{
+		SValue v;
+		v.us_v_ptr = argv[1];
+		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "initfile",
+				SYMT_STRING, &v);
+	}
 /*
  * Start reading commands.
  */
@@ -67,13 +110,6 @@ char **argv;
 }
 
 
-# ifdef notdef
-/*
- * Arrange to read our init file.
- */
-	sprintf (loadfile, "read %s/%s", ETCDIR, "DSDaemon.cfg");
-	ui_perform (loadfile);
-# endif
 
 
 static void
@@ -83,17 +119,18 @@ FinishInit ()
  */
 {
 /*
- * Build the data table free list.
+ * Build the data table free list, then fill it up by scanning the disk
+ * to see which data is already present.
  */
+ 	ShmLock ();
 	dt_FinishTables ();
-/*
- * scan for existing data
- */
 	DataScan ();
+	ShmUnlock ();
 /*
- * announce to world?
- * arrange disk checks
+ * If a cleanup_procedure exists, run it now.
  */
+	if (usy_defined (0, "ui$procedure_table:cleanup"))
+		ui_perform ("cleanup");
 /*
  * Now just wait for something to happen.
  */
@@ -109,6 +146,24 @@ struct message *msg;
  * Deal with an incoming message.
  */
 {
+/*
+ * See just what sort of message we have here.
+ */
+	switch (msg->m_proto)
+	{
+	/*
+	 * MH stuff.
+	 */
+	   case MT_MESSAGE:
+	   	mh_message (msg);
+		break;
+	/*
+	 * The really interesting stuff -- datastore protocol.
+	 */
+	   case MT_DATASTORE:
+	   	ds_message (msg->m_from, (struct dsp_Template *) msg->m_data);
+		break;
+	}
 	return (0);
 }
 
@@ -146,6 +201,18 @@ struct ui_command *cmds;
 			msg_ELog (EF_PROBLEM, "Repeated DONE command");
 		else
 			FinishInit ();
+		break;
+	/*
+	 * Regularly-scheduled commands.
+	 */
+	   case DK_EVERY:
+	   	SetUpEvery (cmds + 1);
+		break;
+	/*
+	 * Time-based cleanup.
+	 */
+	   case DK_TRUNCATE:
+	   	Truncate (cmds + 1);
 		break;
 
 	   default:
@@ -230,6 +297,7 @@ char *file;
 {
 	time begin, end;
 	DataFile *df;
+	int ns;
 /*
  * If DFA doesn't recognize it, we don't even bother.
  */
@@ -245,17 +313,16 @@ char *file;
  * Find the times for this file.
  */
 	if (! dfa_QueryDate (p->dp_ftype, df->df_name, &df->df_begin,
-			&df->df_end))
+			&df->df_end, &ns))
 	{
 		msg_ELog (EF_PROBLEM, "File '%s' inaccessible", df->df_name);
 		dt_FreeDFE (df);
 		return;
 	}
-# ifdef notdef
-	msg_ELog (EF_DEBUG, "File '%s', %d %d to %d", file,
+	df->df_nsample = ns;
+	msg_ELog (EF_DEBUG, "File '%s', %d %d to %d ns %d", file,
 		df->df_begin.ds_yymmdd, df->df_begin.ds_hhmmss,
-		df->df_end.ds_hhmmss);
-# endif
+		df->df_end.ds_hhmmss, df->df_nsample);
 /*
  * Finish the fillin and add it to this platform's list.
  */
@@ -266,18 +333,375 @@ char *file;
 
 
 
-# ifdef notdef
+
+
+static void
+mh_message (msg)
+struct message *msg;
 /*
- * Kludgery to make linking to DFA work.
+ * Deal with a message from the msg subsystem itself.
  */
-dsm_ShmLock ()
 {
-	msg_ELog (EF_PROBLEM, "BUG: dsm_ShmLock called in Daemon");
+	struct mh_template *tm = (struct mh_template *) msg->m_data;
+	struct mh_client *client;
+
+	switch (tm->mh_type)
+	{
+	   case MH_SHUTDOWN:
+	   	ui_printf ("Message handler shutdown -- I quit!\n");
+		ui_finish ();
+		exit (1);
+	/*
+	 * For client events, we are really only interested in deaths, so
+	 * that we can get rid of any notification requests.
+	 */
+	   case MH_CLIENT:
+		client = (struct mh_client *) msg->m_data;
+		if (client->mh_evtype == MH_CE_DISCONNECT)
+			dap_Cancel (client->mh_client);
+		break;
+
+	   default:
+	   	ui_printf ("Unknown MESSAGE proto msg %d\n", tm->mh_type);
+		break;
+	}
 }
 
-dsm_ShmUnlock ()
+
+
+
+static void
+ds_message (from, dt)
+char *from;
+struct dsp_Template *dt;
+/*
+ * Deal with an incoming data store protocol message.
+ */
 {
-	msg_ELog (EF_PROBLEM, "BUG: dsm_ShmUnlock called in Daemon");
+	switch (dt->dsp_type)
+	{
+	/*
+	 * They want a new data file entry.
+	 */
+	   case dpt_NewFileRequest:
+	   	dp_NewFile (from, (struct dsp_CreateFile *) dt);
+		break;
+	/*
+	 * They want to abort that new file entry.
+	 */
+	   case dpt_AbortNewFile:
+	   	dp_AbortNewFile ((struct dsp_AbortNewFile *) dt);
+		break;
+	/*
+	 * File updating -- they've added data.
+	 */
+	   case dpt_UpdateFile:
+	   	dp_UpdateFile ((struct dsp_UpdateFile *) dt);
+		break;
+	/*
+	 * Delete -- get rid of data.
+	 */
+	   case dpt_DeleteData:
+	   	dp_DeleteData (PTable+((struct dsp_DeleteData *) dt)->dsp_plat,
+				((struct dsp_DeleteData *) dt)->dsp_leave);
+		break;
+	/*
+	 * Application notification details.
+	 */
+	   case dpt_NotifyRequest:
+	   	dap_Request (from, (struct dsp_NotifyRequest *) dt);
+		break;
+
+	   case dpt_CancelNotify:
+	   	dap_Cancel (from);
+		break;
+	/*
+	 * Chaos.
+	 */
+	   default:
+	   	msg_ELog (EF_PROBLEM, "Unknown DSP request: %d", dt->dsp_type);
+		break;
+	}
 }
 
-# endif
+
+
+static void
+dp_NewFile (from, request)
+char *from;
+struct dsp_CreateFile *request;
+/*
+ * Deal with a new file request.
+ */
+{
+	struct dsp_R_CreateFile response;
+	DataFile *new;
+/*
+ * Get a new file entry to give back to them.  Make sure there isn't already
+ * a tempfile sitting there from some other time -- if so we reuse it and
+ * gripe.
+ */
+	if (PTable[request->dsp_plat].dp_Tfile)
+	{
+		msg_ELog (EF_PROBLEM, "Plat %s reusing tfile!", 
+			PTable[request->dsp_plat].dp_name);
+		new = DFTable + PTable[request->dsp_plat].dp_Tfile;
+	}
+	else if ((new = dt_NewFile ()) == 0)
+	{
+		response.dsp_type = dpt_R_NewFileFailure;
+		msg_send (from, MT_DATASTORE, FALSE, &response,
+				sizeof (response));
+		return;
+	}
+/*
+ * Fill in the info and hook it into the platform.
+ */
+	ShmLock ();
+	strcpy (new->df_name, request->dsp_file);
+	new->df_begin = new->df_end = request->dsp_time;
+	new->df_rev = 0;
+	new->df_FLink = new->df_BLink = new->df_nsample = 0;
+	new->df_platform = request->dsp_plat;
+	new->df_ftype = PTable[request->dsp_plat].dp_ftype;
+	PTable[request->dsp_plat].dp_Tfile = new - DFTable;
+	ShmUnlock ();
+/*
+ * Respond back to the requester and quit.
+ */
+	response.dsp_type = dpt_R_NewFileSuccess;
+	response.dsp_FileIndex = new - DFTable;
+	msg_send (from, MT_DATASTORE, FALSE, &response, sizeof (response));
+}
+
+
+
+
+
+static void
+dp_AbortNewFile (request)
+struct dsp_AbortNewFile *request;
+/*
+ * They want to abort a new file request.
+ */
+{
+	Platform *plat = PTable + request->dsp_pid;
+
+	if (! plat->dp_Tfile)
+		msg_ELog (EF_PROBLEM, "Abort NF on plat %s, but no tfile!",
+			plat->dp_name);
+	else
+	{
+		dt_FreeDFE (DFTable + plat->dp_Tfile);
+		plat->dp_Tfile = 0;
+	}
+}
+
+
+
+
+
+
+static void
+dp_UpdateFile (request)
+struct dsp_UpdateFile *request;
+/*
+ * Deal with a file update notification.
+ */
+{
+	DataFile *df = DFTable + request->dsp_FileIndex;
+	Platform *plat = PTable + df->df_platform;
+/*
+ * Mark the changes in the datafile entry.  Update the rev count so that
+ * reader processes know things have changed.
+ */
+	ShmLock ();
+	df->df_end = request->dsp_EndTime;
+	df->df_nsample += request->dsp_NSamples;
+	df->df_rev++;
+/*
+ * If this file is in the Tfile slot, now we move it over to the localdata
+ * list.
+ */
+	if (request->dsp_FileIndex == plat->dp_Tfile)
+	{
+		plat->dp_Tfile = 0;
+		dt_AddToPlatform (plat, df, TRUE);
+	}
+	ShmUnlock ();
+/*
+ * Now we do data available notifications.
+ */
+	dap_Notify (df->df_platform, &df->df_end);
+}
+
+
+
+
+
+static void
+dp_DeleteData (p, sub)
+Platform *p;
+int sub;
+/*
+ * Handle the delete data request.
+ */
+{
+	int index = LOCALDATA (*p), last;
+	time t;
+/*
+ * If there is no data at all, life is easy.
+ */
+	if (! index)
+	{
+		msg_ELog (EF_DEBUG, "DeleteData on %s -- empty", p->dp_name);
+		return;
+	}
+/*
+ * Sanity check.
+ */
+	if (p->dp_flags & DPF_SUBPLATFORM)
+	{
+		msg_ELog (EF_PROBLEM, "Attempted DeleteData on subplat %s",
+			p->dp_name);
+		return;
+	}
+/*
+ * Calculate the time before which all data is zapped.
+ */
+	t = DFTable[index].df_end;
+	TC_SysToFcc (TC_FccToSys (&t) - sub, &t);
+	msg_ELog (EF_DEBUG, "ZAP before %d %06d", t.ds_yymmdd, t.ds_hhmmss);
+/*
+ * Now we go through and remove every file which ends before this time.
+ */
+	last = index;
+	ShmLock ();
+	while (index)
+	{
+		DataFile *df = DFTable + index;
+	/*
+	 * If this file is too new, go on to the next one.
+	 */
+	 	if (DLT (t, df->df_end))
+		{
+			last = index;
+			index = df->df_FLink;
+			continue;
+		}
+	/*
+	 * OK, this one goes.  Move the index forward NOW, then zap this
+	 * entry.  NOTE: since DF entries are in reverse time order, we 
+	 * know that once we've found the one to zap, we'll get them all
+	 * from here on out.  So we leave "last" pointing at the last
+	 * entry that will remain when we're done.
+	 */
+	 	msg_ELog (EF_DEBUG, "Zap %d (%s)", index, df->df_name);
+		if (index == p->dp_LocalData)
+			index = p->dp_LocalData = df->df_FLink;
+		else
+			index = DFTable[last].df_FLink = df->df_FLink;
+		ZapDF (df);
+	}
+	ShmUnlock ();
+}
+
+
+
+
+static void
+ZapDF (df)
+DataFile *df;
+/*
+ * Make this file go away.
+ */
+{
+	struct dsp_DataGone dg;
+/*
+ * Broadcast a notification to the world.
+ */
+	dg.dsp_type = dpt_DataGone;
+	dg.dsp_file = df - DFTable;
+	msg_send ("DataStore", MT_DATASTORE, TRUE, &dg, sizeof (dg));
+/*
+ * Make sure we have the file closed, then delete it and it's datafile
+ * entry.
+ */
+	dfa_ForceClose (df - DFTable);
+	if (unlink (df->df_name) < 0)
+		msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", errno,
+			df->df_name);
+	dt_FreeDFE (df);
+}
+
+
+
+
+
+static void
+SetUpEvery (cmds)
+struct ui_command *cmds;
+/*
+ * Set up an EVERY command.
+ */
+{
+	int interval = UINT (cmds[0])*INCFRAC;
+/*
+ * Get the timer to let us know when it's time.  Then remember the command
+ * to execute when things happen.
+ */
+	tl_AddRelativeEvent (ExecEvery, (void *) NEvery, interval, interval);
+	ECmds[NEvery++] = usy_string (UPTR (cmds[1]));
+}
+	
+
+
+
+static void
+ExecEvery (t, slot)
+time *t;
+int slot;
+/*
+ * Run this EVERY command.
+ */
+{
+	msg_ELog (EF_DEBUG, "EVERY timeout: '%s'", ECmds[slot]);
+	ui_perform (ECmds[slot]);
+}
+
+
+
+
+static void
+Truncate (cmds)
+struct ui_command *cmds;
+/*
+ * Handle the TRUNCATE command.
+ */
+{
+	int seconds, plat;
+	Platform *p;
+/*
+ * Figure out how much data remains.
+ */
+	seconds = (cmds->uc_ctype == UTT_KW) ? -1 : UINT (*cmds);
+/*
+ * If they gave a specific platform, do it now.
+ */
+	if (cmds[1].uc_ctype != UTT_KW)
+	{
+		if (! (p = dt_FindPlatform (UPTR (cmds[1]), FALSE)))
+			msg_ELog (EF_PROBLEM, "TRUNCATE on bad platform %s",
+				UPTR (cmds[1]));
+		else
+			dp_DeleteData (p, seconds > 0 ? seconds : p->dp_keep);
+		return;
+	}
+/*
+ * Otherwise we go through the list and do everything.
+ */
+	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
+			dp_DeleteData (PTable + plat,
+				seconds > 0 ? seconds : PTable[plat].dp_keep);
+}
