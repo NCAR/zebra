@@ -1,6 +1,6 @@
 
 XCOMM ================================================================
-XCOMM $Id: config-ingest.h,v 1.2 2001-01-17 23:23:41 granger Exp $
+XCOMM $Id: config-ingest.h,v 1.3 2001-01-17 23:29:16 granger Exp $
 XCOMM Definitions from config-ingest.h.
 XCOMM ================================================================
 
@@ -15,26 +15,66 @@ XCOMM ================================================================
 /*
  * Here you can select which individual ingest modules to build.  
  */
+#ifndef BuildIngestScheduler
 # define	BuildIngestScheduler	NO	/* Sun only	 	*/
+#endif
+#ifndef BuildClassIngest
 # define	BuildClassIngest	NO
+#endif
+#ifndef BuildRadarIngest
 # define	BuildRadarIngest	NO	/* Sun only, see PCAP below*/
+#endif
+#ifndef BuildSLGrabber
 # define	BuildSLGrabber		NO	/* Sun only		*/
+#endif
+#ifndef BuildNowradIngest
 # define	BuildNowradIngest	NO
+#endif
+#ifndef BuildProfsIngest
 # define	BuildProfsIngest	NO
+#endif
+#ifndef BuildSatelliteIngest
 # define	BuildSatelliteIngest	NO
+#endif
+#ifndef BuildP3Composite
 # define	BuildP3Composite	NO
+#endif
+#ifndef BuildTOGASlowTape
 # define	BuildTOGASlowTape	NO
+#endif
+#ifndef BuildSlowTapeIngest
 # define	BuildSlowTapeIngest	NO
+#endif
+#ifndef BuildTAOIngest
 # define 	BuildTAOIngest		NO
+#endif
+#ifndef Build
 # define	Build_GMS_ISCCP		NO
+#endif
+#ifndef Build
 # define	Build_TRMM_SSMI		NO
+#endif
+#ifndef Build
 # define	Build_TRMM_Rain		NO	/* Sun only		*/
+#endif
+#ifndef Build
 # define	Build_TRMM_Sonde	NO
+#endif
+#ifndef Build
 # define	Build_FEST_P3_C130	NO
+#endif
+#ifndef BuildPrecipIngest
 # define	BuildPrecipIngest	NO
+#endif
+#ifndef BuildDAPIngest
 # define	BuildDAPIngest		NO
+#endif
+#ifndef BuildRAPDataServerIngest
 # define	BuildRAPDataServerIngest NO
+#endif
+#ifndef BuildWetnetIngest
 # define	BuildWetnetIngest	NO
+#endif
 
 /*
  * The PAM ingest programs (pam_ingest and daypam_ingest) require libraries
@@ -42,7 +82,9 @@ XCOMM ================================================================
  * unless your RDSS source tree still contains the compiled mda, pamutil, and
  * unp libraries (i.e., it all built successfully and has not been cleaned).
  */
+#ifndef BuildPamIngest
 # define	BuildPamIngest		NO   /* Requires RDSS compiled tree */
+#endif
 
 /*
  * The data file utilities are the program for handling various file 
@@ -51,7 +93,9 @@ XCOMM ================================================================
  * Unless you know you will need them, you might as well wait and only
  * compile the programs you need when you need them.
  */
+#ifndef BuildDataUtilities
 # define	BuildDataUtilities		NO
+#endif
 
 /* The following 2 libraries will probably need to be explicitly
  * defined here, but ONLY if you need them for ingest modules.
