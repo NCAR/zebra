@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.44 1996-09-05 16:46:40 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.45 1996-09-05 18:50:29 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -351,6 +351,8 @@ char **argv;
 		else if (! strncmp (argv[i], "-version", optlen))
 		{
 			printf ("%s%s\n", Z_version(), Z_cppsymbols());
+			printf ("Message protocol version: %s\n",
+				MSG_PROTO_VERSION);
 			exit (0);
 		}
 		else if (! strncmp (argv[i], "-copyright", optlen))
