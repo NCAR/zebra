@@ -32,7 +32,7 @@
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.14 1992-07-13 15:59:10 pai Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.15 1992-07-13 16:30:38 granger Exp $")
 
 
 /*
@@ -772,6 +772,7 @@ struct cf_window *win;
 	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
 	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
 
+	pd_RPDRelease (rpd);
 	free (dmp);
 }
 
@@ -812,6 +813,7 @@ struct cf_window *win;
 		len);
 	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
 
+	pd_RPDRelease (rpd);
 	free (dmp);
 }
 
