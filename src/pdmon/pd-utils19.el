@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.5 1993-10-22 18:01:36 burghart Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.6 1993-11-06 16:26:13 corbet Exp $"
  "The RCS id")
 
 ;
@@ -337,7 +337,7 @@ available menu.")
 	("data-skip"		"cap"	"track"		pd::ck-int
 	 "Specifies an optional thinning of data for aircraft tracks.  If
 this value is set to N, only one out of every N points will be plotted."
-	 (1 . 100))
+	 (0 . 100))
 
 	("degrade"		"cap"	"vector"	pd::ck-int
 	 "Specifies an optional thinning of vector grid data.  If degrade
