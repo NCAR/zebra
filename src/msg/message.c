@@ -1,7 +1,7 @@
 /*
  * The message handler.
  */
-static char *rcsid = "$Id: message.c,v 1.6 1991-05-30 17:40:00 corbet Exp $";
+static char *rcsid = "$Id: message.c,v 1.7 1991-06-14 22:11:21 corbet Exp $";
 
 # include <stdio.h>
 # include <varargs.h>
@@ -52,6 +52,7 @@ typedef struct connection
 	int	c_bnsend;		/* Bytes sent			*/
 	int	c_nrec;			/* Messages received		*/
 	int	c_bnrec;		/* Bytes received		*/
+	int	c_pid;			/* Process ID			*/
 	char	c_inet;			/* Internet connection		*/
 } Connection;
 Connection *MH_conn;		/* Fake connection for local stuff */
@@ -296,6 +297,7 @@ new_un_connection ()
 	conp->c_nsend = conp->c_bnsend = 0;
 	conp->c_nrec = conp->c_bnrec = 0;
 	conp->c_inet = FALSE;
+	conp->c_pid = 0;
 	strcpy (conp->c_name, "(Unknown)");
 	Fd_map[conn] = conp;
 /*
@@ -348,6 +350,7 @@ NewInConnection ()
 		perror ("Accept error on UNIX socket");
 		exit (1);
 	}
+	setsockopt (conn, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one));
 /*
  * Put together a connection structure, and add it to the queue.
  */
@@ -356,6 +359,7 @@ NewInConnection ()
 	conp->c_nsend = conp->c_bnsend = 0;
 	conp->c_nrec = conp->c_bnrec = 0;
 	conp->c_inet = TRUE;
+	conp->c_pid = 0;
 	strcpy (conp->c_name, "(Unknown)");
 	Fd_map[conn] = conp;
 /*
@@ -572,6 +576,33 @@ struct connection *conp;
 
 
 
+
+int
+CloseInet (host, type, v, junk)
+char *host;
+int type, junk;
+SValue *v;
+/*
+ * Tell this connection to close.
+ */
+{
+	struct mh_template t;
+	struct connection *conn = (struct connection *) v->us_v_ptr;
+	Message msg;
+
+	sprintf (msg.m_to, "%s@%s", MSG_MGR_NAME, host);
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_proto = MT_MESSAGE;
+	msg.m_flags = 0;
+	msg.m_len = sizeof (t);
+	msg.m_data = (char *) &t;
+	t.mh_type = MH_NETCLOSE;
+	send_msg (conn, &msg);
+}
+	
+
+
+
 die ()
 /*
  * Give up the ghost.
@@ -596,6 +627,10 @@ die ()
 	msg.m_data = (char *) &tmpl;
 	tmpl.mh_type = MH_SHUTDOWN;
 	broadcast (&msg, 0);
+/*
+ * Close out network connections.
+ */
+	usy_traverse (Inet_table, CloseInet, 0, FALSE);
 /*
  * Clear out our sockets and quit.
  */
@@ -714,7 +749,20 @@ Message *msg;
 	   case MH_STATS:
 		Stats (Fd_map[fd]);
 		break;
-
+	/*
+	 * Close out an internet connection.
+	 */
+	   case MH_NETCLOSE:
+	   	send_log ("NETCLOSE from %s", msg->m_from);
+		deadconn (fd);
+		break;
+	/*
+	 * Some process reporting it's PID.
+	 */
+	   case MH_PID:
+	   	Fd_map[fd]->c_pid = ((struct mh_pid *) tm)->mh_pid;
+		break;
+ 
 	   default:
 		send_log ("Funky MESSAGE type: %d\n", tm->mh_type);
 		break;
@@ -844,10 +892,7 @@ char *recip;
 	if (! (at = strrchr (recip, '@')))
 	{
 		if (! usy_g_symbol (Proc_table, recip, &type, &v))
-		{
-			send_log ("Message to unknown recipient %s", recip);
 			return (0);
-		}
 		return ((struct connection *) v.us_v_ptr);
 	}
 /*
@@ -873,7 +918,7 @@ char *host;
  * Make a connection to this host.
  */
 {
-	int sock;
+	int sock, one = 1;
 	struct sockaddr_in addr;
 	struct hostent *hp;
 	struct connection *conn;
@@ -908,6 +953,7 @@ char *host;
 		close (sock);
 		return (0);
 	}
+	setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one));
 /*
  * Now we're confident enough to allocate a new connection structure and
  * fill it in.
@@ -1342,9 +1388,9 @@ struct connection *conp;
 		struct connection *c;
 		if (! (c = Fd_map[i]))
 			continue;
-		sprintf (string, " %s '%s' on %d, send %d/%d, rec %d/%d",
+		sprintf (string," %s '%s' on %d (p %d), send %d/%d, rec %d/%d",
 			c->c_inet ? "Internet" : "Process ",
-			c->c_name, i, c->c_nsend, c->c_bnsend,
+			c->c_name, i, c->c_pid, c->c_nsend, c->c_bnsend,
 			c->c_nrec, c->c_bnrec);
 		msg.m_len = strlen (string) + 1;
 		send_msg (conp, &msg);
