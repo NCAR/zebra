@@ -1,4 +1,4 @@
-! $Id: dsdwidget.ad,v 1.5 1996-08-13 21:38:06 granger Exp $
+! $Id: dsdwidget.ad,v 1.6 2004-01-05 18:39:33 granger Exp $
 !
 ! Application defaults file for dsdwidget
 !
@@ -13,7 +13,7 @@
 *form.viewport.allowVert:	true
 *top:		chainTop
 *bottom:	chainTop
-*Box.orientation:	orientVertical
+*Box.orientation:	vertical
 *Box.vSpace:		1
 *die.foreground:	red
 *background:		gray90
