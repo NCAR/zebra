@@ -22,16 +22,27 @@
 # ifdef hpux
 # include <sys/sigevent.h>
 # endif
-# if defined(SVR4) || defined(sgi)
+# if defined(SVR4) || defined(sgi) || defined(__osf__)
 # define USE_STATVFS
 # endif
 
 # include <sys/types.h>
 # ifdef USE_STATVFS
-# include <sys/statvfs.h>
+#  ifdef __osf__
+extern "C" {
+#  endif
+#  include <sys/statvfs.h>
+#  ifdef __osf__
+}
+#  endif
 # else
-# include <sys/vfs.h>
-# endif
+# ifdef AIXV3
+#  include <sys/statfs.h>
+# else
+#  include <sys/vfs.h>
+# endif  /* AIX */
+# endif  /* STATVFS */
+
 # include <sys/stat.h>
 # include <stream.h>
 
@@ -49,7 +60,7 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.9 1997-06-05 15:47:28 granger Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.10 1997-09-18 22:18:08 ishikawa Exp $";
 
 //
 // The data directory class.
