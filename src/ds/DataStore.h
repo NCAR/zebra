@@ -1,10 +1,10 @@
 /*
- * $Id: DataStore.h,v 1.2 1991-01-16 22:06:46 corbet Exp $
+ * $Id: DataStore.h,v 1.3 1991-02-26 19:07:39 corbet Exp $
  *
  * Public data store definitions.
  */
 
-# define MAXFIELD	10	/* Max fields in one data object	*/
+# define MAXFIELD	30	/* Max fields in one data object	*/
 
 /*
  * Possible data organizations.
@@ -32,6 +32,7 @@ typedef struct _IRGrid
 {
 	int	ir_npoint;		/* Number of points in the grid	*/
 	Location *ir_loc;		/* Location array		*/
+	PlatformId *ir_subplats;	/* Subplatform array		*/
 } IRGrid;
 
 /*
@@ -53,6 +54,7 @@ typedef union _Dunion
 {
 	IRGrid	d_irgrid;
 	RGrid	d_rgrid;
+	int	*d_length;		/* Outline length		*/
 } Dunion;
 
 /*
@@ -87,6 +89,17 @@ typedef struct _DataObject
 # define DS_DAEMON_NAME "DS_Daemon"
 
 
+/*
+ * Time specification for ds_DataTimes.
+ */
+typedef enum
+{
+	DsBefore,
+	DsAfter,
+	DsNearest,
+	DsCenter
+} TimeSpec;
+
 /* # define ds_FreeDataObject ds_RealFreeDataObject	/* for now */
 # ifdef __STDC__
 	int		ds_Initialize (void);
@@ -98,6 +111,11 @@ typedef struct _DataObject
 				DataOrganization, double, double);
 	DataObject *	ds_GetObservation (PlatformId, char **, int, time *, 
 				DataOrganization, double, double);
+	void		ds_PutData (DataObject *, int);
+	void		ds_DeleteData (PlatformId, int);
+	void		ds_RequestNotify (PlatformId, int, void (*)());
+	void		ds_CancelNotify (void);
+	int		ds_DataTimes (PlatformId, time *, int,TimeSpec,time *);
 # else
 	int		ds_Initialize ();
 	PlatformId	ds_LookupPlatform ();
@@ -106,6 +124,11 @@ typedef struct _DataObject
 	void		ds_FreeDataObject ();
 	DataObject *	ds_GetData ();
 	DataObject *	ds_GetObservation ();
+	void		ds_PutData ();
+	void		ds_DeleteData ();
+	void		ds_RequestNotify ();
+	void		ds_CancelNotify ();
+	int		ds_DataTimes ();
 # endif
 
 
@@ -122,14 +145,3 @@ ds_Where (DataObject *obj, int sample)
 	return (ds_IsMobile (obj->do_id) ? obj->do_aloc+sample : &obj->do_loc);
 }
 
-
-/*
- * Time specification for ds_DataTimes.
- */
-typedef enum
-{
-	DsBefore,
-	DsAfter,
-	DsNearest,
-	DsCenter
-} TimeSpec;
