@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.15 1999-10-20 05:20:27 granger Exp $
+# $Id: zplotbatch,v 1.16 1999-11-06 01:22:38 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -148,7 +148,7 @@ while read when config windows; do
     # For each process, tell it to dump its plot
 
     # JOSS filenames: platform.YYYYMMDDHHmm.plottype.{jpg,gif}
-    # We're sticking with gif for now
+    # But we're using PNG instead
     # Derive the image name from the plot time
     set `ztsplit $when`
     base="${config}.$1$2$3$4$5."
@@ -168,17 +168,21 @@ while read when config windows; do
 	# If we have specific targets, skip this window if it's not one of them
 	if test "$windows" = "" || echo "$windows" | egrep -s "$win"; then
 
-	    name="$subspool/${base}${win}.gif"
-	    /bin/rm -f "$name"
+	    name="$subspool/${base}${win}"
+	    /bin/rm -f "${name}.xwd" "${name}.png"
 
-	    # Form the gif file name by extracting the plot name from the
-	    # process. An alternative is to grep the pd-name from a zquery of
-	    # the process, which includes the config name.  For now we can
-	    # prepend the config here.
+	    # Form the file name by extracting the plot name from the
+	    # process. An alternative is to grep the pd-name from a zquery
+	    # of the process, which includes the config name.  For now we
+	    # can prepend the config here.
 
-	    images="$images $name"
-	    (set -x; zrun $plot "imgdump gif \"$name\"" ; set +x ; sleep 5 ; \
-	     zquery -t 30 $plot >/dev/null ; disclaim $name) &
+	    images="$images ${name}.png"
+	    (set -x; zrun $plot "imgdump xwd \"${name}.xwd\"" ; \
+	     set +x ; sleep 5 ; \
+	     zquery -t 30 $plot >/dev/null ; \
+	     convert "${name}.xwd" "${name}.png" ; \
+	     /bin/rm -f "${name}.xwd" ; \
+	     disclaim "${name}.png" ) &
 	    queryprocs="$queryprocs $plot"
 
 	fi
