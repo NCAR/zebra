@@ -2,7 +2,7 @@
  * Consume images into the data store.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 1.2 1991-06-14 22:24:06 corbet Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.0 1991-07-18 23:18:20 corbet Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -123,14 +123,14 @@ int set;
 	Location loc;
 	time t;
 	ScaleInfo scale[2];
-	char *images[4];
+	char *images[4], attr;
 	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
 /*
  * Grab it.
  */
 	if (! IX_GetReadFrame (ShmDesc, set, images, &t, &rg, &loc, scale,
-			&xmin, &ymin, &xmax, &ymax))
+			&xmin, &ymin, &xmax, &ymax, &attr))
 	{
 		msg_ELog (EF_PROBLEM, "Can't get promised set %d", set);
 		return;
@@ -156,15 +156,19 @@ int set;
 	for (i = 0; i < OutData.do_nfield; i++)
 		OutData.do_data[i] = (float *) (images[i] + offset);
 /*
- * Send it.
+ * Send it, but only if there's something real.
  */
-	ds_PutData (&OutData, PrevAlt > loc.l_alt);
+	if (ymin < ymax)
+		ds_PutData (&OutData, PrevAlt > loc.l_alt);
+	else
+		msg_ELog (EF_INFO, "Dropping empty image");
 	PrevAlt = loc.l_alt;
 /*
  * Clear and return the frames.
  */
 	for (i = 0; i < OutData.do_nfield; i++)
 		memset (images[i] + ymin*XRes, 0xff, (ymax - ymin + 1)*XRes);
+	msg_ELog (EF_INFO, "Release set %d", set);
 	IX_ReleaseFrame (ShmDesc, set);
 }
 

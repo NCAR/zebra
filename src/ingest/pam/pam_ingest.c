@@ -14,7 +14,7 @@
 # include <mda.h>
 # include <station.h>
 
-static char *rcsid = "$Id: pam_ingest.c,v 1.2 1991-07-08 17:05:32 burghart Exp $";
+static char *rcsid = "$Id: pam_ingest.c,v 2.0 1991-07-18 23:20:21 corbet Exp $";
 
 # ifdef __STDC__
 	static int incoming (struct message *);
@@ -54,6 +54,7 @@ typedef enum
 struct
 {
 	modtype	mod;	/* Modification to apply		*/
+	field	mfld;	/* id of field needed for mod		*/
 	int	offset;	/* time offset (hhmm) for RainAccum and RainRate */
 	float	refalt;	/* reference altitude for PresCorr	*/
 } Mods[40];

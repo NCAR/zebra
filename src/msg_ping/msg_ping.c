@@ -1,7 +1,7 @@
 /*
  * Exercise the "ping" feature.
  */
-static char *rcsid = "$Id: msg_ping.c,v 1.2 1991-05-30 17:40:45 corbet Exp $";
+static char *rcsid = "$Id: msg_ping.c,v 2.0 1991-07-18 23:15:57 corbet Exp $";
 
 # include "../include/defs.h"
 # include "message.h"

@@ -1,7 +1,7 @@
 /*
  * Time widget code.
  */
-static char *rcsid = "$Id: twidget.c,v 1.1 1990-07-08 13:06:28 corbet Exp $";
+static char *rcsid = "$Id: twidget.c,v 2.0 1991-07-18 23:07:02 corbet Exp $";
 
 # include <sys/types.h>
 # include <X11/Intrinsic.h>

@@ -1,7 +1,7 @@
 /*
  * Network broadcast code.
  */
-static char *rcsid = "$Id: msg_BCast.c,v 1.2 1991-06-14 22:11:41 corbet Exp $";
+static char *rcsid = "$Id: msg_BCast.c,v 2.0 1991-07-18 23:15:57 corbet Exp $";
 
 # include "../include/defs.h"
 # include "message.h"

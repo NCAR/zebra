@@ -42,12 +42,17 @@ struct EMMap
 };
 
 
+/*
+ * Keep things from getting too big.
+ */
+# define MAXCHAR	5000	/* This is too big	*/
+# define TRIMCHAR	3000	/* Trim back to this	*/
 
 /*
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 1.4 1991-04-11 20:42:39 corbet Exp $\n";
+static char *Initmsg = "$Id: EventLogger.c,v 2.0 1991-07-18 23:07:02 corbet Exp $\n";
 
 /*
  * Our widgets.
@@ -83,6 +88,13 @@ Pixmap Check;
 FILE *Log_file;
 # endif
 
+char *Mother = 0;
+
+# ifdef __STDC__
+	void	SendToMother (struct msg_elog *, char *);
+# else
+	void	SendToMother ();
+# endif
 
 
 main (argc, argv)
@@ -116,6 +128,11 @@ char **argv;
 	Check = XCreateBitmapFromData (XtDisplay (Top),
 		RootWindowOfScreen (XtScreen (Top)), Check_bits,
 		check_width, check_height);
+/*
+ * If there is an argument left, it's somebody to send problems to.
+ */
+	if (argc > 1)
+		Mother = argv[1];
 /*
  * Create our shell.
  */
@@ -223,9 +240,6 @@ Widget w;
 {
 	Widget pulldown, sme;
 	int i, ev_popup_cb ();
-# ifdef titan
-	int ev_SetChecks ();
-# endif
 	Arg args[2];
 /*
  * Make the pulldown.
@@ -239,47 +253,16 @@ Widget w;
 	XtSetArg (args[0], XtNleftMargin, check_width + 7);
 	for (i = 0; EMap[i].em_flag; i++)
 	{
-#ifdef titan
-		XtSetArg (args[1], XtNleftBitmap, None);
-# else
 		XtSetArg (args[1], XtNleftBitmap,
 			EMap[i].em_flag & Emask ? Check : None);
-# endif
 		EMap[i].em_w = w = XtCreateManagedWidget (EMap[i].em_name,
 			smeBSBObjectClass, pulldown, args, 2);
 		XtAddCallback (w, XtNcallback, ev_popup_cb, i);
 	}
-# ifdef titan
-/*
- * Throw in the callback to set the checks.
- */
-	XtAddCallback (pulldown, XtNpopupCallback, ev_SetChecks, pulldown);
-# endif
 }
 
 
 
-# ifdef titan
-
-ev_SetChecks (w, junk1, junk2)
-Widget w;
-XtPointer junk1, junk2;
-/*
- * Set all of the checkmarks on the items.
- */
-{
-	Arg args[2];
-	int i;
-/*
- * Tweak the bitmaps.
- */
-	XtSetArg (args[0], XtNleftBitmap, Check);
-	for (i = 0; EMap[i].em_flag; i++)
-		if (EMap[i].em_flag & Emask)
-			XtSetValues (EMap[i].em_w, args, 1);
-}
-
-# endif
 
 
 ev_popup_cb (w, index, junk)
@@ -390,6 +373,12 @@ struct message *msg;
 			if ((nsend++ % 15) == 0)
 				SendEMask ();
 		}
+	/*
+	 * Things in the PROBLEM and EMERGENCY classes get sent back to 
+	 * mother.
+	 */
+		if (Mother && el->el_flag & (EF_PROBLEM | EF_EMERGENCY))
+			SendToMother (el, msg->m_from);
 		return (0);
 	}
 /*
@@ -455,11 +444,22 @@ char code, *from, *msg;
 	XtSetArg (args[0], XtNeditType, XawtextAppend);
 	XtSetValues (Text, args, 1);
 	XawTextReplace (Text, Buflen, Buflen, &tb);
+/*
+ * If this is getting too big, trim it back.
+ */
+	if ((Buflen += strlen (fmtbuf)) > MAXCHAR)
+	{
+		tb.firstPos = tb.length = 0;
+		XawTextReplace (Text, 0, Buflen - TRIMCHAR, &tb);
+		Buflen = TRIMCHAR;
+	}
+/*
+ * Update.
+ */
 	XtSetArg (args[0], XtNeditType, XawtextRead);
 	XtSetValues (Text, args, 1);
 	XawTextDisplay (Text);
 	sync ();
-	Buflen += strlen (fmtbuf);
 	XawTextSetInsertionPoint (Text, Buflen);
 }
 
@@ -619,4 +619,33 @@ SendEMask ()
 
 	flag = Emask | EF_SETMASK;
 	msg_send ("Everybody", MT_ELOG, TRUE, &flag, sizeof (flag));
+}
+
+
+
+
+
+void
+SendToMother (el, from)
+struct msg_elog *el;
+char *from;
+/*
+ * Problem messages go back to the data store.
+ */
+{
+	int i;
+	char code;
+	char line[1000];
+/*
+ * Get a code.
+ */
+	for (i = 0; EMap[i].em_flag; i++)
+		if (EMap[i].em_flag & el->el_flag)
+			code = EMap[i].em_code;
+/*
+ * Put together a message.
+ */
+	sprintf (line, " %c %s %s", code, from, el->el_text);
+	msg_send ("Event Logger@data-store", MT_LOG, FALSE, line,
+			strlen (line) + 1);
 }

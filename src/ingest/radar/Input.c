@@ -1,7 +1,7 @@
 /*
  * Deal with getting radar beams into the system.
  */
-static char *rcsid = "$Id: Input.c,v 1.3 1991-06-14 22:22:08 corbet Exp $";
+static char *rcsid = "$Id: Input.c,v 2.0 1991-07-18 23:18:20 corbet Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>

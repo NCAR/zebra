@@ -1,7 +1,7 @@
 /*
  * Time conversions and other utilities.
  */
-static char *rcsid = "$Id: TCvt.c,v 1.1 1990-11-21 11:07:14 corbet Exp $";
+static char *rcsid = "$Id: TCvt.c,v 2.0 1991-07-18 23:07:02 corbet Exp $";
 
 # include "defs.h"
 # include <sys/types.h>

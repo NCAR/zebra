@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.8 1991-06-14 22:11:57 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 2.0 1991-07-18 23:15:57 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
@@ -376,7 +376,7 @@ int fd;
  */
 {
 	static struct message msg;
-	static char data[4096];	/* XXX */
+	static char data[20480];	/* XXX */
 /*
  * Read in the message, and possibly any extra text.
  */
@@ -613,7 +613,8 @@ va_dcl
  * Extended message logging.
  */
 {
-	struct msg_elog el;
+	struct msg_elog *el;
+	static char cbuf[10000];
 	va_list args;
 	char *fmt;
 /*
@@ -624,15 +625,17 @@ va_dcl
 /*
  * Print up our message.
  */
+	el = (struct msg_elog *) cbuf;
 	va_start (args);
 	fmt = va_arg (args, char *);
-	vsprintf (el.el_text, fmt, args);
+	vsprintf (el->el_text, fmt, args);
 	va_end (args);
 /*
  * Send it.
  */
-	el.el_flag = flags;
-	msg_send ("Event logger", MT_ELOG, 0, &el, sizeof (el));
+	el->el_flag = flags;
+	msg_send ("Event logger", MT_ELOG, 0, el,
+		sizeof (*el) + strlen (el->el_text));
 }
 
 

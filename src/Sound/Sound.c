@@ -1,7 +1,7 @@
 /*
  * Send sound files to the audio port.
  */
-static char *rcsid = "$Id: Sound.c,v 1.3 1991-07-18 23:05:48 corbet Exp $";
+static char *rcsid = "$Id: Sound.c,v 2.0 1991-07-18 23:07:02 corbet Exp $";
 # include <sys/types.h>
 # include <unistd.h>
 # include <fcntl.h>

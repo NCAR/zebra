@@ -1,7 +1,7 @@
 /*
  * Ingest radar data and rasterize it.
  */
-static char *rcsid = "$Id: radar_ingest.c,v 1.4 1991-06-14 22:24:06 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.0 1991-07-18 23:18:20 corbet Exp $";
 
 # include <errno.h>
 # include <sys/time.h>
@@ -387,10 +387,10 @@ Go ()
 
 
 void
-OutputSweep (bt, alt, newvol)
+OutputSweep (bt, alt, newvol, left, right, up, down, mode)
 time *bt;
 float alt;
-int newvol;
+int newvol, left, right, up, down, mode;
 /*
  * Put this sweep out.
  */
@@ -399,6 +399,8 @@ int newvol;
 	int i;
 	RGrid rg;
 	Location loc;
+	time t;
+	char attr[100];
 /*
  * Radars tend to record in local time; make the move over to GMT now.
  */
@@ -416,14 +418,22 @@ int newvol;
 	cvt_ToLatLon (-XRadar/PixScale, -YRadar/PixScale, &loc.l_lat,
 			&loc.l_lon);
 	loc.l_alt = alt;
-	IX_SendFrame (ShmDesc, ImageSet, bt, &rg, &loc, Scale, 0, 0, XRes - 1,
-			YRes - 1);
+/*
+ * Figure out attributes.
+ */
+	strcpy (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");
+/*
+ * Force time -- we know better than they do.
+ */
+	tl_GetTime (&t);
+	IX_SendFrame (ShmDesc, ImageSet, &t, &rg, &loc, Scale, left, up,
+			right, down, attr);
 	ImageSet = -1;
 /*
  * Say something, and make the display show what we've done.
  */
 	ui_printf (" Output %s at %d %06d alt %.2f new %c\n", PlatformName,
-		bt->ds_yymmdd, bt->ds_hhmmss, alt, newvol ? 't' : 'f');
+		t.ds_yymmdd, t.ds_hhmmss, alt, newvol ? 't' : 'f');
 }
 
 

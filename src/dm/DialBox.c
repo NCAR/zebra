@@ -1,7 +1,7 @@
 /*
  * Deal with the titan dial box.
  */
-static char *rcsid = "$Id: DialBox.c,v 1.2 1990-07-08 12:59:02 corbet Exp $";
+static char *rcsid = "$Id: DialBox.c,v 2.0 1991-07-18 23:11:58 corbet Exp $";
 
 # ifdef titan
 

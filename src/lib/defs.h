@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 1.3 1991-04-28 17:37:21 corbet Exp $ */
+/* $Id: defs.h,v 2.0 1991-07-18 23:07:02 corbet Exp $ */
 # ifndef _DEFS_H_
 # define _DEFS_H_
 
@@ -37,6 +37,10 @@ typedef struct s_Location
 	int InterpDTime (char *);
 	void TC_SysToFcc (long, time *);
 	long TC_FccToSys (time *);
+	void	RL_Encode (unsigned char *, unsigned char *, int, int, 
+			int *, int *);
+	void 	RL_Decode (unsigned char *, unsigned char *const, int);
+	int	CommaParse (char *, char **);
 # else
 	char *malloc ();
 	char *realloc ();
@@ -45,6 +49,9 @@ typedef struct s_Location
 	int InterpDTime ();
 	void TC_SysToFcc ();
 	long TC_FccToSys ();
+	void	RL_Encode ();
+	void 	RL_Decode ();
+	int	CommaParse ();
 # endif
 
 

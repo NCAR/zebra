@@ -1,12 +1,13 @@
 /*
  * The message handler.
  */
-static char *rcsid = "$Id: message.c,v 1.7 1991-06-14 22:11:21 corbet Exp $";
+static char *rcsid = "$Id: message.c,v 2.0 1991-07-18 23:15:57 corbet Exp $";
 
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
 # include <netdb.h>
+# include <fcntl.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <sys/un.h>
@@ -25,7 +26,8 @@ static char *rcsid = "$Id: message.c,v 1.7 1991-06-14 22:11:21 corbet Exp $";
 static stbl Proc_table;		/* Lookup table for processes	*/
 static stbl Group_table;	/* Table for groups.		*/
 static stbl Inet_table;		/* Internet connections		*/
-
+static stbl InetGripeTable;	/* Inet complaint limiter	*/
+static stbl InetAvoidTable;	/* Machines which time out and slow us down */
 /*
  * The master sockets for incoming connections.
  */
@@ -37,10 +39,31 @@ static int M_in_socket;		/* Internet domain socket	*/
  * in.
  */
 static fd_set Allfds;
+static fd_set WriteFds;
+static int NWriteFd = 0, MaxWriteFd = 0;
 static int Port = DEFAULT_PORT;
 
 static int Dying = FALSE;
 
+/*
+ * The delayed write queue.
+ */
+typedef struct _DWrite
+{
+	int	dw_nbyte;		/* Length of the write		*/
+	int	dw_nsent;		/* How much already sent	*/
+	char	*dw_data;		/* The actual data		*/
+	struct _DWrite *dw_next;	/* Next link in queue		*/
+} DWrite;
+
+/*
+ * Delayed write parameters -- where we gripe, and where we start dropping
+ * messages.  These are pretty generous.
+ */
+# define DWGRIPE	 50000
+# define DWDROP		250000
+
+# define INETCTIME	2	/* How long we wait for inet connections */
 /*
  * This structure describes a connection.
  */
@@ -53,7 +76,14 @@ typedef struct connection
 	int	c_nrec;			/* Messages received		*/
 	int	c_bnrec;		/* Bytes received		*/
 	int	c_pid;			/* Process ID			*/
+	Message c_msg;			/* Incoming message		*/
+	short	c_nread;		/* How much has been read	*/
+	char	c_inprog;		/* Read in progress		*/
 	char	c_inet;			/* Internet connection		*/
+	DWrite	*c_dwrite;		/* The delayed write chain	*/
+	DWrite	*c_dwtail;		/* The end of same		*/
+	int	c_ndwrite;		/* How much dwrite data		*/
+	char	c_griped;		/* Have we griped?		*/
 } Connection;
 Connection *MH_conn;		/* Fake connection for local stuff */
 
@@ -83,7 +113,7 @@ char Hostname[40];
  * Global statistics.
  */
 static int S_nmessage = 0, S_bnmessage = 0, S_nbcast = 0, S_bnbcast = 0;
-static int S_npipe = 0, S_ndisc = 0;
+static int S_npipe = 0, S_ndisc = 0, S_NDRead = 0, S_NDWrite = 0;
 
 
 
@@ -98,6 +128,10 @@ static int S_npipe = 0, S_ndisc = 0;
 	void	FixAddress (Message *);
 	void	MsgProtocol (int, Message *);
 	void	AnswerPing (int, Message *);
+	static	Message *ReadMessage (int);
+	static void DelayWrite (Connection *, struct iovec *, int, int);
+	static void DoDelayedWrite (fd_set *);
+	static int TryWrite (Connection *);
 # else
 	struct connection *FindRecipient ();
 	struct connection *MakeConnection ();
@@ -106,6 +140,10 @@ static int S_npipe = 0, S_ndisc = 0;
 	void	FixAddress ();
 	void	MsgProtocol ();
 	void	AnswerPing ();
+	static	Message *ReadMessage ();
+	static void DelayWrite ();
+	static void DoDelayedWrite ();
+	static int TryWrite ();
 # endif
 
 
@@ -115,7 +153,7 @@ main ()
 {
 	int conn, nb;
 	char msg[120], *host, *getenv ();
-	fd_set fds;
+	fd_set fds, wfds;
 	int psig ();
 /*
  * Create our symbol tables.
@@ -124,6 +162,8 @@ main ()
 	Proc_table = usy_c_stbl ("Process_table");
 	Group_table = usy_c_stbl ("Group_table");
 	Inet_table = usy_c_stbl ("Inet_table");
+	InetGripeTable = usy_c_stbl ("InetGripeTable");
+	InetAvoidTable = usy_c_stbl ("InetAvoidTable");
 	signal (SIGPIPE, psig);
 /*
  * Create Unix and Internet sockets.
@@ -154,9 +194,19 @@ main ()
 	 * Do a select, waiting for something to happen.
 	 */
 		fds = Allfds;
-		nsel = select (Nfd, &fds, (fd_set *) 0, (fd_set *) 0,
+		if (NWriteFd)
+		{
+			wfds = WriteFds;
+			nsel = select (Nfd, &fds, &wfds, (fd_set *) 0,
+					(char *) 0);
+		}
+		else
+			nsel = select (Nfd, &fds, (fd_set *) 0, (fd_set *) 0,
 				(char *) 0);
-		if (nsel < 0)
+	/*
+	 * See what happened.
+	 */
+		if (nsel < 0 && errno != EINTR)
 		{
 			perror ("Select");
 			exit (1);	/* XXX */
@@ -179,6 +229,11 @@ main ()
 			NewInConnection ();
 			nsel--;
 		}
+	/*
+	 * If we are writing, try to drain our output now.
+	 */
+	 	if (NWriteFd)
+			DoDelayedWrite (&wfds);
 	/*
 	 * See if we have data coming in from somewhere.
 	 */
@@ -231,6 +286,7 @@ MakeInetSocket ()
 {
 	struct servent *service;
 	struct sockaddr_in saddr;
+	int ntry = 0;
 /*
  * Try to look up our port number.
  */
@@ -251,14 +307,31 @@ MakeInetSocket ()
 /*
  * Fill in the address info, and bind to this port.
  */
+again:
 	saddr.sin_family = AF_INET;
 	saddr.sin_addr.s_addr = INADDR_ANY;
 	saddr.sin_port = Port;
 	if (bind (M_in_socket, (struct sockaddr *) &saddr, sizeof (saddr)) < 0)
 	{
+	/*
+	 * If we get an address in use message, wait and try again.  If 
+	 * we've recently shut down and restarted, these obnoxious things
+	 * can hang around for a while.
+	 */
+	 	if (errno == EADDRINUSE)
+		{
+			if (ntry++ == 0)
+				printf ("Waiting for IN socket to clear");
+			printf (".");
+			fflush (stdout);
+			sleep (5);
+			goto again;
+		}
 		perror ("IN Socket bind");
 		M_in_socket = -1;
 	}
+	if (ntry)
+		printf ("\n");
 /*
  * Tell them we're ready.
  */
@@ -297,7 +370,8 @@ new_un_connection ()
 	conp->c_nsend = conp->c_bnsend = 0;
 	conp->c_nrec = conp->c_bnrec = 0;
 	conp->c_inet = FALSE;
-	conp->c_pid = 0;
+	conp->c_griped = conp->c_ndwrite = conp->c_inprog = conp->c_pid = 0;
+	conp->c_dwrite = conp->c_dwtail = 0;
 	strcpy (conp->c_name, "(Unknown)");
 	Fd_map[conn] = conp;
 /*
@@ -309,9 +383,7 @@ new_un_connection ()
 /*
  * Mark this thing for nonblocking I/O.
  */
-# ifdef notdef
- 	ioctl (conn, FIONBIO, &one);
-# endif
+	fcntl (conn, F_SETFL, FNDELAY);
 /*
  * Put together a greeting and send it out.
  */
@@ -359,7 +431,8 @@ NewInConnection ()
 	conp->c_nsend = conp->c_bnsend = 0;
 	conp->c_nrec = conp->c_bnrec = 0;
 	conp->c_inet = TRUE;
-	conp->c_pid = 0;
+	conp->c_griped = conp->c_ndwrite = conp->c_inprog = conp->c_pid = 0;
+	conp->c_dwrite = conp->c_dwtail = 0;
 	strcpy (conp->c_name, "(Unknown)");
 	Fd_map[conn] = conp;
 /*
@@ -371,9 +444,7 @@ NewInConnection ()
 /*
  * Mark this thing for nonblocking I/O.
  */
-# ifdef notdef
- 	ioctl (conn, FIONBIO, &one);
-# endif
+	fcntl (conn, F_SETFL, FNDELAY);
 /*
  * Put together a greeting and send it out.
  */
@@ -402,6 +473,7 @@ struct message *msgp;
  */
 {
 	struct iovec iov[2];
+	int nwrote, nwant;
 /*
  * If this message is going out over the net, we need to append
  * our identity to the from field.
@@ -425,14 +497,26 @@ struct message *msgp;
 	conp->c_bnrec += msgp->m_len;
 	S_nmessage++;
 	S_bnmessage += msgp->m_len;
+	nwant = iov[0].iov_len + iov[1].iov_len;
 /*
- * Now write it.
+ * Now write it.  Careful: if there is already a delayed write queue, we
+ * just add to it.
  */
-	if (writev (conp->c_fd, iov, 2) < 0)
+	if (conp->c_dwrite)
+		DelayWrite (conp, iov, 2, 0);
+	else if ((nwrote = writev (conp->c_fd, iov, 2)) == nwant)
+		return;
+	else if (errno == EWOULDBLOCK)
+		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
+	else if (errno == ECONNREFUSED)	/* weird */
+	{
+		send_log ("ConRefused status on %s", conp->c_name);
+		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
+	}
+	else
 	{
 		deadconn (conp->c_fd);
-		send_log ("Write failed for %s, errno %d", conp->c_name,
-			errno);
+		send_log ("Write failed for %s, errno %d",conp->c_name, errno);
 	}
 }
 
@@ -440,6 +524,179 @@ struct message *msgp;
 
 
 
+static void
+DelayWrite (conp, iov, niov, nwrote)
+Connection *conp;
+struct iovec *iov;
+int niov, nwrote;
+/*
+ * Save up some data which couldn't make it.
+ */
+{
+	DWrite *dwp;
+/*
+ * Check how much stuff is building up here.
+ */
+	if (conp->c_ndwrite > DWGRIPE && ! conp->c_griped)
+	{
+		conp->c_griped = TRUE;
+		send_log (" WARNING: Proc %s not reading messages",
+			conp->c_name);
+	}
+	else if (conp->c_ndwrite > DWDROP)
+		return;	/* alas */
+/*
+ * Skip past iovecs which were completely written.
+ */
+	/*send_log ("DWRITE %d, iov %d wrote %d", conp->c_fd, niov, nwrote);*/
+	while (nwrote >= iov->iov_len)
+	{
+		/*send_log ("Skip %d", iov->iov_len);*/
+		if (nwrote == iov->iov_len)
+			send_log ("DWrite IOV equal case");
+		nwrote -= iov->iov_len;
+		iov++;
+		niov--;
+	}
+/*
+ * Now save each one which remains.
+ */
+	while (niov > 0)
+	{
+	/*
+	 * Get the space.
+	 */
+		dwp = ALLOC (DWrite);
+		dwp->dw_nbyte = iov->iov_len - nwrote;
+		dwp->dw_data = malloc (dwp->dw_nbyte);
+		dwp->dw_nsent = 0;
+		dwp->dw_next = 0;
+	/*
+	 * Move over the data and put it into the chain.
+	 */
+		memcpy (dwp->dw_data, iov->iov_base + nwrote, dwp->dw_nbyte);
+		if (conp->c_dwrite)
+			conp->c_dwtail->dw_next = dwp;
+		else
+			conp->c_dwrite = dwp;
+		conp->c_dwtail = dwp;
+		conp->c_ndwrite += dwp->dw_nbyte;
+	/*send_log ("Save %d -> %d", iov->iov_len - nwrote, conp->c_ndwrite);*/
+	/*
+	 * Onward.
+	 */
+	 	iov++;
+		niov--;
+		nwrote = 0;
+	}
+/*
+ * Make sure that we will write here when the opportunity arises.
+ */
+	if (! FD_ISSET (conp->c_fd, &WriteFds))
+	{
+		FD_SET (conp->c_fd, &WriteFds);
+		NWriteFd++;
+		if (conp->c_fd > MaxWriteFd)
+			MaxWriteFd = conp->c_fd;
+	}
+	S_NDWrite++;
+}
+
+
+
+
+
+
+static void
+DoDelayedWrite (fds)
+fd_set *fds;
+/*
+ * Try to execute delayed writes.
+ */
+{
+	int fd;
+/*
+ * Pass through the list of fds.
+ */
+	for (fd = 4; fd <= MaxWriteFd; fd++)
+	{
+		Connection *cp;
+	/*
+	 * See if we can write here.
+	 */
+		if (! Fd_map[fd] || ! FD_ISSET (fd, fds))
+			continue;
+		cp = Fd_map[fd];
+	/*
+	 * Give it a go.
+	 */
+		while (cp->c_dwrite)
+			if (! TryWrite (cp))
+				break;
+	/*
+	 * If there is no more writing to be done here, clear out the
+	 * info.
+	 */
+		/*send_log ("%d left on %d", cp->c_ndwrite, cp->c_fd);*/
+	 	if (! cp->c_dwrite)
+		{
+			FD_CLR (cp->c_fd, &WriteFds);
+			NWriteFd--;
+			cp->c_griped = FALSE;
+		}
+	}
+}
+
+
+
+
+
+
+static int
+TryWrite (cp)
+Connection *cp;
+/*
+ * Try to do a write on this connection.
+ */
+{
+	int nwrote, nwant;
+	DWrite *dw = cp->c_dwrite;
+/*
+ * Just try.
+ */
+	nwant = dw->dw_nbyte - dw->dw_nsent;
+	/*send_log ("TRY %d at %d on %d", nwant, dw->dw_nsent, cp->c_fd);*/
+	if ((nwrote = write (cp->c_fd, dw->dw_data + dw->dw_nsent, nwant))
+				== nwant)
+	{
+		cp->c_dwrite = dw->dw_next;
+		cp->c_ndwrite -= nwant;
+		free (dw->dw_data);
+		free (dw);
+		return (TRUE);
+	}
+/*
+ * No go.  If this is another WOULDBLOCK error, we make a note of what we
+ * were able to get rid of and wait again.
+ */
+	if (errno == EWOULDBLOCK)
+	{
+		if (nwrote > 0)
+		{
+			cp->c_ndwrite -= nwrote;
+			dw->dw_nsent += nwrote;
+		}
+	}
+/*
+ * If it's dead, we assume that it will be taken care of later.
+ */
+	else
+	{
+		FD_CLR (cp->c_fd, &WriteFds);
+		NWriteFd--;
+	}
+	return (FALSE);
+}
 
 
 
@@ -451,8 +708,7 @@ fd_set *fds;
  * Deal with an incoming message.
  */
 {
-	struct message msg;
-	char data[4096];	/* XXX */
+	Message *msg;
 	int fd, nb;
 /*
  * Pass through the list of file descriptors.
@@ -466,37 +722,80 @@ fd_set *fds;
 			continue;
 		nsel--;
 	/*
-	 * Pull in the message.
+	 * Bring in the message, and dispatch it if it's all here.
 	 */
-		nb = msg_netread (fd, &msg, sizeof (struct message));
+	 	if (msg = ReadMessage (fd))
+		{
+			FixAddress (msg);
+			Fd_map[fd]->c_nsend++;
+			Fd_map[fd]->c_bnsend += msg->m_len;
+			dispatch (fd, msg);
+		}
+	}
+}
+
+
+
+
+
+static Message *
+ReadMessage (fd)
+int fd;
+/*
+ * Pull in a piece of a message from this source.
+ */
+{
+	static char data[500000];	/* XXX */
+	Connection *cp = Fd_map [fd];
+	struct message *msg = &cp->c_msg;
+	int nb;
+/*
+ * If there is not currently a read in progress, we will read in a
+ * message header.  The header is short enough that we assume we can
+ * pull it in with one read.
+ */
+	if (! cp->c_inprog)
+	{
+/*		nb = msg_netread (fd, msg, sizeof (struct message)); */
+		nb = msg_XX_netread (fd, msg, sizeof (struct message));
 	/*
 	 * If we get nothing, the connection has been broken.
 	 */
-		if (nb <= 0)
+		if (nb < sizeof (struct message))
 		{
+			if (nb > 0)
+				send_log ("Short message (%d) from %s", nb,
+					Fd_map[fd]->c_name);
 			deadconn (fd);
-			continue;
+			return (0);
 		}
-		else if (nb < sizeof (struct message))
-			send_log ("Short message (%d) from %s", nb,
-				Fd_map[fd]->c_name);
+		if (msg->m_len < 0 || msg->m_len > 50000)
+		{
+			send_log ("CORRUPT msg, len %d from %s", msg->m_len,
+				msg->m_from);
+			return (0);
+		}
 	/*
-	 * Pull in the message text.
+	 * Set up for the rest.
 	 */
-		msg.m_data = data;
-		(void) msg_netread (fd, data, msg.m_len);
-	/*
-	 * Fix the dest address.
-	 */
-	 	FixAddress (&msg);
-	/*
-	 * Deal with this message.
-	 */
-		Fd_map[fd]->c_nsend++;
-		Fd_map[fd]->c_bnsend += msg.m_len;
-	 	dispatch (fd, &msg);
+		msg->m_data = malloc (msg->m_len);
+		cp->c_inprog = TRUE;
+		cp->c_nread = 0;
 	}
+/*
+ * Pull in the message text.
+ */
+	cp->c_nread += msg_netread (fd, msg->m_data + cp->c_nread,
+			msg->m_len - cp->c_nread);
+	if (cp->c_nread >= msg->m_len)
+	{
+		cp->c_inprog = FALSE;
+		return (msg);
+	}
+	S_NDRead++;
+	return (0);
 }
+
 
 
 
@@ -543,6 +842,7 @@ int fd;
 	FD_CLR (fd, &Allfds);
 	free ((char *) Fd_map[fd]);
 	Fd_map[fd] = 0;
+	shutdown (fd, 2);
 	close (fd);
 }
 
@@ -684,6 +984,7 @@ struct message *msg;
 		route (fd, msg);
 		break;
 	}
+	free (msg->m_data);
 }
 
 
@@ -810,6 +1111,11 @@ struct message *msg;
 	 	add_to_group (conp, "Everybody", 0);
 		ack (conp, msg);
 	}
+	else if (usy_defined (InetAvoidTable, conp->c_name))
+	{
+		send_log ("%s woke up", conp->c_name);
+		usy_z_symbol (InetAvoidTable, conp->c_name);
+	}
 /*
  * Finally, send out the client event for those who are interested.
  */
@@ -909,6 +1215,11 @@ char *recip;
 
 
 
+static void
+Alarm ()
+{
+	send_log ("Got alarm");
+}
 
 
 struct connection *
@@ -926,6 +1237,11 @@ char *host;
 	struct message msg;
 	SValue v;
 /*
+ * See if we don't want to deal with this host at all.
+ */
+	if (usy_defined (InetAvoidTable, host))
+		return (0);
+/*
  * Look up the name of the host to connect to.
  */
 	if (! (hp = gethostbyname (host)))
@@ -942,6 +1258,11 @@ char *host;
 		return (0);
 	}
 /*
+ * Set up a timeout for this connection.
+ */
+	signal (SIGALRM, Alarm);
+	alarm (INETCTIME);
+/*
  * Fill in the sockaddr structure, and try to make the connection.
  */
 	memcpy (&addr.sin_addr, hp->h_addr, hp->h_length);
@@ -949,11 +1270,28 @@ char *host;
 	addr.sin_port = Port;
 	if (connect (sock, (struct sockaddr *) &addr, sizeof (addr)) < 0)
 	{
-		send_log ("Error %d connecting to host %s", errno, host);
+		SValue v;
+		if (errno == EINTR)	/* timeout */
+		{
+			send_log ("Timeout -- avoiding %s", host);
+			usy_s_symbol (InetAvoidTable, host, SYMT_INT, &v);
+		}
+		if (! usy_defined (InetGripeTable, host))
+		{
+			send_log("Error %d connecting to host %s",errno, host);
+			usy_s_symbol (InetGripeTable, host, SYMT_INT, &v);
+		}
 		close (sock);
+		alarm (0);
 		return (0);
 	}
 	setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one));
+	alarm (0);
+/*
+ * Mark this thing for nonblocking I/O.
+ */
+	if (fcntl (sock, F_SETFL, FNDELAY) < 0)
+		send_log ("Error %d doing FNDELAY for %s", errno, host);
 /*
  * Now we're confident enough to allocate a new connection structure and
  * fill it in.
@@ -962,9 +1300,13 @@ char *host;
 	conn->c_fd = sock;
 	conn->c_nsend = conn->c_bnsend = conn->c_nrec = conn->c_bnrec = 0;
 	conn->c_inet = TRUE;
+	conn->c_inprog = FALSE;
+	conn->c_griped = conn->c_pid = conn->c_ndwrite = 0;
+	conn->c_dwrite = conn->c_dwtail = 0;
 	strcpy (conn->c_name, host);
 	v.us_v_ptr = (char *) conn;
 	usy_s_symbol (Inet_table, host, SYMT_POINTER, &v);
+	usy_z_symbol (InetGripeTable, host);
 /*
  * Shove an identify down the pipe.
  */
@@ -1376,8 +1718,9 @@ struct connection *conp;
 		S_nmessage, S_bnmessage, S_nbcast, S_bnbcast);
 	msg.m_len = strlen (string) + 1;
 	send_msg (conp, &msg);
-	sprintf (string, "\t%d disconnects, with %d pipe signals",
-		S_ndisc, S_npipe);
+	sprintf (string,
+		"\t%d disconnects, with %d pipe signals, %d del rd %d wt",
+		S_ndisc, S_npipe, S_NDRead, S_NDWrite);
 	msg.m_len = strlen (string) + 1;
 	send_msg (conp, &msg);
 /*
@@ -1388,10 +1731,11 @@ struct connection *conp;
 		struct connection *c;
 		if (! (c = Fd_map[i]))
 			continue;
-		sprintf (string," %s '%s' on %d (p %d), send %d/%d, rec %d/%d",
+		sprintf (string,
+			" %s '%s' on %d (p %d), send %d/%d, rec %d/%d, nd %d",
 			c->c_inet ? "Internet" : "Process ",
 			c->c_name, i, c->c_pid, c->c_nsend, c->c_bnsend,
-			c->c_nrec, c->c_bnrec);
+			c->c_nrec, c->c_bnrec, c->c_ndwrite);
 		msg.m_len = strlen (string) + 1;
 		send_msg (conp, &msg);
 	}

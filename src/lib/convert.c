@@ -1,7 +1,7 @@
 /*
  * lat,lon <-> x,y conversion utilities
  *
- * $Revision: 1.1 $ $Date: 1990-07-08 12:56:57 $ $Author: corbet $
+ * $Revision: 2.0 $ $Date: 1991-07-18 23:07:02 $ $Author: corbet $
  */
 # include <math.h>
 # include <ui.h>

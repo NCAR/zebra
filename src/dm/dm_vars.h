@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 1.6 1990-12-04 16:05:54 corbet Exp $
+ * $Id: dm_vars.h,v 2.0 1991-07-18 23:11:58 corbet Exp $
  */
 # include <X11/Xlib.h>
 # include "../include/defs.h"
@@ -42,6 +42,7 @@ struct cf_window
 	char	cfw_desc[MAXNAME];	/* The plot description	name	*/
 	plot_description cfw_pd;	/* The actual PD		*/
 	ButtonMap *cfw_bmap;		/* The button map for this win	*/
+	struct cf_window *cfw_linksrc;	/* Source window for linked PD	*/
 	short	cfw_linkpar;		/* PD link parameter		*/
 	short	cfw_flags;		/* Various flags		*/
 	short	cfw_ncroak;		/* How many times has it died?	*/

@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 1.5 1991-01-10 22:44:49 burghart Exp $ */
+/* $Id: dm.h,v 2.0 1991-07-18 23:11:58 corbet Exp $ */
 /*
  * Display manager stuff.
  */

@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 1.1 1990-07-08 12:59:24 corbet Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.0 1991-07-18 23:11:58 corbet Exp $";
 
 # include <X11/Xlib.h>
 # include <ui.h>

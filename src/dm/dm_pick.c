@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 1.2 1990-12-04 16:06:09 corbet Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.0 1991-07-18 23:11:58 corbet Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -45,7 +45,10 @@ char *var;
 		ButtonPressMask | ButtonReleaseMask, GrabModeSync,
 		GrabModeAsync, None, cursor, CurrentTime);
 	if (status != GrabSuccess)
-		ui_error ("Unable to grab pointer for pickwin");
+	{
+		msg_ELog (EF_PROBLEM, "Unable to grab pointer for pick");
+		return;
+	}
 /*
  * Now wait until we get something.
  */
@@ -84,6 +87,8 @@ char *var;
 /*
  * Pass through the current config, trying to find the window.
  */
+	if (! win)
+		return;
 	wp.wp_id = win;
 	wp.wp_sym = var;
 	usy_traverse (Current, dm_CmpPickWin, (long) &wp, FALSE);

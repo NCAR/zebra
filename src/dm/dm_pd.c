@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pd.c,v 1.2 1990-07-08 12:59:29 corbet Exp $";
+static char *rcsid = "$Id: dm_pd.c,v 2.0 1991-07-18 23:11:58 corbet Exp $";
 /*
  * Plot description related routines.
  */

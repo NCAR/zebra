@@ -1,4 +1,4 @@
-/* $Id: radar_ingest.h,v 1.2 1991-06-14 22:24:06 corbet Exp $ */
+/* $Id: radar_ingest.h,v 2.0 1991-07-18 23:18:20 corbet Exp $ */
 /*
  * Global stuff for the radar ingest module.
  */
@@ -84,7 +84,7 @@ extern bool Project;
 	void 	SetupInput (void);
 	Beam 	GetBeam (void);
 	void	Rasterize (Beam, RDest *, int);
-	void	OutputSweep (time *, double, int);
+	void	OutputSweep (time *, double, int, int, int, int, int, int);
 # else
 # 	define const
 	void 	SetupInput ();

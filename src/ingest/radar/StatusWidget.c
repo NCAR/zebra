@@ -1,7 +1,7 @@
 /*
  * Our status widget.
  */
-static char *rcsid = "$Id: StatusWidget.c,v 1.2 1991-06-14 22:24:06 corbet Exp $";
+static char *rcsid = "$Id: StatusWidget.c,v 2.0 1991-07-18 23:18:20 corbet Exp $";
 
 
 
@@ -14,8 +14,10 @@ static char *rcsid = "$Id: StatusWidget.c,v 1.2 1991-06-14 22:24:06 corbet Exp $
 
 
 # include <defs.h>
+# include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
+# include "RadarInfo.h"
 
 
 static bool SWMade = FALSE;
@@ -23,6 +25,7 @@ static Widget AzLabel, ElLabel, FixedLabel, TimeLabel, GateLabel, ModeLabel;
 static Widget BeamLabel, MissedLabel;
 static Widget ThrEnable, ThrCountLbl;
 
+static int UpdateSocket;
 /*
  * Local variables mirroring the thresholding state, which we keep until
  * asked.
@@ -48,6 +51,12 @@ static unsigned char LThrCounts;
 # endif
 
 
+static void
+IgnoreRinfo ()
+{ }
+
+
+
 
 DefineWidgets ()
 /*
@@ -55,6 +64,12 @@ DefineWidgets ()
  */
 {
 	uw_def_widget ("status", "Rasterizer status", MakeStatusWidget, 0, 0);
+/*
+ * Kludge: hardwired net for now.
+ */
+	UpdateSocket = msg_BCSetup (0x8075d200, RadarInfoPort, IgnoreRinfo);
+	msg_ELog (EF_INFO, "BCasting on skt %d, port %d", UpdateSocket,
+			RadarInfoPort);
 }
 
 
@@ -71,12 +86,17 @@ XtAppContext appc;
  */
 {
 	Widget pain;
+	Arg args[5];
+	int n;
 
 	SWMade = TRUE;
 /* 
  * At the top is a Paned widget to hold the pieces together.
  */
-	pain = XtCreateManagedWidget ("Pain", panedWidgetClass, parent, 0, 0);
+	n = 0;
+	XtSetArg (args[n], XtNx, 800);	n++;
+	XtSetArg (args[n], XtNy, 800);	n++;
+	pain = XtCreateManagedWidget ("Pain", panedWidgetClass, parent,args,n);
 /*
  * Add the rasterization stats window.
  */
@@ -312,10 +332,23 @@ Housekeeping *hk;
 {
 	char string[200];
 	Arg args[5];
+	RadarInfo update;
+/*
+ * Send out an update packet.
+ */
+	update.ri_last.ds_yymmdd = hk->year*10000 + hk->month*100 + hk->day;
+	update.ri_last.ds_hhmmss = hk->hour*10000 + hk->minute*100 +hk->second;
+	update.ri_az = hk->azimuth/CORR_FACT;
+	update.ri_el = hk->elevation/CORR_FACT;
+	update.ri_fixed = hk->fixed/CORR_FACT;
+	update.ri_mode = hk->scan_mode;
+	msg_BCast (UpdateSocket, &update, sizeof (update));
 
 	if (! SWMade)
 		return;
-
+/*
+ * Update the widget.
+ */
 	sprintf (string, "%d:%02d:%02d", hk->hour, hk->minute, hk->second);
 	SetLabel (TimeLabel, string);
 

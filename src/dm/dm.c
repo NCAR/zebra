@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.18 1991-07-02 15:40:59 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 2.0 1991-07-18 23:11:58 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -528,8 +528,13 @@ struct ui_command *cmds;
 	/*
 	 * Link it.  Since the given win is required to be in the current
 	 * display configuration, we know that the PD has to be realized.
+	 *
+	 * 7/91 jc	Also mark the source window as needing to have
+	 *		it's PD pushed out to it next time around.
 	 */
 	 	linkwin->cfw_pd = win->cfw_pd;
+		linkwin->cfw_linksrc = win;
+		win->cfw_tmpforce = TRUE;
 	}
 	return (TRUE);
 }
@@ -728,6 +733,9 @@ struct dm_msg *dmsg;
 		rpd.rp_len = dmp->dmm_pdlen;
 		rpd.rp_data = dmp->dmm_pdesc;
 		win->cfw_pd = pd_Load (&rpd);
+		/* The dreaded "zoom bug" squashed at last */
+		if (win->cfw_linkpar && win->cfw_linksrc)
+			win->cfw_linksrc->cfw_pd = win->cfw_pd;
 		break;
 	/*
 	 * Nosy windows checking up on each other's coords.

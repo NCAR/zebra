@@ -7,10 +7,10 @@
 	struct _ix_desc * IX_Create (int, int, int, int, int, char **);
 	int	IX_GetWriteFrame (struct _ix_desc *, char **);
 	void	IX_SendFrame (struct _ix_desc *, int, time *, RGrid *,
-			Location *, ScaleInfo *, int, int, int, int);
+			Location *, ScaleInfo *, int, int, int, int, char *);
 	int	IX_GetReadFrame (struct _ix_desc *, int, char **, time *,
 			RGrid *, Location *, ScaleInfo *, int *, int *,
-			int *, int *);
+			int *, int *, char **);
 	void	IX_ReleaseFrame (struct _ix_desc *, int);
 	void	IX_Detach (struct _ix_desc *);
 	void	IX_LockMemory (struct _ix_desc *);

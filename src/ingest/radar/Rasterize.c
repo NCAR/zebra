@@ -1,9 +1,10 @@
 /*
  * Rasterize incoming radar data.
  */
-static char *rcsid = "$Id: Rasterize.c,v 1.3 1991-06-14 22:24:06 corbet Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.0 1991-07-18 23:18:20 corbet Exp $";
 
 # include <defs.h>
+# include <message.h>
 # include <sys/time.h>
 # include <math.h>
 # include "HouseKeeping.h"
@@ -13,6 +14,7 @@ static char *rcsid = "$Id: Rasterize.c,v 1.3 1991-06-14 22:24:06 corbet Exp $";
 static char *Modes[] = { "CAL", "PPI", "COP", "RHI", "??4", "??5", "??6",
 		"??7", "SUR" };
 
+typedef enum { Unknown, Clockwise, CounterClockwise } Direction;
 
 # define DegToRad(theta) ((theta)*M_PI/180.0)
 # ifndef TRUE
@@ -21,6 +23,7 @@ static char *Modes[] = { "CAL", "PPI", "COP", "RHI", "??4", "??5", "??6",
 # define FALSE 0
 # endif
 
+# define ELTOLERANCE	CORR_FACT	/* One degree	*/
 
 /*
  * Rasterization info for each chunk of data.
@@ -46,6 +49,7 @@ static unsigned char *TBuf[4] = { ThreshBuf, ThreshBuf + MAXGATES,
  */
 static int MaxLeft, MaxRight, MaxUp, MaxDown;
 
+static Direction Dir = Unknown;
 /*
  * Are we currently in a sweep?
  */
@@ -78,6 +82,7 @@ static int NBeam = 0;		/* Number of beams in this sweep	*/
 	static void ScanConvert (struct RastInfo *, int, double, double,
 		double, double, RDest *, int);
 	static void CheckMax (int, int, int, int);
+	static int DirCheck (Direction *, Beam, int, double);
 # else
 	static void CalcParams ();
 	static float FindIntersection ();
@@ -145,10 +150,10 @@ int xmin, xmax, ymin, ymax;
 		MaxLeft = xmin;
 	if (xmax > MaxRight)
 		MaxRight = xmax;
-	if (ymin < MaxDown)
-		MaxDown = ymin;
-	if (ymax > MaxUp)
-		MaxUp = ymax;
+	if (ymax > MaxDown)
+		MaxDown = ymax;
+	if (ymin < MaxUp)
+		MaxUp = ymin;
 }
 
 
@@ -330,13 +335,18 @@ Beam beam;
 {
 	Housekeeping *hk = beam->b_hk;
 	static int mode = -1, fixed = -1, scan = 0, lastfixed = -999;
-	static int firstbeam, firstaz, firstel;
+	static int firstbeam, firstaz, firstel, gs, ng;
 	static time begintime;
 	static struct timeval oldtime, newtime;
+	static Direction dir = Unknown;
 /*
  * See if we have entered a new sweep.
  */
-	if (! InSweep || mode != hk->scan_mode || fixed != hk->fixed)
+	if (! InSweep || mode != hk->scan_mode || fixed != hk->fixed ||
+		ABS (hk->fixed - hk->elevation) > ELTOLERANCE ||
+		DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
+				firstaz/CORR_FACT) ||
+		gs != hk->gate_spacing || ng != hk->gates_per_beam)
 	{
 	/*
 	 * If we were currently rasterizing an old sweep, shove it out.
@@ -355,14 +365,22 @@ Beam beam;
 			if (NBeam > MinSweep)
 			{
 				OutputSweep (&begintime, fixed/CORR_FACT,
-				   fixed < lastfixed || mode != hk->scan_mode);
+				   fixed < lastfixed || mode != hk->scan_mode,
+				   MaxLeft, MaxRight, MaxUp, MaxDown,
+				   hk->scan_mode);
 				lastfixed = fixed;
+				dir = Unknown;
 			}
 		}
 	/*
 	 * If this is not a type of sweep we deal with, bail now.
+	 * 7/18/91 jc (CaPE fix): Throw out anything with a zero elevation,
+	 *	in a simple attempt to filter out obnoxious between-sweep
+	 *	behavior.
 	 */
-		if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI)
+		if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI ||
+			 	ABS (hk->elevation - hk->fixed) > ELTOLERANCE
+				|| hk->elevation <= (int) (0.1*CORR_FACT))
 		{
 			InSweep = FALSE;
 			return;
@@ -388,11 +406,69 @@ Beam beam;
 		begintime.ds_hhmmss = hk->hour*10000 + hk->minute*100 +
 				hk->second;
 	/*
+	 * Come up with a new pixel scaling.
+	 */
+		ng = hk->gates_per_beam;
+		gs = hk->gate_spacing;
+		PixScale = 1000*XRes/(2.0*gs*ng);
+	/*
 	 * Reset our max parameters.
 	 */
 		MaxLeft = MaxRight = XRadar;
 		MaxUp = MaxDown = YRadar;
 	}
+}
+
+
+
+
+static int
+DirCheck (dir, beam, nbeam, first)
+Direction *dir;
+Beam beam;
+int nbeam;
+float first;
+/*
+ * Check directions.
+ */
+{
+	float diff, az = beam->b_hk->azimuth/CORR_FACT;
+	int retv;
+/*
+ * Check for non-moving antenna.
+ */
+	if (nbeam == 4 && ABS (first - az) < 0.1)
+		return (TRUE);
+/*
+ * Find the difference here.
+ */
+   	diff = az - first;
+	if (diff < 180)
+		diff += 360;
+	else if (diff > 180)
+		diff -= 180;
+/*
+ * Now figure out what to do.
+ */
+	switch (*dir)
+	{
+	   case Unknown:
+		*dir = (diff > 0) ? Clockwise : CounterClockwise;
+		return (FALSE);
+
+	   case Clockwise:
+	   	retv =  (nbeam > 100 && diff > 0 && diff < 10);
+		break;
+
+	   case CounterClockwise:
+	   	retv =  (nbeam > 100 && diff < 0 && diff > -10);
+		break;
+	}
+	if (retv)
+		printf ("DIRCHECK, dir %d, nb %d, first %.2f, az %.2f, diff %.2f",	
+				dir, nbeam, first,
+				beam->b_hk->azimuth/CORR_FACT, diff);
+	return (retv);
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 1.2 1991-07-18 23:05:10 corbet Exp $";
+static char *rcsid = "$Id: ImageXfr.c,v 2.0 1991-07-18 23:07:02 corbet Exp $";
 
 
 # include <sys/types.h>
@@ -15,6 +15,7 @@ char * shmat ();
 # include <DataStore.h>
 # include "ImageXfr.h"
 
+# define MAXATTR	100		/* Max attribute space	*/
 
 # define MAXFRAME 10
 /*
@@ -29,7 +30,7 @@ struct ix_header
 	char	ixh_Consumer[80];	/* Proc name of consumer	*/
 	char	ixh_Fields[MAXFRAME][40];	/* Field names		*/
 };
-# define IX_MAGIC 0x910425
+# define IX_MAGIC 0x910714	/* A grim day	*/
 
 /*
  * Immediately after the header come the set descriptors.
@@ -45,6 +46,7 @@ struct set_desc
 	int	 	sd_Frames[MAXFRAME];	/* Where the data is	*/
 	int		sd_XMin, sd_XMax; /* Parts of the grid that have*/
 	int		sd_YMin, sd_YMax; /* real data in them.		*/
+	char		sd_Attr[MAXATTR];	/* Attribute table	*/
 };
 
 
@@ -128,7 +130,7 @@ char **fields;
  * ownership.
  */
 	mem = desc->id_shmseg + sizeof (struct ix_header) +
-				nframe*sizeof (struct set_desc);
+				nset*sizeof (struct set_desc);
 	for (set = 0; set < nset; set++)
 	{
 		struct set_desc *sd = desc->id_desc + set;
@@ -210,6 +212,23 @@ char **fields;
 
 
 
+static char *
+IX_POwner (owner)
+SetOwner owner;
+{
+	switch (owner)
+	{
+	   case ReadOwner:
+	   	return ("ReadOwner");
+	   case WriteOwner:
+	   	return ("WriteOwner");
+	   case NoOwner:
+	   	return ("NoOwner");
+	   default:
+	   	return ("BizarreOwner");
+	}
+}
+
 
 
 
@@ -233,7 +252,13 @@ char **frames;
 	if (set >= desc->id_hdr->ixh_NSet)
 	{
 		if (! Failed)
-			msg_ELog (EF_PROBLEM, "No image segs available");
+		{
+			msg_ELog (EF_PROBLEM,"No image segs (of %d) available",
+				desc->id_hdr->ixh_NSet);
+			for (set = 0; set < desc->id_hdr->ixh_NSet; set++)
+				msg_ELog (EF_PROBLEM, "Set %d own %s", set,
+				   IX_POwner (desc->id_desc[set].sd_Owner));
+		}
 		Failed = TRUE;
 		return (-1);
 	}
@@ -255,13 +280,14 @@ char **frames;
 
 
 void
-IX_SendFrame (desc, set, when, rg, loc, scale, xmin, ymin, xmax, ymax)
+IX_SendFrame (desc, set, when, rg, loc, scale, xmin, ymin, xmax, ymax, attr)
 ix_desc *desc;
 time *when;
 RGrid *rg;
 Location *loc;
 ScaleInfo *scale;
 int set, xmin, ymin, xmax, ymax;
+char *attr;
 /*
  * Send this frame to the recipient.
  */
@@ -286,6 +312,7 @@ int set, xmin, ymin, xmax, ymax;
 	sd->sd_Time = *when;
 	sd->sd_Rgrid = *rg;
 	sd->sd_Where = *loc;
+	strncpy (sd->sd_Attr, attr, MAXATTR);
 	for (i = 0; i < hdr->ixh_FrPerSet; i++)
 		sd->sd_Scale[i] = scale[i];
 	msg_send (hdr->ixh_Consumer, MT_IMAGEXFR, FALSE, &set, sizeof (int));
@@ -297,7 +324,7 @@ int set, xmin, ymin, xmax, ymax;
 
 int
 IX_GetReadFrame (desc, set, frames, when, rg, loc, scale, xmin, ymin,
-			xmax, ymax)
+			xmax, ymax, attr)
 ix_desc *desc;
 int set;
 char **frames;
@@ -306,6 +333,7 @@ RGrid *rg;
 Location *loc;
 ScaleInfo *scale;
 int *xmin, *ymin, *xmax, *ymax;
+char **attr;
 /*
  * Get an available frame.
  */
@@ -332,6 +360,7 @@ int *xmin, *ymin, *xmax, *ymax;
 		scale[frame] = sd->sd_Scale[frame];
 	*xmin = sd->sd_XMin;  *xmax = sd->sd_XMax;
 	*ymin = sd->sd_YMin;  *ymax = sd->sd_YMax;
+	*attr = sd->sd_Attr;
 
 	return (TRUE);
 }

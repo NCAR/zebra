@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.12 1991-06-14 22:10:27 corbet Exp $ */
+/* $Id: message.h,v 2.0 1991-07-18 23:15:57 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -14,6 +14,7 @@
 # define MT_CPING	 9	/* Client ping				*/
 # define MT_NETXFR	10	/* Data store network transfer		*/
 # define MT_ACINGEST	11	/* Aircraft ingest			*/
+# define MT_SLDATA	12	/* Serial line data grabber		*/
 
 /*
  * Message handler protocol message types.
@@ -111,7 +112,7 @@ typedef struct message
 	int	m_proto;		/* Message protocols	*/
 	int	m_seq;			/* Sequence number	*/
 	short	m_flags;		/* Flag field		*/
-	short	m_len;			/* Message length	*/
+	unsigned short	m_len;		/* Message length	*/
 	char	*m_data;		/* data pointer (internal
 					   use only)	        */
 } Message;
@@ -123,7 +124,7 @@ typedef struct message
 struct msg_elog
 {
 	int	el_flag;		/* Flags -- see below	*/
-	char	el_text[MAXETEXT];	/* Message text		*/
+	char	el_text[1];	/* Message text		*/
 };
 
 /*
