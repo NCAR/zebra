@@ -29,6 +29,7 @@
 
 # include <stdio.h>
 # include <math.h>
+# include <errno.h>
 
 # include <defs.h>
 # include <message.h>
@@ -37,7 +38,7 @@
 # include <DataChunk.h>
 # include <ingest.h>
 
-MAKE_RCSID("$Id: nwsascii.c,v 1.3 1995-09-13 22:01:25 granger Exp $")
+MAKE_RCSID("$Id: nwsascii.c,v 1.4 1996-04-11 15:56:41 granger Exp $")
 
 # include "sc_cmds.h"
 
@@ -64,7 +65,7 @@ int		SubPids[MAXPLATS];
 Location	Locs[MAXPLATS];
 
 /*
- * Info for STORM Project Office netCDF vs. Zeb field names.
+ * Info for NWS ascii files vs. Zeb field names.
  */
 struct field_list
 {
@@ -679,7 +680,7 @@ static void
 DoLocals (plat_index)
 int	plat_index;
 /*
- * Do the variables we aren't reading from the netCDF file
+ * Do the variables we aren't explicitly reading from the file
  */
 {
 	int	fndx = NumFileFields;
@@ -727,7 +728,7 @@ short	year;
 char	month, day, hour, minute;
 ZebTime	*zt;
 /*
- * Convert time from its netcdf representation to ZebTime
+ * Convert time to ZebTime
  */
 {
 	int	nearest;

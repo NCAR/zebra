@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.3 1995-07-06 04:28:09 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.4 1996-04-11 15:56:39 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -40,7 +40,7 @@ DOCS = nwsascii.doc
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) nwsascii.state \
 	    $(SCRIPTS) $(DOCS) surf.example uav.stations
 
-CompleteProgramTarget(nwsascii,$(OBJS),$(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(nwsascii,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(nwsascii.lf, nwsascii.state)
 
