@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.22 1995-08-07 23:05:30 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.23 1995-08-28 21:41:42 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -1115,11 +1115,11 @@ RGrid *rg;
 			&x1, &y1);
 	if (x0 < Clip.x)
 		x0 = Clip.x;
-	if (x1 > (Clip.x + Clip.width))
+	if (x1 > (int)(Clip.x + Clip.width))
 		x1 = Clip.x + Clip.width;
 	if (y0 < Clip.y)
 		y0 = Clip.y;
-	if (y1 > (Clip.y + Clip.height))
+	if (y1 > (int)(Clip.y + Clip.height))
 		y1 = Clip.y + Clip.height;
 /*
  * Figure out where we're drawing.
@@ -1178,7 +1178,7 @@ RGrid *rg;
  * We should really do the same for the sides, but that is a rarer and
  * smaller problem -- for now.
  */
-	for (y = y1 + 1; y < Clip.y + Clip.height; y++)
+	for (y = y1 + 1; y < (int)(Clip.y + Clip.height); y++)
 	{
 		int indata = FALSE;
 		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
