@@ -1,7 +1,7 @@
 /*
  * Convert a composite profiler data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: prof_convert.c,v 1.2 1992-11-06 22:10:52 kris Exp $";
+static char *rcsid = "$Id: prof_convert.c,v 1.3 1993-03-24 22:50:07 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -185,6 +185,7 @@ Go ()
 	int	incid;
 	float	inc;
 	char	platform[STRLEN], platform_lo[STRLEN], platform_hi[STRLEN];
+	char	atime[40];
 	nc_type	type;
 	float	*float_val;
 	short	*short_val;
@@ -339,6 +340,13 @@ Go ()
 		iday = (int) day;
 		ihour = (int) hour;
 		iminute = (int) minute;
+	/*
+	 * Serious ugliness in these files.
+	 */
+	 	if (ihour < 0)
+			ihour = 0;
+		if (iminute < 0)
+			iminute = 0;
 	/*
 	 * Check for badvalues in the time.
 	 */	
@@ -519,15 +527,18 @@ Go ()
 	/*
 	 * Store the data chunk (opening a new file the first time thru).
 	 */
+		TC_EncodeTime (&zt, TC_Full, atime);
 		if (first_time)
 		{
-			msg_ELog (EF_INFO, "(First)Storing data for platform '%s'.", platform);
+			msg_ELog (EF_INFO, "(F)Storing '%s' at %s.", platform,
+				atime);
 			ds_Store (dc_lo, TRUE, NULL, 0);
 			ds_Store (dc_hi, TRUE, NULL, 0);
 		}
 		else
 		{
-			msg_ELog (EF_INFO, "Storing data for platform '%s'.", platform);
+			msg_ELog (EF_INFO, "Storing '%s' at %s.", platform,
+				atime);
 			ds_Store (dc_lo, FALSE, NULL, 0);
 			ds_Store (dc_hi, FALSE, NULL, 0);
 		}
