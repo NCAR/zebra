@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.25 1995-01-18 00:54:18 granger Exp $
+ * $Id: DataStore.h,v 3.26 1995-02-10 01:30:19 granger Exp $
  *
  * Public data store definitions.
  */
@@ -220,7 +220,9 @@ typedef enum _DC_ElemType {
 	DCT_UnsignedLong,
 	DCT_String,
 	DCT_Boolean,
-	DCT_ZebTime
+	DCT_ZebTime,
+	DCT_VoidPointer,
+	DCT_Element	/* the element union type */
 } DC_ElemType;
 
 #if defined(__STDC__) && !defined(sgi)
@@ -244,16 +246,51 @@ typedef union _DC_Element {
 	char *		dcv_string;
 	unsigned char	dcv_boolean;
 	ZebTime		dcv_zebtime;
+	void *		dcv_pointer;
 } DC_Element;
 
 extern const char *DC_ElemTypeNames[];
 extern const int DC_ElemTypeSizes[];
+extern const int DC_NumTypes;
 
-#define dc_TypeName(type) 	(DC_ElemTypeNames[(int)(type)])
-#define dc_SizeOfType(type)	(DC_ElemTypeSizes[(int)(type)])
-#define DC_ElemTypeMaxSize \
-	(sizeof(LongDouble) >= sizeof(ZebTime) ? sizeof(LongDouble) : \
-	 sizeof(ZebTime))
+#ifdef __cplusplus
+inline int
+dc_SizeOfType (DC_ElemType type)
+#else
+static inline int
+dc_SizeOfType (type)
+DC_ElemType type;
+#endif
+/* 
+ * Return size (in bytes) of the element type
+ */
+{
+	int i = (int) type;
+
+	if ((i >= 0) && (i < DC_NumTypes))
+		return (DC_ElemTypeSizes[i]);
+	else
+		return (0);
+}
+
+#ifdef __cplusplus
+inline const char *
+dc_TypeName (DC_ElemType type)
+#else
+static inline const char *
+dc_TypeName (type)
+DC_ElemType type;
+#endif
+{
+	int i = (int) type;
+
+	if ((i >= 0) && (i < DC_NumTypes))
+		return (DC_ElemTypeNames[i]);
+	else
+		return ("invalid");
+}
+
+#define DC_ElemTypeMaxSize	(sizeof(union _DC_Element))
 
 /*
  * Here is the list of possible data chunk classes.  It is done this way
@@ -346,7 +383,19 @@ typedef struct _RawDataChunk {
 extern bool 	_CheckClass;
 
 bool		dc_IsSubClassOf FP((DataClass, DataClass));
-void		dc_CheckClass FP((int));
+#ifdef __cplusplus
+inline	DataClass dc_Class (DataChunk *dc)
+		{ return (dc->dc_Class); }
+inline	PlatformId dc_Platform (DataChunk *dc)
+		{ return (dc->dc_Platform); }
+#else
+static inline	DataClass dc_Class (dc) DataChunk *dc;
+		{ return (dc->dc_Class); }
+static inline	PlatformId dc_Platform (dc) DataChunk *dc;
+		{ return (dc->dc_Platform); }
+#endif
+DataClass	dc_SuperClass FP((DataClass subclass));
+void		dc_CheckClass FP((int check));
 
 /*
  * Basic data chunk methods.
@@ -355,6 +404,7 @@ DataChunk 	*dc_CreateDC FP((DataClass));
 void		dc_DestroyDC FP((DataChunk *));
 void		dc_DumpDC FP((DataChunk *));
 void 		Dc_RawAdd FP((DataChunk *, int));
+void		dc_ForceClosure FP ((void));
 void		dc_SetGlobalAttr FP ((DataChunk *, char *, char *));
 char 		*dc_GetGlobalAttr FP ((DataChunk *, char *));
 void		dc_SetGlobalAttrArray FP ((DataChunk *dc, char *key,
@@ -402,6 +452,7 @@ void		dc_SetSampleAttrArray FP ((DataChunk *dc, int samp, char *key,
 					   void *values));
 void		*dc_GetSampleAttrArray FP ((DataChunk *dc, int samp, char *key,
 					    DC_ElemType *type, int *nval));
+void		dc_RemoveSampleAttr FP((DataChunk *dc, int sample, char *key));
 int		dc_ProcSampleAttrArrays FP ((DataChunk *dc, int s, char *patt,
 		     int (*func) (/* char *key, void *vals, int nval, 
 				     DC_ElemType, void *arg */), void *arg));
@@ -433,7 +484,12 @@ const ZebTime 	*dc_ListSubSamples FP((DataChunk *dc, int *nsubs));
 const ZebTime 	*dc_DefineSubSamples FP((DataChunk *dc, int nsubs, 
 					 ZebTime *offsets));
 int		dc_GetNSubSample FP((DataChunk *dc));
-
+/*
+ * Location class methods.
+ */
+void 		dc_LocAdd FP ((DataChunk *dc, ZebTime *t, Location *loc));
+int		dc_LocGet FP ((DataChunk *dc, int sample, ZebTime *t, 
+			       Location *loc));
 /*
  * Boundary class methods.
  */
@@ -456,8 +512,15 @@ void		dc_SetFieldTypes FP((DataChunk *dc, int nfld,
 void		dc_SetType FP((DataChunk *dc, FieldId fid, DC_ElemType type));
 DC_ElemType	dc_Type FP((DataChunk *dc, FieldId fid));
 int		dc_SizeOf FP((DataChunk *dc, FieldId fid));
-void		dc_AssignElement FP((DC_Element *e, DC_ElemType type, void *));
-char 		*dc_ElemToString FP((void *ptr, DC_ElemType type));
+void		dc_BlockChanges FP ((DataChunk *dc));
+		/* element handling */
+void		dc_AssignElement FP((DC_Element *, void *, DC_ElemType type));
+void		dc_AssignValue FP((void *, DC_Element *, DC_ElemType type));
+const char	*dc_ElemToString FP((DC_Element *, DC_ElemType type));
+const char	*dc_ValueToString FP((void *ptr, DC_ElemType type));
+const char	*dc_PrintElement FP((DC_Element *, DC_ElemType type));
+const char	*dc_PrintValue FP((void *ptr, DC_ElemType type));
+		/* -- */
 double		dc_GetBadval FP((DataChunk *));
 void		dc_SetBadval FP((DataChunk *, double));
 int		dc_GetFieldIndex FP((DataChunk *dc, FieldId field));
@@ -681,6 +744,7 @@ typedef struct s_DataFileInfo
  */
 int		ds_Initialize FP ((void));
 PlatformId	ds_LookupPlatform FP ((char *));
+DataOrganization ds_PlatformDataOrg FP ((PlatformId pid));
 PlatformId *	ds_GatherPlatforms FP ((char *regexp, int *nplat, 
 					int alphabet, int subs));
 PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat, 

@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.7 1994-12-03 07:22:46 granger Exp $ */
+/* $Id: DataChunkP.h,v 1.8 1995-02-10 01:30:17 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -74,7 +74,6 @@ extern RawDCClass *ClassTable[];
  * Internally useful routines.
  */
 bool		_dc_ReqSubClassOf FP ((DataClass, DataClass, char *));
-DataClass	dc_GetSuperClass FP ((DataClass));
 
 /*
  * ADE handling

@@ -20,11 +20,15 @@
  * maintenance or updates for its software.
  */
 
+# include <unistd.h>
+# include <string.h>
+# include <memory.h>
+
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.7 1994-12-03 07:22:44 granger Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.8 1995-02-10 01:30:15 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -132,7 +136,7 @@ char *op;
 
 
 DataClass
-dc_GetSuperClass (class)
+dc_SuperClass (class)
 DataClass class;
 /*
  * Return the superclass of this class.
@@ -140,7 +144,6 @@ DataClass class;
 {
 	return ((class == DCC_None) ? DCC_None: ClassTable[class]->dcm_Parent);
 }
-
 
 
 
@@ -528,7 +531,6 @@ DataClass class;
  */
 {
 	DataChunk *dc;
-	int i, j;
 /*
  * Sanity check.
  */
@@ -627,6 +629,7 @@ void *arg;
  */
 {
 	int i;
+	DC_Element e;
 
 	if (nval && (type == DCT_String))
 	{
@@ -636,7 +639,8 @@ void *arg;
 	printf ("\t%s --> ", key);
 	for (i = 0; i < nval; ++i)
 	{
-		printf ("%s%s", dc_ElemToString(value, type),
+		dc_AssignElement (&e, value, type);
+		printf ("%s%s", dc_PrintElement (&e, type),
 			(i == nval - 1) ? "\n" : ", ");
 		value = (char *)value + dc_SizeOfType (type);
 	}
