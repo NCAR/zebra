@@ -42,7 +42,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.21 1993-11-05 21:45:45 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.22 1993-12-27 18:23:40 corbet Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.21 1993-11-05 21:45:45 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.22 1993-12-27 18:23:40 corbet Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -1181,7 +1181,7 @@ struct message *msg;
 	 * anything.  But if there is X interface stuff to be done, it
 	 * needs to be done ASAP, for the user's sake.
 	 */
-	xevent ();
+	/* xevent (); */
 	return (0);
 }
 
