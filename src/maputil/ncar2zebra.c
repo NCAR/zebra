@@ -89,7 +89,7 @@ main ()
  * Get the project name and open a file 'project'.map
  */
 	printf ("Enter project name: ");
-	gets (proj);
+	fgets (proj, sizeof (proj), stdin);
 
         fixdir_t ("", ".", proj, fname, ".map");
 

@@ -25,7 +25,7 @@
 # include "pd.h"
 # include "pdmon.h"
 
-MAKE_RCSID ("$Id: pdmon.c,v 1.5 1999-03-01 02:04:50 burghart Exp $")
+MAKE_RCSID ("$Id: pdmon.c,v 1.6 1999-03-23 16:41:49 burghart Exp $")
 
 char *Process;
 
@@ -141,7 +141,7 @@ int fd;
 /*
  * Pull in the length line.
  */
-	if (!gets (line))
+	if (!fgets (line, sizeof (line), stdin))
 	{
 		UnHook ();
 		exit (0);
