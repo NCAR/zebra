@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.1 1992-10-29 19:21:05 granger Exp $
+ * $Id: p3fest_ingest.c,v 1.2 1992-11-18 00:16:09 granger Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -29,12 +29,14 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <errno.h>
 #include "copyright.h"
 #include "ingest.h"
 
 #define MAX_WORDS_RECORD5	106
 #define MAX_RECORD_SIZE		420	/* max size of any record in words */
 #define PLATFORM_NAME		"p3"
+#define INGEST_NAME		"P-3 Ingest"
 
 /*
  * Some important field indices in a type 5 record
@@ -43,6 +45,7 @@
 #define LAT_MIN			13
 #define LON_DEG			14
 #define LON_MIN			15
+#define ALT			16	/* use radar altitude (ra) for locn */
 #define HOUR			3	/* time fields */
 #define MINUTE			4
 #define SECOND			5
@@ -52,11 +55,33 @@
 #define FL1			10	/* error flags */
 #define FL2			11
 
+/* ERROR FLAG BIT MASKS */
+#define BIT(n)			(1ul<<(32-n))
+#define ERR_TI			BIT(1)
+#define ERR_LA			BIT(2)
+#define ERR_LO			BIT(3)
+#define ERR_RA			(1ul<<28)
+#define ERR_ALT			ERR_RA
+#define ERR_PS			(1ul<<27)
+#define ERR_TA			(1ul<<26)
+#define ERR_TD			(1ul<<25)
+#define ERR_RD			(1ul<<24)
+#define ERR_RS			(1ul<<23)
+#define ERR_GS			(1ul<<22)
+#define ERR_TS			(1ul<<21)
+#define ERR_WGS			(1ul<<20)
+#define ERR_TK			(1ul<<19)
+#define ERR_HD			(1ul<<18)
+#define ERR_PC			(1ul<<17)
+
+#define BADVAL_DEFAULT		((float)-9999.0)
+
 #define AttAircraftNumber	"aircraft_number"
 #define AttFlightBeginTime	"flight_begin_time"
 #define AttFlightEndTime	"flight_end_time"
 
 #define NUMBER(arr)	((unsigned long)(sizeof(arr)/sizeof(arr[0])))
+#define Abs(x)		(((x)>0)?(x):(-(x)))
 
 
 
@@ -130,12 +155,14 @@ typedef struct p3_field_s {
 
 p3_field_t P3_Fields[] =
 {
-	{ 16, 	"Radar altitiude", 		"ra",		"m" },
+/* RA will be stored with the samples location				*/
+/*	{ 16, 	"Radar altitiude", 		"ra",		"m" },  */
+
 	{ 17, 	"Pressure", 			"ps",		"mb" },
 	{ 18, 	"Ambient temperature", 		"ta",		"degC" },
 	{ 19, 	"Dewpoint sensor", 		"tw1",		"degC" },
-	{ 20, 	"Radiometer down", 		"rd",		"W/m^2" },
-	{ 21, 	"Radiometer side", 		"rs",		"W/m^2" },
+	{ 20, 	"Radiometer down", 		"rd",		"degC" },
+	{ 21, 	"Radiometer side", 		"rs",		"degC" },
 	{ 22, 	"Ground speed", 		"gs",		"m/s" },
 	{ 23, 	"True airspeed", 		"ts",		"m/s" },
 	{ 24, 	"A/C Vertical velocity",	"wgs",		"m/s" },
@@ -148,7 +175,7 @@ p3_field_t P3_Fields[] =
 	{ 31,	"Liquid water content",		"lw",		"g/m3" },
 	{ 32,	"Dynamic pressure",		"pq",		"mb" },
 	{ 33,	"Dewpoint temperature",		"td",		"degC" },
-	{ 34,	"Radiometer up",		"ru",		"W/m^2" },
+	{ 34,	"Radiometer up",		"ru",		"degC" },
 	/* { 35,	"Switches",		"sw3",		UNITS_NONE }, */
 	{ 36,	"E/W Velocity of tail",		"utail",	"m/s" },
 	{ 37,	"N/S Velocity of tail",		"vtail",	"m/s" },
@@ -156,24 +183,24 @@ p3_field_t P3_Fields[] =
 	/* 39,  ---blank--- */
 	{ 40,	"Geopotential altitude",	"ga",		"m" },
 	{ 41,	"Pressure altitude",		"pa",		"m" },
-	{ 42,	"D Value",			"dv",		UNITS_UNKNOWN },
-	{ 43,	"Height standard",		"ht",		UNITS_UNKNOWN },
+	{ 42,	"D Value",			"dv",		"m" },
+	{ 43,	"Height standard pres surface",	"ht",		"m" },
 	{ 44,	"Surface pressure",		"sp",		"mb" },
 	{ 45,	"Relative humidity",		"rh",		"%" },
 	{ 46,	"Virtual temperature",		"tv",		"K" },
 	{ 47,	"Vertical airspeed",		"was",		"m/s" },
 	{ 48,	"Ratio specific heats",		"gm",		UNITS_NONE },
-	{ 49,	"Mach number",			"ama",		UNITS_UNKNOWN },
-	{ 50,	"Drift",			"da",		UNITS_UNKNOWN },
+	{ 49,	"Mach number",			"ama",		"dim" },
+	{ 50,	"Drift angle",			"da",		"deg" },
 	{ 51,	"E/W Ground speed",		"gsx",		"m/s" },
 	{ 52,	"N/S Ground speed",		"gsy",		"m/s" },
 	{ 53,	"E/W True airspeed",		"tx",		"m/s" },
 	{ 54,	"N/S True airspeed",		"ty",		"m/s" },
-	{ 55,	"E/W Wind speed",		"u_wind",	"m/s" },
-	{ 56,	"N/S Wind speed",		"v_wind",	"m/s" },
-	{ 57,	"Vertical wind speed",		"w_wind",	"m/s" },
-	{ 58,	"Wind speed",			"wspd",		"m/s" },
-	{ 59,	"Wind direction",		"wdir",		"deg" },
+	{ 55,	"E/W Wind speed",		"wx",		"m/s" },
+	{ 56,	"N/S Wind speed",		"wy",		"m/s" },
+	{ 57,	"Vertical wind speed",		"wz",		"m/s" },
+	{ 58,	"Wind speed",			"ws",		"m/s" },
+	{ 59,	"Wind direction",		"wd",		"deg" },
 	/* 60,  ---blank--- */
 	{ 61,	"Vapor pressure",		"ee",		"mb" },
 	{ 62,	"Mixing ratio",			"mr",		"g/kg" },
@@ -195,14 +222,51 @@ p3_field_t P3_Fields[] =
 
 
 /*
- * The global field id's array, initialized by InitializeFieldIds()
+ * The global field id's array, initialized by InitializeFieldIds(),
+ * + 1 for the FlagsFid
  */
-FieldId P3_FieldIds[NUMBER(P3_Fields)];
+FieldId P3_FieldIds[NUMBER(P3_Fields)+1];
+
+FieldId FlagsFid;
 
 /*
  * The global storage for the type 3 divisors
  */
 short P3_FieldDivisors[MAX_WORDS_RECORD5 + 1];
+
+/*
+ * Error bit fields:
+ * Array of field addresses in a type 5 record.
+ * The index into the array is the bit number (MSB to LSB, starting at 1)
+ * signaling a potential error in the field
+ * Use the P3_WordToField map to get the field info corresponding to
+ * an error flag.  Error flags for the compound values of lat, lon, and
+ * time are handled specially.
+ */
+struct ErrorField_s {
+	char	bit;	/* The number of the flag bit */
+	short	word;	/* The word address of the field into record */
+}
+P3_ErrorFields[] =
+{
+/*	{ 4, 16 },  */	/* Radar alt, handled specially  */
+	{ 5, 17 },	/* Ambient pressure */
+	{ 6, 18 },	/* Ambient temperature */
+	{ 7, 19 },	/* Dewpoint sensor */
+	{ 8, 20 },	/* Radiometer down */
+	{ 9, 21 },	/* Radiometer side */
+	{ 10, 22 },	/* Ground speed */
+	{ 11, 23 },	/* True speed */
+	{ 12, 24 },	/* Vertical speed */
+	{ 13, 25 },	/* Track */
+	{ 14, 26 },	/* Heading */
+	{ 15, 27 },	/* Pitch */
+	{ 16, 28 },	/* Roll */
+	{ 17, 29 },	/* Attack angle */
+	{ 18, 30 },	/* Slip angle */
+	{ 19, 31 },	/* Liquid water */
+	{ 20, 32 }	/* Dynamic pressure */
+};
 
 
 /*
@@ -216,17 +280,22 @@ short P3_WordToField[MAX_WORDS_RECORD5 + 1];
 /*-----------------------------------------
  * Prototypes
  */
-void ReadHeader FP((FILE *p3file, P3_header_t *hdr));
-void DumpHeader FP((P3_header_t *hdr));
-DataChunk *CreateDataChunk FP((P3_header_t *hdr));
-int InitializeFieldIds ();
-void InitWordToFieldMapping ();
-int ReadNextRecord FP((FILE *p3file, short *rec_type, short *nwords, short buf[]));
-void SearchForRecords FP((FILE *p3file));
-void LoadFieldDivisors FP((short buf[], short rtype, short rsize));
-void IngestDataRecord FP((DataChunk *dc, short buf[], 
-			  short rtype, short rsize, P3_header_t *hdr));
-void IngestRecords FP((DataChunk *dc, FILE *p3file, P3_header_t *hdr));
+static void ReadHeader FP((FILE *p3file, P3_header_t *hdr));
+static void DumpHeader FP((P3_header_t *hdr));
+static DataChunk *CreateDataChunk FP((P3_header_t *hdr));
+static void StoreDataChunk FP((DataChunk *dc));
+static int InitializeFieldIds ();
+static void InitWordToFieldMapping ();
+static short *ReadNextRecord FP((FILE *p3file, short *rec_type, short *nwords));
+static void SearchForRecords FP((FILE *p3file));
+static void LoadFieldDivisors FP((short buf[], short rtype, short rsize));
+static void IngestDataRecord FP((DataChunk **dc, short buf[], 
+				 short rtype, short rsize, P3_header_t *hdr));
+static void IngestRecords FP((FILE *p3file, P3_header_t *hdr));
+static long SeekFileSize FP((FILE *file));
+extern void InterpolateGap
+	FP((DataChunk *dc, ZebTime *btime, Location *blocn,
+	    ZebTime *etime, Location *elocn, int *sample));
 
 /*-----------------------------------------*/
 
@@ -244,13 +313,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	DataChunk *dc;
 	P3_header_t hdr;
  	FILE *p3file;
-
-#ifdef	DEBUG
-	SetDryRun();	/* The default will be no outside connections */
-#endif
 
 	/* Parse any ingest options. */
 	IngestParseOptions(&argc, argv, IngestUsage);
@@ -266,7 +330,7 @@ main(argc, argv)
 	/*
 	 * Initialize usy, message, DataStore, and fields simultaneously
 	 */
-	IngestInitialize(argv[0]);
+	IngestInitialize(INGEST_NAME);
 
 	/* 
 	 * The file to read will be argv[1].  A "-" will indicate
@@ -286,9 +350,6 @@ main(argc, argv)
 	 * We have our file open and ready, so go read the header.
 	 */
 	ReadHeader(p3file,&hdr);
-#ifdef DEBUG
-	DumpHeader(&hdr);
-#endif
 
 	/*
 	 * Define our fields to the DataStore and store the FieldIds in
@@ -302,20 +363,6 @@ main(argc, argv)
 	}
 
 	/*
-	 * Create an empty data chunk with our header info
-	 */
-	dc = CreateDataChunk(&hdr);
-	if (!dc)
-	{
-		IngestLog(EF_EMERGENCY,"Could not create data chunk. Exiting");
-		exit(1);
-	}
-
-#ifdef DEBUG
-	dc_DumpDC(dc);
-#endif
-
-	/*
 	 * Initialize our word to field mapping to speed processing of type
 	 * 3 records
 	 */
@@ -323,34 +370,40 @@ main(argc, argv)
 
 	/*
 	 * Now pull out the type 3 and 5 records.  The hdr is required to
-	 * provide the base date.
+	 * provide the base date and create the data chunk.
 	 */
-	IngestRecords(dc, p3file, &hdr);
-
-	/*
-	 * Now the DataChunk should be full of data from the file,
-	 * so store the chunk
-	 */
-	if (dc_GetNSample(dc) == 0)
-	{
-		/* Our DC is still empty for some reason */
-		IngestLog(EF_PROBLEM,
-			  "after file ingested, datachunk still empty?");
-		exit(1);
-	}
-
-	/*
-	 * Each raw p3 file will correspond to a single DataStore file
-	 */
-	ds_Store(dc, /*newfile*/ TRUE, /*details*/ NULL, /*ndetail*/ 0);
+	IngestRecords(p3file, &hdr);
 
 	/*
 	 * And we're done...
 	 */
+	IngestLog(EF_INFO,"Finished.");
 	exit(0);
 }
 
-
+
+
+void
+StoreDataChunk(dc)
+	DataChunk *dc;
+{
+	if (dc_GetNSample(dc) == 0)
+	{
+		/* Our DC is still empty for some reason */
+		IngestLog(EF_PROBLEM,
+			  "possible problem, trying to store empty datachunk");
+		exit(1);
+	}
+
+	IngestLog(EF_INFO,"Storing %i samples...", dc_GetNSample(dc));
+	/*
+	 * Each raw p3 file will correspond to a single DataStore file
+	 */
+	ds_Store(dc, /*newfile*/ TRUE, /*details*/ NULL, /*ndetail*/ 0);
+	IngestLog(EF_INFO,"Done storing samples");
+}
+
+
 
 /*----------------------------------------------------------------
  * IngestRecords(DataChunk *dc, FILE *p3file, P3_header_t *hdr)
@@ -362,16 +415,23 @@ main(argc, argv)
  * Type 5 data is stored into the data chunk with IngestDataRecord().
  */
 void
-IngestRecords(dc, p3file, hdr)
-	DataChunk *dc;
+IngestRecords(p3file, hdr)
 	FILE *p3file;
 	P3_header_t * hdr;
 {
+	DataChunk *dc;
 	short rtype, rsize;
 	short type3found;	/* Keep track of multiple type 3 records */
 	short type6found;	/* Help detect data following the trailer */
-	short buf[MAX_RECORD_SIZE];
+	short *buf;
 	int i;
+
+	dc = CreateDataChunk(hdr);
+	if (!dc)
+	{
+		IngestLog(EF_PROBLEM,"Could not create data chunk, aborting...");
+		exit(1);
+	}
 
 	/* 
 	 * Before we start, make sure all divisors in P3_FieldDivisors init'ed to 0
@@ -381,7 +441,7 @@ IngestRecords(dc, p3file, hdr)
 
 	type6found = 0;
 	type3found = 0;
-	while (ReadNextRecord(p3file, &rtype, &rsize, buf))
+	while (buf = (short *)ReadNextRecord(p3file, &rtype, &rsize))
 	{
 		/*
 		 * We shouldn't have found any more data if type6found is true
@@ -425,11 +485,11 @@ IngestRecords(dc, p3file, hdr)
 					  "can't ingest this data!");
 			}
 			else
-				IngestDataRecord(dc, buf, rtype, rsize, hdr);
+				IngestDataRecord(&dc, buf, rtype, rsize, hdr);
 			break;
 		  case 6:
 			/* signifies last record of file */
-			IngestLog(EF_INFO,"Trailer record found");
+			IngestLog(EF_DEBUG,"Trailer record found");
 			type6found++;
 			/* 
 			   We won't do much with this for now.  If this is the end,
@@ -447,6 +507,10 @@ IngestRecords(dc, p3file, hdr)
 			break;
 		}
 	}
+	IngestLog(EF_INFO,"File reading completed");
+
+	StoreDataChunk(dc);
+
 }
 
 
@@ -462,28 +526,41 @@ IngestRecords(dc, p3file, hdr)
  */
 void
 IngestDataRecord(dc, buf, rtype, rsize, hdr)
-	DataChunk *dc;
+	DataChunk **dc;
 	short buf[];
 	short rtype;
 	short rsize;
 	P3_header_t *hdr;
 {
-	static sample = 0;	/* The number of samples written so far */
+	static unsigned long sample = 0; /* The number of samples written so far */
+	static Location lprev = { 0.0, 0.0, 0.0 };
+	static ZebTime tprev = { 0, 0 };		/* Time of previous sample */
 	char c_time[30];
 	int i;
-	ZebTime	when;		/* The time of this sample */
-	Location locn;		/* The location of this sample */
+	short int fld;
+	ZebTime	when;				/* The time of this sample */
+	Location locn;				/* The location of this sample */
 	float value;
+	int eflag;		/* For a time,lat,or lon error, promotes log
+				   messages to a higher priority.  eflag
+				   stands for Emergency flag */
 	unsigned long flags;	/* 32-bit juxtaposition of FL1 and FL2 */
+
+	/*
+	 * Get any incoming messages and dispatch with Ingest's default
+	 * message handler.
+	 */
+	if (!(sample % 100))
+		while (msg_poll(0) != -1);
 
 	/*
 	 * Calculate the time and locn for the entire sample
 	 */
-	locn.l_alt = 0;
 	locn.l_lat = (float)buf[LAT_DEG]/(float)P3_FieldDivisors[LAT_DEG]
 		+ ((float)buf[LAT_MIN]/(float)P3_FieldDivisors[LAT_MIN])/60.0;
 	locn.l_lon = (float)buf[LON_DEG]/(float)P3_FieldDivisors[LON_DEG]
 		+ ((float)buf[LON_MIN]/(float)P3_FieldDivisors[LON_MIN])/60.0;
+	locn.l_alt = ((float)buf[ALT]/(float)P3_FieldDivisors[ALT])/1000.0; /*km*/
 
 	/*
 	 * We'll have to extract the time and add it to the
@@ -500,16 +577,90 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 		      0 /*microsec*/);
 	if (TC_Less(when,hdr->times.flight_begin))
 		when.zt_Sec += 24*3600;
+	TC_EncodeTime(&when, TC_Full, c_time);
+
+	flags = (unsigned long)buf[FL2] | (((unsigned long)buf[FL1]) << 16);
+	eflag = ((flags & (ERR_TI | ERR_LA | ERR_LO))?EF_PROBLEM:0);
 
 	/*
 	 * Do some checks for errors in the data using the error flags
 	 */
-	flags = (unsigned long)buf[FL2] | (((unsigned long)buf[FL1]) << 16);
 	if (flags)
 	{
-		IngestLog(EF_PROBLEM,"Error flags present: %0#lx", flags);
+		IngestLog(EF_DEVELOP | eflag,
+			  "Error flags: %0#8lx, FL1:%0#4hx FL2:%0#4hx", 
+			  flags, buf[FL1], buf[FL2]);
+
+		for (i = 0; i < NUMBER(P3_ErrorFields); ++i)
+		{
+			if (flags & BIT(P3_ErrorFields[i].bit))
+			{
+				fld = P3_WordToField[P3_ErrorFields[i].word];
+				IngestLog(EF_DEVELOP,
+					  "sample %i, possible error in %s, word #%hu",
+					  sample,
+					  P3_Fields[fld].long_name,
+					  P3_Fields[fld].index);
+			}
+		}
+
+		if (flags & ERR_ALT)
+			IngestLog(EF_PROBLEM,
+				  "Sample %i, altitude %5.3f (km) may be in error.",
+				  sample, locn.l_alt);
+		if (flags & ERR_LA)
+			IngestLog(EF_PROBLEM,
+				  "Sample %i, latitude %8.4f (deg) may be in error.",
+				  sample, locn.l_lat);
+		if (flags & ERR_LO)
+			IngestLog(EF_PROBLEM,
+				  "Sample %i, longitude %8.4f (deg) may be in error",
+				  sample, locn.l_lon);
+		if (flags & ERR_TI)
+		{
+			IngestLog(EF_PROBLEM,
+				  "Sample %i, time error flag, checking for a gap...",
+				  sample);
+			/*
+			 * According to the error flag, there has probably
+			 * been a gap in time between the last two samples.
+			 * Handle this condition by storing our current
+			 * DataChunk to a file, and starting a new one.
+			 * The current sample will be the first sample of
+			 * the new data chunk.  If the gap is 5 or less seconds,
+			 * we'll just interpolate between the previous sample
+			 * and this one.
+			 */
+			if (!tprev.zt_Sec)
+				IngestLog(EF_PROBLEM,"First sample, ignoring flag");
+			else if (when.zt_Sec - tprev.zt_Sec <= 5)
+			{
+				InterpolateGap(*dc, &tprev, &lprev,
+					       &when, &locn, &sample);
+				/* And continue with the current sample ... */
+			}
+			else	/* Bigger gaps requires a new file */
+			{
+				IngestLog(EF_PROBLEM,
+				   "Gap of %i seconds.  Starting a new file...",
+				   (when.zt_Sec - tprev.zt_Sec));
+				StoreDataChunk(*dc);
+				dc_DestroyDC(*dc);
+				*dc = CreateDataChunk(hdr);
+				if (!(*dc))
+				{
+					IngestLog(EF_PROBLEM,
+					  "Could not create new datachunk, aborting");
+					exit(1);
+				}
+				sample = 0;
+			}
+		}
 	}
 
+	IngestLog( EF_DEVELOP | eflag | ((sample % 1000)?0:EF_INFO),
+		  "Sample #%i, %9.5f lat, %9.5f lon, alt %5.3f km, at %s",
+		  sample, locn.l_lat, locn.l_lon, locn.l_alt, c_time);
 
 	/*
 	 * For every field in P3_Fields[], pull out the word value from
@@ -517,30 +668,31 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 	 * store this value in the datachunk
 	 */
 #	define IDX P3_Fields[i].index
-	TC_EncodeTime(&when, TC_Full, c_time);
-	IngestLog(EF_DEBUG,"Sample #%i, %9.5f lat, %9.5f lon, at %s",
-		  sample, locn.l_lat, locn.l_lon, c_time);
 	for (i = 0; i< NUMBER(P3_Fields); ++i)
 	{
 		if (P3_FieldDivisors[IDX])
-			value = (float)buf[IDX]/(float)P3_FieldDivisors[IDX];
+			value = ((float)buf[IDX])/((float)P3_FieldDivisors[IDX]);
 		else
 			value = (float)buf[IDX];
-		IngestLog(EF_DEVELOP,"   %-35s: %8.3f (%s)",
+		IngestLog(EF_DEVELOP | ((eflag)?(EF_DEBUG):0),
+			  "%3hu %-35s: %8.3f (%s)",
+			  P3_Fields[i].index,
 			  P3_Fields[i].long_name, value, P3_Fields[i].units);
-		dc_AddScalar(dc, &when, sample, P3_FieldIds[i], &value);
+		dc_AddScalar(*dc, &when, sample, P3_FieldIds[i], &value);
 	}
+	/* Add our error flags for this sample as well */
+	dc_AddScalar(*dc, &when, sample, FlagsFid, (float *)&flags);
 #	undef IDX
 	
 	/*
 	 * Last but not least, store the dynamic location
 	 */
-	dc_SetLoc(dc, sample, &locn);
+	dc_SetLoc(*dc, sample, &locn);
 
-#ifdef notdef
-	dc_DumpDC(dc);
-#endif
-
+	tprev.zt_Sec = when.zt_Sec;
+	lprev.l_alt = locn.l_alt;
+	lprev.l_lat = locn.l_lat;
+	lprev.l_lon = locn.l_lon;
 	++sample;
 }
 
@@ -608,26 +760,32 @@ ReadHeader(p3file, hdr)
 	FILE *p3file;
 	P3_header_t *hdr;
 {
-	unsigned long nread;
+	short *buf;
+	short rtype, rsize;
 
-	nread = fread(hdr->record,sizeof(hdr->record),1,p3file);
-	if (nread < 1)
+	buf = ReadNextRecord(p3file, &rtype, &rsize);
+	if (!buf)
 	{
 		perror("reading header");
 		IngestLog(EF_PROBLEM,
-			  "reading header: only read %d bytes\n",nread);
+			  "couldn't read header record");
 		exit(1);
 	}
 
 	/*
 	 * A simple verification that this is the correct record type
 	 */
-	if ((hdr->record[0] != 1) || (hdr->record[1] != 17))
+	if ((rtype != 1) || (rsize != 17))
 	{
 		IngestLog(EF_PROBLEM,
-			  "Header record not recognized");
+			  "Header record not found!");
 		exit(1);
 	}
+
+	/*
+	 * Copy the buffer into a header structure
+	 */
+	memcpy((char *)hdr, (char *)(buf + 1), rsize*2);
 
 	/*
 	 * The header record is now stored in the hdr structure.
@@ -702,7 +860,7 @@ DumpHeader(hdr)
 
 
 /*----------------------------------------------------------------
- * ReadNextRecord(FILE *p3file, short *type, short *nwords, short buf[])
+ * ReadNextRecord(FILE *p3file, short *type, short *nwords)
  *
  * Searches p3file for the next occurrence of a recognized (record type,
  * record size) pair, indicating a probable record.  This approach is
@@ -715,50 +873,90 @@ DumpHeader(hdr)
  * kludge of looking for meaningful type/size pairs won't be necessary.
  * Note that on the return, p3file pointer is set to offset of next
  * expected record.  Buf contains the entire record, including the type and
- * size fields.  Returns non-zero if another record found, zero if EOF or
- * error.  fseek() is not used so that pipes can be used on stdin, hence
- * every record type is read into buf whether it will be used or not.
+ * size fields.  Returns a pointer to the record data, or NULL on an
+ * error.  
+ *
+ * Two methods are used for reading:
+ * If possible, the file is mmap()'ed, and requests for the next record
+ * simply advance a pointer through mapped memory.  Otherwise, the device is
+ * sequentially read with fread() and data stored in the static buffer buf[].
+ * The latter method is used so that pipes can be used on stdin; however
+ * every record type must be read into buf whether it will be used or not.
  * IMPORTANT: buf[] is based at 1 rather than 0 to correspond to the index
  * values used in P3_Fields and the type 3 records.
  */
-int
-ReadNextRecord(p3file, rec_type, nwords, buf)
+short *
+ReadNextRecord(p3file, rec_type, nwords)
 	FILE *p3file;
 	short *rec_type;
 	short *nwords;
-	short buf[];
 {
+	static int inited = 0;	/* Perform tests on first call */
+	static short buf[MAX_RECORD_SIZE];
 	short rtype;		/* The potential record type */
 	short rsize;		/* The word following 'rtype' */
+	static long fsize;		/* Size of the file were reading */
 	long nread;
 	static long cur_offset = 0;	/* Our current offset into the data */
-	static long last_rec = 0;
-	                        /* offset of expected beginning of next record */
-
+	static long last_rec = 0;	/* offset to next expected record */
+	static short mmapped;		/* Boolean, true if using mmap()'ed memory */
+	static short *mbase;		/* Base of mapping, if using mmap() */
+	static short *mapp;		/* The pointer into mapped memory */
+	
 	static short record_sizes[7] = {
 	   0, 17, 404, 192, 222, 106, 15 };
 
-	/* Since its possible we're not called at the beginning, adjust last_rec */
-	if (!last_rec)
+	if (!inited)
 	{
-		last_rec = ftell(p3file);
-		if (last_rec < 0)		/* must be illegal fd for seeks */
-			last_rec = 0;
+		inited = 1;
+		mmapped = 0;
+		cur_offset = 0;
+		last_rec = 0;			/* Used in both methods */
+		fsize = SeekFileSize(p3file);
+		IngestLog(EF_DEBUG,"SeekFileSize() returned %li",fsize);
+
+		if (fsize > -1)		/* first try to map it */
+		{
+			/*
+			 * Try to establish the map
+			 */
+			IngestLog(EF_DEBUG,"Trying to mmap() file device");
+			mbase = (short *)mmap((caddr_t)0, (size_t)fsize,
+				     PROT_READ, MAP_PRIVATE,
+				     fileno(p3file)/* FD */,
+				     (off_t)0);
+			mmapped = ((long)mbase == -1) ? 0 : 1;
+			mapp = mbase;
+			IngestLog(EF_DEBUG,
+				  "mmap() returned (long)%li, errno %i",
+				  (long)mbase, errno);
+		}
+
+		if ((fsize < 0) || (!mmapped))		/* else use non-mmap method */
+		{
+			IngestLog(EF_INFO,"Reading device with fread()");
+			mmapped = 0;		/* wont be using mmap() */
+		}
+		else
+		{
+			IngestLog(EF_INFO,"Memory mapping file, size %li",
+				  fsize);
+		}
 	}
-	/*
-	 * If this is a seek'able device, then offset and last_rec pointers
-	 * will correspond with the file offsets.  Otherwise they will just
-	 * be offsets from the point in the input where we started reading
-	 * with ReadNextRecord().  The only place ftell() is used is above
-	 * trying to reconcile cur_offset with the offset of a seekable device.
-	 */
-	cur_offset = last_rec;
 
 	/*
 	 * Read the next two words of the file into rtype and rsize
 	 */
-	fread(&rtype,sizeof(short),1,p3file);
-	fread(&rsize,sizeof(short),1,p3file);
+	if (!mmapped)
+	{
+		fread(&rtype,sizeof(short),1,p3file);
+		fread(&rsize,sizeof(short),1,p3file);
+	}
+	else
+	{
+		rtype = *mapp++;
+		rsize = *mapp++;
+	}
 	cur_offset += 2*sizeof(short);
 
 	/* Now start looping, checking for a correct
@@ -784,19 +982,27 @@ ReadNextRecord(p3file, rec_type, nwords, buf)
 					  "%li bytes of unknown data",
 					  cur_offset - 4 - last_rec);
 			}
-			IngestLog(EF_DEBUG,
+			IngestLog(EF_DEVELOP,
 				  "Record type %hu, size %hu, at %li",
 				  rtype, rsize, cur_offset - 4);
 
-			buf[1] = rtype;
-			buf[2] = rsize;
-			nread = fread(buf+3, sizeof(short), rsize-2, p3file);
-			if (nread < rsize-2)
+			if (!mmapped)
 			{
-				IngestLog(EF_PROBLEM,
+				buf[1] = rtype;
+				buf[2] = rsize;
+				nread = fread(buf+3, sizeof(short), rsize-2, p3file);
+				if (nread < rsize-2)
+				{
+					IngestLog(EF_PROBLEM,
 			  "fread() failed for type 3 record, only read %i bytes",
-					  nread);
-				return(0);
+						  nread);
+					return(0);
+				}
+			}
+			else
+			{
+
+
 			}
 			cur_offset += (rsize - 2) * sizeof(short);
 
@@ -806,7 +1012,18 @@ ReadNextRecord(p3file, rec_type, nwords, buf)
 			last_rec = cur_offset;
 			*rec_type = rtype;
 			*nwords = rsize;
-			return(1);
+			if (!mmapped)
+			{
+				return(buf);
+			}
+			else
+			{
+				mapp += (rsize - 2);
+				/* The -1 is so that the record will actually
+				   start at index 1 of the returned array, as
+				   expected by the caller */
+				return(mapp - rsize - 1);
+			}
 		}
 		else
 		{
@@ -814,118 +1031,27 @@ ReadNextRecord(p3file, rec_type, nwords, buf)
 			 * Move rsize value to rtype and read a new rsize
 			 */
 			rtype = rsize;
-			if (fread(&rsize,sizeof(short),1,p3file) < 1)
+			if (!mmapped)
 			{
-				IngestLog(EF_PROBLEM,"reading new rsize: %s",
-					  "system error");
-				break;
+				if (fread(&rsize,sizeof(short),1,p3file) < 1)
+				{
+					IngestLog(EF_PROBLEM,"error reading new rsize");
+					break;
+				}
+			}
+			else
+			{
+				if (cur_offset >= fsize)
+					break;		/* End of file */
+				rsize = *mapp++;
 			}
 			cur_offset += sizeof(short);
 		}
-	} while (!feof(p3file));
+	} while ((mmapped)?(cur_offset < fsize):(!feof(p3file)));
 
-	return(0);
+	return((short *)NULL);
 }
 
-
-
-
-/* ----------------------------------------
- * Search for recognizable lead sequences for different P3 
- * record types.  Basically this means finding a word value
- * from 1 to 6 followed by a word containing the correct
- * number of words in the corresponding record type.
- * Any matches are shown on stdout.  
- */
-void
-SearchForRecords(p3file)
-	FILE *p3file;
-{
-	short rtype;		/* The potential record type */
-	short rsize;		/* The word following 'rtype' */
-	unsigned long last_rec;	/* offset of expected beginning of next record */
-
-	static short record_sizes[7] = {
-	   0, 17, 404, 192, 222, 106, 15 };
-
-	/*
-	 * Read the first two words of the file to
-	 * initialize rtype and rsize.
-	 */
-	fread(&rtype,sizeof(short),1,p3file);
-	fread(&rsize,sizeof(short),1,p3file);
-	last_rec = 0;
-
-	/* Now start looping, checking for a correct
-	 * type-size pair.  On every loop, move the rsize word
-	 * to rtype, read a new rsize, and try again,
-	 * until fread returns an error
-	 */
-	printf("Beginning record search...\n");
-	do {
-		if ((rtype >= 1) && (rtype <= 6) &&
-		    (record_sizes[rtype] == rsize))
-		{
-			/* We found a probable record */
-
-			/*
-			 * See if there was any dead space between the
-			 * end of last record and beginning of this one.
-			 * The -4 accounts for the 2 words already read in
-			 * as part of the current block.
-			 */
-			if (ftell(p3file)-4 - last_rec > 0)
-			{
-				printf("%lu bytes of dead space\n",
-					ftell(p3file)-4 - last_rec);
-			}
-			printf("Record type %hu, size %hu, at %lu\n",
-				rtype, rsize, ftell(p3file)-2*sizeof(short));
-			/*
-			 * Now skip what we suppose is the contents
-			 * of the record: move the file pointer rsize
-			 * words forward, minus the two words of the
-			 * block we read into rtype and rsize.
-			 */
-			if (fseek(p3file,(rsize-2)*sizeof(short),SEEK_CUR))
-			{
-				perror("seeking next record");
-				break;
-			}
-			/*
-			 * Set last_rec to last byte of this record
-			 */
-			last_rec = ftell(p3file);
-			/*
-			 * Get new type and size values
-			 */
-			if ((fread(&rtype,sizeof(short),1,p3file) < 1)
-			    || (fread(&rsize,sizeof(short),1,p3file) < 1))
-			{
-				perror("reading rtype and rsize");
-				break;
-			}
-		}
-		else
-		{
-			/*
-			 * Move rsize value to rtype and read a new
-			 * rsize
-			 */
-			rtype = rsize;
-			if (fread(&rsize,sizeof(short),1,p3file) < 1)
-			{
-				perror("reading new rsize");
-				break;
-			}
-		}
-	} while (!feof(p3file));
-
-	/*
-	 * Finished reading file...
-	 */
-	printf("Record search completed.\n");
-}
 
 
 /*----------------------------------------------------------------
@@ -947,19 +1073,25 @@ InitializeFieldIds()
 	 * This may change when units are actually handled rather
 	 * than ignored. 
 	 */
-	IngestLog(EF_INFO,"Defining %i fields",NUMBER(P3_FieldIds));
-	for (i = 0; i < NUMBER(P3_FieldIds); ++i)
+	IngestLog(EF_INFO,"Declaring %i fields",NUMBER(P3_FieldIds));
+	for (i = 0; i < NUMBER(P3_Fields); ++i)
 	{
 		fid = F_DeclareField(P3_Fields[i].field_name,
 				     P3_Fields[i].long_name,
 				     P3_Fields[i].units);
-		IngestLog(EF_DEVELOP,"Declaring %s, %s, (%s), id = %i",
+		IngestLog(EF_DEBUG, "Declaring %s, %s, (%s), id = %i",
 			  P3_Fields[i].field_name,
 			  P3_Fields[i].long_name,
 			  P3_Fields[i].units,
 			  fid);
 		P3_FieldIds[i] = fid;
 	}
+
+	/* Add an id for the error flags field */
+	FlagsFid = F_DeclareField("err_flags",
+				  "Error flags (words 10 and 11) of orig data records",
+				  "ulong bit field");
+	P3_FieldIds[i] = FlagsFid;
 
 	return (1);
 }
@@ -1004,10 +1136,13 @@ CreateDataChunk(hdr)
 	 */
 	TC_EncodeTime(&(hdr->times.flight_begin), TC_Full, attr);
 	dc_SetGlobalAttr(dc, AttFlightBeginTime, attr);
+	IngestLog(EF_INFO,"%30s %s","Flight begin time:",attr);
 	TC_EncodeTime(&(hdr->times.flight_end), TC_Full, attr);
 	dc_SetGlobalAttr(dc, AttFlightEndTime, attr);
+	IngestLog(EF_INFO,"%30s %s","Flight end time:",attr);
 	sprintf(attr,"%hu", hdr->p3header.aircraft);
 	dc_SetGlobalAttr(dc, AttAircraftNumber, attr);
+	IngestLog(EF_INFO,"%30s %s","Aircraft number:",attr);
 
 	/*
 	 * Initialize the scalar parts of the datachunk.
@@ -1015,8 +1150,8 @@ CreateDataChunk(hdr)
 	 * because we'd like to give some guidance on how many samples
 	 * we'll be storing to avoid thrashing memory.  However, as of
 	 * this writing (10/26/92), dc_SetupUniformFields ignores
-	 * the nsamples value! :(  We still use it here just in case
-	 * someday it does...
+	 * the nsamples value! :(  
+	 * We still use it here just in case someday it does...
 	 */
 	dc_SetupUniformFields(dc, nsamples, 
 			      (int)NUMBER(P3_FieldIds), P3_FieldIds,
@@ -1027,8 +1162,10 @@ CreateDataChunk(hdr)
 #endif
 
 	/*
-	 * We'd set the bad value flag here, if we knew of an appropriate value
+	 * We'll set a bad value flag here to a default, even though it probably
+	 * won't be used 
 	 */
+	dc_SetBadval(dc, BADVAL_DEFAULT);
 
 	return(dc);
 }
@@ -1051,3 +1188,30 @@ InitWordToFieldMapping()
 	}
 }
 
+
+long
+SeekFileSize(file)
+	FILE *file;
+{
+	long off;
+	long cur;
+
+	/*
+	 * Seek the end of the file, get the offset.
+	 * The offset will be the size of the file in bytes.
+	 * If any errors occur, return immediately with -1
+	 * An error probably indicates that the device is
+	 * not seekable, such as a tty or pipe
+	 */
+
+	if ((cur = ftell(file)) < 0)
+		return(-1);
+	if (fseek(file, 0, SEEK_END) != 0)
+		return(-1);
+	off = ftell(file);
+	if (off < 0)
+		return(-1);
+	fseek(file, cur, SEEK_SET);		/* Return to original offset */
+
+	return(off);
+}
