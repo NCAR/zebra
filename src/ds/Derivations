@@ -59,6 +59,13 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 	(0.00066 * (0.6859 + 0.00115 * [T_wet][K]));
 
 /*
+ * Vapor pressure (hPa) from dewpoint (K)
+ *
+ * Ref: Note 5 of FOPPCD, inverted
+ */
+[e][hPa] = _E_3_ * exp (17.2694 * (1.0 - 237.3 / ([T_d][K] - _T_3_ + 237.3)));
+
+/*
  * Relative humidity
  */
 [rh][%] = 100.0 * [e][hPa] / [e_sw][hPa];
