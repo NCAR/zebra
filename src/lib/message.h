@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.2 1990-07-08 13:02:16 corbet Exp $ */
+/* $Id: message.h,v 1.3 1990-07-08 17:17:32 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -119,7 +119,7 @@ struct msg_elog
 /*
  * The name of the message (unix domain) socket.
  */
-# define UN_SOCKET_NAME		"../lib/message.socket"
+# define UN_SOCKET_NAME		"/tmp/fcc.socket"
 /*
  * The name of the event manager.
  */
