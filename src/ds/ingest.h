@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.12 1996-11-19 09:18:50 granger Exp $
+ * $Id: ingest.h,v 1.13 1996-11-19 15:11:52 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -49,7 +49,7 @@
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
-# include <DataStore.h>
+# include "DataStore.h"
 
 # ifndef streq
 # define streq(a,b) (strcmp(a,b) == 0)
