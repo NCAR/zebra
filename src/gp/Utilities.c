@@ -1,7 +1,6 @@
 /*
  * Miscellaneous utility functions.
  */
-static char *rcsid = "$Id: Utilities.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -26,6 +25,7 @@ static char *rcsid = "$Id: Utilities.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
 # include "../include/pd.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
+MAKE_RCSID ("$Id: Utilities.c,v 2.2 1991-12-18 23:02:23 corbet Exp $")
 
 
 
@@ -142,6 +142,52 @@ char *comp, *param, *qual, *def;
 	XSetForeground (Disp, Gcontext, xc.pixel);
 }
 
+
+
+
+void
+FixForeground (pix)
+long pix;
+/*
+ * Set the GC forground to this pixel value.
+ */
+{
+	XSetForeground (Disp, Gcontext, pix);
+}
+
+
+
+
+int
+SetLWidth (comp, param, qual, def)
+char *comp, *param, *qual;
+int def;
+/*
+ * Set the line width in Gcontext;
+ */
+{
+	int lwidth;
+	XColor xc;
+
+	if (! pda_Search (Pd, comp, param, qual, (char *) &lwidth, SYMT_INT))
+		lwidth = def;
+	FixLWidth (lwidth);
+	return (lwidth);
+}
+
+
+
+
+void
+FixLWidth (width)
+int width;
+/*
+ * Set the line width to this value.
+ */
+{
+	XSetLineAttributes (Disp, Gcontext, width, LineSolid, CapButt,
+		JoinMiter);
+}
 
 
 
