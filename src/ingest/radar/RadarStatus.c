@@ -35,7 +35,7 @@
 # include "timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.4 1993-07-01 20:16:01 granger Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.5 1995-04-20 07:34:47 granger Exp $";
 
 # define PI		3.1415927
 # define DEG_TO_RAD(x)	(((x) * 0.017453293))
@@ -81,7 +81,8 @@ char **argv;
 /*
  * Hook into the message system.
  */
-	if (! msg_connect (msg_event, "RadarStatus"))
+	dm_Setup (&argc, argv, "RadarStatus");
+	if (! msg_connect (msg_event, dm_MessageName() ))
 	{
 		printf ("Unable to connect to message handler\n");
 		exit (1);
@@ -100,8 +101,9 @@ char **argv;
  * Create our shell.
  */
 	n = 0;
-	XtSetArg (args[n], XtNinput, True);	n++;
+	XtSetArg (args[n], XtNinput, True);		n++;
 	XtSetArg (args[n], XtNoverrideRedirect, True);	n++;
+	XtSetArg (args[n], XtNwinGravity, StaticGravity); n++;
 	Shell = XtCreatePopupShell ("RadarStatus", topLevelShellWidgetClass,
 		Top, args, n);
 /*
@@ -304,16 +306,18 @@ struct dm_msg *dmsg;
 	   case DM_HELLO:
 	   	reply.dmm_type = DM_HELLO;
 	   	reply.dmm_win = 0;
-		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, 
-			sizeof (reply));
+		dm_Send (&reply, sizeof (reply));
 		break;
 	/*
 	 * Maybe it's a reconfig.
 	 */
 	   case DM_RECONFIG:
 		if (Override)
+		{
+			dm_Reconfig ((struct dm_reconfig *) dmsg);
 		   	reconfig (dmsg->dmm_x, dmsg->dmm_y, dmsg->dmm_dx,
 				dmsg->dmm_dy);
+		}
 		break;
 	/*
 	 * They might want us to go away entirely.
