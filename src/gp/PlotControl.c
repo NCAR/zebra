@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.23 1993-10-22 21:25:18 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.24 1993-11-24 15:45:45 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -641,6 +641,9 @@ pc_PopCoords ()
 	free (cs);
 }
 
+
+
+
 pc_Zoom (cmds)
 struct ui_command *cmds;
 /*
@@ -688,72 +691,6 @@ pc_UnZoom ( )
 }
 
 
-# ifdef notdef
-/*======================================================================*/
-/*
- *  Old Movie Routines
- */
-/*======================================================================*/
-
-
-static int	MovieEvent = -1;
-
-
-pc_DoMovie ()
-/*
- * Get a movie going
- */
-{
-	float	fr;	/* Movie rate in frames/second */
-	int	millisecs;
-/*
- * Deal with a one frame movie
- */
-	if (FrameCount == 1)
-	{
-		msg_log ("One frame movie!");
-		return;
-	}
-/*
- * Find the frame rate
- */
-	fr = 2.0;	/* default to 2 frames/second */
-	pda_Search (Pd, "global", "frame-rate", 0, (char *)(&fr), SYMT_FLOAT);
-/*
- * Set up the timer
- */
-	if (MovieEvent >= 0)
-		tl_Cancel (MovieEvent);
-
-	millisecs = (int)(1000 / fr);
-	MovieEvent = tl_AddRelativeEvent (pc_FrameAlarm, NULL, 0, 
-		(millisecs*INCFRAC)/1000);
-}
-
-
-static void
-pc_FrameAlarm ()
-/*
- * Queue an event to display the next frame
- */
-{
-	Eq_AddEvent (PDisplay, pc_NextFrame, NULL, 0, Bounce);
-}
-
-
-static void
-pc_NextFrame ()
-/*
- * Display the next frame
- */
-{
-	DisplayFrame++;
-	DisplayFrame %= FrameCount;
-	GWDisplayFrame (Graphics, DisplayFrame);
-	XSync (XtDisplay (Top), False);
-}
-
-# endif
 
 
 
