@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.15 1993-11-30 23:30:39 granger Exp $
+/**/# $Id: Project.tmpl,v 1.16 1993-12-14 03:15:40 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -495,6 +495,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
    EXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) \
 		    $(NETCDFINCLUDES) $(CONFIGINCLUDES)
+/*
+ * We redefine the order of the ALLINCLUDES variable here so that top
+ * includes will be first on the compiler command line, but the include
+ * path can still be overridden with the INCLUDES variable.  See Imake.tmpl.
+ */
+      ALLINCLUDES = $(INCLUDES) $(TOP_INCLUDES) $(EXTRA_INCLUDES) $(STD_INCLUDES)
 
 /*
  * Project-wide defines.  
@@ -539,7 +545,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
                CC = CCompiler
               C++ = CccCompiler
-#if UseOpenWindows && OpenWindowsVersion < 3
+/* #if UseOpenWindows && OpenWindowsVersion < 3 */
+/* Apparently it doesn't matter which version we're using... #@$%#@! */
+#if UseOpenWindows
         CCOPTIONS = CCOptions CCStaticOption
 #else
         CCOPTIONS = CCOptions 
