@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.9 1993-07-13 19:59:31 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.10 1993-07-15 15:05:34 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -243,7 +243,7 @@ bool	update;
 	P_hgt = Use_alt ? 12.0 : -850.0;
 
 	pda_Search (Pd, "global", "z-min", NULL, (char *) &P_bot, SYMT_FLOAT);
-	if (pda_Search (Pd, "global", "z-max", NULL, (char *) &P_hgt, 
+	if (pda_Search (Pd, "global", "z-max", NULL, (char *) &zmax, 
 			SYMT_FLOAT))
 		P_hgt = zmax - P_bot;
 /*
