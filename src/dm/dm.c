@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.72 2000-06-07 20:27:43 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.73 2000-06-12 23:49:44 granger Exp $")
 
 /*
  * Pick a help browser.
@@ -591,8 +591,8 @@ struct ui_command *cmds;
 			CallXHelp (cmds);
 		else
 #endif
-			dm_MosHelp (cmds[1].uc_ctype == UTT_END ? "index.html"
-				: UPTR (cmds[1]));
+			dm_Help (cmds[1].uc_ctype == UTT_END ? "index.html"
+				 : UPTR (cmds[1]));
 		break;
 	/*
 	 * Do away with a window.

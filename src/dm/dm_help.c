@@ -1,6 +1,7 @@
 /*
- * This (now misnamed) module provides help information using the Mosaic or
- * netscape browsers.
+ * This module provides help information using the Mosaic or
+ * netscape browsers, preferrably netscape since only netscape has
+ * been tested recently.
  */
 # include <unistd.h>
 # include <sys/types.h>
@@ -20,12 +21,12 @@
 # define URL_LEN (3 * CFG_FILEPATH_LEN)
 
 /*
- * When the browser is running, we keep it's PID here.
+ * When the Mosaic browser is running, we keep it's PID here.
  */
 static int MosPid = -1;
 
 static int dm_FindURL FP ((char *, char *));
-static void dm_StartMosaic FP ((char *));
+static void dm_StartBrowser FP ((char *));
 static void dm_TweakMosaic FP ((char *));
 static void dm_TweakNetscape FP ((char *));
 
@@ -36,10 +37,10 @@ static void dm_TweakNetscape FP ((char *));
 static char TFile[ CFG_FILEPATH_LEN ] = { '\0' };
 
 static char HelpPath[CFG_SEARCHPATH_LEN]; /* Where are the helpfiles */
-static char MosaicPath[CFG_FILEPATH_LEN]; /* Mosaic executable */
+static char BrowserPath[CFG_FILEPATH_LEN]; /* Browser executable */
 
 /*
- * A variable to tell us if "Mosaic" is really netscape.
+ * A variable to tell us if the browser is really netscape and not Mosaic.
  */
 static zbool ReallyNetscape = FALSE;
 
@@ -53,11 +54,13 @@ dm_Init ()
 	usy_c_indirect (vtable, "helppath", HelpPath, SYMT_STRING,
 			CFG_SEARCHPATH_LEN);
 #ifdef MOSAIC_COMMAND
-	strcpy (MosaicPath, MOSAIC_COMMAND);
+	strcpy (BrowserPath, MOSAIC_COMMAND);
 #else
-	MosaicPath[0] = '\0';
+	strcpy (BrowserPath, "netscape");
 #endif
-	usy_c_indirect (vtable, "mosaicpath", MosaicPath, SYMT_STRING, 
+	usy_c_indirect (vtable, "browserpath", BrowserPath, SYMT_STRING, 
+			CFG_FILEPATH_LEN);
+	usy_c_indirect (vtable, "mosaicpath", BrowserPath, SYMT_STRING, 
 			CFG_FILEPATH_LEN);
 /*
  * Give them a default helppath which includes a project subdirectory
@@ -67,7 +70,7 @@ dm_Init ()
 
 
 void
-dm_MosHelp (url)
+dm_Help (url)
 char *url;
 /*
  * Get a help window going with this URL.
@@ -93,12 +96,14 @@ char *url;
 			  url, realurl);
 	}
 /*
- * Display it.
+ * Display it in our browser.  Check now to see which browser we're using,
+ * hope we don't get confused, then run the appropriate tweaking.
  */
-	if (MosPid > 0)
-		dm_TweakMosaic (realurl);
+	ReallyNetscape = strstr (BrowserPath, "netscape") != 0;
+	if (ReallyNetscape)
+		dm_TweakNetscape (realurl);
 	else
-		dm_StartMosaic (realurl);
+		dm_TweakMosaic (realurl);
 }
 
 
@@ -132,9 +137,14 @@ char *url, *realurl;
 	char cwd[ URL_LEN ];
 	char *c, *sharp;
 /*
+ * Be case-insensitive.
+ */
+	strcpy (temp, url);
+	for (c = temp; *c; ++c) *c = tolower (*c);
+/*
  * If this is some sort of network URL we don't mess with it.
  */
-	if (! strncmp (url, "http:", 5) || ! strncmp (url, "gopher:", 7))
+	if (! strncmp (temp, "http:", 5) || ! strncmp (temp, "gopher:", 7))
 	{
 		strcpy (realurl, url);
 		return (TRUE);
@@ -143,7 +153,6 @@ char *url, *realurl;
  * OK, assume it's a file.  Copy it over and check for #'s, so we can trim
  * that part out.  Strip trailing spaces also.
  */
-	strcpy (temp, url);
 	c = temp + strlen(temp) - 1;
 	while ((c >= temp) && isspace(*c))
 		c--;
@@ -188,10 +197,10 @@ char *url, *realurl;
 
 
 static void
-dm_StartMosaic (url)
+dm_StartBrowser (url)
 char *url;
 /*
- * Fire up mosaic with this URL.
+ * Fire up a netscape or mosaic browser with this URL.
  */
 {
 	int i;
@@ -204,25 +213,25 @@ char *url;
 		TFile[0] = '\0';
 	}
 /*
- * Fire off a browser.  Check now to see which it is, and hope we don't
- * get confused.
+ * Fire off a browser.
  */
-	ReallyNetscape = strstr (MosaicPath, "netscape") != 0;
 	if ((MosPid = fork ()) == 0)
 	{
-		char *args[10];
+		char *args[20];
 	/*
-	 * OK, we get to be Mosaic.  Clean up.
+	 * OK, we get to be the browser.  Clean up.
 	 */
 		for (i = 3; i < 20 /* xxx */ ; i++)
 			close (i);
 	/*
-	 * Fix up args for our browser.
+	 * Fix up args for the browser.
 	 */
 		i = 0;
 		if (ReallyNetscape)
 		{
 			args[i++] = "netscape";
+			args[i++] = "-ncols";
+			args[i++] = "64";
 			args[i++] = url;
 		}
 		else
@@ -237,14 +246,26 @@ char *url;
 	 * Now see if we can make it go.
 	 */
 		args[i] = 0;
-		if (MosaicPath[0])
+		if (BrowserPath[0])
 		{
-			execvp (MosaicPath, args);
-			fprintf (stderr, "could not exec '%s'\n", MosaicPath);
+			execvp (BrowserPath, args);
+			fprintf (stderr, "could not exec '%s'\n", BrowserPath);
 		}
-		execvp ("Mosaic", args);
-		execvp ("xmosaic", args);
-		fprintf (stderr, "Exec of Mosaic and xmosaic failed!\n");
+	/*
+	 * Try some fallbacks according to the browser we were
+	 * trying to start.
+	 */
+		if (ReallyNetscape)
+		{
+		    execvp ("netscape", args);
+		    fprintf (stderr, "Exec of netscape failed!\n");
+		}
+		else
+		{
+		    execvp ("Mosaic", args);
+		    execvp ("xmosaic", args);
+		    fprintf (stderr, "Exec of Mosaic and xmosaic failed!\n");
+		}
 		_exit (1);
 	}
 }
@@ -266,13 +287,12 @@ char *url;
  */
 {
 	FILE *cfile;
-/*
- * Netscape?  Do it their way.
- */
-	if (ReallyNetscape)
+
+	if (MosPid < 0)
 	{
-		dm_TweakNetscape (url);
-		return;
+	    /* Mosaic hasn't been started yet, so start it. */
+	    dm_StartBrowser (url);
+	    return;
 	}
 /*
  * Create the control file if necessary.
@@ -297,11 +317,11 @@ char *url;
 		if (errno == ESRCH)
 		{
 			msg_ELog (EF_INFO, "Mosaic gone, restarting");
-			dm_StartMosaic (url);
+			dm_StartBrowser (url);
 		}
 		else
 			msg_ELog (EF_PROBLEM, "Weird Mosaic poke status %s",
-					errno);
+				  errno);
 	}
 }
 
@@ -316,20 +336,18 @@ char *url;
  * Poke the netscape browser.
  */
 {
-	char nscmd[URL_LEN];
-/*
- * See if it died.
- */
-	if (waitpid (MosPid, (int *) 0, WNOHANG) > 0)
-	{
-		msg_ELog (EF_INFO, "Netscape died, restarting");
-		dm_StartMosaic (url);
-		return;
-	}
-/*
- * It's still there.  Format up the funky command needed to make it go to the
- * new URL.
- */
-	sprintf (nscmd, "%s -remote 'openURL(%s)'", MosaicPath, url);
-	system (nscmd);
+    char nscmd[URL_LEN];
+    /*
+     * Format up the funky command needed to make a currently running
+     * netscape go to the new URL, and see if it works.  If it doesn't, try
+     * starting our own.
+     */
+    sprintf (nscmd, "%s -raise -remote 'openURL(%s)'", BrowserPath, url);
+    msg_ELog (EF_DEBUG, "%s", nscmd);
+    if (system (nscmd) != 0)
+    {
+	msg_ELog (EF_INFO, "remote netscape failed, starting our own");
+	dm_StartBrowser (url);
+	return;
+    }
 }

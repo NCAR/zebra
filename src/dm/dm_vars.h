@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.14 1999-03-01 02:03:18 burghart Exp $
+ * $Id: dm_vars.h,v 2.15 2000-06-12 23:49:45 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -217,7 +217,7 @@ void	dc_FreeTables FP((void));
  * Help functions.
  */
 extern void dm_Init FP ((void));
-extern void dm_MosHelp FP ((char *));
+extern void dm_Help FP ((char *));
 extern void dm_ExitHelp FP ((void));
 
 /*
