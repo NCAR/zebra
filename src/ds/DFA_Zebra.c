@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.8 1992-11-06 17:59:08 burghart Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.9 1992-12-11 17:43:06 corbet Exp $");
 
 
 /*
@@ -93,6 +93,8 @@ static struct CO_Compat
 	{ OrgTransparent,	DCC_Transparent	},
 	{ OrgScalar,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Location	},
+	{ OrgFixedScalar,	DCC_Scalar	},
+	{ OrgFixedScalar,	DCC_Location	},
 };
 # define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
 
@@ -114,6 +116,8 @@ static int	zn_WrIRGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *,
 			WriteCode, int *, FieldId *, int));
 static int	zn_WrScalar FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
 			WriteCode, int *, FieldId *, int));
+static int	zn_WrFixScalar FP ((znTag *, DataChunk *, int, int,
+			zn_Sample *, WriteCode, int *, FieldId *, int));
 static void 	zn_WrLocInfo FP ((znTag *, int, Location *, RGrid *));
 static int	zn_WrTrans FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
 			WriteCode));
@@ -143,6 +147,8 @@ static void	zn_GetBlock FP ((znTag *, long, void *, int));
 static void	zn_PutBlock FP ((znTag *, long, void *, int));
 static void	zn_FreeSpace FP ((znTag *, long, int));
 
+static int 	zn_SASize FP ((zn_Header *, int));
+static zn_Sample * zn_FindSampStr FP ((znTag *, int));
 
 
 
@@ -215,7 +221,8 @@ char **rtag;
 /*
  * Allocate the sample offset array.
  */
-	ssize = ZN_GRAIN*hdr->znh_NField*sizeof (zn_Sample);
+	ssize = zn_SASize (hdr, ZN_GRAIN);
+/*	ssize = ZN_GRAIN*hdr->znh_NField*sizeof (zn_Sample); */
 	tag->zt_Sample = (zn_Sample *) malloc (ssize);
 	hdr->znh_OffSample = zn_GetSpace (tag, ssize);
 	tag->zt_Sync |= SF_SAMPLE;
@@ -339,7 +346,7 @@ znTag *tag;
 			hdr->znh_NSampAlloc*sizeof (ZebTime));
 	if (tag->zt_Sync & SF_SAMPLE)
 		zn_PutBlock (tag, hdr->znh_OffSample, tag->zt_Sample,
-		       hdr->znh_NField*hdr->znh_NSampAlloc*sizeof (zn_Sample));
+		       zn_SASize (hdr, hdr->znh_NSampAlloc));
 	if (tag->zt_Sync & SF_LOCATION)
 		zn_PutBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,
 			hdr->znh_NSampAlloc*sizeof (Location));
@@ -558,7 +565,8 @@ WriteCode wc;
 		index = (int *) malloc (nfield*sizeof (int));
 		zn_GetFieldIndex (tag, fids, nfield, index, TRUE);
 	}
-	samp = tag->zt_Sample + (fsample*hdr->znh_NField);
+	/* samp = tag->zt_Sample + (fsample*hdr->znh_NField); */
+	samp = zn_FindSampStr (tag, fsample);
 /*
  * Now it is a matter of writing out the data according to the type of
  * things.
@@ -584,6 +592,9 @@ WriteCode wc;
 	   case OrgScalar:
 	   	zn_WrScalar (tag, dc, fsample, sample, samp, wc, index,
 				fids, nfield);
+	   case OrgFixedScalar:
+	   	zn_WrFixScalar (tag, dc, fsample, sample, samp, wc, index,
+				fids, nfield);
 
 	   case OrgTransparent:
 	   	zn_WrTrans (tag, dc, fsample, sample, samp, wc);
@@ -599,10 +610,8 @@ WriteCode wc;
 /*
  * Save out the sample array.
  */
-	zn_PutBlock (tag, hdr->znh_OffSample +
-			fsample*hdr->znh_NField*sizeof (zn_Sample),
-			tag->zt_Sample + fsample*hdr->znh_NField,
-			hdr->znh_NField*sizeof (zn_Sample));
+	zn_PutBlock (tag, hdr->znh_OffSample + zn_SASize (hdr, fsample),
+			samp, zn_SASize (hdr, 1));
 /*
  * If there are sample attributes, save them.
  */
@@ -701,10 +710,12 @@ int nfield, *index, create;
 /*
  * If we found all of our fields, we can quit.
  */
- 	if (! nnew || ! create)
+ 	if (! nnew || ! create || hdr->znh_Org == OrgFixedScalar)
 		return;
 /*
  * Otherwise we are going to have to expand the sample table.
+ * Sample table size problems below, but doesn't matter (for now) since
+ * fixed case bails out above.
  */
 	newsize = hdr->znh_NSampAlloc*(hdr->znh_NField+nnew)*sizeof(zn_Sample);
 	np = new = (zn_Sample *) malloc (newsize);
@@ -822,8 +833,12 @@ znTag *tag;
 	}
 /*
  * Otherwise we have to make everything bigger.  Start with the time array.
+ *
+ * (12/92 jc) try doubling the TOC size instead of just slowly growing it,
+ * so as to reduce fragmentation problems.
  */
-	newns = (hdr->znh_NSampAlloc += ZN_GRAIN);
+/*	newns = (hdr->znh_NSampAlloc += ZN_GRAIN); */
+	newns = (hdr->znh_NSampAlloc *= 2);
 	tag->zt_Time = (ZebTime *) realloc (tag->zt_Time, 
 					newns*sizeof (ZebTime));
 	zn_FreeSpace (tag, hdr->znh_OffTime, oldns*sizeof (ZebTime));
@@ -833,11 +848,9 @@ znTag *tag;
  * Now the sample information array.
  */
 	tag->zt_Sample = (zn_Sample *) realloc (tag->zt_Sample,
-				hdr->znh_NField*newns*sizeof (zn_Sample));
-	zn_FreeSpace (tag, hdr->znh_OffSample,
-				hdr->znh_NField*oldns*sizeof (zn_Sample));
-	hdr->znh_OffSample = zn_GetSpace (tag,
-				hdr->znh_NField*newns*sizeof (zn_Sample));
+			zn_SASize (hdr, newns));
+	zn_FreeSpace (tag, hdr->znh_OffSample, zn_SASize (hdr, oldns));
+	hdr->znh_OffSample = zn_GetSpace (tag, zn_SASize (hdr, newns));
 	tag->zt_Sync |= SF_HEADER | SF_SAMPLE;
 /*
  * The location array if need be.
@@ -870,7 +883,8 @@ znTag *tag;
 					newns*sizeof (zn_Sample));
 		zn_FreeSpace (tag, hdr->znh_OffAttr, oldns*sizeof (zn_Sample));
 		hdr->znh_OffAttr = zn_GetSpace (tag, newns*sizeof (zn_Sample));
-		memset (tag->zt_Attr + oldns, 0, ZN_GRAIN*sizeof (zn_Sample));
+		memset (tag->zt_Attr + oldns, 0,
+				(newns - oldns)*sizeof (zn_Sample));
 		zn_PutBlock (tag, hdr->znh_OffAttr, tag->zt_Attr,
 				newns*sizeof (zn_Sample));
 	}
@@ -901,9 +915,9 @@ int sample;
  */
 	bcopy (tag->zt_Time + sample, tag->zt_Time + sample + 1,
 			nmove*sizeof (ZebTime));
-	bcopy (tag->zt_Sample + sample*hdr->znh_NField,
-		tag->zt_Sample + (sample + 1)*hdr->znh_NField,
-		nmove*hdr->znh_NField*sizeof (zn_Sample));
+	bcopy (zn_FindSampStr (tag, sample),
+		zn_FindSampStr (tag, sample + 1),
+		zn_SASize (hdr, nmove));
 	tag->zt_Sync |= SF_HEADER | SF_TIME | SF_SAMPLE;
 /*
  * If there are locations do them too.
@@ -1035,6 +1049,54 @@ FieldId *fids;
 			sizeof (Location));
 	}
 }
+
+
+
+
+
+
+static int
+zn_WrFixScalar (tag, dc, fsample, dcsample, samp, wc, index, fids, nfield)
+znTag *tag;
+DataChunk *dc;
+int fsample, dcsample, *index, nfield;
+zn_Sample *samp;
+WriteCode wc;
+FieldId *fids;
+/*
+ * Write out some fixed-field scalar data.
+ */
+{
+	int fld, len;
+	float *fdata, bad = dc_GetBadval (dc);
+	zn_Header *hdr = &tag->zt_Hdr;
+/*
+ * Get an array to hold all the data for this sample.
+ */
+	fdata = (float *) malloc (hdr->znh_NField * sizeof (float));
+	if (wc == wc_Append)
+		for (fld = 0; fld < hdr->znh_NField; fld++)
+			fdata[fld] = bad;
+	else
+		zn_GetBlock (tag, samp->znf_Offset, fdata, samp->znf_Size);
+/*
+ * Fill in the data for each field.
+ */
+	for (fld = 0; fld < nfield; fld++)
+		fdata[fld] = dc_GetScalar (dc, dcsample, fids[fld]);
+	zn_DataWrite (tag, fdata, hdr->znh_NField*sizeof (float), samp, wc);
+/*
+ * Put out the location if necessary.
+ */
+	if (ds_IsMobile (dc->dc_Platform))
+	{
+		dc_GetLoc (dc, dcsample, tag->zt_Locs + fsample);
+		zn_PutBlock (tag, tag->zt_Hdr.znh_OffLoc + 
+			fsample*sizeof (Location), tag->zt_Locs + fsample,
+			sizeof (Location));
+	}
+}
+
 
 
 
@@ -1247,10 +1309,9 @@ void **rtag;
 	nsa = hdr->znh_NSampAlloc;
 	tag->zt_Time = (ZebTime *) malloc(nsa*sizeof (ZebTime));
 	zn_GetBlock (tag, hdr->znh_OffTime, tag->zt_Time, nsa*sizeof(ZebTime));
-	tag->zt_Sample = (zn_Sample *)
-			malloc (nsa*hdr->znh_NField*sizeof (zn_Sample));
+	tag->zt_Sample = (zn_Sample *) malloc (zn_SASize (hdr, nsa));
 	zn_GetBlock (tag, hdr->znh_OffSample, tag->zt_Sample,
-			nsa*hdr->znh_NField*sizeof (zn_Sample));
+			zn_SASize (hdr, nsa));
 /*
  * Pull in the fields and convert them to fids.
  */
@@ -1396,7 +1457,7 @@ void *ctag;
 		tag->zt_Time = (ZebTime *) realloc (tag->zt_Time,
 				nsa*sizeof (ZebTime));
 		tag->zt_Sample = (zn_Sample *) realloc (tag->zt_Sample,
-				nsa*hdr->znh_NField*sizeof (zn_Sample));
+				zn_SASize (hdr, nsa));
 		if (tag->zt_Locs)
 			tag->zt_Locs = (Location *) realloc (tag->zt_Locs,
 				nsa*sizeof (Location));
@@ -1414,7 +1475,7 @@ void *ctag;
 	{
 		if (oldnsa == hdr->znh_NSampAlloc)
 			tag->zt_Sample = (zn_Sample *) realloc (tag->zt_Sample,
-				nsa*hdr->znh_NField*sizeof (zn_Sample));
+				zn_SASize (hdr, nsa));
 		tag->zt_Fids = (FieldId *) realloc (tag->zt_Fids,
 				hdr->znh_NField*sizeof (FieldId));
 		tag->zt_Fields = (zn_Field *) realloc (tag->zt_Fields,
@@ -1425,7 +1486,7 @@ void *ctag;
  */
 	zn_GetBlock (tag, hdr->znh_OffTime, tag->zt_Time, nsa*sizeof(ZebTime));
 	zn_GetBlock (tag, hdr->znh_OffSample, tag->zt_Sample,
-				nsa*hdr->znh_NField*sizeof (zn_Sample));
+				zn_SASize (hdr, nsa));
 	if (tag->zt_Locs)
 		zn_GetBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,
 						nsa*sizeof (Location));
@@ -1578,6 +1639,8 @@ int ndetail;
 	/*
 	 * Complain for now if the user requests a bad value flag 
 	 * and it doesn't match the one from the file
+	 *
+	 * Why does this have to be this way???????
 	 */
 		if (ds_GetDetail ("badval", details, ndetail, &v) &&
 			v.us_v_float != badval)
@@ -1698,6 +1761,7 @@ float badval;
 	zn_Header *hdr = &tag->zt_Hdr;
 	float *data = (float *) malloc ((tend - tbegin + 1)*sizeof (float));
 	float *dp;
+	bool fixed = (hdr->znh_Org == OrgFixedScalar);
 /*
  * If we are pulling a single station out of an irgrid, figure out 
  * what the offset will be.
@@ -1733,10 +1797,14 @@ float badval;
 		dp = data;
 	 	for (sample = tbegin; sample <= tend; sample++)
 		{
-			zs = tag->zt_Sample + sample*hdr->znh_NField +
-						index[fld];
+			zs = zn_FindSampStr (tag, sample) + 
+						(fixed ? 0 : index[fld]);
 			if (index[fld] < 0 || zs->znf_Size <= 0)
 				*dp = badval;
+			else if (fixed)
+				zn_GetBlock (tag, zs->znf_Offset + 
+					index[fld]*sizeof (float), dp,
+					sizeof (float));
 			else
 				zn_GetBlock (tag, zs->znf_Offset + offset,
 					dp, sizeof (float));
@@ -2391,6 +2459,10 @@ int len;
 		else if ((offset + len) == free)
 			after = free;
 	}
+# ifdef notdef
+ui_printf ("Free %d at %ld, before %ld, after %ld\n", len, offset, before, after);
+zn_DumpFL (tag, hdr);
+# endif
 /*
  * If there is a free block ahead of this one, we merge them.
  */
@@ -2430,6 +2502,8 @@ int len;
 	 */
 	 	if (after == hdr->znh_Free)
 			hdr->znh_Free = afterfb.znf_Next;
+		else if (after == fb.znf_Next)
+			fb.znf_Next = afterfb.znf_Next;
 		else
 		{
 		 	for (free = hdr->znh_Free; free >= 0;
@@ -2443,10 +2517,71 @@ int len;
 			zn_PutBlock (tag, free, &pfb, sizeof (pfb));
 		}
 		hdr->znh_NFree--;
+		zn_PutBlock (tag, offset, &fb, sizeof (fb));
 	}
 /*
  * All done.  Clean things up and quit.
  */
 	tag->zt_Sync |= SF_HEADER;
 	hdr->znh_NFreeB += len;
+# ifdef notdef
+zn_DumpFL (tag, hdr);
+# endif
+}
+
+
+
+
+zn_DumpFL (tag, hdr)
+znTag *tag;
+zn_Header *hdr;
+/*
+ * Dup out the free list.
+ */
+{
+	long block;
+	zn_Free fb;
+	int i = 0;
+
+	ui_printf ("ffree %ld, nfree %d, nfreeb %d len %ld\n", hdr->znh_Free,
+		hdr->znh_NFree, hdr->znh_NFreeB, hdr->znh_Len);
+	for (block = hdr->znh_Free; block > 0; block = fb.znf_Next)
+	{
+		zn_GetFreeBlock (tag, block, &fb);
+		ui_printf ("  %2d at %7ld size %5d next %7ld\n", i++,
+			block, fb.znf_Size, fb.znf_Next);
+	}
+	ui_printf ("\n");
+}
+
+
+
+
+
+static int
+zn_SASize (hdr, nsample)
+zn_Header *hdr;
+int nsample;
+/*
+ * Compute the size of the sample array.
+ */
+{
+	return ((hdr->znh_Org == OrgFixedScalar) ?
+		nsample*sizeof (zn_Sample) :
+		nsample*hdr->znh_NField*sizeof (zn_Sample));
+}
+
+
+
+
+static zn_Sample *
+zn_FindSampStr (tag, sample)
+znTag *tag;
+int sample;
+/*
+ * Find the appropriate sample offset structure.
+ */
+{
+	return (tag->zt_Sample + ((tag->zt_Hdr.znh_Org == OrgFixedScalar) ?
+			sample : sample*tag->zt_Hdr.znh_NField));
 }
