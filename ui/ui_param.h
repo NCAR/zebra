@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.6 1993-08-13 17:35:53 case Exp $ */
+/* $Id: ui_param.h,v 1.7 1993-10-04 15:02:53 case Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -93,7 +93,11 @@ char *getvm ();
 # endif
 
 /*
- * Conditional def's for arguments for sprintrmt
+ * Conditional def's for arguments for sprintrmt.  
+ *
+ * 9/93 - all calls to sprintrmt have been removed from ui and replaced
+ * with C variable argument functions.  Sprintrmt is retained for
+ * backward compatibility only and should not be used for new development.   
  *
  * Usage:	error (fmt, ARGS)
  *		char *fmt;
