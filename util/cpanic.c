@@ -3,27 +3,15 @@
  *
  * A panic call for C programs that does a sprintf first...
  */
-# ifdef VMS
-#	define ERRARGS		args
-#	define SPRINTARGS	&args
-# else
-#	define ERRARGS		a1, a2, a3, a4, a5
-#	define SPRINTARGS	a1, a2, a3, a4, a5
-# endif
-
 void
-c_panic (fmt, ERRARGS)
+c_panic (fmt, a1, a2, a3, a4, a5)
 char *fmt;
-int ERRARGS;
+int a1, a2, a3, a4, a5;
 {
 	char line[133];
 	extern ftl_panic ();
 
-	sprintrmt (line, fmt, SPRINTARGS);
-# ifdef VMS
-	lib$signal (ftl_panic, 1, descr (line));
-# else
+	sprintrmt (line, fmt, a1, a2, a3, a4, a5);
 	printf ("C_PANIC: %s\n", line);
 	abort ();
-# endif
 }

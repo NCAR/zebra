@@ -10,11 +10,6 @@
 # include <signal.h>
 # include "netdisk.h"
 
-# ifdef titan
-# include "../h/t_fname.h"
-# endif
-
-
 # define TRUE 1
 # define FALSE 0
 

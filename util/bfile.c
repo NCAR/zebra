@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.12 1998-02-26 21:16:40 burghart Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.13 2002-07-11 19:30:55 burghart Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -12,12 +12,10 @@ static char *rcsid = "$Id: bfile.c,v 1.12 1998-02-26 21:16:40 burghart Exp $";
 #	include "netdisk.h"
 # endif
 
-# ifdef UNIX
-#	include <unistd.h>
-#	include <assert.h>
+# include <unistd.h>
+# include <assert.h>
 /* hack to make rfa work */
 static long Offset = 0;
-# endif
 
 
 
@@ -28,7 +26,6 @@ char *file;
  * Open, for read access, an existing binary file.
  */
 {
-# ifdef UNIX
 	int fd;
 
 #   ifdef NETACCESS
@@ -42,10 +39,6 @@ char *file;
 #   else
 	return (fd < 0 ? 0 : fd);
 #   endif
-
-# else
-	return (dview (file));
-# endif
 }
 
 
@@ -57,7 +50,6 @@ char *file;
  * Open, for read/write access, an existing binary file.
  */
 {
-# ifdef UNIX
 	int fd;
 
 #   ifdef NETACCESS
@@ -71,10 +63,6 @@ char *file;
 #    else
 	return (fd < 0 ? 0 : fd);
 #    endif
-
-# else
-	return (dopen (file));
-# endif
 }
 
 
@@ -87,7 +75,6 @@ char *file;
  * Create a new binary file.
  */
 {
-# ifdef UNIX
 	int fd;
 #   ifdef NETACCESS
 	if (strchr (file, ':'))
@@ -103,9 +90,6 @@ char *file;
 #   else
 	return (fd);
 #   endif
-# else
-	return (dcreate (file));
-# endif
 }
 
 
@@ -117,7 +101,6 @@ int fd;
  * Close this file.
  */
 {
-# ifdef UNIX
 #    ifdef NETACCESS
 	if (lun_type (fd) == LUN_NTDSK_DISK)
 		dclose (fd);
@@ -127,9 +110,6 @@ int fd;
 #    else
 	close (fd);
 #    endif
-# else
-	dclose (fd);
-# endif
 }
 
 
@@ -143,7 +123,6 @@ char *buf;
  * Return value is the actual len, or < 0 for EOF.
  */
 {
-# ifdef UNIX
 	unsigned int rlen;
 /*
  * First, get the record length.
@@ -191,9 +170,6 @@ char *buf;
 	read (fd, buf, rlen);
 	read (fd, &rlen, 4);	/* trailing record length */
 	return (rlen);
-# else
-	return (dget (fd, buf, len));
-# endif
 }
 
 
@@ -206,7 +182,6 @@ char *buf;
  * Write out a binary record.
  */
 {
-# ifdef UNIX
 	unsigned int rlen = len;
 
 #   ifdef NETACCESS
@@ -229,9 +204,6 @@ char *buf;
 	if (rlen > 0)
 		write (fd, buf, len);
 	write (fd, &rlen, 4);
-# else
-	dput (fd, buf, len);
-# endif
 }
 
 
@@ -244,11 +216,6 @@ short rfa[3];
  * Return the RFA of the last disk operation in RFA.
  */
 {
-# ifdef VMS
-	drfa (r, rfa);
-# endif
-
-# ifdef UNIX
 	int fd;
 	long *temp = (long *) rfa;
 
@@ -262,7 +229,7 @@ short rfa[3];
 		fd = lun_lookup (r);
 #   endif
 	*temp = Offset;
-# endif
+
 	return (1);
 }
 
@@ -276,11 +243,6 @@ short rfa[3];
  * Position to the record indicated by the RFA.
  */
 {
-# ifdef VMS
-	dfind (r, rfa);
-# endif
-
-# ifdef UNIX
 	int fd = r;
 
 #   ifdef NETACCESS
@@ -294,7 +256,7 @@ short rfa[3];
 #   endif
 	if (lseek (fd, *(long *) rfa, SEEK_SET) == -1)
 		printf ("\nImproper seek\n");
-# endif
+
 	return (1);
 }
 
@@ -307,7 +269,6 @@ int fd;
  * Rewind this file.
  */
 {
-# ifdef UNIX
 #    ifdef NETACCESS
 	if (lun_type (fd) == LUN_NTDSK_DISK)
 		drewind (fd);
@@ -316,7 +277,4 @@ int fd;
 #    else
 	lseek (fd, 0, SEEK_SET);
 #    endif
-# else
-	drewind (fd);
-# endif
 }
