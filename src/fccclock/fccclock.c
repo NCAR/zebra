@@ -33,7 +33,7 @@
 # include <timer.h>
 # include <pd.h>
 
-RCSID ("$Id: fccclock.c,v 2.12 1996-11-19 07:14:28 granger Exp $")
+RCSID ("$Id: fccclock.c,v 2.13 1997-02-14 07:06:26 granger Exp $")
 
 /*
  * Default resources.
@@ -76,7 +76,7 @@ static void SendGeometry FP((struct dm_msg *dmm));
 static void dmgr_message FP((struct dm_msg *dmsg));
 static void reconfig FP((struct dm_msg *dmsg));
 static void StartUpdate FP((void));
-static void sync FP((void));
+static void SyncWindow FP((void));
 static void ParamChange FP((struct dm_parchange *dmp));
 static void NewPD FP((struct dm_pdchange *dmp));
 static void ChangeState FP((enum wstate new));
@@ -269,7 +269,7 @@ struct dm_msg *dmm;
  * our current geometry in the shell widget.
  */
 	XMapRaised (XtDisplay (Top), XtWindow (GrShell));
-	sync ();
+	SyncWindow ();
 	n = 0;
 	XtSetArg (args[n], XtNx, (XtArgVal)&x);	n++;
 	XtSetArg (args[n], XtNy, (XtArgVal)&y);	n++;
@@ -349,7 +349,7 @@ struct dm_msg *dmsg;
  	XtSetArg (args[0], XtNx, dmsg->dmm_x);
 	XtSetArg (args[1], XtNy, dmsg->dmm_y);
 	XtSetValues (GrShell, args, (Cardinal)2 );
-	sync();
+	SyncWindow();
 #endif
 
 	XClearWindow (XtDisplay (Top), XtWindow (Graphics));
@@ -357,7 +357,7 @@ struct dm_msg *dmsg;
  * The raise window is to get us an expose event to the graphics widget
  */
 	XMapRaised (XtDisplay (Top), XtWindow (GrShell));
-	sync();
+	SyncWindow();
 }
 
 
@@ -393,7 +393,7 @@ enum wstate new;
 		tl_AllCancel ();
 	}
 	WindowState = new;
-	sync ();
+	SyncWindow ();
 /*
  * If the graphics context does not exist, create it now.
  */
@@ -426,7 +426,7 @@ enum wstate new;
 
 
 static void
-sync ()
+SyncWindow ()
 /*
  * Synchronize with the window system.
  */
@@ -474,7 +474,7 @@ int junk;
 	strcat (dbuf, "  ");
 	XDrawImageString (XtDisplay (Top), XtWindow (Graphics), Gc,
 		5, Height - 5, dbuf, strlen (dbuf));
-	sync ();
+	SyncWindow ();
 }
 
 
