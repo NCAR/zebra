@@ -36,7 +36,7 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $";
 
 //
 // The data directory class.
@@ -158,3 +158,4 @@ dsPlatform::space () const
 		total += files.nth(df).size ();
 	return (total/1024000.0);
 }
+

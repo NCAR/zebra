@@ -24,9 +24,9 @@
 # include <errno.h>
 # include "Tape.h"
 
-static char *rcsid = "$Id: Tape.cc,v 1.1 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: Tape.cc,v 1.2 1993-02-02 19:35:33 corbet Exp $";
 
-Tape::Tape (const char *drive)
+Tape::Tape (const char *drive, int write = 0)
 //
 // Open up a tape.
 //
@@ -34,7 +34,7 @@ Tape::Tape (const char *drive)
 //
 // Get the drive open, and we are done.
 //
-	if ((t_fd = open (drive, O_RDONLY, 0)) < 0)
+	if ((t_fd = open (drive, write ? O_RDWR : O_RDONLY, 0)) < 0)
 		cerr << "Unable to open drive " << drive << ".\n";
 	else
 		rewind ();
@@ -125,7 +125,8 @@ Tape::getblock (char *buf, int bufsize)
 		}
 		t_fileno++;
 		t_status = Eof;
-		return (getblock (buf, bufsize));
+		return (TS_EOF);
+//		return (getblock (buf, bufsize));
 	}
 //
 // Hmm....
@@ -135,3 +136,35 @@ Tape::getblock (char *buf, int bufsize)
 }
 
 
+
+
+
+int
+Tape::putblock (const char *block, int nbytes)
+//
+// Write a tape block out.  If the tape has not been opened for write
+// access, this is highly unlikely to work.
+//
+{
+	if (write (t_fd, block, nbytes) < nbytes)
+		return (TS_ERROR);
+	return (nbytes);
+}
+
+
+
+
+void
+Tape::WriteEof ()
+//
+// Write an end of file.
+//
+{
+	struct mtop mt_cmd;
+
+	mt_cmd.mt_op = MTWEOF;
+	mt_cmd.mt_count = 1;
+	if (ioctl (t_fd, MTIOCTOP, &mt_cmd) < 0)
+		cerr << "Error writing EOF\n";
+	t_status = Normal;
+}

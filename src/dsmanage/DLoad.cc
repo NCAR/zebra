@@ -27,21 +27,25 @@ extern "C"
 {
 #	include <X11/Intrinsic.h>
 #	include <defs.h>
+	extern void ds_ForceRescan (int, int);
 }
 # include "dsmanage.h"
 # include "dsmWindows.h"
 # include "STable.h"
 # include "Index.h"
 # include "StatusWin.h"
-# include "container.h"
+//# include "container.h"
 # include "DataDir.h"
 # include "Tape.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.1 1992-09-10 22:26:51 corbet Exp $")
+# include "plcontainer.h"
+MAKE_RCSID ("$Id: DLoad.cc,v 1.2 1993-02-02 19:35:33 corbet Exp $")
 
 //
 // Import from main.
 //
-IContainer<dsPlatform> *PList;
+//IContainer<dsPlatform> *PList;
+
+extern plContainer *PList;
 
 
 
@@ -83,6 +87,9 @@ DLoad (PlatformIndex *index, int istape, const char * tdev, int files,
 //
 // Tell the daemon to update.
 //
+	ds_ForceRescan (0, TRUE);
+	sleep (5);	// Give daemon some time
+	MakePlatformList ();
 }
 
 
@@ -459,7 +466,7 @@ GetTarBlock (Tape &t)
 	if ((TapeBlock - TapeBuffer) >= DataLen)
 	{
 		if ((DataLen = t.getblock (TapeBuffer, BufSize)) < 0)
-			return (0);
+			return (DataLen == TS_EOF ? GetTarBlock (t) : 0);
 		TapeBlock = TapeBuffer;
 	}
 	return (TapeBlock);

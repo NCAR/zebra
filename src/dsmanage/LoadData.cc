@@ -43,13 +43,14 @@ extern "C"
 	extern int uit_parse_date (const char *, SValue *, int); // XXX XXX
 	extern int atoi (const char *);
 }
-# include "container.h"
+//# include "container.h"
 # include "DataDir.h"
 # include "STable.h"
 # include "dsmWindows.h"
 # include "Index.h"
 # include "ZTime.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $")
+# include "plcontainer.h"
+MAKE_RCSID ("$Id: LoadData.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $")
 
 class LoadSelect;
 
@@ -79,7 +80,8 @@ static void ZapChoosers ();
 //
 // XXX hook into platform list
 //
-extern IContainer<dsPlatform> *PList;
+//extern IContainer<dsPlatform> *PList;
+extern plContainer *PList;
 
 
 //--------------------------------------------------------------

@@ -30,5 +30,6 @@ void DisplaySetup (int *, char **);
 void DDInfo (const char **, float *);
 void MakeLocalIndex (const char *);
 const char *GetPlatDir (const char *);
+void MakePlatformList ();
 
 void DLoad (class PlatformIndex *, int, const char *, int, int);

@@ -38,12 +38,13 @@ extern "C" {
 # include <stream.h>
 # include <String.h>
 # include "STable.h"
-# include "container.h"
+//# include "container.h"
 # include "dsmanage.h"
 # include "DataDir.h"
 # include "Index.h"
+# include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -52,7 +53,8 @@ extern "C" char *strrchr (const char *, int);
 //
 // The platform list.
 //
-IContainer<dsPlatform> *PList;
+//IContainer<dsPlatform> *PList = 0;
+plContainer *PList = 0;
 
 //
 // Other globals.
@@ -100,7 +102,6 @@ DSSetup ()
 // Initialize our connection to the data store.
 //
 {
-	int plat;
 //
 // Hook into the data store.
 //
@@ -124,7 +125,25 @@ DSSetup ()
 //
 // Make the platform list.
 //
-	PList = new IContainer<dsPlatform> (SHeader->sm_nPlatform);
+	MakePlatformList ();
+}
+
+
+
+
+void
+MakePlatformList ()
+{
+	int plat;
+//
+// If there is already a list, delete it and start over.
+//
+	if (PList)
+		delete PList;
+//
+// Make the platform list.
+//
+	PList = new plContainer (SHeader->sm_nPlatform);
 	for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
 	{
 		Platform *p = PTable + plat;
@@ -137,7 +156,6 @@ DSSetup ()
 	}
 	cout << "PList has " << PList->ncontained () << " entries.\n";
 }
-
 
 
 

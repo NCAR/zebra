@@ -27,6 +27,7 @@
 # include <unistd.h>
 # include <string.h>
 # include <signal.h>
+# include <GetOpt.h>	// libg++ option parser.
 // # include <stdlib.h>
 
 extern "C"
@@ -45,7 +46,7 @@ extern "C"
 # include "Tape.h"
 
 
-static char *rcsid = "$Id: TapeIndex.cc,v 1.1 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: TapeIndex.cc,v 1.2 1993-02-02 19:35:33 corbet Exp $";
 
 
 //
@@ -77,13 +78,14 @@ struct TarHeader
 
 
 
-char *GetTarBlock (Tape &);
-void ProcessTarFile (Tape &, const TarHeader *, PlatformIndex &);
+char *GetTarBlock (Tape &, Tape *);
+void ProcessTarFile (Tape &, Tape *, const TarHeader *, PlatformIndex &);
 int DecodeNum (const char *);
 int MakeTempFile ();
 void ZapTempFile (int);
 void ExtractPlat (const char *, char *);
 void Interrupt ();
+volatile void Usage ();
 
 
 
@@ -99,9 +101,32 @@ PlatformIndex *PIndex;
 int
 main (int argc, char **argv)
 {
+	GetOpt parser (argc, argv, "s:c:");
+	int flag;
+	Tape *outtape = 0;
 //
 // Start by making sure we have our arguments
 //
+	sprintf (TmpFile, "%s/%s", Scratch, "TapeIndex.tmp");
+	while ((flag = parser ()) != EOF)
+	{
+		switch (flag)
+		{
+		    case 'c':
+		   	outtape = new Tape (parser.optarg, TRUE);
+			break;
+		    case 's':
+			sprintf (TmpFile, "%s/%s", parser.optarg,
+				"TapeIndex.tmp");
+			break;
+		    case '?':
+			Usage ();
+			break;
+		}
+	}
+	if ((argc - parser.optind) != 2)
+		Usage ();
+# ifdef notdef
 	if (argc == 4)
 		Scratch = argv[3];
 	else if (argc != 2)
@@ -110,11 +135,11 @@ main (int argc, char **argv)
 			" tape-drive out-index [scratch]\n.";
 		exit (1);
 	}
-	sprintf (TmpFile, "%s/%s", Scratch, "TapeIndex.tmp");
+# endif
 //
 // Get our drive.
 //
-	Tape tape (argv[1]);
+	Tape tape (argv[parser.optind]);
 	if (! tape.OK ())
 		exit (1);
 //
@@ -123,22 +148,34 @@ main (int argc, char **argv)
 	usy_init ();
 	PlatformIndex index;
 	PIndex = &index;
-	IName = argv[2];
+	IName = argv[parser.optind + 1];
 //
 // Now it's time to pass through the data and get our stuff.
 //
 	TarHeader *tp;
 	int ndone = 0;
 	signal (SIGINT, Interrupt);
-	while (tp = (TarHeader *) GetTarBlock (tape))
+	while (tp = (TarHeader *) GetTarBlock (tape, outtape))
 	{
 		if ((++ndone % SaveInterval) == 0)
-			index.save (argv[2]);
-		ProcessTarFile (tape, tp, index);
+			index.save (argv[parser.optind + 1]);
+		ProcessTarFile (tape, outtape, tp, index);
 	}
-	index.save (argv[2]);
+	index.save (argv[parser.optind + 1]);
 }
 
+
+
+volatile void
+Usage ()
+//
+// Complain.
+//
+{
+	cerr << "Usage: tapeindex [-s scratch-dir] [-c copy-dev] " 
+	     << "input-tape index-file\n.";
+	exit (1);
+}
 
 
 
@@ -161,7 +198,7 @@ Interrupt ()
 
 
 char *
-GetTarBlock (Tape &t)
+GetTarBlock (Tape &t, Tape *outtape)
 //
 // Return back the next block.
 //
@@ -173,8 +210,21 @@ GetTarBlock (Tape &t)
 	TapeBlock += TarBlockSize;
 	if ((TapeBlock - TapeBuffer) >= DataLen)
 	{
-		if ((DataLen = t.getblock (TapeBuffer, BufSize)) < 0)
-			return (0);
+	//
+	// Pull in a new block from the tape.
+	//
+		if ((DataLen = t.getblock (TapeBuffer, BufSize)) <= 0)
+		{
+			if (outtape && (DataLen == TS_EOF ||DataLen == TS_EOT))
+				outtape->WriteEof ();
+			return (DataLen == TS_EOF ?
+					GetTarBlock (t, outtape) : 0);
+		}
+	//
+	// If we are outputting, write this block out the other side.
+	//
+		if (outtape)
+			outtape->putblock (TapeBuffer, DataLen);
 		TapeBlock = TapeBuffer;
 	}
 	return (TapeBlock);
@@ -186,7 +236,8 @@ GetTarBlock (Tape &t)
 
 
 void
-ProcessTarFile (Tape &tape, const TarHeader *ttp, PlatformIndex &index)
+ProcessTarFile (Tape &tape, Tape *outtape, const TarHeader *ttp,
+		PlatformIndex &index)
 //
 // Deal with a file on the tar tape.
 //
@@ -225,7 +276,7 @@ ProcessTarFile (Tape &tape, const TarHeader *ttp, PlatformIndex &index)
 	int fd = MakeTempFile ();
 	for (nmoved = 0; nmoved < size; nmoved += TarBlockSize)
 	{
-		char *data = GetTarBlock (tape);
+		char *data = GetTarBlock (tape, outtape);
 		if (! data) // oops
 		{
 			ZapTempFile (fd);

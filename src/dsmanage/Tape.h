@@ -38,13 +38,15 @@ class Tape
 	int	t_fileno;	// What tape file we are on.
 	enum { Normal, Eof, Eot } t_status;
 public:
-	Tape (const char *);
+	Tape (const char *, int = 0);
 	~Tape ();
 	void rewind ();
 	int getblock (char *, int);
+	int putblock (const char *, int);
 	void skip (int);
 	int filenum () const { return t_fileno; }
 	int OK () const { return (t_fd >= 0); };
+	void WriteEof ();
 };
 
 

@@ -21,6 +21,7 @@
 
 # include <stdio.h>
 # include <stream.h>
+# include <unistd.h>
 # include "dsmanage.h"
 
 
@@ -35,12 +36,14 @@ extern "C"
 #	include <X11/Xaw/Label.h>
 #	include <X11/Xaw/Toggle.h>
 #	include <X11/Xaw/Viewport.h>
+	extern void ds_ForceRescan (int, int);
 }
-# include "container.h"
+//# include "container.h"
 # include "DataDir.h"
 # include "dsmWindows.h"
+# include "plcontainer.h"
 
-static char *rcsid = "$Id: Examiner.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: Examiner.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $";
 
 //
 // Local forwards.
@@ -57,7 +60,9 @@ extern void FEMakeFLabel (char *, const dsFile &);
 //
 // XXX hook into platform list
 //
-extern IContainer<dsPlatform> *PList;
+//extern IContainer<dsPlatform> *PList;
+
+extern plContainer *PList;
 
 //---------------------------------------------
 //
@@ -421,6 +426,11 @@ dsFileExaminer::DoZap ()
 	if (nzapped == 0)
 		return;
 //
+// Get the daemon updating, and do the main window too.
+//
+	ds_ForceRescan (plat->index, FALSE);
+	Main->UpdateSpace ();
+//
 // Otherwise we need to fix up the examiner to match the new state
 // of reality.  Start by making a new space label.
 //
@@ -455,9 +465,10 @@ GetRidOfFile (dsPlatform &plat, dsFile &file, int ind)
 //
 {
 //
-// Physically get rid of the file, and tell the daemon about it.
+// Physically get rid of the file
 //
-	// Not yet!
+	if (unlink (file.name ()))
+		perror (file.name ());
 //
 // Clean this file out of the platform structure and get rid of it.
 //
