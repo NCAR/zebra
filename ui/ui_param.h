@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.8 1993-10-21 21:47:53 corbet Exp $ */
+/* $Id: ui_param.h,v 1.9 1995-07-06 04:47:45 granger Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -41,7 +41,11 @@
  * Data types of interest.
  */
 typedef unsigned char byte;	/* Basic byte variable */
+# ifndef __cplusplus
 typedef char bool;		/* Boolean variable	*/
+# else
+# define bool char	/* For some reason g++ doesn't like the typedef */
+# endif
 struct date_st
 {
 	long	ds_yymmdd;	/* Day portion	*/
