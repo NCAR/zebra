@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: control.c,v 1.6 1989-10-11 14:03:54 corbet Exp $ */
+/* $Id: control.c,v 1.7 1989-10-13 11:29:28 corbet Exp $ */
 /*
  * The upper level, control routines for the graphics package.
  */
@@ -95,7 +95,7 @@ ws csta;
 {
 	struct workstation *wstn = (struct workstation *) csta;
 	struct overlay *ov;
-	int mod = 0, npmap = 0, lastadd = 0, pmbot = 0;
+	int mod = 0, npmap = 0, lastadd = 0, pmbot = 0, cleared = 0;
 /*
  * Pass through the overlay list, and scope out just what sort of job
  * we have to deal with here.
@@ -112,8 +112,8 @@ ws csta;
 			  (ov->ov_flags & OVF_MODIFIED) && ov->ov_next == NULL)
 			lastadd = TRUE;
 	}
-	if (mod == 1 && npmap == 1 && wstn->ws_overlay->ov_flags & 
-		(OVF_MODIFIED | OVF_PIXMAP))
+	if (mod == 1 && npmap == 1 && wstn->ws_overlay->ov_flags & OVF_MODIFIED
+			&& wstn->ws_overlay->ov_flags & OVF_PIXMAP)
 		pmbot = TRUE;
 	if (Trace)
 		printf ("UPDATE, mod %d, pm %d, lastadd %d pmbot %d\n", mod,
@@ -139,7 +139,10 @@ ws csta;
  */
 	if ((wstn->ws_dev->gd_flags & GDF_SEGMENT) == 0 &&
 			(mod != 1 || ! lastadd) && ! pmbot)
+	{
 		(*wstn->ws_dev->gd_clear) (wstn->ws_tag);
+		cleared++;
+	}
 /*
  * If we have a vector-capable device, and one of the following is true:
  *	- There are no pixmap overlays, or
@@ -149,9 +152,9 @@ ws csta;
  */
  	if ((wstn->ws_dev->gd_flags & GDF_VECTOR) && (npmap == 0 ||
 		(npmap == 1 && wstn->ws_overlay->ov_flags & OVF_PIXMAP)))
-		G_easy_update (wstn, (mod == 1) && lastadd);
+		G_easy_update (wstn, (mod == 1) && lastadd, cleared);
 	else if (wstn->ws_overlay->ov_next == 0)
-		G_easy_update (wstn, (mod == 1) && lastadd);
+		G_easy_update (wstn, (mod == 1) && lastadd, cleared);
 /*
  * Otherwise, life is a little more difficult.
  */
@@ -177,9 +180,9 @@ ws csta;
 
 
 
-G_easy_update (wstn, add)
+G_easy_update (wstn, add, cleared)
 struct workstation *wstn;
-int add;
+int add, cleared;
 /*
  * Perform an easy, oplist-driven update.
  */
@@ -206,7 +209,7 @@ int add;
 				(*wstn->ws_dev->gd_s_select) (wstn->ws_tag,
 					ov->ov_number, ov->ov_priority);
 				if (ov->ov_flags & OVF_PIXMAP)
-					gp_update (wstn, ov);
+					gp_update (wstn, ov, cleared);
 				else
 					gop_update (wstn, ov,
 						ov->ov_flags & OVF_ADDITIVE);
@@ -226,7 +229,7 @@ int add;
 				(ov->ov_flags & OVF_MODIFIED || ! add))
 			{
 				if (ov->ov_flags & OVF_PIXMAP)
-					gp_update (wstn, ov->ov_pmap);
+					gp_update (wstn, ov->ov_pmap, cleared);
 				else
 					gop_update (wstn, ov, add);
 			}
@@ -315,7 +318,7 @@ struct workstation *wstn;
 /*
  * Now the master pmap can be forced out.
  */
- 	gp_update (wstn, wstn->ws_pmap);
+ 	gp_update (wstn, wstn->ws_pmap, FALSE);
 /*
  * Finally, if there are any oplist overlays left, we should update
  * them now.
@@ -799,6 +802,11 @@ char *cov;
 	struct workstation *wstn = ov->ov_ws;
 	struct device *dev = ov->ov_ws->ws_dev;
 	int coords[4];
+/*
+ * If this overlay is already empty, don't worry about it.
+ */
+ 	if (ov->ov_flags & OVF_EMPTY)
+		return (GE_OK);
 /*
  * Clean out the oplist for this overlay.
  */
