@@ -1,17 +1,47 @@
 ! XHelp app defaults file specific to Zeb applications
 !
-XHelp*outerForm.background:			CadetBlue
-XHelp*borderColor:				MidnightBlue
+XHelp*BorderColor:				MidnightBlue
+XHelp*Background:				CadetBlue
 XHelp*menuForm.background:			CadetBlue
-XHelp*QUIT.background:				gray90
-XHelp*QUIT.foreground:				MidnightBlue
-XHelp*QUIT.borderColor:				red
+XHelp*outerForm.background:			CadetBlue
 XHelp*iconForm*borderColor:			CadetBlue
 XHelp*iconForm.internalBorderColor:		CadetBlue
 
-!
-! Icons will look like other Zeb icons
-!
+XHelp*Text*background:				gray90
+XHelp*Text*foreground:				MidnightBlue
+XHelp*Label*background:				gray90
+XHelp*Label*foreground:				MidnightBlue
+XHelp*Viewport.?*background:			gray90
+XHelp*Viewport.?*foreground:			MidnightBlue
+
+XHelp*SimpleMenu*background:			gray90
+XHelp*SimpleMenu*foreground:			MidnightBlue
+XHelp*SimpleMenu*borderColor:			MidnightBlue
+
+XHelp*Command.background:			MidnightBlue
+XHelp*Command.foreground:			yellow
+XHelp*Command.borderColor:			red
+XHelp*MenuButton.background:			MidnightBlue
+XHelp*MenuButton.foreground:			yellow
+XHelp*MenuButton.borderColor:			red
+
+XHelp*TransientShell*Command.background:	MidnightBlue
+XHelp*TransientShell*Command.foreground:	yellow
+XHelp*TransientShell*Command.borderColor:	red
+XHelp*TransientShell*MenuButton.background:	MidnightBlue
+XHelp*TransientShell*MenuButton.foreground:	yellow
+XHelp*TransientShell*MenuButton.borderColor:	red
+
+XHelp*topicList*background:			gray90
+XHelp*topicList*foreground:			MidnightBlue
+XHelp*cancel.label:				Cancel
+XHelp*ok.label:					Ok
+XHelp*menuForm.FILE.label:			File
+XHelp*menuForm.edit.label:			Edit
+XHelp*menuForm.QUIT.label:			Quit
+XHelp*cancel.borderColor:			red
+XHelp*IDs.topicForm.cancel.label:		Cancel
+
 XHelp*iconForm.indexButton.background:		gray90
 XHelp*iconForm.backwardButton.background:	gray90
 XHelp*iconForm.forwardButton.background:	gray90
@@ -34,3 +64,9 @@ XHelp*textFile*foreground:			MidnightBlue
 XHelp*titleLabel.background:			midnightblue
 XHelp*titleLabel.foreground:			white
 XHelp*titleLabel.borderColor:			gray90
+
+!
+! In the user environment, we don't want the title bar to *look* like
+! its a command button since it won't behave like a command button.
+! So we'll just disable the highlight() and unhighlight() actions
+XHelp.outerForm.titleLabel.translations:	#replace \n
