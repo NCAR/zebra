@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.20 1993-12-01 17:02:00 burghart Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.21 1994-01-03 22:12:58 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,6 +28,7 @@ static char *rcsid = "$Id: Icons.c,v 2.20 1993-12-01 17:02:00 burghart Exp $";
 # include <X11/Xaw/Label.h>	/* For now */
 # include <X11/extensions/shape.h>
 # include "defs.h"
+# include <ui_error.h>
 # include "pd.h"
 # include "message.h"
 # include "DataStore.h"
@@ -654,8 +655,10 @@ Cardinal *cardjunk;
 /*
  * Throw it up onto the screen, and let it handle things from here.
  */
+	ERRORCATCH
 	if (strcmp (menu, "DataAvailable") && strcmp (menu, "FieldMenu"))
 		uw_IWRealize (menu, Graphics);
+	ENDCATCH
 /*
  * Specify the menu name in the MenuButton's menuName resource so that
  * further actions can find it
