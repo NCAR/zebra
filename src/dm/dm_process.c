@@ -36,7 +36,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-MAKE_RCSID ("$Id: dm_process.c,v 2.2 1995-04-27 15:11:08 granger Exp $")
+MAKE_RCSID ("$Id: dm_process.c,v 2.3 1995-05-18 18:22:57 granger Exp $")
 
 /*
  * Private symbol tables containing ProcessClass structures indexed by 
@@ -506,7 +506,8 @@ int xargs;
 ProcessClass *
 dp_DefaultClass ()
 /*
- * Set up the Default process class from the default_ variables.
+ * Set up the Default process class from the default_ variables, if they
+ * exist, else supply our own.
  */
 {
 	SValue v;
@@ -516,22 +517,31 @@ dp_DefaultClass ()
 /*
  * Get the default executable.
  */
-	if (! usy_g_symbol (vtable, "default_exec", &type, &v))
-		ui_error ("No default executable");
 	pc = dp_NewClass (DEFAULT_PROCESS);
-	strcpy (pc->pc_exec, v.us_v_ptr);
-	pc->pc_argv[0] = usy_string (pc->pc_exec);
-/*
- * Look for default args.
- */
-	for (pc->pc_argc = 1;  ; ++pc->pc_argc)
+	if (usy_g_symbol (vtable, "default_exec", &type, &v))
 	{
-		char sname[30];
-		sprintf (sname, "default_arg%d", pc->pc_argc);
-		if (! usy_g_symbol (vtable, sname, &type, &v))
-			break;
-		pc->pc_argv[pc->pc_argc] = usy_string (v.us_v_ptr);
+		strcpy (pc->pc_exec, v.us_v_ptr);
+		/*
+		 * Look for default arg variables also.
+		 */
+		for (pc->pc_argc = 1; pc->pc_argc < MAXARG; ++pc->pc_argc)
+		{
+			char sname[30];
+			sprintf (sname, "default_arg%d", pc->pc_argc);
+			if (! usy_g_symbol (vtable, sname, &type, &v))
+				break;
+			pc->pc_argv[pc->pc_argc] = usy_string (v.us_v_ptr);
+		}
 	}
+	else	/* Use the compile-time defaults */
+	{
+		msg_ELog (EF_DEBUG, "using compile-time exec default: %s %s",
+			  DEFAULT_EXEC, DEFAULT_ARG);
+		strcpy (pc->pc_exec, DEFAULT_EXEC);
+		pc->pc_argv[1] = usy_string (DEFAULT_ARG);
+		pc->pc_argc = 2;
+	}
+	pc->pc_argv[0] = usy_string (pc->pc_exec);
 	pc->pc_argv[pc->pc_argc] = 0;
 /*
  * Add this class to the symbol table

@@ -1,4 +1,4 @@
-/* $Id: dm_process.h,v 2.2 1995-04-27 15:11:09 granger Exp $
+/* $Id: dm_process.h,v 2.3 1995-05-18 18:22:59 granger Exp $
  *
  * Define the ProcessClass and Process structures, and the public interface
  */
@@ -17,6 +17,7 @@
  */
 # define DEFAULT_PROCESS "Default"
 # define DEFAULT_EXEC "gp"
+# define DEFAULT_ARG "gp.init"
 
 /*
  * A process class which tells how to execute (instantiate) a particular
