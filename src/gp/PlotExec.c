@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.25 1993-03-16 23:45:41 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.26 1993-03-18 16:47:17 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -378,16 +378,18 @@ ZebTime *cachetime;
 /*
  * Get annotation information
  */
-	if(! pd_Retrieve (Pd, "global", "ta-color", tadefcolor, SYMT_STRING))
-			strcpy(tadefcolor, "white");
-	if(! ct_GetColorByName(tadefcolor, &Tadefclr))
+	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
+		SYMT_STRING))
+		strcpy(tadefcolor, "white");
+
+	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
 	{
 		msg_ELog(EF_PROBLEM, "Can't get top annotation color: '%s'.",
 			tadefcolor);
 		strcpy(tadefcolor, "white");
 		ct_GetColorByName(tadefcolor, &Tadefclr);
 	}
-	if(pd_Retrieve(Pd, "global", "ta-scale", (char *) &tascale,
+	if (pda_Search (Pd, "global", "ta-scale", NULL, (char *) &tascale,
 		SYMT_FLOAT))
 		An_SetScale(tascale);
 	
@@ -407,7 +409,7 @@ ZebTime *cachetime;
 		char	hcolor[30];
 		XColor xc;
 
-		if (pd_Retrieve (Pd, "global", "history-color", hcolor, 
+		if (pda_Search (Pd, "global", "history-color", NULL, hcolor, 
 			SYMT_STRING))
 		{
 			if (! ct_GetColorByName (hcolor, &xc))
