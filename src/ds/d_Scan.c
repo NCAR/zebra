@@ -38,7 +38,7 @@
 # include "dfa.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.28 1996-01-23 04:35:32 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.29 1996-01-23 19:58:36 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -52,7 +52,8 @@ MAKE_RCSID ("$Id: d_Scan.c,v 1.28 1996-01-23 04:35:32 granger Exp $")
 static void	ScanDirectory FP ((Platform *, int, int));
 static void	ScanFile FP ((Platform *, char *, char *, int, int));
 static int	FileKnown FP ((Platform *, char *, int local));
-static int	FileChanged FP ((Platform *p, DataFile *df, ino_t *new_ino));
+static int	FileChanged FP ((Platform *p, DataFile *df, 
+				 ino_t *new_ino, long *new_rev));
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
 static char     *CacheFileName FP((Platform *p, int local, int version));
@@ -281,6 +282,7 @@ bool local, rescan;
 	int dfi;
 	int ns;
 	ino_t new_ino;
+	long new_rev;
 	char abegin[40], aend[40];
 	int isconst = local ? LFileConst : RFileConst;
 /*
@@ -297,7 +299,7 @@ bool local, rescan;
 	if (rescan && ((dfi = FileKnown (p, file, local)) > 0))
 	{
 		df = DFTable + dfi;
-		if (isconst || ! FileChanged(p, df, &new_ino))
+		if (isconst || ! FileChanged(p, df, &new_ino, &new_rev))
 			return;
 		/*
 		 * But is it the same file (but different), or a new one?
@@ -342,7 +344,7 @@ bool local, rescan;
 	 * Update revisions so clients with this file open will sync with it
 	 */
 		if (StatRevisions)
-			df->df_rev = StatRevision (p, df, &df->df_inode);
+			df->df_rev = new_rev;
 		else
 			++df->df_rev;
 	}
@@ -523,10 +525,11 @@ bool local;
 
 
 static int
-FileChanged (p, df, new_ino)
+FileChanged (p, df, new_ino, new_rev)
 Platform *p;
 DataFile *df;
 ino_t *new_ino;
+long *new_rev;
 /*
  * Try to determine whether this file has been modified behind our back.
  * Return non-zero if we think it has, zero otherwise.  If the inode has
@@ -538,19 +541,26 @@ ino_t *new_ino;
  * If the df rev number has leaped forward because of multiple changes at
  * the same mtime, we won't catch them unless the stat() mtime is now
  * greater than the "warped" rev number.
+ *
+ * Return the stat() mtime of the file in *new_rev, so that we don't
+ * have to be called a second time on this file to set the rev.
  */
 {
 	ino_t inode;
-	long rev;
 
-	rev = StatRevision(p, df, &inode);
+	*new_rev = StatRevision(p, df, &inode);
 	/*
 	 * If we're using stat() revision numbers, the answer is easy
 	 */
 	if (StatRevisions)
 	{
 		*new_ino = (inode != df->df_inode) ? (inode) : 0;
-		return ((rev > df->df_rev) || (*new_ino));
+#ifdef DEBUG
+		msg_ELog (EF_DEBUG, 
+			  "checking %s: current rev %li, stat mtime %li",
+			  dt_DFEFilePath (p, df), df->df_rev, *new_rev);
+#endif
+		return ((*new_rev > df->df_rev) || (*new_ino));
 	}
 	/*
 	 * Otherwise, compare the stat revision to the time of the last scan.
@@ -560,7 +570,7 @@ ino_t *new_ino;
 	else
 	{
 		*new_ino = 0;
-		return (rev > LastScan);
+		return (*new_rev > LastScan);
 	}
 }
 
