@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.7 1992-06-12 19:33:02 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.8 1992-09-18 15:04:09 corbet Exp $")
 
 
 
@@ -380,6 +380,7 @@ char		*field;
  */
 	rg.rg_nX = npx;
 	rg.rg_nY = npy;
+	rg.rg_nZ = 1;
 	rg.rg_Xspacing *= COMPRESS;
 	rg.rg_Yspacing *= COMPRESS;
 	rdc = dc_CreateDC (DCC_RGrid);
