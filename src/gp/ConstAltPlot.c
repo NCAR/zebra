@@ -30,8 +30,10 @@
 # include <pd.h>
 # include <ui_date.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include <DataChunk.h>
+
 # include "GC.h"
 # include "GraphProc.h"
 # include "DrawText.h"
@@ -40,7 +42,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.51 1995-04-07 22:23:04 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.52 1995-04-17 21:15:32 granger Exp $")
 
 
 /*
@@ -110,8 +112,9 @@ static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *,
 static void	CAP_ImageDataTime FP ((ZebTime *dtime));
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
-static bool 	CAP_VecParams FP ((char *, char *, char *, char *, float *,
-				   char *, int *, float *, XColor *, bool *));
+static bool	CAP_VecParams FP ((char *c, char *platform, float *vscale,
+		   char *cname, int *linewidth, float *unitlen, 
+		   XColor *color, bool *do_vectors));
 static StInfo	*CAP_StationInfo FP ((DataChunk *, Location *, int));
 static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
 				  int));
@@ -122,13 +125,13 @@ static void	CAP_StDoScalar FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId quadfields[4], XColor *color,
 				    XColor *qcolor, ZebTime *zt, char *sticon,
 				    int linewidth, double unitlen, int, 
-				    bool quadstn[4]));
+				    bool quadstn[4], WindInfo *wi));
 static void	CAP_StDoIRGrid FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
 				    FieldId quadfields[4], XColor *color,
 				    XColor *qcolor, ZebTime *zt, char *sticon,
 				    int linewidth, double unitlen, int, 
-				    bool quadstn[4]));
+				    bool quadstn[4], WindInfo *wi, float *));
 static DataChunk *CAP_StGetData FP ((char *c, PlatformId plat, FieldId *fields,
 				     int nfield, int *shifted));
 static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0, 
@@ -517,11 +520,11 @@ bool update;
  * Deal with a station plot.
  */
 {
-	char	uname[20], vname[20], cname[30], annot[120];
+	char	cname[30], annot[120];
 	char	platform[PlatformListLen];
 	char	quadrants[4][20], quadclr[30];
 	char	data[100], sticon[40];
-	char	*strchr (), *pnames[MaxPlatforms];
+	char	*pnames[MaxPlatforms];
 	PlatformId pid;
 	float vscale, unitlen;
 	int linewidth, shifted, i, nplat;
@@ -531,12 +534,16 @@ bool update;
 	bool	quadstn[4];
 	FieldId	fields[6];
 	FieldId quadfields[4];
+	Location loc;
+	AltUnitType altunits;
+	WindInfo wi;
 	int 	nfield;
+	float	alt;
 	DataChunk	*dc;
 /*
  * Get necessary parameters from the plot description
  */
-	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
+	if (! CAP_VecParams (c, platform, &vscale, cname, 
 			     &linewidth, &unitlen, &color, &do_vectors))
 		return;
 /*
@@ -619,7 +626,7 @@ bool update;
 			msg_ELog (EF_PROBLEM, "Bad platform '%s'", pnames[i]);
 			continue;
 		}
-		FindWindsFields (pid, &PlotTime, uname, vname, fields);
+		FindWindsFields (c, pid, &PlotTime, fields, &wi);
 	/*
 	 * See about position icons.
 	 */
@@ -637,23 +644,39 @@ bool update;
 	 * Throw it on to the screen.
 	 */
 		if (dc->dc_Class == DCC_IRGrid)
+		{
 			CAP_StDoIRGrid (c, dc, pnames[i], fields, nfield,
 					quadfields, &color, &qcolor, &zt, 
 					sticon, linewidth, unitlen, do_vectors,
-					quadstn);
+					quadstn, &wi, &alt);
+		/*
+		 * Check for stations with altitudes
+		 */
+			if (! ds_GetAlts (pid, fields[0], &zt, 0, 0, 0, 
+					  &altunits))
+			{
+				alt = 0.0;
+				altunits = AU_kmAGL;
+			}
+		}
 		else
+		{
+			dc_GetLoc (dc, 0, &loc);
+			alt = loc.l_alt;
+			altunits = dc_GetLocAltUnits (dc);
 			CAP_StDoScalar (c, dc, pnames[i], fields, nfield,
 					quadfields, &color, &qcolor, &zt, 
 					sticon, linewidth, unitlen, do_vectors,
-					quadstn);
+					quadstn, &wi);
+		}
 		dc_DestroyDC (dc);
 	/*
 	 * Overlay times and annotation.
 	 */
 		if (! update)
 		{
-			CAP_AddStatusLine (c, pnames[i], "(station)", 0.0,
-					AU_kmAGL, &zt);
+			CAP_AddStatusLine (c, pnames[i], "(station)", alt,
+					   altunits, &zt);
 			sprintf (annot, "%s%s", (i == 0) ? "" : " ",pnames[i]);
 			An_TopAnnot (annot, Tadefclr.pixel);
 		}
@@ -673,8 +696,8 @@ bool update;
 /*
  * Side annotation.
  */
-	sprintf (data, "%s %d %d %f %d ", "10m/sec", color.pixel, qcolor.pixel,
-		 do_vectors ? unitlen : 0, 4 /*numquads*/);
+	sprintf (data, "%s %li %li %f %d ", "10m/sec", color.pixel, 
+		 qcolor.pixel, do_vectors ? unitlen : 0, 4 /*numquads*/);
 
 	for (i = 0; i < 4; i++)
 	{
@@ -836,6 +859,9 @@ int nfield, *shifted;
 	ZebTime zt;
 	DataOrganization org = (DataOrganization) ds_PlatformDataOrg (plat);
 	DataChunk *dc;
+	dsDetail details[5];
+	int ndetail;
+	char dimn_parms[256];
 /*
  * Make sure this makes sense.
  */
@@ -857,8 +883,14 @@ int nfield, *shifted;
 /*
  * Get the data.
  */
+	ndetail = 0;
+	if (pda_Search (Pd, c, "dimensions", NULL, dimn_parms, SYMT_STRING))
+		dc_NSFixedDetails (dimn_parms, details, &ndetail);
+	details[ndetail].dd_Name = "altitude";
+	details[ndetail].dd_V.us_v_float = Alt;
+	ndetail++;
 	if (! (dc = ds_Fetch (plat, (org==OrgIRGrid) ? DCC_IRGrid : DCC_Scalar,
-			&zt, &zt, fields, nfield, NULL, 0)))
+			&zt, &zt, fields, nfield, details, ndetail)))
 	{
 		msg_ELog (EF_INFO, "Get failed on '%s'",ds_PlatformName(plat));
 		return (0);
@@ -873,7 +905,8 @@ int nfield, *shifted;
 
 static void
 CAP_StDoIRGrid (c, dc, platform, fields, nfield, quadfields, color, qcolor, 
-		zt, sticon, linewidth, unitlen, do_vectors, quadstn)
+		zt, sticon, linewidth, unitlen, do_vectors, quadstn, wi,
+		alt)
 char *c;
 DataChunk *dc;
 char *platform;
@@ -887,6 +920,8 @@ int linewidth;
 float unitlen;
 bool do_vectors;
 bool quadstn[4];
+WindInfo *wi;
+float *alt;	/* return an altitude for the irgrid */
 /*
  * Plot up an IRGrid.
  */
@@ -905,12 +940,13 @@ bool quadstn[4];
 	platforms = (PlatformId *) malloc (npts * sizeof (PlatformId));
 	locations = (Location *) malloc (npts * sizeof (Location));
 	dc_IRGetPlatforms (dc, platforms, locations);
+	*alt = locations[0].l_alt;
 /*
  * Convert locations and such.
  */
 	sinfo = CAP_StationInfo (dc, locations, npts);
 /*
- * Get the u and v components, and possibly quadrants.
+ * Get the wind components, and possibly quadrants.
  */
 	ugrid = (float *) dc_IRGetGrid (dc, 0, fields[0]);
 	vgrid = (float *) dc_IRGetGrid (dc, 0, fields[1]);
@@ -956,7 +992,7 @@ bool quadstn[4];
 	 */
 		if (sinfo[i].si_excl)
 			continue;
-		GetWindData (fields, ugrid + i, vgrid + i, badvalue);
+		GetWindData (wi, ugrid + i, vgrid + i, badvalue);
 		CAP_StPlotVector (c, i, zt, sinfo[i].si_x, sinfo[i].si_y,
 				  platforms[i], sticon, color, qcolor, 
 				  linewidth, ugrid, vgrid, badvalue, unitlen, 
@@ -975,7 +1011,7 @@ bool quadstn[4];
 
 static void
 CAP_StDoScalar (c, dc, platform, fields, nfield, quadfields, color, qcolor, 
-		zt, sticon, linewidth, unitlen, do_vectors, quadstn)
+		zt, sticon, linewidth, unitlen, do_vectors, quadstn, wi)
 char *c;
 DataChunk *dc;
 char *platform;
@@ -989,6 +1025,7 @@ int linewidth;
 float unitlen;
 bool do_vectors;
 bool quadstn[4];
+WindInfo *wi;
 /*
  * Plot up a scalar value
  */
@@ -1014,7 +1051,7 @@ bool quadstn[4];
  */
 	u = dc_GetScalar (dc, 0, fields[0]);
 	v = dc_GetScalar (dc, 0, fields[1]);
-	GetWindData (fields, &u, &v, badvalue);
+	GetWindData (wi, &u, &v, badvalue);
 	for (i = 0; i < 4; i++)
 	{
 		if (quadfields[i] != BadField)
@@ -1074,6 +1111,7 @@ CAP_SpFilter (ugrid, vgrid, badval, sinfo, nsta, res)
 float *ugrid, *vgrid, *badval;
 int nsta;
 StInfo *sinfo;
+int res;
 /*
  * Apply spatial filtering (thinning) to this data chunk.
  */
@@ -1154,13 +1192,13 @@ bool	update;
  * description, specified component, and plot time
  */
 {
-	char	uname[20], vname[20], cname[30], annot[120];
+	char	cname[30], annot[120];
 	char 	platform[PlatformListLen];
 	char	data[100];
 	float	*rgrid, *ugrid, *vgrid, unitlen;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, xdim, ydim;
-	int	linewidth, len, degrade, shifted;
+	int	linewidth, len, degrade, shifted, i;
 	bool	tacmatch = FALSE, grid = FALSE, do_vectors;
 	XColor	color;
 	ZebTime zt;
@@ -1168,6 +1206,9 @@ bool	update;
 	Location	loc;
 	RGrid		rg;
 	AltUnitType	altunits;
+	FieldId		winds[2];
+	WindInfo	wi;
+	PlatformId	pid;
 /*
  * Check to see if they have set "grid" to FALSE, in which case they should
  * really be using the station representation.
@@ -1184,9 +1225,11 @@ bool	update;
 /*
  * Get necessary parameters from the plot description
  */
-	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
-			&linewidth, &unitlen, &color, &do_vectors))
+	if (! CAP_VecParams (c, platform, &vscale, cname, 
+			     &linewidth, &unitlen, &color, &do_vectors))
 		return;
+	pid = ds_LookupPlatform(platform);
+	FindWindsFields (c, pid, &PlotTime, winds, &wi);
 /*
  * See if they want to degrade the grid.
  */
@@ -1201,10 +1244,10 @@ bool	update;
 /*
  * Get U component.
  */
-	if (! (dc = ga_GetGrid (&zt, c, platform, uname, &xdim, &ydim, 
-			&x0, &y0, &x1, &y1, &alt, &shifted)))
+	if (! (dc = ga_GetGrid (&zt, c, platform, F_GetName(winds[0]), 
+			&xdim, &ydim, &x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
-	rgrid = (float *)dc_RGGetGrid(dc, 0, F_Lookup(uname), &loc, &rg, &len);
+	rgrid = (float *)dc_RGGetGrid(dc, 0, winds[0], &loc, &rg, &len);
 
 	ugrid = (float *) malloc (xdim * ydim * sizeof (float));
 	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
@@ -1215,13 +1258,18 @@ bool	update;
  * Get v component.
  */
 	zt = PlotTime;
-	if (! (dc = ga_GetGrid (&zt, c, platform, vname, &xdim, &ydim, 
-			&x0, &y0, &x1, &y1, &alt, &shifted)))
+	if (! (dc = ga_GetGrid (&zt, c, platform, F_GetName(winds[1]), 
+			&xdim, &ydim, &x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
-	rgrid = (float *)dc_RGGetGrid(dc, 0, F_Lookup(vname), &loc, &rg, &len);
+	rgrid = (float *)dc_RGGetGrid(dc, 0, winds[1], &loc, &rg, &len);
 	vgrid = (float *) malloc (xdim * ydim * sizeof (float));
 	ga_RotateGrid (rgrid, vgrid, xdim, ydim);
 	dc_DestroyDC (dc);
+/*
+ * Convert the winds to rectangular components
+ */
+	for (i = 0; i < xdim * ydim; ++i)
+		GetWindData (&wi, ugrid + i, vgrid + i, badvalue);
 /*
  * Convert the grid limits to pixel values
  */
@@ -1269,14 +1317,14 @@ bool	update;
  */
 	if (do_vectors)
 	{
-		sprintf (data, "%s %d %f %f %f", "10m/s", color.pixel, 10.0, 
+		sprintf (data, "%s %li %f %f %f", "10m/s", color.pixel, 10.0, 
 			 0.0, unitlen); 
 		An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
 				 40, FALSE, FALSE);
 	}
 	else
 	{
-		sprintf (data, "m/s %d %d", color.pixel, (int)unitlen);
+		sprintf (data, "m/s %li %d", color.pixel, (int)unitlen);
 		An_AddAnnotProc (An_BarbLegend, c, data, strlen (data), 100, 
 				 FALSE, FALSE);
 	}
@@ -1289,11 +1337,14 @@ bool	update;
 
 
 static bool
-CAP_VecParams (c, platform, uname, vname, vscale, cname, linewidth, unitlen,
+CAP_VecParams (c, platform, vscale, cname, linewidth, unitlen,
 	       color, do_vectors)
-char *c, *platform, *uname, *vname, *cname;
-float *vscale, *unitlen;
+char *c;
+char *platform;
+float *vscale;
+char *cname;
 int *linewidth;
+float *unitlen;
 XColor *color;
 bool *do_vectors;
 /*
@@ -1312,8 +1363,10 @@ bool *do_vectors;
  * Required stuff
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
+#ifdef notdef
 	ok &= pda_ReqSearch (Pd, c, "u-field", NULL, uname, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vname, SYMT_STRING);
+#endif
 
 	if (! ok)
 		return (FALSE);
@@ -1393,7 +1446,7 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-        sscanf (data, "%s %d %d %f %d %s %s %s %s", string, &vc, &qc, 
+        sscanf (data, "%s %li %li %f %d %s %s %s %s", string, &vc, &qc, 
 		&unitlen, &numquads, qname[0], qname[1], qname[2], qname[3]);
 /*
  * Put in the vector (unless unitlen == 0, implying wind barbs).
