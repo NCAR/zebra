@@ -25,7 +25,7 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 2.8 1991-12-20 17:48:24 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 2.9 1992-03-18 21:11:04 corbet Exp $")
 
 #include "netcdf.h"
 
@@ -84,7 +84,7 @@ static void     dnc_NCError FP((char *));
 static int      dnc_OFTimes FP((NCTag *));
 static int      dnc_GetTimes FP((NCTag *));
 static int      dnc_OFIRGrid FP((NCTag *));
-int      	dnc_TimeIndex FP((NCTag *, time *));
+static int     	dnc_TimeIndex FP((NCTag *, time *));
 static void 	dnc_GField FP((NCTag *, char *, float *, int, int, double,
 			DataObject *));
 static void     dnc_LoadLocation FP((NCTag *, GetList *, long, long));
@@ -477,44 +477,48 @@ bool threed;
 
 
 static int
-dnc_OFTimes(tag)
-	NCTag          *tag;
+dnc_OFTimes (tag)
+NCTag *tag;
 /*
  * Deal with the time info in this file.
  */
 {
-	int             ndim, dims[MAX_VAR_DIMS], natt, vbase;
-	nc_type         dtype;
-	/*
-	 * Get the base time.
-	 */
-	if ((vbase = ncvarid(tag->nc_id, "base_time")) < 0) {
-		dnc_NCError("base_time variable");
+	int ndim, dims[MAX_VAR_DIMS], natt, vbase;
+	nc_type dtype;
+/*
+ * Get the base time.
+ */
+	if ((vbase = ncvarid (tag->nc_id, "base_time")) < 0)
+	{
+		dnc_NCError ("base_time variable");
 		return (FALSE);
 	}
-	ncvarget1(tag->nc_id, vbase, 0, &tag->nc_base);
-	/*
-	 * There better be a time offset field.  We will assume that it is a
-	 * float field for now.
-	 */
-	if ((tag->nc_vTime = ncvarid(tag->nc_id, "time_offset")) < 0) {
-		dnc_NCError("time_offset variable");
+	ncvarget1 (tag->nc_id, vbase, 0, &tag->nc_base);
+/*
+ * There better be a time offset field.  We will assume that it is a
+ * float field for now.
+ */
+	if ((tag->nc_vTime = ncvarid (tag->nc_id, "time_offset")) < 0)
+	{
+		dnc_NCError ("time_offset variable");
 		return (FALSE);
 	}
-	if (ncvarinq(tag->nc_id, tag->nc_vTime, (char *) 0, &dtype,
-		     &ndim, dims, &natt) < 0) {
-		dnc_NCError("time_offset varinq");
+	if (ncvarinq (tag->nc_id, tag->nc_vTime, (char *) 0, &dtype,
+		     &ndim, dims, &natt) < 0)
+	{
+		dnc_NCError ("time_offset varinq");
 		return (FALSE);
 	}
-	if (ndim != 1 /* || dims[0] != tag->nc_dTime */ ) {
-		msg_ELog(EF_PROBLEM, "Bad time_offset var");
+	if (ndim != 1 /* || dims[0] != tag->nc_dTime */ )
+	{
+		msg_ELog (EF_PROBLEM, "Bad time_offset var");
 		return (FALSE);
 	}
 	tag->nc_dTOffset = dims[0];
-	/*
-	 * Pull in the time array, and we're done.
-	 */
-	return (dnc_GetTimes(tag));
+/*
+ * Pull in the time array, and we're done.
+ */
+	return (dnc_GetTimes (tag));
 }
 
 
@@ -545,6 +549,7 @@ NCTag *tag;
 		tag->nc_times = (float *) malloc (ntime * sizeof (float));
 	}
 	tag->nc_ntime = ntime;
+	msg_ELog (EF_DEBUG, "cdf times: %d samps", ntime);
 /*
  * Now read in the entire array.  Later, for updates, this call
  * should be a bit more careful and not read the entire array -- it
@@ -599,17 +604,17 @@ dnc_CloseFile(tag)
 
 
 
-dnc_SyncFile(tag)
-	NCTag          *tag;
+dnc_SyncFile (tag)
+NCTag *tag;
 /*
  * Synchronize this file.
  */
 {
-	/*
-	 * Update to the file itself, then reload the times array.
-	 */
-	ncsync(tag->nc_id);
-	return (dnc_GetTimes(tag));
+/*
+ * Update to the file itself, then reload the times array.
+ */
+	ncsync (tag->nc_id);
+	return (dnc_GetTimes (tag));
 	/* msg_ELog (EF_PROBLEM, "NC sync, but I'm not really ready"); */
 }
 
@@ -619,57 +624,58 @@ dnc_SyncFile(tag)
 
 int
 dnc_Setup(gp)
-	GetList        *gp;
+GetList *gp;
 /*
  * Get set up for this piece of data access.
  */
 {
-	DataFile       *dp = DFTable + gp->gl_dfindex;
-	NCTag          *tag;
-	int             tbegin, tend;
-	/*
-	 * Start by opening the file.
-	 */
-	if (!dfa_OpenFile(gp->gl_dfindex, FALSE, (void *) &tag))
+	DataFile *dp = DFTable + gp->gl_dfindex;
+	NCTag *tag;
+	int tbegin, tend;
+/*
+ * Start by opening the file.
+ */
+	if (!dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return;
-	/*
-	 * Find the time indices of the desired data range and stuff in the
-	 * point count.
-	 */
-	tbegin = dnc_TimeIndex(tag, &gp->gl_begin);
-	tend = dnc_TimeIndex(tag, &gp->gl_end);
+/*
+ * Find the time indices of the desired data range and stuff in the
+ * point count.
+ */
+	tbegin = dnc_TimeIndex (tag, &gp->gl_begin);
+	tend = dnc_TimeIndex (tag, &gp->gl_end);
 	gp->gl_nsample = tend - tbegin + 1;
-	switch (gp->gl_dobj->do_org) {
-		/*
-		 * For irregular grids, there is one point for each platform.
-		 */
-	case OrgIRGrid:
+	switch (gp->gl_dobj->do_org)
+	{
+	/*
+	 * For irregular grids, there is one point for each platform.
+	 */
+	   case OrgIRGrid:
 		gp->gl_npoint = (tend - tbegin + 1);
 		if (gp->gl_dobj->do_id == tag->nc_plat)
 			gp->gl_npoint *= tag->nc_nPlat;
 		break;
-		/*
-		 * Regular grids.
-		 */
-	case Org1dGrid:
+	/*
+	 * Regular grids.
+	 */
+	   case Org1dGrid:
 		gp->gl_npoint = (tend - tbegin + 1) * tag->nc_rgrid.rg_nX;
 		break;
-	case Org2dGrid:
+	   case Org2dGrid:
 		gp->gl_npoint = (tend - tbegin + 1) * tag->nc_rgrid.rg_nX *
 			tag->nc_rgrid.rg_nY;
 		break;
-	case Org3dGrid:
+	   case Org3dGrid:
 		gp->gl_npoint = (tend - tbegin + 1) * tag->nc_rgrid.rg_nX *
 			tag->nc_rgrid.rg_nY * tag->nc_rgrid.rg_nZ;
-		/*
-		 * Scalar data, by definition, has the number of points equal
-		 * to the number of samples.
-		 */
-	case OrgScalar:
+	/*
+	 * Scalar data, by definition, has the number of points equal
+	 * to the number of samples.
+	 */
+	   case OrgScalar:
 		gp->gl_npoint = gp->gl_nsample;
 		break;
 
-	default:
+	   default:
 		msg_ELog(EF_PROBLEM, "Setup on unknown org %d",
 			 gp->gl_dobj->do_org);
 		break;
@@ -1019,40 +1025,44 @@ dnc_MakeCoords (tag, dobj, start, count)
 
 
 
- /* static */ int
+static int
 dnc_TimeIndex(tag, t)
-	NCTag          *tag;
-	time           *t;
+NCTag *tag;
+time *t;
 /*
  * Figure out how far into this file we have to go to get to this time.
  */
 {
-	long            offset;
-	int             i;
-	/*
-	 * Find out the time offset from the beginning of the file.
-	 */
+	long offset;
+	int i;
+/*
+ * Find out the time offset from the beginning of the file.
+ */
 	offset = TC_FccToSys(t) - tag->nc_base;
-	/*
-	 * Check the extreme cases.
-	 */
+/*
+ * Check the extreme cases.
+ */
 	if (offset <= tag->nc_times[0])
 		return (0);
 	else if (offset >= tag->nc_times[tag->nc_ntime - 1])
 		return (tag->nc_ntime - 1);
-	/*
-	 * OK, search for it.  Someday we'll make this a binary search or
-	 * something, but, for now....
-	 */
-	if (tag->nc_ntime < MINTIME) {
+/*
+ * OK, search for it.  Someday we'll make this a binary search or
+ * something, but, for now....
+ */
+	if (tag->nc_ntime < MINTIME)
+	{
 		for (i = tag->nc_ntime - 1; i >= 0; i--)
 			if (tag->nc_times[i] <= offset)
 				return (i);
-	} else {
-		int             top = tag->nc_ntime - 1, bottom = 0;
-		while (top > bottom + 1) {
-			int             mid = (top + bottom) / 2;
-			long            toff = (long) tag->nc_times[mid];
+	}
+	else
+	{
+		int top = tag->nc_ntime - 1, bottom = 0;
+		while (top > bottom + 1)
+		{
+			int mid = (top + bottom)/2;
+			long toff = (long) tag->nc_times[mid];
 			if (toff == offset)	/* Might as well try */
 				return (mid);
 			else if (toff < offset)
@@ -1110,30 +1120,31 @@ dnc_GetIRGLoc(dfindex, loc)
 
 
 int
-dnc_GetRGrid(dfindex, origin, rg)
-	int             dfindex;
-	Location       *origin;
-	RGrid          *rg;
+dnc_GetRGrid (dfindex, origin, rg)
+int dfindex;
+Location *origin;
+RGrid *rg;
 /*
  * Fill in the location info for this grid file.
  */
 {
-	NCTag          *tag;
-	float           alt;
-	int             level;
-	/*
-	 * Do some checking.
-	 */
-	if (!dfa_OpenFile(dfindex, FALSE, (void *) &tag))
+	NCTag *tag;
+	float alt;
+	int level;
+/*
+ * Do some checking.
+ */
+	if (!dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
 	if (tag->nc_org != Org1dGrid && tag->nc_org != Org2dGrid
-	    && tag->nc_org != Org3dGrid) {
+	    && tag->nc_org != Org3dGrid)
+	{
 		msg_ELog(EF_PROBLEM, "BUG: GetRGrid on non-grid file");
 		return (FALSE);
 	}
-	/*
-	 * Yank the info out of the file.
-	 */
+/*
+ * Yank the info out of the file.
+ */
 	alt = origin->l_alt;	/* Kludgy	 */
 	*origin = tag->nc_sloc;
 	*rg = tag->nc_rgrid;
@@ -1310,43 +1321,44 @@ NCTag **rtag;
 
 
 static void
-dnc_CFMakeDims(tag, dobj, ndim, dims)
-	NCTag          *tag;
-	DataObject     *dobj;
-	int            *ndim, *dims;
+dnc_CFMakeDims (tag, dobj, ndim, dims)
+NCTag *tag;
+DataObject *dobj;
+int *ndim, *dims;
 /*
  * Create the dimensions for this file organization.
  */
 {
-	RGrid          *rg = &dobj->do_desc.d_rgrid;
+	RGrid *rg = &dobj->do_desc.d_rgrid;
 
-	switch (tag->nc_org) {
-		/*
-		 * Scalar files are easy -- we're done!
-		 */
-	case OrgScalar:
+	switch (tag->nc_org)
+	{
+	/*
+	 * Scalar files are easy -- we're done!
+	 */
+	   case OrgScalar:
 		break;
-		/*
-		 * Regular grid files need to have the grid dimensions
-		 * defined.
-		 */
-	case Org3dGrid:
-		dims[(*ndim)++] = ncdimdef(tag->nc_id, "z", rg->rg_nZ);
-	case Org2dGrid:
-		dims[(*ndim)++] = ncdimdef(tag->nc_id, "y", rg->rg_nY);
-	case Org1dGrid:
-		dims[(*ndim)++] = ncdimdef(tag->nc_id, "x", rg->rg_nX);
+	/*
+	 * Regular grid files need to have the grid dimensions
+	 * defined.
+	 */
+	   case Org3dGrid:
+		dims[(*ndim)++] = ncdimdef (tag->nc_id, "z", rg->rg_nZ);
+	   case Org2dGrid:
+		dims[(*ndim)++] = ncdimdef (tag->nc_id, "y", rg->rg_nY);
+	   case Org1dGrid:
+		dims[(*ndim)++] = ncdimdef (tag->nc_id, "x", rg->rg_nX);
 		break;
-		/*
-		 * IRGrids are funky.
-		 */
-	case OrgIRGrid:
+	/*
+	 * IRGrids are funky.
+	 */
+	   case OrgIRGrid:
 		tag->nc_nPlat = dobj->do_desc.d_irgrid.ir_npoint;
-		tag->nc_locs = (Location *) malloc(tag->nc_nPlat *
+		tag->nc_locs = (Location *) malloc (tag->nc_nPlat *
 						   sizeof(Location));
-		dims[(*ndim)++] = ncdimdef(tag->nc_id, "platform",
+		dims[(*ndim)++] = ncdimdef (tag->nc_id, "platform",
 					   tag->nc_nPlat);
-		(void) ncdimdef(tag->nc_id, "fldlen", 20);
+		(void) ncdimdef (tag->nc_id, "fldlen", 20);
 		break;
 	}
 }
@@ -1357,38 +1369,38 @@ dnc_CFMakeDims(tag, dobj, ndim, dims)
 
 static void
 dnc_CFMakeVars(tag, dobj)
-	NCTag          *tag;
-	DataObject     *dobj;
+NCTag *tag;
+DataObject *dobj;
 /*
  * Make the organization-specific variables.
  */
 {
-	int             vlat, vlon, valt;
-	/*
-	 * Just farm this obnoxious stuff out, depending on the organization.
-	 */
+	int vlat, vlon, valt;
+/*
+ * Just farm this obnoxious stuff out, depending on the organization.
+ */
 	switch (tag->nc_org) {
-		/*
-		 * For scalar data, we need location info, which, in turn, is
-		 * different depending on whether we have a mobile platform
-		 * or not.
-		 */
-	case OrgScalar:
-		dnc_CFScalarVars(tag, dobj);
+	/*
+	 * For scalar data, we need location info, which, in turn, is
+	 * different depending on whether we have a mobile platform
+	 * or not.
+	 */
+	   case OrgScalar:
+		dnc_CFScalarVars (tag, dobj);
 		break;
-		/*
-		 * Grids have origin and spacing info.
-		 */
-	case Org1dGrid:
-	case Org2dGrid:
-	case Org3dGrid:
-		dnc_CFGridVars(tag, dobj);
+	/*
+	 * Grids have origin and spacing info.
+	 */
+	   case Org1dGrid:
+	   case Org2dGrid:
+	   case Org3dGrid:
+		dnc_CFGridVars (tag, dobj);
 		break;
-		/*
-		 * Irregular grids have all that funky platform information.
-		 */
-	case OrgIRGrid:
-		dnc_CFIRGridVars(tag, dobj);
+	/*
+	 * Irregular grids have all that funky platform information.
+	 */
+	   case OrgIRGrid:
+		dnc_CFIRGridVars (tag, dobj);
 		break;
 	}
 }
@@ -1680,47 +1692,48 @@ long *start;
 
 
 int
-dnc_GetFields(dfile, t, nfld, flist)
-	int             dfile, *nfld;
-	time           *t;
-	char          **flist;
+dnc_GetFields (dfile, t, nfld, flist)
+int dfile, *nfld;
+time *t;
+char **flist;
 /*
  * Return the list of available fields.
  */
 {
-	NCTag          *tag;
-	int             max = *nfld, ndim, nvar, natt, rdim, fld;
-	char           *cp = FldBuf;
-	/*
-	 * Open the file.
-	 */
+	NCTag *tag;
+	int max = *nfld, ndim, nvar, natt, rdim, fld;
+	char *cp = FldBuf;
+/*
+ * Open the file.
+ */
 	*nfld = 0;
-	if (!dfa_OpenFile(dfile, FALSE, (void *) &tag))
+	if (!dfa_OpenFile (dfile, FALSE, (void *) &tag))
 		return (0);
+/*
+ * Do an inquire to see how many vars there are.
+ */
+	ncinquire (tag->nc_id, &ndim, &nvar, &natt, &rdim);
+/*
+ * Pass through the fields.
+ */
+	for (fld = 0; fld < nvar; fld++)
+	{
+		int ndim, dims[MAX_VAR_DIMS], natt;
+		nc_type type;
 	/*
-	 * Do an inquire to see how many vars there are.
+	 * Look up this variable.  If's one of our "standard" vars
+	 * that we ignore, bail out now.
 	 */
-	ncinquire(tag->nc_id, &ndim, &nvar, &natt, &rdim);
-	/*
-	 * Pass through the fields.
-	 */
-	for (fld = 0; fld < nvar; fld++) {
-		int             ndim, dims[MAX_VAR_DIMS], natt;
-		nc_type         type;
-		/*
-		 * Look up this variable.  If's one of our "standard" vars
-		 * that we ignore, bail out now.
-		 */
-		ncvarinq(tag->nc_id, fld, cp, &type, &ndim, dims, &natt);
-		if (dnc_OverheadField(cp))
+		ncvarinq (tag->nc_id, fld, cp, &type, &ndim, dims, &natt);
+		if (dnc_OverheadField (cp))
 			continue;
-		/*
-		 * OK, this one's for real.  Set an FLIST pointer to this
-		 * spot, and move on.
-		 */
+	/*
+	 * OK, this one's for real.  Set an FLIST pointer to this
+	 * spot, and move on.
+	 */
 		flist[*nfld] = cp;
 		(*nfld)++;
-		cp += strlen(cp) + 1;
+		cp += strlen (cp) + 1;
 	}
 	return (*nfld);
 }
@@ -1729,14 +1742,15 @@ dnc_GetFields(dfile, t, nfld, flist)
 
 
 
-static          bool
+static bool
 dnc_OverheadField(fld)
-	char           *const fld;
+char *const fld;
 /*
  * See if this is an "overhead" field, as opposed to real data.
  */
 {
-	static char    *OFields[] = {
+	static char *OFields[] =
+	{
 		"base_time",
 		"time_offset",
 		"platform",
@@ -1746,13 +1760,14 @@ dnc_OverheadField(fld)
 		"x_spacing",
 		"y_spacing",
 		"z_spacing",
-	0};
-	int             i;
-	/*
-	 * See if this field is in our list.  This could really be smarter.
-	 */
+		0
+	};
+	int i;
+/*
+ * See if this field is in our list.  This could really be smarter.
+ */
 	for (i = 0; OFields[i]; i++)
-		if (!strcmp(fld, OFields[i]))
+		if (!strcmp (fld, OFields[i]))
 			return (TRUE);
 	return (FALSE);
 }
