@@ -18,7 +18,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: rfdump.c,v 2.1 1991-09-26 23:12:59 gracio Exp $";
 
 
 # include <copyright.h>
@@ -26,10 +25,11 @@ static char *rcsid = "$Id: rfdump.c,v 2.1 1991-09-26 23:12:59 gracio Exp $";
 # include "DataStore.h"
 # include "RasterFile.h"
 
+RCSID("$Id: rfdump.c,v 2.2 1995-02-10 01:23:32 granger Exp $")
 
 
 
-
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -85,7 +85,9 @@ char **argv;
 	for (i = 0; i < hdr.rf_NSample; i++)
 	{
 		char attr[200];
-		printf ("%2d: %d %06d at %8d, (%dx%d) space %.2f, L %.2f %.2f %.2f\n", i,
+		printf (
+	     "%2d: %ld %06ld at %8ld, (%dx%d) space %.2f, L %.2f %.2f %.2f\n",
+			i,
 			toc[i].rft_Time.ds_yymmdd, toc[i].rft_Time.ds_hhmmss,
 			toc[i].rft_Offset[0], toc[i].rft_Rg.rg_nX,
 			toc[i].rft_Rg.rg_nY, toc[i].rft_Rg.rg_Xspacing,
@@ -98,4 +100,5 @@ char **argv;
 			printf ("\tAttributes: '%s'\n", attr);
 		}
 	}
+	return (0);
 }
