@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.14 1990-11-09 16:32:36 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.15 1990-12-04 15:09:38 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -62,7 +62,7 @@ bool MovieMode = FALSE;
 Cursor BusyCursor, NormalCursor;	/* Our cursors			*/
 int	Pltype;
 float	Xlo, Xhi, Ylo, Yhi;
-int	Alt;
+float	Alt;
 
 /*
  * Saved versions of the "command line" parameters.
@@ -127,6 +127,14 @@ char **argv;
 	ui_init ("../lib/graphproc.lf", FALSE, TRUE);
 	Argc = argc;  Argv = argv;
 	ui_setup ("Graphproc", &Argc, Argv, (char *) Resources);
+/*
+ * Initialize the data store.
+ */
+	if (! ds_Initialize ())
+	{
+		msg_ELog (EF_EMERGENCY, "Data store initialize failed");
+		exit (1);
+	}
 /*
  * Now we have to go into the UI, and finish our setup later.  This is
  * essentially a kludge designed to keep UI from trying to open tty
