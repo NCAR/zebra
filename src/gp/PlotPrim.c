@@ -5,7 +5,7 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.5 1992-12-02 16:01:05 corbet Exp $";
+static char *rcsid = "$Id: PlotPrim.c,v 1.6 1992-12-16 18:05:46 erik Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -54,7 +54,7 @@ typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
     extern void gp_WindVector (DataValPtr, DataValPtr, DataValPtr, DataValPtr, 
 		int, int,double, LineStyle, XColor*, int, double, int,int);
     extern void gp_WindBarb (DataValPtr, DataValPtr, DataValPtr, DataValPtr, 
-		int, int,int, LineStyle, XColor*, int, double, int,int);
+		int, int,int, LineStyle, XColor*, int, double, int,int,int);
     extern void gp_Points (DataValPtr, DataValPtr, int, XColor,int, int);
     extern void gp_Symbol (DataValPtr, DataValPtr, int, XColor,int, int,int);
 # else
@@ -304,7 +304,7 @@ unsigned short	xscalemode, yscalemode;
 
 void
 gp_WindBarb (x, y, u, v, npts, isangle,shaftlen, style, colors, ncolor, cstep,
-		xscalemode,yscalemode)
+		xscalemode,yscalemode, doKnot)
 DataValPtr	x, y,u,v;
 int		npts;
 int		isangle;
@@ -314,6 +314,7 @@ XColor		*colors;
 int		ncolor;
 float		cstep;
 unsigned short	xscalemode, yscalemode;
+int		doKnot;
 {
     double	radians;
     double	radius;
@@ -371,12 +372,12 @@ unsigned short	xscalemode, yscalemode;
 	fprintf ( stdout, "\rradius = %f radians = %f\n",(float)radius,
 		(float)radians);
 */
-	level = (int)(radius/cstep);
+	level = doKnot ? (int)((radius/.5148)/cstep): (int)(radius/cstep);
 	color = colors[level % ncolor].pixel;
 	XSetForeground (XtDisplay (Graphics), Gcontext, color);
 	radians = radians + 3.1415926; /* reverse direction */
 	draw_barb ( XtDisplay(Graphics), GWFrame(Graphics),Gcontext,
-		devX(&(x[i]),xscalemode),devY(&(y[i]),yscalemode), radians, radius, shaftlen);
+		devX(&(x[i]),xscalemode),devY(&(y[i]),yscalemode), radians, radius, shaftlen, doKnot);
     }
 	if (line_style != LineSolid)
 		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
