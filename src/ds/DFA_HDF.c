@@ -56,11 +56,20 @@
 # include <string.h>
 # include <ctype.h>
 
+/*
+ * The HDF interface typedef's bool to int, which conflicts with UI char
+ * typedef.  So we just change the name for the hdf header files since we
+ * do not use the HDF bool type in this file.
+ */
+# define bool hdf_int_bool
+# include <hdf.h>
+# undef bool
+
 # include <defs.h>
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.1 1995-06-29 21:32:56 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.2 1995-07-07 22:49:51 granger Exp $")
 
 #ifdef HDF_INTERFACE 	/* Conditional compilation of HDF interface */
 
@@ -72,15 +81,6 @@ RCSID ("$Id: DFA_HDF.c,v 3.1 1995-06-29 21:32:56 granger Exp $")
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-
-/*
- * The HDF interface typedef's bool to int, which conflicts with UI char
- * typedef.  So we just change the name for the hdf header files since we
- * do not use the HDF bool type in this file.
- */
-# define bool hdf_int_bool
-# include <hdf.h>
-# undef bool
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define RAD_TO_DEG(x)	((x)*57.29577951)
@@ -1544,7 +1544,8 @@ int nfield;
 			break;
 		   case DFNT_INT16:
 		   case DFNT_UINT16:
-			words = (short *) malloc (nx * ny * sizeof (short));
+			words = (unsigned short *) 
+				malloc (nx * ny * sizeof (unsigned short));
 			dh_ReadData (tag->h_fid, varid, words);
 			for (j = 0; j < nx * ny; ++j)
 			{
