@@ -202,7 +202,9 @@ struct overlay *ov;
 	   case GOP_TEXT:
 	   	gt_do_text (wstn, ov, data->op_color, data->op_extra[GOP_T_X],
 			data->op_extra[GOP_T_Y], data->op_extra[GOP_T_FONT],
-			data->op_extra[GOP_T_SCALE], data->op_data, TRUE);
+			data->op_extra[GOP_T_SCALE], 
+			data->op_extra[GOP_T_ROT] / 100.0, 
+			data->op_data, TRUE);
 		break;
 	   /*
 	    * Set hardware clip window.
@@ -351,7 +353,9 @@ struct overlay *ov;
 	   case GOP_TEXT:
 	   	gt_do_text (wstn, ov, data->op_color, data->op_extra[GOP_T_X],
 			data->op_extra[GOP_T_Y], data->op_extra[GOP_T_FONT],
-			data->op_extra[GOP_T_SCALE], data->op_data, FALSE);
+			data->op_extra[GOP_T_SCALE], 
+			data->op_extra[GOP_T_ROT] / 100.0,
+			data->op_data, FALSE);
 		break;
 	   /*
 	    * SHCW: we handle this by just stuffing the new clip window
