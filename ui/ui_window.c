@@ -8,7 +8,7 @@
 # include <X11/Xlib.h>
 # include <X11/cursorfont.h>
 # include <X11/Intrinsic.h>
-# include <X11/Cardinals.h>
+# include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
 /*
@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.13 1990-06-04 14:50:50 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.14 1990-09-04 09:17:41 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -64,6 +64,7 @@ static bool Save_all = 0;
  * Forward routines.
  */
 struct gen_widget *uw_list_def (), *uw_cm_def (), *uw_mb_def ();
+extern struct gen_widget *uw_DefIPU ();
 
 
 
@@ -309,6 +310,7 @@ struct ui_command *cmds;
 	int type = UINT (cmds[1]);
 	struct gen_widget *gw;
 	struct frame_widget *frame;
+	bool noframe = FALSE;
 /*
  * Here we just split apart, depending on the various widget types.
  */
@@ -332,12 +334,18 @@ struct ui_command *cmds;
 	   case WT_STACK:
 	   	uw_dstack (name, title);
 		return (TRUE);
-
 	/*
 	 * Menubar widgets.
 	 */
 	   case WT_MENUBAR:
 	   	gw = uw_mb_def ();
+		break;
+	/*
+	 * Internal, frameless, popup menus.
+	 */
+	   case WT_INTPOPUP:
+		gw = uw_DefIPU (name);
+		noframe = TRUE;
 		break;
 
 	   default:
@@ -348,6 +356,8 @@ struct ui_command *cmds;
  */
 	frame = uw_make_frame (name, title);
 	frame->fw_flags = WF_INTERNAL;
+	if (noframe)
+		frame->fw_flags |= WF_NOFRAME;
 	uw_add_child (frame, (struct gen_widget *) gw);
 	uw_wdef (frame);
 	return (TRUE);
@@ -529,6 +539,11 @@ char *name;
  	if (frame->fw_flags & WF_POPPED)
 		return;
 /*
+ * Certain widgets are not meant to be popped up from the command line.
+ */
+	if (frame->fw_flags & WF_NOFRAME)
+		ui_error ("Widget '%s' can not be popped up directly", name);
+/*
  * Make sure it has been created.
  */
  	if (! (frame->fw_flags & WF_CREATED))
@@ -545,15 +560,6 @@ char *name;
 	for (gw = frame->fw_next; gw; gw = gw->gw_next)
 		if (gw->gw_popup)
 			(*gw->gw_popup) (gw);
-# ifdef notdef
- 	if (frame->fw_flags & LWF_SELECTOR)
-	{
-		struct list_widget *w = (struct list_widget *) gw;
-		if (! usy_defined (Ui_variable_table, w->w_select))
-			uw_setselector (w->w_select, 0);
-		uw_lselect (w);
-	}
-# endif
 }
 
 
@@ -1111,6 +1117,91 @@ int lun;
 
 	bfget (lun, ctmp, 500);
 	return (usy_pstring (ctmp));
+}
+
+
+
+
+
+uw_IWRealize (name, parent)
+char *name;
+Widget parent;
+/*
+ * Realize an internal widget.
+ */
+{
+	struct gen_widget *gw = uw_g_widget (name);
+	struct frame_widget *frame = (struct frame_widget *) gw;
+/*
+ * Make sure this is the right type of widget.
+ */
+	if ((frame->fw_flags & WF_NOFRAME) == 0)
+		ui_error ("(APPL BUG): uw_IWRealize on non-int widget %s", 
+			name);
+/*
+ * Do it.
+ */
+	if (! (frame->fw_flags & WF_CREATED))
+	{
+		(*frame->fw_next->gw_create) (frame->fw_next, parent);
+		frame->fw_flags |= WF_CREATED;
+	}
+}
+
+
+
+Widget
+uw_IWWidget (name)
+char *name;
+/*
+ * Return the widget corresponding to an internal widget.
+ */
+{
+	struct gen_widget *gw = uw_g_widget (name);
+	struct frame_widget *frame = (struct frame_widget *) gw;
+/*
+ * Make sure this is the right type of widget.
+ */
+	if ((frame->fw_flags & WF_NOFRAME) == 0)
+		ui_error ("(APPL BUG): uw_IWRealize on non-int widget %s", 
+			name);
+/*
+ * Do it.
+ */
+	return (frame->fw_next->gw_w);
+}
+
+
+
+
+uw_IWPopup (name)
+char *name;
+/*
+ * Popup this internal widget as a spring-loaded wonder.
+ */
+{
+	struct gen_widget *gw = uw_g_widget (name);
+	struct frame_widget *frame = (struct frame_widget *) gw;
+/*
+ * Make sure this is the right type of widget.
+ */
+	if (! frame)
+		ui_error ("No such widget: %s", name);
+	if ((frame->fw_flags & WF_NOFRAME) == 0)
+		ui_error ("(APPL BUG): uw_IWRealize on non-int widget %s", 
+			name);
+/*
+ * If this thing has not been actually realized, do it now.
+ */
+	if ((frame->fw_flags & WF_CREATED) == 0)
+	{
+		(*frame->fw_next->gw_create) (frame->fw_next, Top);
+		frame->fw_flags |= WF_CREATED;
+	}
+/*
+ * Throw it up on the screen.
+ */
+	XtPopupSpringLoaded (frame->fw_next->gw_w);
 }
 
 
