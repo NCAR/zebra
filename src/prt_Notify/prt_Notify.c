@@ -20,14 +20,13 @@
  * maintenance or updates for its software.
  */
 
-#include <copyright.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: prt_Notify.c,v 3.9 1996-12-13 18:34:00 granger Exp $")
+RCSID("$Id: prt_Notify.c,v 3.10 1997-02-14 06:23:34 granger Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
@@ -38,7 +37,7 @@ static void TimeToNotify FP ((ZebTime *, PlatformId));
  * Keep track of timer events.
  */
 static int TimeEvent[CFG_MAX_PLATFORMS];
-
+static ZebraTime DataTime[CFG_MAX_PLATFORMS];
 
 int
 main ()
@@ -49,7 +48,6 @@ main ()
  */
 	msg_connect (IMessage, "Notifier");
 	msg_join (MSG_CLIENT_EVENTS);
-	usy_init ();
 	ds_Initialize ();
 	dap_Init ();
 	ds_SnarfCopies (NotificationRequest);
@@ -175,17 +173,23 @@ PlatformId pid;
 	if (TimeEvent[pid] >= 0)
 		return;
 /*
- * Find out what our time is now, and when the next data shows up.
- * If the most recent data time is now, then we've nothing to wait for.
+ * Find out what our time is now, and when the next data shows up.  If the
+ * first data time is equal to now (t[ntime - 1]), such as might happen
+ * when we're chaining notifications, take the next time (t[ntime - 2]).
  */
 	tl_Time (&now);
-	ntime = ds_DataTimes (pid, &now, 2, DsAfter, t);
-	if ((ntime == 0) || TC_Eq(t[0], now))
+	if ((ntime = ds_DataTimes (pid, &now, 2, DsAfter, t)) == 0)
+		return;
+	--ntime;
+	if (TC_Eq(t[ntime], now) && (--ntime < 0))
 		return;
 /*
- * Set up our request for that time.
+ * Set up our request for that time, and keep track of the actual data time
+ * to send it in the synthetic notify.
  */
-	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *) pid, &t[0], 0);
+	DataTime[pid] = t[ntime];
+	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *) pid, 
+					 t+ntime, 0);
 }
 
 
@@ -204,11 +208,10 @@ PlatformId pid;
  * If somebody is still interested, we do the notification and schedule
  * the next one.
  */
-	t->zt_MicroSec = 0;	/* xxx */
 	TimeEvent[pid] = -1;		/* Event is gone	*/
 	if (dap_IsInterest (pid))
 	{
-		dap_Notify (pid, t, 1, 0, TRUE);
+		dap_Notify (pid, &DataTime[pid], 1, 0, TRUE);
 		MakeTimerRequest (pid);
 	}
 }
