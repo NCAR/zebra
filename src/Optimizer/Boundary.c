@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Boundary.c,v 1.3 1991-09-17 17:03:17 burghart Exp $";
+static char *rcsid = "$Id: Boundary.c,v 1.4 1992-11-12 18:32:23 burghart Exp $";
 
 # include <math.h>
 # include <defs.h>
@@ -112,7 +112,8 @@ PlatformId	pid;
  * Get the current boundary for the given platform from the data store.
  */
 {
-	DataObject	*dobj;
+	DataChunk	*dc;
+	Location	*locs;
 	time		t;
 	float		*lat, *lon;
 	int		npts, i;
@@ -125,26 +126,26 @@ PlatformId	pid;
 /*
  * Get the boundary
  */
-	dobj = ds_GetData (pid, NULL, 0, &t, &t, OrgOutline, 0, -9999.0);
+	dc = ds_Fetch (pid, DCC_Boundary, &t, &t, NULL, 0, NULL, 0);
 
-	if (! dobj)
+	if (! dc)
 	{
 		msg_ELog (EF_PROBLEM, 
 			"BUG:  Data store LIED!  Couldn't get boundary");
 		return (FALSE);
 	}
-
-	npts = dobj->do_desc.d_bnd->bd_npoint;
 /*
  * Build the lat and lon arrays
  */
+	locs = dc_BndGet (dc, 0, &npts);
+
 	lat = (float *) malloc (npts * sizeof (float));
 	lon = (float *) malloc (npts * sizeof (float));
 
 	for (i = 0; i < npts; i++)
 	{
-		lat[i] = dobj->do_aloc[i].l_lat;
-		lon[i] = dobj->do_aloc[i].l_lon;
+		lat[i] = locs[i].l_lat;
+		lon[i] = locs[i].l_lon;
 	}
 /*
  * Set the scan limits each radar
@@ -155,7 +156,7 @@ PlatformId	pid;
  */
 	free (lat);
 	free (lon);
-	ds_FreeDataObject (dobj);
+	dc_DestroyDC (dc);
 /*
  * Success!
  */
