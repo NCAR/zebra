@@ -36,7 +36,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.17 1993-09-02 08:07:46 granger Exp $");
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.18 1993-09-14 18:01:20 granger Exp $");
 # endif
 
 /*
@@ -153,9 +153,9 @@ static void	zn_SetBad FP ((float *, int, double));
 static long	zn_WriteBlock FP((znTag *tag, DataChunk *dc, int fsample, 
 				    int sample, int nsample, WriteCode wc,
 				    unsigned long *size));
-static void	zn_LoopSamples FP((znTag *tag, DataChunk *dc, int fsample, 
-				   int sample, int nsample, WriteCode wc,
-				   int *index, FieldId *fids, int nfield));
+static void	zn_LoopBlock FP((znTag *tag, DataChunk *dc, int fsample, 
+				 int sample, int nsample, WriteCode wc,
+				 int *index, FieldId *fids, int nfield));
 static int	zn_FreeSampleBlock FP((znTag *tag, DataChunk *dc, int fsample,
 				       int nsample, int *index, int nfield,
 				       long *roffset, int *rsize));
@@ -280,6 +280,8 @@ char **rtag;
 	hdr->znh_NSample = hdr->znh_NField = 0;
 	hdr->znh_Org = (DataOrganization) ds_PlatformDataOrg (df->df_platform);
 	hdr->znh_OffLoc = -1;
+	hdr->znh_OffStation = -1;
+	hdr->znh_NStation = 0;
 	hdr->znh_OffGlAttr = hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
 	hdr->znh_OffRg = -1;
@@ -412,8 +414,6 @@ DataChunk *dc;
 		tag->zt_Fields[i].zf_Badval = badval;
 	}
 }
-
-
 
 
 
@@ -660,7 +660,7 @@ WriteCode wc;
 /*
  * Now get the data out by "looping" over the one sample.
  */
-	zn_LoopSamples (tag, dc, fsample, sample, 1, wc, index, fids, nfield);
+	zn_LoopBlock (tag, dc, fsample, sample, 1, wc, index, fids, nfield);
 /*
  * We also have to add the time to the time array.  We flush the individual
  * time out here rather than dirty up and sync the entire array.
@@ -723,7 +723,6 @@ WriteCode wc;
 	int fsample, alen;
 	int i;
 	unsigned long block_size;
-	void *block;
 	znTag *tag;
 	ZebTime t;
 	zn_Sample *samp;
@@ -757,7 +756,6 @@ WriteCode wc;
 	{
 		for (i = 0; i < nsample; ++i)
 		{
-			samp = zn_FindSampStr (tag, fsample + i);
 			dc_GetTime (dc, sample + i, &t);
 			tag->zt_Time[fsample + i] = t;
 		}
@@ -824,7 +822,6 @@ unsigned long *size;
 	int nfield, i, fld;
 	zn_Header *hdr = &tag->zt_Hdr;
 	long offset;
-	ZebTime t;
 	int freed, freed_size;
 
 	/*
@@ -854,7 +851,6 @@ unsigned long *size;
 					    nfield, &offset, &freed_size);
 	block = NULL;
 	block_size = 0;
-
 	/*
 	 * If the samples being overwritten we're not free-able above, then
 	 * we'll have to overwrite in place by looping over the per-sample
@@ -863,8 +859,8 @@ unsigned long *size;
 	if ((wc == wc_Overwrite) && (!freed))
 	{
 		msg_ELog (EF_DEBUG, "znf overwriting block by samples");
-		zn_LoopSamples (tag, dc, fsample, sample, nsample, wc, 
-				index, fids, nfield);
+		zn_LoopBlock (tag, dc, fsample, sample, nsample, wc, 
+			      index, fids, nfield);
 	}
 	else
 	{
@@ -973,7 +969,7 @@ unsigned long *size;
 
 
 static void
-zn_LoopSamples (tag, dc, fsample, sample, nsample, wc, index, fids, nfield)
+zn_LoopBlock (tag, dc, fsample, sample, nsample, wc, index, fids, nfield)
 znTag *tag;
 DataChunk *dc;
 int fsample, sample, nsample;
@@ -981,6 +977,13 @@ WriteCode wc;
 int *index;
 FieldId *fids;
 int nfield;
+/*
+ * Writes a block of 'nsample' samples by looping over each sample
+ * individually.  The block begins at sample 'fsample' in the file and 
+ * sample number 'sample' in the DataChunk.  Begin a block implies that
+ * sample time (fsample + i) in the file corresponds to sample time
+ * (sample + i) in the DataChunk, for 0 <= i < nsample.
+ */
 {
 	zn_Sample *samp;
 	zn_Header *hdr = &tag->zt_Hdr;
@@ -998,27 +1001,27 @@ int nfield;
 		   case Org1dGrid:
 		   case Org2dGrid:
 		   case Org3dGrid:
-			zn_WrGrid (tag, dc, fsample, sample+i, samp, wc, 
+			zn_WrGrid (tag, dc, fsample+i, sample+i, samp, wc, 
 				   index, fids, nfield);
 			break;
 			
 		   case OrgIRGrid:
-			zn_WrIRGrid (tag, dc, fsample, sample+i, samp, wc, 
+			zn_WrIRGrid (tag, dc, fsample+i, sample+i, samp, wc, 
 				     index, fids, nfield);
 			break;
 			
 		   case OrgScalar:
-			zn_WrScalar (tag, dc, fsample, sample+i, samp, wc, 
+			zn_WrScalar (tag, dc, fsample+i, sample+i, samp, wc, 
 				     index, fids, nfield);
 			break;
 			
 		   case OrgFixedScalar:
-			zn_WrFixScalar (tag, dc, fsample, sample+i, samp, 
+			zn_WrFixScalar (tag, dc, fsample+i, sample+i, samp, 
 					wc, index, fids, nfield);
 			break;
 			
 		   case OrgTransparent:
-			zn_WrTrans (tag, dc, fsample, sample+i, samp, wc);
+			zn_WrTrans (tag, dc, fsample+i, sample+i, samp, wc);
 			break;
 		}
 	}
@@ -1075,7 +1078,7 @@ int fsample, sample, nsample;
 		hdr->znh_OffAttr = zn_GetSpace (tag, size);
 		tag->zt_Attr = (zn_Sample *) malloc (size);
 		memset (tag->zt_Attr, 0, size);
-		tag->zt_Sync |= SF_ATTR;
+		tag->zt_Sync |= SF_HEADER | SF_ATTR;
 	}
 	/*
 	 * Otherwise we need to free the attributes which will be
@@ -1165,9 +1168,11 @@ int *rsize;
 	long offset;
 	int size;
 
-	samp = zn_FindSampStr (tag, fsample);
+	*roffset = 0;
+	*rsize = 0;
 	offset = -1;
 	size = 0;
+	samp = zn_FindSampStr (tag, fsample);
 
 	if (dc->dc_Class != DCC_Boundary && dc->dc_Class != DCC_Transparent &&
 	    tag->zt_Hdr.znh_Org != OrgFixedScalar)
@@ -1272,7 +1277,7 @@ void *ablock;
 		hdr->znh_OffAttr = zn_GetSpace (tag, size);
 		tag->zt_Attr = (zn_Sample *) malloc (size);
 		memset (tag->zt_Attr, 0, size);
-		tag->zt_Sync |= SF_ATTR;
+		tag->zt_Sync |= SF_HEADER | SF_ATTR;
 	}
 /*
  * If there is already an attribute array, free it up.
@@ -1500,7 +1505,7 @@ int n;
 	tag->zt_Time = (ZebTime *) realloc (tag->zt_Time, 
 					    newns*sizeof (ZebTime));
 	hdr->znh_OffTime = zn_GetSpace (tag, newns*sizeof (ZebTime));
-	tag->zt_Sync |= SF_TIME;
+	tag->zt_Sync |= SF_HEADER | SF_TIME;
 /*
  * Now the sample information array.
  */
@@ -1516,7 +1521,7 @@ int n;
 		tag->zt_Locs = (Location *) realloc (tag->zt_Locs,
 						     newns*sizeof (Location));
 		hdr->znh_OffLoc = zn_GetSpace (tag, newns*sizeof (Location));
-		tag->zt_Sync |= SF_LOCATION;
+		tag->zt_Sync |= SF_HEADER | SF_LOCATION;
 	}
 /*
  * RGRid arrays, if need be.
@@ -1526,7 +1531,7 @@ int n;
 		tag->zt_Rg = (RGrid *) realloc (tag->zt_Rg,
 						newns*sizeof (RGrid));
 		hdr->znh_OffRg = zn_GetSpace (tag, newns*sizeof (RGrid));
-		tag->zt_Sync |= SF_RGRID;
+		tag->zt_Sync |= SF_HEADER | SF_RGRID;
 	}
 /*
  * Attributes, if need be.
@@ -2754,6 +2759,8 @@ int ndetail;
  */
 	tbegin = zn_TimeIndex (tag, &gp->gl_begin);
 	tend = zn_TimeIndex (tag, &gp->gl_end);
+	msg_ELog (EF_DEBUG, "znf GetData (%d) tbegin=%d to tend=%d",
+		  gp->gl_dfindex, tbegin, tend);
 /*
  * Now things get organization-specific.
  */
@@ -2947,7 +2954,7 @@ int dcsamp, tbegin, tend;
 {
 	int sample, alen = -1, len;
 	zn_Sample *zs;
-	zn_Header *hdr = &tag->zt_Hdr;
+	/* zn_Header *hdr = &tag->zt_Hdr; */
 	DataPtr data = 0;
 /*
  * Pull it in one sample at a time.
