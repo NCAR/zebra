@@ -47,7 +47,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.6 1990-03-02 17:13:13 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.7 1990-03-02 17:45:00 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -2290,7 +2290,6 @@ struct mb_menu *menu;
 			menu->mbm_ewidget[i] = XtCreateManagedWidget ("line",
 				smeLineObjectClass, menu->mbm_pulldown,
 				NULL, ZERO);
-		menu->mbm_eval[i] = FALSE;
 	}
 /*
  * If this menu has a selector, put in a popup callback to insure that it
@@ -2306,7 +2305,7 @@ struct mb_menu *menu;
  * For menus with mark expressions, go through and set the initial values.
  */
 	if (menu->mbm_expr)
-		uw_mb_set_marks (menu);
+		uw_mb_set_marks (menu, TRUE);
 }
 
 
@@ -2350,7 +2349,7 @@ XtPointer xpmenu, junk;
  */
 	if (menu->mbm_expr)
 	{
-		uw_mb_set_marks (menu);
+		uw_mb_set_marks (menu, FALSE);
 		return;
 	}
 /*
@@ -2385,8 +2384,9 @@ XtPointer xpmenu, junk;
 
 
 
-uw_mb_set_marks (menu)
+uw_mb_set_marks (menu, all)
 struct mb_menu *menu;
+bool all;
 /*
  * Set the individual item marks for this menu.
  */
@@ -2418,7 +2418,7 @@ struct mb_menu *menu;
 	 */
 	 	if (type != SYMT_BOOL)
 			uit_coerce (&v, type, SYMT_BOOL);
-		if (v.us_v_int == menu->mbm_eval[i])
+		if (v.us_v_int == menu->mbm_eval[i] && ! all)
 			continue;
 	/*
 	 * They have.  Set the new map.
