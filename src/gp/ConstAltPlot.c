@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.24 1992-12-09 16:42:07 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.25 1992-12-18 09:10:14 granger Exp $")
 
 
 /*
@@ -84,8 +84,35 @@ typedef struct _StInfo
 } StInfo;
 
 
+/*----------------------------------------------------------------
+ * Externals
+ */
+extern void
+RasterPlot FP ((Widget w, Drawable d, float *array, 
+		int xdim, int ydim,
+		int xlo, int ylo, int xhi, int yhi));
+extern void 
+RP_Init FP ((XColor *colors, int count, XColor c_outrange,
+	     XRectangle clip, float dmin, float dmax, 
+	     Boolean highlight, float hvalue, XColor hcolor,
+	     float hrange));
+extern void 
+RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
+		     int xd, int yd, int xlo, int ylo, int xhi, int yhi,
+		     float scale, float bias));
 
-/*
+extern void 
+RasterXIPlot FP ((Widget w, Drawable d, float *array, 
+		  int xdim, int ydim, 
+		  int xlo, int ylo, int xhi, int yhi,
+		  bool fast));
+
+# ifdef SHM
+extern void RP_ZapSHMImage FP ((Widget w));
+# endif
+
+
+/*----------------------------------------------------------------
  * Forwards.
  */
 void		CAP_FContour FP ((char *, int));
@@ -1023,7 +1050,9 @@ bool	update;
 	int	xdim, ydim;
 	int	nsteps;
 	bool	ok, highlight, fastloop, newrp;
-	float	*grid, x0, x1, y0, y1, alt;
+	float	*fgrid;			/* Floating point grid	*/
+	unsigned char *igrid;		/* Image grid		*/
+	float	x0, x1, y0, y1, alt;
 	float	min, max, center, step, hvalue, hrange;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, image, shifted;
 	XRectangle	clip;
@@ -1129,8 +1158,8 @@ bool	update;
 		if (! (dc = CAP_ImageGrid (c, &zt, pid, name, &xdim, &ydim,
  				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		grid = (float *) dc_ImgGetImage (dc, 0, 
-			F_Lookup (name), &loc, &rg, &len, &scale);
+		igrid = dc_ImgGetImage (dc, 0, F_Lookup (name), 
+					&loc, &rg, &len, &scale);
 		alt = loc.l_alt;
 	}
 	else
@@ -1138,9 +1167,9 @@ bool	update;
 		if (! (dc = ga_GetGrid(&zt, c, platform, name, &xdim, &ydim,
 				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		grid = dc_RGGetGrid (dc, 0, F_Lookup (name), &loc, &rg, &len);
+		fgrid = dc_RGGetGrid (dc, 0, F_Lookup (name), &loc, &rg, &len);
 	}
-	if (! grid)
+	if ((image && !igrid) || (!image && !fgrid))
 	{
 		msg_ELog (EF_INFO, "Unable to get grid for %s.", platform);
 		return;
@@ -1168,19 +1197,14 @@ bool	update;
 	RP_Init (Colors, Ncolors, xoutr, clip, min, max, highlight, hvalue, 
 		xc, hrange);
 	if (image)
-# ifdef SHM
-		RasterImagePlot (Graphics, DrawFrame, grid, xdim,
+		RasterImagePlot (Graphics, DrawFrame, igrid, xdim,
 			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
 			scale.s_Offset);
-# else
-		RasterXIPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
-# endif
 	else if (! newrp)
-		RasterPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
+		RasterPlot (Graphics, GWFrame (Graphics), fgrid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1);
 	else
-		RasterXIPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
+		RasterXIPlot (Graphics, GWFrame (Graphics), fgrid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
 /*
  * Free the data chunk.
