@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.10 $ $Date: 1996-03-12 21:35:26 $";
+static char *Version = "$Revision: 2.11 $ $Date: 1997-04-28 04:44:18 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,7 +30,7 @@ char *Version = "$Revision: 2.10 $ $Date: 1996-03-12 21:35:26 $";
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: timer.c,v 2.10 1996-03-12 21:35:26 granger Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.11 1997-04-28 04:44:18 granger Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
