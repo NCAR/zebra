@@ -1,7 +1,7 @@
 /*
  * Miscellaneous utility functions.
  */
-static char *rcsid = "$Id: Utilities.c,v 1.2 1991-03-08 00:59:53 corbet Exp $";
+static char *rcsid = "$Id: Utilities.c,v 1.3 1991-07-01 13:48:20 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
@@ -167,4 +167,42 @@ char *comp, *param, *qual, *def;
 		ct_GetColorByName ("white", &xc);
 	}
 	XSetForeground (Disp, Gcontext, xc.pixel);
+}
+
+
+
+
+
+int
+AgeCheck (comp, t)
+char *comp;
+time *t;
+/*
+ * If this component has an age limit, enforce it.  Return FALSE if the
+ * given time is too old, relative to the plot time.
+ */
+{
+	char	limit[100], platform[60], *qual;
+	int seconds, psec, dsec;
+/*
+ * Look for the limit.  If none exists, return TRUE.
+ */
+	if (pd_Retrieve (Pd, comp, "platform", platform, SYMT_STRING))
+		qual = platform;
+	else
+		qual = 0;
+	if (! pda_Search (Pd, comp, "age-limit", qual, limit, SYMT_STRING))
+		return (TRUE);
+/*
+ * Turn this thing into a useful number.
+ */
+	if (! (seconds = pc_TimeTrigger (limit)))
+	{
+		msg_ELog (EF_PROBLEM, "Funky age limit: '%s'", limit);
+		return (TRUE);
+	}
+/*
+ * Now see how close we are.
+ */
+	return ((TC_FccToSys (&PlotTime) - TC_FccToSys (t)) <= seconds);
 }
