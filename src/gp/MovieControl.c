@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.1 1991-09-12 19:17:37 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -47,7 +47,7 @@ static bool 	Now;			/* Should endtime track realtime*/
 static bool 	ReGenFrame = FALSE;
 static bool 	Notification = FALSE;
 static time 	NotTime;
-static char	*EndTime;
+static char	EndTime[ATSLEN];
 static int 	CurrentFrame;
 static int 	DisplayedFrame;
 /*
@@ -471,8 +471,6 @@ mc_SetupParams ()
 	char trigger[200];
 	PlatformId pid;
 	char fskipk[ATSLEN], string[ATSLEN];
-
-	EndTime = (char *) malloc(ATSLEN * sizeof(char));
 /*
  * Figure out what is in the control widget now.
  */
@@ -491,16 +489,12 @@ mc_SetupParams ()
 			}
 			ReGenFrame = FALSE;
 			ud_format_date(EndTime, &t1, UDF_FULL);
-			if(EndTime[0] == ' ')
-				EndTime++;
 			v.us_v_date = t1;
 		}
 		else 
 		{
 			ReGenFrame = TRUE;
 			ud_format_date(EndTime, &t, UDF_FULL);
-			if(EndTime[0] == ' ')
-				EndTime++;
 			v.us_v_date = t;
 		}
 		msg_ELog(EF_DEBUG, "ReGenFrame: %s.", ReGenFrame ? "True" : 
@@ -509,9 +503,8 @@ mc_SetupParams ()
 	else 
 	{
 		strcpy(EndTime, Endt);
-		if(EndTime[0] == ' ')
-			EndTime++;
-		if (! uit_parse_date (EndTime, &v, FALSE))
+		if (! uit_parse_date (EndTime[0] == ' ' ? EndTime+1 : EndTime,
+					&v, FALSE))
 		{
 			mc_SetStatus ("Unable to understand end time.");
 			return (FALSE);
@@ -760,7 +753,6 @@ mc_MovieStop ()
 /*
  * Throw the system into history mode, showing the current frame.
  */
-	free(EndTime);
 	if (CurrentFrame >= Nframes)
 		CurrentFrame = Nframes - 1;
 	MovieMode = FALSE;
@@ -1056,9 +1048,8 @@ mc_ReGenFrames()
  */
 	tl_GetTime(&t);
 	t.ds_hhmmss = mc_FixTime(t.ds_hhmmss);
-	if(EndTime[0] == ' ')
-		EndTime++;
-	uit_parse_date(EndTime, &endtime, FALSE);
+	uit_parse_date(EndTime[0] == ' ' ? EndTime + 1 : EndTime,
+			&endtime, FALSE);
 	endtime.ds_hhmmss = mc_FixTime(endtime.ds_hhmmss);
 	ud_sub_date(&t, &endtime, &diff);
 	if(diff.ds_hhmmss < (TimeSkip * 100))  
@@ -1077,8 +1068,6 @@ mc_ReGenFrames()
  *  Convert stuff into the format we want.
  */
 	ud_format_date(EndTime, &t, UDF_FULL);
-	if(EndTime[0] == ' ')
-		EndTime++;
 	if(! sscanf (Minutes, "%d", &minutes))
 	{
 		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
@@ -1190,9 +1179,8 @@ mc_ReGenFramesDS()
  *  See if enough time has elapsed.
  */
 	NotTime.ds_hhmmss = mc_FixTime(NotTime.ds_hhmmss);
-	if(EndTime[0] == ' ')
-		EndTime++;
-	uit_parse_date(EndTime, &endtime, FALSE);
+	uit_parse_date (EndTime[0] == ' ' ? EndTime + 1 : EndTime,
+			&endtime, FALSE);
 	endtime.ds_hhmmss = mc_FixTime(endtime.ds_hhmmss);
 	ud_sub_date(&NotTime, &endtime, &diff);
 	if((diff.ds_hhmmss < (TimeSkip * 100 * DAPERCENT)) ||
@@ -1213,8 +1201,6 @@ mc_ReGenFramesDS()
  *  Get the current time and convert it into the format we want.
  */
 	ud_format_date(EndTime, &NotTime, UDF_FULL);
-	if(EndTime[0] == ' ')
-		EndTime++;
 	if(! sscanf (Minutes, "%d", &minutes))
 	{
 		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
