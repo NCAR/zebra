@@ -11,7 +11,7 @@ DISTSUBDIRS = $(SUBDIRS)
 all:: startzeb		/* don't want first target to be install */
 
 startzeb.script:	startzeb.sh
-	sed -e 's^##TOPDIR^$(TOP)^' <startzeb.sh >startzeb.script
+	sed -e s,##TOPDIRHERE,BaseDir, <startzeb.sh >startzeb.script
 
 clean::
 	rm -f startzeb.script

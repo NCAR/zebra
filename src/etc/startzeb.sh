@@ -10,7 +10,7 @@
 # The base directory must be right.  We need to either fix things up to
 # substitute it during a zeb install, or this script needs to be edited.
 #
-	if (! $?ZEB_TOPDIR ) setenv ZEB_TOPDIR ##TOPDIR
+	if (! $?ZEB_TOPDIR ) setenv ZEB_TOPDIR ##TOPDIRHERE
 #
 # Tweak some important variables.
 #
