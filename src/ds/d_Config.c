@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Config.c,v 2.5 1994-01-03 07:17:51 granger Exp $";
+static char *rcsid = "$Id: d_Config.c,v 2.6 1994-02-22 22:11:31 corbet Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -31,12 +31,10 @@ static char *rcsid = "$Id: d_Config.c,v 2.5 1994-01-03 07:17:51 granger Exp $";
 
 
 
-
-# ifdef __STDC__
-	static int dc_InPlatform (Platform *, struct ui_command *);
-# else
-	static int dc_InPlatform ();
-# endif
+/*
+ * Local forwards.
+ */
+static int dc_InPlatform FP ((Platform *, struct ui_command *));
 
 
 
@@ -58,6 +56,13 @@ char *name;
 	ERRORCATCH
 		ui_subcommand ("in-platform", "Platform>", dc_InPlatform, 
 			(long) plat);
+	        /*
+		 * If this is an on-the-fly definition, then go off and scan
+		 * the directory, and hope that nobody minds that we don't
+		 *respond for a little bit...
+		 */
+		if (! InitialScan)
+			RescanPlat (plat);
 	ENDCATCH
 }
 

@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.9 1994-01-03 07:17:56 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.10 1994-02-22 22:11:33 corbet Exp $")
 
 
 /*
@@ -37,7 +37,6 @@ MAKE_RCSID ("$Id: d_Scan.c,v 1.9 1994-01-03 07:17:56 granger Exp $")
  */
 static void	ScanDirectory FP ((Platform *, int, int));
 static void	ScanFile FP ((Platform *, char *, char *, int, int));
-static void	RescanPlat FP ((Platform *));
 static int	FileKnown FP ((Platform *, char *, char *, int));
 static int	FileChanged FP ((Platform *p, DataFile *df));
 static void	CleanChain FP ((Platform *, int));
@@ -386,7 +385,7 @@ int all;
 
 
 
-static void
+void
 RescanPlat (p)
 Platform *p;
 /*
