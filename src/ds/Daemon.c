@@ -29,17 +29,17 @@
 # include <fcntl.h>
 # include <errno.h>
 # include <copyright.h>
-# include "config.h"
-# include "defs.h"
-# include "message.h"
-# include "timer.h"
+# include <config.h>
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <zl_regex.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-# include "zl_regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.36 1994-05-18 22:01:47 burghart Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.37 1994-05-31 14:45:18 burghart Exp $")
 
 
 /*
