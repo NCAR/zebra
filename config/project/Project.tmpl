@@ -39,8 +39,10 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.72 2000-07-14 20:35:28 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.73 2001-01-17 23:21:17 granger Exp $
 XCOMM -----------------------------------------------------------------------
+
+
 
 /*
  * The following will not compile at all, and so are forced to NO
@@ -254,7 +256,7 @@ XCOMM -----------------------------------------------------------------------
  * errors will result.
  */
 #ifndef BuildRDSS
-#define BuildRDSS NO
+#define BuildRDSS YES
 #endif
 
 #if BuildRDSS
@@ -389,7 +391,7 @@ XCOMM -----------------------------------------------------------------------
  */
 # ifndef XIncDir
 #	if UseOpenWindows
-#		define XIncDir /usr/openwin/include
+#		define XIncDir $(OPENWINHOME)/include
 #	endif
 # endif
 
@@ -588,8 +590,29 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #  endif
 #endif
 
+/* Extracted from config.h.dist and kept here for posterity.  I couldn't
+ * think of any situations in which these defaults do not work.
+ *
+ * Some of Zebra's routines require the terminal capability library,
+ * usually /usr/lib/libtermcap.a, and the math library, /usr/lib/libm.a.
+ * These are the symbols and their defaults:
+ *
+ *	MathLibrary	-lm
+ *	TermcapLibrary	-ltermcap
+ *
+ * To change these definitions, use your compiler's options for 
+ * specifying libraries on the command line, such as -L for 
+ * search directories and -l for library names.  The default on
+ * Linux systems is -lncurses instead of -ltermcap.  Leave these
+ * commented to accept the defaults.
+ */
+
 #ifndef TermcapLibrary
-#define TermcapLibrary LoaderLibPrefix -ltermcap
+# ifdef LinuxArchitecture
+#  define TermcapLibrary LoaderLibPrefix -lncurses
+# else
+#  define TermcapLibrary LoaderLibPrefix -ltermcap
+# endif
 #endif
 
 #ifndef MathLibrary

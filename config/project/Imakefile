@@ -1,6 +1,6 @@
 /* -*- C -*-
  *
- * $Id: Imakefile,v 1.8 1996-11-19 06:45:06 granger Exp $
+ * $Id: Imakefile,v 1.9 2001-01-17 23:21:17 granger Exp $
  *
  * Basically just install config.h into the include directory,
  * and make sure the necessary files are distributed.
@@ -8,13 +8,13 @@
 
 all::
 
-HEADERS = Xosdefs.h config.h
+HEADERS = Xosdefs.h config.h config-defaults.h
 
 CFGFILES = $(HEADERS) Project.tmpl Build.tmpl site.def Docs.rules Zebra.rules \
-	   config.h.dist
+	   config.h.dist config-ingest.h
 
 DISTFILES = Imakefile $(HEADERS) Project.tmpl Build.tmpl README site.def \
-	    Docs.rules Zebra.rules config.h.dist
+	    Docs.rules Zebra.rules config-ingest.h config.h.dist
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
