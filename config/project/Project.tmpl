@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.53 1997-02-18 22:19:11 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.54 1997-02-21 17:14:17 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -784,7 +784,13 @@ XCOMM -----------------------------------------------------------------------
         CC_DEPEND = $(CC) $(DEPEND_OPTION)
        CXX_DEPEND = $(CXX) $(DEPEND_OPTION)
            MDFILE = Makefile.dep	/* File to append dependencies to */
-   MDFILE_DEPENDS = Imakefile $(ICONFIGFILES)
+/*
+ * The depend rule is specially written so that if there are no dependencies
+ * for the MDFILE, the MDFILE is not rebuilt if it already exists.  So leave
+ * the dependencies empty so that developers can explicitly rebuild MDFILE
+ * with the Depend target.
+ */
+   MDFILE_DEPENDS = /* Imakefile $(ICONFIGFILES) */
            MDMAKE = CC_DEPEND='$(CC_DEPEND)' CXX_DEPEND='$(CXX_DEPEND)' \
                     MDFILE='$(MDFILE)' DEPEND_OPTION='$(DEPEND_OPTION)'
 

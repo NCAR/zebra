@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.12 1997-02-18 22:19:12 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.13 1997-02-21 17:14:18 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -525,9 +525,15 @@ clean::									@@\
 	$(RM) $(MDFILE) Makefile.tmp					@@\
 									@@\
 $(MDFILE): $(MDFILE_DEPENDS)						@@\
-	@echo Creating $(MDFILE); $(RM) $(MDFILE) ;\			@@\
+	@(set $? NONE; if [ $$1 != NONE -o ! -f $(MDFILE) ]; then \	@@\
+	echo Creating $(MDFILE); $(RM) $(MDFILE) ;\			@@\
 	echo '# -- Compiler dependencies --' > $(MDFILE) ; \		@@\
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(MDMAKE) dependencies		@@\
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(MDMAKE) dependencies; fi)	@@\
+									@@\
+Depend::								@@\
+	@(set -x; $(RM) $(MDFILE)) ; \					@@\
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(MDMAKE) depend			@@\
+
 
 
 /*
