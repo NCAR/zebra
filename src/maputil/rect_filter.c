@@ -5,7 +5,7 @@
  * Usage: mapfilter <lonWest> <latSouth> <lonEast> <latNorth>
  */
 
-/* $Id: rect_filter.c,v 1.2 1997-11-17 21:32:35 burghart Exp $ */
+/* $Id: rect_filter.c,v 1.3 1999-03-23 17:01:12 burghart Exp $ */
 
 # include <stdio.h>
 # include <stdlib.h>
@@ -56,7 +56,7 @@ main (int argc, char **argv)
  * Read from stdin, spitting back out those segments whose bounding box 
  * intersects our clip box.
  */
-	while (gets (line))
+	while (fgets (line, sizeof (line), stdin))
 	{
 		int	ok;
 	/*
@@ -88,7 +88,7 @@ main (int argc, char **argv)
 
 		for (l = 0; l < nlines; l++)
 		{
-			gets (line);
+			fgets (line, sizeof (line), stdin);
 			if (ok)
 				printf ("%s\n", line);
 		}

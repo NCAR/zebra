@@ -23,7 +23,7 @@ main (int argc, char *argv[])
     else if (argc == 1)
     {
 	printf ("SDTS file: ");
-	gets (fname);
+	fgets (fname, sizeof (fname), stdin);
     }
     else
 	strcpy (fname, argv[1]);
