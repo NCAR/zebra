@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.35 2000-12-02 07:05:52 granger Exp $ */
+/* $Id: Imakefile,v 1.36 2001-01-06 00:01:39 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -54,7 +54,7 @@ CSRCS = alarmwidget.c altunits.c barb.c Bitmaps.c byteorder.c cmd_proto.c \
 CCSRCS = BTree.cc BTreeFile.cc BlockFile.cc FreeList.cc Journal.cc XDR.cc \
 	Logger.cc Format.cc Buffer.cc AuxBlock.cc BlockObject.cc \
 	SerialBuffer.cc SerialStream.cc Serializable.cc \
-	T_Block.cc dbf.cc T_BTree.cc ZTime.cc
+	T_Block.cc dbf.cc T_BTree.cc ZTime.cc ztime_test.cc
 
 SRCS = $(CSRCS) ($CCSRCS)
 
@@ -88,7 +88,7 @@ OBJS = $(SPECIAL_OBJS) altunits.o byteorder.o cmd_exec.o convert.o \
 	SerialStream.o Serializable.o AuxBlock.o Journal.o BlockObject.o \
 	Format.o ZTime.o
 
-TESTOBJS = cvt_test.o re_test.o msg_test.o
+TESTOBJS = cvt_test.o re_test.o msg_test.o ztime_test.o
 
 CHEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
@@ -160,9 +160,12 @@ TestProgramTarget(re_test,$(REOBJS),/**/,/**/,$(LIBREGEXP))
 
 TestProgramTarget(msg_test, msg_test.o $(MSGOBJS),/**/,/**/,/**/)
 
+TestProgramTarget(ztime_test, ztime_test.o TCvt.o $(MSGOBJS),/**/,/**/,/**/)
+
 RunTestProgram(cvt_test,coordinate conversion,./cvt_test)
 RunTestProgram(msg_test,error logging,./msg_test > /dev/null 2>&1)
 RunTestProgram(re_test,regular expressions,./re_test)
+RunTestProgram(ztime_test,ztime class,./ztime_test)
 
 /*
  * BTree and related class testing
