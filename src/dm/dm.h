@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.3 1992-02-07 21:03:48 corbet Exp $ */
+/* $Id: dm.h,v 2.4 1993-03-18 07:07:32 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -43,6 +43,11 @@
 # define DM_TABLE	14	/* Color table information	*/
 
 # define DM_DIAL	15	/* Dial event			*/
+
+/*
+ * The string returned by PickWin() when an invalid window is chosen
+ */
+# define DM_PICKWIN_NONE	"none"
 
 /*
  * The message structure sent out by the display manager.
