@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.18 1994-04-15 21:26:11 burghart Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.19 1994-06-29 21:05:37 case Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -313,7 +313,6 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlength, ATSLEN); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 30); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNstring, MovieLen); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
@@ -344,7 +343,6 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlength, ATSLEN); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 30); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNstring, Fskip); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
@@ -387,7 +385,6 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlength, ATSLEN); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 140); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNstring, Endt); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
@@ -416,7 +413,6 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlength, ATSLEN); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 30); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNstring, Frate); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
