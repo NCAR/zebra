@@ -24,7 +24,11 @@
 # include <errno.h>
 # include "Tape.h"
 
-static char *rcsid = "$Id: Tape.cc,v 1.4 1994-11-19 00:31:07 burghart Exp $";
+static char *rcsid = "$Id: Tape.cc,v 1.5 1996-01-02 21:22:13 granger Exp $";
+
+# ifdef NO_IOCTL_PROTO
+extern "C" { int ioctl(int, int, struct mtop *); }
+# endif
 
 Tape::Tape (const char *drive, int write)
 //
