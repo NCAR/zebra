@@ -32,7 +32,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.23 1995-04-15 00:57:53 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.24 1995-04-21 16:29:34 granger Exp $")
 # endif
 
 /*
@@ -187,7 +187,9 @@ char *ident;
 	if (connect (Msg_fd, (struct sockaddr *) &saddr,
 			sizeof (struct sockaddr_un)) < 0)
 	{
-		if (errno != ENOENT && errno != ECONNREFUSED)
+		if (errno != ENOENT /* no such file or directory */ && 
+		    errno != ECONNREFUSED /* connection refused */ &&
+		    errno != ENXIO /* no such device or address (solaris) */)
 			perror ("Message server connect");
 		return (FALSE);
 	}
