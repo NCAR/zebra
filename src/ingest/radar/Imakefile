@@ -15,10 +15,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.17 1996-06-19 22:30:46 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.18 1996-12-10 20:50:43 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+
+INCLUDES = $(XINCLUDES)
 
 SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \
 	Rasterize.c StatusWidget.c XDisplay.c ds_consumer.c adradFieldList.c \
@@ -43,10 +46,13 @@ PARAMS = cp4.params adrad.params mhr.params nexrad-kmlb.params \
 
 DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) $(STATES) $(PARAMS)
 
+ROBJS = radar_ingest.o mtape.o Rasterize.o \
+	StatusWidget.o Input.o cp2.o PCapInput.o BeamBuffer.o
+
+RLIBS = $(LIBS) $(LIBPCAP)
+
 AllTarget(radar_ingest)
-NormalProgramTarget(radar_ingest,radar_ingest.o mtape.o Rasterize.o
-	StatusWidget.o Input.o cp2.o PCapInput.o BeamBuffer.o, \
-	$(DEPLIBS),$(LIBS) $(LIBPCAP),$(SYSLIBS))
+NormalProgramTarget(radar_ingest,$(ROBJS),$(DEPLIBS),$(RLIBS),$(SYSLIBS))
 
 NormalProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
@@ -55,23 +61,27 @@ NormalProgramTarget(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 AllTarget(RadarStatus)
 NormalProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-AllTarget(adrad_ingest)
-NormalProgramTarget(adrad_ingest,adrad_ingest.o Rasterize.o 
-	adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+AROBJS = adrad_ingest.o Rasterize.o adradInput.o
 
-CompleteProgramTarget(adradFieldList,
-	adradFieldList.o adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+AllTarget(adrad_ingest)
+NormalProgramTarget(adrad_ingest,$(AROBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+AFLOBJS = adradFieldList.o adradInput.o
+
+CompleteProgramTarget(adradFieldList,$(AFLOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UFOBJS = UFIngest.o Rasterize.o UFInput.o
 
 AllTarget(UFIngest)
-NormalProgramTarget(UFIngest,UFIngest.o Rasterize.o 
-	UFInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(UFIngest,$(UFOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 AllTarget(ds_consumer)
 NormalProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
+RGOBJS = RGridConsumer.o
+
 AllTarget(RGridConsumer)
-NormalProgramTarget(RGridConsumer,RGridConsumer.o,$(DEPLIBS),$(LIBS),\
-	$(SYSLIBS))
+NormalProgramTarget(RGridConsumer,$(RGOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
 

@@ -22,14 +22,13 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.9 1996-03-15 22:24:16 burghart Exp $";
-
 /* clean up includes later	*/
 # include <copyright.h>
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -40,6 +39,8 @@ static char *rcsid = "$Id: adrad_ingest.c,v 2.9 1996-03-15 22:24:16 burghart Exp
 # include "radar_ingest.h"
 # include "display.h"
  
+RCSID("$Id: adrad_ingest.c,v 2.10 1996-12-10 20:50:49 granger Exp $")
+
 /* 
  * Adrad includes for xdr, etc.
  */

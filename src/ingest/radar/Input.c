@@ -18,7 +18,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.9 1995-06-23 19:39:12 corbet Exp $";
 
 # ifdef notdef
 # include <sys/types.h>
@@ -35,12 +34,15 @@ static char *rcsid = "$Id: Input.c,v 2.9 1995-06-23 19:39:12 corbet Exp $";
 # include <netinet/if_ether.h>
 # endif
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 # include "BeamBuffer.h"
 /* # include "Ethernet.h" */
+
+RCSID("$Id: Input.c,v 2.10 1996-12-10 20:50:45 granger Exp $")
 
 static int zero = 0;
 

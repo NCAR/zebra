@@ -28,6 +28,7 @@
 # include <sys/time.h>
 # include <sys/resource.h>
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>

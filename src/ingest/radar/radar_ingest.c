@@ -19,9 +19,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.14 1995-09-20 20:45:46 burghart Exp $";
-
-# include <copyright.h>
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
@@ -38,6 +35,7 @@ static char *rcsid = "$Id: radar_ingest.c,v 2.14 1995-09-20 20:45:46 burghart Ex
 static void SetRealTime ();
 # endif
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -49,6 +47,7 @@ static void SetRealTime ();
 # include "display.h"
 # include "BeamBuffer.h"
 
+RCSID("$Id: radar_ingest.c,v 2.15 1996-12-10 20:50:53 granger Exp $")
 
 /*
  * Define globals here.
@@ -1003,7 +1002,8 @@ SetupBeamDelay ()
 
 
 static void
-WakeUp (int sig)
+WakeUp (sig)
+int sig;
 /*
  * Beam interval timer signal handler
  */
@@ -1031,7 +1031,7 @@ die ()
 
 
 
-void
+static void
 reset ()
 /*
  * Detach and kill stuff in preparation for reinitializing or dying

@@ -21,13 +21,14 @@
  */
 # include <math.h>
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-MAKE_RCSID ("$Id: cp2.c,v 2.2 1995-09-20 20:45:40 burghart Exp $")
+RCSID ("$Id: cp2.c,v 2.3 1996-12-10 20:50:51 granger Exp $")
 
 
 /*
