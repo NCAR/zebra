@@ -31,7 +31,7 @@
 # include <zl_regex.h> /* System-independent regex functions in Zeb library */
 
 #ifndef lint
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.13 1995-11-20 20:22:55 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.14 1996-01-23 04:23:55 granger Exp $")
 #endif
 
 /*--------------------------------------------------------------------
@@ -301,9 +301,6 @@ int code;
 	AttrADE *ade;
 	int alen;
 
-#ifdef DEBUG
-	printf ("creating AttrADE, class %d, code %d\n", class, code);
-#endif
 	alen = sizeof (AttrADE) + INITIAL_SIZE - 1;
 	ade = (AttrADE *) malloc (alen);
 	ade->aa_Alloc = INITIAL_SIZE;
