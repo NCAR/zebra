@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.5 1996-12-06 00:40:41 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.6 1996-12-09 17:55:58 granger Exp $")
 
 
 /*
@@ -450,13 +450,15 @@ DataChunk *dc;
 int
 dc_SetBadval (dc, badval)
 DataChunk *dc;
-float badval;
+double badval;
 /*
  * Store a floating point global bad value into this DC.  Return nonzero on
  * success, zero otherwise.
  */
 {
-	return (dc_SetGlobalBadval (dc, DCT_Float, &badval));
+	float fbv = (float) badval;
+
+	return (dc_SetGlobalBadval (dc, DCT_Float, &fbv));
 }
 
 
