@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.5 1991-10-17 15:19:08 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.6 1991-10-21 21:14:04 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -391,6 +391,7 @@ greet_dm ()
 	XtSetArg (args[i], XtNy, 5000);  i++;
 	XtSetArg (args[i], XtNwidth, 50);  i++;
 	XtSetArg (args[i], XtNheight, 50);  i++;
+	XtSetArg (args[i], XtNallowShellResize, True); i++;
 	XtSetValues (GrShell, args, i);
 	ChangeState (UP);
 	ChangeState (DOWN);
@@ -660,9 +661,11 @@ int len;
  */
  	XtSetArg (args[0], XtNx, dmsg->dmm_x);
 	XtSetArg (args[1], XtNy, dmsg->dmm_y);
-	XtSetArg (args[2], XtNwidth, dmsg->dmm_dx);
-	XtSetArg (args[3], XtNheight, dmsg->dmm_dy);
-	XtSetValues (GrShell, args, FOUR);
+	XtSetValues (GrShell, args, TWO);
+
+	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
+	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
+	XtSetValues (Graphics, args, TWO);
 /*
  * If we are not currently on-screen, put it there.  Also set the cursor 
  * to our normal value.
