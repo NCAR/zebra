@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.8 1994-06-01 17:01:52 burghart Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.9 1994-06-17 21:49:07 burghart Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -58,6 +58,12 @@ struct RastInfo
 static unsigned char ThreshBuf[4*MAXGATES];
 static unsigned char *TBuf[4] = { ThreshBuf, ThreshBuf + MAXGATES,
 	ThreshBuf + 2*MAXGATES, ThreshBuf + 3*MAXGATES };
+
+/*
+ * Info about the sweep we're currently rasterizing
+ */
+UItime	BeginTime;
+int	ScanMode = -1, Fixed = -1;
 
 /*
  * We keep track of the maximum extents in every direction, so that we
@@ -277,6 +283,21 @@ int interleaved;
 
 
 
+void
+RasterizeDone ()
+/*
+ * Call this after the last beam has been rasterized so that we can dump
+ * out the last sweep if it's big enough.
+ */
+{
+	if (NBeam > MinSweep)
+		OutputSweep (&BeginTime, Fixed / CORR_FACT, FALSE, 
+			     MaxLeft, MaxRight, MaxUp, MaxDown, ScanMode);
+}
+
+
+
+
 static void
 Threshold (beam, dest, offset, skip)
 Beam beam;
@@ -375,10 +396,9 @@ Beam beam;
  */
 {
 	Housekeeping *hk = beam->b_hk;
-	static int mode = -1, fixed = -1, scan = 0, lastfixed = -999;
+	static int scan = 0, lastfixed = -999;
 	static int firstbeam, firstaz, firstel, gs, ng;
 	static int sweep, vol;
-	static UItime begintime;
 	static struct timeval oldtime, newtime;
 	static Direction dir = Unknown;
 /*
@@ -386,11 +406,11 @@ Beam beam;
  */
 	if (! InSweep)
 		;	/* New sweep by definition */
-	else if (mode != hk->scan_mode)		/* Scan mode change */
+	else if (ScanMode != hk->scan_mode)		/* Scan mode change */
 		msg_ELog (EF_DEBUG, "Mode change break");
 	else if (TrustSweep && (hk->sweep_index != sweep || hk->transit))
 		msg_ELog (EF_DEBUG, "Sweep count/transition break");
-	else if (fixed != hk->fixed)		/* Fixed angle change */
+	else if (Fixed != hk->fixed)		/* Fixed angle change */
 		msg_ELog (EF_DEBUG, "Fixed angle break");
 	else if (ABS (hk->fixed - hk->elevation) > ElTolerance * CORR_FACT)
 		msg_ELog (EF_DEBUG, "Fixed/real difference break: %.2f/%.2f",
@@ -406,7 +426,7 @@ Beam beam;
 		return;	/* Business as usual */
 
 # ifdef notdef	
-	if (! InSweep || mode != hk->scan_mode || fixed != hk->fixed ||
+	if (! InSweep || ScanMode != hk->scan_mode || Fixed != hk->fixed ||
 		ABS (hk->fixed - hk->elevation) > ELTOLERANCE ||
 		DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
 				firstaz/CORR_FACT) ||
@@ -425,19 +445,19 @@ Beam beam;
 		ui_printf ("%d, v %d ll %6.2f %6.2f F %6.2f m %s ",
 			scan, hk->vol_count, hk->latitude/LAT_CF,
 			hk->longitude/LON_CF,
-			fixed/CORR_FACT, Modes[mode]);
+			Fixed/CORR_FACT, Modes[ScanMode]);
 		ui_printf ("%d b, %.2f s %.1f b/s\n", NBeam, tdiff,
 				NBeam/tdiff);
 # endif
 	/*
 	 * See if a new volume is warranted.
 	 */
-		newvol = (mode != hk->scan_mode) ||
-			(TrustVol ? hk->vol_count != vol : fixed <= lastfixed);
+		newvol = (ScanMode != hk->scan_mode) ||
+			(TrustVol ? hk->vol_count != vol : Fixed <= lastfixed);
 # ifdef notdef
 		msg_ELog (EF_INFO, "MHR ck fix %.2f last %.2f top %.2f",
-			fixed/CORR_FACT, lastfixed/CORR_FACT, MhrTop);
-		if (MhrMode && fixed/CORR_FACT < 0.7 &&
+			Fixed/CORR_FACT, lastfixed/CORR_FACT, MhrTop);
+		if (MhrMode && Fixed/CORR_FACT < 0.7 &&
 					lastfixed/CORR_FACT < MhrTop)
 			msg_ELog (EF_DEBUG, "Dropping .5 sweep, last %.2f",
 				lastfixed);
@@ -445,10 +465,10 @@ Beam beam;
 # endif
 			if (NBeam > MinSweep)
 		{
-			OutputSweep (&begintime, fixed/CORR_FACT,
+			OutputSweep (&BeginTime, Fixed/CORR_FACT,
 			   newvol, MaxLeft, MaxRight, MaxUp, MaxDown,
 			   hk->scan_mode);
-			lastfixed = fixed;
+			lastfixed = Fixed;
 			dir = Unknown;
 		}
 	}
@@ -476,12 +496,12 @@ Beam beam;
 	scan++;
 	oldtime = newtime;
 	firstbeam = hk->log_rec_num;
-	fixed = hk->fixed;
-	mode = hk->scan_mode;
+	Fixed = hk->fixed;
+	ScanMode = hk->scan_mode;
 	firstaz = hk->azimuth;
 	firstel = hk->elevation;
-	begintime.ds_yymmdd = hk->year*10000 + hk->month*100 + hk->day;
-	begintime.ds_hhmmss = hk->hour*10000 + hk->minute*100 + hk->second;
+	BeginTime.ds_yymmdd = hk->year*10000 + hk->month*100 + hk->day;
+	BeginTime.ds_hhmmss = hk->hour*10000 + hk->minute*100 + hk->second;
 	vol = hk->vol_count;
 	sweep = hk->sweep_index;
 /*

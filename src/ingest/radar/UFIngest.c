@@ -393,6 +393,10 @@ Go ()
 		if ((++nbeam % 100) == 0)
 			CheckMessages ();
 	}
+/*
+ * Put out the last image if necessary.
+ */
+	RasterizeDone ();
 }
 
 
