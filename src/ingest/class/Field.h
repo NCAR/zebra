@@ -1,7 +1,7 @@
 // -*- C++ -*-
 //
 // The Zebra data store field class
-// $Id: Field.h,v 2.3 2002-09-17 20:00:18 granger Exp $
+// $Id: Field.h,v 2.4 2002-10-21 23:10:03 granger Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research
@@ -36,7 +36,7 @@ class Field;
 extern const char	*FT_Temp, *FT_Pres, *FT_RH, *FT_DP;
 extern const char	*FT_WSpd, *FT_WDir, *FT_UWind, *FT_UWind;
 
-ostream& operator<<( ostream& s, const Field& f );
+std::ostream& operator<<( std::ostream& s, const Field& f );
 
 class Field
 {
@@ -53,7 +53,7 @@ public:
     const char* FullName( void ) const;
     char CanYield( const Field &wanted, double *slope = 0, 
 		   double *intercept = 0) const;
-    ostream& PutTo( ostream& s ) const;  
+    std::ostream& PutTo( std::ostream& s ) const;  
     int CompareTo( const Field& f ) const;
     const Field& operator =( const Field& src );
     int operator ==( const Field& f ) const;

@@ -1,6 +1,6 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
  *
- * $Id: FieldClass.h,v 2.2 2001-01-04 21:12:26 granger Exp $
+ * $Id: FieldClass.h,v 2.3 2002-10-21 23:10:03 granger Exp $
  *
  * Interface for the classes in the Field class hierarchy.
  */
@@ -244,7 +244,10 @@ template <class F, class SF, class ST>
 class SubFieldClass : public FieldType<SF,ST>
 {
 public:
-	SubFieldClass (datum_type v = datum_type())
+	// Note the datum_type type must be qualified as is for GCC 3.2
+	// to grok it without complaining about an implicit typename.
+	SubFieldClass (typename FieldType<SF,ST>::datum_type v =
+		       datum_type())
 		: FieldType<SF,ST>(v)
 	{ }
 };
