@@ -46,12 +46,13 @@
 
 # include <defs.h>
 # include <copyright.h>
+# include <zl_symbol.h>
 
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
-# include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.46 1996-09-06 21:05:57 granger Exp $")
+RCSID ("$Id: message.c,v 2.47 1996-11-19 08:05:10 granger Exp $")
+
 /*
  * Symbol tables.
  */
@@ -350,7 +351,8 @@ char **argv;
 		}
 		else if (! strncmp (argv[i], "-version", optlen))
 		{
-			printf ("%s%s\n", Z_version(), Z_cppsymbols());
+			printf ("%s%s", Z_version(), Z_cppsymbols());
+			printf ("%s", Z_rcsid());
 			printf ("Message protocol version: %s\n",
 				MSG_PROTO_VERSION);
 			exit (0);
@@ -740,7 +742,8 @@ MakeUnixSocket ()
  * Bind it to it's name.
  */
  	saddr.sun_family = AF_UNIX;
-	sn = getenv ("ZEB_SOCKET");
+	if (! (sn = getenv (MSG_SOCKET_VARIABLE)))
+		sn = getenv ("ZEB_SOCKET");
 	if (! sn)
 		sn = UN_SOCKET_NAME;
 	if ((strlen (sn) >= sizeof(saddr.sun_path)) ||
