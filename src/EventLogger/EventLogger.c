@@ -52,13 +52,15 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.44 2001-11-30 00:45:07 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.45 2001-12-13 08:55:26 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
 #ifndef streq
 #define streq(a,b) (!strcmp((a),(b)))
 #endif
+
+#define DEBUG_MESSAGES 0
 
 /*
  * Event mask info.  Emask is the bitwise or of Display_mask and Log_mask,
@@ -89,8 +91,8 @@ struct EMMap
 /*
  * Keep things from getting too big.
  */
-# define MAXCHAR	10000	/* This is too big	*/
-# define TRIMCHAR	8000	/* Trim back to this	*/
+# define MAXCHAR	16000	/* This is too big	*/
+# define TRIMCHAR	15000	/* Trim back to this	*/
 
 # define FORTUNE_CMD 	"fortune -s"
 # define FORTUNE_LEN 	512
@@ -761,7 +763,7 @@ CreateEventLogger()
 	XtSetArg (args[5], XtNscrollVertical, XawtextScrollAlways);
 	Text = XtCreateManagedWidget ("text", asciiTextWidgetClass, Form,
 		args, 6);
-	XawTextDisplayCaret (Text, False);
+	XawTextDisplayCaret (Text, True);
 	Buflen = strlen (Initmsg);
 }
 
@@ -1512,6 +1514,7 @@ FormatMessage (char code, char *from_in, char *msg_in)
 
 	char repeat_msg[128];
 	char tmp[128];
+	char *messagep = msg_in;
 
 	if (! msg_in)
 	    msg_in = "";
@@ -1564,96 +1567,21 @@ FormatMessage (char code, char *from_in, char *msg_in)
 		repeat_count = 1;
 	}
 	/*
-	 * Now we can assemble the message.
+	 * Now we can assemble the message, if we got one.
 	 */
-	NewMessage (fmtbuf, code, from_in, msg_in);
+	if (messagep)
+	    NewMessage (fmtbuf, code, from_in, msg_in);
 	if (repeat_msg[0])
 		AppendMessage (fmtbuf, repeat_msg);
+	/* If nothing to log, return an indication of that. */
+	if (! fmtbuf[0])
+	    return 0;
 	AppendMessage (fmtbuf, "\n");
 	/* Make sure we always end with a newline */
 	strcpy (fmtbuf + FMTLEN - 2, "\n");
 	return fmtbuf;
 }
 
-
-
-#ifdef notdef
-static char *
-FormatMessage (code, from_in, msg_in)
-char code;
-char *from_in;
-char *msg_in;
-/*
- * Format the code, from, and msg strings into the log message.  If the
- * message should not be logged for repeat reasons, NULL is returned.
- * If the msg is NULL, clear the repeat counter and return the "repeated"
- * message, else NULL.
- */
-{
-#	define FMTLEN 256
-#	define FROMLEN 12
-	static char fmtbuf[FMTLEN];
-	static char last_msg[FMTLEN];
-	static int repeat_count = 0;
-	char msg[FMTLEN];
-	char from[FROMLEN];
-/*
- * Format the message to be logged.  For robustness, make sure the msg is
- * not too long for our buffer.
- */
-	if (msg_in)
-	{
-		strncpy (from, from_in, FROMLEN-1);
-		from[FROMLEN-1] = '\0';
-		strncpy (msg, msg_in, FMTLEN - 30);
-		msg[FMTLEN - 30] = '\0';
-		sprintf (fmtbuf, "%c %-*s %s\n", code, FROMLEN-1, from, msg);
-	}
-	else
-	{
-		fmtbuf[0] = '\0';
-	}
-/*
- * See if we've seen this message before: if so, print the repeat count
- * at regular intervals; otherwise reset repeat count and proceed as usual.
- * Note that repeat_count will always be at least one except for the first
- * time this function is entered.
- */
-	if ((repeat_count > 0) && !strcmp (fmtbuf, last_msg))
-	{
-		++repeat_count;
-		if ((repeat_count == 5) ||
-		    ((repeat_count < 50) && !(repeat_count % 10)) ||
-		    (!(repeat_count % 50)))
-		{
-			sprintf (fmtbuf,"%c %-*s %s, %d repeats\n",
-				 'R', FROMLEN-1, from, msg, repeat_count);
-		}
-		else if (repeat_count > 5)
-		{
-			return NULL;
-		}
-		/*
-		 * Else leave fmtbuf unchanged
-		 */
-	}
-	else
-	{
-		strcpy (last_msg, fmtbuf);
-	/*
-	 * If messages were previously being skipped, make a note about the
-	 * final number of repeats.
-	 */
-		if (repeat_count > 5)
-			sprintf (fmtbuf, 
-				 "R %-*s Last message repeated %d times\n%s",
-				 FROMLEN-1, LOGNAME, repeat_count, last_msg);
-		repeat_count = 1;
-	}
-
-	return (fmtbuf);
-}
-#endif
 
 
 
@@ -1688,44 +1616,68 @@ char *fmtbuf;
 	Arg args[10];
 	XawTextBlock tb;
 	XawTextPosition cut;
+	int result;
 
 	tb.firstPos = 0;
 	tb.length = strlen (fmtbuf);
 	tb.ptr = fmtbuf;
-	tb.format = FMT8BIT;
+	tb.format = XawFmt8Bit;
 /*
  * Add it to the buffer.  Turn on editing only for long enough to do this
  * operation.  Disable re-display to keep the text from bouncing around.
  */
 	XawTextDisableRedisplay (Text);
-	XtSetArg (args[0], XtNeditType, XawtextAppend);
+	XawTextSetInsertionPoint (Text, Buflen);
+	XtSetArg (args[0], XtNeditType, XawtextEdit);
 	XtSetValues (Text, args, 1);
-	XawTextReplace (Text, Buflen, Buflen, &tb);
+	result = XawTextReplace (Text, Buflen, Buflen, &tb);
+	if (result != XawEditDone)
+	{
+	    if (DEBUG_MESSAGES)
+		fprintf (stderr, "text append failed for: %s", tb.ptr);
+	}
+	else
+	{
+	    Buflen += strlen(tb.ptr);
+	}
 /*
- * If this is getting too big, trim it back.  Try to trim it at a line break.
+ * If this is getting too big, trim it back.  Try to trim it at a line
+ * break.
  */
-	if ((Buflen += strlen (fmtbuf)) > (unsigned)MAXCHAR)
+	if (Buflen > (unsigned)MAXCHAR)
 	{
 		XawTextSetInsertionPoint (Text, Buflen - TRIMCHAR);
 		tb.firstPos = 0;
-		tb.length = 1;
 		tb.ptr = "\n";
+		tb.length = 1;
 		cut = XawTextSearch (Text, XawsdRight, &tb);
 		if (cut == XawTextSearchError)
 			cut = Buflen - TRIMCHAR;
 
-		tb.length = 0;
-		XawTextReplace (Text, 0, cut + 1, &tb);
-		Buflen -= (cut + 1);
+		tb.ptr = "...\n";
+		tb.length = strlen(tb.ptr);
+		result = XawTextReplace (Text, 0, cut + 1, &tb);
+		if (result != XawEditDone)
+		{
+		    if (DEBUG_MESSAGES)
+			fprintf (stderr, 
+				 "text truncate failed from %d to %d\n", 
+				 0, cut+1);
+		}
+		else
+		{
+		    Buflen -= (cut + 1 - tb.length);
+		}
 	}
 /*
  * Update.
  */
+	XawTextSetInsertionPoint (Text, Buflen);
 	XtSetArg (args[0], XtNeditType, XawtextRead);
 	XtSetValues (Text, args, 1);
-	/* XawTextDisplay (Text); */
-	XawTextSetInsertionPoint (Text, Buflen);
 	XawTextEnableRedisplay (Text);
+	/*XawTextInvalidate (Text, 0, Buflen);*/
+	/*XawTextDisplay (Text);*/
 	xevent ();
 }
 
@@ -2368,10 +2320,6 @@ void *param;
 	char *msg;
 
 	sprintf (buf, "Timestamp: ");
-#ifdef notdef
-	TC_EncodeTime (t, (t->zt_Sec % 3600 == 0) ? TC_Full : TC_TimeOnly,
-		       buf + strlen(buf));
-#endif
 	TC_EncodeTime (t, TC_Full, buf + strlen(buf));
 	msg = FormatMessage ('T', LOGNAME, buf);
 	if (! msg)
