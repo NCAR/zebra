@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.17 1993-05-06 17:10:22 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.18 1993-05-25 20:00:27 corbet Exp $")
 
 
 
@@ -1148,7 +1148,7 @@ int junk;
  */
 {
 	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
-	int ret = 1;
+	int ret = MSG_CONSUMED;
 /*
  * Essentially we pass through all of the data store protocol messages
  * that we can safely service without threat of deadlock, and drop out 
@@ -1157,7 +1157,7 @@ int junk;
 	switch (dt->dsp_type)
 	{
 	   case dpt_ReleasePLock:
-	   	ret = 0;
+	   	ret = MSG_DONE;
 	   case dpt_NotifyRequest:
 	   case dpt_CancelNotify:
 	   case dpt_CopyNotifyReq:
@@ -1173,7 +1173,7 @@ int junk;
 		return (ret);
 
 	   default:
-	   	return (1);
+	   	return (MSG_ENQUEUE);
 	}
 }
 
