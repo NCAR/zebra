@@ -40,7 +40,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-RCSID("$Id: GraphicsW.c,v 2.24 1998-03-17 22:27:57 corbet Exp $")
+RCSID("$Id: GraphicsW.c,v 2.25 1998-12-07 20:44:19 burghart Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -60,6 +60,9 @@ RCSID("$Id: GraphicsW.c,v 2.24 1998-03-17 22:27:57 corbet Exp $")
 # include <X11/extensions/XShm.h>
 static Pixmap gw_GetShmPixmap();
 static void gw_SetShmPossible();
+static int gw_CatchXShmError (Display *d, XErrorEvent *ev);
+
+static int HadShmError;	/* for XShm testing */
 # endif
 
 static void gw_GetVisualAndColormap (/* Graphics w, Visual **visual, 
@@ -599,50 +602,80 @@ GraphicsWidget w;
  *  Set private member according to whether we think shared memory is possible
  */
 {
-#	define HOSTLEN 50
-	int maj, min, sp;
-	char host[HOSTLEN];
-	Display *dpy = XtDisplay(w);
-	Boolean possible;
-	int n;
-	char *c;
+#   define HOSTLEN 50
+    int maj, min, sp, possible;
+    XShmSegmentInfo seg;
+    char host[HOSTLEN];
+    Display *dpy = XtDisplay(w);
+    int (*oldhandler)(Display*, XErrorEvent*);
 /*
  * Make sure the server has the extension and that it supports shared
  * pixmaps
  */
-	possible = XShmQueryExtension (dpy) && 
-		XShmQueryVersion (dpy, &maj, &min, &sp) && sp;
+    possible = XShmQueryExtension (dpy) && 
+	XShmQueryVersion (dpy, &maj, &min, &sp) && sp;
 
-	msg_ELog (EF_DEBUG, "XShmExt: %s supported by display %s",
-		 possible ? "IS" : "NOT", DisplayString (dpy));
+    msg_ELog (EF_DEBUG, "XShmExt: %s supported by display %s",
+	      possible ? "IS" : "NOT", DisplayString (dpy));
 
-	if (!possible)
-	{
-		w->graphics.shm_possible = False;
-		return;
-	}
+    if (!possible)
+    {
+	w->graphics.shm_possible = False;
+	return;
+    }
 /*
- * Then check that server and client are on the same host,
- * otherwise we can't very well share memory, can we?  If the
- * display name is "unix:?.?" or ":?.?", we'll assume the server is
- * local.  The whole heuristic is rather flawed, but it should be
- * accurate most of the time.
+ * Create a temporary shared memory segment
  */
-	n = (c = (char *) strchr(DisplayString (dpy), ':')) ? 
-	   (int)(c - DisplayString (dpy)) : strlen(DisplayString (dpy));
-	gethostname(host, HOSTLEN);
-	host[HOSTLEN - 1] = '\0';
-	if (!n || (!strncmp(DisplayString (dpy), "unix", n)))
-		possible = True;
-	else if (n == strlen(host))
-		possible = !strncmp(host, DisplayString (dpy), n);
-	else
-		possible = False;
-	msg_ELog(EF_DEBUG, 
-		 "XShm %s: server %s, client at %s",
-		 possible ? "possible" : "NOT possible",
-		 DisplayString (dpy), host);
-	w->graphics.shm_possible = (possible) ? True : False;
+    if (((seg.shmid = shmget (IPC_PRIVATE, 128, IPC_CREAT | 0777)) < 0) ||
+	((seg.shmaddr = (char *) shmat (seg.shmid, 0, 0)) == (char*) -1))
+    {
+	msg_ELog (EF_PROBLEM, "gw: shmget or shmatt error.  SHM disabled.");
+	w->graphics.shm_possible = False;
+	if (seg.shmid >= 0)
+	    shmctl (seg.shmid, IPC_RMID, 0);
+	return;
+    }
+/*
+ * See if we can successfully attach X to the segment.  We set
+ * up our own X error handler momentarily to catch a failure of
+ * XShmAttach() and we force an XSync() to make sure the failure 
+ * happens now, if it happens at all.
+ */
+    HadShmError = 0;
+
+    oldhandler = XSetErrorHandler (gw_CatchXShmError);
+
+    XShmAttach(dpy, &seg);
+    XSync (dpy, 0);
+
+    XSetErrorHandler (oldhandler);
+/*
+ * If no error from XShmAttach(), we can use X shared memory stuff.  
+ * Otherwise we can't.
+ */
+    w->graphics.shm_possible = ! HadShmError;
+    
+    if (HadShmError)
+	msg_ELog (EF_INFO, "gw: XShmAttach failed.  XShm disabled.");
+    else
+	XShmDetach(dpy, &seg);
+/*
+ * Get rid of our temporary shared memory segment
+ */
+    shmctl (seg.shmid, IPC_RMID, 0);
+}
+
+
+static int
+gw_CatchXShmError (Display *d, XErrorEvent *ev)
+/*
+ * X error handler that we use briefly to watch for an error attaching
+ * the server to shared memory.  Just flag an error if we get called...
+ */
+{
+    msg_ELog (EF_INFO, "gw_CatchXShmError: %d/%d/%d", ev->error_code,
+	      ev->request_code, ev->minor_code);
+    HadShmError = 1;
 }
 
 
