@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: dsdump.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.2 1992-06-04 15:46:28 corbet Exp $")
 
 
 msg_handler ()
@@ -39,7 +39,6 @@ int argc;
 char **argv;
 {
 	int i, pid, np;
-	DataObject *data;
 	static char *field = "velocity";
 	ZebTime begin, end, ts[5];
 	time kludge;
