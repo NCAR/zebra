@@ -27,7 +27,7 @@
 # include <defs.h>
 # include <message.h>
 
-MAKE_RCSID("$Id: msg_ping.c,v 2.5 1995-06-29 22:37:19 granger Exp $")
+MAKE_RCSID("$Id: msg_ping.c,v 2.6 1996-08-22 02:12:09 granger Exp $")
 
 #define DEFAULT_DELAY 	20
 
@@ -184,9 +184,12 @@ Message *msg;
 		printf ("Strange response protocol %d.\n", msg->m_proto);
 		exit (ERR_UNKNOWN);
 	}
-	printf ("Response from %s\n", msg->m_from);
-	if (++NGot >= NSent)
-		exit (EXIT_OK);
+	else
+	{
+		printf ("Response from %s\n", msg->m_from);
+		if (++NGot >= NSent)
+			exit (EXIT_OK);
+	}
 	return (0);
 }
 
