@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsrescan.c,v 1.10 1996-11-19 07:14:08 granger Exp $")
+RCSID ("$Id: dsrescan.c,v 1.11 1997-05-29 13:39:05 granger Exp $")
 
 
 void
@@ -39,7 +39,7 @@ char *prog;
 	printf ("Usage: %s [-remote] -all\n", prog);
 	printf ("Usage: %s [-remote] regexp [regexp ...]\n", prog);
 	printf ("   Rescan all platforms or only those matching the given");
-	printf ("   regular expressions.\n");
+	printf (" regular expressions.\n");
 	printf ("   -all   \tRescan all platforms\n");
 	printf ("   -remote\tReset remote-dirs-constant (RDirConst) %s\n",
 		"flag before scan");
@@ -48,6 +48,11 @@ char *prog;
 	printf ("   -remote\tThe file is in the platform's remote dir\n");
 	printf ("   -file  \tSpecify the name of the file\n");
 	printf ("   Options can be abbreviated to any number of letters.\n");
+#ifdef notdef
+	printf ("Usage: %s -scan filename [filename ...]\n", prog);
+	printf ("   Scan files and show sample times, without connecting\n");
+	printf ("   to the datastore daemon.\n");
+#endif
 }
 
 
@@ -68,6 +73,7 @@ char **argv;
 	int all = FALSE;
 	int fileonly = FALSE;
 	int remote = FALSE;
+	int scan = FALSE;	/* scan files only */
 	char pname[50];
 	char *filename;
 	char **platname = NULL;
@@ -80,12 +86,6 @@ char **argv;
 		usage (argv[0]);
 		exit (0);
 	}
-/*
- * Get initialized.
- */
-	sprintf (pname, "Rescan-%d", getpid ());
-	msg_connect (handler, pname);
-	ds_Initialize ();
 /*
  * Figure out the params, then do the dirty work.
  */
@@ -100,6 +100,10 @@ char **argv;
 			all = TRUE;
 		else if (!strncmp(argv[i],"-remote",strlen(argv[i])))
 			remote = TRUE;
+#ifdef notdef
+		else if (!strncmp(argv[i],"-scan",strlen(argv[i])))
+			scan = TRUE;
+#endif
 		else if (!strncmp(argv[i],"-file",strlen(argv[i])))
 		{
 			fileonly = TRUE;
@@ -127,6 +131,22 @@ char **argv;
 			exit (99);
 		}
 	}
+/*
+ * Get initialized.
+ */
+	sprintf (pname, "Rescan-%d", getpid ());
+	if (scan)
+	{
+#ifdef notdef
+		msg_connect (0, pname);
+		ds_Standalone ();
+#endif
+	}
+	else if (! msg_connect (handler, pname) || !ds_Initialize ())
+	{
+		msg_ELog (EF_EMERGENCY, "could not connect to datastore");
+		exit (1);
+	}
 
 	if (remote && !fileonly)
 	{
@@ -144,6 +164,20 @@ char **argv;
 		}
 		ds_ForceRescan (BadPlatform, TRUE);
 		printf ("All platforms being scanned.\n");
+	}
+	else if (scan)
+	{
+#ifdef notdef
+		if (p == 0)
+		{
+			printf ("need at least one file name for -scan\n");
+			usage (argv[0]);
+			exit(3);
+		}
+		ds_ScanFile (plat, filename, remote ? FALSE : TRUE);
+		printf ("File '%s' in platform '%s' scanned.\n", 
+			filename, platname[0]);
+#endif
 	}
 	else if (fileonly)
 	{
