@@ -35,7 +35,15 @@ extern "C"
 Source*
 src_Open (const char *srcname, const char *rootdir, const char *fname)
 {
-    return new Source( srcname, rootdir, fname );
+    try
+    {
+	Source* s = new Source( srcname, rootdir, fname );
+	return s;
+    }
+    catch (Source::Error)
+    {
+	return 0;
+    }
 }
 
 
