@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.31 1998-09-22 22:28:22 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.32 1998-10-08 21:01:49 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -713,7 +713,7 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s|%li|%d", string, &color, &unitlen);
+        sscanf (data, "%[^|]|%li|%d", string, &color, &unitlen);
 /*
  * Draw the string.
  */
