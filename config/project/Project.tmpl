@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.40 1996-01-12 01:14:01 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.41 1996-01-18 18:05:50 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -713,9 +713,10 @@ XCOMM -----------------------------------------------------------------------
    IMAKE_INCLUDES = -I$(NEWTOP)$(PROJECTSRC) -I$(NEWTOP)$(IRULESRC)
 
      AUTO_DEFINES = AutoDefines
+       IMAKE_AUTO = $(AUTO_DEFINES) -DAutoDefines="$(AUTO_DEFINES)"
          IRULESRC = $(CONFIGSRC)/cf
-        IMAKE_CMD = $(NEWTOP)$(IMAKE) $(IMAKE_INCLUDES) $(IMAKE_DEFINES) \
-                    $(AUTO_DEFINES) -DAutoDefines="$(AUTO_DEFINES)"
+       IMAKE_ARGS = $(IMAKE_INCLUDES) $(IMAKE_DEFINES) $(IMAKE_AUTO)
+        IMAKE_CMD = $(NEWTOP)$(IMAKE) $(IMAKE_ARGS)
      ICONFIGFILES = $(PROJECTSRC)/Project.tmpl $(PROJECTSRC)/Zebra.rules \
                     $(PROJECTSRC)/config.h $(IRULESRC)/Imake.tmpl \
                     $(IRULESRC)/site.def $(IRULESRC)/Imake.rules
@@ -908,12 +909,12 @@ CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
 #endif
 
 /*
- * For GNU make's sake, which can really go overboard searching implicit
- * rules
+ * For GNU make's sake, which can go really overboard searching implicit
+ * rules.
  */
-.PHONY: all install clean depend includes World Everything
+.PHONY: all install clean depend includes World Everything mf
 
-.PHONY: test distclean distfiles distmakefiles
+.PHONY: test distclean distfiles distmakefiles Makefile Makefiles
 
 /*
  * Rules specific to the Zebra project.  Some of them override rules
