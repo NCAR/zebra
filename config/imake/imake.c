@@ -711,7 +711,7 @@ char *CleanCppInput(imakefile)
 		    strcmp(ptoken, "undef")) {
 		    if (outFile == NULL) {
 			tmpImakefile = Strdup(tmpImakefile);
-			(void) mktemp(tmpImakefile);
+			(void) mkstemp(tmpImakefile);
 			outFile = fopen(tmpImakefile, "w");
 			if (outFile == NULL)
 			    LogFatal("Cannot open %s for write.\n",
