@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.11 1991-01-29 19:57:19 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.12 1991-02-21 16:09:57 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -299,12 +299,22 @@ struct dm_rp_wbounds *repl;
  */
 {
 	struct dm_rp_wbounds *rp = (struct dm_rp_wbounds *) msg->m_data;
-
+/*
+ * If this is the expected reply, return the info and we're done.
+ */
 	if (rp->dmm_type == DM_WBOUNDS)
 	{
 		*repl = *rp;
 		return (0);
 	}
+/*
+ * If this is a DM_DIE, the reply may never arrive, so we better just go
+ * away.
+ 	else if (rp->dmm_type == DM_DIE)
+		GPShutDown ();
+/*
+ * Otherwise we ignore this one for now.
+ */
 	return (1);
 }
 
