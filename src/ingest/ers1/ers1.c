@@ -12,6 +12,7 @@
 # include <message.h>
 # include <DataStore.h>
 
+MAKE_RCSID ("$Id: ers1.c,v 1.2 1994-06-22 19:35:15 corbet Exp $");
 # define DEG_TO_RAD(deg) ((deg)*0.017453292) /* Deg to Rad conv. */
 
 /*
