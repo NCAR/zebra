@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.7 1992-10-26 23:12:12 kris Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.8 1992-11-03 17:57:52 kris Exp $")
 
 
 /*
@@ -205,7 +205,7 @@ int count;
 		Scales[NField] = 1000.0;
 		strcpy (DstFlds[NField++], "lon");
 		AltOffset = NField;
-		strcpy (SrcFlds[NField], "hgm");
+		strcpy (SrcFlds[NField], "palt");
 		Scales[NField] = 1000.0;
 		strcpy (DstFlds[NField++], "alt");
 	}
@@ -220,7 +220,7 @@ int count;
 		Scales[NField] = 10000.0;
 		strcpy (DstFlds[NField++], "lon");
 		AltOffset = NField;
-		strcpy (SrcFlds[NField], "altg");
+		strcpy (SrcFlds[NField], "z");
 		Scales[NField] = 1000.0;
 		strcpy (DstFlds[NField++], "alt");
 	}
