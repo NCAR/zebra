@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.30 1997-08-07 19:58:27 ishikawa Exp $
+/**/# $Id: site-def.h.template,v 1.31 1997-08-29 17:02:52 ishikawa Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -321,13 +321,13 @@
  * but do have libncurses.a, modify the line below to read:
  *  
  *	  # define TermcapLibrary -lncurses
+ *
+ * For IBM/AIX just comment TermcapLibrary, then the default value for IBM/AIX 
+ *
+ * # define TermcapLibrary -lcurses (in Project.tmpl) will be assumed.
  */
 
-# ifdef  AIXArchitecture
-# define TermcapLibrary	-lcurses
-# else
 # define TermcapLibrary -ltermcap
-# endif
 
 
 /*========================================================================
