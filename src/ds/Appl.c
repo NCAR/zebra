@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.25 1994-01-03 07:13:42 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.26 1994-01-31 20:15:34 granger Exp $")
 #endif
 
 /*
@@ -401,11 +401,16 @@ PlatformId id;
  * Get back the name for this platform.
  */
 {
-	if (id == BadPlatform)
-		return ("BadPlatformID");
+	static char *badmsg = "(BadPlatformID)";
+	if ((id == BadPlatform) || (id < 0) || (id >= MAXPLAT))
+		return (badmsg);
 	if (! PlatStructs[id])
 	{
+		int n = ds_GetNPlat ();
 		Platform p;
+
+		if (id >= n)
+			return (badmsg);
 		ds_GetPlatStruct (id, &p, FALSE);
 	}
 	return (PlatStructs[id]->dp_name);
