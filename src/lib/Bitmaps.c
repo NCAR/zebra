@@ -25,11 +25,9 @@
 # include "defs.h"
 # include "bitmaps.h"
 
-MAKE_RCSID("$Id: Bitmaps.c,v 1.5 1994-01-28 21:30:49 granger Exp $")
+MAKE_RCSID("$Id: Bitmaps.c,v 1.6 1995-04-15 00:03:38 granger Exp $")
 
-void bm_BuildBitmaps ();
-
-Pixmap	RightArrow = 0, LeftArrow = 0, ASAPButton = 0;
+Pixmap	RightArrow = 0, LeftArrow = 0, ASAPButton = 0, MenuIcon = 0;
 
 /* The older, bigger buttons
  * Note that the program 'bitmap' will not read these in as files unless
@@ -94,7 +92,11 @@ static const unsigned char asap_bits[] = {
    0xaa, 0xaa, 0x2a, 0x57, 0x55, 0x55, 0x55, 0x35, 0xff, 0xff, 0xff, 0xff,
    0x3f};
 
-
+#define menu12_width 12
+#define menu12_height 12
+static unsigned char menu12_bits[] = {
+   0xfe, 0x03, 0x02, 0x02, 0x02, 0x06, 0x72, 0x06, 0x02, 0x06, 0x72, 0x06,
+   0x02, 0x06, 0x72, 0x06, 0x02, 0x06, 0x02, 0x06, 0xfe, 0x07, 0xf8, 0x07};
 
 
 void
@@ -112,4 +114,6 @@ Widget	parent;
 		leftarrow_bits, leftarrow_width, leftarrow_height);
 	ASAPButton = XCreateBitmapFromData (XtDisplay (parent), d, 
 		asap_bits, asap_width, asap_height);
+	MenuIcon = XCreateBitmapFromData (XtDisplay (parent), d, 
+		menu12_bits, menu12_width, menu12_height);
 }
