@@ -29,7 +29,7 @@
 # include "defs.h"
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.17 1993-10-22 21:31:37 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.18 1993-12-04 19:32:07 granger Exp $")
 # endif
 
 /*
@@ -53,6 +53,13 @@ static int Msg_fd;
  * Our sequence number.
  */
 static int Seq = 0;
+
+/*
+ * State info.  At the moment, this is only used to prevent sending messages,
+ * especially log messages, after we've received a SHUTDOWN message.
+ */
+static int ShuttingDown = 0;
+static char Identity[ sizeof(struct mh_ident) ];
 
 /*
  * The queue used for holding messages while looking for something specific.
@@ -122,6 +129,10 @@ char *ident;
 	struct mh_ident id;
 	int msg_incoming ();
 	char *getenv (), *sn = getenv ("ZEB_SOCKET");
+/*
+ * Presrve our identity
+ */
+	strcpy (Identity, ident);
 /*
  * Create our master socket.
  */
@@ -451,9 +462,10 @@ int fd;
  	if (msg_netread (Msg_fd, msg, sizeof (Message)) <= 0)
 	{
 		perror ("Message handler disconnect");
+		free (msg);
 		if (Death_handler)
 			(*Death_handler) ();
-		return (0);
+		return (NULL);
 	}
 /*
  * Read the data portion
@@ -507,6 +519,16 @@ int fd;
 	{
 		if (! (msg = msg_read (fd)))
 			return (1);
+	/*
+	 * Check for a shutdown message and note it internally
+	 */
+		if (msg->m_proto == MT_MESSAGE)
+		{
+			struct mh_template *tm;
+			tm = (struct mh_template *) msg->m_data;
+			if (tm->mh_type == MH_SHUTDOWN)
+				ShuttingDown = TRUE;
+		}
 		if (msg->m_proto >= 0 && msg->m_proto < MAXPROTO &&
 				ProtoHandlers[msg->m_proto])
 			ret = (*ProtoHandlers[msg->m_proto]) (msg);
@@ -541,7 +563,8 @@ int timeout; /* seconds */
 	/*
 	 * Clean out the queue.
 	 */
-		msg_DispatchQueued ();
+		if (Mq)
+			return (msg_DispatchQueued ());
 	/*
 	 * Wait for something.
 	 */
@@ -611,7 +634,7 @@ void *param;
 	{
 		queue = nextq;
 	/*
-	 * Find the next queued msg first, before any attempts to remove this one
+	 * Find the next queued msg first, before attempts to remove this one
 	 */
 		nextq = queue->mq_next;
 		if (queue->mq_msg->m_proto == proto)
@@ -735,11 +758,21 @@ int type, broadcast, datalen;
  *	DATA	is the data to be sent.
  *	DATALEN	is the length of that data.
  * Exit:
- *	The message has been sent.
+ *	The message has been sent, or an error message has been printed
+ *	if a shutdown message has already been received.
  */
 {
 	struct message msg;
 	int nsent = 0, len;
+/*
+ * We shouldn't try to send anything if the handler is shutting down
+ */
+	if (ShuttingDown)
+	{
+		printf ("%s: msg_send: attempt to send message %s\n",
+			Identity, "after shutdown received");
+		return;
+	}
 /*
  * Put together the message structure.
  */
@@ -827,6 +860,14 @@ va_dcl
  */
 	if (! (flags & EMask))
 		return;
+/*
+ * If we're shutting down, we print the message rather than send it
+ */
+	if (ShuttingDown)
+	{
+		printf ("%s: %s\n", Identity, el->el_text); 
+		return;
+	}
 /*
  * Otherwise, send it.
  */
@@ -956,6 +997,19 @@ msg_DispatchQueued ()
 
 	while (Mq)
 	{
+	/*
+	 * Check for a shutdown message and note it internally
+	 */
+		if (Mq->mq_msg->m_proto == MT_MESSAGE)
+		{
+			struct mh_template *tm;
+			tm = (struct mh_template *) Mq->mq_msg->m_data;
+			if (tm->mh_type == MH_SHUTDOWN)
+				ShuttingDown = TRUE;
+		}
+	/*
+	 * Then process the message normally
+	 */
 		if (Mq->mq_msg->m_proto >= 0 &&
 				Mq->mq_msg->m_proto < MAXPROTO &&
 				ProtoHandlers[Mq->mq_msg->m_proto])
