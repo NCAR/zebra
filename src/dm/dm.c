@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.39 1994-01-31 20:21:50 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.40 1994-03-18 16:42:48 corbet Exp $")
 
 
 /*
@@ -59,7 +59,7 @@ char CTablePath[512];	/* Where are the color tables?		*/
 
 
 char ExecPath[ExecPathLen];	/* path for executables */
-int TBSpace = 22;	/* How much to tweak for title bar space. */
+int TBSpace = 0;	/* How much to tweak for title bar space. */
 /*
  * Is sound enabled?
  */
