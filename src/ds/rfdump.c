@@ -23,9 +23,10 @@
 # include <unistd.h>
 
 # include <defs.h>
+# include <byteorder.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.6 1997-05-09 05:19:28 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.7 1997-06-17 14:33:54 granger Exp $")
 
 long BE_long (long l);
 float BE_float (float f);
@@ -146,9 +147,11 @@ BE_long (long l)
     char c;
     char *bl = (char *)&l;
 
-    c = bl[0]; bl[0] = bl[3]; bl[3] = c;
-    c = bl[1]; bl[1] = bl[2]; bl[2] = c;
-
+    if (LittleEndian ())
+    {
+	    c = bl[0]; bl[0] = bl[3]; bl[3] = c;
+	    c = bl[1]; bl[1] = bl[2]; bl[2] = c;
+    }
     return l;
 }
 
@@ -160,8 +163,10 @@ BE_float (float f)
     char c;
     char *bf = (char *)&f;
 
-    c = bf[0]; bf[0] = bf[3]; bf[3] = c;
-    c = bf[1]; bf[1] = bf[2]; bf[2] = c;
-
+    if (LittleEndian ())
+    {
+	    c = bf[0]; bf[0] = bf[3]; bf[3] = c;
+	    c = bf[1]; bf[1] = bf[2]; bf[2] = c;
+    }
     return f;
 }
