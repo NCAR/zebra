@@ -1,7 +1,7 @@
 /*
  * Time widget code.
  */
-static char *rcsid = "$Id: twidget.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,44 +33,31 @@ static char *rcsid = "$Id: twidget.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
 
 # include <ui.h>
 # include <ui_date.h>
-# include "defs.h"
+# include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/timer.h"
 
 
-# define TIMEOUT 5000
-
 /*
  * Date/time button action codes.
  */
-# define DATEUP		1
-# define DATEDOWN	2
-# define TIMEMINUP	3
-# define TIMEMINDOWN	4
-# define TIMEHOURUP	5
-# define TIMEHOURDOWN	6
-
-/*
- * Default resources.
- */
-String Resources[] = {
-	"	*input:		True",
-	"	*Label*font:	-*-helvetica-bold-r-*-*-*-120-*-*-*-*-*-*",
-	"	*Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*",
-	"	*Text*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*",
-	"	*title*font:	-*-times-bold-r-*-*-180-*-*-*-*-*-*",
-	"	*arrow*font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*",
-	"	*Text*height:	20",
-	"	*title*borderWidth: 0",
-	"	*Command*font:	-*-times-medium-i-*-*-*-120-*-*-*-*-*-*",
-	0,
-};
+# define MONTHUP	1
+# define MONTHDOWN	2
+# define DAYUP		3
+# define DAYDOWN	4
+# define YEARUP		5
+# define YEARDOWN	6
+# define HOURUP		7
+# define HOURDOWN	8
+# define MINUP		9
+# define MINDOWN	10
+# define SECUP		11
+# define SECDOWN	12
 
 /*
  * Global stuff
  */
-static Widget Form, Ctime, Hdate, Htime, Htext;
-static Widget DUarrow, DDarrow, HUarrow, HDarrow, MUarrow, MDarrow;
+static Widget Form, Htext, Stext;
 
 /*
  * Histdate is the history date that appears in the window.  Maxdate is
@@ -81,18 +68,24 @@ static date Histdate, Maxdate;
 static char Ahistdate[80];
 static char Title[200];
 static int Tslot = -1;	/* Timeout slot		*/
+static int SkipMin = 5;
+static char TSString[10];
 static int (*Tw_Callback) () = 0;
+
 
 static Widget tw_WCreate ();
 static int tw_WCallback ();
 static void finish_arrow ();
-
+static void ChangeMonth (), ChangeDay (), ChangeYear (); 
+static void ChangeHour (), ChangeMin (), ChangeSec ();
+static void TimeSkip ();
+extern Widget LeftRightButtons ();
 
 
 void
 tw_DefTimeWidget (callback, title)
-int (*callback) ();
-char *title;
+int	(*callback) ();
+char	*title;
 /*
  * Hook the time widget into the UI.
  */
@@ -105,22 +98,28 @@ char *title;
 }
 
 
-
 static Widget
 tw_WCreate (junk, parent, appc)
-int junk;
-Widget parent;
+int	junk;
+Widget	parent;
 XtAppContext appc;
 {
 	Arg args[10];
-	Widget form, title, left, f, hist, hist_w ();
-	int timeint ();
+	Widget form, title, f, left, dform, sform;
+	Widget mbutton, dbutton, ybutton, hbutton, minbutton, sbutton;
+	Widget skipbutton;
+	Widget MonText, DayText, YearText, HMSText;
+	int n;
 	static char *ttrans = "<Btn1Down>,<Btn1Up>: 	set()notify()";
 	XtTranslations ttable;
 /*
  * Translations.
  */
 	ttable = XtParseTranslationTable (ttrans);
+/*
+ * Make the bitmaps for the left and right arrow buttons.
+ */
+	bm_BuildBitmaps (parent);
 /*
  * Put a form inside it.
  */
@@ -135,11 +134,123 @@ XtAppContext appc;
 	title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 		args, 3);
 /*
+ * Set history date form.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, title);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	dform = XtCreateManagedWidget ("dform", formWidgetClass, form, args, 4);
+/*
+ * Left/right buttons for month, day, year.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Day" );		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	left = XtCreateManagedWidget ("dlabel", labelWidgetClass, dform,
+		args, n);
+
+	dbutton = LeftRightButtons (dform, ChangeDay);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetValues (dbutton, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Month");		n++;
+	XtSetArg (args[n], XtNfromHoriz, dbutton);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	left = XtCreateManagedWidget ("mlabel", labelWidgetClass, dform,
+		args, n);
+
+	mbutton = LeftRightButtons (dform, ChangeMonth);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetValues (mbutton, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Year");		n++;
+	XtSetArg (args[n], XtNfromHoriz, mbutton);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	left = XtCreateManagedWidget ("ylabel", labelWidgetClass, dform,
+		args, n);
+
+	ybutton = LeftRightButtons (dform, ChangeYear);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetValues (ybutton, args, n);
+/*
+ * Left/right buttons for hour, minute.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Hours");		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
+	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	left = XtCreateManagedWidget ("hlabel", labelWidgetClass, dform,
+		args, n);
+
+	hbutton = LeftRightButtons (dform, ChangeHour);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
+	XtSetValues (hbutton, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Minutes" );	n++;
+	XtSetArg (args[n], XtNfromHoriz, hbutton);	n++;
+	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
+	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	left = XtCreateManagedWidget ("minlabel", labelWidgetClass, dform,
+		args, n);
+
+	minbutton = LeftRightButtons (dform, ChangeMin);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
+	XtSetValues (minbutton, args, n);
+/*
+ * Text widget for the history date.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, hbutton);	n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
+	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
+	XtSetArg (args[n], XtNwidth, 250);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	XtSetArg (args[n], XtNlength, 80);		n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True);	n++;
+	XtSetArg (args[n], XtNstring, "history date");	n++;
+	XtSetArg (args[n], XtNleftMargin, 5);		n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
+	Htext = XtCreateManagedWidget ("htext", asciiTextWidgetClass,
+		dform, args, n);
+/*
  * Throw in the plot mode toggle.
  */
 	XtSetArg (args[0], XtNborderWidth, 2);
 	XtSetArg (args[1], XtNfromHoriz, NULL);
-	XtSetArg (args[2], XtNfromVert, title);
+	XtSetArg (args[2], XtNfromVert, dform);
 	XtSetArg (args[3], XtNdefaultDistance, 5);
 	f = XtCreateManagedWidget ("pmform", formWidgetClass, form, args, 4);
 
@@ -149,7 +260,7 @@ XtAppContext appc;
 	XtSetArg (args[3], XtNborderWidth, 0);
 	left = XtCreateManagedWidget ("plotmode", labelWidgetClass, f, args,4);
 
-	XtSetArg (args[0], XtNlabel, "Real time");
+	XtSetArg (args[0], XtNlabel, "Real Time");
 	XtSetArg (args[1], XtNfromHoriz, left);
 	XtSetArg (args[2], XtNfromVert, NULL);
 	XtSetArg (args[3], XtNborderWidth, 0);
@@ -166,48 +277,56 @@ XtAppContext appc;
 	left = XtCreateManagedWidget ("history", toggleWidgetClass, f, args,5);
 	XtOverrideTranslations (left, ttable);
 	XtAddCallback (left, XtNcallback, tw_WCallback, History);
+/*
+ * Time skipping stuff.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, f);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);		n++;
+	sform = XtCreateManagedWidget ("sform", formWidgetClass, form, args, n);
 
-	XtSetArg (args[0], XtNlabel, "Movie");
-	XtSetArg (args[1], XtNfromHoriz, left);
-	XtSetArg (args[2], XtNfromVert, NULL);
-	XtSetArg (args[3], XtNradioGroup, left);
-	XtSetArg (args[4], XtNborderWidth, 0);
-	left = XtCreateManagedWidget ("movie", toggleWidgetClass, f, args, 5);
-	XtOverrideTranslations (left, ttable);
-# ifdef notdef
-	XtAddCallback (left, XtNcallback, tw_WCallback, Movie);
-# endif
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Skip:");		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("skip", labelWidgetClass, sform, args,n);
 
-# ifdef notdef
-/*
- * Current time.
- */
-	XtSetArg (args[0], XtNlabel, "Current time: ");
-	XtSetArg (args[1], XtNfromHoriz, NULL);
-	XtSetArg (args[2], XtNfromVert, f);
-	XtSetArg (args[3], XtNborderWidth, 0);
-	left = XtCreateManagedWidget ("ctlabel", labelWidgetClass, form,
-		args,4);
-	XtSetArg (args[0], XtNlabel, "(Today's date goes here)");
-	XtSetArg (args[1], XtNfromHoriz, left);
-	XtSetArg (args[2], XtNfromVert, f);
-	XtSetArg (args[3], XtNborderWidth, 1);
-	XtSetArg (args[4], XtNresize, False);
-	Ctime = XtCreateManagedWidget ("ctime", labelWidgetClass, form,
-		args, 5);
-/*
- * The current time update routine.
- */
-	XtAppAddTimeOut (Actx, TIMEOUT, timeint, 0);
-# endif
-/*
- * A separate box for the history time.
- */
-	hist = hist_w (form, appc);
-	XtSetArg (args[0], XtNfromVert, f);
-	XtSetArg (args[1], XtNfromHoriz, NULL);
-	XtSetValues (hist, args, 2);
-	XtManageChild (hist, appc);
+	sprintf (TSString, "%d", SkipMin);
+	
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
+	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
+	XtSetArg (args[n], XtNwidth, 50);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	XtSetArg (args[n], XtNlength, 80);		n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True);	n++;
+	XtSetArg (args[n], XtNstring, TSString);	n++;
+	XtSetArg (args[n], XtNleftMargin, 5);		n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
+	Stext = XtCreateManagedWidget ("stext", asciiTextWidgetClass,
+		sform, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "minutes.");	n++;
+	XtSetArg (args[n], XtNfromHoriz, Stext);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("minutes", labelWidgetClass, sform, 
+		args, n);
+
+	skipbutton = LeftRightButtons (sform, TimeSkip);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetValues (skipbutton, args, n);
 /*
  * See what we get.
  */
@@ -216,7 +335,84 @@ XtAppContext appc;
 }
 
 
+static void
+TimeSkip (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	int min;
 
+	SkipMin = atoi (TSString);
+
+	min = (SkipMin / 60) * 10000 + (SkipMin % 60) * 100;
+	if ((int) change == 1)
+		pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, min); 
+	else
+		pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, min); 
+	set_dt ();
+	(*Tw_Callback) (History, &Histdate);
+}
+
+
+static void
+ChangeMonth (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	if ((int) change == 1)
+		datebutton (MONTHUP);
+	else datebutton (MONTHDOWN);
+}
+
+static void
+ChangeDay (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	if ((int) change == 1)
+		datebutton (DAYUP);
+	else datebutton (DAYDOWN);
+}
+
+static void
+ChangeYear (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	if ((int) change == 1)
+		datebutton (YEARUP);
+	else datebutton (YEARDOWN);
+}
+
+static void
+ChangeHour (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	if ((int) change == 1)
+		datebutton (HOURUP);
+	else datebutton (HOURDOWN);
+}
+
+static void
+ChangeMin (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	if ((int) change == 1)
+		datebutton (MINUP);
+	else datebutton (MINDOWN);
+}
+
+static void
+ChangeSec (w, change, junk)
+Widget w;
+XtPointer change, junk;
+{
+	if ((int) change == 1)
+		datebutton (SECUP);
+	else datebutton (SECDOWN);
+}
 
 
 
@@ -235,179 +431,20 @@ int value;
 
 
 
-
-Widget
-make_label (name, label, border, parent, horiz, vert)
-char *name, *label;
-int border;
-Widget parent, horiz, vert;
-/*
- * Make a label widget.
- */
-{
-	Arg args[5];
-
-	XtSetArg (args[0], XtNlabel, label);
-	XtSetArg (args[1], XtNborderWidth, border);
-	XtSetArg (args[2], XtNfromHoriz, horiz);
-	XtSetArg (args[3], XtNfromVert, vert);
-	return (XtCreateManagedWidget (name, labelWidgetClass, parent,
-		args, FOUR));
-}
-
-
-
-
-Widget
-make_button (name, label, border, parent, horiz, vert, callback, cbdata)
-char *name, *label;
-int border, (*callback) (), cbdata;
-Widget parent, horiz, vert;
-/*
- * Make a command button widget.
- */
-{
-	Arg args[5];
-	Widget ret;
-
-	XtSetArg (args[0], XtNlabel, label);
-	XtSetArg (args[1], XtNborderWidth, border);
-	XtSetArg (args[2], XtNfromHoriz, horiz);
-	XtSetArg (args[3], XtNfromVert, vert);
-	ret =  XtCreateManagedWidget (name, commandWidgetClass, parent,
-		args, FOUR);
-	XtAddCallback (ret, XtNcallback, callback, cbdata);
-	return (ret);
-}
-
-
-
-
-Widget
-hist_w (parent, appc)
-Widget parent;
-XtAppContext appc;
-/*
- * Create the history widget.
- */
-{
-	int datebutton ();
-	Widget form, above, left, w;
-	Arg args[15];
-	static XtActionsRec actions[] = {
-		{ "dateadj", datebutton },
-		{ "finishadj", finish_arrow }
-	};
-	static char *atrans =
-		"<Btn1Down>: 	set()dateadj() \n\
-		 <Btn1Up>: 	finishadj()unset()";
-	XtTranslations ttable;
-/*
- * Declare our actions, and parse the translations.
- */
-	XtAppAddActions (appc, actions, TWO);
-	ttable = XtParseTranslationTable (atrans);
-/*
- * As usual, there's a form to hold it all.
- */
-	XtSetArg (args[0], XtNdefaultDistance, 3);
-	form = XtCreateWidget ("Histform", formWidgetClass, parent, args, 1);
-/*
- * Throw in the label at the top.
- */
- 	XtSetArg (args[0], XtNlabel, "History/movie time:");
-	XtSetArg (args[1], XtNborderWidth, 0);
-	XtSetArg (args[2], XtNfromHoriz, NULL);
-	XtSetArg (args[3], XtNfromVert, NULL);
-	above = XtCreateManagedWidget ("histlabel", labelWidgetClass, form,
-		args, 4);
-/*
- * Make a text widget to hold the actual date.
- */
-	XtSetArg (args[0], XtNdisplayPosition, 0);
-	XtSetArg (args[1], XtNinsertPosition, 0);
-	XtSetArg (args[2], XtNlength, 80);
-	XtSetArg (args[3], XtNresize, XawtextResizeNever);
-	XtSetArg (args[4], XtNwidth, 250);
-	XtSetArg (args[5], XtNheight, 20);
-	XtSetArg (args[6], XtNstring, Ahistdate);
-	XtSetArg (args[7], XtNtype, XawAsciiString);
-	XtSetArg (args[8], XtNuseStringInPlace, True);
-	XtSetArg (args[9], XtNfromHoriz, above);
-	XtSetArg (args[10], XtNfromVert, NULL);
-	XtSetArg (args[11], XtNleftMargin, 5);
-	Htext = XtCreateManagedWidget ("text", asciiTextWidgetClass, form,
-		args, 12);
-/*
- * The date line
- */
-	left = above;
-	above = Htext;
-	w = left = make_label ("histdatel", "Date: ", 0, form, left, above);
-	DUarrow = make_button ("arrow", "\335", 1, form, left, above,
-		datebutton, DATEUP);
-	XtOverrideTranslations (DUarrow, ttable);
-	DDarrow = make_button ("arrow", "\337", 1, form, DUarrow, above,
-		datebutton, DATEDOWN);
-	XtOverrideTranslations (DDarrow, ttable);
-/*
- * The time line.
- */
-	left = make_label ("histhour", "hour:", 0, form, DDarrow, above);
-	HUarrow = make_button ("arrow", "\335", 1, form, left, above,
-		datebutton, TIMEHOURUP);
-	XtOverrideTranslations (HUarrow, ttable);
-	HDarrow = make_button ("arrow", "\337", 1, form, HUarrow, above,
-		datebutton, TIMEHOURDOWN);
-	XtOverrideTranslations (HDarrow, ttable);
-	left = make_label ("histhour", "min:", 0, form, HDarrow, above);
-	MUarrow = make_button ("arrow", "\335", 1, form, left, above,
-		datebutton, TIMEMINUP);
-	XtOverrideTranslations (MUarrow, ttable);
-	MDarrow = make_button ("arrow", "\337", 1, form, MUarrow, above,
-		datebutton, TIMEMINDOWN);
-	XtOverrideTranslations (MDarrow, ttable);
-
-	/* set_dt (); */
-	return (form);
-}
-
-
-
 int
-datebutton (w, event, params, nparam)
-Widget w;
-XEvent *event;
-String *params;
-int nparam;
+datebutton (code)
+int code;
 {
-	int code;
 	void arrow_timeout ();
-	bool norep = FALSE;
+	bool norep = TRUE;
 /*
  * Cancel if necessary.
  */
-	/* msg_ELog (EF_DEBUG, "Button down, slot %d", Tslot); */
 	if (Tslot >= 0)
 	{
 		finish_arrow ();
 		norep = TRUE;
 	}
-/*
- * Figure out our widget.
- */
-	if (w == DUarrow)
-		code = DATEUP;
-	else if (w == DDarrow)
-		code = DATEDOWN;
-	else if (w == HUarrow)
-		code = TIMEHOURUP;
-	else if (w == HDarrow)
-		code = TIMEHOURDOWN;
-	else if (w == MUarrow)
-		code = TIMEMINUP;
-	else if (w == MDarrow)
-		code = TIMEMINDOWN;
 /*
  * Do one adjustment immediately.
  */
@@ -418,7 +455,6 @@ int nparam;
 	if (! norep)
 	{
 		Tslot = tl_AddRelativeEvent(arrow_timeout, (char *) code, 5,1);
-		/* msg_ELog (EF_DEBUG, "Event slot is %d", Tslot); */
 	}
 	uw_sync ();
 }
@@ -447,7 +483,6 @@ finish_arrow ()
  * Deal with the end of an arrow situation.
  */
 {
-	/* msg_ELog (EF_DEBUG, "Cancel %d", Tslot); */
 	if (Tslot >= 0)
 		tl_Cancel (Tslot);
 	Tslot = -1;
@@ -460,52 +495,64 @@ int which;
  * Perform a clock adjustment.
  */
 {
+	date incr, temp;
+	int y, m, d;
+
+	y = Histdate.ds_yymmdd / 10000;
+	m = (Histdate.ds_yymmdd % 10000) / 100;
+	d = Histdate.ds_yymmdd % 100;
+
 	switch (which)
 	{
-	   case DATEUP:
+	   case MONTHUP:
+		m = m % 12 + 1;
+		if (m == 1) y++;
+		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		break;
+	   case MONTHDOWN:
+		m -= 1;
+		if (m <= 0) 
+		{
+			m = 12;
+			y--;
+		}
+		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		break;
+	   case DAYUP:
 	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 240000);
 		break;
-
-	   case DATEDOWN:
+	   case DAYDOWN:
 	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 240000);
 		break;
-
-	   case TIMEHOURUP:
+	   case YEARUP:
+		y += 1;
+		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		break;
+	   case YEARDOWN:
+		y -= 1;
+		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		break;
+	   case HOURUP:
 	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 10000);
 		break;
-
-	   case TIMEHOURDOWN:
+	   case HOURDOWN:
 	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 10000);
 		break;
-		
-	   case TIMEMINUP:
+	   case MINUP:
 	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 100);
 		break;
-
-	   case TIMEMINDOWN:
+	   case MINDOWN:
 	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 100);
+		break;
+	   case SECUP:
+	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 1);
+		break;
+	   case SECDOWN:
+	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 1);
 		break;
 	}
 	set_dt ();
 }
-
-
-
-void
-tw_DialAdjust (dial, incr)
-int dial, incr;
-/*
- * Adjust the time from the dial box.
- */
-{
-	if (incr > 0)
-		pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, incr*100);
-	else
-		pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, incr*-100);
-	set_dt ();
-	uw_sync ();
-}
-
 
 
 
@@ -528,29 +575,7 @@ set_dt ()
  */
 	XtSetArg (args[0], XtNstring, Ahistdate);
 	XtSetValues (Htext, args, 1);
-
-	/* uw_sync (); */
 }
-
-
-
-# ifdef notdef
-timeint ()
-/*
- * Timer interrupt.
- */
-{
-	long lt = time (0);
-	struct tm *t = localtime (&lt);
-	Arg args[2];
-	char *atime = asctime (t);
-
-	XtSetArg (args[0], XtNlabel, atime);
-	XtSetValues (Ctime, args, ONE);
-	XtAppAddTimeOut (Actx, TIMEOUT, timeint, 0);
-	sync ();
-}
-# endif
 
 
 
