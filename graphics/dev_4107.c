@@ -95,6 +95,12 @@ struct device *dev;
 	gtty_out (t->tek_tty, "\033%!0");	/* Select TEK mode	*/
 	gtty_out (t->tek_tty, "\033TM111"); /* RGB color mode, opaque, color */
 /*
+ * Make sure we have a large input queue size, since otherwise we're likely
+ * to lose some stuff at higher speeds.
+ */
+	gtty_out (t->tek_tty, "\033NQ");	/* SET QUEUE SIZE */
+	tek_int (32767, t->tek_tty);
+/*
  * Set the window to be from (0, 0) to (639, 479), i.e. the hardware resolution
  * of the screen.
  */
