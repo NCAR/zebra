@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 2.2 1997-04-27 07:36:47 granger Exp $
+ * $Id: version.h,v 2.3 1997-08-06 15:00:32 burghart Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -104,8 +104,8 @@ static const char cppsyms[] = "@(#)$Symbols: __STDC__ defined as 0 $";
 # endif /* ndef __STDC */
 #endif /* __STDC__ */
 
-static inline const
-char *Z_cppsymbols()
+static const char*
+Z_cppsymbols()
 {
 	static char buf[256];
 	return (V_format (buf,cppsyms,0,0,0));
@@ -130,12 +130,14 @@ char *Z_cppsymbols()
 #else
 #if __STDC__
 #define RCSID(id) \
-static inline const char *Z_rcsid() { \
-static const char rcs_id[] = "@(#)" id ; \
-static const char compileid[] = \
+static const char* \
+Z_rcsid() \
+{ \
+    static const char rcs_id[] = "@(#)" id ; \
+    static const char compileid[] = \
 	"@(#)" "$Compiled: " __FILE__ " on " __DATE__ " at " __TIME__ " $"; \
-static char buf[256]; \
-return (V_format (buf, rcs_id, compileid, 0, 0)); \
+    static char buf[256]; \
+    return (V_format (buf, rcs_id, compileid, 0, 0)); \
 }
 
 #else /* !__STDC__ */
@@ -145,11 +147,12 @@ return (V_format (buf, rcs_id, compileid, 0, 0)); \
  */
 
 #define RCSID(id) \
-static inline char *Z_rcsid() { \
-static char i_sccsid[4] = { '@', '(', '#', ')' }; \
-static char rcs_id[] = id ; \
-static char buf[256]; \
-return (V_format (buf, rcs_id, 0, 0, 0)); \
+static char* \
+Z_rcsid() { \
+    static char i_sccsid[4] = { '@', '(', '#', ')' }; \
+    static char rcs_id[] = id ; \
+    static char buf[256]; \
+    return (V_format (buf, rcs_id, 0, 0, 0)); \
 }
 
 #endif /* __STDC__ */
@@ -160,7 +163,8 @@ return (V_format (buf, rcs_id, 0, 0, 0)); \
  * The static function which forces the version library module to be linked, 
  * and allows applications to print version information.
  */
-static inline const char *Z_version()
+static inline const char*
+Z_version()
 {
 	return (V_version ());
 }
