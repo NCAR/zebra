@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.1 1997-11-24 10:24:22 granger Exp $
+ * $Id: BTree.hh,v 1.2 1997-11-24 18:13:32 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -83,9 +83,21 @@ public:
 	 remove (the "current key").  Return 0 if no next or prev key,
 	 or if key is 0 and no current key has been set. 
 	 */
-	int Next (K *key = 0, T *value = 0);
-	int Prev (K *key = 0, T *value = 0);
+	int Next (K *key = 0, T *value = 0)
+	{
+		return (Next (1, key, value));
+	}
+	int Prev (K *key = 0, T *value = 0)
+	{
+		return (Prev (1, key, value));
+	}
 	int Current (K *key = 0, T *value = 0);
+
+	/// Find the next key N steps from the current key
+	int Next (int n, K *key = 0, T *value = 0);
+
+	/// Find the previous key N steps from the current key
+	int Prev (int n, K *key = 0, T *value = 0);
 
 	/// Find the first (least, leftmost) key in the tree
 	int First (K *key = 0, T *value = 0);
@@ -114,13 +126,23 @@ public:
 		return (Order() - 1);
 	};
 
+	/// Print all the nodes of the tree to 'out', indented by depth
 	ostream &Print (ostream &out);
+
+	/// Check the tree for consistency; return number of errors
+	int Check ();
+
+	/// Enable and disable internal checking
+	void Check (int on)
+	{
+		check = (on != 0);
+	}
 
 	int Error ()
 	{
-		int err = check;
-		check = 0;
-		return err;
+		int _err = err;
+		err = 0;
+		return _err;
 	}
 
 	/* ----- Public constructors and destructors ----- */
@@ -135,6 +157,7 @@ protected:
 
 	int order;
 	int check;
+	int err;
 
 	BTreeNode<K,T> *root;
 	Shortcut<K,T> *current;	// Reference to current key
@@ -144,9 +167,6 @@ protected:
 
 	// Change the root node when growing up or down (could be zero)
 	void setRoot (BTreeNode<K,T> *node);
-
-	// Check the tree for consistency; return number of errors
-	int Check ();
 
 };
 

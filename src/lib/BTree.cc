@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.1 1997-11-24 10:24:20 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.2 1997-11-24 18:13:31 granger Exp $")
 
 #include "Logger.hh"
 #include "BTree.hh"
@@ -104,7 +104,9 @@ BTree<K,T>::BTree (int _order)
 		order = DEFAULT_ORDER;
 	root = 0;
 	check = 0;
+	err = 0;
 	current = new Shortcut<K,T>;
+	current->clear();
 }
 
 
@@ -123,6 +125,7 @@ template <class K, class T>
 void
 BTree<K,T>::Erase ()
 {
+	current->clear ();
 	if (root)
 		root->destroy ();
 	root = 0;
@@ -154,7 +157,7 @@ BTree<K,T>::Insert (const K &key, const T &value)
 	// Find the location and insert
 	root->find (key, current);
 	int r = current->insert (value);
-	Check ();
+	if (check) err += Check ();
 	return r;
 }
 
@@ -163,10 +166,9 @@ BTree<K,T>::Insert (const K &key, const T &value)
 template <class K, class T>
 int BTree<K,T>::Find (const K &key, T *value)
 {
+	current->clear();
 	if (! root)
 		return (0);
-
-	current->clear();
 	if (root->find (key, current))
 		return (current->value (value));
 	else
@@ -201,7 +203,7 @@ template <class K, class T>
 int BTree<K,T>::Remove ()
 {
 	int r = current->remove();
-	Check ();
+	if (check) err += Check ();
 	return (r);
 }
 
@@ -233,20 +235,19 @@ BTree<K,T>::Check ()
 		}
 		//cout << endl;
 	}
-	check += e;
 	return (e);
 }
 
 
 
 template <class K, class T>
-int BTree<K,T>::Next (K *key /* = 0*/, T *value /* = 0*/)
+int BTree<K,T>::Next (int n, K *key /* = 0*/, T *value /* = 0*/)
 {
-	// If we have a valid current shortcut, use it to
-	// find the next key by traversing to its right.
+	// If we have a valid current shortcut, use it to find the next key
+	// the specified steps away.
 	if (current->valid())
 	{
-		(current->leaf)->right (current, current->key);
+		(current->leaf)->step (current, n);
 	}
 	return (current->value (value, key));
 }
@@ -254,15 +255,9 @@ int BTree<K,T>::Next (K *key /* = 0*/, T *value /* = 0*/)
 
 
 template <class K, class T>
-int BTree<K,T>::Prev (K *key /* = 0*/, T *value /* = 0*/)
+int BTree<K,T>::Prev (int n, K *key /* = 0*/, T *value /* = 0*/)
 {
-	// If we have a valid current shortcut, use it to
-	// find the previous key by traversing to its left.
-	if (current->valid())
-	{
-		(current->leaf)->left (current, current->key);
-	}
-	return (current->value (value, key));
+	return (Next (-n, key, value));
 }
 
 
@@ -278,9 +273,9 @@ int BTree<K,T>::Current (K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::First (K *key /* = 0*/, T *value /* = 0*/)
 {
+	current->clear ();
 	if (! root)
 		return 0;
-	current->clear ();
 	if (root->findLeft (current))
 		return (current->value (value, key));
 	return (0);
@@ -291,9 +286,9 @@ int BTree<K,T>::First (K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::Last (K *key /* = 0*/, T *value /* = 0*/)
 {
+	current->clear ();
 	if (! root)
 		return 0;
-	current->clear ();
 	if (root->findRight (current))
 		return (current->value (value, key));
 	return (0);
