@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.23 1991-12-18 19:54:31 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.24 1991-12-20 17:21:38 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -209,10 +209,11 @@ struct device *dev;
 /*
  * Create all of the subwindows.
  */
-	if (! tag->x_mono)
+/*	if (! tag->x_mono) */
 		for (i = 0; i < 5; i++)
 			tag->x_sw[i] = XCreatePixmap (tag->x_display,
-				tag->x_window, tag->x_xres, tag->x_yres, 8);
+				tag->x_window, tag->x_xres, tag->x_yres, 
+				tag->x_mono ? 1 : 8);
 /*
  * Store some properties.
  */
