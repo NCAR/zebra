@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.5 1991-09-12 01:49:34 corbet Exp $ */
+/* $Id: pdaux.c,v 1.6 1992-03-17 22:41:15 barrett Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -20,6 +20,7 @@
  * maintenance or updates for its software.
  */
 # include <ui_symbol.h>
+# include <defs.h>
 # include "message.h"
 # include "pd.h"
 
