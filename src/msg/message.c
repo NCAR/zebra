@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.53 1997-05-29 22:37:17 granger Exp $")
+RCSID ("$Id: message.c,v 2.54 1997-10-15 16:17:47 corbet Exp $")
 
 /*
  * Symbol tables.
@@ -250,7 +250,7 @@ static void MakeInetSocket FP ((void));
 static void UpdateLogMask FP ((struct message *msg));
 static void BroadcastMask (int mask);
 static void send_log ();
-static void log ();
+static void zmlog ();
 static void inc_message FP ((int nsel, fd_set *fds));
 static void send_msg FP ((struct connection *conp, struct message *msgp));
 static void deadconn FP ((int fd));
@@ -637,7 +637,7 @@ const char *file;
 		exit (1);
 	}
 	i = 0;
-	line[256] = '\0';
+	line[255] = '\0';
 	while (fgets (line, 256, infile) != NULL)
 	{
 		++i;
@@ -870,7 +870,7 @@ again:
 			goto again;
 		}
 		perror ("INET Socket bind");
-		log (EF_PROBLEM, "bind error %d, %s", errno,
+		zmlog (EF_PROBLEM, "bind error %d, %s", errno,
 		     "continuing with no INET socket");
 		M_in_socket = -1;
 	}
@@ -1079,7 +1079,7 @@ struct message *msgp;
 		at = msgp->m_from + strlen(msgp->m_from);
 		if (space < strlen(Hostname) + 1)
 		{
-			log (EF_PROBLEM, "from field too long: '%s@%s'",
+			zmlog (EF_PROBLEM, "from field too long: '%s@%s'",
 			     msgp->m_from, Hostname);
 			return;
 		}
@@ -1121,12 +1121,12 @@ struct message *msgp;
 		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
 	else if (errno == ECONNREFUSED)	/* weird */
 	{
-		log (EF_PROBLEM, "ConRefused status on %s", conp->c_name);
+		zmlog (EF_PROBLEM, "ConRefused status on %s", conp->c_name);
 		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
 	}
 	else
 	{
-		log (EF_PROBLEM, "Write failed for %s, errno %d",
+		zmlog (EF_PROBLEM, "Write failed for %s, errno %d",
 		     conp->c_name, errno);
 		deadconn (conp->c_fd);
 	}
@@ -1172,13 +1172,13 @@ int niov, nwrote;
 /*
  * Skip past iovecs which were completely written.
  */
-	log (EF_DEBUG, "DWRITE %d, iov %d wrote %d", conp->c_fd, 
+	zmlog (EF_DEBUG, "DWRITE %d, iov %d wrote %d", conp->c_fd, 
 	     niov, nwrote);
 	while (nwrote >= iov->iov_len)
 	{
-		/* log (EF_DEBUG, "Skip %d", iov->iov_len); */
+		/* zmlog (EF_DEBUG, "Skip %d", iov->iov_len); */
 		if (nwrote == iov->iov_len)
-			log (EF_DEBUG, "DWrite IOV equal case");
+			zmlog (EF_DEBUG, "DWrite IOV equal case");
 		nwrote -= iov->iov_len;
 		iov++;
 		niov--;
@@ -1197,7 +1197,7 @@ int niov, nwrote;
 		if (iov->iov_len <= 0)
 		{	
 			/* No sense saving an empty iovec */
-			log (EF_DEBUG, "Skipping iovec with len <= 0");
+			zmlog (EF_DEBUG, "Skipping iovec with len <= 0");
 			iov++;
 			niov--;
 			nwrote = 0;
@@ -1209,7 +1209,7 @@ int niov, nwrote;
 		dwp = ALLOC (DWrite);
 		if (! dwp || ! data)
 		{
-			log (EF_EMERGENCY, 
+			zmlog (EF_EMERGENCY, 
 			  "malloc failed for %d data bytes and dw struct, %s",
 			  nbyte, "messages lost");
 			if (dwp) free (dwp);
@@ -1231,7 +1231,7 @@ int niov, nwrote;
 			conp->c_dwrite = dwp;
 		conp->c_dwtail = dwp;
 		conp->c_ndwrite += dwp->dw_nbyte;
-		log (EF_DEBUG, "Save %d -> %d", iov->iov_len - nwrote, 
+		zmlog (EF_DEBUG, "Save %d -> %d", iov->iov_len - nwrote, 
 		     conp->c_ndwrite);
 	/*
 	 * Onward.
@@ -1289,7 +1289,7 @@ fd_set *fds;
 	 * info.  Use log instead of send_log since the delayed client
 	 * will likely be the event logger.
 	 */
-		log (EF_DEBUG, "%d left on %d", cp->c_ndwrite, cp->c_fd);
+		zmlog (EF_DEBUG, "%d left on %d", cp->c_ndwrite, cp->c_fd);
 	 	if (! cp->c_dwrite)
 		{
 			FD_CLR (cp->c_fd, &WriteFds);
@@ -1317,7 +1317,7 @@ Connection *cp;
  * Just try.
  */
 	nwant = dw->dw_nbyte - dw->dw_nsent;
-	log (EF_DEBUG, "TRY %d at %d on %d", nwant, dw->dw_nsent, cp->c_fd);
+	zmlog (EF_DEBUG, "TRY %d at %d on %d", nwant, dw->dw_nsent, cp->c_fd);
 	if ((nwrote = write (cp->c_fd, dw->dw_data + dw->dw_nsent, nwant))
 				== nwant)
 	{
@@ -1556,7 +1556,7 @@ deadconn (fd)
 int fd;
 /*
  * Mark this connection as being dead.  Called from within send_msg,
- * so use log() instead of send_log().
+ * so use zmlog() instead of send_log().
  */
 {
 	Connection *cp = Fd_map[fd];
@@ -1902,7 +1902,7 @@ ReallyDie ()
 /* 
  * And finally exit
  */
-	log (EF_DEBUG, "exiting");
+	zmlog (EF_DEBUG, "exiting");
 	exit (0);
 }
 
@@ -3234,7 +3234,7 @@ struct message *msg;
 
 
 static void
-log (flags, va_alist)
+zmlog (flags, va_alist)
 int flags;
 va_dcl
 /*
