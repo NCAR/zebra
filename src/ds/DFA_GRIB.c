@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.16 1994-10-13 22:35:48 sobol Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.17 1994-11-08 18:04:53 corbet Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -1486,8 +1486,11 @@ GFTag	*tag;
 	int	i;
 
 	for (i = 0; i < tag->gt_ngrids; i++)
+	{
 		free (tag->gt_grib[i].gd_pds);
-
+		if (tag->gt_grib[i].gd_gds)
+			free (tag->gt_grib[i].gd_gds);
+	}
 	free (tag->gt_grib);
 	free (tag);
 }
@@ -1508,7 +1511,7 @@ GFTag	*tag;
 	int	status, ng, ncopy, grib_start, ednum, bds_pos;
 	char	buf[64];
 	GFpds	*pds;
-	GFgds	*gds;
+	GFgds	*gds = 0;
 /*
  * Rewind the file first
  */
