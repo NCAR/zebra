@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.30 1994-04-15 22:27:35 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.31 1994-04-26 17:26:24 corbet Exp $")
 #endif
 
 # include "netcdf.h"
@@ -2590,6 +2590,7 @@ int ndetail;
 	tag->nc_plat = dc->dc_Platform;;
 	tag->nc_buffered = TRUE;
 	tag->nc_altUnits = dc_GetLocAltUnits (dc);
+	tag->nc_alts = 0;	/* argh */
 /*
  * Create the time dimension.  If this platform has the "discrete"
  * flag set, or it's an IRGRID organization, then we make time
@@ -2829,7 +2830,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.30 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.31 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
