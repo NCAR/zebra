@@ -1,4 +1,4 @@
-/* $Id: byteorder.h,v 2.1 1995-02-08 22:49:51 corbet Exp $ */
+/* $Id: byteorder.h,v 2.2 1996-01-12 01:09:57 granger Exp $ */
 /*
  * Byte swapping, where called for.
  */
@@ -24,12 +24,16 @@ void *stuff;
 	t = cp[0]; cp[0] = cp[3]; cp[3] = t;
 	t = cp[1]; cp[1] = cp[2]; cp[2] = t;
 }
+# ifndef LITTLE_ENDIAN
 # define LITTLE_ENDIAN
+# endif
 # undef BIG_ENDIAN
 # else /* linux */
 
 # define swap4(stuff) (stuff)
+# ifndef BIG_ENDIAN
 # define BIG_ENDIAN
+# endif
 # undef LITTLE_ENDIAN
 
 # endif /* linux */
