@@ -152,6 +152,15 @@ int	dolabels, linewidth;
 			cndx_max = (Ncolor / 2 + 6);
 	}
 /*
+ * Graphics context stuff.
+ */
+	Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
+	if (linewidth == 1)
+		linewidth = 0;
+	XSetLineAttributes (XtDisplay (W), Gcontext, linewidth, 
+		LineSolid, CapButt, JoinMiter);
+	XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, Unsorted);
+/*
  * Loop through the contour values
  */
 	for (cndx = cndx_min; cndx <= cndx_max; cndx++)
@@ -168,14 +177,7 @@ int	dolabels, linewidth;
 			else
 				Pix = Colors[Color_center + cndx].pixel;
 
-		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 		XSetForeground (XtDisplay (W), Gcontext, Pix);
-		if (linewidth == 1)
-			linewidth = 0;
-		XSetLineAttributes (XtDisplay (W), Gcontext, linewidth, 
-			LineSolid, CapButt, JoinMiter);
-		XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, 
-			Unsorted);
 	/*
 	 * Labeling stuff
 	 */
