@@ -204,8 +204,9 @@ Widget request, new;
     else
 	entry->sme_menu.label = XtNewString( entry->sme_menu.label );
     IFD(ui_printf("	label: %s\n",entry->sme_menu.label);)
-    entry->sme_menu.up = FALSE;
+    entry->sme_menu.up = False;
     entry->sme_menu.popup = 0;
+    entry->sme_menu.needflip = False;
 
     GetDefaultSize(new, &(entry->rectangle.width), &(entry->rectangle.height));
     CreateGCs(new);
@@ -472,15 +473,15 @@ Highlight(w)
 #endif
 /*
  * Should probably get leftMargin resource and use that, or specify
- * this as a resource in the SmeMenu widget
+ * this as a resource in the SmeMenu widget.  For now, use (x > 30)
+ * unless width/2 is less than 30.
  */
-	wantup = ((x - 40) > 0);
+	wantup = (x > entry->rectangle.width / 2) || (x > 30);
 /*
  * If we do want it up, and it's not, put it up.
  */
 	if (entry->sme_menu.menu && wantup && !entry->sme_menu.up) 
 	{
-		Widget root;
 		Position root_x, root_y;
 		XtTranslations trans;
 
@@ -492,8 +493,8 @@ Highlight(w)
 		 */
 		XtTranslateCoords (XtParent(w), w->core.x, w->core.y,
 				   &root_x, &root_y);
-		root_x += 40;
-		root_y += w->core.height >> 1;
+		root_x += x;
+		root_y += entry->rectangle.height/2;
 #ifdef notdef
 		root_x += w->core.width >> 1;
 		root_y += w->core.height >> 1;
@@ -565,9 +566,9 @@ Highlight(w)
 
 		}
 		loc.x = root_x; loc.y = root_y;
+		entry->sme_menu.up = TRUE;
 		RdssPositionMenu(entry->sme_menu.popup, &loc);
 		XtPopup(entry->sme_menu.popup, XtGrabNonexclusive);
-		entry->sme_menu.up = TRUE;
 	}
 /*
  * If it is up, and we don't want that, bring it back down.  Our colors
@@ -645,6 +646,13 @@ Widget w;
 	}
 
 	/*
+	 * Popdown the menu shell first
+	 */
+	XtPopdown(popup);
+	entry->sme_menu.up = FALSE;
+	IFD(ui_printf("	menu '%s' popped down\n",XtName(popup));)
+
+	/*
 	 * Unhighlight the menu shell by calling its 'unhighlight' action.
 	 * The null event signals an 'absolute' unhighlight.
 	 */
@@ -652,12 +660,7 @@ Widget w;
 	XtCallActionProc (popup, "unhighlight", (XEvent *)NULL,	
 			  /*params*/ NULL, /*num_params*/ 0);
 
-	/*
-	 * Popdown our menu shell
-	 */
-	XtPopdown(popup);
-	entry->sme_menu.up = FALSE;
-	EXIT("Unhighlight(): menu popped down")
+	EXIT("Unhighlight()")
 }
 
 
@@ -940,7 +943,6 @@ Widget FindPopup(widget, name)
 }
 
 
-#ifdef notdef 	/* not needed at the moment */
 Boolean
 SmeMenuPoppedUp (w)
     Widget w;
@@ -952,4 +954,3 @@ SmeMenuPoppedUp (w)
 			(entry->sme_menu.up)?("TRUE"):("FALSE"));)
 	return (entry->sme_menu.up);
 }
-#endif

@@ -111,7 +111,7 @@ static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
-     <BtnUp>:           notify() unhighlight() MenuPopdown()"; 
+     <BtnUp>:           MenuPopdown() notify() unhighlight()"; 
 
 /*
  * Semi Public function definitions. 
@@ -710,7 +710,7 @@ Cardinal * num_params;
 
     if (((WidgetClass)class != smeMenuObjectClass) || 
 	(!event) ||
-	(event->type != LeaveNotify) || 
+	(event->type != LeaveNotify) ||
 	(entry != GetEventEntry(w, event)))
     {
 	(class->sme_class.unhighlight) ( (Widget) entry);
@@ -1147,31 +1147,45 @@ Position x, y;
     Arg arglist[2];
     Cardinal num_args = 0;
     RdssMenuWidget smw = (RdssMenuWidget) w;
+    Position dx = 0, dy = 0;
     
-    if (smw->rdss_menu.menu_on_screen) {
+    if (smw->rdss_menu.menu_on_screen) 
+    {
 	int width = w->core.width + 2 * w->core.border_width;
 	int height = w->core.height + 2 * w->core.border_width;
 	
 	if (x >= 0) {
 	    int scr_width = WidthOfScreen(XtScreen(w));
 	    if (x + width > scr_width)
-		x = scr_width - width;
+		dx = (scr_width - width) - x;
 	}
 	if (x < 0) 
-	    x = 0;
+	    dx = 0 - x;
 	
 	if (y >= 0) {
 	    int scr_height = HeightOfScreen(XtScreen(w));
 	    if (y + height > scr_height)
-		y = scr_height - height;
+		dy = (scr_height - height) - y;
 	}
 	if (y < 0)
-	    y = 0;
+	    dy = 0 - y;
     }
     
-    XtSetArg(arglist[num_args], XtNx, x); num_args++;
-    XtSetArg(arglist[num_args], XtNy, y); num_args++;
+    XtSetArg(arglist[num_args], XtNx, x+dx); num_args++;
+    XtSetArg(arglist[num_args], XtNy, y+dy); num_args++;
     XtSetValues(w, arglist, num_args);
+#ifdef notdef
+    /*
+     * We also warp the pointer by the amount we had to move the
+     * widget, so that the pointer stays in the place the caller
+     * expected it (i.e. the top left of the menu or a particular entry)
+     */
+    if (dx || dy)
+    {
+	    XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
+			  None, 0, 0, 0, 0, dx, dy);
+    }
+#endif
 }
 
 /*	Function Name: ChangeCursorOnGrab

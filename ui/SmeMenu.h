@@ -93,12 +93,10 @@ extern WidgetClass smeMenuObjectClass;
 #define XtCMenu	       "Menu"
 #define XtCPopupSelection "PopupSelection"
 
-#ifdef notdef
 # if NeedFunctionPrototypes
 	Boolean	SmeMenuPoppedUp (Widget);
 # else
 	Boolean SmeMenuPoppedUp ();
 # endif
-#endif
 
 #endif /* _SmeMenu_h */
