@@ -29,7 +29,7 @@
 # include <GraphicsW.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.18 1995-06-29 23:40:55 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.19 1995-07-16 15:28:55 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -110,7 +110,7 @@ static void RP_FPRasterize FP((
 	unsigned int *colgrid, 
 	double row, double icol, 
 	double rowinc, double colinc,
-	int xdim, 
+	int xdim, int ydim,
 	int pad));
 
 static void RP_IRasterize FP((
@@ -119,7 +119,7 @@ static void RP_IRasterize FP((
 	unsigned int *colgrid, 
 	double row, double icol, 
 	double rowinc, double colinc,
-	int xdim, 
+	int xdim, int ydim,
 	int pad));
 
 static XImage *RP_GetXImage FP((Widget, int, int));
@@ -130,7 +130,12 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   unsigned char *cmap,
 				   double row, double icol, 
 				   double rowinc, double colinc,
-				   int xdim, int pad));
+				   int xdim, int ydim, int pad));
+
+static int RasterLimits FP ((int xdim, int ydim, int *xlo, int *ylo, int *xhi, 
+			     int *yhi, int *width_out, int *height_out,
+			     float *colinc_out, float *rowinc_out,
+			     float *leftcol_out, float *toprow_out));
 
 /* static bool RP_ShmPossible FP ((Display *disp)); */
 # ifdef SHM
@@ -292,6 +297,151 @@ float	hrange;
 
 
 
+static int
+RasterLimits (xdim, ydim, xlo, ylo, xhi, yhi, 
+	      width_out, height_out, colinc_out, rowinc_out,
+	      leftcol_out, toprow_out)
+int xdim, ydim;
+int *xlo, *ylo, *xhi, *yhi;
+int *width_out, *height_out;
+float *colinc_out, *rowinc_out;
+float *leftcol_out, *toprow_out;
+/*
+ * Adjust pixel limits and floating point grid coordinates.  Return
+ * non-zero if the region falls inside the plot, else zero indicates
+ * that the raster should not be drawn.  (xlo, ylo) is the lower left
+ * corner for grids, so (ylo > yhi) and rowinc will be negative.
+ */
+{
+	float leftcol, toprow, rightcol, bottomrow;
+	float rowinc, colinc;
+	int width, height;
+/*
+ * Columns per pixel and rows per pixel.  We use (xdim - 1) and (ydim - 1)
+ * here since our pixel limits refer to the *centers* of the edge grid 
+ * elements.  These are just estimates so we can figure the pixel coords
+ * of the grid edges and clip the grid coordinate limits to the clipping
+ * region.
+ */
+	colinc = ((float) xdim - 1) / ((float) (*xhi - *xlo + 1));
+	rowinc = -((float) ydim - 1) / ((float) (*ylo - *yhi + 1));
+#ifdef DEBUG
+	msg_ELog (EF_INFO, "xdim %d; ydim %d", xdim, ydim);
+	msg_ELog (EF_INFO, "estimate: columns/pixel %f; rows/pixel %f", 
+		  colinc, rowinc);
+#endif
+	if (fabs(rowinc) < 0.00001 || fabs(colinc) < 0.00001)
+		return (0);
+/*
+ * Add half a grid width to our dimensions, so that we plot full squares
+ * on the edges.  Again, this is because our current limits refer to the
+ * centers of the edge grid elements.
+ */
+	*xlo -= 0.5 / colinc;
+	*xhi += 0.5 / colinc;
+	*ylo -= 0.5 / rowinc;
+	*yhi += 0.5 / rowinc;
+/*
+ * Align the (floating) row and col coordinates to edges rather than centers.
+ * So the left grid column falls in the range [0.0,1.0), and the rightmost
+ * column falls in [xdim - 1, xdim).  Likewise the rows are in the ranges
+ * [0.0,1.0), [1.0, 2.0), ..., [ydim - 1, ydim).  The idea is that 
+ * (int)col and (int)row will return the row and col coordinate in the grid.
+ */
+	leftcol = 0.0;		/* column (floating) corresponding to xlo */
+	rightcol = xdim;
+	bottomrow = 0.0;	/* bottom, corresponding to ylo */
+	toprow = ydim;
+/*
+ * Clip to the window, if appropriate.
+ */
+	if (*xlo < Clip.x)
+	{
+		leftcol += (Clip.x - *xlo) * colinc;
+		*xlo = Clip.x;
+	}
+	if (*xhi > (int)(Clip.x + Clip.width))
+	{
+		rightcol -= (*xhi - Clip.x - Clip.width) * colinc;
+		*xhi = Clip.x + Clip.width;
+	}
+
+	if (*yhi < Clip.y)
+	{
+		toprow += (Clip.y - *yhi) * rowinc;
+		*yhi = Clip.y;
+	}
+	if (*ylo > (int)(Clip.y + Clip.height))
+	{
+		bottomrow -= (*ylo - Clip.y - Clip.height) * rowinc;
+		*ylo = Clip.y + Clip.height;
+	}
+/*
+ * Now we can figure the width and height in pixels
+ */
+	width = *xhi - *xlo + 1;
+	height = *ylo - *yhi + 1;
+/*
+ * If width or height is <= 0, then this raster lies outside the plot
+ */
+	if (width <= 0 || height <= 0)
+	{		
+		msg_ELog (EF_DEBUG, "Raster outside the window not plotted");
+		return (0);
+	}
+/*
+ * Recalculate grids per pixels with the final official width and height
+ * and the clipped grid limits.  Integer truncation when adjusting and
+ * clipping the pixel limits makes this necessary.  Otherwise slight
+ * inaccuracies in colinc and rowinc can cause grid coordinates to step
+ * out of range.
+ */
+	colinc = (rightcol - leftcol) / width;	/* > 0 */
+	rowinc = (bottomrow - toprow) / height;	/* < 0 for grids */
+	if (fabs(rowinc) < 0.00001 || fabs(colinc) < 0.00001)
+		return (0);
+/*
+ * Adjust the top grid row coordinate to the bottom of the pixel row (where
+ * the row coordinate would end up if we started incrementing by rowinc
+ * from zero, as we do for columns).  Since columns start at zero, which is
+ * already the left side of the pixel column, we don't need to adjust
+ * leftcol.
+ */
+	toprow += rowinc;
+#ifdef DEBUG
+	msg_ELog (EF_INFO, "recalc: columns/pixel %f; rows/pixel %f", 
+		  colinc, rowinc);
+	msg_ELog (EF_INFO, "width: %d; height %d; toprow %f",
+		  width, height, toprow);
+	/*
+	 * Check some assertions
+	 */
+	if ((int)leftcol < 0 || (int)leftcol >= xdim)
+		 msg_ELog (EF_PROBLEM, "leftcol %f out of bounds!", leftcol);
+	if ((int)toprow < 0 || (int)toprow >= ydim)
+		 msg_ELog (EF_PROBLEM, "toprow %f out of bounds!", toprow);
+	if ((int)(leftcol + (width - 1)*colinc) >= xdim)
+		msg_ELog (EF_PROBLEM, "rightmost column %f out of bounds",
+			  (leftcol + (width - 1)*colinc));
+	if ((toprow + (height - 1)*rowinc) < 0.0)
+		msg_ELog (EF_PROBLEM, "bottom row %f out of bounds; (int) %d",
+			  (toprow + (height - 1)*rowinc),
+			  (int)(toprow + (height - 1)*rowinc));
+#endif
+/*
+ * We're done.  Return the parameters.
+ */
+	*colinc_out = colinc;
+	*rowinc_out = rowinc;
+	*width_out = width;
+	*height_out = height;
+	*leftcol_out = leftcol;
+	*toprow_out = toprow;
+	return (1);
+}
+
+
+
 
 void
 RasterXIPlot (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi, fast)
@@ -312,7 +462,8 @@ bool	fast;
 	int		r_color, i, width, height;
 	unsigned int	*colgrid, *cgp;
 	float		cscale, *gp;
-	float		leftcol, toprow, rowinc, colinc;
+	float		leftcol, toprow;
+	float		rowinc, colinc;
 	int		gridelem;
 	int		outrange = Color_outrange.pixel;
 	unsigned char	*ximp;
@@ -332,6 +483,11 @@ bool	fast;
 	msec = - ((ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
 			(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000);
 # endif
+	if (! RasterLimits (xdim, ydim, &xlo, &ylo, &xhi, &yhi, &width, 
+			    &height, &colinc, &rowinc, &leftcol, &toprow))
+	{
+		return;
+	}
 /*
  * Get a graphics context
  */
@@ -364,66 +520,6 @@ bool	fast;
 		}
 	}
 /*
- * Columns per pixel and rows per pixel.  We use (xdim - 1) and (ydim - 1)
- * here since our pixel limits refer to the *centers* of the edge grid 
- * elements.
- */
-	colinc = ((float) xdim - 1) / ((float) (xhi - xlo + 1));
-	rowinc = -((float) ydim - 1) / ((float) (ylo - yhi + 1));
-/*
- * Add half a grid width to our dimensions, so that we plot full squares
- * on the edges.  Again, this is because our current limits refer to the
- * centers of the edge grid elements.
- */
-	xlo -= 0.5 / colinc;
-	xhi += 0.5 / colinc;
-	leftcol = -0.5;	/* column (floating) corresponding to xlo */
-
-	ylo -= 0.5 / rowinc;
-	yhi += 0.5 / rowinc;
-#ifdef notdef
-	toprow = (ydim - 1) + 0.5; /* row (floating) corresponding to yhi */
-#endif
-#ifdef notdef
-	toprow = ydim + rowinc;
-#endif
-	toprow = ydim - 1;	/* why wouldn't we start at the top row? */
-/*
- * Clip to the window, if appropriate.
- */
-	if (xlo < Clip.x)
-	{
-		leftcol += (Clip.x - xlo + 1) * colinc;
-		xlo = Clip.x;
-	}
-
-	if (xhi > (int)(Clip.x + Clip.width))
-		xhi = Clip.x + Clip.width;
-
-	if (yhi < Clip.y)
-	{
-		toprow += (Clip.y - yhi + 1) * rowinc;
-		yhi = Clip.y;
-	}
-	
-	if (ylo > (int)(Clip.y + Clip.height))
-		ylo = Clip.y + Clip.height;
-/*
- * Now we can figure the width and height
- */
-	width = xhi - xlo + 1;
-	height = ylo - yhi + 1;
-/*
- * If width or height is < 0, then this picture's outside the window
- */
-	if (width < 0 || height < 0)
-	{		
-		XFreeGC (disp, gcontext);
-		free (colgrid);
-		msg_ELog (EF_DEBUG, "Raster outside the window not plotted");
-		return;
-	}
-/*
  * Get our ximage and do the rasterization.
  */
 # ifdef SHM
@@ -440,10 +536,10 @@ bool	fast;
 	ximp = (unsigned char *) image->data;
 	if (fast)
 		RP_IRasterize (ximp, width, height, colgrid, toprow, leftcol,
-			rowinc, colinc, xdim, image->bytes_per_line - width);
+		   rowinc, colinc, xdim, ydim, image->bytes_per_line - width);
 	else
 		RP_FPRasterize (ximp, width, height, colgrid, toprow, leftcol,
-			rowinc, colinc, xdim, image->bytes_per_line - width);
+		   rowinc, colinc, xdim, ydim, image->bytes_per_line - width);
 /*
  * Now we ship over the image, and deallocate everything.
  */
@@ -472,12 +568,12 @@ bool	fast;
 
 static void
 RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
-		xdim, pad)
+		xdim, ydim, pad)
 unsigned char	*ximp;
 int 		width, height;
 unsigned int 	*colgrid;
 float 		row, icol, rowinc, colinc;
-int 		xdim, pad;
+int 		xdim, ydim, pad;
 /*
  * Do rasterization using the old floating point (Ardent vectorizable) 
  * method.
@@ -486,19 +582,37 @@ int 		xdim, pad;
 	int i, j;
 	float col;
 
+#ifdef DEBUG
+	msg_ELog (EF_INFO, "entering FPRasterize");
+#endif
 	for (i = 0; i < height; i++)
 	{
 		unsigned int *cp = colgrid + ((int) row) * xdim;
-
-		col = icol + 0.5; /* Add 0.5 to get closest int below */
-		for (j = 0; j < width; j++)
+#ifdef DEBUG
+		/*
+		 * It is very possible that the last (bottom) row will be
+		 * slightly less than zero due to precision errors.  But
+		 * fortunately such coords will still trunc to zero, so it's
+		 * not really a problem. 
+		 */
+		if (row < 0 || (int)row >= ydim)
+			msg_ELog (EF_PROBLEM, "FPRaster: row %f out of bounds",
+				  row);
+#endif
+		col = icol;
+		for (j = 0; j < width - 1; j++)
 		{
 			*ximp++ = cp[(int)col];
 			col += colinc;
 		}
+		*ximp++ = cp[(int)col];
 		row += rowinc;
 		ximp += pad;	/* End of raster line padding.	*/
 	}
+#ifdef DEBUG
+	if (height && (int)col >= xdim)
+		msg_ELog (EF_PROBLEM, "FPRaster: col %f out of bounds", col);
+#endif
 }
 
 
@@ -669,12 +783,12 @@ int width, height;
 
 static void
 RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
-	xdim, pad)
+	xdim, ydim, pad)
 unsigned char 	*ximp;
 int 		width, height;
 unsigned int 	*colgrid;
 float 		row, icol, rowinc, colinc;
-int		xdim, pad;
+int		xdim, ydim, pad;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
@@ -700,7 +814,7 @@ int		xdim, pad;
 	{
 		unsigned int *cp = colgrid + ((int) row) * xdim;
 
-		col = (int) ((icol + 0.5) * 65536);
+		col = (int) (icol * 65536);
 		for (j = 0; j < width; j++)
 		{
 			*ximp++ = cp[*s_col];
@@ -739,11 +853,83 @@ float 		scale, bias;
 	unsigned char *destimg, cmap[256];
 	int c, rcolor, width, height;
 	float cscale = Ncolor/Datarange;
-	float toprow, leftcol, rowinc, colinc;
+	float toprow, leftcol, bottomrow, rightcol;
+	float rowinc, colinc;
 	GC gcontext;
 	XGCValues gcvals;
 	Display *disp = XtDisplay(w);
 	XImage *image;
+/*
+ * Columns per pixel and rows per pixel.  We use (xd - 1) and (yd - 1)
+ * here since our pixel limits refer to the *centers* of the edge grid 
+ * elements.
+ */
+	colinc = ((float) xd - 1) / ((float) (xhi - xlo + 1));
+	rowinc = ((float) yd - 1) / ((float) (ylo - yhi + 1));
+	if (fabs(rowinc) < 0.00001 || fabs(colinc) < 0.00001)
+		return;
+/*
+ * Add half a grid width to our dimensions, so that we plot full squares
+ * on the edges.  Again, this is because our current limits refer to the
+ * centers of the edge grid elements.
+ */
+	xlo -= 0.5 / colinc;
+	xhi += 0.5 / colinc;
+	leftcol = 0.0;	/* column (floating) corresponding to xlo */
+	rightcol = (float) xd;
+
+	ylo += 0.5 / rowinc;
+	yhi -= 0.5 / rowinc;
+	toprow = 0.0; /* row (floating) corresponding to yhi */
+	bottomrow = (float) yd;
+/*
+ * Clip to the window, if appropriate.
+ */
+	if (xlo < Clip.x)
+	{
+		leftcol += (Clip.x - xlo) * colinc;
+		xlo = Clip.x;
+	}
+	if (xhi > (int)(Clip.x + Clip.width))
+	{
+		rightcol -= (xhi - Clip.x - Clip.width) * colinc;
+		xhi = Clip.x + Clip.width;
+	}
+
+	if (yhi < Clip.y)
+	{
+		toprow += (Clip.y - yhi) * rowinc;
+		yhi = Clip.y;
+	}
+	
+	if (ylo > (int)(Clip.y + Clip.height))
+	{
+		bottomrow -= (ylo - Clip.y - Clip.height) * rowinc;
+		ylo = Clip.y + Clip.height;
+	}
+/*
+ * Now we can figure the width and height
+ */
+	width = xhi - xlo + 1;
+	height = ylo - yhi + 1;
+/*
+ * If width or height is <= 0, then this raster lies outside the plot
+ */
+	if (width <= 0 || height <= 0)
+	{		
+		msg_ELog (EF_DEBUG, "Image outside the window not plotted");
+		return;
+	}
+/*
+ * Recalculate cells per pixels with the final official width and height.
+ * Integer truncation when adjusting and clipping the pixel limits makes
+ * this necessary.  Otherwise slight inaccuracies in colinc and rowinc can
+ * cause image cell coordinates to step out of range.
+ */
+	colinc = (rightcol - leftcol) / width;
+	rowinc = (bottomrow - toprow) / height;
+	if (fabs(rowinc) < 0.00001 || fabs(colinc) < 0.00001)
+		return;
 /*
  * Go through and make the color map.
  */
@@ -761,50 +947,6 @@ float 		scale, bias;
 		}
 	}
 	cmap[255] = Color_outrange.pixel;
-/*
- * Columns per pixel and rows per pixel.  We use (xd - 1) and (yd - 1)
- * here since our pixel limits refer to the *centers* of the edge grid 
- * elements.
- */
-	colinc = ((float) xd - 1) / ((float) (xhi - xlo + 1));
-	rowinc = ((float) yd - 1) / ((float) (ylo - yhi + 1));
-/*
- * Add half a grid width to our dimensions, so that we plot full squares
- * on the edges.  Again, this is because our current limits refer to the
- * centers of the edge grid elements.
- */
-	xlo -= 0.5 / colinc;
-	xhi += 0.5 / colinc;
-	leftcol = -0.5;	/* column (floating) corresponding to xlo */
-
-	ylo += 0.5 / rowinc;
-	yhi -= 0.5 / rowinc;
-	toprow = -0.5; /* row (floating) corresponding to yhi */
-/*
- * Clip to the window, if appropriate.
- */
-	if (xlo < Clip.x)
-	{
-		leftcol += (Clip.x - xlo + 1) * colinc;
-		xlo = Clip.x;
-	}
-
-	if (xhi > (int)(Clip.x + Clip.width))
-		xhi = Clip.x + Clip.width;
-
-	if (yhi < Clip.y)
-	{
-		toprow += (Clip.y - yhi + 1) * rowinc;
-		yhi = Clip.y;
-	}
-	
-	if (ylo > (int)(Clip.y + Clip.height))
-		ylo = Clip.y + Clip.height;
-/*
- * Now we can figure the width and height
- */
-	width = xhi - xlo + 1;
-	height = ylo - yhi + 1;
 /*
  * Get a graphics context
  */
@@ -829,7 +971,7 @@ float 		scale, bias;
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
 		destimg += yhi * GWGetBPL(w, frame) + xlo;
 		RP_ImageRasterize (destimg, width, height, grid, cmap, toprow, 
-				   leftcol, rowinc, colinc, xd, 
+				   leftcol, rowinc, colinc, xd, yd,
 				   GWGetBPL (w, frame) - width);
 	}
 	else
@@ -838,7 +980,7 @@ float 		scale, bias;
 		image = RP_GetXImage(w, width, height);
 		RP_ImageRasterize ((unsigned char *)(image->data), 
 				   width, height, grid, cmap, toprow, leftcol,
-				   rowinc, colinc, xd, 
+				   rowinc, colinc, xd, yd,
 				   image->bytes_per_line - width);
 		/*
 		 * Now send our local XImage to the server
@@ -857,13 +999,13 @@ float 		scale, bias;
 
 static void
 RP_ImageRasterize (ximp, width, height, grid, cmap, row, icol, rowinc, colinc,
-		   xdim, pad)
+		   xdim, ydim, pad)
 unsigned char 	*ximp;
 int 		width, height;
 unsigned char 	*grid;
 unsigned char	*cmap;
 float 		row, icol, rowinc, colinc;
-int		xdim, pad;
+int		xdim, ydim, pad;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
@@ -888,16 +1030,25 @@ int		xdim, pad;
  */
 	for (i = 0; i < height; i++)
 	{
-		unsigned char *cp = grid + (int)(row + 0.5) * xdim;
-
-		col = (int) ((icol + 0.5) * 65536);
-		for (j = 0; j < width; j++)
+		unsigned char *cp = grid + ((int) row) * xdim;
+#ifdef DEBUG
+		if (row < 0 || (int)row >= ydim)
+			msg_ELog (EF_PROBLEM, "Image: row %f out of bounds",
+				  row);
+#endif
+		col = (int) (icol * 65536);
+		for (j = 0; j < width - 1; j++)
 		{
 			*ximp++ = cmap[cp[*s_col]];
 			col += icolinc;
 		}
+		*ximp++ = cmap[cp[*s_col]];
 		row += rowinc;
 		ximp += pad;	/* End of raster line padding.	*/
 	}
+#ifdef DEBUG
+	if (height && *s_col >= xdim)
+		msg_ELog (EF_PROBLEM, "Image: col %f out of bounds",*s_col);
+#endif
 }
 
