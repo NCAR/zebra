@@ -1,7 +1,7 @@
-/* $Id: Makefile.cpp,v 1.1 1991-09-26 16:22:54 gracio Exp $ */
+/* $Id: Makefile.cpp,v 1.2 1991-09-26 16:28:59 gracio Exp $ */
 
 CC=gcc
-CFLAGS=-g -O -I/fcc/include -I/rdss/include -DSHM
+CFLAGS=-g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include -DSHM
 LIBS=../lib/libfcc.a -lrdss -ltermcap -lnetcdf -lXaw -lXmu -lXt -lXext \
 	-lX11 -lm
 
