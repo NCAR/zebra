@@ -14,7 +14,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.11 1999-03-01 02:03:39 burghart Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.12 1999-03-02 05:09:25 granger Exp $")
 
 static struct flagmask {
 	unsigned short mask;
@@ -285,26 +285,28 @@ char *who;
 		sprintf (buf, "No full rescans have occurred.");
 	msg_AnswerQuery (who, buf);
 
+#ifdef notdef
 	if (LastCache)
 		dbg_EncodeElapsed ("Cache files written ",
 				   &LastCache, &now, buf);
 	else
 		sprintf (buf, "No cache file writes have occurred.");
 	msg_AnswerQuery (who, buf);
+#endif
 
 	sprintf (buf, "Sources: \n");
 	for (s = 0; s < NSrcs; s++)
 	{
-	    sprintf (buf, "\t%s: %s%s%s%s%s%s\n", 
-		     src_Name (Srcs + s), 
+	    sprintf (buf+strlen(buf), "%18s: %s%s%s%s%s\n", 
+		     src_Name (Srcs + s),
 		     src_IsDirConst (Srcs + s) ? "DirConst, " : "", 
 		     src_IsFileConst (Srcs + s) ? "FileConst, " : "",
 		     src_RemembersAll (Srcs + s) ? "RememberAll, " : "",
 		     src_DirsAreForced (Srcs + s) ? "ForceDirs, " : "",
 		     src_BaseDir (Srcs + s));
 	}
-	    
 	msg_AnswerQuery (who, buf);
+
 	sprintf (buf, "%18s: %d used of %d allocated, %s %d",
 		 "Platform classes", dt_NClass(), CTableSize, "grow by", 
 		 CTableGrow);
@@ -322,7 +324,7 @@ char *who;
 		 dt_NClass() * sizeof(PlatformClass));
 	msg_AnswerQuery (who, buf);
 
-	sprintf (buf, "%18s: revision method: %s; ", "Variables",
+	sprintf (buf, "%18s: revision method: %s; \n", "Variables",
 		 (StatRevisions) ? "stat()" : "count");
 	sprintf (buf+strlen(buf), "%18s  debugging: %s; ", " ",
 		 Debug ? "enabled" : "disabled");

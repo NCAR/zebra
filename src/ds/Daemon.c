@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.67 1999-03-01 02:03:28 burghart Exp $")
+RCSID ("$Id: Daemon.c,v 3.68 1999-03-02 05:09:24 granger Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -557,11 +557,13 @@ struct ui_command *cmds;
 	   case DK_BROADCAST:
 	   	BCSetup (UPTR (cmds[1]), UINT (cmds[2]));
 		break;
-# ifdef notdef	/* cache files are deprecated */
 	/*
 	 * Write out cache files.
 	 */
 	   case DK_CACHE:
+		msg_ELog (EF_PROBLEM,
+		  "'cache' command no longer meaningful nor functional");
+# ifdef notdef	/* cache files are deprecated */
 		/* dirty option overrides unified cache file name */
 		if (cmds[1].uc_ctype == UTT_END)
 			WriteCache (NULL, FALSE);
@@ -569,8 +571,8 @@ struct ui_command *cmds;
 			WriteCache (NULL, TRUE);
 		else
 			WriteCache (UPTR (cmds[1]), FALSE);
-		break;
 # endif
+		break;
 	/*
 	 * Force a rescan
 	 */
@@ -946,8 +948,14 @@ int len;
 	 */
 	   case dpt_Rescan:
 		for (s = 0; s < NSrcs; s++)
-		    Rescan (Srcs[s], ((struct dsp_Rescan *)dt)->dsp_pid,
-			    ((struct dsp_Rescan *)dt)->dsp_all);
+		{
+			struct dsp_Rescan *dsr = (struct dsp_Rescan *)dt;
+			const Platform *p = 0;
+			if (! dsr->dsp_all)
+				p = dt_FindPlatform (dsr->dsp_pid);
+			if (dsr->dsp_all || p)
+				Rescan (Srcs[s], p, dsr->dsp_all);
+		}
 		break;
 	/*
 	 * Platform info.
@@ -1441,24 +1449,21 @@ DoRescan (cmds)
 struct ui_command *cmds;
 {
 	zbool all = FALSE;
-	PlatformId platid = BadPlatform;
 	const Platform *plat;
 
 	all = (cmds[0].uc_ctype == UTT_END) || (cmds[0].uc_ctype == UTT_KW);
 	if (! all)
 	{
 		plat = dt_FindPlatformName (UPTR (cmds[0]));
-		if (plat)
-			platid = plat->dp_id;
-		else
+		if (! plat)
 			msg_ELog (EF_PROBLEM, "rescan: no such platform '%s'",
 				  cmds[0].uc_text);
 	}
-	if ((all) || (platid != BadPlatform))
+	if ((all) || (plat))
 	{
 	    SourceId s;
 	    for (s = 0; s < NSrcs; s++)
-		Rescan (Srcs[s], platid, all);
+		Rescan (Srcs[s], plat, all);
 	}
 }
 
@@ -2084,11 +2089,10 @@ PlatformId parent;
     {
     /*
      * Rescan this platform for all sources
-
      */
 	SourceId s;
 	for (s = 0; s < NSrcs; s++)
-	    RescanPlat (Srcs[s], p);
+	    Rescan (Srcs[s], p, FALSE);
     }
     
     msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));

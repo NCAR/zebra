@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.35 1999-03-01 02:03:40 burghart Exp $")
+RCSID ("$Id: d_Scan.c,v 1.36 1999-03-02 05:09:25 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -62,6 +62,7 @@ static int FileKnown (const char *file, const DataFileCore *sfiles,
 static int FileChanged (Source *src, const Platform *p, 
 			const DataFileCore *dfc, ino_t *new_ino, 
 			long *new_rev);
+static void RescanPlat (Source *src, const Platform *p);
 
 static int ScanProto[] =
 {
@@ -116,6 +117,52 @@ DataScan (Source *src)
  */
     if (!StatRevisions)
 	LastScan = time (NULL);
+
+    if (FilesScanned > 0)
+	msg_ELog (EF_INFO, "%d files scanned.", FilesScanned);
+}
+
+
+
+void
+Rescan (Source *src, const Platform *pin, zbool all)
+/*
+ * Implement the rescan request.
+ */
+{
+    FilesScanned = 0;
+/*
+ * Reset the "file constant" flags -- we always want to check on a rescan.
+ */
+    src_SetFileConst (src, FALSE);
+/*
+ * If they want everything done, then we need to pass through the list.
+ */
+    if (all)
+    {
+	int plat;
+	for (plat = 0; plat < dt_NPlatform(); plat++)
+	{
+	    const Platform *p = dt_FindPlatform (plat);
+	/*
+	 * Don't scan subplatforms.
+	 */
+	    if (! pi_Subplatform (p) && ! pi_Virtual (p))
+		RescanPlat (src, p);
+	}
+    /*
+     * Update the time for the last full scan
+     */
+	LastScan = time (NULL);
+    }
+/*
+ * Otherwise just do the one they asked for.
+ */
+    else
+	RescanPlat (src, pin);
+
+    if (FilesScanned > 0)
+	msg_ELog (EF_INFO, "%d files scanned.", FilesScanned);
 }
 
 
@@ -550,47 +597,7 @@ FileChanged (Source *src, const Platform *p, const DataFileCore *dfc,
 
 
 
-void
-Rescan (Source *src, PlatformId platid, zbool all)
-/*
- * Implement the rescan request.
- */
-{
-/*
- * Reset the "file constant" flags -- we always want to check on a rescan.
- */
-    src_SetFileConst (src, FALSE);
-/*
- * If they want everything done, then we need to pass through the list.
- */
-    if (all)
-    {
-	int plat;
-	for (plat = 0; plat < dt_NPlatform(); plat++)
-	{
-	    const Platform *p = dt_FindPlatform (plat);
-	/*
-	 * Don't scan subplatforms.
-	 */
-	    if (! pi_Subplatform (p) && ! pi_Virtual (p))
-		RescanPlat (src, p);
-	}
-    /*
-     * Update the time for the last full scan
-     */
-	LastScan = time (NULL);
-    }
-/*
- * Otherwise just do the one they asked for.
- */
-    else
-	RescanPlat (src, dt_FindPlatform (platid));
-}
-
-
-
-
-void
+static void
 RescanPlat (Source *src, const Platform *p)
 /*
  * Rescan the files for this platform.
@@ -601,7 +608,6 @@ RescanPlat (Source *src, const Platform *p)
 /*
  * Rescan the directory(ies).
  */
-    FilesScanned = 0;
     ScanDirectory (src, p, TRUE);
 }
 
