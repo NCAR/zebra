@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.4 1992-07-22 16:51:28 corbet Exp $
+ * $Id: DataStore.h,v 3.5 1992-10-27 18:34:53 granger Exp $
  *
  * Public data store definitions.
  */
@@ -25,7 +25,7 @@
  * maintenance or updates for its software.
  */
 
-# define MAXFIELD	30	/* Max fields in one data object	*/
+# define MAXFIELD	75	/* Max fields in one data object	*/
 
 /*
  * Possible data organizations.
@@ -178,7 +178,7 @@ typedef struct _AuxDataEntry
 /*
  * Class-specific defines.
  */
-# define DC_MaxField	30	/* MetData -- max # of fields		*/
+# define DC_MaxField	75	/* MetData -- max # of fields		*/
 
 /*
  * Definitions of basic routines dealing with data chunks.
