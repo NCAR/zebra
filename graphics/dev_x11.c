@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.11 1989-10-11 15:04:50 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.12 1989-10-11 15:46:16 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -143,14 +143,14 @@ struct device *dev;
 	if (nmatch)
 	{
 		tag->x_visual = vlist->visual;
-		depth = 8;
+		depth = vlist->depth;
 	}
 	else
 	{
 		tag->x_visual = DefaultVisual (tag->x_display, screen);
 		depth = CopyFromParent;
 	}
-	printf ("Visual is 0x%x\n", tag->x_visual);
+	printf ("Visual is 0x%x depth %d\n", tag->x_visual, vlist->depth);
  	XFree (vlist);
 /*
  * Create the window to exist on that display.
