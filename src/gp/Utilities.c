@@ -33,7 +33,21 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.43 1997-02-15 03:41:25 burghart Exp $")
+/*
+ * A bug in XWDFile.h in OpenWindows omits the typedef for the XWDColor
+ * struct, so we have to define our own equivalent type in order to
+ * declare XWDColor structures.
+ */
+typedef struct {
+        CARD32  pixel B32;
+        CARD16  red B16;
+        CARD16  green B16;
+        CARD16  blue B16;
+        CARD8   flags;
+        CARD8   pad;
+} U_XWDColor;
+
+RCSID ("$Id: Utilities.c,v 2.44 1997-02-16 17:06:29 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -845,7 +859,7 @@ char *file;
     for (i = 0; i < ncolors; i++)
     {
 	XColor	xc;
-	XWDColor xwdc;
+	U_XWDColor xwdc;
     /*
      * Get the XColor for this pixel value
      */
