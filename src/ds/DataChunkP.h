@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.2 1991-12-04 23:45:41 corbet Exp $ */
+/* $Id: DataChunkP.h,v 1.3 1992-06-02 14:48:51 corbet Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -47,14 +47,16 @@ typedef struct _RawDCClass
 /*
  * Internally useful routines.
  */
-# ifdef __STDC__
-	bool		dc_ReqSubClassOf (DataClass, DataClass, char *);
-	DataClass	dc_GetSuperClass (DataClass);
-	void		dc_AddADE (DataChunk *, DataPtr, DataClass,
-				int, int, int);
-	DataPtr		dc_FindADE (DataChunk *, DataClass, int, int *);
-	void		dc_ChangeADE (DataChunk *, DataPtr, DataClass,
-				int, int);
-	void		dc_RemoveADE (DataChunk *, DataClass, int);
-# else
-# endif
+bool		dc_ReqSubClassOf FP ((DataClass, DataClass, char *));
+DataClass	dc_GetSuperClass FP ((DataClass));
+void		dc_AddADE FP ((DataChunk *, DataPtr, DataClass,
+			int, int, int));
+DataPtr		dc_FindADE FP ((DataChunk *, DataClass, int, int *));
+void		dc_ChangeADE FP ((DataChunk *, DataPtr, DataClass,
+			int, int));
+void		dc_RemoveADE FP ((DataChunk *, DataClass, int));
+
+void		dca_AddAttr FP ((DataChunk *, DataClass, int, char *, char *));
+char *		dca_GetAttr FP ((DataChunk *, DataClass, int, char *));
+int		dca_ProcAttrs FP ((DataChunk *, DataClass, int, char *,
+			int (*) ()));
