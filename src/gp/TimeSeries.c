@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.6 1992-05-27 16:34:36 kris Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.7 1992-07-31 19:25:40 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -372,18 +372,18 @@ bool	update;
  * Put time on the left side.
  */
 	if (! FlipTime) 
-		TC_EncodeTime (&Begin, TC_TimeOnly, string);
+		TC_EncodeTime (&Begin, TC_Full, string);
 	else
-		TC_EncodeTime (&FixPT, TC_TimeOnly, string);
+		TC_EncodeTime (&FixPT, TC_Full, string);
 	DrawText (Graphics, d, Gcontext, XPIX (X0), Pix_bottom, string, 
 		0.0, TSScale, JustifyLeft, JustifyTop);
 /*
  * Put time on the right side.
  */
 	if (! FlipTime) 
-		TC_EncodeTime (&FixPT, TC_TimeOnly, string);
+		TC_EncodeTime (&FixPT, TC_Full, string);
 	else
-		TC_EncodeTime (&Begin, TC_TimeOnly, string);
+		TC_EncodeTime (&Begin, TC_Full, string);
 	DrawText (Graphics, d, Gcontext, XPIX (X1), Pix_bottom, string, 
 		0.0, TSScale, JustifyRight, JustifyTop);
 }
