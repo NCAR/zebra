@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.8 1994-08-01 20:41:59 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.9 1995-02-10 00:49:07 granger Exp $")
 
 
 
@@ -123,7 +123,7 @@ char *dir, *name, *string;
 	UItime t;
 	
 	TC_ZtToUI (zt, &t);
-	sprintf (string, "%s.%06d.%04d.bf", name, t.ds_yymmdd,
+	sprintf (string, "%s.%06ld.%04ld.bf", name, t.ds_yymmdd,
 		t.ds_hhmmss/100);
 }
 
@@ -258,6 +258,12 @@ WriteCode wc;
 	   	offset = bf_TimeIndex (tag, &t);
 		if (offset < 0)
 			offset = 0;
+		break;
+	/*
+	 * Shouldn't happen, but just to satisfy compiler checks...
+	 */
+	   case wc_NewFile:
+		offset = hdr->bh_NBoundary++;
 		break;
 	}
 /*
@@ -403,7 +409,6 @@ DataClass class;
  */
 {
 	BFTag *tag;
-	int tbegin, tend, sample;
 /*
  * Do some sanity checking.
  */
@@ -437,7 +442,7 @@ GetList *gp;
  */
 {
 	BFTag *tag;
-	int tbegin, tend, sample, pt;
+	int tbegin, tend, sample;
 	Location locs[MAX_BOUNDARY];
 	ZebTime zt;
 /*
@@ -552,6 +557,7 @@ TimeSpec which;
 
 
 
+int
 bf_GetFields (dfile, t, nfld, flist)
 int dfile;
 UItime *t;
@@ -562,4 +568,5 @@ FieldId *flist;
  */
 {
 	*nfld = 0;
+	return (TRUE);
 }

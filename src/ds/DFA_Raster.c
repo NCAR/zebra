@@ -5,6 +5,8 @@
 # include <errno.h>
 # include <fcntl.h>
 # include <unistd.h>
+# include <string.h>
+# include <memory.h>
 
 # include "defs.h"
 # include "message.h"
@@ -13,7 +15,7 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.10 1994-10-11 16:24:31 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.11 1995-02-10 00:49:13 granger Exp $")
 
 
 
@@ -277,7 +279,7 @@ ZebTime *t;
 	UItime ut;
 	
 	TC_ZtToUI (t, &ut);
-	sprintf (dest, "%s.%06d.%06d.rf", name, ut.ds_yymmdd, ut.ds_hhmmss);
+	sprintf (dest, "%s.%06ld.%06ld.rf", name, ut.ds_yymmdd, ut.ds_hhmmss);
 }
 
 
@@ -406,10 +408,11 @@ WriteCode wc;
 	switch (wc)
 	{
 	/*
-	 * For the append case, we need a new TOC   entry and some
-	 * new space.
+	 * For the append case, we need a new TOC entry and some
+	 * new space.  NewFile case just satisfies compiler checks.
 	 */
 	   case wc_Append:
+	   case wc_NewFile:
 		toc = tag->rt_toc + hdr->rf_NSample++;	
 		drf_ClearToc (hdr, toc);
 		break;
@@ -772,7 +775,7 @@ const GetList *gp;
 	RFHeader *hdr;
 	/* RastImg *rip = &dobj->do_desc.d_img; */
 	int tbegin, tend, sample, fld, rfld;
-	int fieldmap[MAXFIELD], offset = 0, nfield;
+	int fieldmap[MAXFIELD], nfield;
 	int dcsamp = dc_GetNSample (dc);
 	FieldId *fids = dc_GetFields (dc, &nfield);
 	ZebTime t_hack;

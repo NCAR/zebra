@@ -8,6 +8,8 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <math.h>
+# include <string.h>
+# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -16,7 +18,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.5 1994-10-11 16:24:28 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.6 1995-02-10 00:49:12 granger Exp $")
 
 
 
@@ -453,7 +455,7 @@ char *dfname, *cfname;
 	if (dfname[0] == '^')
 	{
 		strcpy (realname, cfname);
-		if (slash = strrchr (realname, '/'))
+		if ((slash = strrchr (realname, '/')))
 			slash++;
 		else
 			slash = realname;
@@ -888,7 +890,7 @@ TimeSpec which;
 		 * Fill times array with more recent times towards front
 		 */
 		if (sample < 0)
-			sample == 0;
+			sample = 0;
 		else
 		{
 			ZebTime samptime;

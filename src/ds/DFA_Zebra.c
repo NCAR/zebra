@@ -23,6 +23,8 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <errno.h>
+# include <string.h>
+# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -37,7 +39,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.24 1994-09-12 18:04:34 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.25 1995-02-10 00:49:16 granger Exp $")
 # endif
 
 /*
@@ -121,7 +123,7 @@ static int	zn_WrGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *,
 			WriteCode, int *, FieldId *, int));
 static int	zn_WrIRGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
 			WriteCode, int *, FieldId *, int));
-static int	zn_WrScalar FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
+static void	zn_WrScalar FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
 			WriteCode, int *, FieldId *, int));
 static int	zn_WrFixScalar FP ((znTag *, DataChunk *, int, int,
 			zn_Sample *, WriteCode, int *, FieldId *, int));
@@ -499,7 +501,7 @@ znTag *tag;
  */
 {
 	zn_Header *hdr = &tag->zt_Hdr;
-	int	hdrsize, f;
+	int hdrsize;
 /*
  * Dump the header, using the smaller size if it's a Version 1 file
  */
@@ -1068,6 +1070,9 @@ unsigned long *size;
 			block = zn_WrTransBlock (tag, dc, fsample, sample, 
 						 nsample, wc, &block_size);
 			break;
+		   default:
+			/* no other orgs handled */
+			break;
 		}
 		if (!block)
 		{
@@ -1183,6 +1188,9 @@ int nfield;
 			
 		   case OrgTransparent:
 			zn_WrTrans (tag, dc, fsample+i, sample+i, samp, wc);
+			break;
+		   default:
+			/* no other orgs handled */
 			break;
 		}
 	}
@@ -1586,6 +1594,7 @@ WriteCode wc;
 	 * more samples and set the dest to the 1st sample of the new space.
 	 */
 	   case wc_Append:
+	   case wc_NewFile:
 	   	zn_ExpandTOC (tag, nsample);
 		return (tag->zt_Hdr.znh_NSample - nsample);
 	/*
@@ -2026,7 +2035,7 @@ unsigned long *size;
 
 
 
-static int
+static void
 zn_WrScalar (tag, dc, fsample, dcsample, samp, wc, index, fids, nfield)
 znTag *tag;
 DataChunk *dc;
@@ -2529,7 +2538,7 @@ WriteCode wc;
 
 
 
-
+int
 zn_Close (ctag)
 void *ctag;
 /*
@@ -2583,7 +2592,7 @@ void **rtag;
 {
 	znTag *tag = ALLOC (znTag);
 	zn_Header *hdr = &tag->zt_Hdr;
-	int nsa, field, magic, zfldsize;
+	int nsa, field, magic;
 	bool grid;
 /*
  * Open the file.
@@ -2744,6 +2753,7 @@ znTag *tag;
 
 
 /*ARGSUSED*/
+int
 zn_MakeFileName (dir, platform, zt, dest)
 char *dir, *platform, *dest;
 ZebTime *zt;
@@ -2754,15 +2764,16 @@ ZebTime *zt;
 	UItime t;
 
 	TC_ZtToUI (zt, &t);
-	sprintf (dest, "%s.%06d.%06d.znf", platform, t.ds_yymmdd,
+	sprintf (dest, "%s.%06ld.%06ld.znf", platform, t.ds_yymmdd,
 		t.ds_hhmmss);
+	return (0);
 }
 
 
 
 
 
-
+int
 zn_Sync (ctag)
 void *ctag;
 /*
@@ -2916,6 +2927,9 @@ DataClass class;
 
 	   case DCC_Scalar:
 	   	dc_SetScalarFields (dc, nfield, fields);
+		break;
+	   default:
+		/* all other classes ok */
 		break;
 	}
 /*

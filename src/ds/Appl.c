@@ -19,16 +19,18 @@
  * maintenance or updates for its software.
  */
 
+#include <string.h>
 
 #include <defs.h>
 #include <message.h>
+#include <timer.h>
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.38 1995-01-20 22:14:08 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.39 1995-02-10 00:49:04 granger Exp $")
 #endif
 
 /*
@@ -73,9 +75,10 @@ static void	ds_SendSearch FP((char *regexp, int sort, int subs,
 				  int sendplats));
 static int	ds_AwaitDF FP ((Message *, int *));
 static void	ds_ZapCache FP ((DataFile *));
+static int	ds_DataChain FP ((ClientPlatform *p, int which));
 static void	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int));
-static int	ds_FindBlock FP((int dfile, int dfnext, 
+static void	ds_FindBlock FP((int dfile, int dfnext, 
 				 DataChunk *dc, ClientPlatform *p,
 				 int sample, WriteCode wc, int *nsample));
 static int	ds_FindAfter FP ((PlatformId, ZebTime *));
@@ -783,7 +786,6 @@ int	*times, *ntimes;
  * Get the heights for this time.
  */
 {
-	ClientPlatform p;
 	int dfindex;
 /*
  * First make sure it's a model platform
@@ -1416,7 +1418,7 @@ int ndetail;
 
 
 
-static int
+static void
 ds_FindBlock(dfile, dfnext, dc, plat, sample, wc, block_size)
 int dfile;
 int dfnext;		/* file following dfile, chronologically */
@@ -2353,7 +2355,7 @@ int len;
 
 
 
-int
+static int
 ds_DataChain (p, which)
 ClientPlatform *p;
 int which;
@@ -2498,7 +2500,8 @@ bool local;
 /*
  * Now we can pass on the rest of the work
  */
-	ds_InsertFile (platid, filename, &begin, &end, nsample, local);
+	return (ds_InsertFile (platid, filename, &begin, &end, 
+			       nsample, local));
 }
 
 
@@ -2520,7 +2523,7 @@ bool local;
 	DataFile dfe;
 	struct dsp_UpdateFile update;
 	ClientPlatform p;
-	int dfnext, df;
+	int df;
 /*
  * Get a write lock and our platform structure.
  */
@@ -2533,7 +2536,7 @@ bool local;
  * fail.
  */
 	ds_LockPlatform (platid);
-	df = (local) ? ds_DataChain (p, 0) : ds_DataChain (p, 1);
+	df = (local) ? ds_DataChain (&p, 0) : ds_DataChain (&p, 1);
 	for (; df; df = dfe.df_FLink)
 	{
 		ds_GetFileStruct (df, &dfe);

@@ -25,6 +25,8 @@
 # include <errno.h>
 # include <fcntl.h>
 # include <unistd.h>
+# include <string.h>
+# include <memory.h>
 
 # include <copyright.h>
 # include <defs.h>
@@ -35,7 +37,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.18 1994-11-19 00:29:28 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.19 1995-02-10 00:49:09 granger Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -516,7 +518,7 @@ char	*dir, *name, *string;
 	UItime t;
 	
 	TC_ZtToUI (zt, &t);
-	sprintf (string, "%s.%06d.%06d.grib", name, t.ds_yymmdd, t.ds_hhmmss);
+	sprintf(string, "%s.%06ld.%06ld.grib", name, t.ds_yymmdd, t.ds_hhmmss);
 }
 
 
@@ -727,7 +729,7 @@ int		ndetail;
  */
 {
 	int	ndx, firstndx, lastndx, nfield, samp, sbegin, send, f;
-	int	offset, nalts, test, gtype, i;
+	int	offset, nalts, test, i;
 	float  	badval, ztarget, *lats, *lons, alts[MAXLEVELS];
 	bool	onelevel;
 	SValue	v;
@@ -969,7 +971,7 @@ GRB_TypeInfo	*ginfo;
  */
 {
 	int	dnx, dny, snx, sny, i, j;
-	float	lat, lon, latstep, lonstep, newi, newj;
+	float	lat, lon, newi, newj;
 	float	*si, *sj, *latang, *lonang;
 /*
  * Return if the arrays have already been built
@@ -1815,12 +1817,11 @@ float		*ztarget;
 	float	zvals[MAXLEVELS], badval = dc_GetBadval (dc), ftemp;
 	int	level, nlevels, ulevels, vlevels, ndx;
 	float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
-	float	x, y, z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
+	float	z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
 	GFpds	*pds;
 	ZebTime	time;
-	bool	onelevel, u_or_v;
+	bool	u_or_v;
 	FieldId	grid_fid, u_fid, v_fid;
-	SValue	v;
 	ScaleInfo	sc;
 	unsigned long	dc_nlevels, nlat, nlon;
 /*
@@ -3037,7 +3038,7 @@ GFgds	*gds;
  */
 {
 	int	nlat, nlon, j, i;
-	float	end, lat1, lat2, lon1, lon2, latstep, lonstep, *fi, *fj;
+	float	lat1, lat2, lon1, lon2, latstep, lonstep, *fi, *fj;
 	GRB_TypeInfo	*grbinfo;
 /*
  * For now we only know how to build a latitude/longitude grid
