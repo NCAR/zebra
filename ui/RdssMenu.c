@@ -710,8 +710,8 @@ Cardinal * num_params;
 
     if (((WidgetClass)class != smeMenuObjectClass) || 
 	(!event) ||
-	(event->type != LeaveNotify) ||
-	(entry != GetEventEntry(w, event)))
+	(event->type != LeaveNotify) || 
+	(! SmeMenuPoppedUp (w)))
     {
 	(class->sme_class.unhighlight) ( (Widget) entry);
 	smw->rdss_menu.entry_set = NULL;
@@ -1174,7 +1174,6 @@ Position x, y;
     XtSetArg(arglist[num_args], XtNx, x+dx); num_args++;
     XtSetArg(arglist[num_args], XtNy, y+dy); num_args++;
     XtSetValues(w, arglist, num_args);
-#ifdef notdef
     /*
      * We also warp the pointer by the amount we had to move the
      * widget, so that the pointer stays in the place the caller
@@ -1185,7 +1184,6 @@ Position x, y;
 	    XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
 			  None, 0, 0, 0, 0, dx, dy);
     }
-#endif
 }
 
 /*	Function Name: ChangeCursorOnGrab
