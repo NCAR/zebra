@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 1.5 1990-09-13 09:42:46 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 1.6 1990-11-09 16:32:59 corbet Exp $";
 
 # include <errno.h>
 # include <math.h>
@@ -375,6 +375,15 @@ float row, icol, rowinc, colinc;
 
 # ifdef SHM
 
+/*
+ * This is our Ximage in shared memory.
+ */
+static int XIwidth = -1, XIheight = -1;
+static XImage *image = 0;
+static XShmSegmentInfo shminfo;
+
+
+
 static XImage *
 RP_GetSharedXImage (w, width, height)
 Widget w;
@@ -383,9 +392,6 @@ int width, height;
  * Return a shared-memory XImage with this geometry.
  */
 {
-	static int XIwidth = -1, XIheight = -1;
-	static XImage *image = 0;
-	static XShmSegmentInfo shminfo;
 	char *xim;
 	Display *disp = XtDisplay (w);
 /*
@@ -401,8 +407,9 @@ int width, height;
 	if (image)
 	{
 		XShmDetach (disp, &shminfo);
-/*		XShmDestroyImage (image); */
-/*		Xfree ((char *) image); */
+		XDestroyImage (image);
+		shmdt (shminfo.shmaddr);
+		shmctl (shminfo.shmid, IPC_RMID, 0);
 	}
 /*
  * Now get a new one.
@@ -418,10 +425,10 @@ int width, height;
 	shminfo.shmid = shmget (IPC_PRIVATE, image->bytes_per_line*height,
 		IPC_CREAT | 0777);
 	if (shminfo.shmid < 0)
-		msg_ELog (EF_EMERGENCY, "SHM get failure!");
+		msg_ELog (EF_EMERGENCY, "SHM get failure (%d)!", errno);
 	shminfo.shmaddr = (char *) shmat (shminfo.shmid, 0, 0);
 	if (shminfo.shmaddr == (char *) -1)
-		msg_ELog (EF_EMERGENCY, "SHM attach failure!");
+		msg_ELog (EF_EMERGENCY, "SHM attach failure (%d)!", errno);
 /*
  * Hook everything together.
  */
@@ -436,6 +443,29 @@ int width, height;
 	return (image);
 }
 
+
+
+
+
+
+void
+RP_ZapSHMImage (w)
+Widget w;
+/*
+ * If there is a shared memory image, get rid of it.
+ */
+{
+	Display *disp = XtDisplay (w);
+
+	if (image)
+	{
+		XShmDetach (disp, &shminfo);
+		XDestroyImage (image);
+		shmdt (shminfo.shmaddr);
+		shmctl (shminfo.shmid, IPC_RMID, 0);
+		image = 0;
+	}
+}
 
 # endif
 
