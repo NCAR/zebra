@@ -103,6 +103,7 @@ void		I_ClearPosIcons FP (());
 static XtActionsRec Actions[] =
 {
 	{ "IconMenuPopup",	I_MenuPopup	},
+	{ "IconMenuSetup",	I_MenuPopup	},
 };
 
 /*
@@ -124,7 +125,7 @@ I_init ()
 /*
  * Add our actions.
  */
-	XtAppAddActions (Actx, Actions, ONE);
+	XtAppAddActions (Actx, Actions, XtNumber(Actions));
 	XtRegisterGrabAction (I_MenuPopup, True,
 		ButtonPressMask|ButtonReleaseMask, GrabModeAsync,
 		GrabModeAsync);
@@ -492,8 +493,8 @@ struct IconList	**avail, **used;
 /* ARGSUSED */
 static void
 I_MenuPopup (w, ev, stringjunk, cardjunk)
-Widget w;
-XEvent *ev;
+Widget w;					/* Should be the MenuButton 	*/
+XEvent *ev;					/* The button down event	*/
 String *stringjunk;
 Cardinal *cardjunk;
 /*
@@ -503,6 +504,7 @@ Cardinal *cardjunk;
 	char *menu;
 	struct IconList *ilp;
 	union usy_value v;
+	Arg arg;
 /*
  * First, we need to find the icon that generated this event.
  */
@@ -542,8 +544,20 @@ Cardinal *cardjunk;
  */
 	if (strcmp (menu, "DataAvailable"))
 		uw_IWRealize (menu, Graphics);
+/*
+ * Specify the menu name in the MenuButton's menuName resource so that
+ * further actions can find it
+ */
+	XtSetArg (arg, XtNmenuName, menu);
+	XtSetValues (w, &arg, (Cardinal)1 );
+
+#ifdef notdef
 	XtCallActionProc (w, "XawPositionSimpleMenu", ev, &menu, 1);
 	XtCallActionProc (w, "MenuPopup", ev, &menu, 1);
+#endif
+#ifdef notdef
+	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &menu, 1);
+#endif
 }
 
 
