@@ -21,7 +21,13 @@ $zbin="$ztop/bin";
 $ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
 
 # Project directory
-$project="$ztop/project/lake_ice";
+$project=".";
+
+# The platforms which are plotted for each observation rather
+# than only the most recent
+%Observations = ("iss1/class", 1, "iss2/class", 1, "iss3/class", 1,
+		 "bea", 1, "bel", 1, "tim", 1, 
+		 "own", 1, "alg", 1, "sud", 1);
 
 %Plots = (
 	  "iss1/class", 	"iss1 class",
@@ -47,7 +53,8 @@ $project="$ztop/project/lake_ice";
 	  "sud",       		"class-sud class"
 	  );
 
-%Queue = ();
+@Queue = ();
+%Pending = ();		# Platforms already in queue
 %Displays = ();
 
 # Default to getting notifications from standard input
@@ -87,13 +94,18 @@ while ($pattern = shift @ARGV)
     {
 	if ($platform =~ /$pattern/)
 	{
-	    $Queue{$platform} = "";
+	    if (! $Pending{$platform})
+	    {
+		$entry = join(' ', ($platform, "now", $Plots{$platform}));
+		push (@Queue, $entry);
+		$Pending{$platform} = 1;
+	    }
 	}
     }
 }
 print STDERR "Debug level = $debug\n" if $debug;
-print STDERR "Queueing platforms: \n   ",
-    join("\n   ",keys(%Queue)), "\n" unless (! $first);
+print STDERR "Queueing: \n   ",
+    join("\n   ",@Queue), "\n" unless (! $first);
 
 # If we weren't told to get input elsewhere, then
 # just clear the queue and we're done
@@ -170,11 +182,15 @@ while (<DS>)
 	print "$platform $file $time $nsample";
 
 	# If not in our list of plots, ignore it
-	if (defined $Plots{$platform})
+	if (defined $Plots{$platform} &&
+	    ($Observations{$platform} || ! Pending{$platform}))
 	{
+	    $Pending{$platform} = 1;
+
 	    # This latest notify will overwrite any notifications for this
 	    # platform already in the queue
-	    $Queue{$platform} = join(' ', ($file, $time, $nsample, $what));
+	    $entry = join(' ', ($platform, $time, $Plots{$platform}));
+	    push (@Queue, $entry);
 
 	    # After adding to the queue, set the alarm to clear the queue
 	    # after a suitable timeout with no further notifications.
@@ -193,6 +209,10 @@ close DS;
 # Clear anything left in the queue
 &clear;
 
+# Make sure we exit, even if it means aborting a hang
+$SIG{'ALRM'} = 'exit';
+alarm(30);
+
 # For some reason STDOUT and STDERR must be closed before LOG can close,
 # else perl hangs.  It might be because they have been redirected to LOG.
 close STDOUT;
@@ -204,9 +224,9 @@ exit 0;
 sub clear
 {
         alarm(0);
+	print "Clearing queue...\n" if $debug;
 
-	@keys = keys %Queue;
-	if ($#keys < 0)
+	if ($#Queue < 0)
 	{
 	    print "clear: No platforms in queue.\n";
 	    return;
@@ -218,43 +238,55 @@ sub clear
 	open(PLOG, "> $plog") || die "could not open $plog: $!\n";
 	$oldfh = select(PLOG); $| = 1; select($oldfh);
 
-	# print join("\n",%Queue), "\n";
-	# print join(" ",keys(%Queue)), "\n";
-
 	# Map the platforms in the queue into an array
 	# of display configs and windows
-	foreach $platform (@keys)
-	{
-	    ($file, $time, $nsample, $what) = split(/\s+/,$Queue{$platform});
-	    ($config, @window) = split(/\s+/,$Plots{$platform});
-	    print "$platform $file $time $nsample $what --> " .
-		"$config " . join(" ",@window) . "\n";
-	    print PLOG "$platform $file $time $nsample $what --> " .
-		"$config " . join(" ",@window) . "\n";
-	    foreach $w (@window)
-	    {
-		if (index($Displays{$config},"$w") < 0)
-		{
-		    $Displays{$config} .= " $w ";
-		}
-	    }
-	}
-	undef @keys;
+	#foreach $entry (@Queue)
+	#{
+	#   ($platform, $time) = split(/\s+/,$entry);
+	#    ($config, @window) = split(/\s+/,$Plots{$platform});
+	#    print "$platform $time --> " .
+	#	"$config " . join(" ",@window) . "\n";
+	#    print PLOG "$platform $time --> " .
+	#	"$config " . join(" ",@window) . "\n";
+	#    foreach $w (@window)
+	#    {
+	#	if (index($Displays{$config},"$w") < 0)
+	#	{
+	#	    $Displays{$config} .= " $w ";
+	#	}
+	#    }
+	#}
 
 	# Finally we can plot each config and its windows
+	# Open batch-plot and pipe our plot entries to it
 
 	$images = "";
 	$status="ok";
-	foreach $config (keys %Displays)
+	$batch = "/tmp/zplotd.batch.$$";
+	print "Opening $batch...\n" if $debug;
+	if (! open (BATCH, "> $batch"))
 	{
-	    $windows = $Displays{$config};
-	    print "Running: ./batch-plot now $config $windows\n";
-	    next if ($debug >= $D_NoPlot);
-
-	    if (! open (BP, "./batch-plot now $config $windows 2>&1 |"))
+	    $status="FAILED $batch: $!";
+	    print "$status" if $debug;
+	    return;
+	}
+	foreach $entry (@Queue)
+	{
+	    ($platform, $time, $config, @window) = split(/\s+/,$entry);
+	    $plot = "$time $config " . join(" ",@window);
+	    print "$plot\n";
+	    print PLOG "$plot\n";
+	    print BATCH "$plot\n";
+	}
+	close BATCH;
+	print "Running: sh -x ./batch-plot - < $batch\n";
+	if ($debug < $D_NoPlot)
+	{
+	    if (! open (BP, "sh -x ./batch-plot - < $batch 2>&1 |"))
 	    {
-		$status="FAILED";
-		next;
+		$status="FAILED batch-plot: $!";
+		print "$status" if $debug;
+		return;
 	    }
 	    while (<BP>)
 	    {
@@ -268,7 +300,7 @@ sub clear
 	    close BP;
 	    $status = "plot FAILED" if ($?);
 	}
-
+	unlink("$batch");
 	print "Running: ftpjoss.pl $images\n";
 	if ($debug >= $D_NoFtp)
 	{ }
@@ -299,7 +331,8 @@ sub clear
 	{
 	    print "--- Done. ---\n";
 	}
-	%Queue = ();
+	@Queue = ();
+	%Pending = ();
 	%Displays = ();
 }
 

@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.2 1997-12-07 21:08:50 granger Exp $
+# $Id: zplotbatch,v 1.3 1997-12-23 09:22:09 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -22,7 +22,7 @@ ztop="/net/sssf3/lake_ice/zebra"
 zstart=./zstart
 
 # Project directory
-project="$ztop/project/lake_ice"
+project="."
 
 # Special paths for Xvfb and zebra.
 PATH=$ztop/bin:/local/X11R6/bin:$PATH
@@ -52,6 +52,9 @@ if [ $# -gt 0 ]; then
 	;;
      now) 
 	;;
+     -)
+	echo "Accepting plots from stdin"
+	;;
      *)
 	echo "First argument, if present, must be 'now' or a time."
 	echo "$0 now [config] [window ..]"
@@ -77,7 +80,15 @@ done
 # Should be no arguments left
 if [ $# -gt 0 ]; then
     echo "Usage: $0 [ {now|<time>} config [window ..]]"
+    echo "Usage: $0 -"
+    echo "When reading stdin, lines are '{now|<time>} config [window ..]'"
     exit 1
+fi
+
+if [ "x$when" != "x-" ]; then
+    temp=/tmp/batch-plot.$$
+    echo "$when $config $windows" > $temp
+    exec < $temp
 fi
 
 PRESERVE_ZEB=1; export PRESERVE_ZEB
@@ -102,7 +113,7 @@ sleep 5
 # Then start a private display session
 # We set the dm name explicitly so that we can query it
 
-DEFAULT_CONFIG=$config
+DEFAULT_CONFIG=empty
 DM=B$$
 ZEB_DM_CONFIG="-multiple -name $DM dm.config"
 export DEFAULT_CONFIG ZEB_DM_CONFIG
@@ -110,67 +121,78 @@ echo "-- Starting display manager:"
 $zstart -dm -preserve $project &
 dm=$!
 sleep 10
-# Wait for dm to connect to datastore, then wait for windows to come up
-if zquery -t 10 $DM ; then true ; else
-    sleep 20
-    if zquery -t 20 $DM ; then true ; else
-	echo "$DM display never connected."
-	exit 1
-    fi
+# Wait for dm to connect to datastore, then wait for dm to respond to
+# a query once daemon scan finally finishes
+if zquery -t 600 $DM > /dev/null 2>&1; then true ; else
+    echo "$DM display never connected."
+    exit 1
 fi
-sleep 30
-if [ $when = "now" ]; then
-    zrun $DM "realtime all"
-else
-    zrun $DM "history all $when"
-fi
-# Wait for windows to take the new time
-sleep 15
-
-# Get a list of the graphics processes appearing in this display
-
-mstatus
-procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
-echo "Processes: $procs"
-
-# For each process, tell it to dump its plot
-# Put the image in a subdirectory of spool according to the hour of day
-
-#hour=`date -u '+%H'`
-#day=`date -u '+%d'`
-#month=`date -u '+%m'`
-#year=`date -u '+%y'`
-#min=`date -u '+%M'`
-#base="${year}${month}${day}${hour}${min}.${config}_"
+# Wait for dm initialization after passing the daemon scan
+sleep 10
 
 if [ ! -d $spool ]; then
     mkdir -p $spool
 fi
-# JOSS filenames: YYMMDDHHmm.stationid_plottype.gif (or .jpg, or .txt)
-base=`date -u '+%y%m%d%H%M'`.${config}_
 images=''
-for plot in $procs ; do
 
-    name=`echo $plot | sed -e "s/-$DM.*//"`
+now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
 
-    # If we have specific targets, skip this window if it's not one of them
-    if test "$windows" = "" || echo "$windows" | egrep -s "$name"; then
+# Begin looping over the plots we're supposed to make
+while read when config windows; do
 
-	name="$spool/${base}${name}.gif"
+    echo $when $config $windows
 
-	# Form the gif file name by extracting the plot name from the
-	# process. An alternative is to grep the pd-name from a zquery of
-	# the process, which includes the config name.  For now we can
-	# prepend the config here.
-
-        images="$images $name"
-	$echo zrun $plot "imgdump gif \"$name\""
-
+    zrun $DM "display $config"
+    sleep 30
+    if [ $when = "now" ]; then
+    	zrun $DM "realtime all"
+	when=$now
+    else
+    	zrun $DM "history all $when"
     fi
+    # Wait for windows to take the new time
+    sleep 30
+
+    # Get a list of the graphics processes appearing in this display
+    mstatus
+    procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
+    echo "Processes: $procs"
+
+    # For each process, tell it to dump its plot
+
+    # JOSS filenames: YYMMDDHHmm.stationid_plottype.gif
+    # Derive the image name from the plot time
+    set `./tcsplit $when`
+    base="$1$2$3$4$5.${config}_"
+
+    for plot in $procs ; do
+
+	name=`echo $plot | sed -e "s/-$DM.*//"`
+
+	# If we have specific targets, skip this window if it's not one of them
+	if test "$windows" = "" || echo "$windows" | egrep -s "$name"; then
+
+	    name="$spool/${base}${name}.gif"
+
+	    # Form the gif file name by extracting the plot name from the
+	    # process. An alternative is to grep the pd-name from a zquery of
+	    # the process, which includes the config name.  For now we can
+	    # prepend the config here.
+
+	    images="$images $name"
+	    $echo zrun $plot "imgdump gif \"$name\""
+
+	fi
+
+    done
+    # Wait for plots to finish
+    $echo sleep 60
 
 done
-# Wait for plots to finish
-$echo sleep 60
+
+if [ -f "$temp" ]; then
+    rm -f $temp
+fi
 
 # Add the disclaimer to each of the images
 #

@@ -1,0 +1,39 @@
+#! /usr/local/bin/perl5
+#
+# $Id: ztsplit,v 1.1 1997-12-23 09:22:14 granger Exp $
+#
+# Split zebra times into yy mm dd hour min sec
+#
+
+# 7-dec-1997,12:00:00
+
+%Months = ("jan", 1,
+	   "feb", 2,
+	   "mar", 3,
+	   "apr", 4,
+	   "may", 5,
+	   "jun", 6,
+	   "jul", 7,
+	   "aug", 8,
+	   "sep", 9,
+	   "oct", 10,
+	   "nov", 11,
+	   "dec", 12);
+
+if ($#ARGV != 0)
+{
+    print "Usage: tcsplit <time>\n";
+    exit 1;
+}
+
+($day, $mon, $year, $hour, $min, $sec) =
+    $ARGV[0] =~ /(\d+)-(\w+)-(\d+),(\d+):(\d+):(\d+)/;
+
+#print "$mon\n";
+$month = `echo $mon | tr 'A-Z' 'a-z'`;
+chop $month;
+
+printf "%02d %02d %02d %02d %02d %02d\n",
+    ($year % 100), $Months{$month}, $day, $hour, $min, $sec;
+
+exit 0;

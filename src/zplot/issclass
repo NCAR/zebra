@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: issclass,v 1.1 1997-12-07 21:09:01 granger Exp $
+# $Id: issclass,v 1.2 1997-12-23 09:22:12 granger Exp $
 #
 # Convert recent iss class files to ascii and ftp
 #
@@ -11,7 +11,7 @@ $zbin="$ztop/bin";
 $ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
 
 # Project directory
-$project="$ztop/project/lake_ice";
+$project=".";
 
 $joss = "/net/sssf3/lake_ice/joss";
 
