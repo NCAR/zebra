@@ -1,4 +1,4 @@
-! $Id: is.state,v 1.1 1991-10-11 15:29:25 martin Exp $
+! $Id: is.state,v 1.2 1991-10-11 21:38:04 martin Exp $
 !
 ! Command definition for the display manager.
 !
@@ -35,6 +35,9 @@ define state is-initial
 	endinput
 	input 'list' 12
 		next all-or-name
+	endinput
+	input 'shutdown' 19
+		next ust$no_more
 	endinput
 enddef
 

@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.2 1991-10-11 15:27:54 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.3 1991-10-11 21:37:53 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -144,6 +144,10 @@ is_initial(arg, cmds)
 
 	case ISC_STOP:
 		is_stop(cmds + 1);
+		break;
+
+	case ISC_SHUTDOWN:
+		is_shutdown();
 		break;
 
 	default:
