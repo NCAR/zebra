@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.17 1993-12-27 21:07:11 corbet Exp $
+/**/# $Id: Project.tmpl,v 1.18 1994-01-13 16:19:04 burghart Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -326,9 +326,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 #ifndef CCStaticOption
 #if UseGcc
-#define CCStaticOption /* -static */
+#define CCStaticOption -static
 #else
-#define CCStaticOption /* -Bstatic */
+#define CCStaticOption -Bstatic
 #endif
 #endif /* CCStaticOption */
 
@@ -545,13 +545,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
                CC = CCompiler
               C++ = CccCompiler
-/* #if UseOpenWindows && OpenWindowsVersion < 3 */
-/* Apparently it doesn't matter which version we're using... #@$%#@! */
-#if UseOpenWindows
-        CCOPTIONS = CCOptions CCStaticOption
-#else
         CCOPTIONS = CCOptions 
-#endif /* UseOpenWindows */
       CDEBUGFLAGS = CDebugFlags
          C++FLAGS = CccOptions $(CFLAGS)
           C++LIBS = CccLibs /* variable should be explicitly included in */

@@ -39,7 +39,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.14 1994-01-03 22:38:03 granger Exp $
+/**/# $Id: config.h-v4.0,v 1.15 1994-01-13 16:19:07 burghart Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -250,12 +250,6 @@
  * define OpenWindowsVersion to the correct version number, either 2 or 3.
  * If the home directory of OpenWindows is not the default /usr/openwin,
  * then define OpenWinHome to the correct directory.
- *
- * Zeb must be statically linked with the OpenWindows library.  If you are
- * using Sun's cc compiler or GNU C, the static option will be used
- * automatically.  Otherwise the definition of the CCStaticOption symbol
- * will be used.  Define this symbol to the correct static option if it is
- * not the default of '-Bstatic'.  
  */
 # define UseOpenWindows 	NO	
 # define OpenWindowsVersion 	2
@@ -275,7 +269,6 @@
  * If you wish to use gcc, simply define UseGcc to YES.
  *  - This setting automatically sets the CCompiler command
  *    (so don't override it) and any other necessary options
- *    (such as -static if you have set UseOpenWindows to YES)
  * If you wish to use a C compiler other than the default,
  * define CCompiler to the C compiler command.  For most systems,
  * the default will be 'cc'.
