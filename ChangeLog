@@ -1,3 +1,71 @@
+Wed Dec  1 10:41:12 1993  Chris Burghart  (burghart@trenco)
+
+	* MAJOR thrashing of the entire set of XY modules.  Just about 
+	  everything changed to a pretty significant degree, so I won't try
+	  to elaborate on the changes.  If at all possible, try not to dredge 
+	  up anything from previous versions of the code...  The old 
+	  xdr_infinity.h header file disappears with this version.  ARM's
+	  xy graph problems (grid being plotted over data, etc.) should be
+	  addressed by these changes.
+
+	* PlotPrim.c received a code cleaning with some simplification.  
+	  Prototypes have been moved to the new PlotPrim.h to make them 
+	  available to external modules.  Routines previously named with 
+	  a gp_ prefix have been renamed with a pp_ prefix to make them 
+	  easier to find.
+
+	* Changes to PlotExec.c so that axes are no longer drawn at this 
+	  level (i.e., the call to ac_DisplayAxes() is gone), but axis resets 
+	  are now done here when a global replot takes place (i.e., we call 
+	  ac_ResetAxes()).  Axis space allocation via lc_SetAxisSpace() has
+	  been simplified.
+
+	* In PlotControl.c, changed pc_UnZoom() so that it now only replots 
+	  if an unzoom actually happens.  The replot event is also now done as
+	  an Override rather than an Augment.
+
+	* Major code cleaning in LayoutControl.c and LayoutControl.h.  Just 
+	  about everything changed to some degree or other.  GraphProc.c 
+	  gained a call to lc_Init() to get everything initialized.
+
+	* In Icons.c, added a sanity clause to I_PositionIcon() to bail out 
+	  if it doesn't get a good pixmap.
+
+	* Simplification and restucturing of the axis control code.  The
+	  main interface to the outside world now consists of ac_ResetAxes() 
+	  and ac_PlotAxes().  Other routines, such as ac_GetComponentAxes(), 
+	  ac_QueryAxisState(), ac_UpdateAxisState(), and ac_AxisSide() have 
+	  gone away.
+
+	* In Annotate.c, simplified An_ColorScale() somewhat and changed 
+	  An_XYGString() to use I_PositionIcon().
+
+Thu Nov 18 09:25:51 1993  Jonathan Corbet  (corbet@ale)
+
+	* More dm changes, mostly more command line functions.
+
+	* Added the "startzeb" script in src/etc.  It gets slightly
+          massaged and installed into /zeb/bin.  My hope is that this
+          script will do away with the need for lots of customized,
+          project-specific startup scripts.  Just about everything is
+          tweakable through environment variables, and it will pull in a
+          project-specific tweaking file if it exists.
+
+Mon Nov 15 14:07:07 1993  Jonathan Corbet  (corbet@ale)
+
+	* Fixed a stale memory bug that caused occasional random color
+	  table weirdness.  As far as I can tell, this bug has been there
+	  since 1991.
+
+	* Added a variable CTablePath in dm which is used to load up color
+	  tables at request time.  Also added .../src/etc/colortables to
+	  hold the usual crowd of color table files.
+
+Tue Nov  9 16:01:22 1993  Jonathan Corbet  (corbet@stout)
+
+	* Numerous small bug fixes, mostly nasty array overruns and the
+	  like in active areas, plot exec.
+
 Fri Nov  5 15:00:25 1993  Gary Granger  (granger@kodiak)
 
 	* Tagging version V3-5.
