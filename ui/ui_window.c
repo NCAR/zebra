@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.15 1990-09-11 14:27:52 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.16 1990-09-17 10:28:48 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -65,6 +65,11 @@ static bool Save_all = 0;
  */
 struct gen_widget *uw_list_def (), *uw_cm_def (), *uw_mb_def ();
 extern struct gen_widget *uw_DefIPU ();
+# ifdef __STDC__
+	Widget uw_MakeHeader (FrameWidget *, Widget);
+# else
+	Widget uw_MakeHeader ();
+# endif
 
 
 
@@ -123,7 +128,7 @@ XtAppContext *appc;
 {
 	Arg args[10];
 	void uw_quit (), uw_sel (), uw_do_pop ();
-	int uw_xevent ();
+	void uw_xevent ();
 /*
  * Throw the mode onto the stack.
  */
@@ -212,7 +217,7 @@ union usy_value *v;
 
 
 
-
+void
 uw_xevent ()
 /*
  * Called when an X event is pending.
@@ -231,10 +236,6 @@ uw_xevent ()
 		XtAppNextEvent (Appc, &event);
 		XtDispatchEvent (&event);
 	}
-/*
- * Done.
- */
-	return (1);
 }
 
 
@@ -312,7 +313,12 @@ struct ui_command *cmds;
 	struct frame_widget *frame;
 	bool noframe = FALSE;
 /*
- * Here we just split apart, depending on the various widget types.
+ * Create the frame widget first.
+ */
+	frame = uw_make_frame (name, title);
+	frame->fw_flags = WF_INTERNAL;
+/*
+ * Define the real guts of the widget.
  */
 	switch (type)
 	{
@@ -338,7 +344,7 @@ struct ui_command *cmds;
 	 * Menubar widgets.
 	 */
 	   case WT_MENUBAR:
-	   	gw = uw_mb_def ();
+	   	gw = uw_mb_def (frame);
 		break;
 	/*
 	 * Internal, frameless, popup menus.
@@ -352,10 +358,8 @@ struct ui_command *cmds;
 	   	ui_error ("(BUG): unknown widget type: %d\n", type);
 	}
 /*
- * Now really define our new widget.
+ * Tie it all together and truly define the new widget.
  */
-	frame = uw_make_frame (name, title);
-	frame->fw_flags = WF_INTERNAL;
 	if (noframe)
 		frame->fw_flags |= WF_NOFRAME;
 	uw_add_child (frame, (struct gen_widget *) gw);
@@ -404,7 +408,8 @@ char *name, *title;
  */
 	frame->fw_flags = WF_INTERNAL;
 	ERRORCATCH
-		ui_subcommand ("ust$in-stack", "Stack>", uw_in_stack, frame);
+		ui_subcommand ("ust$in-stack", "Stack>", uw_in_stack, 
+			(int) frame);
 	ON_ERROR
 		/* uw_destroy (frame) */
 		RESIGNAL;
@@ -633,6 +638,7 @@ char *name, *title;
 	w->fw_create = 0;
 	w->fw_flags = 0;
 	w->fw_nchild = 0;
+	w->fw_x = w->fw_y = w->fw_width = w->fw_height = NotSpecified;
 	strcpy (w->fw_name, name);
 	strcpy (w->fw_title, title);
 	return (w);
@@ -647,40 +653,41 @@ struct frame_widget *w;
  * Create this frame widget.
  */
 {
-	static Arg arglist[] = {
-		{XtNinput, (XtArgVal) True},
-	};
 	Arg args[10];
 	Widget zap, label, form, header;
 	void uw_zapbutton ();
 	struct gen_widget *gw;
+	int n;
 /*
  * Create the popup shell, and the form to go within it.
  */
+	n = 0;
+	XtSetArg (args[n], XtNinput, True);		n++;
+	if (w->fw_x != NotSpecified)
+	{
+		XtSetArg (args[n], XtNx, w->fw_x);	n++;
+		XtSetArg (args[n], XtNy, w->fw_y);	n++;
+	}
+	if (w->fw_width != NotSpecified)
+	{
+		XtSetArg (args[n], XtNwidth, w->fw_width);	n++;
+		XtSetArg (args[n], XtNheight, w->fw_height);	n++;
+	}
+	if (w->fw_flags & WF_OVERRIDE)
+	{
+		XtSetArg (args[n], XtNoverrideRedirect, True);	n++;
+	}
 	w->fw_w = XtCreatePopupShell (w->fw_name, topLevelShellWidgetClass,
-		Top, arglist, XtNumber (arglist));
+		Top, args, n);
 	form = XtCreateManagedWidget ("form", formWidgetClass, w->fw_w,
 		args, 0);
-	XtSetArg (args[0], XtNdefaultDistance, 1);
-	header = XtCreateManagedWidget (w->fw_name, formWidgetClass, form,
-		args, 1);
 /*
- * Add the label and the zap button to the form.
+ * If called for, make the title and zap button header.
  */
-	XtSetArg (args[0], XtNlabel, w->fw_title);
-	XtSetArg (args[1], XtNjustify, XtJustifyLeft);
-	XtSetArg (args[2], XtNresize, True);
-	XtSetArg (args[3], XtNborderWidth, 0);
-	XtSetArg (args[4], XtNfont, (XtArgVal) Labelfont);
-	label = XtCreateManagedWidget ("title", labelWidgetClass, header,
-		args, 5);
-	XtSetArg (args[0], XtNlabel, "Zap");
-	XtSetArg (args[1], XtNfromHoriz, label);
-	XtSetArg (args[2], XtNfromVert, NULL);
-	XtSetArg (args[3], XtNcursor, Zapcursor);
-	zap = XtCreateManagedWidget ("zap", commandWidgetClass, header,args,4);
-	XtAddCallback (zap, XtNcallback, uw_zapbutton, w);
-
+	if (! (w->fw_flags & WF_NOHEADER))
+		header = uw_MakeHeader (w, form);
+	else
+		header = NULL;
 # ifdef notdef
 /*
  * Now add the Vpaned widget to hold the actual children.
@@ -702,6 +709,54 @@ struct frame_widget *w;
 	w->fw_flags |= WF_CREATED;
 }
 
+
+
+
+Widget
+uw_MakeHeader (frame, form)
+FrameWidget *frame;
+Widget form;
+/*
+ * Create a header widget for this frame.
+ */
+{
+	Arg args[10];
+	int n;
+	Widget header, label, zap;
+/*
+ * Create a second form to hold the title and zap button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNdefaultDistance, 1);
+	XtSetArg (args[n], XtNtop, XtChainTop);			n++;
+	XtSetArg (args[n], XtNbottom, XtChainTop);		n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft);		n++;
+	XtSetArg (args[n], XtNright, XtChainLeft);		n++;
+	header = XtCreateManagedWidget ("header", formWidgetClass, form,
+		args, n);
+/*
+ * Add the label and the zap button to the form.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, frame->fw_title);		n++;
+	XtSetArg (args[n], XtNjustify, XtJustifyLeft);		n++;
+	XtSetArg (args[n], XtNresize, True);			n++;
+	XtSetArg (args[n], XtNborderWidth, 0);			n++;
+	XtSetArg (args[n], XtNfont, (XtArgVal) Labelfont);	n++;
+	label = XtCreateManagedWidget ("title", labelWidgetClass, header,
+		args, n);
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Zap");			n++;
+	XtSetArg (args[n], XtNfromHoriz, label);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);			n++;
+	XtSetArg (args[n], XtNcursor, Zapcursor);		n++;
+	zap = XtCreateManagedWidget ("zap", commandWidgetClass, header,args,n);
+	XtAddCallback (zap, XtNcallback, uw_zapbutton, frame);
+/*
+ * Done.
+ */
+ 	return (header);
+}
 
 
 
@@ -745,7 +800,8 @@ struct gen_widget *child;
  * Create the child widget.
  */
 {
-	Arg formargs[3];
+	Arg formargs[10];
+	int n;
 /*
  * Actually create the child widget.
  */
@@ -754,10 +810,15 @@ struct gen_widget *child;
  * Add the form resources to this widget, then get the form to actually
  * manage it.
  */
-	XtSetArg (formargs[0], XtNfromHoriz, NULL);
-	XtSetArg (formargs[1], XtNfromVert, frame->fw_bottom);
-	XtSetArg (formargs[2], XtNvertDistance, -2);
-	XtSetValues (child->gw_w, formargs, 3);
+	n = 0;
+	XtSetArg (formargs[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (formargs[n], XtNfromVert, frame->fw_bottom);	n++;
+	XtSetArg (formargs[n], XtNvertDistance, -2);		n++;
+	XtSetArg (formargs[n], XtNtop, XtChainTop);		n++;
+	XtSetArg (formargs[n], XtNbottom, XtChainBottom);	n++;
+	XtSetArg (formargs[n], XtNleft, XtChainLeft);		n++;
+	XtSetArg (formargs[n], XtNright, XtChainRight);		n++;
+	XtSetValues (child->gw_w, formargs, n);
 	XtManageChild (child->gw_w);
 /*
  * This is the new bottommost widget.
@@ -1205,5 +1266,140 @@ char *name;
 }
 
 
+
+
+
+void
+uw_DoFrameParam (frame, cmds)
+FrameWidget *frame;
+struct ui_command *cmds;
+/*
+ * Deal with parameters which change the frame of a widget.
+ */
+{
+	switch (UKEY (*cmds))
+	{
+	/*
+	 * Maybe they don't want a header on this one.
+	 */
+	   case UIC_NOHEADER:
+	   	frame->fw_flags |= WF_NOHEADER;
+		break;
+	/*
+	 * They know where they want it to be.
+	 */
+	   case UIC_LOCATION:
+	   	frame->fw_x = UINT (cmds[1]);
+		frame->fw_y = UINT (cmds[2]);
+		break;
+	/*
+	 * Or how big.
+	 */
+	   case UIC_SIZE:
+	   	frame->fw_width = UINT (cmds[1]);
+		frame->fw_height = UINT (cmds[2]);
+		break;
+	/*
+	 * Maybe they *really* know what they want.
+	 */
+	   case UIC_OVERRIDE:
+	   	frame->fw_flags |= WF_OVERRIDE;
+		break;
+	}
+}
+
+
+
+
+uw_SetGeometry (widget, x, y, width, height)
+char *widget;
+int x, y, width, height;
+/*
+ * Change the geometry of a widget from within the program.
+ */
+{
+	FrameWidget *fw = (FrameWidget *) uw_g_widget (widget);
+/*
+ * Sanity checks.
+ */
+	if (! fw)
+		ui_error ("SetGeometry call on nonexistent widget '%s'",
+				widget);
+	if (fw->fw_type != WT_FRAME)
+		ui_error ("SetGeometry call on nonframe widget '%s'", widget);
+/*
+ * If the widget is realized, stuff in the values directly.
+ */
+	if (fw->fw_flags & WF_CREATED)
+	{
+		Arg args[5];
+		int n = 0;
+		if (x >= 0)
+		{
+			XtSetArg (args[n], XtNx, x);	n++;
+			XtSetArg (args[n], XtNy, y);	n++;
+		}
+		if (width > 0)
+		{
+			XtSetArg (args[n], XtNwidth, width);	n++;
+			XtSetArg (args[n], XtNheight, height);	n++;
+		}
+		XtSetValues (fw->fw_w, args, n);
+		uw_sync ();
+	}
+/*
+ * In any case store the info in the frame.
+ */
+	if (x >= 0)
+	{
+		fw->fw_x = x;
+		fw->fw_y = y;
+	}
+	if (width > 0)
+	{
+		fw->fw_width = width;
+		fw->fw_height = height;
+	}
+}
+
+
+
+void
+uw_ForceOverride (name)
+char *name;
+/*
+ * Force the widget by this name into override mode.
+ */
+{
+	FrameWidget *fw = (FrameWidget *) uw_g_widget (name);
+	Arg args[5];
+/*
+ * Sanity checks.
+ */
+	if (! fw)
+		ui_error ("Override call on nonexistent widget '%s'", name);
+	if (fw->fw_type != WT_FRAME)
+		ui_error ("Override call on nonframe widget '%s'", name);
+/*
+ * If it's already an override, life is easy.
+ */
+	if (fw->fw_flags & WF_OVERRIDE)
+		return;
+/*
+ * If the widget already exists, we need to pull it from the screen.  Then
+ * set the flag.
+ */
+	if ((fw->fw_flags & WF_CREATED) && (fw->fw_flags & WF_POPPED))
+		uw_popdown (name);
+	fw->fw_flags |= WF_OVERRIDE;
+/*
+ * If the widget already exists, we must stuff it into there too.
+ */
+	if (fw->fw_flags & WF_CREATED)
+	{
+		XtSetArg (args[0], XtNoverrideRedirect, True);
+		XtSetValues (fw->fw_w, args, 1);
+	}
+}
 
 # endif /* XSUPPORT */

@@ -1,4 +1,4 @@
-/* $Id: ui_window.h,v 1.4 1990-06-04 14:50:34 corbet Exp $ */
+/* $Id: ui_window.h,v 1.5 1990-09-17 10:28:52 corbet Exp $ */
 /*
  * Definitions for windowing code.
  */
@@ -12,7 +12,8 @@
 # define WT_STACK	3
 # define WT_MENUBAR	4
 # define WT_APPL	5	/* Application-defined widget	*/
-
+# define WT_INTPOPUP	6	/* Internal popup menu		*/
+# define WT_MENUBUTTON	7	/* A popup menu button (+ menu)	*/
 
 /*
  * An entry in a mapping table, which is used to map selector variable
@@ -81,7 +82,7 @@ struct gen_widget
 /*
  * The "frame" which is the outermost structure for all ui widgets.
  */
-struct frame_widget
+typedef struct frame_widget
 {
 	int	fw_type;	/* = WT_FRAME				*/
 	struct gen_widget *fw_next;	/* Next widget in the chain	*/
@@ -100,7 +101,7 @@ struct frame_widget
 	Widget fw_vp;		/* The internal vpaned widget		*/
 	Widget fw_form;		/* The internal form widget		*/
 	Widget fw_bottom;	/* Last widget on the stack.		*/
-};
+} FrameWidget;
 
 /*
  * Frame widget flags.
@@ -111,22 +112,31 @@ struct frame_widget
 # define WF_INIT	0x0008	/* Was this widget created during init? */
 # define WF_OVERRIDE	0x0010	/* This is an OVERRIDE widget		*/
 # define WF_NOFRAME	0x0020	/* Do not add a frame to this widget	*/
+# define WF_NOHEADER	0x0040	/* No title header or zap button	*/
 
+/*
+ * The default value for geometry is to let the window manager deal with it.
+ */
+# ifdef __STDC__
+static const int NotSpecified = -1;
+# else
+# define NotSpecified -1
+# endif
 /*
  * Internal functions.
  */
 # ifdef __STDC__
-int uw_in_map (struct mtemp *mt, struct ui_command *cmds);
-char *uw_LoadString (int lun);
-struct map_table *uw_LoadMap (int lun, int nmap);
-char ** uw_nt_to_array (char *strings);
-struct frame_widget *uw_make_frame (char *name, char *title);
-
+	int uw_in_map (struct mtemp *mt, struct ui_command *cmds);
+	char *uw_LoadString (int lun);
+	struct map_table *uw_LoadMap (int lun, int nmap);
+	char ** uw_nt_to_array (char *strings);
+	struct frame_widget *uw_make_frame (char *name, char *title);
+	void uw_DoFrameParam (FrameWidget *, struct ui_command *);
 # else
-
-int uw_in_map ();
-char *uw_LoadString ();
-struct map_table *uw_LoadMap ();
-char ** uw_nt_to_array ();
-struct frame_widget *uw_make_frame ();
+	int uw_in_map ();
+	char *uw_LoadString ();
+	struct map_table *uw_LoadMap ();
+	char ** uw_nt_to_array ();
+	struct frame_widget *uw_make_frame ();
+	void uw_DoFrameParam ();
 # endif

@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.5 1990-09-04 09:18:25 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.6 1990-09-17 10:28:46 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -102,7 +102,8 @@ struct mb_menu
 
 
 struct gen_widget *
-uw_mb_def ()
+uw_mb_def (frame)
+FrameWidget *frame;
 /*
  * Interactively define a new menubar widget.
  */
@@ -121,12 +122,13 @@ uw_mb_def ()
 	new->mw_destroy = uw_mbdestroy;
 	new->mw_popup = 0;
 	new->mw_vert = FALSE;
+	new->mw_frame = frame;
 /*
  * Read in each pulldown.
  */
 	ERRORCATCH
 		ui_subcommand ("ust$in-menubar", "Menubar>", uw_in_menubar,
-				new);
+				(long) new);
 	ON_ERROR
 		relvm (new);	/* What about pulldowns? */
 		RESIGNAL;
@@ -153,20 +155,33 @@ struct ui_command *cmds;
 	struct mb_menu *menu, *list;
 	int uw_in_mbentry ();
 /*
- * If this is an ENDDEF, we're done.
+ * See what we've got here.
  */
-	if (UKEY (cmds[0]) == UIC_ENDDEF)
-		return (FALSE);
-/*
- * Otherwise maybe it says "vertical"
- */
-	if (UKEY (cmds[0]) == UIC_VERTICAL)
+	switch (UKEY (*cmds))
 	{
+	/*
+	 * If this is an ENDDEF, we're done.
+	 */
+	   case UIC_ENDDEF:
+		return (FALSE);
+	/*
+	 * Otherwise maybe it says "vertical"
+	 */
+	   case UIC_VERTICAL:
 		mb->mw_vert = TRUE;
+		return (TRUE);
+	/*
+	 * Could be frame stuff.
+	 */
+	   case UIC_NOHEADER:
+	   case UIC_LOCATION:
+	   case UIC_SIZE:
+	   case UIC_OVERRIDE:
+	   	uw_DoFrameParam (mb->mw_frame, cmds);
 		return (TRUE);
 	}
 /*
- * OK, we must have a pulldown menu.
+ * If it's none of those, we're dealing with a pulldown menu.
  */
 	cmds++;
 	menu = NEW (struct mb_menu);
@@ -203,7 +218,8 @@ struct ui_command *cmds;
  * Deal with the actual entries now.
  */
 	/* errorcatch? */
-	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry, menu);
+	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry, 
+		(long) menu);
 	return (TRUE);
 }
 
@@ -234,7 +250,8 @@ char *name;
  * Deal with the actual entries now.
  */
 	/* errorcatch? */
-	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry, menu);
+	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry,
+		(long) menu);
 	return ((struct gen_widget *) menu);
 }
 
@@ -306,7 +323,7 @@ struct ui_command *cmds;
 	     */
 		mt.mtm_nmap = &menu->mbm_nmap;
 		mt.mtm_t = menu->mbm_map;
-	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, &mt);
+	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, (long) &mt);
 		break;
 	/*
 	 * Anything else is weird.
