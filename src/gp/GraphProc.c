@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.9 1990-07-08 12:52:15 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.10 1990-07-09 21:34:46 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -656,7 +656,7 @@ struct dm_parchange *dmp;
  * Now reset things.
  */
 	par = dmp->dmm_param;
-	Eq_AddEvent (PDisplay, pc_ParamChange, par, 1 + strlen(par), Override);
+	Eq_AddEvent (PDisplay, pc_ParamChange, par, 1 + strlen(par), Augment);
 }
 
 
@@ -686,7 +686,7 @@ char *comp, *param, *value;
  * Now reset things.
  */
 	Eq_AddEvent (PDisplay, pc_ParamChange, param, strlen (param) + 1,
-			Override);
+			Augment);
 /*
  * We'll also eventually want to ship the PD back to DM.
  */
