@@ -62,7 +62,7 @@ bool	DisplayUp = False;
  * Data file variables.
  */
 FILE	*Fptr;
-char	*Fname = "/tmp/dsdwidget.tmp";
+char	Fname[30];
 static struct fname
 {
 	int	flag;
@@ -125,7 +125,7 @@ char	**argv;
 	}
 	if (! ds_Initialize ())
 	{
-		printf ("Unable to initailize data store.\n");
+		printf ("Unable to initialize data store.\n");
 		exit (1);
 	}
 /*
@@ -136,6 +136,8 @@ char	**argv;
 /*
  * Create the data file.
  */
+	sprintf (Fname, "/tmp/dsdwidget%d", getpid ());
+
 	Fptr = fopen (Fname, "w");
 	fprintf (Fptr, "data file");
 	fclose (Fptr);
