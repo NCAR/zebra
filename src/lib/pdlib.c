@@ -26,7 +26,13 @@
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.19 1994-01-28 21:31:23 granger Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.20 1994-04-27 13:58:31 granger Exp $")
+
+struct traverse {
+	int (*func)();		/* Function to call for traverse */
+	void *arg;		/* Argument to pass		 */
+};
+
 
 /*
  * A counter used to generate unique symbol table names.
@@ -44,6 +50,8 @@ static int pd_ForEachComponent FP ((plot_description pd, int (*func)(),
 				int param));
 static stbl pd_NewPD FP ((char *name));
 static stbl pd_NewComponent FP ((stbl pd, char *pdname, char *compname));
+static int pd_ParamFunc FP((char *name, int type, union usy_value *v,
+			    struct traverse *t));
 
 /*
  * Size of temp buffer used for writing raw PD's, eg 40960
@@ -374,7 +382,8 @@ raw_plot_description *rpd;
 
 
 
-static int pd_ForEachComponent (pd, func, param)
+static int
+pd_ForEachComponent (pd, func, param)
 plot_description pd;
 int (*func) ();
 int param;
@@ -803,6 +812,51 @@ plot_description pd;
 }
 
 
+
+void
+pd_TraverseParameters (pd, compname, func, arg)
+plot_description pd;
+char *compname;
+int (*func)();
+void *arg;
+/*
+ * Call the function for each parameter in the component
+ */
+{
+	stbl comp;
+	int type;
+	union usy_value v;
+	struct traverse t;
+
+	/*
+	 * Find the component symbol table.
+	 */
+	if (! usy_g_symbol ((stbl) pd, compname, &type, &v))
+	{
+		msg_ELog (EF_PROBLEM, "No comp '%s' in pd",
+			  compname);
+		return;
+	}
+	/*
+	 * Traverse the parameters calling the designated function.
+	 */
+	comp = (stbl) v.us_v_ptr;
+	t.func = func;
+	t.arg = arg;
+	usy_traverse (comp, pd_ParamFunc, (long) &t, TRUE);
+}
+
+
+
+static int
+pd_ParamFunc (name, type, v, t)
+char *name;
+int type;
+union usy_value *v;
+struct traverse *t;
+{
+	return ((*t->func)(name, v->us_v_ptr, t->arg));
+}
 
 
 

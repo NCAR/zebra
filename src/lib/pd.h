@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.10 1993-11-30 02:12:35 granger Exp $
+ * $Id: pd.h,v 1.11 1994-04-27 13:58:29 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -79,5 +79,7 @@ plot_description pd_ReadComponent FP((plot_description, char *, char *));
 void pd_AddComponent FP((plot_description, plot_description, int));
 void pd_MoveComponent FP((plot_description, char *, int));
 bool pd_CompExists FP((plot_description, char *));
+void pd_TraverseParameters FP((plot_description pd, char *compname, 
+			       int (*func)(), void *arg));
 
 #endif /* !__zeb_pd_h_ */
