@@ -1,5 +1,5 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.7 1996-01-02 02:48:21 granger Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.8 1996-01-02 18:25:08 granger Exp $";
 /*
  * Interrupt handling.
  */
@@ -10,7 +10,7 @@ static char *rcsid = "$Id: ui_interrupt.c,v 1.7 1996-01-02 02:48:21 granger Exp 
 # include "ui_param.h"
 # include "ui_globals.h"
 
-# ifdef sgi
+# if defined(SVR4) || defined(SYSV)
 # define SIGNAL_RETURN void
 # else
 # define SIGNAL_RETURN int
@@ -26,28 +26,13 @@ static vfptr Handlers[MAXHANDLERS];
 # define EMPTYSLOT	(vfptr) 0
 
 
-
-
-# ifdef UNIX
-
-static SIGNAL_RETURN
-uii_fault (sig, code, scp, addr)
-int sig, code;
-struct sigcontext *scp;
-char *addr;
-/*
- * Handle a seg/bus error.
- */
-{
-	printf ("\n\r%s: code %d addr 0x%x!\n\r",
-		sig == SIGBUS ? "Bus error" : "Segmentation violation",
-		code, addr);
-	ui_finish ();	/* Restore tty	*/
-	abort ();
-}
-
+static SIGNAL_RETURN uii_cc_handler ();
+# ifdef SIGTSTP
+static SIGNAL_RETURN uii_tstp ();
 # endif
-
+# ifdef UNIX
+static SIGNAL_RETURN uii_fault ();
+# endif
 
 uii_init ()
 /*
@@ -55,10 +40,6 @@ uii_init ()
  */
 {
 	int hndl;
-	SIGNAL_RETURN uii_cc_handler ();
-# ifdef SIGTSTP
-	SIGNAL_RETURN uii_tstp ();
-# endif
 # ifdef UNIX
 	void (*oldh)();
 # endif
@@ -91,94 +72,6 @@ uii_init ()
  	tty_setint (uii_cc_handler);
 # endif
 }
-
-
-
-SIGNAL_RETURN
-uii_cc_handler ()
-/*
- * This is the ^C AST routine.
- */
-{
-	int hndl;
-
-# ifdef BSD 
-/*
- * Under BSD, we should go ahead and unblock interrupts, in case one of
- * the handlers longjmps out from under us.
- */
-	int mask = sigblock (0);
-	mask &= ~(sigmask (SIGINT));
-	sigsetmask (mask);
-# endif
-
-# ifdef SYSV
-
-/* SYSV kindly resets the handler to SIG_DFL before it executes our handler
- * so we have to reset the signal to make sure it will work right the next 
- * time we want it to
- */   
-        signal (SIGINT, uii_cc_handler);
-# endif
-
-# ifdef VMS
-/*
- * VMS handlers need to be reestablished each time.
- */
- 	tty_setint (uii_cc_handler);
-# endif
-/*
- * Pass through the array of handlers, and call each one.
- */
- 	for (hndl = 0; hndl < MAXHANDLERS; hndl++)
-		if (Handlers[hndl] != EMPTYSLOT)
-			(*Handlers[hndl]) (); 
-}
-
-
-
-
-# ifdef SIGTSTP
-
-SIGNAL_RETURN
-uii_tstp ()
-/*
- * Deal with a STOP signal.
- */
-{
-#ifndef SVR4 
-	int oldmask;
-#else
-        sigset_t oldmask;
-#endif 
-	tty_kpoff ();
-	tty_return ();	/* Terminal back to normal state */
-	signal (SIGTSTP, SIG_DFL);
-
-#ifndef SVR4 
-	oldmask = sigsetmask (0);
-#else
-        sigprocmask (SIG_SETMASK, NULL, &oldmask);
-#endif
-       
-	kill (getpid (), SIGTSTP);
-	/* ... */
-
-#ifndef SVR4 
-	sigsetmask (oldmask);
-#else
-        sigprocmask (SIG_SETMASK, &oldmask, NULL);
-#endif
-        
-	signal (SIGTSTP, uii_tstp);
-	tty_setup ();
-	if (Keypad_on)
-		tty_kpon ();
-	ut_reline (); ut_do_reline (0);
-}
-
-
-# endif
 
 
 
@@ -229,5 +122,125 @@ vfptr handler;
 			Handlers[hndl] = EMPTYSLOT;
 }
 
+
+
+
+static SIGNAL_RETURN
+uii_cc_handler 
+# if defined(SYSV) || defined(SVR4)
+(dummy) int dummy;
+# else
+()
+#endif
+/*
+ * This is the ^C AST routine.
+ */
+{
+	int hndl;
+
+# ifdef BSD 
+/*
+ * Under BSD, we should go ahead and unblock interrupts, in case one of
+ * the handlers longjmps out from under us.
+ */
+	int mask = sigblock (0);
+	mask &= ~(sigmask (SIGINT));
+	sigsetmask (mask);
+# endif
+
+# ifdef SYSV
+
+/* SYSV kindly resets the handler to SIG_DFL before it executes our handler
+ * so we have to reset the signal to make sure it will work right the next 
+ * time we want it to
+ */   
+        signal (SIGINT, uii_cc_handler);
+# endif
+
+# ifdef VMS
+/*
+ * VMS handlers need to be reestablished each time.
+ */
+ 	tty_setint (uii_cc_handler);
+# endif
+/*
+ * Pass through the array of handlers, and call each one.
+ */
+ 	for (hndl = 0; hndl < MAXHANDLERS; hndl++)
+		if (Handlers[hndl] != EMPTYSLOT)
+			(*Handlers[hndl]) (); 
+}
+
+
+
+
+# ifdef UNIX
+
+static SIGNAL_RETURN
+uii_fault (sig, code, scp, addr)
+int sig, code;
+void /*struct sigcontext*/ *scp;
+char *addr;
+/*
+ * Handle a seg/bus error.
+ */
+{
+	printf ("\n\r%s: code %d addr 0x%x!\n\r",
+		sig == SIGBUS ? "Bus error" : "Segmentation violation",
+		code, addr);
+	ui_finish ();	/* Restore tty	*/
+	abort ();
+}
+
+# endif
+
+
+
+# ifdef SIGTSTP
+
+static SIGNAL_RETURN
+uii_tstp
+# if defined(SYSV) || defined(SVR4)
+(dummy) int dummy;
+# else
+()
+#endif
+/*
+ * Deal with a STOP signal.
+ */
+{
+#ifndef SVR4 
+	int oldmask;
+#else
+        sigset_t oldmask;
+#endif 
+	tty_kpoff ();
+	tty_return ();	/* Terminal back to normal state */
+	signal (SIGTSTP, SIG_DFL);
+
+#ifndef SVR4 
+	oldmask = sigsetmask (0);
+#else
+        sigprocmask (SIG_SETMASK, NULL, &oldmask);
+#endif
+       
+	kill (getpid (), SIGTSTP);
+	/* ... */
+
+#ifndef SVR4 
+	sigsetmask (oldmask);
+#else
+        sigprocmask (SIG_SETMASK, &oldmask, NULL);
+#endif
+        
+	signal (SIGTSTP, uii_tstp);
+	tty_setup ();
+	if (Keypad_on)
+		tty_kpon ();
+	ut_reline (); ut_do_reline (0);
+}
+
+
+# endif /* SIGTSTP */
 
 
