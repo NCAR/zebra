@@ -139,7 +139,7 @@
 #include "DataStore.h"
 #include "ds_fields.h"
 #include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1 1993-04-01 12:33:50 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.1 1993-04-02 00:18:05 granger Exp $")
 
 /*
  * The DCC_NSpace public interface
