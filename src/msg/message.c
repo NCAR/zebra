@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.9 1993-06-10 22:59:56 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.10 1993-07-20 20:08:16 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -51,7 +51,7 @@ static stbl InetAvoidTable;	/* Machines which time out and slow us down */
  */
 static int M_un_socket;		/* Unix domain socket		*/
 static int M_in_socket = -1;	/* Internet domain socket	*/
-
+static char UnSocketName[120];	/* Name of Un socket		*/
 /*
  * An FD set which knows about all file descriptors that we are interested
  * in.
@@ -290,6 +290,7 @@ MakeUnixSocket ()
 		perror ("Unable to bind UNIX socket");
 		exit (1);
 	}
+	strcpy (UnSocketName, sn);
 /*
  * Tell the system that we want connections.
  */
@@ -984,7 +985,7 @@ die ()
  * Clear out our sockets and quit.
  */
 	close (M_un_socket);
-	unlink (UN_SOCKET_NAME);
+	unlink (UnSocketName);
 	if (M_in_socket >= 0)
 		close (M_in_socket);
 	for (i = 0; i < 64; i++)
