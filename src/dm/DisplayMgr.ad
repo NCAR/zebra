@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.1 1992-08-20 05:38:48 granger Exp $
+! $Id: DisplayMgr.ad,v 1.2 1993-01-12 17:58:22 pai Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -6,13 +6,13 @@
 !
 *allowShellResize:	true
 *input:		True
-*time*Label*font:	-*-helvetica-bold-r-*-*-*-120-*-*-*-*-*-*
-*time*Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*time*Text*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*time*Command*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*time*title*font:	-*-helvetica-bold-r-*-*-180-*-*-*-*-*-*
-*time*arrow*font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*
-*time*Text*height:	20
+*time*Label*font:	-*-helvetica-bold-r-*-*-*-100-*-*-*-*-*-*
+*time*Toggle*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
+*time*Text*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
+*time*Command*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
+*time*title*font:	-*-helvetica-bold-r-*-*-*-160-*-*-*-*-*-*
+*time*arrow*font:	-*-symbol-*-*-*-*-*-100-*-*-*-*-*-*
+*time*Text*height:	12	
 *time*title*borderWidth: 0
 *time*background:	gray90
 *time*Command.borderColor:	red
