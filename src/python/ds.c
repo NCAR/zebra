@@ -8,7 +8,7 @@ extern "C"
     
 # include <time.h>
 
-# include <python1.5/Python.h>
+# include <python2.2/Python.h>
 
 # include <message.h>
 # include <defs.h>
