@@ -34,7 +34,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.8 1997-05-13 11:07:32 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.9 1997-05-16 23:50:50 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -328,7 +328,7 @@ TimeSpec which;
  * AttrTimes with no attributes.
  */
 {
-	ds_AttrTimes (platform, when, n, which, NULL, NULL, rettimes);
+	return (ds_AttrTimes(platform, when, n, which, NULL, NULL, rettimes));
 }
 
 
