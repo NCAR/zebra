@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.31 1995-11-19 16:16:42 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.32 1995-11-19 17:24:43 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -57,7 +57,7 @@ UTILSRCS = rfdump.c zfdump.c GRIBdump.c
 /*
  * For debugging
  */
-TESTSRCS = dstest.c dctest.c nstest.c aline.c hdflook.c
+TESTSRCS = dstest.c dctest.c nstest.c aline.c apple.c hdflook.c
 
 /*
  * All of the sources in this directory, for the make depend.
