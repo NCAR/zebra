@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.12 1992-01-30 21:08:27 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.13 1994-01-03 16:19:29 granger Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -477,11 +477,12 @@ int init;
 			   case LF_KEYS:
 			   	uk_load (lun);
 				break;
-# ifdef XSUPPORT
 			   case LF_WIDGET:
+				/* if no X support, ignore this marker */
+# ifdef XSUPPORT
 			   	uw_load (lun, init);
-				break;
 # endif
+				break;
 			   default:
 			   	ui_printf ("Funky marker: %d\n", marker);
 				break;
