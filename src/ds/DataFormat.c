@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.11 1999-11-01 20:07:59 burghart Exp $")
+RCSID ("$Id: DataFormat.c,v 3.12 2000-04-10 20:00:00 burghart Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -90,7 +90,7 @@ static const int NumFormats = (sizeof(Formats)/sizeof(Formats[0]));
 /*
  * Stuff for the open file table.
  */
-static int MaxOpenFiles = 15;		/* How many we can keep open	*/
+static int MaxOpenFiles = 45;		/* How many we can keep open	*/
 
 static OpenFile *OpenFiles = 0;		/* Open file list head		*/
 static int OF_Lru = 0;			/* LRU count			*/
