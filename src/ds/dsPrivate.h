@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.32 1996-12-03 06:57:45 granger Exp $
+ * $Id: dsPrivate.h,v 3.33 1996-12-13 18:32:03 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -234,7 +234,7 @@ enum dsp_Types
 	dpt_NotifyRequest,		/* 5: Ask for data available notify*/
 	 dpt_Notify,			/* Data available		*/
 	dpt_CancelNotify,		/* Cancel notifications		*/
-	 dpt_CancelAck,			/* Acknowledge cancel		*/
+	 dpt_CancelAck,			/* Acknowledge cancel (unused)	*/
 	dpt_DeleteData,			/* DANGER remove data		*/
 	dpt_DataGone,			/* 10: Data deletion announcement*/
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
@@ -370,6 +370,14 @@ struct dsp_NotifyRequest
 	enum dsp_Types dsp_type;	/* == dpt_NotifyRequest		*/
 	PlatformId dsp_pid;		/* Platform of interest		*/
 	int dsp_param;			/* Requestor parameter		*/
+	char dsp_who[MAX_NAME_LEN];	/* client name for copies	*/
+};
+
+
+struct dsp_NotifyCancel
+{
+	enum dsp_Types dsp_type;	/* == dpt_CancelNotify		*/
+	char dsp_who[MAX_NAME_LEN];	/* client name for copies	*/
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.13 1996-12-03 22:05:20 granger Exp $
+ * $Id: aline.c,v 3.14 1996-12-13 18:31:59 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -463,14 +463,14 @@ main (argc, argv)
 	 * We're the parent, so we'll be the producer.
 	 */
 	Init("Producer");
+	NNotifies = 0;
+	ds_SnarfCopies (WaitForNotifies);
 	DefinePlatforms ();
 	if (WriteClasses)
 	{
 		ds_ShowPlatformClass (stdout, ds_LookupClass(NetcdfClass));
 		ds_ShowPlatformClass (stdout, ds_LookupClass(ZebraClass));
 	}
-	NNotifies = 0;
-	ds_SnarfCopies (WaitForNotifies);
 
 	/*
 	 * To fork multiple producers/consumers: the parent will be the
@@ -570,19 +570,21 @@ void *mdata;
 	struct dsp_Template *dt = (struct dsp_Template *) mdata;
 	char *from;
 	struct dsp_NotifyRequest *nrq;
+	struct dsp_NotifyCancel *nrc;
 
 	switch (dt->dsp_type)
 	{
 	   case dpt_NotifyRequest:
 		nrq = (struct dsp_NotifyRequest *) dt;
-		from = sizeof (struct dsp_NotifyRequest) + (char *) dt;
+		from = nrq->dsp_who;
 		msg_ELog (EF_INFO, "Notify request for %s from %s",
 			  ds_PlatformName (nrq->dsp_pid), from);
 		if (! strncmp (from, "Consumer", 8))
 			++NNotifies;
 		break;
 	   case dpt_CancelNotify:
-		from = sizeof (struct dsp_Template) + (char *) dt;
+		nrc = (struct dsp_NotifyCancel *) dt;
+		from = nrc->dsp_who;
 		msg_ELog (EF_PROBLEM, "Cancel request from %s", from);
 		break;
 	   default:

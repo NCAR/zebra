@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.46 1996-12-03 06:53:16 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.47 1996-12-13 18:31:56 granger Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -849,6 +849,7 @@ void (*func) ();
 	req.dsp_type = dpt_NotifyRequest;
 	req.dsp_pid = platform;
 	req.dsp_param = param;
+	req.dsp_who[0] = '\0';
 	ds_SendToDaemon (&req, sizeof(req));
 /*
  * Stash away the function so we can call it when the notifications
@@ -867,12 +868,13 @@ ds_CancelNotify ()
  * Cancel all data available notifications.
  */
 {
-	struct dsp_Template req;
-	int             i;
+	struct dsp_NotifyCancel req;
+	int i;
 
 	if (Standalone)
 		return;
 	req.dsp_type = dpt_CancelNotify;
+	req.dsp_who[0] = '\0';
 	ds_SendToDaemon (&req, sizeof (req));
 	for (i = 0; i < MAXPLAT; i++)
 		ApplFuncs[i] = 0;
@@ -1974,7 +1976,7 @@ ds_GreetDaemon ()
 	dt.dsp_type = dpt_Hello;
 	ds_SendToDaemon (&dt, sizeof (dt));
 	error = 0;
-	if (msg_Search (MT_DATASTORE, ds_CheckProtocol, &error) || error)
+	if (msg_SearchFrom (Daemon, MT_DATASTORE, ds_CheckProtocol, &error))
 		error = 1;
 	return (error);
 }
@@ -1993,7 +1995,7 @@ int *error;
 	struct dsp_ProtoVersion *dpv = (struct dsp_ProtoVersion *) msg->m_data;
 
 	if (dpv->dsp_type != dpt_R_ProtoVersion)
-		return (1);
+		return (MSG_ENQUEUE);
 	if (dpv->dsp_version != DSProtocolVersion)
 	{
 		msg_ELog (EF_PROBLEM, "DS Protocol version mismatch %x vs %x",
@@ -2001,7 +2003,7 @@ int *error;
 		msg_ELog (EF_PROBLEM, "This program should be relinked");
 		*error = 1;
 	}
-	return (0);
+	return (MSG_DONE);
 }
 
 
