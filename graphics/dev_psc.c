@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.2 1993-07-27 19:52:41 cook Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.3 1993-11-03 00:59:55 cook Exp $";
 /*
  * The tag structure
  */
@@ -42,6 +42,7 @@ struct psc_tag
 	int	ncolor;		/* max color value 		*/
 	int	cmode;		/* 0=mono, 1=gray, 2=color	*/
 	int	black;		/* color position for black	*/
+	int	pslevel;	/* 1=level 1 PS, 2=level 2 PS	*/
 	float	r[MAXCOLS];	/* red colortable array		*/
 	float	g[MAXCOLS];	/* green colortable array	*/
 	float	b[MAXCOLS];	/* blue colortable array	*/
@@ -144,6 +145,11 @@ struct device *dev;
 	ptp->pt_nwin = type[3] ? type[3] - '0' : 1;
 	ptp->pt_mode = ptp->pt_nwin == 2 ? PSC_PORTRAIT : PSC_LANDSCAPE;
 /*
+ * The fifth char is L for PS Level 1: psc1L1, psc2L1, psc4L1
+ */
+	if (type[4] == 'L') ptp->pslevel = 1;
+	else ptp->pslevel = 2;
+/*
  * Set our device resolution
  */
 	dev->gd_xres = Res[ptp->pt_mode][ptp->pt_nwin-1][0];
@@ -155,7 +161,8 @@ struct device *dev;
 /*
  * Initialize the printer
  */
-	psc_out_s (ptp, "%!PS-Adobe-2.0\n");
+	if (ptp->pslevel == 1) psc_out_s (ptp, "%!PS-Adobe\n");
+	else psc_out_s (ptp, "%!PS-Adobe-2.0\n");
 	psc_init (ptp);
 /*
  * PostScript defines
@@ -280,7 +287,7 @@ float *r, *g, *b;
 		return (GE_OK);
 
 /*
- * Output the color table in PostScript form.
+ * Output the color table in PostScript.
  */
 	psc_ctable_out (ptp);
 
@@ -309,16 +316,20 @@ float *r, *g, *b;
 psc_ctable_out (ptp)
 struct psc_tag *ptp;
 /*
- * Output the nifty PostScript Level 2 color table here.
+ * Output the nifty PostScript Level 2 or
+ * crusty old PostScript Level 1 color table here.
  */
 {
-	char	command[80];
+	char command[80];
 	int i, gr;
 
 /*
- * Output the PostScript color table command.
+ * Output the start of the PostScript color table command.
  */
-	sprintf (command, "[/Indexed /DeviceRGB %d\n<\n", ptp->ncolor);
+	if (ptp->pslevel == 1)
+		sprintf (command, "/TABLE %d array def\n", ptp->ncolor);
+	else	sprintf (command, "[/Indexed /DeviceRGB %d\n<\n", ptp->ncolor);
+
 	psc_out_s (ptp, command);
 
 /*
@@ -328,18 +339,32 @@ struct psc_tag *ptp;
 	{
 	    for (i=ptp->base; i<=ptp->ncolor; i++)
 	    {
-		/* Turn invisible white to black */
-		if ((ptp->r[i]+ptp->g[i]+ptp->b[i]) <= 2.99)
+		if (ptp->pslevel == 1)	/* level 1 PS */
+		{
+		    /* Turn invisible white to black */
+		    if ((ptp->r[i]+ptp->g[i]+ptp->b[i]) <= 2.99)
+			sprintf (command, "16#%02x%02x%02x\n",
+				(unsigned char) (ptp->r[i] * 255.0),
+				(unsigned char) (ptp->g[i] * 255.0),
+				(unsigned char) (ptp->b[i] * 255.0));
+		    else
+			sprintf (command, "16#000000\n");
+		}
+		else	/* level 2 PS */
+		{
+		    /* Turn invisible white to black */
+		    if ((ptp->r[i]+ptp->g[i]+ptp->b[i]) <= 2.99)
 			sprintf (command, "%02x%02x%02x\n",
 				(unsigned char) (ptp->r[i] * 255.0),
 				(unsigned char) (ptp->g[i] * 255.0),
 				(unsigned char) (ptp->b[i] * 255.0));
-		else
+		    else
 			sprintf (command, "000000\n");
+		}
 		psc_out_s (ptp, command);
 	    }
 	}
-	else if (ptp->cmode == 1) /* fixed linear grayscale mode */
+	else if (ptp->cmode == 1) /* fixed linear grayscale mode, Lvl 2 only */
 	{
 	    for (i=ptp->base; i<=ptp->ncolor; i++)
 	    {
@@ -351,7 +376,9 @@ struct psc_tag *ptp;
 	    }
 	}
 
-	psc_out_s (ptp, ">\n] setcolorspace\n");
+	if (ptp->pslevel == 1)
+		psc_out_s (ptp, "TABLE astore pop\n");
+	else	psc_out_s (ptp, ">\n] setcolorspace\n");
 }
 
 
@@ -543,8 +570,7 @@ struct psc_tag	*ptp;
 /*
  * Output a PS color table unless in monochrome mode.
  */
-	if (ptp->cmode)
-		psc_ctable_out (ptp);
+	if (ptp->cmode) psc_ctable_out (ptp);
 }
 
 
@@ -579,7 +605,7 @@ struct psc_tag *ptp;
 psc_def_out (ptp)
 struct psc_tag *ptp;
 /*
- * An attempt to minimize output file size
+ * Minimize output file size by redefining frequently used keywords.
  */
 {
 	psc_out_s (ptp, "/c {closepath} def\n");
@@ -589,10 +615,30 @@ struct psc_tag *ptp;
 	psc_out_s (ptp, "/n {newpath} def\n");
 	psc_out_s (ptp, "/s {stroke} def\n");
 	psc_out_s (ptp, "/sd {setdash} def\n");
-	psc_out_s (ptp, "/sc {setcolor} def\n");
 	psc_out_s (ptp, "/sh {show} def\n");
 	psc_out_s (ptp, "/t {translate} def\n");
 	psc_out_s (ptp, "/z {lineto} def\n");
+
+	if (ptp->pslevel == 1)
+	{
+		/* Build PS level 1 definition for sc */
+		psc_out_s (ptp, "/sc {/INDEX exch 1 sub def\n");
+
+		/* get the whole rgb word */
+		psc_out_s (ptp, "/RGB TABLE INDEX get def\n"); 
+
+		/* extract red component */
+		psc_out_s (ptp,"/RR RGB -16 bitshift 16#ff and 255 div def\n");
+
+		/* extract green component */
+		psc_out_s (ptp, "/GG RGB -8 bitshift 16#ff and 255 div def\n");
+
+		/* extract blue component */
+		psc_out_s (ptp, "/BB RGB 16#ff and 255 div def\n");
+
+		psc_out_s (ptp, "RR GG BB setrgbcolor} def\n");
+	}
+	else	psc_out_s (ptp, "/sc {setcolor} def\n");
 }
 
 
