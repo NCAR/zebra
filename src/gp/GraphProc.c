@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.25 1991-02-20 20:46:26 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.26 1991-02-20 21:07:56 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -468,6 +468,12 @@ struct ui_command *cmds;
 	 */
 	   case GPC_ACTIVATE:
 	   	lw_ActivateWidget (UINT (cmds[1]), cmds + 2);
+		break;
+	/*
+	 * Draw a polyline.
+	 */
+	   case GPC_POLYLINE:
+	   	rb_PolyLine (cmds + 1);
 		break;
 
 	   default:
