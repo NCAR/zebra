@@ -27,12 +27,12 @@
 
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.5 2000-04-03 21:59:24 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.6 2000-04-24 21:22:55 burghart Exp $ */
 
 struct _Map
 {
     int	nc_id;
-    int	alt_var;
+    int	elev_var;
     /* all the following are in arc seconds */
     int	lat_spacing, lon_spacing;
     int north, south, east, west;
@@ -130,7 +130,7 @@ InitMap (char *fname)
 void
 CreateMapFile (char *fname)
 {
-    int		ncid, i, time_dim, lat_dim, lon_dim, lat_var, lon_var;
+    int		ncid, i, time_dim, lat_dim, lon_dim, lat_var, lon_var, alt_var;
     int		base_var, offset_var, dims[3];
     long	start, count, nlats, nlons;
     long	base;
@@ -190,11 +190,11 @@ CreateMapFile (char *fname)
     time_dim = ncdimdef (ncid, "time", 1);
     lat_dim = ncdimdef (ncid, "latitude", nlats);
     lon_dim = ncdimdef (ncid, "longitude", nlons);
-
     /*
-     * and our variables
+     * Latitude, longitude, and (nominal) altitude vars.  We set the
+     * nominal altitude to zero, and put the 2-d grid of heights in the
+     * "elevation" variable below
      */
-    
     lat_var = ncvardef (ncid, "latitude", NC_FLOAT, 1, &lat_dim);
     strcpy (attrval, "north latitude");
     ncattput (ncid, lat_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
@@ -209,15 +209,25 @@ CreateMapFile (char *fname)
     strcpy (attrval, "degrees");
     ncattput (ncid, lon_var, "units", NC_CHAR, strlen (attrval) + 1, attrval);
 
+    alt_var = ncvardef (ncid, "altitude", NC_FLOAT, 0, 0);
+    strcpy (attrval, "altitude");
+    ncattput (ncid, lon_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
+	      attrval);
+    strcpy (attrval, "km");
+    ncattput (ncid, lon_var, "units", NC_CHAR, strlen (attrval) + 1, attrval);
+
+   /*
+    * the elevation variable
+    */
     dims[0] = time_dim;
     dims[1] = lon_dim;
     dims[2] = lat_dim;
-    Map.alt_var = ncvardef (ncid, "altitude", NC_SHORT, 3, dims);
-    strcpy (attrval, "altitude");
-    ncattput (ncid, Map.alt_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
+    Map.elev_var = ncvardef (ncid, "elevation", NC_SHORT, 3, dims);
+    strcpy (attrval, "elevation MSL");
+    ncattput (ncid, Map.elev_var, "long_name", NC_CHAR, strlen (attrval) + 1,
 	      attrval);
     strcpy (attrval, "meters");
-    ncattput (ncid, Map.alt_var, "units", NC_CHAR, strlen (attrval) + 1, 
+    ncattput (ncid, Map.elev_var, "units", NC_CHAR, strlen (attrval) + 1, 
 	      attrval);
 
     base_var = ncvardef (ncid, "base_time", NC_LONG, 0, 0);
@@ -248,7 +258,7 @@ CreateMapFile (char *fname)
     ncvarput (ncid, base_var, &start, &count, &base);
     ncvarput (ncid, offset_var, &start, &count, &offset);
     /*
-     * Write our lats & lons
+     * Write our lats & lons, and the nominal altitude (0)
      */
     for (i = 0; i < nlats; i++)
     {
@@ -266,6 +276,11 @@ CreateMapFile (char *fname)
 	start = i;
 	count = 1;
 	ncvarput (ncid, lon_var, &start, &count, &lon);
+    }
+    
+    {
+	float alt = 0.0;
+	ncvarput1 (ncid, alt_var, 0, &alt);
     }
     /*
      * Done here
@@ -363,7 +378,7 @@ OpenMapFile (char *fname)
 /*
  * Get the alt variable
  */
-    if ((Map.alt_var = ncvarid (ncid, "altitude")) < 0)
+    if ((Map.elev_var = ncvarid (ncid, "elevation")) < 0)
     {
 	fprintf (stderr, "Map file has no altitude variable!\n");
 	exit (1);
@@ -424,15 +439,21 @@ ProcessFiles (char *fnames[], int nfiles)
 	 */
 	lat_start = (ssec < Map.south) ? Map.south : ssec;
 	lat_start = (lat_start / Map.lat_spacing) * Map.lat_spacing;
+	if (lat_start < ssec)
+	    lat_start += Map.lat_spacing;
 	
 	lat_stop = (nsec > Map.north) ? Map.north : nsec;
 	lat_stop = (lat_stop / Map.lat_spacing) * Map.lat_spacing;
+	if (lat_stop > nsec)
+	    lat_stop -= Map.lat_spacing;
 
 	if (lat_start > lat_stop)
 	    continue;
 
 	lon_start = (wsec < Map.west) ? Map.west : wsec;
 	lon_start = (lon_start / Map.lon_spacing) * Map.lon_spacing;
+	if (lon_start < wsec)
+	    lon_start += Map.lon_spacing;
 	
 	lon_stop = (esec > Map.east) ? Map.east : esec;
 	lon_stop = (lon_stop / Map.lon_spacing) * Map.lon_spacing;
@@ -479,7 +500,7 @@ ProcessFiles (char *fnames[], int nfiles)
 	    /*
 	     * Write the part of the column that goes into the output file
 	     */
-	    ncvarput (Map.nc_id, Map.alt_var, start, count, alts);
+	    ncvarput (Map.nc_id, Map.elev_var, start, count, alts);
 	}
 	printf ("\n");
     }
