@@ -19,12 +19,13 @@
  * maintenance or updates for its software.
  */
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.7 1994-11-17 03:42:16 granger Exp $")
+MAKE_RCSID ("$Id: dscopy.c,v 1.8 1997-02-03 17:52:38 granger Exp $")
 
 
 # define MAX_TIMES 10000

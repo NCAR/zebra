@@ -1,7 +1,6 @@
 /*
  * Convert a composite surface data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: surf_convert.c,v 1.6 1995-06-29 21:22:59 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,12 +19,11 @@ static char *rcsid = "$Id: surf_convert.c,v 1.6 1995-06-29 21:22:59 granger Exp 
  * maintenance or updates for its software.
  */
 
-# include <config.h>
-# include <copyright.h>
-
 # include <stdio.h>
 # include <math.h>
 
+# include <ui.h>
+# include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
@@ -35,7 +33,7 @@ static char *rcsid = "$Id: surf_convert.c,v 1.6 1995-06-29 21:22:59 granger Exp 
 # include "sc_cmds.h"
 # include "netcdf.h"
 
-
+RCSID("$Id: surf_convert.c,v 1.7 1997-02-03 17:52:44 granger Exp $")
 
 # define STRLEN		80
 # define CDF_STR_LEN	11

@@ -1,7 +1,6 @@
 /*
  * Convert a composite profiler data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: prof_convert.c,v 1.4 1994-11-17 03:42:18 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,11 +19,10 @@ static char *rcsid = "$Id: prof_convert.c,v 1.4 1994-11-17 03:42:18 granger Exp 
  * maintenance or updates for its software.
  */
 
-# include <config.h>
-# include <copyright.h>
-
 # include <stdio.h>
 
+# include <ui.h>
+# include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
@@ -34,6 +32,7 @@ static char *rcsid = "$Id: prof_convert.c,v 1.4 1994-11-17 03:42:18 granger Exp 
 # include "pc_cmds.h"
 # include "netcdf.h"
 
+RCSID("$Id: prof_convert.c,v 1.5 1997-02-03 17:52:41 granger Exp $")
 
 # define STRLEN		80
 # define MAXNAMES	50
