@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.6 1993-05-26 19:33:45 granger Exp $
+! $Id: DisplayMgr.ad,v 1.7 1994-05-09 21:07:09 corbet Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -60,3 +60,4 @@ dm.?.form.Background:	gray95
 *UIForm*Label.background: gray95
 *UIForm*MenuButton*borderColor: red
 *UIForm*MenuButton*background: Gray90
+*UIForm*Title*font: -adobe-times-bold-r-*-*-18-*-*-*-*-*-*-*

@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.12 1994-01-31 20:21:56 corbet Exp $
+! $Id: dm.widgets,v 1.13 1994-05-09 21:07:11 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -31,101 +31,80 @@ endprocedure
 
 
 
-define widget pd-menu intmenu 'PD Templates'
-	title 'Select a Plot Description'
-	line
-	entry 'Constant altitude plot' 'cw_setpd cap-template'
-	entry 'Time-series plot' 'cw_setpd tseries-template'
-	entry 'Skew-t plot' 'cw_setpd skewt-template'
-	entry 'Wind profile' 'cw_setpd wind-template'
+!
+! The new version of the window creation widget
+!
+define widget cw_wintypes intmenu 'Default version'
+       title 'Window types'
+       line
+       entry 'Constant Altitude Plot' 'cw_type "Constant altitude"'
+       entry 'Time-series' 'cw_type "Time series"'
+       entry 'Skew-t' 'cw_type "Skew-t"'
+       entry 'Wind profile' 'cw_type "Wind profile"'
 endmenu
 
-
-
-
-procedure cw_setpd pd string
-	formtext #ui$form pdname #pd
+procedure cw_type type string
+	local qtype quote(type)
+	formtext #ui$form wtype #qtype
 endprocedure
 
-	
-define widget bmap-menu intmenu 'Button Maps'
-	title 'Select a Button Map'
-	line
-	entry 'Basic'		'formtext #ui$form bmap "basic"' 
-	entry 'Radar'		'formtext #ui$form bmap "radar"' 
-	entry 'Sounding'	'formtext #ui$form bmap "sounding"'
-	entry 'Time series'	'formtext #ui$form bmap "xyplot"'
-endmenu
-
-!
-! Window creation.
-!
-define widget NewWindow form 'Window creation'
+define widget NewWindow form 'New window'
 	noheader
-	label l1 'New window name:  '
-	blank wname '--' width 190
+	label Title 'New window creation'
 	newline
-	label l2 'Plot description: '
-	blank pdname 'cap-template' width 190
-	newline
-	label l5 'Button map:       '
-	blank bmap 'default' width 190
-	newline
-	pulldown pdlist 'Plot Descriptions ->' menu 'pd-menu'
-	pulldown bmaps 'Button Maps ->' menu 'bmap-menu'
-	newline 
-	label l3 'PD Force?'
-	button forcepd 'no' command 'ToggleFormButton forcepd' width 40
+	label l1 'Window name:'
+	blank name '--' width 100
 !	newline
-	label l4 '    '
-	button doit 'Create Window' color red command 'DoWindowCreate'
-	button cancel 'Cancel' command 'popdown #ui$form' color red
+	label l2 'type:'
+	pulldown wtype 'Constant altitude' menu cw_wintypes width 140
+	newline
+	button create 'Create window' command 'DoNewWindow'
+	button zap 'Cancel' command 'popdown #up$form' color red
+	label gripe ' ' width 200 color red
 endform
 
-
-
-procedure ToggleFormButton button string
-	local current getftext(ui$form,button)
-	if (current = 'yes')
-		formtext #ui$form #button 'no'
-	else
-		formtext #ui$form #button 'yes'
-	endif
-endprocedure
-
-
+procedure DoNewWindow
 !
-! Perform the actual window creation.
+! Make sure they gave us a name.
 !
-procedure DoWindowCreate
-!
-! Get the info out of the form.
-!
-	local name quote(getftext(ui$form,"wname"))
-	local pdname getftext(ui$form,"pdname")
-	local bmap getftext(ui$form,"bmap")
-	local forcepd getftext(ui$form,"forcepd")
-!
-! Make sure they gave a name.
-!
-	if (name = '"--"')
+	local name getftext(ui$form, 'name')
+	if (name = '--')
+		formtext #ui$form gripe 'Please give a window name'
 		beep
 		return
 	endif
 !
-! Get the forcepd flag right.
+! See if it's one of the types we know.
 !
-	if (forcepd = "yes")
-		local forcepd 'forcepd'
+	local t getftext(ui$form, 'wtype')
+	if (t = 'Constant altitude')
+		set nw_pd 'cap-template'
+		set nw_bmap 'basic'
+	elseif (t = 'Time series')
+		set nw_pd 'tseries-template'
+		set nw_bmap 'xyplot'
+	elseif (t = 'Wind profile')
+		set nw_pd 'wind-template'
+		set nw_bmap 'xyplot'
+	elseif (t = 'Skew-t')
+		set nw_pd 'skewt-template'
+		set nw_bmap 'sounding'
+!
+! Hmm...let's see if somebody else knows about it.
+!
 	else
-		local forcepd ' '
+		local qt quote(t)
+		pcall ProjectNewWindow #qt
 	endif
 !
-! Create the window.
+! Time to do it.
 !
-	newwindow #name #pdname #forcepd buttonmap #bmap
+	local name getftext(ui$form, 'name')
+	newwindow #name #nw_pd forcepd buttonmap #nw_bmap
 	popdown #ui$form
 endprocedure
+
+
 
 
 
@@ -357,6 +336,16 @@ endprocedure
 
 
 procedure ShipScalar platform string field string target_win string
+!
+! Start by figuring out if there is a special command for adding 
+! to this window.  If there is, we just pass control off there and
+! forget about it.
+!
+	local addcmd pd_param(target_win,'global','add-data-command','string')
+	if (addcmd <> '(Undefined)')
+		#addcmd #platform #field #target_win
+		return
+	endif
 !
 ! Now figure out what sort of window this is.
 ! If it's a CAP plot, send it out as a track (for now)
@@ -771,5 +760,105 @@ procedure printer_go
 		formtext #ui$form "hints1" "Done. [Print] again or change settings."
 		formtext #ui$form "hints2" "Click [Dismiss] to remove this window."
 	endif
+endprocedure
+
+
+
+
+
+
+!
+! Stuff for the old "create window" widget.
+!
+define widget pd-menu intmenu 'PD Templates'
+	title 'Select a Plot Description'
+	line
+	entry 'Constant altitude plot' 'cw_setpd cap-template'
+	entry 'Time-series plot' 'cw_setpd tseries-template'
+	entry 'Skew-t plot' 'cw_setpd skewt-template'
+	entry 'Wind profile' 'cw_setpd wind-template'
+endmenu
+
+
+
+procedure cw_setpd pd string
+	formtext #ui$form pdname #pd
+endprocedure
+
+	
+define widget bmap-menu intmenu 'Button Maps'
+	title 'Select a Button Map'
+	line
+	entry 'Basic'		'formtext #ui$form bmap "basic"' 
+	entry 'Radar'		'formtext #ui$form bmap "radar"' 
+	entry 'Sounding'	'formtext #ui$form bmap "sounding"'
+	entry 'Time series'	'formtext #ui$form bmap "xyplot"'
+endmenu
+
+!
+! Window creation.
+!
+define widget OldNewWindow form 'Window creation'
+	noheader
+	label l1 'New window name:  '
+	blank wname '--' width 190
+	newline
+	label l2 'Plot description: '
+	blank pdname 'cap-template' width 190
+	newline
+	label l5 'Button map:       '
+	blank bmap 'default' width 190
+	newline
+	pulldown pdlist 'Plot Descriptions ->' menu 'pd-menu'
+	pulldown bmaps 'Button Maps ->' menu 'bmap-menu'
+	newline 
+	label l3 'PD Force?'
+	button forcepd 'no' command 'ToggleFormButton forcepd' width 40
+!	newline
+	label l4 '    '
+	button doit 'Create Window' color red command 'DoOldWindowCreate'
+	button cancel 'Cancel' command 'popdown #ui$form' color red
+endform
+
+procedure ToggleFormButton button string
+	local current getftext(ui$form,button)
+	if (current = 'yes')
+		formtext #ui$form #button 'no'
+	else
+		formtext #ui$form #button 'yes'
+	endif
+endprocedure
+
+!
+! Perform the actual window creation.
+!
+procedure DoOldWindowCreate
+!
+! Get the info out of the form.
+!
+	local name quote(getftext(ui$form,"wname"))
+	local pdname getftext(ui$form,"pdname")
+	local bmap getftext(ui$form,"bmap")
+	local forcepd getftext(ui$form,"forcepd")
+!
+! Make sure they gave a name.
+!
+	if (name = '"--"')
+		beep
+		return
+	endif
+!
+! Get the forcepd flag right.
+!
+	if (forcepd = "yes")
+		local forcepd 'forcepd'
+	else
+		local forcepd ' '
+	endif
+!
+! Create the window.
+!
+	newwindow #name #pdname #forcepd buttonmap #bmap
+	popdown #ui$form
 endprocedure
 
