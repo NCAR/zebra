@@ -1,7 +1,7 @@
 /*
  * Handle plot window annotation.
  */
-static char *rcsid = "$Id: Annotate.c,v 2.6 1992-06-24 21:58:52 pai Exp $";
+static char *rcsid = "$Id: Annotate.c,v 2.7 1992-06-24 22:13:04 pai Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -732,7 +732,9 @@ int datalen, begin, space;
 		barHeight = (float) space / (float) ncolors;
         for (i = 0; i < ncolors; i += limit)
         {
-                cval = center + (i - ncolors / 2) * step;
+
+/** Andy's change;  don't know if it's necessary. Was (i - ncolors / 2) * step) **/
+                cval = center + (ncolors / 2 - i) * step;
                 sprintf (string, "%.1f", cval);
                 XSetForeground (XtDisplay (Graphics), AnGcontext,
                         colors[i].pixel);
@@ -784,8 +786,6 @@ int datalen, begin, space;
 	else
 		barHeight = (float) space / (float) ncolors;
 
-/* DEBUG */ maxval = center + (ncolors / 2) * step;
-
 	for (i = 0; i < ncolors; i += limit)
 	{
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
@@ -793,10 +793,10 @@ int datalen, begin, space;
 		XFillRectangle (XtDisplay (Graphics), 
 			GWFrame (Graphics), AnGcontext, left, 
 			(int) begin, 10, barHeight);
-		cval = center + (i - ncolors / 2) * step;
-	
-/* DEBUG */	cval = maxval - cval;	
 
+/** Andy's change;  don't know if it's necessary. Was (i - ncolors / 2) * step) **/
+		cval = center + (ncolors / 2 - i) * step;
+	
 		sprintf (string, "%.1f", cval);
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
 			xc.pixel);
