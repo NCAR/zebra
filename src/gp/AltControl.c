@@ -40,7 +40,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.11 1994-10-10 16:38:34 corbet Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.12 1994-10-13 22:58:36 sobol Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -186,7 +186,6 @@ int nstep;
 	{
 		pd_Store (Pd, "global", "altitude-label", "",
 			  SYMT_STRING);
-		return;
 	/*
 	 * Schedule to send the modified PD to dm and the PD monitor
 	 */

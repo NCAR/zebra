@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.24 1994-10-12 22:58:04 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.25 1994-10-13 22:58:39 sobol Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
