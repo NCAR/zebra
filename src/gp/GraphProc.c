@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.65 1997-07-01 01:06:23 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.66 1998-04-27 21:44:41 corbet Exp $")
 
 /*
  * Default resources.
@@ -178,7 +178,6 @@ GPShutDown ()
 	
 	ui_finish ();
 	pdm_Finish ();
-	RP_ZapShmImage (Graphics);
 	if (GWShmPossible (Graphics))
 		for(i = 0; i < FrameCount; i++)
 			if (GWFrameShared (Graphics, i))

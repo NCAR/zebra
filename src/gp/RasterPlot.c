@@ -74,27 +74,15 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.33 1998-03-23 23:14:20 granger Exp $")
+# include "RasterImage.h"
+
+RCSID ("$Id: RasterPlot.c,v 2.34 1998-04-27 21:44:49 corbet Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
 # include <sys/resource.h>
 # endif
 # include <byteorder.h>
-/*
- * Shared memory ximages, if we can.
- */
-# ifdef SHM
-# 	include <sys/ipc.h>
-# 	include <sys/shm.h>
-# 	include <X11/extensions/XShm.h>
-# endif
-
-# ifdef SHM
-static char *shmopt[2] = { "$XShm: Compiled $", (char *)shmopt };
-# else
-static char *shmopt[2] = { "$XShm: NOT Compiled $", (char *)shmopt };
-# endif /* SHM */
 
 /*
  * Color stuff
@@ -159,16 +147,11 @@ static void RP_FPRasterize FP((
 	int pad));
 
 static void RP_IRasterize FP((
-	XImage *image,
-	unsigned char *ximp,
-	int width, int height, 
-	unsigned int *colgrid, 
+	DestImage *di,
+	Pixel *colgrid, 
 	double row, double icol, 
 	double rowinc, double colinc,
-	int xdim, int ydim,
-	int pad));
-
-static XImage *RP_GetXImage FP((Widget, int, int));
+	int xdim));
 
 static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   int width, int height,
@@ -180,7 +163,7 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   int bdepth));
 
 static void RP_MakeColorMap (double, double, Pixel *);
-static void RP_FixCMap FP ((Pixel *, int, int));
+static void RP_FixCMap FP ((Pixel *, int));
 
 
 # ifdef MAP_PROJECTIONS
@@ -196,10 +179,6 @@ static int RasterLimits FP ((int xdim, int ydim, int *xlo, int *ylo, int *xhi,
 			     int *yhi, int *width_out, int *height_out,
 			     float *colinc_out, float *rowinc_out,
 			     float *leftcol_out, float *toprow_out));
-
-# ifdef SHM
-static XImage *RP_GetSharedXImage FP ((Widget w, int width, int height));
-# endif
 
 /*--------------------------------------------------end prototypes--*/
 
@@ -571,20 +550,13 @@ bool	fast; /* not used any more */
  */
 {
 	int		r_color, i, width, height;
-	unsigned int	*colgrid, *cgp;
+	Pixel		*colgrid, *cgp;
 	float		cscale, *gp;
 	float		leftcol, toprow;
 	float		rowinc, colinc;
 	int		gridelem;
 	int		outrange = Color_outrange.pixel;
-	unsigned char	*ximp;
-	XImage		*image;
-#ifdef SHM
-	bool		using_shared;
-#endif
-	GC		gcontext;
-	XGCValues	gcvals;
-	Display		*disp = XtDisplay (w);
+	DestImage	*di;
 
 # ifdef TIMING
 	int msec;
@@ -594,22 +566,19 @@ bool	fast; /* not used any more */
 	msec = - ((ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
 			(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000);
 # endif
+/*
+ * Are we within bounds?
+ */
 	if (! RasterLimits (xdim, ydim, &xlo, &ylo, &xhi, &yhi, &width, 
 			    &height, &colinc, &rowinc, &leftcol, &toprow))
-	{
 		return;
-	}
-/*
- * Get a graphics context
- */
-	gcontext = XCreateGC (disp, XtWindow (w), 0, &gcvals);
-	XSetClipRectangles (disp, gcontext, 0, 0, &Clip, 1, Unsorted);
+	SetClip (0);
 /*
  * Find the size of the grid, and allocate temporary space to store the
  * computed colors.
  */
 	gridelem = xdim*ydim;
-	colgrid = (unsigned int *) malloc (gridelem * sizeof (int));
+	colgrid = (Pixel *) malloc (gridelem * sizeof (Pixel));
 /*
  * Go through and color code everything now.
  */
@@ -633,32 +602,12 @@ bool	fast; /* not used any more */
 /*
  * Get our ximage and do the rasterization.
  */
-# ifdef SHM
-	using_shared = FALSE;
-	image = NULL;
-	if (GWShmPossible (Graphics))
-		image = RP_GetSharedXImage (w, width, height);
-	if (image)
-		using_shared = TRUE;
-	else
-# endif
-		image = RP_GetXImage (w, width, height);
-
-	ximp = (unsigned char *) image->data;
-	RP_IRasterize (image, ximp, width, height, colgrid, toprow, leftcol,
-		   rowinc, colinc, xdim, ydim, image->bytes_per_line - width);
+	di = ri_GetDestImage (DrawFrame, xlo, yhi, width, height);
+	RP_IRasterize (di, colgrid, toprow, leftcol, rowinc, colinc, xdim);
+	ri_ShipImage (di);
 /*
- * Now we ship over the image, and deallocate everything.
+ * Clean up.
  */
-# ifdef SHM
-	if (using_shared)
-		XShmPutImage (disp, d, gcontext, image, 0, 0,
-			      xlo, yhi, width, height, False);
-	else
-# endif
-	   XPutImage (disp, d, gcontext, image, 0, 0, xlo, yhi, width, height);
-
-	XFreeGC (disp, gcontext);
 	free (colgrid);
 
 # ifdef TIMING
@@ -674,181 +623,12 @@ bool	fast; /* not used any more */
 
 
 
-# ifdef SHM
-
-/*
- * This is our Ximage in shared memory.
- */
-static XImage *image = 0;
-static int XIwidth = -1, XIheight = -1;
-static XShmSegmentInfo shminfo;
-static bool shm_failed = FALSE;	/* If we fail once, don't try it again */
-
-
-static XImage *
-RP_GetSharedXImage (w, width, height)
-Widget w;
-int width, height;
-/*
- * Return a shared-memory XImage with this geometry.
- */
-{
-	Display *disp = XtDisplay (w);
-	int depth = GWDepth (Graphics);
-
-	if (shm_failed)
-		return (NULL);
-/*
- * If the geometry matches, we can just return what we got last time.  This
- * will be the case most of the time -- only when the window changes will
- * this change.
- */
-	if (width == XIwidth && height == XIheight)
-		return (image);
-/*
- * If there is an existing image, get rid of it.
- */
-	if (image)
-	{
-		XShmDetach (disp, &shminfo);
-		XDestroyImage (image);
-		shmdt (shminfo.shmaddr);
-		shmctl (shminfo.shmid, IPC_RMID, 0);
-	}
-/*
- * Now get a new one.
- */
-	image = XShmCreateImage (disp, 0, depth, ZPixmap, 0, &shminfo, width,
-			height);
-/*
- * All of the shmucking around.
- */
-	shminfo.shmid = shmget (IPC_PRIVATE, image->bytes_per_line*height,
-		IPC_CREAT | 0777);
-/*
- * Check for failures.  More than likely the failures will be from lack of
- * shared memory facilities or high enough shared memory limits in the kernel.
- * Therefore, once we fail once, it behooves us not to try again.
- */
-	if (shminfo.shmid < 0)
-	{
-		shm_failed = TRUE;
-		msg_ELog (EF_EMERGENCY, "rp SHM get failure (%d)!", errno);
-	}
-	else if ((shminfo.shmaddr = (char *) shmat (shminfo.shmid, 0, 0))
-		 == (char *) -1)
-	{
-		shm_failed = TRUE;
-		msg_ELog (EF_EMERGENCY, "rp SHM attach failure (%d)!", 
-			  errno);
-	}
-/*
- * Deal with our failures
- */
-	if (shm_failed)
-	{
-		XDestroyImage (image);
-		image = NULL;
-		msg_ELog (EF_INFO, "Raster: Abandoning XShmExtension attempt");
-		return (NULL);
-	}
-/*
- * Hook everything together.
- */
-	image->data = shminfo.shmaddr;
-	shminfo.readOnly = False;
-	XShmAttach (disp, &shminfo);
-/*
- * Save info and return the image.
- */
-	XIwidth = width;
-	XIheight = height;
-	return (image);
-}
-
-# endif /* SHM */
-
-
-
-
-
-void
-RP_ZapShmImage (w)
-Widget w;
-/*
- * If there is a shared memory image, get rid of it.
- */
-{
-# ifdef SHM
-	Display *disp = XtDisplay (w);
-
-	if (image)
-	{
-		XShmDetach (disp, &shminfo);
-		XDestroyImage (image);
-		shmdt (shminfo.shmaddr);
-		shmctl (shminfo.shmid, IPC_RMID, 0);
-		image = 0;
-	}
-# endif
-}
-
-
-
-
-
-static XImage *
-RP_GetXImage (w, width, height)
-Widget w;
-int width, height;
-/*
- * Return an XImage with this geometry.
- */
-{
-	static int XIwidth = -1, XIheight = -1;
-	static XImage *image = 0;
-	char *xim;
-	int depth = GWDepth (Graphics);
-	int bpad = GWBDepth (Graphics)*8;
-/*
- * If the geometry matches, we can just return what we got last time.  This
- * will be the case most of the time -- only when the window changes will
- * this change.
- */
-	if (width == XIwidth && height == XIheight)
-		return (image);
-/*
- * If there is an existing image, get rid of it.
- */
-	if (image)
-		XDestroyImage (image);
-/*
- * Now get a new one.
- */
-	xim = malloc (width*height*(bpad/8));
-	image = XCreateImage (XtDisplay (w),
-		DefaultVisual (XtDisplay (w),
-			XScreenNumberOfScreen (XtScreen (w))),
-		depth, ZPixmap, 0, xim, width, height, bpad, 0);
-/*
- * Save info and return the image.
- */
-	XIwidth = width;
-	XIheight = height;
-	return (image);
-}
-
-
-
 static void
-RP_IRasterize (image, ximp, width, height, colgrid, row, icol, rowinc, colinc,
-	xdim, ydim, pad)
-XImage *image;
-unsigned char 	*ximp;
-int 		width, height;
-unsigned int 	*colgrid;
+RP_IRasterize (di, colgrid, row, icol, rowinc, colinc,	xdim)
+DestImage *di;
+Pixel 	*colgrid;
 float 		row, icol, rowinc, colinc;
-int		xdim, ydim, pad;
+int		xdim;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
@@ -861,6 +641,10 @@ int		xdim, ydim, pad;
 	int col;
 	short *s_col;
 # endif
+	unsigned short *simp;
+	unsigned long *limp;
+	const int bdepth = di->di_bdepth;
+	
 	s_col = FF_OFFSET + (short *) &col;
 /*
  * Set up our integer values, which are simply the FP values scaled by 
@@ -871,21 +655,46 @@ int		xdim, ydim, pad;
 /*
  * Step through the data.
  */
-	for (i = 0; i < height; i++)
+	for (i = 0; i < di->di_h; i++)
 	{
-		unsigned int *cp = colgrid + ((int) row) * xdim;
+		Pixel *cp = colgrid + ((int) row) * xdim;
+		unsigned char *ximp = di->di_image + di->di_ioffset +
+			i*di->di_bpl;
 
 		col = (int) (icol * 65536);
-		for (j = 0; j < width; j++)
+	/*
+	 * Branch out based on our display depth.
+	 */
+		switch (bdepth)
 		{
-# ifdef NOTTHISWAY
-			*ximp++ = cp[*s_col];
-# endif
-			XPutPixel (image, j, i, cp[*s_col]);
-			col += icolinc;
+		    case 1:
+			for (j = 0; j < di->di_w; j++)
+			{
+				*ximp++ = cp[*s_col];
+				col += icolinc;
+			}
+			break;
+		    case 2:
+			simp = (unsigned short *) ximp;
+			for (j = 0; j < di->di_w; j++)
+			{
+				*simp++ = cp[*s_col];
+				col += icolinc;
+			}
+			break;
+		    case 4:
+			limp = (unsigned long *) ximp;
+			for (j = 0; j < di->di_w; j++)
+			{
+				*limp++ = cp[*s_col];
+				col += icolinc;
+			}
+			break;
+		    default:
+			msg_ELog (EF_PROBLEM, "Bad bdepth %d", bdepth);
+			return;
 		}
 		row += rowinc;
-		ximp += pad;	/* End of raster line padding.	*/
 	}
 }
 
@@ -944,14 +753,10 @@ RGrid *rg;
  * (neglecting clipping, which may reduce this).
  */
 {
-	unsigned char *destimg;
 	Pixel cmap[256];
-	int width, height, bdepth = GWBDepth (Graphics);
+	int width, height;
 	float toprow, leftcol, rowinc, colinc, bottomrow, rightcol;
-	GC gcontext;
-	XGCValues gcvals;
-	Display *disp = XtDisplay(w);
-	XImage *image;
+	DestImage *di;
 /*
  * Go through and make the color map.
  */
@@ -1044,48 +849,18 @@ RGrid *rg;
  * the server; things could happen in the wrong order otherwise.
  */
 	eq_sync ();
-# ifdef SHM
-	/*
-	 * The raster image will be written directly to the 
-	 * server's memory through the Graphics Widget's shared memory,
-	 * unless shared memory is not possible... in which case we
-	 * must create a local image, process our data, and then
-	 * send the image to the server.
-	 */
-	if (GWFrameShared (Graphics, frame))
-	{
-		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
-		destimg += yhi * GWGetBPL(w, frame) + xlo*bdepth;
-		RP_FixCMap (cmap, GWGetByteOrder (w, frame), bdepth);
-		RP_ImageRasterize (destimg, width, height, grid, cmap, toprow, 
-				   leftcol, rowinc, colinc, xd, yd,
-				   GWGetBPL (w, frame) - width*bdepth, bdepth);
-	}
-	else
-# endif
-	{
-	/*
-	 * Get a graphics context
-	 */
-		gcontext = XCreateGC( disp, XtWindow(w), 0, &gcvals);
-		XSetClipRectangles( disp, gcontext, 0, 0, &Clip, 1, Unsorted);
-	/*
-	 * Get an XImage, fill it, and stuff it in.
-	 */
-		image = RP_GetXImage(w, width, height);
-		RP_FixCMap (cmap, image->byte_order, bdepth);
-		RP_ImageRasterize ((unsigned char *)(image->data), 
-				   width, height, grid, cmap, toprow, leftcol,
-				   rowinc, colinc, xd, yd,
-				   image->bytes_per_line - width*bdepth,
-				   bdepth);
-	/*
-	 * Now send our local XImage to the server
-	 */
-		XPutImage(disp, GWFrame(w), gcontext, image, 0, 0,
-			  xlo, yhi, width, height);
-		XFreeGC(disp, gcontext);
-	}
+/*
+ * Get our image, rasterize into it, and ship it out.
+ */
+	di = ri_GetDestImage (frame, xlo, yhi, width, height);
+	if (di->di_needswap)
+		RP_FixCMap (cmap, di->di_bdepth);
+	RP_ImageRasterize (di->di_image + di->di_ioffset, width, height,
+			grid, cmap, toprow, leftcol, rowinc, colinc, xd, yd,
+			di->di_bpl - width*di->di_bdepth, di->di_bdepth);
+	SetClip (0);
+	ri_ShipImage (di);
+	SetClip (1);
 /*
  * Done!
  */
@@ -1137,6 +912,12 @@ int		xdim, ydim, pad, bdepth;
 				  row);
 #endif
 		col = (int) (icol * 65536);
+	/*
+	 * Actual rendering is depth-specific.  The loop is essentially
+	 * repeated three times to avoid doing the bdepth test for each
+	 * pixel; once per scan line seems to work OK, though we could
+	 * gain a bit by moving it outside the outer loop as well.
+	 */
 		switch (bdepth)
 		{
 		    case 1: /* Eight-bit video */
@@ -1249,15 +1030,10 @@ RGrid *rg;
  */
 {
 	float olat, olon, latstep, lonstep, lat, lon;
-	int shm, nx = rg->rg_nX, ny = rg->rg_nY, yoff, xoff, xp, yp;
-	int x0 = 9999, y0 = 9999, x1 = -9999, y1 = -9999, x, y, lwidth;
-	GC gcontext;
-	unsigned char *destimg;
-	Display *disp = XtDisplay(w);
+	int nx = rg->rg_nX, ny = rg->rg_nY, xp, yp;
+	int x0 = 9999, y0 = 9999, x1 = -9999, y1 = -9999, x, y;
 	Location gloc;
-	XImage *image;
-	XGCValues gcvals;
-	const int bdepth = GWBDepth (Graphics);
+	DestImage *di;
 /*
  * Get our origin, and try to work back to the original lat/lon spacing.
  */
@@ -1284,46 +1060,19 @@ RGrid *rg;
 	if (y1 > (int)(Clip.y + Clip.height))
 		y1 = Clip.y + Clip.height;
 /*
- * Figure out where we're drawing.
+ * Get our destination image set up.
  */
-	eq_sync ();
-# ifdef SHM
-	/*
-	 * The raster image will be written directly to the 
-	 * server's memory through the Graphics Widget's shared memory,
-	 * unless shared memory is not possible... in which case we
-	 * must create a local image, process our data, and then
-	 * send the image to the server.
-	 */
-	if (GWFrameShared (Graphics, frame))
-	{
-		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
-		lwidth = GWGetBPL (w, frame);
-		shm = TRUE;
-		yoff = 0;  /* x and y correspond to graphics frame */
-		xoff = x0;
-		RP_FixCMap (cmap, GWGetByteOrder (w, frame), bdepth);
-	}
-	else
-# endif
-	{
-		gcontext = XCreateGC (disp, XtWindow(w), 0, &gcvals);
-		XSetClipRectangles (disp, gcontext, 0, 0, &Clip, 1, Unsorted);
-		image = RP_GetXImage(w, x1 - x0 + 1, y1 - y0 + 1);
-		destimg = (unsigned char *) image->data;
-		lwidth = image->bytes_per_line;
-		shm = FALSE;
-		yoff = y0;  /* x and y must be translated to image coords */
-		xoff = 0;
-		RP_FixCMap (cmap, image->byte_order, bdepth);
-	}
+	di = ri_GetDestImage (frame, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+	if (di->di_needswap)
+		RP_FixCMap (cmap, di->di_bdepth);
 /*
  * Now we plow through the pixels, reverse map each one, and assign the
  * proper data point.  Ugly.
  */
 	for (y = y0; y <= y1; y++)
 	{
-		unsigned char *dest = destimg + (y-yoff)*lwidth + xoff*bdepth;
+		unsigned char *dest = di->di_image + di->di_ioffset +
+			(y - y0)*di->di_bpl;
 		unsigned int pval;
 		for (x = x0; x <= x1; x++)
 		{
@@ -1338,7 +1087,7 @@ RGrid *rg;
 		 */
 			pval = (xp >= 0 && xp < nx && yp >= 0 && yp < ny) ?
 				 cmap[grid[(ny - yp - 1)*nx + xp]] : cmap[255];
-			switch (bdepth)
+			switch (di->di_bdepth)
 			{
 			    case 1:
 				*dest = pval;
@@ -1353,49 +1102,36 @@ RGrid *rg;
 				msg_ELog (EF_PROBLEM, "Bad byte depth");
 				return;
 			}
-			dest += bdepth;
+			dest += di->di_bdepth;
 		} /* x loop */
 	} /* Y loop */
 /*
- * If we doing things with an XImage we need to ship it out.
+ * Ship it out and we're done.
  */
-	if (! shm)
-	{
-		XPutImage(disp, GWFrame(w), gcontext, image, 0, 0,
-			  x0, y0, x1 - x0 + 1, y1 - y0 + 1);
-		XFreeGC(disp, gcontext);
-	}
+	ri_ShipImage (di);
 }
 # endif /* MAP_PROJECTIONS */
 
 
 static void
-RP_FixCMap (cmap, serverorder, bdepth)
+RP_FixCMap (cmap, bdepth)
 Pixel *cmap;
-int serverorder, bdepth;
+int bdepth;
 /*
  * Fix up this color map to match the servers byte ordering, if need be.
  */
 {
 	int cmentry;
-	int ourorder = BigEndian () ? MSBFirst : LSBFirst;
+	const int big = BigEndian ();
 	short *scmap;
 /*
- * Maybe we don't need to do anything?
- */
-	msg_ELog (EF_DEBUG, "FixCMap, us %d server %d depth %d", ourorder,
-			serverorder, bdepth);
-	if (bdepth == 1 || ourorder == serverorder)
-		return;
-	msg_ELog (EF_DEBUG, "Flipping...");
-/*
- * Oh well.  Flip this one around.
+ * Commence swapping.
  */
 	switch (bdepth)
 	{
 	    case 2:
 		scmap = (short *) cmap;
-		if (ourorder == MSBFirst)
+		if (big)
 			scmap++;	/* To LSB part of word */
 		for (cmentry = 0; cmentry < 256; cmentry++)
 		{
@@ -1412,67 +1148,6 @@ int serverorder, bdepth;
 		break;
 	}
 }
-
-
-
-
-# ifdef notdef
-/*
- * No real need for this, for now.  Someday maybe we'll want it again
- * so I'll stash it here.
- */
-
-static void
-RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
-		xdim, ydim, pad)
-unsigned char	*ximp;
-int 		width, height;
-unsigned int 	*colgrid;
-float 		row, icol, rowinc, colinc;
-int 		xdim, ydim, pad;
-/*
- * Do rasterization using the old floating point (Ardent vectorizable) 
- * method.
- */
-{
-	int i, j;
-	float col;
-
-#ifdef DEBUG
-	msg_ELog (EF_INFO, "entering FPRasterize");
-#endif
-	for (i = 0; i < height; i++)
-	{
-		unsigned int *cp = colgrid + ((int) row) * xdim;
-#ifdef DEBUG
-		/*
-		 * It is very possible that the last (bottom) row will be
-		 * slightly less than zero due to precision errors.  But
-		 * fortunately such coords will still trunc to zero, so it's
-		 * not really a problem. 
-		 */
-		if (row < 0 || (int)row >= ydim)
-			msg_ELog (EF_PROBLEM, "FPRaster: row %f out of bounds",
-				  row);
-#endif
-		col = icol;
-		for (j = 0; j < width - 1; j++)
-		{
-			*ximp++ = cp[(int)col];
-			col += colinc;
-		}
-		*ximp++ = cp[(int)col];
-		row += rowinc;
-		ximp += pad;	/* End of raster line padding.	*/
-	}
-#ifdef DEBUG
-	if (height && (int)col >= xdim)
-		msg_ELog (EF_PROBLEM, "FPRaster: col %f out of bounds", col);
-#endif
-}
-
-
-# endif
 
 
 

@@ -18,8 +18,11 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <config.h>
+
 # include <math.h>
 # include <string.h>
+# include <X11/Intrinsic.h>
 
 # include "defs.h"
 # include "message.h"
@@ -28,7 +31,13 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.32 1998-03-06 16:35:44 burghart Exp $")
+# include "RasterImage.h"
+# include "PixelCoord.h"
+# if C_CAP_POLAR
+# include "PolarPlot.h"
+# endif
+
+MAKE_RCSID ("$Id: GridAccess.c,v 2.33 1998-04-27 21:44:42 corbet Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -43,6 +52,12 @@ static bool	ga_BarnesRegularize FP ((DataChunk **, FieldId, char *, char *,
 			int));
 static void 	ga_RangeLimit FP ((char *, int, float *, double));
 static void 	ga_ImgToCGrid FP ((DataChunk **, FieldId));
+# if C_CAP_POLAR
+static void	ga_Rasterize FP ((char *, DataChunk **, FieldId));
+static void	ga_MkRastDest FP ((DataChunk *, FieldId, int, int,
+			DestImage **, PPCookie *pc, int *, int *, Location *,
+			RGrid *));
+# endif
 static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
 static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
 
@@ -148,35 +163,44 @@ float	*x0, *y0, *x1, *y1, *alt;
 
 	switch (platorg)
 	{
-		case Org3dGrid:
+	    case Org3dGrid:
 #ifdef notdef
-			details[ndet].dd_Name = "altitude";
-			details[ndet].dd_V.us_v_float = *alt;
-			ndet++;
+		details[ndet].dd_Name = "altitude";
+		details[ndet].dd_V.us_v_float = *alt;
+		ndet++;
 #endif
 			/* Fall into */
-		case Org2dGrid:
-			platclass = DCC_RGrid;
-			break;
-		case OrgImage:
-			platclass = DCC_Image;
-			break;
-		case OrgIRGrid:
-			platclass = DCC_IRGrid;
-			break;
-		case OrgScalar:	/* <-- historical, should change someday */
-		case OrgNSpace:
-			platclass = DCC_NSpace;
-#ifdef notdef
-			if (pda_Search (Pd, comp, "dimensions", NULL, 
-					dimn_parms, SYMT_STRING))
-				dc_NSFixedDetails(dimn_parms, details, &ndet);
-			details[ndet].dd_Name = "altitude";
-			details[ndet].dd_V.us_v_float = *alt;
-			ndet++;
+	    case Org2dGrid:
+		platclass = DCC_RGrid;
+		break;
+	    case OrgImage:
+		platclass = DCC_Image;
+		break;
+	    case OrgIRGrid:
+		platclass = DCC_IRGrid;
+		break;
+	    case OrgScalar:	/* <-- historical, should change someday */
+	    case OrgNSpace:
+		platclass = DCC_NSpace;
+#ifdef notdef	
+		if (pda_Search (Pd, comp, "dimensions", NULL, 
+				dimn_parms, SYMT_STRING))
+			dc_NSFixedDetails(dimn_parms, details, &ndet);
+		details[ndet].dd_Name = "altitude";
+		details[ndet].dd_V.us_v_float = *alt;
+		ndet++;
 #endif
-			break;
-		default:
+		break;
+# if C_CAP_POLAR
+	/*
+	 * Polar data can be rasterized.
+	 */
+	    case OrgPolar:
+		platclass = DCC_Polar;
+		break;
+# endif
+		
+	    default:
 			msg_ELog (EF_PROBLEM, "ga_GetGrid on bad org");
 			return (0);
 	}
@@ -209,9 +233,9 @@ float	*x0, *y0, *x1, *y1, *alt;
 	}
 /*
  * For image data, we need to do some ugly stuff to deal with altitude
- * steps.
+ * steps.  Polar data has a similar constraint.
  */
-	if (platorg == OrgImage)
+	if (platorg == OrgImage || platorg == OrgPolar)
 		ImageDataTime (comp, pid, *alt, &dtime);
 /*
  * Set up the forecast offset time detail
@@ -220,7 +244,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	details[ndet].dd_V.us_v_int = ForecastOffset;
 	ndet++;
 /*
- * Do a DS fetch for this data.
+ * Snarf the data.
  */
 	if (! (dc = ds_Fetch (pid, platclass, &dtime, &dtime, &fid, 1, 
 			      details, ndet)))
@@ -250,6 +274,14 @@ float	*x0, *y0, *x1, *y1, *alt;
 	   case OrgImage:
 	   	ga_ImgToCGrid (&dc, fid);
 		break;
+# if C_CAP_POLAR
+	/*
+	 * Polar data gets to be rasterized...our work is just beginning...
+	 */
+	    case OrgPolar:
+		ga_Rasterize (comp, &dc, fid);
+		break;
+# endif
 	/*
 	 * Scalar implies NSpace stuff, and we'll take a shot at making a
 	 * grid from it.
@@ -294,6 +326,256 @@ float	*x0, *y0, *x1, *y1, *alt;
 	*plot_time = dtime;
 	return (dc);
 }
+
+
+
+
+
+
+# if C_CAP_POLAR
+
+
+static void
+ga_GetRastParams (char *comp, int *gratio, int *project, FieldId *fids,
+		int *ttest, float *tvalue)
+/*
+ * Get the PD parameters we need to do this rasterization work.
+ * "gratio" stands for "grid ratio", but let's consider it to be named in
+ * honor of Debbie...what ever became of you, anyway?
+ */
+{
+	char rep[80], tfield[80];
+	char *fname = F_GetName (fids[0]);
+/*
+ * Pull out the representation of this component.
+ */
+	if (! pd_Retrieve (Pd, comp, "representation", rep, SYMT_STRING))
+	{
+		msg_ELog (EF_PROBLEM, "Comp %s has no representation?", comp);
+		return;
+	}
+/*
+ * Pull out the grid ratio parameter.  Here we use the representation as
+ * a qualifier!  It's quite likely that they might want to use a lower
+ * grid resolution when contouring then when doing raster plots.
+ */
+	if (! pda_Search (Pd, comp, "grid-size-ratio", rep,
+			(char *) gratio, SYMT_INT))
+		*gratio = 0;
+/*
+ * Projection?
+ */
+	if (! pda_Search (Pd, comp, "horizontal-projection", "polar",
+			(char *) project, SYMT_BOOL))
+		*project = TRUE;
+/*
+ * Thresholding info.  NOTE that technically this is way too late to be
+ * getting this stuff, since the datachunk already exists.  The only
+ * implementation of DCC_Polar uses callbacks to sweepfiles, and we can
+ * get away with this for now.  Someday it will break and you'll be mad
+ * at me.
+ */
+	if (pda_Search (Pd, comp, "threshold-field", fname, tfield,
+			SYMT_STRING))
+	{
+		fids[1] = F_Lookup (tfield);
+		if (! pda_Search (Pd, comp, "threshold-test", fname, tfield,
+				SYMT_STRING))
+			*ttest = FALSE;
+		else
+			*ttest = ! strcmp (tfield, "over");
+		if (! pda_ReqSearch (Pd, comp, "threshold-value", fname,
+				(char *) tvalue, SYMT_FLOAT))
+			fids[1] = BadField;  /* Turn off thresholding */
+	}
+	else
+		fids[1] = BadField;
+}
+
+
+
+
+static void
+ga_Rasterize (char *comp, DataChunk **dc, FieldId fid)
+/*
+ * Rasterize this polar datachunk into a 2dgrid DC.
+ */
+{
+	DestImage *dest;
+	PPCookie pc;
+	int xradar, yradar, beam, row, rlen, gratio = 0, project = 0, ttest;
+	RGrid rg;
+	Location origin;
+	SweepInfo sweep;
+	PolarBeam *pb;
+	DataChunk *gdc;
+	ZebTime when;
+	float *srcg, *dstg, tvalue;
+	FieldId fids[2];
+/*
+ * Pull out needed PD parameters.
+ */
+	fids[0] = fid;
+	ga_GetRastParams (comp, &gratio, &project, fids, &ttest, &tvalue);
+/*
+ * figure out how the destination grid has to sit, and create it.
+ */
+	ga_MkRastDest (*dc, fid, gratio, project, &dest, &pc, &xradar,
+			&yradar, &origin, &rg);
+/*
+ * Time to plow through the data and rasterize it all.
+ */
+	dcp_GetSweepInfo (*dc, 0, &sweep);
+	for (beam = 0; beam < sweep.si_NBeam; beam++)
+	{
+		pb = dcp_GetBeam (*dc, 0, beam, fid, fids[1], ttest, tvalue);
+		if (! pb)
+			continue;
+# ifdef RDEBUG
+		for (row = 0; row < 1000; row++)
+			pb->pb_Data[row] = row/10.0;
+# endif
+		pol_PlotBeam (pc, pb, pb->pb_Data, xradar, yradar);
+		dcp_FreeBeam (pb);
+	}
+/*
+ * Create the destination data chunk.  Add the data with a null pointer,
+ * forcing the data chunk to allocate the space but not populate it with
+ * anything.
+ */
+	gdc = dc_CreateDC (DCC_RGrid);
+	gdc->dc_Platform = dc_GetPlat (*dc, 0);
+	dc_GetTime (*dc, 0, &when);
+	dc_RGSetup (gdc, 1, &fid);
+	dc_SetBadval (gdc, dc_GetBadval (*dc));
+	dc_RGAddGrid (gdc, 0, fid, &origin, &rg, &when, NULL, 0);
+/*
+ * Now we painfully copy in the grid data.  The rasterization code works
+ * in the top-origin world, while grids expect to have them in the bottom,
+ * so we do things this way to get turned back around.
+ */
+	rlen = rg.rg_nX*sizeof (float);
+	dstg = dc_RGGetGrid (gdc, 0, fid, 0, 0, 0);
+	srcg = ((float *) dest->di_image) + (rg.rg_nY - 1)*rg.rg_nX;
+	for (row = 0; row < rg.rg_nY; row++)
+	{
+		memcpy (dstg, srcg, rlen);
+		dstg += rg.rg_nX;
+		srcg -= rg.rg_nX;
+	}
+/*
+ * We're now done with the rasterization grid.  Carefully free it first,
+ * then tell the polar plot code to take care of the rest.  Also get rid
+ * of the old data chunk, we don't need it any more.
+ */
+	free (dest->di_image);
+	pol_Finished (pc);
+	dc_DestroyDC (*dc);
+/*
+ * Now just substitute in the new one, and life is groovy.
+ */
+	*dc = gdc;
+}
+
+
+
+
+
+
+static void
+ga_MkRastDest (DataChunk *dc, FieldId fid, int gratio, int project,
+		DestImage **dest,
+		PPCookie *pc, int *xradar, int *yradar, Location *origin,
+		RGrid *rg)
+/*
+ * Create the destination grid for this rasterization.  This grid, it may
+ * be noted, is optimized around the display area, but is, in fact, a bit
+ * larger in extent.  The idea is to help the contouring code do the right
+ * thing at the edges.
+ */
+{
+	float pixPerKm = (XPIX (Xhi) - XPIX (Xlo))/(Xhi - Xlo);
+	float gatesPerKm, rxkm, rykm, badval, *grid;
+	PolarBeam *pb;
+	Location rloc;
+	int n, np;
+/*
+ * We actually have to pull the first beam out of the data chunk to get
+ * the gate spacing.  Here we calculate a rough gates per *diagonal*
+ * kilometer (the 1.4 is a rough sqrt(2)).
+ */
+	pb = dcp_GetBeam (dc, 0, 0, fid, BadField, 0, 0);
+	gatesPerKm = 2/pb->pb_GateSpacing;
+	origin->l_alt = pb->pb_FixedAngle;
+	dcp_FreeBeam (pb);
+/*
+ * Figure out where the radar is in km space.
+ */
+	dc_GetLoc (dc, 0, &rloc);
+	prj_Project (rloc.l_lat, rloc.l_lon, &rxkm, &rykm);
+/*
+ * If the data resolution is higher than that of the display, or if the user
+ * has specified an explicit graphics ratio, create  a grid at display
+ * resolution.  
+ */
+	if (gratio > 0 || gatesPerKm > pixPerKm)
+	{
+		if (gratio > 1)
+			pixPerKm /= gratio;
+	}
+/*
+ * Otherwise go with a grid resolution a bit higher than the data resolution
+ * (so that diagonal beams don't lose out).
+ */
+	else
+		pixPerKm = gatesPerKm;
+/*
+ * Now figure our spacings.
+ */
+	rg->rg_nX = pixPerKm*(XUSER (GWWidth (Graphics)-1) - XUSER(0));
+	rg->rg_nY = pixPerKm*(YUSER (0) - YUSER(GWHeight(Graphics)-1));
+	rg->rg_nZ = 1;
+	rg->rg_Xspacing = rg->rg_Yspacing = 1.0/pixPerKm;
+/*
+ * Radar and origin positions...
+ */
+	*xradar = rint ((rxkm - XUSER (0))*pixPerKm);
+	*yradar = rint ((YUSER (0) - rykm)*pixPerKm) - 1;
+	prj_Reverse (XUSER (0), YUSER (GWHeight (Graphics) - 1),
+			&origin->l_lat, &origin->l_lon);
+
+	msg_ELog (EF_INFO,
+		      "Grid res %dx%d, sp %.1f %.1f orig %.1f %.1f, ppkm %.2f",
+			rg->rg_nX, rg->rg_nY, rg->rg_Xspacing, rg->rg_Yspacing,
+			origin->l_lat, origin->l_lon, pixPerKm);
+	msg_ELog (EF_INFO, "Radar at %d %d", *xradar, *yradar);
+/*
+ * Now that we've figured out what we want, it's time to create the actual
+ * grid.
+ */
+	grid = (float *) malloc (rg->rg_nX * rg->rg_nY * sizeof (float));
+	*dest = ri_MakeMemImage (rg->rg_nX, rg->rg_nY, grid, sizeof (float),
+			rg->rg_nX*sizeof (float));
+/*
+ * Now we have to slog through the whole damn thing and set it to bad value
+ * flags.  Since we're setting to a floating point value, we can't use
+ * memset or anything so nice as that.
+ */
+	badval = dc_GetBadval (dc);
+	np = rg->rg_nX*rg->rg_nY;
+	for (n = 0; n < np; n++)
+		*grid++ = badval;
+/*
+ * Fix up a polar plotter and we're set.
+ */
+	*pc = pol_GridSetup (project, *dest, XUSER (0),
+			YUSER (GWHeight (Graphics) - 1),
+			XUSER (GWWidth (Graphics) - 1), YUSER (0));
+}
+
+
+
+# endif C_CAP_POLAR
 
 
 

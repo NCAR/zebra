@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.40 1998-03-17 18:30:04 corbet Exp $ 
+XCOMM $Id: Imakefile,v 1.41 1998-04-27 21:44:44 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -23,13 +23,13 @@ XCOMM $Id: Imakefile,v 1.40 1998-03-17 18:30:04 corbet Exp $
 #ifdef UseFORTRAN
 LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS) $(FLIBS)
 #else
-LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS) $(DORADELIB)
 #endif
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 INCLUDES = $(XINCLUDES)
 
-DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+DEPLIBS = $(LIBZEBDS) $(LIBZEB) 
 
 #if UseOpenWindows && (OpenWindowsVersion < 3)
    LABELOBJS=Label.o
@@ -69,10 +69,10 @@ COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	LimitWidgets.o LLEvent.o ModelWidget.o MovieControl.o Ov_Grid.o \
 	Overlay.o OverlayTimes.o PDMonitor.o PlotControl.o PlotExec.o \
 	PlotPrim.o PositionWidget.o Projection.o RasterPlot.o RBand.o \
-	ThetaPlot.o \
+	ThetaPlot.o RasterImage.o \
 	Skewt.o TimeSeries.o Track.o UserEvent.o Utilities.o Radar.o \
 	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
-	XYObservation.o XYWind.o
+	XYObservation.o XYWind.o PolarPlot.o
 
 /*
  * Objects requiring UI header files.
@@ -80,6 +80,10 @@ COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 UIOBJS = DataMenu.o FieldMenu.o GraphProc.o Icons.o InsertWidget.o \
 	 LimitWidgets.o MovieControl.o Overlay.o PlotControl.o \
 	 PlotExec.o RBand.o UserEvent.o
+
+UISRCS = DataMenu.c FieldMenu.c GraphProc.c Icons.c InsertWidget.c \
+	 LimitWidgets.c MovieControl.c Overlay.c PlotControl.c \
+	 PlotExec.c RBand.c UserEvent.c
 
 #ifdef UseFORTRAN
 FOBJS = $(FOBJDIR)rgrid.o $(FOBJDIR)bints.o $(FOBJDIR)cfit.o
@@ -99,7 +103,7 @@ SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
 	PlotPrim.c PositionWidget.c Projection.c RasterPlot.c RBand.c \
 	Skewt.c TimeSeries.c Track.c UserEvent.c Utilities.c Radar.c \
 	VectorGrid.c XSection.c XYCommon.c XYContour.c XYGraph.c \
-	XYObservation.c XYWind.c sfont_1.c ThetaPlot.c
+	XYObservation.c XYWind.c sfont_1.c ThetaPlot.c RasterImage.c
 
 #ifdef UseFORTRAN
 FSRCS = cfit.F rgrid.F bints.f
@@ -119,10 +123,12 @@ DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
 
 CccProgramTarget(gp, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
+SpecialObjectRule($(UIOBJS),$(UISRCS),$(RDSSINCLUDES))
 SpecialObjectRule(RasterPlot.o,RasterPlot.c,$(SHMDEFINES) $(MAPDEFINE))
+SpecialObjectRule(RasterImage.o,RasterImage.c,$(SHMDEFINES) $(MAPDEFINE))
 MAPOBJS = ConstAltPlot.o Ov_Grid.o
-SpecialObjectRule($(MAPOBJS),/**/,$(MAPDEFINE))
+MAPSRCS = ConstAltPlot.c Ov_Grid.c
+SpecialObjectRule($(MAPOBJS),$(MAPSRCS),$(MAPDEFINE))
 SpecialObjectRule(Projection.o,Projection.c,$(MAPDEFINE) $(PROJINCLUDES))
 
 UILoadFileDepsTarget(graphproc.lf, GraphProc.state, GraphProc.widgets)

@@ -26,6 +26,13 @@
 # include <ctype.h>
 # include <X11/Intrinsic.h>
 
+# define TIMING
+# ifdef TIMING
+# include <sys/time.h>
+# include <sys/resource.h>
+# endif
+
+
 # include <defs.h>
 # include <draw.h>
 # include <pd.h>
@@ -40,10 +47,15 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "Contour.h"
+# include "RasterImage.h"
+# if C_CAP_POLAR
+# include "PolarPlot.h"
+# endif
+
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.71 1998-02-20 00:08:11 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.72 1998-04-27 21:44:38 corbet Exp $")
 
 
 /*
@@ -108,6 +120,14 @@ void		CAP_FContour FP ((char *, int));
 void		CAP_Vector FP ((char *, int));
 void		CAP_Station FP ((char *, int));
 void		CAP_Raster FP ((char *, int));
+# if C_CAP_POLAR
+void		CAP_Polar FP ((char *, int));
+static int	CAP_PolarParams FP ((char *c, char *plat, PlatformId *pid,
+				FieldId *fids, int *nfids, float *tvalue,
+				int *ttest, float *center, float *step,
+				int *nstep, char *ctable, XColor *outrange,
+				int *project, int *tfill));
+# endif
 void		CAP_LineContour FP ((char *, int));
 static void	CAP_Contour FP ((char *, contour_type, char **, char **, 
 				 float *, float *, char **, int *));
@@ -1761,7 +1781,7 @@ bool	update;
 	if ((org = ds_PlatformDataOrg (pid)) == OrgImage)
 		image = TRUE;
 	else if (org == Org3dGrid || org == Org2dGrid || org == OrgIRGrid ||
-		 org == OrgNSpace)
+		 org == OrgNSpace || org == OrgPolar)
 		image = FALSE;
 	else
 	{
@@ -2177,6 +2197,256 @@ PlatformId	pid;
 
 	return (TRUE);
 }
+
+
+
+
+# if C_CAP_POLAR
+
+
+void
+CAP_Polar (char *c, int update)
+/*
+ * Perform a polar plot.
+ */
+{
+	PlatformId pid;
+	FieldId fids[2];	/* plot and threshold */
+	int nfid, ttest, shifted, project, beam, ncolors, nstep, xr, yr, tfill;
+	float center, step, tvalue, alt = Alt, min, max, cmult, x, y;
+	char ctable[40], plat[CFG_PLATNAME_LEN], adata[300];
+	XColor outrange, *colors;
+	ZebTime when;
+	DataChunk *dc;
+	PPCookie pc;
+	SweepInfo swpinfo;
+	Pixel ccbuf[4096];
+	Location rloc;
+/*
+ * Instrumentation if needed.
+ */
+# ifdef TIMING
+	int msec;
+	struct rusage	ru;
+
+	getrusage (RUSAGE_SELF, &ru);
+	msec = - ((ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
+			(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000);
+# endif
+/*
+ * This is a type of plot that should rationally be able to do updates
+ * one of these days, but we don't even try for now.
+ */
+	if (update)
+		return;
+/*
+ * Get our config info.
+ */
+	if (! CAP_PolarParams (c, plat, &pid, fids, &nfid, &tvalue, &ttest,
+			&center, &step, &nstep, ctable, &outrange, &project,
+			&tfill))
+		return;
+	if (! ct_LoadTable (ctable, &colors, &ncolors))
+		return;
+/*
+ * Figure out color coding.
+ */
+	min = center - (nstep/2.0)*step;
+	max = center + (nstep/2.0)*step;
+	cmult = ncolors/(max - min);
+/*
+ * When should this data come from?
+ */
+	when = PlotTime;
+	if (! ImageDataTime (c, pid, alt, &when))
+		return;
+/*
+ * OK, time to get it.
+ */
+	if (! (dc = ds_Fetch (pid, DCC_Polar, &when, &when, fids, nfid,
+			NULL, 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Get failed on %s", plat);
+		return;
+	}
+	shifted = ApplySpatialOffset (dc, c, &PlotTime);
+/*
+ * Get the radar location in pixel space.  Done out here to avoid the
+ * overhead for every beam; if we ever find ourselves in the business of
+ * plotting data from mobile radars, this will need to move inside the
+ * loop.
+ */
+	dc_GetLoc (dc, 0, &rloc);
+	prj_Project (rloc.l_lat, rloc.l_lon, &x, &y);
+	xr = XPIX (x);
+	yr = YPIX (y);
+/*
+ * Fix up the overlay times widget before we forget.
+ */
+	CAP_AddStatusLine (c, plat, F_GetFullName (fids[0]), rloc.l_alt,
+			dc_GetLocAltUnits (dc), &when);
+/*
+ * Get ready to do some serious plotting.
+ */
+	pc = pol_DisplaySetup (project, tfill);
+	dcp_GetSweepInfo (dc, 0, &swpinfo);
+/*
+ * OK, do some serious plotting.
+ */
+	for (beam = 0; beam < swpinfo.si_NBeam; beam++)
+	{
+		PolarBeam *pb;
+		int gate;
+# ifdef RDEBUG
+		XColor red;
+		ct_GetColorByName ("red", &red);
+# endif
+	/*
+	 * Pull out the data.
+	 */
+		pb = dcp_GetBeam (dc, 0, beam, fids[0], (nfid > 1) ? fids[1] :
+				BadField, ttest, tvalue);
+		if (! pb)
+			continue;
+	/*
+	 * Color code it.
+	 */
+		for (gate = 0; gate < pb->pb_NGates; gate++)
+		{
+			int cind = (pb->pb_Data[gate] - min)*cmult;
+			ccbuf[gate] = (cind < 0 || cind >= ncolors) ?
+				outrange.pixel : colors[cind].pixel;
+		}
+# ifdef RDEBUG
+		for (gate = 800; gate < 850; gate++)
+			ccbuf[gate] = red.pixel;
+		for (gate = 900; gate < 950; gate++)
+			ccbuf[gate] = red.pixel;
+# endif
+	/*
+	 * Plot it and we're done.
+	 */
+		pol_PlotBeam (pc, pb, ccbuf, xr, yr);
+		dcp_FreeBeam (pb);
+	}
+/*
+ * Get this stuff op on the screen, and clean up.
+ */
+	pol_Finished (pc);
+	dc_DestroyDC (dc);
+/*
+ * Toss some info on the top of the screen.
+ */
+	An_TopAnnot (F_GetFullName (fids[0]), Tadefclr.pixel);
+	An_TopAnnot (" (", Tadefclr.pixel);
+	An_TopAnnot (plat, Tadefclr.pixel);
+	An_TopAnnot (")", Tadefclr.pixel);
+	if (shifted)
+		An_TopAnnot ("(SHIFTED)", Tadefclr.pixel);
+	An_TopAnnot (".  ", Tadefclr.pixel);
+/*
+ * Set up for side annotation.
+ */
+	sprintf (adata, "%s %s %f %f %d %d %f %s %f", F_GetFullName(fids[0]),
+			ctable, center, step, nstep, FALSE, 0.0, "white", 0.0);
+	An_AddAnnotProc (CAP_RasterSideAnnot, c, adata, strlen (adata), 
+		140, TRUE, FALSE);
+	r_AddAnnot (c, plat);
+/*
+ * How did the timing work out?
+ */
+# ifdef TIMING
+	getrusage (RUSAGE_SELF, &ru);
+	msec += (ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
+		(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000;
+	msg_ELog (EF_INFO, "Polar plot time = %.3f sec", (float) msec/1000.0);
+# endif
+}
+
+
+
+
+
+
+
+static int
+CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
+		int *nfids,
+		float *tvalue, int *ttest, float *center, float *step,
+		int *nstep, char *ctable, XColor *outrange, int *project,
+		int *tfill)
+/*
+ * Grab all of the PD parameters controlling polar plots.
+ */
+{
+	int ok;
+	char cparam[120], fname[40], param[40];
+/*
+ * Platform info.
+ */
+	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
+	if ((*pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad platform %s", platform);
+		return (FALSE);
+	}
+/*
+ * Field info.
+ */
+	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
+	fids[0] = F_Lookup (fname);
+	if (pda_Search (Pd, c, "threshold-field", fname, cparam, SYMT_STRING))
+	{
+		fids[1] = F_Lookup (cparam);
+		*nfids = 2;
+		if (! pda_Search (Pd, c, "threshold-test", fname, cparam,
+				SYMT_STRING))
+			*ttest = FALSE;
+		else
+			*ttest = ! strcmp (cparam, "over");
+		if (! pda_ReqSearch (Pd, c, "threshold-value", fname,
+				CPTR (*tvalue), SYMT_FLOAT))
+			*nfids = 1;  /* Turn off thresholding */
+	}
+	else
+	{
+		fids[1] = BadField;
+		*nfids = 1;
+	}
+/*
+ * Color info.
+ */
+	ok &= pda_ReqSearch (Pd, c, "color-table", platform, ctable,
+			SYMT_STRING);
+	sprintf (param, "%s-center", fname);
+	ok &= pda_ReqSearch (Pd, c, param, platform, CPTR (*center),
+			SYMT_FLOAT);
+	sprintf (param, "%s-step", fname);
+	ok &= pda_ReqSearch (Pd, c, param, platform, CPTR (*step), SYMT_FLOAT);
+	sprintf (param, "%s-nsteps", fname);
+	if (! pda_Search (Pd, c, param, platform, CPTR (*nstep), SYMT_INT))
+		*nstep = 17;
+	if (! pda_Search (Pd, c, "out-of-range-color", platform, cparam,
+			SYMT_STRING))
+		strcpy (cparam, "black");
+	ct_GetColorByName (cparam, outrange);
+/*
+ * Are we doing horizontal projection?
+ */
+	if (! pda_Search (Pd, c, "horizontal-projection", platform,
+			CPTR (*project), SYMT_BOOL))
+		*project = TRUE;
+/*
+ * How about triangular filling?
+ */
+	if (! pda_Search(Pd, c, "triangular-fill", platform, CPTR (*tfill),
+			SYMT_BOOL))
+		*tfill = TRUE;
+	return (ok);
+
+}
+
+# endif C_CAP_POLAR
 
 
 

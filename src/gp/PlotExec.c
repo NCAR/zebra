@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.54 1997-10-16 19:50:09 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.55 1998-04-27 21:44:45 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -101,7 +101,8 @@ name_to_num Pt_table[] =
 # define RT_BARCHART	13	/* For histograms	*/
 # define RT_THETAE	14	/* Theta-e plot */
 # define RT_THETAW	15	/* Theta-w plot */
-# define N_RTYPES	16	/* Increase this as rep. types are added */
+# define RT_POLAR	16
+# define N_RTYPES	17	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -123,6 +124,7 @@ name_to_num Rt_table[] =
 	{"bar",			RT_BARCHART     },
 	{"thetae",		RT_THETAE 	},
 	{"thetaw",		RT_THETAW 	},
+	{"polar",		RT_POLAR 	},
 	{NULL,			0		}
 };
 
@@ -167,6 +169,9 @@ static void _UncompiledFunction () { }
 	void	CAP_Station FP ((char *, int));
 	void	CAP_LineContour FP ((char *, int));
 	void	CAP_Init FP ((UItime *));
+#    if C_CAP_POLAR
+	void	CAP_Polar FP ((char *, int));
+#    endif
 #    if C_CAP_VECTOR
 	void	CAP_Vector FP ((char *, int));
 #    endif
@@ -763,11 +768,15 @@ px_Init ()
 	Plot_routines[PT_CAP][RT_FCONTOUR] = CAP_FContour;
 	Plot_routines[PT_CAP][RT_CONTOUR] = CAP_LineContour;
 	Plot_routines[PT_CAP][RT_STATION] = CAP_Station;
+# if C_CAP_POLAR
+	Plot_routines[PT_CAP][RT_POLAR] = CAP_Polar;
+# endif
 # else
 	Plot_routines[PT_CAP][RT_INIT] = NULL;
 	Plot_routines[PT_CAP][RT_FCONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_CAP][RT_CONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_CAP][RT_STATION] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_CAP][RT_POLAR] = UNCOMPILED_FUNCTION;
 # endif
 # if C_CAP_VECTOR
 	Plot_routines[PT_CAP][RT_WIND] = CAP_Vector;
