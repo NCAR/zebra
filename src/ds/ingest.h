@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.8 1993-06-10 22:28:37 granger Exp $
+ * $Id: ingest.h,v 1.9 1994-04-15 22:28:20 burghart Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -66,6 +66,8 @@ extern void	IngestUsage();
 
 extern bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
 				dsDetail *details, int ndetail));
+extern bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, bool newfile, 
+				       dsDetail *details, int ndetail));
 extern PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 
 /*
@@ -80,7 +82,8 @@ extern void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
  */
 #define ds_Store(a,b,c,d) _Ingest_ds_Store(a,b,c,d)
 #define ds_LookupPlatform(a) _Ingest_ds_LookupPlatform(a)
-#define ds_DeleteData(a,b) _Ingest_ds_DeleteData(a,b)
+#define ds_StoreBlocks(a,b,c,d) _Ingest_ds_StoreBlocks(a,b,c,d)
+/* #define ds_DeleteData(a,b) _Ingest_ds_DeleteData(a,b) */
 
 /* -------------------------------------------------------------------- */
 

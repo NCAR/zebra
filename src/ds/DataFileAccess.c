@@ -35,7 +35,8 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.14 1994-01-03 07:17:40 granger Exp $")
+
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.15 1994-04-15 22:27:48 burghart Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -109,11 +110,22 @@ void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
  *
  *	Copy over the locations for this IRGrid data.
  *
- * f_InqRGrid (dfindex, origin, rg)
- * Location *origin;
- * RGrid *rg;
+ * f_GetAlts (dfindex, fid, offset, alts, nalts, altunits)
+ * int dfindex;
+ * FieldId fid;
+ * int offset;
+ * float *alts;
+ * int *nalts;
+ * AltUnitType *altunits;
  *
- *	Return the location and size info for this grid.
+ *	Return the vertical levels associated with the given field and forecast
+ *	offset time from the given file
+ *
+ * f_GetForecastTimes (dfindex, times, ntimes)
+ * int dfindex;
+ * int *times, *ntimes;
+ *
+ *	Return the available model forecast offset times in the given file
  *
  * f_DataTimes (index, time, which, n, dest, attrs)
  * int index, n;
@@ -228,8 +240,9 @@ struct DataFormat
 	int (*f_InqNPlat) ();		/* Inquire number platforms	*/
 	int (*f_GetData) ();		/* Get the data			*/
 	int (*f_GetIRGLoc) ();		/* Get irgrid locations		*/
-	int (*f_InqRGrid) ();		/* Get RGrid info		*/
+	int (*f_GetAlts) ();		/* Get altitude info		*/
 	int (*f_DataTimes) ();		/* Get data times		*/
+	int (*f_GetForecastTimes) ();	/* Get forecast times (model)	*/
 	int (*f_MakeFileName) ();	/* Make new file name		*/
 	int (*f_CreateFile) ();		/* Create a new file		*/
 	int (*f_PutSample) ();		/* Put data to a file		*/
@@ -245,9 +258,9 @@ struct DataFormat
  */
 extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
 extern int dnc_SyncFile (), dnc_InqPlat (), dnc_GetData ();
-extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
+extern int dnc_GetIRGLoc (), dnc_GetAlts (), dnc_DataTimes ();
 extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutSample ();
-extern int dnc_PutBlock ();
+extern int dnc_PutBlock (), dnc_GetForecastTimes ();
 extern int dnc_GetFields (), dnc_GetObsSamples ();
 extern DataChunk *dnc_Setup ();
 
@@ -270,9 +283,20 @@ extern DataChunk *drf_Setup ();
 extern int	zn_CreateFile (), zn_QueryTime (), zn_GetIRGLoc (), zn_Sync ();
 extern int	zn_PutSample (), zn_Close (), zn_Open (), zn_MakeFileName ();
 extern int	zn_GetData (), zn_InqNPlat (), zn_Times ();
-extern int	zn_GetObsSamples (), zn_Fields (), zn_InqRGrid ();
+extern int	zn_GetObsSamples (), zn_Fields (), zn_GetAlts ();
 extern int	zn_PutSampleBlock ();
 extern DataChunk *zn_Setup ();
+
+/*
+ * GRIB format (both normal and surface only)
+ */
+extern int	grb_CreateFile (), grb_QueryTime (), grb_GetObsSamples ();
+extern int	grb_SyncFile (), grb_PutSample (), grb_CloseFile ();
+extern int	grb_OpenFile (), grb_MakeFileName (), grb_GetData ();
+extern int	grb_DataTimes (), grb_GetFields (), grb_GetAlts ();
+extern int	grb_GetForecastTimes (), grb_SfcOpenFile ();
+extern DataChunk *grb_Setup ();
+
 
 
 # define ___ 0
@@ -296,8 +320,9 @@ struct DataFormat Formats[] =
 	dnc_InqPlat,			/* Inquire platforms		*/
 	dnc_GetData,			/* Get the data			*/
 	dnc_GetIRGLoc,			/* Get IRGrid locations		*/
-	dnc_GetRGrid,			/* Get RGrid info		*/
+	dnc_GetAlts,			/* Get altitude info		*/
 	dnc_DataTimes,			/* Get data times		*/
+	dnc_GetForecastTimes,		/* Get forecast times		*/
 	dnc_MakeFileName,		/* Make file name		*/
 	dnc_CreateFile,			/* Create a new file		*/
 	dnc_PutSample,			/* Write to file		*/
@@ -316,8 +341,9 @@ struct DataFormat Formats[] =
 	___,				/* Inquire platforms		*/
 	bf_GetData,			/* Get the data			*/
 	___,				/* Get IRGrid locations		*/
-	___,				/* Get RGrid info		*/
+	___,				/* Get altitude info		*/
 	bf_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
 	bf_MakeFileName,		/* Make file name		*/
 	bf_CreateFile,			/* Create a new file		*/
 	bf_PutSample,			/* Write to file		*/
@@ -336,8 +362,9 @@ struct DataFormat Formats[] =
 	___,				/* Inquire platforms		*/
 	drf_GetData,			/* Get the data			*/
 	___,				/* Get IRGrid locations		*/
-	___,				/* Get RGrid info		*/
+	___,				/* Get altitude info		*/
 	drf_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
 	drf_MakeFileName,		/* Make file name		*/
 	drf_CreateFile,			/* Create a new file		*/
 	drf_PutSample,			/* Write to file		*/
@@ -356,8 +383,9 @@ struct DataFormat Formats[] =
 	___,				/* Inquire platforms		*/
 	drf_GetData,			/* Get the data			*/
 	___,				/* Get IRGrid locations		*/
-	___,				/* Get RGrid info		*/
+	___,				/* Get altitude info		*/
 	drf_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
 	drf_MakeFileName,		/* Make file name		*/
 	drf_CreateFile,			/* Create a new file		*/
 	drf_PutSample,			/* Write to file		*/
@@ -379,8 +407,9 @@ struct DataFormat Formats[] =
 	zn_InqNPlat,			/* Inquire platforms		*/
 	zn_GetData,			/* Get the data			*/
 	zn_GetIRGLoc,			/* Get IRGrid locations		*/
-	zn_InqRGrid,			/* Get RGrid info		*/
+	zn_GetAlts,			/* Get altitude info		*/
 	zn_Times,			/* Get data times		*/
+	___,				/* Get forecast times		*/
 	zn_MakeFileName,		/* Make file name		*/
 	zn_CreateFile,			/* Create a new file		*/
 	zn_PutSample,			/* Write to file		*/
@@ -388,7 +417,56 @@ struct DataFormat Formats[] =
 	zn_GetObsSamples,		/* Get observation samples	*/
 	zn_Fields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
+    },
+/*
+ * GRIB
+ */
+    {
+	"GRIB",		".grib",
+	grb_QueryTime,			/* Query times			*/
+	grb_Setup,			/* setup			*/
+	grb_OpenFile,			/* Open				*/
+	grb_CloseFile,			/* Close			*/
+	grb_SyncFile,			/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	grb_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	grb_GetAlts,			/* Get altitude info		*/
+	grb_DataTimes,			/* Get data times		*/
+	grb_GetForecastTimes,		/* Get forecast times		*/
+	grb_MakeFileName,		/* Make file name		*/
+	grb_CreateFile,			/* Create a new file		*/
+	grb_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
+	grb_GetObsSamples,		/* Get observation samples	*/
+	grb_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+    },
+/*
+ * GRIB (surface data only)
+ */
+    {
+	"GRIB_sfc",	".grib",
+	grb_QueryTime,			/* Query times			*/
+	grb_Setup,			/* setup			*/
+	grb_SfcOpenFile,		/* Open				*/
+	grb_CloseFile,			/* Close			*/
+	grb_SyncFile,			/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	grb_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	grb_GetAlts,			/* Get altitude info		*/
+	grb_DataTimes,			/* Get data times		*/
+	grb_GetForecastTimes,		/* Get forecast times		*/
+	grb_MakeFileName,		/* Make file name		*/
+	grb_CreateFile,			/* Create a new file		*/
+	grb_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
+	grb_GetObsSamples,		/* Get observation samples	*/
+	grb_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
     }
+
 };
 
 
@@ -717,20 +795,45 @@ int index;
 
 
 int
-dfa_InqRGrid (index, origin, rg)
-int index;
-Location *origin;
-RGrid *rg;
+dfa_GetAlts (index, fid, offset, alts, nalts, altunits)
+int	index;
+FieldId	fid;
+int	offset;
+float	*alts;
+int	*nalts;
+AltUnitType *altunits;
 /*
- * Get the rgrid params.
+ * Get the altitudes from the given file associated with the given fid and 
+ * forecast offset.
  */
 {
 	DataFile dfe;
 	ds_GetFileStruct (index, &dfe);
 
-	if (Formats[dfe.df_ftype].f_InqRGrid)
-		return ((*Formats[dfe.df_ftype].f_InqRGrid)
-					(index, origin, rg));
+	if (Formats[dfe.df_ftype].f_GetAlts)
+		return ((*Formats[dfe.df_ftype].f_GetAlts)
+			(index, fid, offset, alts, nalts, altunits));
+	return (FALSE);
+}
+
+
+
+
+int
+dfa_GetForecastTimes (index, times, ntimes)
+int index;
+int *times, *ntimes;
+/*
+ * Get the forecast times.
+ */
+{
+	DataFile dfe;
+	ds_GetFileStruct (index, &dfe);
+
+	if (Formats[dfe.df_ftype].f_GetForecastTimes)
+		return ((*Formats[dfe.df_ftype].f_GetForecastTimes)
+			(index, times, ntimes));
+
 	return (FALSE);
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.19 1994-02-01 07:25:58 granger Exp $
+ * $Id: DataStore.h,v 3.20 1994-04-15 22:27:51 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -43,6 +43,7 @@ typedef enum {
         Org1dGrid       = 8,
 	OrgTransparent  = 9,
 	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zeb */
+	OrgNSpace	= 11,
 } DataOrganization;
 
 /*
@@ -157,6 +158,25 @@ typedef struct _dsDetail
 # define DD_ZN_APPEND_SAMPLES	"dd_append_samples"
 
 /*
+ * Forecast offset time (for model data), in seconds
+ */
+# define DD_FORECAST_OFFSET	"dd_forecast_offset"
+
+/*
+ * Fixed dimension indices for multi-dimensional data.  TWO details are
+ * possible, one pair for each fixed dimension index.  The first detail is
+ * DD_FIX_DIMENSION, containing a pointer to the name of the dimension to
+ * fix.  The detail immediately following is DD_FIX_INDEX, containing an
+ * integer index to which the dimension should be fixed.  If there is no
+ * succeeding DD_FIX_INDEX, then the index will be set to zero by default.
+ * In the future, it might be nice to allow a second detail type, such as
+ * DD_FIX_VALUE, which supplies a float value to match to the dimension's
+ * coordinate variable.  Not yet, though.
+ */
+# define DD_FIX_DIMENSION	"dd_fix_dimension"
+# define DD_FIX_INDEX		"dd_fix_index"
+
+/*
  * DataChunks -- the new "data object" format.
  *
  * Herein we define:
@@ -190,7 +210,9 @@ typedef enum _DC_ElemType {
 	DCT_UnsignedInt,
 	DCT_LongInt,
 	DCT_UnsignedLong,
-	DCT_String
+	DCT_String,
+	DCT_Boolean,
+	DCT_ZebTime
 } DC_ElemType;
 
 #ifdef __STDC__
@@ -212,6 +234,8 @@ typedef union _DC_Element {
 	long 		dcv_longint;
 	unsigned long 	dcv_ulong;
 	char *		dcv_string;
+	unsigned char	dcv_boolean;
+	ZebTime		dcv_zebtime;
 } DC_Element;
 
 extern const char *DC_ElemTypeNames[];
@@ -219,7 +243,9 @@ extern const int DC_ElemTypeSizes[];
 
 #define dc_TypeName(type) 	(DC_ElemTypeNames[(int)(type)])
 #define dc_SizeOfType(type)	(DC_ElemTypeSizes[(int)(type)])
-#define DC_ElemTypeMaxSize	(sizeof(LongDouble))
+#define DC_ElemTypeMaxSize \
+	(sizeof(LongDouble) >= sizeof(ZebTime) ? sizeof(LongDouble) : \
+	 sizeof(ZebTime))
 
 /*
  * Here is the list of possible data chunk classes.  It is done this way
@@ -380,6 +406,26 @@ char 		**dc_GetSampleAttrList FP ((DataChunk *dc, int sample,
 			    char *pattern, char **values[], int *natts));
 char 		**dc_GetSampleAttrKeys FP ((DataChunk *dc, int sample,
 					    int *natts));
+AltUnitType	dc_GetLocAltUnits FP ((DataChunk *dc));
+void		dc_SetLocAltUnits FP ((DataChunk *dc, AltUnitType units));
+/*
+ * Transparent class sub-sample abstractions
+ */
+void		dc_SetValidTime FP((DataChunk *, int sample, ZebTime *valid));
+bool		dc_GetIssueTime FP((DataChunk *dc, int sample, ZebTime *when));
+int 		dc_GetForecastOffset FP((DataChunk *, int samp, ZebTime *val));
+void		dc_SetForecastOffset FP((DataChunk *dc, int sample, 
+					 int forecast_index));
+const ZebTime   *dc_ListForecastOffsets FP((DataChunk *dc, int *noffsets));
+const ZebTime 	*dc_DefineForecastOffsets FP((DataChunk *dc, int noffsets,
+					      ZebTime *offsets));
+int		dc_GetSubSample FP((DataChunk *dc, int sample, ZebTime *when));
+void		dc_SetSubSample FP((DataChunk *dc, int sample, int subsample));
+const ZebTime 	*dc_ListSubSamples FP((DataChunk *dc, int *nsubs));
+const ZebTime 	*dc_DefineSubSamples FP((DataChunk *dc, int nsubs, 
+					 ZebTime *offsets));
+int		dc_GetNSubSample FP((DataChunk *dc));
+
 /*
  * Boundary class methods.
  */
@@ -526,6 +572,9 @@ void dc_NSDefineVariable FP((DataChunk *dc, FieldId field,
 			     int is_static));
 void dc_NSDefineComplete FP((DataChunk *dc));
 int dc_NSDefineIsComplete FP((DataChunk *dc));
+void dc_NSAllowRedefine FP((DataChunk *dc, int allow));
+int dc_NSRedefineIsAllowed FP((DataChunk *dc));
+
 /*
  * NSpace Information retrieval
  */
@@ -554,6 +603,12 @@ void *dc_NSGetSample FP((DataChunk *dc, int sample, FieldId field,
 			 unsigned long *size));
 void *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
 
+/*
+ * NSpace fixed dimension detail handling
+ */
+int dc_NSFixedDimension FP((DataChunk *dc, dsDetail *details, int ndetail,
+			    char *name, int *dindex));
+void dc_NSFixedDetails FP((char *list, dsDetail *details, int *ndetail));
 
 /**************************************************************************
  * Other structures used at the data store application interface level.
@@ -625,6 +680,7 @@ PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat,
 PlatformId *	ds_LookupSubplatforms FP ((PlatformId parent, int *nsubplat));
 char *		ds_PlatformName FP ((PlatformId));
 int		ds_IsMobile FP ((PlatformId));
+bool		ds_IsModelPlatform FP ((PlatformId));
 bool		ds_Store FP ((DataChunk *dc, bool newfile, 
 			      dsDetail *details, int ndetail));
 bool		ds_StoreBlocks FP ((DataChunk *dc, bool newfile,
@@ -648,8 +704,10 @@ int		ds_GetObsSamples FP ((PlatformId, ZebTime *, ZebTime *,
 int		ds_GetFields FP ((PlatformId, ZebTime *, int *, FieldId *));
 int		ds_GetObsTimes FP ((PlatformId, ZebTime *, ZebTime *, int,
 			char *));
-bool		ds_GetRgridParams FP ((PlatformId, ZebTime *, Location *,
-			RGrid *));
+bool		ds_GetAlts FP((PlatformId pid, FieldId fid, ZebTime *when,
+			       int offset, float *alts, int *nalts, 
+			       AltUnitType *altunits));
+bool		ds_GetForecastTimes FP ((PlatformId, ZebTime *, int *, int *));
 int		ds_GetNPlat FP ((void));
 void		ds_GetPlatInfo FP ((PlatformId, PlatformInfo *));
 int		ds_GetDataSource FP ((PlatformId, int, DataSrcInfo *));

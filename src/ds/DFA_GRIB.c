@@ -26,14 +26,16 @@
 # include <fcntl.h>
 # include <unistd.h>
 
-# include "defs.h"
-# include "message.h"
+# include <copyright.h>
+# include <defs.h>
+# include <message.h>
+
 # include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.5 1994-03-18 20:18:44 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.6 1994-04-15 22:27:30 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -119,6 +121,7 @@ typedef struct s_GFTag
 {
 	int		gt_tagid;	/* unique local ID		*/
 	int		gt_fd;		/* file descriptor		*/
+	int		gt_sfc_only;	/* Surface grids only?		*/
 	int		gt_ngrids;	/* grid count			*/
 	int		gt_maxgrids;	/* how many grids can we hold?	*/
 	GRIBdesc	*gt_grib;	/* Descriptors for each grid	*/
@@ -131,6 +134,11 @@ typedef struct s_GFTag
  *
  *	gg_type:	integer grid type
  *	gg_snx, gg_sny:	width and height of the GRIB source grid
+
+ *	gg_slatang,
+ *	gg_slonang:	(snx x sny) floating point arrays of the local angles
+ *			for lines of constant lat. and lon. through each source
+ *			grid point
  *	gg_ndx_module:	routine for converting from lat/lon to source grid
  *			indices
  *	gg_ll_module:	routine for converting from source grid indices to
@@ -142,16 +150,21 @@ typedef struct s_GFTag
  *	gg_dnx, gg_dny:		width and height of the destination grid
  *	gg_dlat, gg_dlon:	lat/lon origin of the destination grid
  *	gg_dlatstep, gg_dlonstep:	lat and lon step in the dest. grid
+ *	gg_dsi, gg_dsj:		(dnx x dny) floating point arrays of equivalent
+ *				*source* array indices for destination grid
+ *				points
  */
 typedef struct s_GRB_TypeInfo
 {
 	int	gg_type;
 	int	gg_snx, gg_sny;
+	float	*gg_slatang, *gg_slonang;
 	void	(*gg_ndx_module)();
 	void	(*gg_ll_module)();
 	int	gg_dnx, gg_dny;
 	float	gg_dlat, gg_dlon;
 	float	gg_dlatstep, gg_dlonstep;
+	float	*gg_dsi, *gg_dsj;
 } GRB_TypeInfo;
 
 /*
@@ -175,11 +188,10 @@ static void	grb_DestroyTag FP ((GFTag *));
 static int	grb_TwoByteInt FP ((char *));
 static int	grb_ThreeByteInt FP ((char *));
 static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
-				   int, int, FieldId, float *, dsDetail *, 
-				   int));
+				   int, int, FieldId, int, float *));
 static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
 static int	grb_Offset FP ((GFpds *));
-static bool	grb_NormalLevel FP ((GFpds *));
+static bool	grb_UsableLevel FP ((GFpds *, int));
 static float	grb_ZLevel FP ((GFpds *, AltUnitType *));
 static void	grb_105Index FP ((double, double, float *, float *));
 static void	grb_105LatLon FP ((double, double, float *, float *));
@@ -187,12 +199,10 @@ static void	grb_36Index FP ((double, double, float *, float *));
 static void	grb_36LatLon FP ((double, double, float *, float *));
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
 static void	grb_ResetWind FP ((void));
-static void	grb_UnpackWind FP ((GFTag *, FieldId, int, int, float *, int,
-				    int, void (*)(), void (*)()));
-static void	grb_FixWind FP ((float *, float *, int, int, void (*)(), 
-				 void (*)()));
-static void	grb_DCInit FP ((DataChunk *, FieldId *, int));
+static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
+				    GRB_TypeInfo *));
 static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
+static void	grb_InitGInfo FP ((GRB_TypeInfo	*));
 
 /*
  * Field list.  We only include here the fields for which we have
@@ -230,6 +240,8 @@ struct s_GRB_FList
 	{ 33, "u_wind", 1.0, 0.0 },
 	/* v component of wind (m/s) */
 	{ 34, "v_wind", 1.0, 0.0 },
+	/* pressure vertical velocity (Pa/s) */
+	{ 39, "pres_w", 1.0, 0.0 },
 	/* geometric vertical velocity (m/s) */
 	{ 40, "w_wind", 1.0, 0.0 },
 	/* Absolute vorticity ( /s) */
@@ -240,6 +252,10 @@ struct s_GRB_FList
 	{ 52, "rh", 1.0, 0.0 },
 	/* Humidity mixing ratio (kg/kg), scale to g/kg */
 	{ 53, "mr", 0.001, 0.0 },
+	/* Total precipitation (kg/m**2)	*/
+	{ 61, "precip", 1.0, 0.0 },
+	/* Convective precipitation (kg/m**2)	*/
+	{ 63, "conv_precip", 1.0, 0.0 },
 };
 
 int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
@@ -257,16 +273,16 @@ GRB_TypeInfo GRB_Types[] =
 	 * (N. America) is used to archive LFM and NGM data.  190.5 km
 	 * spacing at 60N.
 	 */
-	{ 36, 41, 38, grb_36Index, grb_36LatLon, 36, 21, 20.0, -130.0, 
-		  2.0, 2.0 },
+	{ 36, 41, 38, NULL, NULL, grb_36Index, grb_36LatLon, 36, 21, 
+		  20.0, -130.0, 2.0, 2.0, NULL, NULL },
 	/*
 	 * 105: 6889-point (83x83) N. Hemisphere polar stereographic grid
 	 * oriented 105W; pole at (39.5,87.5) [C type indexing].  (U.S. area
 	 * subset of NGM Super C grid, used by ETA model).  90.75464 km
 	 * spacing at 60N.
 	 */
-	{ 105, 83, 83, grb_105Index, grb_105LatLon, 71, 41, 20.0, -130.0, 
-		  1.0, 1.0 },
+	{ 105, 83, 83, NULL, NULL, grb_105Index, grb_105LatLon, 71, 41, 
+		  20.0, -130.0, 1.0, 1.0, NULL, NULL },
 };
 
 int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
@@ -281,6 +297,7 @@ int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
  * of the ones we've already extracted so we can use them again if possible.
  */
 int	WindsTagID = -1;
+int	WindsFOffset = -1;
 int	WindsCount = 0;
 
 int	U_gridnum[MAXLEVELS], V_gridnum[MAXLEVELS];
@@ -451,6 +468,33 @@ char	**rtag;
 	if (! (tag = grb_Open (fname)))
 		return (FALSE);
 
+	tag->gt_sfc_only = FALSE;
+
+	*rtag = (char *) tag;
+	return (TRUE);
+}
+
+
+
+
+int
+grb_SfcOpenFile (fname, dp, write, rtag)
+char	*fname;
+DataFile	*dp;
+bool	write;
+char	**rtag;
+/*
+ * DFA routine to open a file (for access to surface data only) and return 
+ * a tag.
+ */
+{
+	GFTag	*tag;
+
+	if (! (tag = grb_Open (fname)))
+		return (FALSE);
+
+	tag->gt_sfc_only = TRUE;
+
 	*rtag = (char *) tag;
 	return (TRUE);
 }
@@ -500,8 +544,10 @@ DataClass	class;
  * Get set up to do this data grab.
  */
 {
+	int	f;
 	GFTag	*tag;
 	DataChunk	*dc;
+	FieldId	dims[3], lat_id, lon_id, alt_id;
 /*
  * Do some sanity checking.
  */
@@ -529,7 +575,33 @@ DataClass	class;
  * we call dc_NSDefineComplete(), and that doesn't happen until the call
  * to grb_DCFinishDefs().  Is that sufficiently confusing?
  */
-	grb_DCInit (dc, fields, nfield);
+/*
+ * Define three coordinate variables for our three dimensions: lat, lon, alt.
+ */
+	lat_id = F_Lookup ("lat");
+	dc_NSDefineDimension (dc, lat_id, 1);
+	dc_NSDefineVariable (dc, lat_id, 1, &lat_id, TRUE);
+	
+	lon_id = F_Lookup ("lon");
+	dc_NSDefineDimension (dc, lon_id, 1);
+	dc_NSDefineVariable (dc, lon_id, 1, &lon_id, TRUE);
+
+	alt_id = F_Lookup ("alt");
+	dc_NSDefineDimension (dc, alt_id, 1);
+	dc_NSDefineVariable (dc, alt_id, 1, &alt_id, TRUE);
+/*
+ * Now define the user's fields using these dimensions
+ */
+	dims[0] = alt_id;
+	dims[1] = lat_id;
+	dims[2] = lon_id;
+
+	for (f = 0; f < nfield; f++)
+		dc_NSDefineVariable (dc, fields[f], 3, dims, FALSE);
+/*
+ * Set the data chunk to allow field redefinition, since we'll be putting
+ * in the real dimension sizes later.
+ */
 	dc_NSAllowRedefine (dc, TRUE);
 	
 	return (dc);
@@ -549,12 +621,12 @@ int		ndetail;
  */
 {
 	int	ndx, firstndx, lastndx, nfield, samp, sbegin, send, f;
-	int	nalts, gtype, i;
+	int	offset, nalts, test, gtype, i;
 	float  	badval, ztarget, *lats, *lons, alts[MAXLEVELS];
 	bool	onelevel;
 	SValue	v;
 	GFTag	*tag;
-	FieldId	*fids, lat_id, lon_id, alt_id;
+	FieldId	fids[5], lat_id, lon_id, alt_id;
 	ZebTime	stime;
 	GRB_TypeInfo	*grbinfo;
 	AltUnitType	altunits;
@@ -584,20 +656,64 @@ int		ndetail;
 	{
 		msg_ELog (EF_PROBLEM, "Cannot unpack GRIB grid type %d\n", 
 			  gtype);
-		grb_CloseFile ((void *) tag);
 		return (FALSE);
 	}
 /*
- * Get the list of available alts and set the altitude units in our
- * data chunk.  We assume that we have the same number of levels (alts)
- * for all fields.
+ * Make sure the arrays for unpacking this grid type have been built
  */
-	grb_GetAlts (gp->gl_dfindex, alts, &nalts, &altunits);
+	grb_InitGInfo (grbinfo);
+/*
+ * Get the requested forecast offset, in seconds.
+ */
+	offset = ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v) ?
+		v.us_v_int : 0;
+/*
+ * Field IDs for our dimension variables
+ */
+	lon_id = F_Lookup ("lon");
+	lat_id = F_Lookup ("lat");
+	alt_id = F_Lookup ("alt");
+/*
+ * Get the field list
+ */
+	nfield = dc_NSGetAllVariables (dc, fids, NULL);
+/*
+ * Get the list of available alts and set the altitude units in our
+ * data chunk.  We test to make sure we have the same number of alts for all
+ * fields (although we don't verify that the actual alts are the same...).
+ */
+	test = 0;
+
+	for (i = 0; i < nfield; i++)
+	{
+	/*
+	 * Skip the dimension variables "lat", "lon", and "alt"
+	 */
+		if (fids[i]==lon_id || fids[i]==lat_id || fids[i]==alt_id)
+			continue;
+	/*
+	 * Get the alts for this field, and make sure the count matches
+	 * with the other fields we've checked so far
+	 */
+		grb_GetAlts (gp->gl_dfindex, fids[i], offset, alts, &nalts, 
+			     &altunits);
+		if (test && nalts != test)
+		{
+			msg_ELog (EF_PROBLEM, 
+				"grb_GetData: Flds have different # of alts!");
+			return (FALSE);
+		}
+
+		test = nalts;
+	}
+	
 	dc_SetLocAltUnits (dc, altunits);
 /*
- * If they just want one level, find the closest one.
+ * If they just want one level, find the closest one.  (Ignore the "altitude"
+ * detail if the file is open for access to surface data only).
  */
-	onelevel = ds_GetDetail ("altitude", details, ndetail, &v);
+	onelevel = (!tag->gt_sfc_only &&
+		    ds_GetDetail ("altitude", details, ndetail, &v));
 	if (onelevel)
 	{
 		float	diff, bestdiff = 99e99;
@@ -630,7 +746,6 @@ int		ndetail;
 	for (i = 0; i < grbinfo->gg_dnx; i++)
 		lons[i] = grbinfo->gg_dlon + i * grbinfo->gg_dlonstep;
 
-	lon_id = F_Lookup ("lon");
 	dc_NSAddStatic (dc, lon_id, (void *) lons);
 
 	free (lons);
@@ -639,14 +754,12 @@ int		ndetail;
 	for (i = 0; i < grbinfo->gg_dny; i++)
 		lats[i] = grbinfo->gg_dlat + i * grbinfo->gg_dlatstep;
 
-	lat_id = F_Lookup ("lat");
 	dc_NSAddStatic (dc, lat_id, (void *) lats);
 
 	free (lats);
 /*
  * Same for altitude.
  */
-	alt_id = F_Lookup ("alt");
 	dc_NSAddStatic (dc, alt_id, (void *) (onelevel ? &ztarget : alts));
 /*
  * Set the badval in the data chunk, either based on the details we're given
@@ -685,10 +798,6 @@ int		ndetail;
 				break;
 		}
 	/*
-	 * Get the field list
-	 */
-		fids = dc_GetFields (dc, &nfield);
-	/*
 	 * Do each field for this sample
 	 */
 		for (f = 0; f < nfield; f++)
@@ -703,8 +812,8 @@ int		ndetail;
 		 * "Real" data field
 		 */
 			grb_ReadRGrid (dc, tag, grbinfo, samp, sbegin, send, 
-				       fids[f], onelevel ? &ztarget : NULL,
-				       details, ndetail);
+				       fids[f], offset, 
+				       onelevel ? &ztarget : NULL);
 		}
 		
 
@@ -716,6 +825,80 @@ int		ndetail;
 
 
 
+static void
+grb_InitGInfo (ginfo)
+GRB_TypeInfo	*ginfo;
+/*
+ * Build the various arrays to assist in unpacking the given grid type
+ */
+{
+	int	dnx, dny, snx, sny, i, j;
+	float	lat, lon, latstep, lonstep, newi, newj;
+	float	*si, *sj, *latang, *lonang;
+/*
+ * Return if the arrays have already been built
+ */
+	if (ginfo->gg_dsi)
+		return;
+/*
+ * Build arrays mapping destination grid indices into equivalent floating 
+ * point source grid indices.
+ */
+	dnx = ginfo->gg_dnx;
+	dny = ginfo->gg_dny;
+
+	si = ginfo->gg_dsi = (float *) malloc (dnx * dny * sizeof (float));
+	sj = ginfo->gg_dsj = (float *) malloc (dnx * dny * sizeof (float));
+
+	for (j = 0; j < dny; j++)
+	{
+		lat = ginfo->gg_dlat + j * ginfo->gg_dlatstep;
+		for (i = 0; i < dnx; i++)
+		{
+			lon = ginfo->gg_dlon + i * ginfo->gg_dlonstep;
+			(*ginfo->gg_ndx_module)(lat, lon, si++, sj++);
+		}
+	}
+/*
+ * Build arrays of local angles for lines of constant lat and lon through
+ * source grid points.  These are used when converting projection-relative u 
+ * and v winds to true east-west and north-south u and v.
+ */
+	snx = ginfo->gg_snx;
+	sny = ginfo->gg_sny;
+
+	latang = ginfo->gg_slatang = 
+		(float *) malloc (snx * sny * sizeof (float));
+	lonang = ginfo->gg_slonang = 
+		(float *) malloc (snx * sny * sizeof (float));
+
+	for (j = 0; j < sny; j++)
+	{
+		for (i = 0; i < snx; i++)
+		{
+		/*
+		 * Approximate the local angle of a line of latitude (w.r.t.
+		 * a horizontal line on the map projection) at this point.
+		 * Start with the lat/lon at the current grid point, then
+		 * find the new grid indices if we take a small step east.
+		 * The angle approximation is then just arctan (dj / di).
+		 */
+			(*ginfo->gg_ll_module)((double) i, (double) j, 
+					       &lat, &lon);
+			(*ginfo->gg_ndx_module)(lat, lon + 0.05, &newi, &newj);
+
+			*latang++ = atan2 (newj - j, newi - i);
+		/*
+		 * Calculate a similar angle for a line of longitude.
+		 */
+			(*ginfo->gg_ndx_module)(lat + 0.05, lon, &newi, &newj);
+			*lonang++ = atan2 (newj - j, newi - i);
+		}
+	}
+}
+		
+			
+			
 
 static int
 grb_TimeIndex (tag, zt, first)
@@ -767,18 +950,21 @@ int	first;
 
 
 int
-grb_GetAlts (dfindex, alts, nalts, altunits)
+grb_GetAlts (dfindex, fid, offset, alts, nalts, altunits)
 int	dfindex;
+FieldId	fid;
+int	offset;
 float	*alts;
 int	*nalts;
 AltUnitType	*altunits;
 /*
- * Return an array of altitudes available in this file, along with the
- * altitude units.
+ * Return an array of altitudes available in this file for the given field
+ * and forecast offset time, along with the altitude units.  The array is
+ * sorted in increasing order.
  */
 {
-	int	i, offset, count;
-	FieldId	fid;
+	int	i, count;
+	float	temp;
 	GFpds	*pds;
 	GFTag	*tag;
 	ZebTime	t;
@@ -788,18 +974,28 @@ AltUnitType	*altunits;
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
 /*
- * Base things on the first "normal" grid.  Get altitudes from all "normal"
- * grids with the same field, time, and forecast (offset) time as the first
- * grid.
+ * Simple if the file is open for surface data only
+ */
+	if (tag->gt_sfc_only)
+	{
+		alts[0] = 0.0;
+		*altunits = AU_mAGL;
+		*nalts = 1;
+		return (TRUE);
+	}
+/*
+ * Find the first usable grid for the chosen field and forecast offset, 
+ * then count the grids matching that field, offset, and time, building the
+ * altitude array as we go.
  */
 	for (i = 0; i < tag->gt_ngrids; i++)
 	{
 		pds = tag->gt_grib[i].gd_pds;
 
-		if (grb_NormalLevel (pds))
+		if (grb_UsableLevel (pds, tag->gt_sfc_only) && 
+		    grb_Field (pds, NULL) == fid &&
+		    grb_Offset (pds) == offset)
 		{
-			fid = grb_Field (pds, NULL);
-			offset = grb_Offset (pds);
 			t = tag->gt_grib[i].gd_time;
 			break;
 		}
@@ -812,12 +1008,13 @@ AltUnitType	*altunits;
 			break;
 	/*
 	 * Grab the altitude from this grid if it has the same field and time
-	 * offset as the first grid, and is a "normal" grid.
+	 * offset as the first grid, and is a usable grid.
 	 */
 		pds = tag->gt_grib[i].gd_pds;
 
-		if (fid == grb_Field (pds, NULL) &&
-		    grb_NormalLevel (pds) && offset == grb_Offset (pds))
+		if (grb_UsableLevel (pds, tag->gt_sfc_only) && 
+		    grb_Field (pds, NULL) == fid &&
+		    grb_Offset (pds) == offset)
 		{
 			if (alts)
 				alts[count++] = grb_ZLevel (pds, altunits);
@@ -828,7 +1025,28 @@ AltUnitType	*altunits;
 
 	if (nalts)
 		*nalts = count;
+/*
+ * Sort into increasing order (internal calls to grb_GetAlts() require this)
+ */
+	if (alts)
+	{
+		for (i = 1; i < count; i++)
+		{
+			int	si = i;
 
+			while (si && alts[si] < alts[si-1])
+			{
+				temp = alts[si-1];
+				alts[si-1] = alts[si];
+				alts[si] = temp;
+
+				si--;
+			}
+		}
+	}
+/*
+ * Done
+ */	
 	return (TRUE);
 }
 
@@ -862,7 +1080,7 @@ int	*ntimes;
 	{
 		pds = tag->gt_grib[i].gd_pds;
 
-		if (! grb_NormalLevel (pds))
+		if (! grb_UsableLevel (pds, tag->gt_sfc_only))
 			continue;
 
 		offset = grb_Offset (pds);
@@ -968,7 +1186,7 @@ FieldId	*flist;
 	/*
 	 * We don't deal with the weird level types
 	 */
-		if (! grb_NormalLevel (pds))
+		if (! grb_UsableLevel (pds, tag->gt_sfc_only))
 			continue;
 	/*
 	 * Add this field to the list if it isn't there already
@@ -1316,41 +1534,35 @@ char	*buf;
 
 
 static void
-grb_ReadRGrid (dc, tag, ginfo, samp, sbegin, send, fid, ztarget, details, 
-	       ndetail)
+grb_ReadRGrid (dc, tag, ginfo, samp, sbegin, send, fid, offset, ztarget)
 DataChunk	*dc;
 GFTag		*tag;
 GRB_TypeInfo	*ginfo;
-int		samp, sbegin, send, ndetail;
+int		samp, sbegin, send;
 FieldId		fid;
+int		offset;
 float		*ztarget;
-dsDetail	*details;
 /*
  * Build a grid of the chosen field, using the GRIB grids between indices
- * sbegin and send inclusive, and stuff it into the data chunk.  If 
+ * sbegin and send inclusive, and stuff it into the data chunk.  The
+ * desired forecast offset time in seconds is passed in 'offset'.  If
  * 'ztarget' is non-NULL, then only one horizontal plane is desired, at the
  * given z level.  Otherwise, return all planes.
  */
 {
-	int	offset, nsx, nsy, si, sj, i, j;
+	int	nsx, nsy, si, sj, i, j, itemp;
 	int	indices[MAXLEVELS], u_indices[MAXLEVELS], v_indices[MAXLEVELS];
-	float	zvals[MAXLEVELS], badval = dc_GetBadval (dc);
+	float	zvals[MAXLEVELS], badval = dc_GetBadval (dc), ftemp;
 	int	level, nlevels, ulevels, vlevels, ndx;
 	float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
-	float	x, y, z, di, dj, val0, val1, val2, val3;
+	float	x, y, z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
 	GFpds	*pds;
 	ZebTime	time;
 	bool	onelevel, u_or_v;
-	void	(*index_module)(), (*ll_module)();
 	FieldId	grid_fid, u_fid, v_fid;
 	SValue	v;
 	ScaleInfo	sc;
 	unsigned long	dc_nlevels, nlat, nlon;
-/*
- * Get the requested forecast offset, in seconds.
- */
-	offset = ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v) ?
-		v.us_v_int : 0;
 /*
  * Are we getting u or v wind?  If so, we actually have to get both.
  */
@@ -1373,9 +1585,10 @@ dsDetail	*details;
 		pds = tag->gt_grib[ndx].gd_pds;
 	/*
 	 * Bag this grid now if the forecast time is wrong or it's a
-	 * "special" level
+	 * not a usable level
 	 */
-		if (! grb_NormalLevel (pds) || grb_Offset (pds) != offset)
+		if (! grb_UsableLevel (pds, tag->gt_sfc_only) || 
+		    grb_Offset (pds) != offset)
 			continue;
 	/*
 	 * If we just want one level, make sure we get the right one.
@@ -1414,9 +1627,7 @@ dsDetail	*details;
 	}
 /*
  * Make sure we're copacetic with the number of levels defined in the
- * data chunk.  This is the verification of the assumption made in 
- * grb_GetData() that we have the same number of vertical levels for all 
- * fields.
+ * data chunk.
  */
 	dc_NSGetDimension (dc, F_Lookup ("alt"), NULL, &dc_nlevels);
 	if (nlevels && dc_nlevels != nlevels)
@@ -1451,12 +1662,38 @@ dsDetail	*details;
 		return;
 	}
 /*
+ * Sort the z levels increasing so that we return them in some reasonable order
+ */
+	for (level = 1; level < nlevels; level++)
+	{
+		int	sl = level;
+
+		while (sl && zvals[sl] < zvals[sl-1])
+		{
+			ftemp = zvals[sl-1];
+			zvals[sl-1] = zvals[sl];
+			zvals[sl] = ftemp;
+
+			itemp = indices[sl-1];
+			indices[sl-1] = indices[sl];
+			indices[sl] = itemp;
+
+			itemp = u_indices[sl-1];
+			u_indices[sl-1] = u_indices[sl];
+			u_indices[sl] = itemp;
+
+			itemp = v_indices[sl-1];
+			v_indices[sl-1] = v_indices[sl];
+			v_indices[sl] = itemp;
+
+			sl--;
+		}
+	}
+/*
  * Grab some info on the GRIB grid type we're unpacking
  */
 	nsx = ginfo->gg_snx;	/* source grid width	*/
 	nsy = ginfo->gg_sny;	/* source grid height	*/
-	index_module = ginfo->gg_ndx_module;
-	ll_module = ginfo->gg_ll_module;
 /*
  * Allocate space for the source and destination grids
  */
@@ -1477,11 +1714,16 @@ dsDetail	*details;
 		grb_Field (tag->gt_grib[indices[level]].gd_pds, &sc);
 
 		if (u_or_v)
-			grb_UnpackWind (tag, fid, u_indices[level], 
-					v_indices[level], sgrid, nsx, nsy,
-					index_module, ll_module);
+			grb_UnpackWind (tag, offset, fid, u_indices[level], 
+					v_indices[level], sgrid, ginfo);
 		else
 			grb_UnpackBDS (tag, indices[level], sgrid, nsx, nsy);
+	/*
+	 * Get the arrays mapping the destination grid indices into (floating
+	 * point) source grid indices.
+	 */
+		fsi = ginfo->gg_dsi;
+		fsj = ginfo->gg_dsj;
 	/*
 	 * Now fill in our destination grid, using a bilinear interpolation
 	 * of data from the source grid
@@ -1490,21 +1732,6 @@ dsDetail	*details;
 		{
 			for (i = 0; i < nlon; i++)
 			{
-			/*
-			 * Get the bounding indices in the source array.
-			 * If we're outside the source array, we can get out
-			 * quickly.
-			 */
-				(*index_module)(lats[j], lons[i], &x, &y);
-
-				if (x < 0 || x > nsx-1 || y < 0 || y > nsy-1)
-				{
-					*dp++ = badval;
-					continue;
-				}
-
-				si = (int) x;
-				sj = (int) y;
 			/*
 			 * Do a bilinear interpolation using the four source 
 			 * grid points (.) surrounding the destination grid 
@@ -1528,20 +1755,35 @@ dsDetail	*details;
 			 *	  val =	(1-di)(1-dj) val0 + (di)(1-dj) val1 +
 			 *		(1-di)(dj) val2 + (di)(dj) val3
 			 */
-				di = x - si;
-				dj = y - sj;
+				si = (int)(*fsi);
+				sj = (int)(*fsj);
+				
+				if (si >= 0 && si < (nsx - 1) &&
+				    sj >= 0 && sj < (nsy - 1))
+				{
+					di = *fsi - si;
+					dj = *fsj - sj;
 
-				sp = sgrid + sj * nsx + si;
-				val0 = *sp;
-				val1 = *(sp + 1);
-				val2 = *(sp + nsx);
-				val3 = *(sp + nsx + 1);
+					sp = sgrid + sj * nsx + si;
+					val0 = *sp;
+					val1 = *(sp + 1);
+					val2 = *(sp + nsx);
+					val3 = *(sp + nsx + 1);
 
-				*dp++ = ((1 - di) * (1 - dj) * val0 +
-					di * (1 - dj) * val1 + 
-					(1 - di) * dj * val2 + 
-					di * dj * val3) / sc.s_Scale + 
-					sc.s_Offset;
+					*dp++ = ((1 - di) * (1 - dj) * val0 +
+						 di * (1 - dj) * val1 + 
+						 (1 - di) * dj * val2 + 
+						 di * dj * val3) / sc.s_Scale +
+							 sc.s_Offset;
+				}
+				else
+					*dp++ = badval;
+			/*
+			 * Increment the pointers to the source grid index
+			 * arrays.
+			 */
+				fsi++;
+				fsj++;
 			}
 		}
 	}
@@ -1555,48 +1797,6 @@ dsDetail	*details;
  */
 	free (sgrid);
 	free (dgrid);
-}
-
-
-
-
-static void
-grb_DCInit (dc, flds, nfld)
-DataChunk	*dc;
-FieldId	*flds;
-int	nfld;
-/*
- * Do field and dimension definition for our data chunk.  We set all
- * dimension sizes to one for now, since we don't know the real sizes.
- */
-{
-	int	f;
-	FieldId	dims[3], lat_id, lon_id, alt_id;
-/*
- * Define three coordinate variables for our three dimensions: lat, lon, alt.
- */
-	lat_id = F_Lookup ("lat");
-	dc_NSDefineDimension (dc, lat_id, 1);
-	dc_NSDefineVariable (dc, lat_id, 1, &lat_id, TRUE);
-	
-	lon_id = F_Lookup ("lon");
-	dc_NSDefineDimension (dc, lon_id, 1);
-	dc_NSDefineVariable (dc, lon_id, 1, &lon_id, TRUE);
-
-	alt_id = F_Lookup ("alt");
-	dc_NSDefineDimension (dc, alt_id, 1);
-	dc_NSDefineVariable (dc, alt_id, 1, &alt_id, TRUE);
-/*
- * Now define the user's fields using these dimensions
- */
-	dims[0] = alt_id;
-	dims[1] = lat_id;
-	dims[2] = lon_id;
-
-	for (f = 0; f < nfld; f++)
-		dc_NSDefineVariable (dc, flds[f], 3, dims, FALSE);
-
-	return;
 }
 
 
@@ -1716,37 +1916,51 @@ GFpds	*pds;
 		return (0);
 	}
 /*
- * For now, we only deal with time range indicators 0 and 1.
+ * Figure out the valid time based on the time range indicator
  */
-	if (pds->range_id > 1)
+	switch (pds->range_id)
 	{
-		msg_ELog (EF_EMERGENCY,
-		  "Can't deal with GRIB range indicator %d! Using zero.",
-		  pds->range_id);
+	    case 0:
+	    case 2:
+	    case 3:
+		return (multiplier * pds->p1);
+	    case 1:
+		return (0);
+	/*
+	 * The accumulation (4) and difference (5) types are considered valid
+	 * at the reference time + p2
+	 */
+	    case 4:
+	    case 5:
+		return (multiplier * pds->p2);
+	    default:
+		msg_ELog (EF_PROBLEM, 
+			  "grb_Offset: Can't handle time range ID %d!",
+			  pds->range_id);
 		return (0);
 	}
-
-	if (pds->range_id == 0)
-		return (multiplier * pds->p1);
-	else if (pds->range_id == 1)
-		return (0);
 }
 
 
 
 
 static bool
-grb_NormalLevel (pds)
+grb_UsableLevel (pds, sfc_only)
 GFpds	*pds;
+bool	sfc_only;
 /*
- * Return TRUE if the level of this GRIB grid is "normal" (i.e., a specific
- * isobaric level or height, rather than earth surface, cloud base, tropopause,
- * etc.)
- */
+ * Return whether this GRIB grid is "usable".  If sfc_only is true, only
+ * surface data are usable.  Otherwise, the data must have an associated single
+ * vertical level (i.e., a specific isobaric level or height, as opposed to
+ * earth surface, cloud base, tropopause, etc.) to be considered usable.
+*/
 {
 	int	l_id = pds->level_id;
 
-	return (l_id == 100 || l_id == 103);
+	if (sfc_only)
+		return (l_id == 1);
+	else
+		return (l_id == 100 || l_id == 103);
 }
 
 
@@ -1765,13 +1979,17 @@ AltUnitType	*units;
 
 	switch (l_id)
 	{
-	    case 100:
+	    case 1:	/* Surface data (0 meters AGL) */
 		if (units)
-			*units = AU_mb;		/* millibars */
+			*units = AU_mAGL;
+		return (0.0);
+	    case 100:	/* isobaric level (millibars) */
+		if (units)
+			*units = AU_mb;
 		break;
-	    case 103:
+	    case 103:	/* fixed height (meters MSL) */
 		if (units)
-			*units = AU_mMSL;	/* meters MSL */
+			*units = AU_mMSL;
 		break;
 	    default:
 		msg_ELog (EF_PROBLEM, "Can't deal with GRIB level type %d!",
@@ -2181,62 +2399,9 @@ float	*grid;
 
 
 static void
-grb_FixWind (u, v, nx, ny, index_module, ll_module)
-float	*u, *v;
-int	nx, ny;
-void	(*index_module)(), (*ll_module)();
-/*
- * Given the (nx x ny) grids with projection-relative u_wind and v_wind, and 
- * modules for converting indices <-> lat/lon, derive the "true" u_wind
- * and v_wind values (i.e., the eastward and northward components of the wind).
- */
-{
-	int	i, j;
-	float	lat, lon, newi, newj, latang, lonang, u_true, v_true;
-
-	for (j = 0; j < ny; j++)
-	{
-		for (i = 0; i < nx; i++)
-		{
-		/*
-		 * Approximate the local angle of a line of latitude (w.r.t.
-		 * a horizontal line on the map projection) at this point.
-		 * Start with the lat/lon at the current grid point, then
-		 * find the new grid indices if we take a small step east.
-		 * The angle approximation is then just arctan (dj / di).
-		 */
-			(*ll_module)((double) i, (double) j, &lat, &lon);
-			(*index_module)((double)(lat), (double)(lon + 0.05),
-					&newi, &newj);
-
-			latang = atan2 (newj - j, newi - i);
-		/*
-		 * Calculate a similar angle for a line of longitude.
-		 */
-			(*index_module)((double)(lat + 0.05), (double)(lon),
-					&newi, &newj);
-			lonang = atan2 (newj - j, newi - i);
-		/*
-		 * Now convert the projection-relative u and v winds into
-		 * eastward and northward wind components.
-		 */
-			u_true = *u * cos (latang) + *v * sin (latang);
-			v_true = *u * cos (lonang) + *v * sin (lonang);
-
-			*u++ = u_true;
-			*v++ = v_true;
-		}
-	}
-}
-
-
-
-
-static void
 grb_ResetWind ()
 /*
- * Lose any previous wind information, since we may be grabbing data from
- * a different file now.
+ * Release any cached grids of precalculated u and v winds.
  */
 {
 	int	i;
@@ -2255,31 +2420,39 @@ grb_ResetWind ()
 
 
 static void
-grb_UnpackWind (tag, fid, undx, vndx, grid, nx, ny, index_module, ll_module)
+grb_UnpackWind (tag, foffset, fid, undx, vndx, grid, ginfo)
 GFTag	*tag;
+int	foffset;
 FieldId	fid;
 int	undx, vndx;
 float	*grid;
-int	nx, ny;
-void	(*index_module)(), (*ll_module)();
+GRB_TypeInfo	*ginfo;
 /*
  * Get the u- and v-wind data from the undx'th and vndx'th grids in our
  * data file and return the "true" u- or v-wind grid in grid, which is
  * of size (nx x ny).  When possible, we return data that we've already
- * transmogrified.
+ * transmogrified.  Calculated winds are cached and only released if winds
+ * from a different file or forecast offset are requested.
  */
 {
-	int	i;
+	int	i, j, nx, ny;
 	FieldId	u_id = F_Lookup ("u_wind"), v_id = F_Lookup ("v_wind");
-	float	*ugrid, *vgrid;
+	float	*ugrid, *vgrid, *u, *v, *latang, *lonang;
+	float	u_true, v_true;
 /*
  * If this is a different tag than the one we have info for (if any), 
  * then wipe out any previous winds stuff
  */
-	if (tag->gt_tagid != WindsTagID)
+	if (tag->gt_tagid != WindsTagID || foffset != WindsFOffset)
 		grb_ResetWind ();
 
 	WindsTagID = tag->gt_tagid;
+	WindsFOffset = foffset;
+/*
+ * Grid size info
+ */
+	nx = ginfo->gg_snx;
+	ny = ginfo->gg_sny;
 /*
  * Easy if we already have the data
  */
@@ -2299,29 +2472,72 @@ void	(*index_module)(), (*ll_module)();
 /*
  * We don't have the data already, so set up to get it
  */
-	ugrid = U_data[WindsCount] = 
-		(float *) malloc (nx * ny * sizeof (float));
-	vgrid = V_data[WindsCount] = 
-		(float *) malloc (nx * ny * sizeof (float));
-
-	U_gridnum[WindsCount] = undx;
-	V_gridnum[WindsCount] = vndx;
-
-	WindsCount++;
+	ugrid = (float *) malloc (nx * ny * sizeof (float));
+	vgrid = (float *) malloc (nx * ny * sizeof (float));
 /*
  * Extract the grids of projection-relative u and v wind
  */
 	grb_UnpackBDS (tag, undx, ugrid, nx, ny);
 	grb_UnpackBDS (tag, vndx, vgrid, nx, ny);
 /*
+ * Grab the arrays of local angles for lines of constant lat and lon at
+ * each of our grid points.
+ */
+	latang = ginfo->gg_slatang;
+	lonang = ginfo->gg_slonang;
+/*
  * Convert to true u and v wind
  */
-	grb_FixWind (ugrid, vgrid, nx, ny, index_module, ll_module);
+	u = ugrid;
+	v = vgrid;
+
+	for (j = 0; j < ny; j++)
+	{
+		for (i = 0; i < nx; i++)
+		{
+		/*
+		 * Now convert the projection-relative u and v winds into
+		 * eastward and northward wind components.
+		 */
+			u_true = *u * cos (*latang) + *v * sin (*latang);
+			v_true = *u * cos (*lonang) + *v * sin (*lonang);
+
+			*u++ = u_true;
+			*v++ = v_true;
+		/*
+		 * Step to the next grid position in the latang and lonang
+		 * arrays.
+		 */
+			latang++;
+			lonang++;
+		}
+	}
 /*
- * Finally, copy the appropriate data into the caller's grid
+ * Copy the appropriate data into the caller's grid
  */
 	if (fid == u_id)
 		memcpy (grid, ugrid, nx * ny * sizeof (float));
 	else
 		memcpy (grid, vgrid, nx * ny * sizeof (float));
+/*
+ * Cache these grids (if we have space)
+ */
+	if (WindsCount < MAXLEVELS)
+	{
+		U_data[WindsCount] = ugrid;
+		U_gridnum[WindsCount] = undx;
+
+		V_data[WindsCount] = vgrid;
+		V_gridnum[WindsCount] = vndx;
+
+		WindsCount++;
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "grb_UnpackWind: Can't cache more than %d grids!",
+			  MAXLEVELS);
+		free (ugrid);
+		free (vgrid);
+	}
 }

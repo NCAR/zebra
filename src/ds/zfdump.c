@@ -4,12 +4,13 @@
 
 # include <stdio.h>
 # include <sys/types.h>
+# include <errno.h>
 # include <unistd.h>
 # include <defs.h>
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.9 1994-01-03 23:34:49 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.10 1994-04-15 22:28:22 burghart Exp $")
 
 extern int optind;
 
@@ -96,7 +97,7 @@ int dump_free, dump_header, dump_all;
  * Returns non-zero on FAILURE!
  */
 {
-	int fd, t, c, ssps;
+	int fd, t, c, ssps, hdrlen, magic;
 	char atime[30];
 	zn_Header hdr;
 	ZebTime *zt;
@@ -114,13 +115,41 @@ int dump_free, dump_header, dump_all;
 		return 1;
 	}
 /*
+ * Check the magic number and set the header length
+ */
+	if ((read (fd, &magic, sizeof (int))) != sizeof (int))
+	{
+		printf ("Error %d reading file '%s'\n", errno, filename);
+		return 2;
+	}
+
+	if (magic == ZN_MAGIC)
+		hdrlen = sizeof (hdr);
+	else if (magic == ZN_OLDMAGIC)
+		hdrlen = ZN_V1_HDRLEN;	/* old version 1 header */
+	else
+	{
+		printf ("%s: not a znf file. Bad magic number %x.\n",
+			filename, magic);
+		return (2);
+	}
+
+	lseek (fd, 0, SEEK_SET);	/* rewind */
+/*
  * Get the header.
  */
-	if ((read (fd, &hdr, sizeof (hdr)) != sizeof (hdr)) ||
-	    hdr.znh_Magic != ZN_MAGIC)
+	if ((read (fd, &hdr, hdrlen) != hdrlen))
 	{
-		printf ("%s: not a znf file!\n", filename);
+		printf ("%s: short header!\n", filename);
 		return 2;
+	}
+/*
+ * Fill in the missing pieces if we read a version 1 header
+ */
+	if (magic == ZN_OLDMAGIC)
+	{
+		hdr.znh_Version = 1;
+		hdr.znh_AltUnits = ZAU_KMMSL;
 	}
 /*
  * Start printing.  In every case we print at least the header and the fields.
@@ -293,15 +322,27 @@ zn_Header *hdr;
 		return NULL;
 
 	printf ("Fields:\n");
-	flen = hdr->znh_NField * sizeof(zn_Field);
+	flen = (hdr->znh_Version == 1) ? 
+		sizeof (zn_FieldV1) : sizeof (zn_Field);
+
 	zflds = (zn_Field *)malloc(flen);
 	lseek (fd, hdr->znh_OffField, SEEK_SET);
-	read (fd, zflds, flen);
 
 	printf ("   %-15s %10s %5s %10s %10s\n",
 		"Name","Badval","Fmt","Scale","Offset");
 	for (i = 0; i < hdr->znh_NField; ++i)
 	{
+		read (fd, zflds + i, flen);
+	/*
+	 * For version 1 files, fill in the missing pieces of the zn_Field
+	 * structure
+	 */
+		if (hdr->znh_Version == 1)
+		{
+			zflds[i].zf_AttrLen = 0;
+			zflds[i].zf_OffAttr = -1;
+		}
+		
 		printf ("   %-15s %10.4f ",
 			zflds[i].zf_Name, zflds[i].zf_Badval);
 		switch (zflds[i].zf_Format)
@@ -430,6 +471,7 @@ static void
 DumpHeader (hdr)
 zn_Header *hdr;
 {
+	printf ("ZNF version: %d\n", hdr->znh_Version);
 	printf ("Free space: %d bytes in %d chunks; file len = %d\n",
 		hdr->znh_NFreeB, hdr->znh_NFree, hdr->znh_Len);
 	printf ("%d samples used of %d alloc.  %d fields.  Org = ",
@@ -459,6 +501,15 @@ zn_Header *hdr;
 		}
 		else
 			printf ("Dynamic locations at %ld\n", hdr->znh_OffLoc);
+	}
+
+	printf ("Altitude units: ");
+	switch (hdr->znh_AltUnits)
+	{
+	    case ZAU_KMMSL:	printf ("km MSL\n"); break;
+	    case ZAU_MMSL:	printf ("m MSL\n"); break;
+	    case ZAU_MB:	printf ("mb\n"); break;
+	    default:		printf ("(unknown)\n"); break;
 	}
 /*
  * Print organization-specific stuff

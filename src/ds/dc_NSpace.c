@@ -140,13 +140,15 @@
  * maintenance or updates for its software.
  */
 
+#include <string.h>
+
 #include <defs.h>
 #include <message.h>
 #include "DataStore.h"
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.5 1994-01-29 03:30:24 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.6 1994-04-15 22:28:06 burghart Exp $")
 #endif
 
 /*
@@ -213,6 +215,8 @@ typedef struct _NSpaceInfo
 	int		ns_NDim;	/* no. of dimensions    */
 	unsigned char	ns_Defined;	/* true once defn done	*/
 	unsigned char	ns_HaveData;	/* have data, space set */
+	unsigned char	ns_AllowRedefine;
+					/* allow dim/var redefs?*/
 } NSpaceInfo;
 
 typedef struct _NSpaceFldInfo
@@ -535,6 +539,43 @@ dc_NSDefineIsComplete (dc)
 
 
 
+/*------------------------------------------ begin: dc_NSAllowRedefine() --*/
+void
+dc_NSAllowRedefine(dc, allow)
+	DataChunk *dc;
+	int allow;
+/*
+ * Allow/disallow redefinition of variables or dimensions in the data chunk.
+ */
+{
+	NSpaceInfo *info;
+
+	if (! IsNSpace(dc,"NSAllowRedefine"))
+		return;
+
+	info = GetInfo(dc);
+	info->ns_AllowRedefine = (unsigned char) allow;
+}
+/*-------------------------------------------- end: dc_NSAllowRedefine() --*/
+
+
+
+/*-------------------------------------- begin: dc_NSRedefineIsAllowed() --*/
+int
+dc_NSRedefineIsAllowed(dc)
+	DataChunk *dc;
+{
+	NSpaceInfo *info;
+
+	if (! IsNSpace(dc,"NSRedefineIsAllowed"))
+		return(0);
+
+	return ((int) info->ns_AllowRedefine);
+}
+/*---------------------------------------- end: dc_NSRedefineIsAllowed() --*/
+
+
+
 /*--------------------------------------- begin: dc_NSGetAllDimensions() --*/
 int
 dc_NSGetAllDimensions(dc, names, fields, sizes)
@@ -781,6 +822,80 @@ dc_NSGetDimension (dc, dimn, name, size)
 }
 /*------------------------------------------------ end: dc_NSGetDimension -*/
 
+
+	
+
+/*----------------------------------------- begin: dc_NSFixedDimension() --*/
+int 
+dc_NSFixedDimension (dc, details, ndetail, name, dindex)
+	DataChunk *dc;
+	dsDetail *details;
+	int ndetail;
+	char *name;
+	int *dindex;
+/*
+ * Look for DD_FIX_DIMENSION details and try to match them to the named
+ * dimension.  On a match, return non-zero and the fixed index in *dindex.
+ */
+{
+	int i;
+
+	i = 0;
+	while (i < ndetail)
+	{
+		if (!strcmp(details[i].dd_Name, DD_FIX_DIMENSION) &&
+		    !strcmp(details[i].dd_V.us_v_ptr, name))
+		{
+			if (i+1 >= ndetail)
+				*dindex = 0;
+			else if (!strcmp(details[i+1].dd_Name, DD_FIX_INDEX))
+				*dindex = details[i+1].dd_V.us_v_int;
+			else
+				*dindex = 0;
+			return (TRUE);
+		}
+		++i;
+	}
+	return (FALSE);
+}
+/*---------------------------------------------- end: dc_NSFixedDimension -*/
+
+
+
+/*----------------------------------------- begin: dc_NSFixedDimension() --*/
+void
+dc_NSFixedDetails (list, details, ndetail)
+char *list;		/* comma-separated list of dimensions and indices*/
+dsDetail *details;	/* array of details to fill			 */
+int *ndetail;		/* return new number of details			 */
+/*
+ * Note that the details are only valid as long as the list memory is
+ * valid and un-altered.  This function alters 'list'.
+ */
+{
+	char *eq;
+	int ndimns;
+	char *dimns[ 2 * DC_MaxDimension ];
+	int ndet;
+	int i;
+
+	ndet = 0;
+	ndimns = CommaParse (list, dimns);
+	for (i = 0; i < ndimns; ++i)
+	{
+		details[ndet].dd_Name = DD_FIX_DIMENSION;
+		details[ndet].dd_V.us_v_ptr = dimns[i];
+		++ndet;
+		if ((eq = strrchr(dimns[i], '=')) != NULL)
+		{
+			*eq++ = '\0';
+			details[ndet].dd_Name = DD_FIX_INDEX;
+			details[ndet].dd_V.us_v_int = atoi(eq);
+			++ndet;
+		}
+	}
+	*ndetail = ndet;
+}
 
 	
 /*---------------------------------------------- begin: dc_NSGetVariable --*/
@@ -1220,6 +1335,7 @@ DataClass class;
 	info->ns_NDim = 0;
 	info->ns_Defined = FALSE;
 	info->ns_HaveData = FALSE;
+	info->ns_AllowRedefine = FALSE;
 	dc_AddADE (dc, (DataPtr) info, DCC_NSpace, ST_NSPACE_INFO,
 		   sizeof (NSpaceInfo), TRUE);
 	return (dc);
@@ -1389,14 +1505,15 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 	if (i < info->ns_NDim)
 	{
 		/*
-		 * A dimension is being re-defined; note this to user and
-		 * override all previous settings
+		 * A dimension is being re-defined; complain if this is
+		 * undesirable, but override all previous settings
 		 */
-		if (warn_duplicates)
+		if (!info->ns_AllowRedefine && warn_duplicates)
 			msg_ELog (EF_PROBLEM, 
-				  "%s: dimension %s being re-defined", 
+				  "%s: dimension %s being re-defined",
 				  routine, dim_name);
-		if (dinfo[i].nsd_Id != field)
+
+		if (!info->ns_AllowRedefine && dinfo[i].nsd_Id != field)
 		{
 			if (field != BadField)
 				msg_ELog (EF_PROBLEM, 
@@ -1406,7 +1523,6 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 				msg_ELog (EF_PROBLEM,
 					  "%s: dimn %s id removed",
 					  routine, dim_name);
-			dinfo[i].nsd_Id = field;
 		}
 	}
 	else	/* i == info->ns_NDim */
@@ -1440,12 +1556,17 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 			dc_ChangeADE (dc, (DataPtr)dinfo, DCC_NSpace,
 				      ST_NSPACE_DIMNS, len);
 		}
-		dinfo[i].nsd_Size = size; 
-		dinfo[i].nsd_Id = field;
-		strcpy (dinfo[i].nsd_Name, dim_name);
-		dinfo[i].nsd_Index = i;
+
 		++(info->ns_NDim);
 	}
+
+	/*
+	 * Now stash the dimension info.
+	 */
+	dinfo[i].nsd_Size = size; 
+	dinfo[i].nsd_Id = field;
+	strcpy (dinfo[i].nsd_Name, dim_name);
+	dinfo[i].nsd_Index = i;
 
 	/*
 	 * We have either added or updated a dimension ADE, and the
@@ -1517,8 +1638,8 @@ FindFieldByID (dc, info, id, routine)
 	}
 	if ((i < 0) || (i >= info->ns_NField))
 	{
-		msg_ELog (EF_PROBLEM, "%s: no field %i in datachunk",
-			  routine, id);
+		msg_ELog (EF_PROBLEM, "%s: no field %s in datachunk",
+			  routine, F_GetName (id));
 		return NULL;
 	}
 	return (finfo+i);
@@ -1565,29 +1686,30 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 	if (i < info->ns_NField)
 	{
 		/*
-		 * A variable is being re-defined; warn user and change
-		 * the field ADE
+		 * A variable is being re-defined; complain if redefinitions
+		 * are undesirable, but change the field ADE to reflect the
+		 * new definition
 		 */
-		msg_ELog (EF_PROBLEM, 
-			  "%s: field %s being re-defined",
-			  routine, field_name);
-		if (finfo[i].nsf_NDimn != ndims)
+		if (!info->ns_AllowRedefine)
 		{
-			msg_ELog (EF_PROBLEM,
-				  "%s: field %s now has %lu dimns",
-				  routine, field_name, ndims);
-			finfo[i].nsf_NDimn = ndims;
+			msg_ELog (EF_PROBLEM, 
+				  "%s: field %s being re-defined",
+				  routine, field_name);
+
+			if (finfo[i].nsf_NDimn != ndims)
+				msg_ELog (EF_PROBLEM,
+					  "%s: field %s now has %lu dimns",
+					  routine, field_name, ndims);
+
+			if (IsStatic(finfo+i) && (!is_static))
+				msg_ELog (EF_PROBLEM,
+					  "%s: field %s has changed to %s",
+					  routine, field_name, 
+					  (is_static) ? "static" : "dynamic");
 		}
-		if (IsStatic(finfo+i) && (!is_static))
-		{
-			msg_ELog (EF_PROBLEM,
-				  "%s: field %s has changed to %s",
-				  routine, field_name, 
-				  (is_static) ? "static" : "dynamic");
-			finfo[i].nsf_Flags |= (is_static) ? NSF_STATIC : 0;
-		}
+
 		/*
-		 * The dimensions will be copied into the ADE further on
+		 * The ADE is updated below
 		 */
 	}
 	else	/* i == info->ns_NField */
@@ -1618,17 +1740,19 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 			dc_ChangeADE (dc, (DataPtr)finfo, DCC_NSpace,
 				      ST_NSPACE_FIELDS, len);
 		}
-		finfo[i].nsf_NDimn = ndims;
-		finfo[i].nsf_Id = field;
-		finfo[i].nsf_Size = 0;
-		finfo[i].nsf_Flags = (is_static) ? NSF_STATIC : 0;
-		finfo[i].nsf_StOffset = 0;
 		++(info->ns_NField);
 	}
+	/*
+	 * Set the basic stuff in the ADE
+	 */
+	finfo[i].nsf_NDimn = ndims;
+	finfo[i].nsf_Id = field;
+	finfo[i].nsf_Size = 0;
+	finfo[i].nsf_Flags = (is_static) ? NSF_STATIC : 0;
+	finfo[i].nsf_StOffset = 0;
 
 	/*
-	 * Now copy dimension list into field ADE, regardless of whether
-	 * this is a new or re-defined variable.  Note that calculating
+	 * Now copy dimension list into field ADE.  Note that calculating
 	 * field size is held off until definition is complete.
 	 */
 	for (j = 0; j < ndims; ++j)

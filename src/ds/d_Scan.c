@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.13 1994-04-01 17:08:08 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.14 1994-04-15 22:28:00 burghart Exp $")
 
 
 /*
@@ -218,14 +218,21 @@ int local;
 	int fd, version;
 	char fname[300];
 /*
- * See if we can get the cache file.
+ * See if we can get the cache file.  First try for "<dir>/<plat>.ds_cache",
+ * then for "<dir>/.ds_cache" (the old form).
  */
-	strcpy (fname, local ? p->dp_dir : p->dp_rdir);
-	strcat (fname, "/.ds_cache");
+	sprintf (fname, "%s/%s.ds_cache", local ? p->dp_dir : p->dp_rdir,
+		 p->dp_name);
 	if ((fd = open (fname, O_RDONLY)) < 0)
 	{
-		msg_ELog (EF_DEBUG, "No cache file for %s", p->dp_name);
-		return (FALSE);
+		sprintf (fname, "%s/.ds_cache", 
+			 local ? p->dp_dir : p->dp_rdir);
+		if ((fd = open (fname, O_RDONLY)) < 0)
+		{
+			msg_ELog (EF_DEBUG, "No cache file for %s", 
+				  p->dp_name);
+			return (FALSE);
+		}
 	}
 /*
  * Pull in the protocol version number.
@@ -495,7 +502,8 @@ struct ui_command *cmd;
 	 */
 		if (! onefile)
 		{
-			sprintf (fname, "%s/.ds_cache", p->dp_dir);
+			sprintf (fname, "%s/%s.ds_cache", p->dp_dir,
+				 p->dp_name);
 			if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC,
 					0664)) < 0)
 			{

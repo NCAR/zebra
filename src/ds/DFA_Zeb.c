@@ -36,7 +36,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.20 1994-01-03 07:17:27 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.21 1994-04-15 22:27:41 burghart Exp $")
 # endif
 
 /*
@@ -197,6 +197,9 @@ static void	zn_TruncateFreeBlock FP ((znTag *, long offset, zn_Free *fb));
 
 static int 	zn_SASize FP ((zn_Header *, int));
 static zn_Sample *zn_FindSampStr FP ((znTag *, int));
+static int	zn_AltUnits FP ((AltUnitType));
+static void	zn_RdFieldInfo FP ((znTag *));
+static void	zn_WrFieldInfo FP ((znTag *));
 
 
 
@@ -294,6 +297,17 @@ int ndetail;
 	hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
 	hdr->znh_OffRg = -1;
+	hdr->znh_Version = ZN_VERSION;
+	hdr->znh_AltUnits = zn_AltUnits (dc_GetLocAltUnits (dc));
+	
+	if (hdr->znh_AltUnits == ZAU_BAD)
+	{
+		msg_ELog (EF_PROBLEM, "znf: Can't handle altitude units '%s'",
+			  au_UnitsName (dc_GetLocAltUnits (dc)));
+		close (tag->zt_Fd);
+		free (tag);
+		return (FALSE);
+	}
 /*
  * Allocate the space for the header itself and sync it out.
  */
@@ -466,6 +480,8 @@ DataChunk *dc;
 		strcpy (tag->zt_Fields[i].zf_Name, F_GetName (fids[i]));
 		tag->zt_Fields[i].zf_Format = DF_Float;
 		tag->zt_Fields[i].zf_Badval = badval;
+		tag->zt_Fields[i].zf_AttrLen = 0;
+		tag->zt_Fields[i].zf_OffAttr = -1;
 	}
 }
 
@@ -482,11 +498,19 @@ znTag *tag;
  */
 {
 	zn_Header *hdr = &tag->zt_Hdr;
+	int	hdrsize, f;
+/*
+ * Dump the header, using the smaller size if it's a Version 1 file
+ */
+	hdrsize = sizeof (zn_Header);
+	if (hdr->znh_Version == 1)
+		hdrsize = ZN_V1_HDRLEN;
+	
+	if (tag->zt_Sync & SF_HEADER)
+		zn_PutBlock (tag, 0, &tag->zt_Hdr, hdrsize);
 /*
  * Dump out the various tables.
  */
-	if (tag->zt_Sync & SF_HEADER)
-		zn_PutBlock (tag, 0, &tag->zt_Hdr, sizeof (zn_Header));
 	if (tag->zt_Sync & SF_TIME)
 		zn_PutBlock (tag, hdr->znh_OffTime, tag->zt_Time,
 			hdr->znh_NSampAlloc*sizeof (ZebTime));
@@ -497,8 +521,7 @@ znTag *tag;
 		zn_PutBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,
 			hdr->znh_NSampAlloc*sizeof (Location));
 	if ((tag->zt_Sync & SF_FIELD) && hdr->znh_NField)
-		zn_PutBlock (tag, hdr->znh_OffField, tag->zt_Fields,
-			hdr->znh_NField*sizeof (zn_Field));
+		zn_WrFieldInfo (tag);
 	if (tag->zt_Sync & SF_ATTR)
 		zn_PutBlock (tag, hdr->znh_OffAttr, tag->zt_Attr,
 			hdr->znh_NSampAlloc*sizeof (zn_Sample));
@@ -698,6 +721,15 @@ int ndetail;
 		return (0);
 	hdr = &tag->zt_Hdr;
 /*
+ * Make sure we have altitude unit consistency
+ */
+	if (zn_AltUnits (dc_GetLocAltUnits (dc)) != hdr->znh_AltUnits)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "zn_PutSample failed: Alt units mismatch");
+		return (0);
+	}
+/*
  * Check for hints about the number of samples we should have alloc'ed
  */
 	if (ds_GetDetail (DD_ZN_HINT_NSAMPLES, details, ndetail, &svalue) &&
@@ -827,6 +859,15 @@ int ndetail;
 	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
 		return (0);
 	hdr = &tag->zt_Hdr;
+/*
+ * Make sure we have altitude unit consistency
+ */
+	if (zn_AltUnits (dc_GetLocAltUnits (dc)) != hdr->znh_AltUnits)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "zn_PutSampleBlock failed: Alt units mismatch");
+		return (0);
+	}
 /*
  * Check for hints about the number of samples we should have alloc'ed
  */
@@ -1435,7 +1476,7 @@ int nfield, *index, create;
  * will add the fields to the file if necessary.
  */
 {
-	int nnew = 0, dcfield, ffield, newsize, sample, field;
+	int nnew = 0, dcfield, ffield, newsize, sample, field, zfldsize;
 	zn_Header *hdr = &tag->zt_Hdr;
 	zn_Sample *new, *np, *op;
 /*
@@ -1491,10 +1532,16 @@ int nfield, *index, create;
  */
 	tag->zt_Fields = (zn_Field *) realloc (tag->zt_Fields,
 				(hdr->znh_NField + nnew)*sizeof (zn_Field));
-	zn_FreeSpace (tag, hdr->znh_OffField,
-				hdr->znh_NField*sizeof (zn_Field));
+/*
+ * Deal with space in the file, too.  For version 1 files, we allocate
+ * less space, since we only write a part of the whole field structure.
+ */
+	zfldsize = (hdr->znh_Version == 1) ? 
+		sizeof (zn_FieldV1) : sizeof (zn_Field);
+	
+	zn_FreeSpace (tag, hdr->znh_OffField, hdr->znh_NField * zfldsize);
 	hdr->znh_OffField = zn_GetSpace (tag, 
-				(hdr->znh_NField + nnew)*sizeof (zn_Field));
+					 (hdr->znh_NField + nnew) * zfldsize);
 /*
  * Now we can map the remaining fields.
  */
@@ -1504,14 +1551,15 @@ int nfield, *index, create;
 			strcpy (tag->zt_Fields[hdr->znh_NField].zf_Name,
 					F_GetName (fids[dcfield]));
 			tag->zt_Fields[hdr->znh_NField].zf_Format = DF_Float;
+			tag->zt_Fields[hdr->znh_NField].zf_AttrLen = 0;
+			tag->zt_Fields[hdr->znh_NField].zf_OffAttr = -1;
 			index[dcfield] = hdr->znh_NField++;
 		}
 /*
  * Write out the new field name table (sync won't do that) and we are 
  * done.
  */
-	zn_PutBlock (tag, hdr->znh_OffField, tag->zt_Fields,
-		     hdr->znh_NField*sizeof (zn_Field));
+	zn_WrFieldInfo (tag);
 }
 
 
@@ -2534,7 +2582,7 @@ void **rtag;
 {
 	znTag *tag = ALLOC (znTag);
 	zn_Header *hdr = &tag->zt_Hdr;
-	int nsa, field;
+	int nsa, field, magic, zfldsize;
 	bool grid;
 /*
  * Open the file.
@@ -2546,7 +2594,30 @@ void **rtag;
 		msg_ELog (EF_PROBLEM, "Can't open %s (%d)", fname, errno);
 		return (FALSE);
 	}
-	zn_GetBlock (tag, 0, &tag->zt_Hdr, sizeof (zn_Header));
+/*
+ * Check the magic number and grab the header
+ */
+	zn_GetBlock (tag, 0, &magic, sizeof (int));
+
+	if (magic == ZN_MAGIC)
+		zn_GetBlock (tag, 0, &tag->zt_Hdr, sizeof (zn_Header));
+	else if (magic == ZN_OLDMAGIC)
+	{
+	/*
+	 * Read the version 1 header and fill in the pieces added with 
+	 * version 2
+	 */
+		zn_GetBlock (tag, 0, &tag->zt_Hdr, ZN_V1_HDRLEN); 
+		hdr->znh_Version = 1;
+		hdr->znh_AltUnits = ZAU_KMMSL; /* Always km MSL in Version 1 */
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "znf: Bad magic number %d!", magic);
+		close (tag->zt_Fd);
+		free (tag);
+		return (FALSE);
+	}
 /*
  * Pull in the time and sample arrays.
  */
@@ -2564,8 +2635,9 @@ void **rtag;
 	{
 		tag->zt_Fields = 
 			(zn_Field *) malloc(hdr->znh_NField*sizeof(zn_Field));
-		zn_GetBlock (tag, hdr->znh_OffField, tag->zt_Fields,
-			     hdr->znh_NField*sizeof (zn_Field));
+
+		zn_RdFieldInfo (tag);
+
 		tag->zt_Fids = 
 			(FieldId *) malloc (hdr->znh_NField*sizeof (FieldId));
 		for (field = 0; field < hdr->znh_NField; field++)
@@ -2699,6 +2771,7 @@ void *ctag;
 	znTag *tag = (znTag *) ctag;
 	zn_Header *hdr = &tag->zt_Hdr;
 	int oldnsa = hdr->znh_NSampAlloc, oldnf = hdr->znh_NField, nsa;
+	int hdrsize;
 /*
  * Pull in the new header.  If the sizes of tables have changed, we need
  * to reallocate them.
@@ -2707,7 +2780,12 @@ void *ctag;
  * way to do this, since all of the arrays get read in completely 
  * anyway.  Probably we are doing a lot of copying for nothing.
  */
-	zn_GetBlock (tag, 0, hdr, sizeof (zn_Header));
+	hdrsize = sizeof (zn_Header);
+	if (hdr->znh_Version == 1)
+		hdrsize = ZN_V1_HDRLEN;
+	
+	zn_GetBlock (tag, 0, hdr, hdrsize);
+
 	nsa = hdr->znh_NSampAlloc;
 	if (oldnsa != hdr->znh_NSampAlloc)
 	{
@@ -2765,11 +2843,12 @@ void *ctag;
 	if (hdr->znh_NField != oldnf)
 	{
 		int fld;
-		zn_GetBlock (tag, hdr->znh_OffField, tag->zt_Fields,
-					hdr->znh_NField*sizeof (zn_Field));
+
+		zn_RdFieldInfo (tag);
+
 		for (fld = 0; fld < hdr->znh_NField; fld++)
-			tag->zt_Fids[fld] = F_Lookup (
-						tag->zt_Fields[fld].zf_Name);
+			tag->zt_Fids[fld] = 
+				F_Lookup (tag->zt_Fields[fld].zf_Name);
 	}
 	return (TRUE);
 }
@@ -3411,7 +3490,22 @@ dsDetail *details;
 
 
 
+int
+zn_GetAlts (dfile, fid, offset, alts, nalts, altunits)
+int	dfile;
+FieldId	fid;
+int	offset;
+float	*alts;
+int	*nalts;
+AltUnitType	*altunits;
+{
+	return (FALSE);
+}
 
+
+
+
+# ifdef notdef
 int
 zn_InqRGrid (dfile, origin, rg)
 int dfile;
@@ -3431,7 +3525,7 @@ RGrid *rg;
 	*origin = tag->zt_Locs[0];
 	return (TRUE);
 }
-
+# endif
 
 
 
@@ -4044,6 +4138,97 @@ zn_Free *fb;
 
 
 
+static int
+zn_AltUnits (atype)
+AltUnitType atype;
+/*
+ * Convert an AltUnitType to our internal integer altitude unit identifier.
+ * Return ZAU_BAD if it's a type we don't understand.
+ */
+{
+	switch (atype)
+	{
+	    case AU_kmMSL:
+		return (ZAU_KMMSL);
+	    case AU_mMSL:
+		return (ZAU_MMSL);
+	    case AU_mb:
+		return (ZAU_MB);
+	    default:
+		return (ZAU_BAD);
+	}
+}
+
+	    
+
+
+static void
+zn_RdFieldInfo (tag)
+znTag	*tag;
+/*
+ * Read the zn_Field structures from the file
+ */
+{		
+	int	f;
+	zn_Header	*hdr = &tag->zt_Hdr;
+
+	if (hdr->znh_Version == 1)
+	{
+	/*
+	 * For version 1 files, we need to read each field structure
+	 * individually, since the file only has the version 1 subset of
+	 * each one.
+	 */
+		for (f = 0; f < hdr->znh_NField; f++)
+		{
+			zn_GetBlock (tag, 
+				     hdr->znh_OffField + f*sizeof (zn_FieldV1),
+				     tag->zt_Fields + f, sizeof (zn_FieldV1));
+		/*
+		 * Fill in the pieces not in version 1 files
+		 */
+			tag->zt_Fields[f].zf_AttrLen = 0;
+			tag->zt_Fields[f].zf_OffAttr = -1;
+		}
+	}
+	else
+		zn_GetBlock (tag, hdr->znh_OffField, tag->zt_Fields,
+			     hdr->znh_NField * sizeof (zn_Field));
+}
+
+
+
+
+static void
+zn_WrFieldInfo (tag)
+znTag	*tag;
+/*
+ * Write the field info to the file
+ */
+{
+	int	f;
+	zn_Header	*hdr = &tag->zt_Hdr;
+
+	if (hdr->znh_Version == 1)
+	{
+	/*
+	 * For version 1 files, we need to write each field structure
+	 * individually, since we only write the version 1 subset of
+	 * each one.
+	 */
+		for (f = 0; f < hdr->znh_NField; f++)
+			zn_PutBlock (tag, 
+				     hdr->znh_OffField + f*sizeof (zn_FieldV1),
+				     tag->zt_Fields + f, sizeof (zn_FieldV1));
+	}
+	else
+		zn_PutBlock (tag, hdr->znh_OffField, tag->zt_Fields,
+			     hdr->znh_NField*sizeof (zn_Field));
+}
+
+
+
+
 #ifdef notdef
 void
 zn_ReadFreeNode (fd, offset, zf)
@@ -4181,6 +4366,8 @@ char *fname;
 	hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
 	hdr->znh_OffRg = -1;
+	hdr->znh_Version = ZN_VERSION;
+	hdr->znh_AltUnits = ZAU_KMMSL;
 /*
  * Allocate the space for the header itself
  */

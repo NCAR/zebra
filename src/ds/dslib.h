@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.7 1994-01-03 07:18:23 granger Exp $"
+ * "$Id: dslib.h,v 3.8 1994-04-15 22:28:16 burghart Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -55,8 +55,6 @@ typedef struct _GetList
 # define GLF_TRIED	0x0004		/* We have tried this one	*/
 
 
-
-
 int 	dsm_Init FP ((void));
 void	dsm_ShmLock FP ((void));
 void	dsm_ShmUnlock FP ((void));
@@ -65,6 +63,9 @@ int	dfa_QueryDate FP ((int, char *, ZebTime *, ZebTime *, int *));
 int	dfa_InqNPlat FP ((int));
 DataChunk *dfa_Setup FP ((GetList *, FieldId *, int, DataClass));
 void	dfa_GetData FP ((DataChunk *, GetList *, dsDetail *, int));
+int	dfa_GetAlts FP ((int index, FieldId fid, int offset, float *alts,
+			 int *nalts, AltUnitType *altunits));
+int	dfa_GetForecastTimes FP ((int index, int *times, int *ntimes));
 int	dfa_InqRGrid FP ((int, Location *, RGrid *));
 int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
 void	dfa_MakeFileName FP ((Platform *, ZebTime *, char *));

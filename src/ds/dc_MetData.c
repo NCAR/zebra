@@ -28,7 +28,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.9 1994-02-01 07:26:02 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.10 1994-04-15 22:28:03 burghart Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -62,7 +62,9 @@ const char *DC_ElemTypeNames[] =
 	"unsigned int",
 	"long int",
 	"unsigned long",
-	"string"
+	"string",
+	"Boolean",
+	"ZebTime"
 };
 
 
@@ -80,7 +82,9 @@ const int DC_ElemTypeSizes[] =
 	sizeof(unsigned int),
 	sizeof(long int),
 	sizeof(unsigned long),
-	sizeof(char *)
+	sizeof(char *),
+	sizeof(unsigned char),
+	sizeof(ZebTime)
 };
 
 
@@ -779,6 +783,12 @@ void *ptr;
 	   case DCT_String:
 		e->dcv_string = *(char **)ptr;
 		break;
+	   case DCT_Boolean:
+		e->dcv_boolean = *(unsigned char *)ptr;
+		break;
+	   case DCT_ZebTime:
+		e->dcv_zebtime = *(ZebTime *)ptr;
+		break;
 	   default:
 		e->dcv_longdbl = 0.0;
 		break;
@@ -798,7 +808,7 @@ DC_ElemType type;
  * is a string,
  */
 {
-	static char buf[128];   /* should hold most numbers, right? */
+	static char buf[128]; /* should hold most numbers (and times), yes? */
 
 	switch (type)
 	{
@@ -860,6 +870,12 @@ DC_ElemType type;
 		break;
 	   case DCT_String:
 		sprintf (buf, "%s", *(char **)ptr);
+		break;
+	   case DCT_Boolean:
+		sprintf (buf, "%s", *(unsigned char *)ptr ? "true" : "false");
+		break;
+	   case DCT_ZebTime:
+		TC_EncodeTime ((ZebTime *)ptr, TC_Full, buf);
 		break;
 	   default:
 		sprintf (buf, "??");

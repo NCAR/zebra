@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.19 1994-01-03 23:34:45 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.20 1994-04-15 22:27:54 burghart Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
@@ -29,9 +29,9 @@ DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
-DSLIBOBJS = Appl.o DataFileAccess.o DFA_NetCDF.o ingest.o \
+DSLIBOBJS = Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o ingest.o \
 	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o
-DSLIBSRCS = Appl.c DataFileAccess.c DFA_NetCDF.c ingest.c \
+DSLIBSRCS = Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c ingest.c \
 	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c
 
 /* 
@@ -44,7 +44,7 @@ DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c \
 	dc_Location.c dc_NSpace.c
 
-UTILSRCS = rfdump.c zfdump.c
+UTILSRCS = rfdump.c zfdump.c GRIBdump.c
 
 /*
  * For debugging
@@ -86,8 +86,10 @@ BuildIncludes($(HEADERS),.,.)
  */
 NormalProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
 
-NormalProgramTarget (zfdump, zfdump.o $(DSLIBOBJS) $(DCOBJS), 
-                     $(LIBZEB), $(LIBZEB) $(LIBNETCDF) $(LIBRDSS), /**/)
+NormalProgramTarget (zfdump, zfdump.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS), 
+		     $(LIBS), /**/)
+
+NormalProgramTarget (GRIBdump, GRIBdump.o, $(DEPLIBS), $(LIBS), /**/)
 
 /*
  * Test routines.

@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.20 1994-01-26 11:24:38 granger Exp $
+ * $Id: dsPrivate.h,v 3.21 1994-04-15 22:28:14 burghart Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -35,6 +35,8 @@ typedef enum {
 	FTRaster = 2,
 	FTCmpRaster = 3,
 	FTZeb = 4,
+	FTGRIB = 5,
+	FTGRIBSfc = 6,	/* GRIB surface grids only */
 	/* ... */
 } FileType;
 
@@ -87,6 +89,8 @@ typedef struct ds_Platform
 # define DPF_DIRTY	0x0080		/* Cache needs updating		*/
 # define DPF_CLOADED	0x0100		/* Cache has been loaded	*/
 # define DPF_RCLOADED	0x0200		/* Remote cache loaded		*/
+# define DPF_MODEL	0x0400		/* Model data, i.e., has	*/
+					/* separate issue/valid times	*/
 
 /*
  * Macro to return the right data list for a platform.

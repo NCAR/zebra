@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.13 1994-02-15 21:24:22 burghart Exp $
+! $Id: Daemon.state,v 2.14 1994-04-15 22:27:46 burghart Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -105,6 +105,9 @@ define state in-platform
 	input 'daysplit' 19
 		next ust$no_more
 	endinput
+	input 'model' 22
+		next ust$no_more
+	endinput
 enddef
 
 
@@ -129,6 +132,9 @@ define state file-type
 		next ust$no_more
 	endinput
 	input 'grib' 5
+		next ust$no_more
+	endinput
+	input 'grib_sfc' 6
 		next ust$no_more
 	endinput
 enddef
@@ -169,6 +175,9 @@ define state organization
 		next ust$no_more
 	endinput
 	input 'fixedscalar' 10
+		next ust$no_more
+	endinput
+	input 'nspace' 11
 		next ust$no_more
 	endinput
 enddef

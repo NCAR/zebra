@@ -1,7 +1,7 @@
 /*
  * Structures describing the zeb native file format.
  */
-/* $Id: znfile.h,v 1.2 1993-08-12 18:31:59 granger Exp $ */
+/* $Id: znfile.h,v 1.3 1994-04-15 22:28:24 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,17 +44,30 @@ typedef struct _zn_Header
 	long	znh_OffRg;		/* Offset to rgrid array	*/
 	long	znh_OffLoc;		/* Offset to location array	*/
 	/* Station information for IRGRID files */
+
 	int	znh_NStation;		/* Number of stations		*/
 	long	znh_OffStation;		/* Where the array is		*/
 	/* Global attributes			*/
 	int	znh_GlAttrLen;		/* How big they are		*/
 	long	znh_OffGlAttr;		/* Where they are		*/
 	long	znh_OffAttr;		/* Per-sample attribute array	*/
+/* 
+ * Version 2: znh_Version and znh_altUnits added
+ */
+	int	znh_Version;		/* Zeb Native version number	*/
+	int	znh_AltUnits;	/* Altitude units		*/
 } zn_Header;
 
-# define ZN_MAGIC	0x920611
+# define ZN_OLDMAGIC	0x920611	/* Version 1 */
+# define ZN_MAGIC	0x940218	/* Version 2 and beyond */
 # define ZN_GRAIN	16		/* How much to expand per-sample
 					   tables at a time */
+/*
+ * Version stuff
+ */
+# define ZN_VERSION	2
+
+# define ZN_V1_HDRLEN	(sizeof(zn_Header) - 8) /* Length of V1 header */
 
 /*
  * Free chunks have this sort of appearance at their head.
@@ -87,15 +100,30 @@ typedef enum
 } DataFormat;
 
 # define ZN_FLD_LEN 40
+/*
+ * Version 1 field structure
+ */
+typedef struct _zn_FieldV1
+{
+	char	zf_Name[ZN_FLD_LEN];	/* The name of this field	*/
+	float	zf_Badval;		/* Bad value flag		*/
+	DataFormat zf_Format;		/* Storage format		*/
+	ScaleInfo zf_Scale;		/* Scaling (for scaled fmts)	*/
+} zn_FieldV1;
+
+/*
+ * Version 2 field structure (version 1 structure with appended per-field 
+ * attribute info)
+ */
 typedef struct _zn_Field
 {
 	char	zf_Name[ZN_FLD_LEN];	/* The name of this field	*/
 	float	zf_Badval;		/* Bad value flag		*/
 	DataFormat zf_Format;		/* Storage format		*/
 	ScaleInfo zf_Scale;		/* Scaling (for scaled fmts)	*/
+	int	zf_AttrLen;		/* How big they are		*/
+	long	zf_OffAttr;		/* Where they are		*/
 } zn_Field;
-
-/* typedef char zn_Field[ZN_FLD_LEN]; */
 
 /*
  * Stations in irregular grid files are stored this way.
@@ -106,4 +134,14 @@ typedef struct _zn_Station
 	char	zns_Name[ZN_STA_LEN];	/* Name of this station		*/
 	Location zns_Loc;		/* Where it is			*/
 } zn_Station;
+
+/*
+ * Altitude units we understand.
+ */
+# define ZAU_BAD	-1	/* unknown units */
+# define ZAU_KMMSL	0	/* km MSL */
+# define ZAU_MMSL	1	/* m MSL */
+# define ZAU_MB		2	/* mb */
+
+
 

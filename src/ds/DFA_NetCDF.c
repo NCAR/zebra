@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.29 1994-01-31 19:53:09 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.30 1994-04-15 22:27:35 burghart Exp $")
 #endif
 
 # include "netcdf.h"
@@ -38,16 +38,16 @@ MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.29 1994-01-31 19:53:09 granger Exp $")
  * Do we include units attribute for altitude
  */
 #ifndef CFG_NC_NO_ALT_UNITS
-#define STORE_ALT_UNTIS
+#define STORE_ALT_UNITS
 #endif
 
 /*
  * Location fields: standard attributes
  */
 #ifdef CFG_NC_ALTITUDE_UNITS
-#	define ALT_UNITS	CFG_NC_ALTITUDE_UNITS
+#	define DEF_ALT_UNITS CFG_NC_ALTITUDE_UNITS
 #else
-#	define ALT_UNITS	"km"
+#	define DEF_ALT_UNITS AU_kmMSL
 #endif
 #	define ALT_LONGNAME	"altitude"
 #	define LAT_UNITS	"degrees"
@@ -60,11 +60,7 @@ MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.29 1994-01-31 19:53:09 granger Exp $")
  */
 #	define X_UNITS		"km"
 #	define Y_UNITS		"km"
-#ifdef CFG_NC_ALTITUDE_UNITS
-#	define Z_UNITS		CFG_NC_ALTITUDE_UNITS
-#else
-#	define Z_UNITS		"km"
-#endif
+
 #	define X_LONGNAME	"grid spacing in west->east direction"
 #	define Y_LONGNAME	"grid spacing in south->north direction"
 #	define Z_LONGNAME	"grid spacing along vertical"
@@ -114,6 +110,10 @@ typedef struct _nctag
 	int		nc_nVar;	/* Number of variables in the file */
 	FieldId		*nc_FMap;	/* The field map		*/
 	char		nc_buffered;	/* Is buffering on?		*/
+	AltUnitType	nc_altUnits;	/* alt units for Locations and	*/
+					/*     RGrid z spacing		*/
+	float		*nc_alts;	/* Alts for 3dgrid and nspace	*/ 
+	int 		nc_nalts;	/* Number of available altitudes*/
 } NCTag;
 
 
@@ -160,11 +160,14 @@ static struct CO_Compat
 	{ OrgScalar,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Location	},
 	{ OrgScalar,		DCC_NSpace	},
-#ifdef notdef
+	{ OrgNSpace,		DCC_NSpace	},
+/*
+ * While any organization can be read as NSpace, the application must know
+ * how to interpret the naming and dimn conventions of the grid classes.
+ */
 	{ Org1dGrid,		DCC_NSpace	},
 	{ Org2dGrid,		DCC_NSpace	},
 	{ Org3dGrid,		DCC_NSpace	},
-#endif
 };
 # define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
 
@@ -183,6 +186,8 @@ static void     dnc_NCError FP ((char *));
 static int      dnc_OFTimes FP ((NCTag *));
 static int      dnc_GetTimes FP ((NCTag *));
 static int      dnc_OFIRGrid FP ((NCTag *));
+static int	dnc_OFRGridAlts FP ((NCTag *tag));
+static int	dnc_OFNSpaceAlts FP ((NCTag *tag));
 static int     	dnc_TimeIndex FP ((NCTag *, ZebTime *));
 static void     dnc_LoadLocation FP ((NCTag *, Location *, long, long));
 static int      dnc_BuildPMap FP ((NCTag *));
@@ -198,17 +203,20 @@ static void	dnc_SetFieldTypes FP ((NCTag *tag, DataChunk *dc, int nfield,
 				       FieldId *fields));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
 				    int nfield, FieldId *fields));
-static int 	dnc_ReadScalar FP ((DataChunk *, NCTag *, long, long, FieldId *,
-			int, double));
+static void	dnc_NSpaceFinishSetup FP ((NCTag *tag, DataChunk *dc,
+					   dsDetail *details, int ndetail));
+static int 	dnc_ReadScalar FP((DataChunk *, NCTag *, long, long, FieldId *,
+				   int, double));
 static int 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double));
 static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
 static int	dnc_ReadNSpace FP((DataChunk *, NCTag *, long,
-				long, FieldId *, int, double));
+			long, FieldId *, int, double, dsDetail *, int));
 static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag, 
 			 ZebTime *t, int begin, int nsamp, FieldId *fids, 
-			 int nfield, double badval));
+			 int nfield, double badval, int altindex,
+			 dsDetail *details, int ndetail));
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, long, long));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
 #ifdef APPLY_BADVALUE
@@ -352,7 +360,8 @@ NCTag **rtag;
  */
 {
 	NCTag *tag = ALLOC (NCTag);
-	int ret;
+	int ret, v;
+	char units[256];
 /*
  * Try to open the file.
  */
@@ -370,7 +379,9 @@ NCTag **rtag;
 	tag->nc_org = ds_PlatformDataOrg (dp->df_platform);
 	tag->nc_plat = dp->df_platform;
 	tag->nc_ntime = 0;
-	tag->nc_locs = (Location *) 0;
+	tag->nc_locs = (Location *) NULL;
+	tag->nc_alts = NULL;
+	tag->nc_nalts = 0;
 	tag->nc_FMap = 0;
 	tag->nc_buffered = TRUE;
 /*
@@ -380,6 +391,29 @@ NCTag **rtag;
 	{
 		dnc_CloseFile (tag);
 		return (FALSE);
+	}
+/*
+ * Figure out our altitude units, using those of the "alt" field if present,
+ * or setting to our default.
+ */
+	tag->nc_altUnits = DEF_ALT_UNITS;	/* default */
+
+	if ((v = ncvarid (tag->nc_id, "alt")) >= 0 &&
+	    dnc_GetStringAtt (tag->nc_id, v, VATT_UNITS, units, sizeof(units)))
+	{
+		if (units[0] == '\0')
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "NetCDF: alt units empty, using default %s",
+				  au_LongUnitsName(tag->nc_altUnits));
+		}
+		else if (! au_ConvertName (units, &tag->nc_altUnits))
+		{
+			msg_ELog (EF_PROBLEM,
+				  "NetCDF: Unknown alt units: '%s'", units);
+			dnc_CloseFile (tag);
+			return (FALSE);
+		}
 	}
 /*
  * The rest of the setup is organization-specific.
@@ -393,20 +427,30 @@ NCTag **rtag;
 		ret = dnc_OFIRGrid (tag);
 		break;
 	/*
-	 * Load regular grid geometry info.
+	 * Load regular grid geometry info and available altitudes.
 	 */
 	   case Org1dGrid:
 	   case Org2dGrid:
 	   case Org3dGrid:
 		ret = dnc_OFRGrid (tag);
+		if (ret)
+			ret = dnc_OFRGridAlts (tag);
 		break;
 	/*
-	 * For scalar files, pull in the location if it is static.
+	 * For scalar and nspace files, pull in the location if it is static.
 	 */
 	   case OrgScalar:
 		if (! ds_IsMobile (dp->df_platform))
 			dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
 	        ret = TRUE;
+		break;
+	/*
+	 * For nspace, also check for available altitudes
+	 */
+	   case OrgNSpace:
+		if (! ds_IsMobile (dp->df_platform))
+			dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
+	        ret = dnc_OFNSpaceAlts (tag);
 		break;
 
 	   default:
@@ -416,7 +460,10 @@ NCTag **rtag;
 	}
 
 	if (!ret)
+	{
 		dnc_CloseFile (tag);
+		tag = NULL;
+	}
 	*rtag = tag;
 	return (ret);
 }
@@ -733,6 +780,126 @@ NCTag *tag;
 
 
 
+static int
+dnc_OFRGridAlts (tag)
+NCTag *tag;
+/*
+ * Store the altitude levels from this rgrid org file into the tag
+ */
+{
+	int i;
+	RGrid *rg;
+	int nalts;
+	float *alts;
+/*
+ * Organization determines what happens here.
+ */
+	rg = &tag->nc_rgrid;
+	nalts = rg->rg_nZ;
+	alts = (float *)malloc (nalts * sizeof(float));
+	alts[0] = tag->nc_sloc.l_alt;
+
+	for (i = 1; i < rg->rg_nZ; i++)
+		alts[i] = alts[i - 1] + rg->rg_Zspacing;
+	tag->nc_alts = alts;
+	tag->nc_nalts = nalts;
+	return (TRUE);
+}
+
+
+
+static int
+dnc_OFNSpaceAlts (tag)
+NCTag *tag;
+/*
+ * Look for an 'altitude' coordinate variable with dimensions
+ * other than time.  Take the values along the coordinate dimension as the
+ * available altitudes.  If no coordinate variable can be found, then
+ * leave the altitudes array empty.
+ *
+ * All of the variables should already be read and fields defined.
+ * At the moment, we always return TRUE since it is valid for nspace org
+ * not to have an altitude array.
+ */
+{
+	float *alts;
+	int nalts;
+	FieldId altid;
+	int varid;
+	int ndims;
+	int dimids[MAX_VAR_DIMS];
+	long start[MAX_VAR_DIMS];
+	long count[MAX_VAR_DIMS];
+	int altdimn;
+	nc_type vtype;
+	int i;
+
+	if ((altid = F_Declared ("altitude")) == BadField)
+		return (TRUE);
+	varid = dnc_GetFieldVar (tag, altid);
+
+	ncvarinq (tag->nc_id, varid, NULL, &vtype, &ndims, dimids, NULL);
+	if (vtype != NC_FLOAT)
+	{
+		msg_ELog (EF_DEBUG, "%s: 'altitude' variable not float type",
+			  "netcdf nspace");
+		return (TRUE);
+	}
+/*
+ * For each dimension of this variable, verify that one of the
+ * dimensions has the same name as the variable (making it a coordinate
+ * variable), and set the start and count arrays accordingly to read along
+ * that dimension.
+ */
+	altdimn = -1;
+	nalts = 1;
+	for (i = 0; i < ndims; ++i)
+	{
+		char dimname[MAX_NC_NAME];
+		long dimsize;
+
+		start[i] = 0;
+		ncdiminq (tag->nc_id, dimids[i], dimname, &dimsize);
+		if (! strcmp (dimname, F_GetName (altid)))
+		{
+			altdimn = i;
+			count[i] = dimsize;
+		}
+		else
+		{
+			count[i] = 1;
+		}
+		nalts *= count[i];
+	}
+/*
+ * It is possible to accept an altitude variable with zero dimensions, in
+ * which case nalts is 1, and the altitudes do not vary with time.
+ */
+	if ((ndims > 0) && (altdimn == -1))
+	{
+		msg_ELog (EF_DEBUG, "%s: 'altitude' not a coordinate variable",
+			  "netcdf nspace");
+		return (TRUE);
+	}
+/*
+ * Allocate space for the altitudes, then read them.
+ */
+	alts = (float *) malloc (sizeof(float) * nalts);
+	if (ncvarget (tag->nc_id, varid, start, count, (void *)alts) < 0)
+	{
+		dnc_NCError ("'altitude' variable");
+		free (alts);
+		return (TRUE);
+	}
+/*
+ * Update our tag and we're done.
+ */
+	tag->nc_nalts = nalts;
+	tag->nc_alts = alts;
+	return (TRUE);
+}
+
+
 
 
 static int
@@ -901,6 +1068,8 @@ NCTag *tag;
 		free (tag->nc_locs);
 	if (tag->nc_FMap)
 		free (tag->nc_FMap);
+	if (tag->nc_alts)
+		free (tag->nc_alts);
 	free(tag);
 }
 
@@ -983,6 +1152,10 @@ DataClass class;
  * Create a data chunk with the desired organization.
  */
 	dc = dc_CreateDC (class);
+/*
+ * Put our altitude units into the data chunk.
+ */
+	dc_SetLocAltUnits (dc, tag->nc_altUnits);
 /*
  * Now we try to get everything together.
  */
@@ -1088,11 +1261,11 @@ FieldId *fields;
 
 
 static void
-dnc_NSpaceSetup (tag, dc, nfield, fields)
+dnc_NSpaceSetup (tag, dc, nfield, fids)
 NCTag *tag;
 DataChunk *dc;
 int nfield;
-FieldId *fields;
+FieldId *fids;
 /*
  * Define the given empty NSpace datachunk with the given fields
  * according to the dimensions of the variables in the netCDF file.
@@ -1104,6 +1277,8 @@ FieldId *fields;
 {
 	int i, j;
 	int varid;
+	FieldId fields[ DC_MaxField ];
+	FieldId fid;
 	int ndims, natts, nsdims;
 	nc_type vtype;
 	int dims[ MAX_VAR_DIMS ];
@@ -1112,6 +1287,7 @@ FieldId *fields;
 	char dim_names[ MAX_NC_DIMS ][ MAX_NC_NAME ];
 	char *names[ MAX_NC_DIMS ];
 	DC_ElemType types[ MAX_NC_VARS ];
+	int nbase;
 
 	for (i = 0; i < MAX_NC_DIMS; ++i)
 		names[i] = &(dim_names[i][0]);
@@ -1119,30 +1295,66 @@ FieldId *fields;
 	 * For each field, see if its varid is in the tag.  If not,
 	 * default to scalar float.
 	 * Else inquire the varid and get its dimensions
-	 * and define the field with dc_NSDefineField()
+	 * and define the field with dc_NSDefineField().
+	 *
+	 * For each field's dimensions, make sure any coordinate variables
+	 * are automatically included in the datachunk as well.
+	 *
+	 * Once the fields are defined, check each field for dimensions
+	 * which are coordinate variables, and define these in the
+	 * datachunk also.
 	 */
 	for (i = 0; i < nfield; ++i)
+	     fields[i] = fids[i];
+	i = 0;
+	nbase = nfield;
+	dc_NSAllowRedefine (dc, TRUE);
+	while (i < nfield)
 	{
 		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
 		{
 			/*
-			 * Field unknown, so default to scalar float
+			 * Field unknown, so default to a static scalar float.
+			 * This will later get filled with bad values.
+			 * It can be static since it will be all bad values
+			 * for every sample time.
 			 */
-			types[i] = DCT_Float;
-			dc_NSDefineField (dc, fields[i], 0, NULL, NULL, FALSE);
+			ndims = 0;
+			is_static = TRUE;
+			vtype = NC_FLOAT;
 		}
-		/*
-		 * Have a varid for the field.  Get the dimensions.  If
-		 * not static, then we skip the first dimension, time,
-		 * when defining the field for the NSpace chunk.
-		 */
-		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, dims, &natts);
-		is_static = ((ndims == 0) || (dims[0] != tag->nc_dTOffset));
+		else
+		{
+			/*
+			 * Have a varid for the field.  Get the dimensions.
+			 * If not static, then we skip the first dimension,
+			 * time, when defining the field for the NSpace
+			 * chunk.
+			 */
+			ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, 
+				  dims, &natts);
+			is_static = ((ndims == 0) || 
+				     (dims[0] != tag->nc_dTOffset));
+		}
 		nsdims = 0;
 		for (j = (is_static ? 0 : 1); j < ndims; ++j)
 		{
 			ncdiminq (tag->nc_id, dims[j], names[nsdims], 
 				  (long *) &(sizes[nsdims]));
+			/*
+			 * Look up this dimension name as a field, and
+			 * see if it has a corresponding varid.  If so,
+			 * add it to the list of variables to define.  Of
+			 * course, if this is a coordinate variable we added
+			 * on earlier passes, ignore it.
+			 */
+			if ((i < nbase) && 
+			    (fid = F_Declared(names[nsdims])) != BadField)
+			{
+				if (dnc_GetFieldVar (tag, fid) >= 0)
+					fields[nfield++] = fid;
+
+			}
 			++nsdims;
 		}
 		/*
@@ -1151,14 +1363,61 @@ FieldId *fields;
 		types[i] = dnc_ElemType (vtype);
 		dc_NSDefineField (dc, fields[i], nsdims,
 				  names, sizes, is_static);
+		i++;
 	}
+#ifdef notdef /* must put off definition until we know whether to slice alts */
 	/*
 	 * All done.  Close it out and set the types.
 	 */
 	dc_NSDefineComplete (dc);
 	dc_SetFieldTypes (dc, nfield, fields, types);
+#endif
 }
 
+
+
+static void
+dnc_NSpaceFinishSetup (tag, dc, details, ndetail)
+NCTag *tag;
+DataChunk *dc;
+dsDetail *details;
+int ndetail;
+/* 
+ * We must redefine an altitude dimension to size 1 if we will be
+ * slicing at a particular altitude level.
+ * 
+ * If any dimensions must be fixed, redefine them to their new size of
+ * one here.
+ *
+ * Since the DataChunk definition is not complete yet, we must
+ * use the DataChunk to get the fields after completing the definition.
+ */
+{
+	int nfield;
+	FieldId *fids;
+	FieldId altid;
+	FieldId dimid;
+	int i;
+
+	dc_NSAllowRedefine (dc, TRUE);
+
+	altid = F_Declared ("altitude");
+	if ((altid != BadField) &&
+	    ds_GetDetail ("altitude", details, ndetail, NULL))
+		dc_NSDefineDimension (dc, altid, (long)1 );
+
+	for (i = 0; i < ndetail; ++i)
+	{
+		if (strcmp(details[i].dd_Name, DD_FIX_DIMENSION))
+			continue;
+		dimid = F_Lookup (details[i].dd_V.us_v_ptr);
+		dc_NSDefineDimension (dc, dimid, (long)1 );
+	}
+
+	dc_NSDefineComplete (dc);
+	fids = dc_GetFields (dc, &nfield);
+	dnc_SetFieldTypes (tag, dc, nfield, fids);
+}
 
 
 
@@ -1182,20 +1441,37 @@ int ndetail;
  */
 	if (!dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return (0);
-
+/*
+ * Verify alt units of this file match the datachunk we're adding to
+ */
+	if (tag->nc_altUnits != dc_GetLocAltUnits (dc))
+	{
+		msg_ELog (EF_PROBLEM, "%s: altitude units mismatch in file %d",
+			  "netCDF get data", gp->gl_dfindex);
+		return (0);
+	}
+/*
+ * If nspace chunk, we need to finish the definition using the details
+ * BEFORE we can retrieve the field list from the datachunk.  Of course, we
+ * don't need to do anything if the definition was finished while reading
+ * a previous file.
+ */
+	if ((dc->dc_Class == DCC_NSpace) && !dc_NSDefineIsComplete(dc))
+		dnc_NSpaceFinishSetup(tag, dc, details, ndetail);
+	if (dc->dc_Class != DCC_Location)
+		fids = dc_GetFields (dc, &nfield);
 /*
  * Figure out what bad value flag they want, and make sure it is stored
  * in the DC.
  */
+#ifdef READ_BADVALUE_ATT
 	if (dc->dc_Class != DCC_Location)
 	{
-#ifdef READ_BADVALUE_ATT
 		badval = ds_GetDetail ("badval", details, ndetail, &v) ?
 				v.us_v_float : 99999.9;
 		dc_SetBadval (dc, badval);
-#endif /* READ_BADVALUE_ATT */
-		fids = dc_GetFields (dc, &nfield);
 	}
+#endif /* READ_BADVALUE_ATT */
 /*
  * Get the time indices.
  */
@@ -1241,7 +1517,8 @@ int ndetail;
 	 * NSpace.
 	 */
 	   case DCC_NSpace:
-		dnc_ReadNSpace (dc, tag, tbegin, nsamp, fids, nfield, badval);
+		dnc_ReadNSpace (dc, tag, tbegin, nsamp, fids, nfield, badval,
+				details, ndetail);
 		break;
 
 	   default:
@@ -1369,13 +1646,15 @@ float badval;
 
 
 static int
-dnc_ReadNSpace (dc, tag, begin, nsamp, fids, nfield, badval)
+dnc_ReadNSpace (dc, tag, begin, nsamp, fids, nfield, badval, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
 long begin, nsamp;
 FieldId *fids;
 int nfield;
 float badval;
+dsDetail *details;
+int ndetail;
 /*
  * Retrieve multi-dimensional fields from this file's particular
  * organization and add the data to the NSpace datachunk.
@@ -1383,6 +1662,10 @@ float badval;
 {
 	int sbegin = dc_GetNSample (dc);
 	ZebTime *t;
+	int altindex;
+	float closest;
+	SValue v;
+	int i;
 
 	/*
 	 * Get the time array.
@@ -1391,13 +1674,34 @@ float badval;
 	dnc_ConvTimes (tag, begin, nsamp, t);
 
 	/*
+	 * Determine the altitude index to read grids at
+	 */
+	altindex = -1;
+	if ((tag->nc_nalts > 0) &&
+	    ds_GetDetail ("altitude", details, ndetail, &v))
+	{
+		altindex = 0;
+		closest = fabs (tag->nc_alts[0] - v.us_v_float);
+		for (i = 1; (closest) && (i < tag->nc_nalts); ++i)
+		{
+			if (fabs (tag->nc_alts[i] - v.us_v_float) < closest)
+			{
+				closest = fabs(tag->nc_alts[i] - v.us_v_float);
+				altindex = i;
+			}
+		}
+	}
+	
+	/*
 	 * Split up task based on platform organization.
 	 */
 	switch (tag->nc_org)
 	{
 	   case OrgScalar:
+	   case OrgNSpace:
 	        dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids,
-				      nfield, badval);
+				      nfield, badval, altindex, 
+				      details, ndetail);
 		break;
 	   default:
 		return (0);
@@ -1424,7 +1728,8 @@ float badval;
 
 
 static void
-dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids, nfield, badval)
+dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids, nfield, badval, 
+		      altindex, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
 ZebTime *t;
@@ -1432,6 +1737,9 @@ int begin, nsamp;
 FieldId *fids;
 int nfield;
 float badval;
+int altindex;
+dsDetail *details;
+int ndetail;
 /*
  * Retrieve multi-dimensional scalar data from this file and add it to
  * the NSpace datachunk.
@@ -1440,6 +1748,7 @@ float badval;
 	long start[ MAX_VAR_DIMS ];
 	long count[ MAX_VAR_DIMS ];
 	unsigned long sizes[ DC_MaxDimension ];
+	char *names[ DC_MaxDimension ];
 	void *temp;
 	unsigned long size, tempsize;
 	int elemsize;
@@ -1447,7 +1756,11 @@ float badval;
 	int varid;
 	int sbegin = dc_GetNSample (dc);
 	int dim, ndim, is_static;
+	int altid, dindex;
 
+	altid = -1;
+	if (altindex >= 0)
+		altid = F_Lookup ("altitude");
 	/*
 	 * Each field will have different hyperslab coordinates, depending
 	 * on whether or not the field is static, and depending on the
@@ -1458,23 +1771,43 @@ float badval;
 	tempsize = 0;
 	for (field = 0; field < nfield; ++field)
 	{
+		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
+		{
+			msg_ELog (EF_DEBUG, "netcdf: missing field %d %s", 
+				  fids[field], 
+				  "will be filled with bad values");
+		}
+
 		/*
 		 * Dynamic fields will need these coords for the 1st dimn
 		 */
 		start[0] = begin;
 		count[0] = nsamp;
 		/*
-		 * All other limits get the whole slab
+		 * All other limits get the whole slab, unless it's an
+		 * altitude dimension and we're slicing at an altitude level
 		 */
 		dc_NSGetField (dc, fids[field], &ndim, 
-			       NULL, sizes, &is_static);
+			       names, sizes, &is_static);
 		size = (is_static) ? 1 : nsamp;
 		dim = (is_static) ? 0 : 1;
 		for (i = 0; i < ndim; ++i, ++dim)
 		{
 			start[dim] = 0;
 			count[dim] = sizes[i];
-			size *= sizes[i];
+			if ((altindex >= 0) && 
+			    (!strcmp (F_GetName(altid), names[i])))
+			{
+				start[dim] = altindex;
+				count[dim] = 1;
+			}
+			else if (dc_NSFixedDimension (dc, details, ndetail,
+						      names[i], &dindex))
+			{
+				start[dim] = dindex;
+				count[dim] = 1;
+			}
+			size *= count[dim];
 		}
 
 		elemsize = dc_SizeOf (dc, fids[field]);
@@ -1489,10 +1822,11 @@ float badval;
 			temp = (void *) realloc (temp, tempsize);
 		}
 
-		if (((varid = dnc_GetFieldVar (tag, fids[field])) < 0) ||
-		    (ncvarget (tag->nc_id, varid, start, count, temp) < 0))
+		if ((varid < 0) ||
+		    ncvarget (tag->nc_id, varid, start, count, temp) < 0)
 		{
-			msg_ELog (EF_PROBLEM, 
+			if (varid >= 0)
+				msg_ELog (EF_PROBLEM, 
 				  "dnc_ReadNSpace, error on field %i", 
 				  fids[field]);
 #ifdef FILL_FIELDS
@@ -1514,7 +1848,8 @@ float badval;
 			dc_NSAddMultSamples (dc, t, sbegin, nsamp,
 					     fids[field], temp);
 	}
-	free (temp);
+	if (temp)
+		free (temp);
 }
 
 
@@ -1836,7 +2171,6 @@ ZebTime *dest;
 
 
 
-
 static void
 dnc_LoadLocation (tag, locs, begin, count)
 NCTag *tag;
@@ -1889,8 +2223,6 @@ long begin, count;
 		locs[i].l_alt = ltemp[i];
 	free (ltemp);
 }
-
-
 
 
 
@@ -1966,8 +2298,6 @@ Location *pos;
 
 
 
-
-
 static int
 dnc_TimeIndex(tag, t)
 NCTag *tag;
@@ -2023,8 +2353,6 @@ ZebTime *t;
 
 
 
-
-
 int
 dnc_InqPlat (dfindex)
 int dfindex;
@@ -2038,8 +2366,6 @@ int dfindex;
 		return (0);
 	return (tag->nc_nPlat);
 }
-
-
 
 
 
@@ -2061,44 +2387,72 @@ Location *loc;
 
 
 
-
-
-
 int
-dnc_GetRGrid (dfindex, origin, rg)
+dnc_GetAlts (dfindex, fid, offset, alts, nalts, altunits)
 int dfindex;
-Location *origin;
-RGrid *rg;
+FieldId	fid;
+int offset;
+float *alts;
+int *nalts;
+AltUnitType *altunits;
 /*
- * Fill in the location info for this grid file.
+ * Return the altitude information from this file.
  */
 {
 	NCTag *tag;
-	float alt;
-	int level;
+	int i;
 /*
  * Do some checking.
  */
 	if (!dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
-	if (tag->nc_org != Org1dGrid && tag->nc_org != Org2dGrid
-	    && tag->nc_org != Org3dGrid)
+
+	if (tag->nc_nalts == 0)
 	{
-		msg_ELog(EF_PROBLEM, "BUG: GetRGrid on non-grid file");
+		msg_ELog (EF_PROBLEM, "netcdf: no altitudes in file");
 		return (FALSE);
 	}
 /*
- * Yank the info out of the file.
+ * Copy what we got here into what the caller wants there
  */
-	alt = origin->l_alt;	/* Kludgy	 */
-	*origin = tag->nc_sloc;
-	*rg = tag->nc_rgrid;
-	level = (alt - tag->nc_sloc.l_alt) / tag->nc_rgrid.rg_Zspacing + 0.5;
-	origin->l_alt = tag->nc_rgrid.rg_Zspacing * level + tag->nc_sloc.l_alt;
+	if (nalts)
+		*nalts = tag->nc_nalts;
+
+	if (altunits)
+		*altunits = tag->nc_altUnits;
+
+	if (alts)
+	{
+		i = 0;
+		while (i < tag->nc_nalts)
+			alts[i] = tag->nc_alts[i++];
+	}
+
 	return (TRUE);
 }
 
 
+
+
+int
+dnc_GetForecastTimes (dfindex, times, ntimes)
+int dfindex;
+int *times, *ntimes;
+/*
+ * Return model forecast offset times.
+ */
+{
+	NCTag *tag;
+/*
+ * Do some checking.
+ */
+	if (!dfa_OpenFile (dfindex, FALSE, (void *) &tag))
+		return (FALSE);
+/*
+ * Not yet implemented...
+ */
+	return (FALSE);
+}
 
 
 
@@ -2185,8 +2539,7 @@ ZebTime *zt;
 
 
 
-
-
+int
 dnc_CreateFile (fname, df, dc, rtag, details, ndetail)
 char *fname;
 DataFile *df;
@@ -2236,6 +2589,7 @@ int ndetail;
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
 	tag->nc_buffered = TRUE;
+	tag->nc_altUnits = dc_GetLocAltUnits (dc);
 /*
  * Create the time dimension.  If this platform has the "discrete"
  * flag set, or it's an IRGRID organization, then we make time
@@ -2475,7 +2829,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.29 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.30 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2534,9 +2888,10 @@ int *ndim, *dims;
 	switch (tag->nc_org)
 	{
 	/*
-	 * Scalar files are easy -- we're done!
+	 * Scalar and nspace files are easy -- we're done!
 	 */
 	   case OrgScalar:
+	   case OrgNSpace:
 		break;
 	/*
 	 * Regular grid files need to have the grid dimensions
@@ -2589,6 +2944,7 @@ DataChunk *dc;
 	 * or not.
 	 */
 	   case OrgScalar:
+	   case OrgNSpace:
 		dnc_CFScalarVars (tag, dc);
 		break;
 	/*
@@ -2657,6 +3013,7 @@ DataChunk *dc;
  */
 {
 	int vlat, vlon, valt, vx, vy, vz;
+	const char *units;
 	Location loc;
 
 	dc_RGGeometry (dc, 0, &loc, &tag->nc_rgrid);
@@ -2683,8 +3040,9 @@ DataChunk *dc;
 			(void)ncattput(tag->nc_id, vz, VATT_LONGNAME, NC_CHAR,
 				       strlen(Z_LONGNAME)+1, Z_LONGNAME);
 #ifdef STORE_ALT_UNITS
-			(void)ncattput(tag->nc_id, vz, VATT_UNITS, NC_CHAR, 
-				       strlen(Z_UNITS)+1, Z_UNITS);
+			units = au_LongUnitsName (tag->nc_altUnits);
+			(void) ncattput (tag->nc_id, vz, VATT_UNITS, NC_CHAR, 
+					 strlen (units) + 1, units);
 #endif /* STORE_ALT_UNITS */
 		}
 	}
@@ -2826,7 +3184,8 @@ int *vlat, *vlon, *valt;
 		       NC_CHAR, strlen(ALT_LONGNAME)+1, ALT_LONGNAME);
 #ifdef STORE_ALT_UNITS
 	(void)ncattput(tag->nc_id, *valt, VATT_UNITS, NC_CHAR, 
-		       strlen(ALT_UNITS)+1, ALT_UNITS);
+		       strlen (au_LongUnitsName (tag->nc_altUnits)) + 1, 
+		       au_LongUnitsName (tag->nc_altUnits));
 #endif /* STORE_ALT_UNITS */
 }
 
@@ -2874,6 +3233,15 @@ WriteCode wc;
 	count[0] = count[1] = count[2] = count[3] = 1;
 	if (! dnc_FindTimes (tag, dc, sample, 1, wc, start))
 		return (0);
+/*
+ * Make sure the altitude units are consistent with what we expect
+ */
+	if (dc_GetLocAltUnits (dc) != tag->nc_altUnits)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "PutSample: Alt units inconsistent.  Write failed.");
+		return (0);
+	}
 /*
  * Work out coords and data stuff now.
  */
@@ -2946,8 +3314,8 @@ DataPtr data;
 	 * Add NSpace dimensions onto the start and count arrays,
 	 * which are assumed to have enough space for them
 	 */
-	dc_NSGetField (dc, fid, &nsdim, 
-		       NULL, sizes, &is_static);
+	dc_NSGetField (dc, fid, &nsdim, NULL, sizes, &is_static);
+
 	for (i = 0; i < nsdim; ++i)
 	{
 		start[ndim + i] = 0;
@@ -3046,6 +3414,7 @@ long *start;
 
 
 
+
 int
 dnc_PutBlock (dfile, dc, sample, nsample, wc)
 int dfile;
@@ -3084,6 +3453,15 @@ WriteCode wc;
 	if (! dnc_FindTimes (tag, dc, sample, (long)nsample, wc, start))
 		return (0);
 /*
+ * Make sure the altitude units are consistent with what we expect
+ */
+	if (dc_GetLocAltUnits (dc) != tag->nc_altUnits)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "PutBlock: Alt units inconsistent.  Write failed.");
+		return (0);
+	}
+/*
  * Work out coords and data stuff now.
  */
 	dnc_DoWriteCoords (tag, dc, sample, start, count, &ndim);
@@ -3113,9 +3491,9 @@ WriteCode wc;
 			if ((dc->dc_Class != DCC_NSpace) ||
 			    (! dc_NSIsStatic (dc, fids[field])))
 			{
-				mdata = (char *)dc_GetMData (dc, sample + i,
-							     fids[field], 
-							     (int *)&mdatasize);
+				mdata = (char *)dc_GetMData(dc, sample + i,
+							    fids[field], 
+							    (int *)&mdatasize);
 			}
 			else
 			{

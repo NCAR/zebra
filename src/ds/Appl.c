@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.26 1994-01-31 20:15:34 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.27 1994-04-15 22:27:26 burghart Exp $")
 #endif
 
 /*
@@ -434,6 +434,22 @@ PlatformId id;
 
 
 
+bool
+ds_IsModelPlatform(id)
+PlatformId id;
+/*
+ * Return TRUE iff this is a model platform.
+ */
+{
+	Platform p;
+	ds_GetPlatStruct (id, &p, FALSE);
+	return ((p.dp_flags & DPF_MODEL) != 0);
+}
+
+
+
+
+
 int
 ds_GetObsSamples (pid, when, times, locs, max)
 PlatformId pid;
@@ -716,25 +732,48 @@ TimeSpec which;
 
 
 
-
 bool
-ds_GetRgridParams (pid, when, loc, rg)
+ds_GetAlts (pid, fid, when, offset, alts, nalts, altunits)
 PlatformId pid;
-ZebTime *when;
-Location *loc;
-RGrid *rg;
+FieldId	fid;
+ZebTime	*when;
+int	offset;
+float	*alts;
+int	*nalts;
+AltUnitType *altunits;
 /*
- * Get the rgrid params for this date.
+ * Get the heights for this time, field, and forecast offset.
  */
 {
-	Platform p;
-	int dfindex;
+	int	dfindex;
 /*
- * Make sure this makes sense.
+ * Now find a datafile entry we can use.
  */
-	ds_GetPlatStruct (pid, &p, FALSE);
-	if (p.dp_org != Org1dGrid && p.dp_org != Org2dGrid &&
-					p.dp_org != Org3dGrid)
+	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
+		return (FALSE);
+/*
+ * Get the rest from the format-specific code.
+ */
+	return (dfa_GetAlts (dfindex, fid, offset, alts, nalts, altunits));
+}
+
+
+
+
+bool
+ds_GetForecastTimes (pid, when, times, ntimes)
+PlatformId	pid;
+ZebTime	*when;
+int	*times, *ntimes;
+/*
+ * Get the heights for this time.
+ */
+{
+	int	dfindex;
+/*
+ * First make sure it's a model platform
+ */
+	if (! ds_IsModelPlatform (pid))
 		return (FALSE);
 /*
  * Now find a datafile entry we can use.
@@ -744,12 +783,8 @@ RGrid *rg;
 /*
  * Get the rest from the format-specific code.
  */
-	loc->l_alt = 0;
-	return (dfa_InqRGrid (dfindex, loc, rg));
+	return (dfa_GetForecastTimes (dfindex, times, ntimes));
 }
-
-
-
 
 
 
@@ -1243,8 +1278,9 @@ int ndetail;
 	int nsample, sample;
 	int dfile;
 	int dfnext;
-	int nnew, now;
-	int ndone = 0;
+	int nnew;	/* Number of samples added (appended or inserted) */
+	int now;	/* Number of samples overwritten		  */
+	int ndone;	/* Total number of samples successfully stored	  */
 	int block_size;
 	WriteCode wc;
 	Platform p;
@@ -1269,12 +1305,12 @@ int ndetail;
 /*
  * Start plowing through the data.
  */
-	while (sample < nsample)
+	ndone = 0;
+	nnew = 0;
+	now = 0;
+	for (sample = 0; sample < nsample; ++sample)
 	{
-		bool new;
-
-		now = nnew = 0;
-		new = FALSE;
+		bool new = FALSE;
 	/*
 	 * Find a feasible location for the next sample of the data chunk
 	 */
@@ -1464,7 +1500,7 @@ int *block_size;
 	while ((smp < nsample) && (smp - sample < avail))
 	{
 		dc_GetTime(dc, smp, &when);
-		if (! TC_Less(past, when))
+		if (! TC_LessEq (past, when))
 			break;
 		if (wc == wc_Append)
 		{
@@ -1874,6 +1910,8 @@ PlatformInfo *pinfo;
 	Platform plat;
 /*
  * Get the platform structure and reformat it into the user's structure.
+ * The stuff which goes into the platform info never changes, so we
+ * don't need to refresh the cache.
  */
 	ds_GetPlatStruct (pid, &plat, FALSE);
 	strcpy (pinfo->pl_Name, plat.dp_name);
@@ -1966,9 +2004,11 @@ DataSrcInfo *dsi;
 	Platform plat;
 	char *remname;
 /*
- * We need the platform structure to get anywhere with this.
+ * We need the platform structure to get anywhere with this.  And we need
+ * volatile info: the first data file in the source, so we force
+ * a refresh of the platform structure cache.
  */
-	ds_GetPlatStruct (pid, &plat, FALSE);
+	ds_GetPlatStruct (pid, &plat, TRUE);
 /*
  * Now see what they want.  This is currently the bleeding edge of the 
  * "data source" notion, so we fake it from the old scheme.
@@ -2008,7 +2048,7 @@ DataFileInfo *dfi;
 {
 	DataFile df;
 /*
- * Get the platform structure and reformat it into the user's structure.
+ * Get the data file structure and reformat it into the user's structure.
  */
 	ds_GetFileStruct (index, &df);
 	strcpy (dfi->dfi_Name, df.df_name);

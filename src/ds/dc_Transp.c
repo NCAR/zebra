@@ -29,7 +29,7 @@
 #endif
 # endif
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.14 1994-01-26 11:24:33 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.15 1994-04-15 22:28:09 burghart Exp $")
 
 /*
  * TODO:
@@ -87,7 +87,9 @@ typedef struct _AuxTrans
 	unsigned short at_SampDataSize;	/* hint for size of data in a sample */
 	long at_NextOffset;		/* Next offset into buffered raw data,
 					   equals dc_DataLen if no buffer */
+	AltUnitType at_LocAltUnits;	/* Altitude units for Locations */
 	Location at_SLoc;		/* Location for static platforms */
+	unsigned short at_NSubSample;	/* Number of possible subdivisions */
 	TransSample at_Samples[1];	/* Description of each sample	 */
 } AuxTrans;
 
@@ -98,6 +100,8 @@ typedef struct _AuxTrans
 # define ST_SAMPLES	1	/* Sample locations and sizes.		*/
 # define ST_PLATFORMS	2	/* Optional platform list		*/
 # define ST_LOCATIONS	3	/* Locations for mobile plats		*/
+# define ST_SUBSAMPLES	4	/* Sub-sample index for each sample 	*/
+# define ST_SUBOFFSETS	5	/* Time offset of each sub-sample	*/
 /* XXX Make sure any others are less than ST_ATTR! */
 # define ST_ATTR	1000	/* Per-sample attributes		*/
 
@@ -139,6 +143,7 @@ DataClass class;
  */
 	tp = ALLOC (AuxTrans);
 	tp->at_NSample = 0;
+	tp->at_NSubSample = 0;
 	tp->at_NSampAlloc = 1;
 	tp->at_HintNSample = 0;
 	tp->at_HintSampSize = 0;
@@ -146,6 +151,7 @@ DataClass class;
 	tp->at_SampOverhead = 0;
 	tp->at_SampDataSize = 0;
 	tp->at_NextOffset = dc->dc_DataLen;	/* where our data will start */
+	tp->at_LocAltUnits = AU_kmMSL;	/* default to km MSL */
 	dc_AddADE (dc, (DataPtr) tp, DCC_Transparent, ST_SAMPLES,
 			sizeof (AuxTrans), TRUE);
 /*
@@ -179,6 +185,33 @@ DataChunk *dc;
 				(int *) 0)))
 		return (0);
 	return (tp->at_NSample);
+}
+
+
+
+
+
+
+int
+dc_GetNSubSample (dc)
+DataChunk *dc;
+/*
+ * Return the number of sub-samples to be found in this data chunk.
+ */
+{
+	AuxTrans *tp;
+/*
+ * Checking.
+ */
+	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_Transparent, "GetNSubSample"))
+		return (0);
+/*
+ * Find our data and return the info.
+ */
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+		return (0);
+	return (tp->at_NSubSample);
 }
 
 
@@ -697,6 +730,314 @@ int len;
 	return (offset);
 }
 
+
+
+
+const ZebTime *
+dc_DefineSubSamples (dc, nsubs, offsets)
+DataChunk *dc;
+int nsubs;
+ZebTime *offsets;
+/*
+ * Associate a number of sub-samples with each sample.  Sub-samples have
+ * two times: the time stored when the sample is first created, and an offset
+ * from that time corresponding to one of the offsets in the sub-sample
+ * offset array.
+ *
+ * Essentially, create the ADE array of sub-sample time offsets, and set the
+ * NSubSample variable.
+ *
+ * Wait to allocate the sub-sample index array, and set all
+ * of the indices to zero.  (In other words, every sample defaults to being
+ * a zero'th sub-sample.)
+ *
+ * Return our internal array of time offsets, or NULL on error.
+ */
+{
+	AuxTrans *tp;
+	ZebTime *subs;
+	int len;
+
+	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"DefineSubSamples"))
+		return ;
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
+		return (NULL);
+	}
+	if (tp->at_NSubSample > 0)
+	{
+		msg_ELog (EF_PROBLEM, "Sub-samples already defined!");
+		return (NULL);
+	}
+	if (nsubs <= 0)
+	{
+		msg_ELog (EF_PROBLEM, "Attempt to set less than 1 sub-sample");
+		return (NULL);
+	}
+	tp->at_NSubSample = nsubs;
+/*
+ * Create an ADE for our array of time offsets and add it
+ */
+	len = nsubs * sizeof(ZebTime);
+	subs = (ZebTime *) malloc( len );
+	memcpy (subs, offsets, len);
+	dc_AddADE (dc, subs, DCC_Transparent, ST_SUBOFFSETS, 
+		   len, TRUE);
+	return (subs);
+}
+
+
+
+const ZebTime *
+dc_ListSubSamples (dc, nsubs)
+DataChunk *dc;
+int *nsubs;
+/*
+ * Return our internal array of time offsets, or NULL on error.  If
+ * nsubs is non-NULL, return number of sub-sample times in *nsubs.
+ */
+{
+	AuxTrans *tp;
+	ZebTime *subs;
+
+	if (nsubs)
+		*nsubs = 0;
+	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"ListSubSamples"))
+		return (NULL);
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+					     (int *) 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
+		return (NULL);
+	}
+	if (tp->at_NSubSample == 0)
+		return (NULL);
+/*
+ * Create an ADE for our array of time offsets and add it
+ */
+	if (nsubs)
+		*nsubs = tp->at_NSubSample;
+	subs = (ZebTime *) dc_FindADE (dc, DCC_Transparent, 
+				       ST_SUBOFFSETS, (int *)NULL);
+	return (subs);
+}
+
+
+
+void
+dc_SetSubSample (dc, sample, subsample)
+DataChunk *dc;
+int sample;
+int subsample;
+/*
+ * Specifies the given sample number as a subsample, where the subsample
+ * number corresponds to the array of time offsets listed in 
+ * dc_DefineSubSamples().  If no subsample indices yet, create them here.
+ * If there is only one sub-sample, no sense in creating a bunch of copies
+ * of the same index, now is there?
+ */
+{
+	AuxTrans *tp;
+	int *indices;
+	int len;
+
+	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"SetSubSample"))
+		return ;
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
+		return ;
+	}
+	if (sample < 0 || sample >= tp->at_NSample)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "SetSubSample: No sample %d in datachunk", sample);
+		return ;
+	}
+	if (tp->at_NSubSample == 0)
+	{
+		msg_ELog (EF_PROBLEM, "SetSubSample: no sub-samples defined!");
+		return ;
+	}
+	if (subsample < 0 || subsample >= tp->at_NSubSample)
+	{
+		msg_ELog (EF_PROBLEM, 
+		  "SetSubSample: sub-sample %d out of range", subsample);
+		return ;
+	}
+	if (tp->at_NSubSample == 1)	/* handle the simple case */
+		return ;
+	indices = (int *) dc_FindADE (dc, DCC_Transparent, ST_SUBSAMPLES,
+				      (int *) NULL);
+	if (indices == NULL)
+	{
+		int nind, len;
+
+		/*
+		 * Guess we'll have to allocate an index array
+		 */
+		nind = dc_TrGrowthHint (dc, tp, 0);
+
+		len = nind * sizeof (int);
+		indices = (int *) malloc(len);
+		memset (indices, 0, len);
+		dc_AddADE (dc, indices, DCC_Transparent, ST_SUBSAMPLES, 
+			   len, TRUE);
+	}
+	indices[sample] = subsample;
+}
+
+
+
+int
+dc_GetSubSample (dc, sample, when)
+DataChunk *dc;
+int sample;
+ZebTime *when;
+/*
+ * Return the sub-sample index of this sample, and its offset time in
+ * *when if when is non-NULL.
+ */
+{
+	AuxTrans *tp;
+	ZebTime *offsets;
+	int *indices;
+	int subsample;
+
+	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"GetSubSample"))
+		return (0);
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
+		return (0);
+	}
+	if (tp->at_NSubSample == 0)
+	{
+		msg_ELog (EF_PROBLEM, "GetSubSample: No sub-samples defined");
+		return (0);
+	}
+	if (sample < 0 || sample >= tp->at_NSample)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "GetSubSample: No sample %d in datachunk", sample);
+		return (0);
+	}
+	indices = NULL;
+	if (tp->at_NSubSample > 1)
+		indices = (int *) dc_FindADE (dc, DCC_Transparent, 
+					      ST_SUBSAMPLES, (int *) NULL);
+	if (indices)
+		subsample = indices[sample];
+	else
+		subsample = 0;
+	if (when)
+	{
+		offsets = (ZebTime *) dc_FindADE (dc, DCC_Transparent, 
+						  ST_SUBOFFSETS, (int *)NULL);
+		*when = offsets[subsample];
+	}
+	return (subsample);
+}
+
+
+
+const ZebTime *
+dc_DefineForecastOffsets (dc, noffsets, offsets)
+DataChunk *dc;
+int noffsets;
+ZebTime *offsets;
+{
+	return (dc_DefineSubSamples (dc, noffsets, offsets));
+}
+
+
+const ZebTime *
+dc_ListForecastOffsets (dc, noffsets)
+DataChunk *dc;
+int *noffsets;
+{
+	return (dc_ListSubSamples (dc, noffsets));
+}
+
+
+void
+dc_SetForecastOffset (dc, sample, forecast_index)
+DataChunk *dc;
+int sample;
+int forecast_index;
+{
+	dc_SetSubSample (dc, sample, forecast_index);
+}
+
+
+int 
+dc_GetForecastOffset (dc, sample, valid)
+DataChunk *dc;
+int sample;
+ZebTime *valid;
+{
+	return (dc_GetSubSample(dc, sample, valid));
+}
+
+
+
+bool
+dc_GetIssueTime (dc, sample, when)
+DataChunk *dc;
+int sample;
+ZebTime *when;
+{
+	return (dc_GetTime (dc, sample, when));
+}
+
+
+
+void
+dc_SetValidTime (dc, sample, valid)
+DataChunk *dc;
+int sample;
+ZebTime *valid;
+/*
+ * Figure out which forecast index this valid time belongs in by
+ * calculating the difference between valid and the sample's issue time
+ */
+{
+	ZebTime issue;
+	ZebTime offset;
+	ZebTime *subs;
+	int nsubs, i;
+
+	dc_GetIssueTime (dc, sample, &issue);
+	
+	offset.zt_MicroSec = 0;
+	offset.zt_Sec = valid->zt_Sec - issue.zt_Sec;
+	if (offset.zt_Sec < 0)
+	{
+		msg_ELog (EF_PROBLEM, "valid time is before issue time");
+		return ;
+	}
+
+	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"SetValidTime"))
+		return ;
+	subs = (ZebTime *) dc_FindADE (dc, DCC_Transparent, ST_SUBOFFSETS,
+				       &nsubs);
+	nsubs /= sizeof(ZebTime);
+	for (i = 0; i < nsubs; ++i)
+	{
+		if (TC_Eq(subs[i], offset))
+			break;
+	}
+	if (i >= nsubs)
+	{
+		msg_ELog (EF_PROBLEM, "offset not found in SetValidTime");
+		return ;
+	}
+	dc_SetSubSample (dc, sample, i);
+}
 
 
 
@@ -1712,4 +2053,54 @@ int *natts;
 	return(dca_GetAttrList(dc, DCC_Transparent, ST_ATTR + sample,
 			       NULL, NULL, natts));
 }
+
  
+
+
+AltUnitType
+dc_GetLocAltUnits (dc)
+DataChunk *dc;
+/*
+ * Return the altitude units of this datachunk.
+ */
+{
+	AuxTrans *tp;
+/*
+ * Checking.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, 
+				"GetLocAltUnits"))
+		return (0);
+/*
+ * Find our data and return the info.
+ */
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+		return (0);
+	return (tp->at_LocAltUnits);
+}
+
+
+
+
+void
+dc_SetLocAltUnits (dc, units)
+DataChunk *dc;
+AltUnitType units;
+/*
+ * Set the units for altitudes in Location structures associated with this
+ * data chunk
+ */
+{
+	AuxTrans *tp;
+/*
+ * Checking.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, 
+				"SetLocAltUnits"))
+		return;
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+		return;
+	tp->at_LocAltUnits = units;
+}

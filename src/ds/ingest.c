@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.9 1993-08-05 18:17:07 corbet Exp $
+/* $Id: ingest.c,v 1.10 1994-04-15 22:28:18 burghart Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -38,11 +38,12 @@
  * Undefine the macros defined in ingest.h that we don't need here
  */
 #undef ds_Store
+#undef ds_StoreBlocks
 #undef ds_LookupPlatform
-#undef ds_DeleteData
+/* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.9 1993-08-05 18:17:07 corbet Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.10 1994-04-15 22:28:18 burghart Exp $")
 #endif
 
 
@@ -51,6 +52,8 @@ MAKE_RCSID("$Id: ingest.c,v 1.9 1993-08-05 18:17:07 corbet Exp $")
  */
 bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
 			  dsDetail *details, int ndetail));
+bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, bool newfile, 
+				dsDetail *details, int ndetail));
 PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 void _Ingest_ds_DeleteData FP((PlatformId platform, int leave));
 void IngestLog ();
@@ -411,6 +414,45 @@ _Ingest_ds_Store (dc, newfile, details, ndetail)
 		else
 			IngestLog(EF_DEBUG,
 			   "ds_Store() successful.");
+	}
+	return(ret);
+}
+
+
+
+bool 
+_Ingest_ds_StoreBlocks (dc, newfile, details, ndetail)
+	DataChunk *dc;
+	bool newfile;
+	dsDetail *details;
+	int ndetail;
+{
+	bool ret;
+	static short called_once = 0;
+
+	if (DumpDataChunks)
+		dc_DumpDC(dc);
+	if (NoDataStore)
+	{
+		if (!called_once)
+		{
+			++called_once;
+			IngestLog(EF_INFO,
+		   	   "DryRun: Calls to DataStore being ignored");
+		}
+		ret = TRUE;
+	}
+	else
+	{
+		IngestLog(EF_DEBUG,
+		   "Sending data to the DataStore...");
+		ret = ds_StoreBlocks(dc, newfile, details, ndetail);
+		if (!ret)
+			IngestLog(EF_PROBLEM,
+			   "ds_StoreBlocks() failed.");
+		else
+			IngestLog(EF_DEBUG,
+			   "ds_StoreBlocks() successful.");
 	}
 	return(ret);
 }

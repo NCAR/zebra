@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.10 1994-02-22 22:11:36 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.11 1994-04-15 22:28:12 burghart Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -23,15 +23,23 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+#include <defs.h>
+
+#ifndef _zeb_dsDaemon_h_
+#define _zeb_dsDaemon_h_
+
 Platform *PTable;
 DataFile *DFTable;
 int NDTEUsed;		/* How many data table entries used. */
 int DTFreeList;		/* The datafile free list		*/
 int NPlatform;		/* How many platforms			*/
+
 /*
  * The default data directory.
  */
-# define DDIR_LEN 120
+# define DDIR_LEN	CFG_FILEPATH_LEN
+
 char DefDataDir[DDIR_LEN];
 char RemDataDir[DDIR_LEN];
 
@@ -100,4 +108,10 @@ void	DataScan FP ((void));
 void	Rescan FP ((PlatformId platid, int all));
 void	WriteCache FP ((struct ui_command *));
 void	ReadCacheFile FP ((char *, int));
+<<<<<<< dsDaemon.h
 void	RescanPlat FP ((Platform *));
+||||||| 3.9.2.1
+=======
+
+#endif /* ! _zeb_dsDaemon_h_ */
+>>>>>>> /tmp/T4a06562

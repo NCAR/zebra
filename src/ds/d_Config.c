@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Config.c,v 2.6 1994-02-22 22:11:31 corbet Exp $";
+static char *rcsid = "$Id: d_Config.c,v 2.7 1994-04-15 22:27:58 burghart Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -172,6 +172,7 @@ struct ui_command *cmds;
 	   case DK_MOBILE:	plat->dp_flags |= DPF_MOBILE; break;
 	   case DK_COMPOSITE:	plat->dp_flags |= DPF_COMPOSITE; break;
 	   case DK_DISCRETE:	plat->dp_flags |= DPF_DISCRETE; break;
+	   case DK_MODEL:	plat->dp_flags |= DPF_MODEL; break;
 	/*
 	 * Where the data lives.
 	 */
