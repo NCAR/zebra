@@ -1,4 +1,4 @@
-/* $Id: device.h,v 1.5 1989-10-19 14:29:27 corbet Exp $ */
+/* $Id: device.h,v 1.6 1990-01-12 14:03:43 wyngaard Exp $ */
 /* 5/87 jc */
 /*
  * This file contains the definition of the device structure.
@@ -47,6 +47,7 @@ struct device
 	int	(*gd_readscreen) ();	/* Read back screen data	*/
 	int	(*gd_pick) ();		/* Pick a screen point		*/
 	int	(*gd_coff) ();		/* Return color offset		*/
+	int	(*gd_print) ();		/* Hardware print screen	*/
 };
 
 
