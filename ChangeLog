@@ -1,3 +1,62 @@
+Thu Jul 29 10:56:37 1993  Jonathan Corbet  (corbet@ale)
+
+	* Tagged revision V3-3.
+
+	* XY*.c and config.h
+	Lots of character arrays in XY*.c were hardcoded at 80, which was
+	found (the hard way) to be too short for the ARM folks.  I added
+	some parameters to the end of config.h that can be changed, and
+	set up the XYgraph routines to use them.
+
+Mon Jul 26 13:49:47 1993  Chris Burghart  (burghart@trenco)
+
+	* ingest/satellite/SatIngest.c
+	There is now a "truncate" option that allows multi-byte data to
+	be ingested by lopping off all but the highest order byte of
+	the data.  Previously, only one byte data could be ingested.
+
+Fri Jul 23 14:22:03 1993  Chris Burghart  (burghart@trenco)
+
+	* gp/XYGraph.c
+	Restored date of data to side annotation at Charlie Martin's
+	request.
+
+Wed Jul 21 09:56:31 1993  Chris Burghart  (burghart@trenco)
+
+	* dsdwidget
+	Date is now shown on end times as well as begin times for files in
+	the platform_data widget, since the files may span multiple days.
+
+Tue Jul 20 14:08:44 1993  Jonathan Corbet  (corbet@ale)
+
+	* message
+	Fixed an omission wherein the unix domain socket would fail to be
+	removed if ZEB_SOCKET was defined.
+
+Fri Jul 16 10:06:57 1993  Jonathan Corbet  (corbet@ale)
+
+	* ds
+	F_DeclareField now refuses (silently) to overwrite an existing
+	field definition.  This change was needed to keep long
+	descriptions from getting lost when the netCDF module defines
+	fields found in a file.
+
+	* gp
+	Added a new magic pulldown menu called "FieldMenu."  This one will
+	automatically generate a set of available fields and display it in
+	the menu.  The user may then use the menu to change to a new field.
+
+Tue Jul 13 19:59:31 1993  Chris Burghart  (burghart@trenco)
+
+	* gp/XSection.c
+	New plot description parameters "z-min" and "z-max" have been added
+	to control the vertical limits of cross section plots.
+
+Tue Jul 13 15:21:39 1993  Jonathan Corbet  (corbet@ale)
+
+	* Everything:
+	V3-2 tagged and shipped out to ARM.
+
 Fri Jul  9 00:03:51 1993  Gary Granger  (granger@steam)
 
 	* DataStore:
