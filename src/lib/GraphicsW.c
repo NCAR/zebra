@@ -39,7 +39,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-MAKE_RCSID("$Id: GraphicsW.c,v 2.19 1996-02-05 15:11:37 granger Exp $")
+MAKE_RCSID("$Id: GraphicsW.c,v 2.20 1996-02-05 23:33:42 granger Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -330,7 +330,7 @@ Colormap	*colormap;
  */
 	*visual = matches[0].visual;
 	*depth = matches[0].depth;
-	XFree (matches);
+	XFree ((void *)matches);
 /*
  * Now we need to get an appropriate colormap.  Since I know of no way to
  * get information about existing virtual colormaps, we can't find a good

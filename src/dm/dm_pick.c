@@ -27,7 +27,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-RCSID("$Id: dm_pick.c,v 2.13 1995-06-29 21:29:28 granger Exp $")
+RCSID("$Id: dm_pick.c,v 2.14 1996-02-05 23:33:37 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -180,7 +180,7 @@ struct wpick *wp;
 	 * Don't need the children, so free them, if any
 	 */
 		if (nchild)
-			XFree(children);
+			XFree((void *)children);
 		if (wp->wp_id == parent)
 		{
 			strcpy (wp->wp_name, win->cfw_name);
@@ -195,7 +195,7 @@ struct wpick *wp;
 			&children, &nchild);
 		msg_ELog (EF_DEBUG, "NOR, parent2 is 0x%x", parent);
 		if (nchild)
-			XFree(children);
+			XFree((void *)children);
 		if (wp->wp_id == parent && parent != root)
 		{
 			strcpy (wp->wp_name, win->cfw_name);
