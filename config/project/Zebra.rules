@@ -1,0 +1,646 @@
+XCOMM -*- C -*-
+XCOMM $Id: Zebra.rules,v 1.1 1995-05-24 23:56:16 granger Exp $
+XCOMM
+XCOMM Rules specific to the Zebra project, including some which override
+XCOMM definitions in Imake.rules
+XCOMM
+
+/*
+ * This file defines the following rules.  
+ *
+ * UILoadFileTarget(loadfile,uisrc)
+ *  -- loadfile is the .lf file to be created, and uisrc is the
+ *     source file which will be 'read' into uic.  The uisrc file is
+ *     read into $(UIC), pager$mode is set to false, and a 
+ *     'save <loadfile> all' is performed.
+ *
+ * UILoadFileDepsTarget(loadfile,uisrc,deps)
+ *  -- loadfile is the .lf file to be created, and uisrc is the
+ *     source file which will be 'read' into uic.  The uisrc file is
+ *     read into $(UIC), pager$mode is set to false, and a 
+ *     'save <loadfile> all' is performed.  'deps' is additional UI
+ *     source files to list as dependencies.
+ *
+ * UIBootFileDepsTarget(loadfile,uisrc,deps)
+ *  -- Target which creates a .lf boot-file from uisrc, installs it and
+ *     cleans it as well.  Additional dependencies can be passed in
+ *     the 'deps' parameter.  Just like UILoadFileDepsTarget except it
+ *     uses uib instead of uic.
+ *
+ * UISimpleLoadFileTarget(loadfile,uisrc)
+ *  -- Target which creates a .lf file from uisrc, installs it and
+ *     cleans it as well.  Unlike target above, 'ui$pager_mode'
+ *     is not set.
+ *
+ * UITestLoadFileTarget(loadfile,uisrc)
+ *  -- Same as UILoadFileTarget, but the loadfile is not named as an all
+ *     target and not installed.  The loadfile must be specifically mentioned
+ *     in the deplibs parameter of TestProgramTarget to be made when
+ *     the test program is being made.
+ *
+ * UICppLoadFileTarget(loadfile,uisrc,depfiles)
+ *  -- uisrc is processed with cpp before being compiled with uic to
+ *     produce loadfile.  depfiles is the list of files, other than
+ *     uisrc, on which uisrc depends (i.e. include files)
+ * 
+ * TestProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Same as NormalProgramTarget, except program will not be
+ *     installed, nor be part of the All target.  Instead it will be part
+ *     of the test:: target.
+ *
+ * RunTestProgram(program,desc,cmdline)
+ *  -- Run a test program and echo a failure or success message to the
+ *     terminal. 'program' will be a dependency of the test:: target, 'desc'
+ *     is a short name or description of the test, and 'cmdline' is the
+ *     actual command line which will be tested for non-zero exit status.
+ *
+ * CompleteProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Elaborates NormalProgramTarget rule in Imake.rules, adding the program
+ *     to the all:: target and generating a saber target.  ALSO generates
+ *     the install target for the program.  The parameters:
+ *	<program>	Name of program to create (the Makefile target)
+ *	<objects>	Objects on which the program depends and which
+ *			should be linked.
+ *	<deplibs>	Local libraries, such as $(LIBZEB), which should
+ *			be listed as dependencies.  Almost always this
+ *			parameter is simple $(DEPLIBS), and the default
+ *			value for DEPLIBS set in Project.tmpl is used.
+ *	<locallibs>	Local libraries required, such as LIBZEB,
+ *			LIBNETCDF, LIBRDSS, etc.
+ *	<syslibs>	System libraries, such as $(LIBMATH), $(LIBTERMCAP),
+ *			or $(LIBREGEXP).
+ *
+ * CccProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Generate rules to compile and link a C++ program; since it does not
+ *     use any default object files, it may be used for multiple programs
+ *     in the same Imakefile.  It ALSO adds an install target for the
+ *     program.  This relies on an implicit rule for .cc.o: defined in
+ *     Project.tmpl.  Uses Imake.rules CplusplusProgramTarget and adds
+ *     install and all targets.
+ *
+ * BuildIncludes(headers,dstsubdir,dstupdir)
+ *  -- Redefines the BuildIncludes of Imake.rules.  Uses cp -p rather than
+ *     symbolic links.  The -p option, which hopefully works on most
+ *     systems, preserves the modification time of the file so the copy
+ *     won't force a remake of any file that includes a header file unless the 
+ *     header file has actually changed.  dstsubdir is the subdirectory
+ *     path within the include dir where the file will be put.  E.g.
+ *     for X this is commonly X11, and dstupdir is the path back to
+ *     the topdir, i.e. '..'
+ *     Zebra will most likely always use just BuildIncludes(headers,.,.)
+ *
+ * InstallProgramSetUID(program,dest)
+ *  -- Uses $(INSTUIDFLAGS) to install a program with setuid privileges
+ *
+ * DistfilesTarget(distfiles)
+ *  -- Echoes each of the files in distfiles, prepended with the
+ *     $(DISTCURDIR) variable (normally the path of the Imakefile's 
+ *     directory relative to the top).  The distfiles are
+ *     dependencies, so the target fails (or the file is automatically
+ *     checked out if its GNU make and an RCS file) if the file
+ *     does not exist.  The distfiles parameter should usually be the
+ *     $(DISTFILES) variable.
+ *
+ * DistfilesSubdirs(subdirs)
+ *  -- Propagate the distfiles target to the subdirectories in the
+ *     subdirs parameter.  A new value of DISTCURDIR is passed as
+ *     DISTCURDIR=$(DISTCURDIR)/$$subdir so that a special top-level
+ *     path can be given, as in the case of making a tar file of a
+ *     whole distribution.
+ *
+ * OmitBuildRules(name)
+ *  -- Inserts comments indicating that rules to build the named module
+ *     were not included because of symbols defined elsewhere (config.h)
+ *
+ * CflowTarget(prog,objs,locallibs)
+ *  -- Produce a file called prog.flow containing cflow output
+ *
+ * InstallLibFile(srclist,dstsubdir,dstupdir)
+ *  -- Install a list of non-exec files (srclist) into a library 
+ *     subdirectory (dstsubdir), using install and INSTDATFLAGS
+ */
+
+/*
+ * Target which creates a .lf file from uisrc, installs it and
+ * cleans it as well.  Additional dependencies can be passed in
+ * the 'deps' parameter.
+ */
+#define UILoadFileDepsTarget(loadfile,uisrc,deps)		@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExecFile(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc deps						@@\
+	RemoveFile(loadfile)					@@\
+	echo read uisrc \; \					@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIC)				@@\
+								@@\
+clean::								@@\
+	RemoveFile(loadfile)
+
+/*
+ * Install a .lf file with no dependencies.
+ */
+#define UILoadFileTarget(loadfile,uisrc) 			@@\
+UILoadFileDepsTarget(loadfile,uisrc,/**/)
+
+/*
+ * Target which creates a .lf boot-file from uisrc, installs it and
+ * cleans it as well.  Additional dependencies can be passed in
+ * the 'deps' parameter.  Just like UILoadFileDepsTarget except it
+ * uses uib instead of uic.
+ */
+#define UIBootFileDepsTarget(loadfile,uisrc,deps)		@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExecFile(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc deps						@@\
+	RemoveFile(loadfile)					@@\
+	echo read uisrc \; \					@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIB)				@@\
+								@@\
+clean::								@@\
+	RemoveFile(loadfile)
+
+/*
+ * Target which creates a .lf file from uisrc, installs it and
+ * cleans it as well.  Unlike target above, 'ui$pager_mode'
+ * is not set
+ */
+#define UISimpleLoadFileTarget(loadfile,uisrc) 			@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExecFile(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc							@@\
+	RemoveFile(loadfile)					@@\
+	echo 'read uisrc ; save loadfile all ; exit' | $(UIC)	@@\
+								@@\
+clean::								@@\
+	RemoveFile(loadfile)
+
+/*
+ * Same as above but for test programs.  The load file is not
+ * installed and not included in the all target.  Note that this
+ * means an Imakefile should specifically mention a test programs
+ * dependency on a load file.  This can be done with the deplibs
+ * parameter of TestProgramTarget().
+ * Ex: TestProgramTarget(test,test.o,$(DEPLIBS) test.lf,...)
+ */
+#define UITestLoadFileTarget(loadfile,uisrc) 			@@\
+								@@\
+loadfile: uisrc							@@\
+	RemoveFile(loadfile)					@@\
+	echo read uisrc \; \					@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIC)				@@\
+								@@\
+clean::								@@\
+	RemoveFile(loadfile)
+
+/*
+ * Target which creates a .lf file from uisrc, like UILoadFileTarget()
+ * above, but the src file is first passed through cpp.  The -E 
+ * option is used since it seems to be the most portable, and then
+ * the line number info is removed (any line starting with '#')
+ *
+ * The third parameter, depfiles, is the files which the loadfile
+ * is dependent on, besides the uisrc.  
+ *
+ * $(ALLDEFINES) on the $(CPP) command line includes all of the
+ * -I and -D options.
+ */
+#define UICppLoadFileTarget(loadfile,uisrc,depfiles)		@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExecFile(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc depfiles					@@\
+	RemoveFile(loadfile)					@@\
+	$(CPP) $(ALLDEFINES) uisrc \				@@\
+		| sed -e '/^#/d' > /tmp/uisrc.TMP; \ 		@@\
+	echo read /tmp/uisrc.TMP \; \				@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIC) ; \			@@\
+	rm -f /tmp/uisrc.TMP					@@\
+								@@\
+clean::								@@\
+	RemoveFile(loadfile)
+
+
+/*
+ * Same as NormalProgramTarget, but the program will not
+ * be installed, nor it will be an 'all' dependency.  It will be a
+ * 'test' dependency.
+ */
+#define	TestProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+NormalProgramTarget(program,objects,deplibs,locallibs,syslibs)		@@\
+									@@\
+test:: program								@@\
+
+/*
+ * Run a test program and echo the results to the terminal.
+ */
+#define RunTestProgram(program,desc,cmdline)				@@\
+test:: program								@@\
+	@echo "Testing" desc "..."; \					@@\
+	if cmdline ; then echo "Passed."; \				@@\
+	else echo "FAILED."; fi						@@\
+
+
+/*
+ * InstallProgramSetUID -- Install a program into 'dest' using
+ * the INSTUIDFLAGS variable.  If the user is not 'root', a warning
+ * is issued.
+ */
+#ifndef InstallProgramSetUID
+#define InstallProgramSetUID(program,dest)				@@\
+install:: program							@@\
+	@if [ x$$LOGNAME != xroot ]; then \				@@\
+	   echo " ** WARNING ** You should install" program "as root,"; \ @@\
+	   echo "               su root and re-do 'make install'"; \ 	@@\
+	fi ; \								@@\
+	set -x; $(INSTALL) -c $(INSTUIDFLAGS) program dest
+#endif
+
+/*
+ * Produce a file called prog.flow containing cflow output
+ */
+#ifndef CflowTarget
+#define CflowTarget(prog,objs,locallibs)				@@\
+prog.flow:: objs							@@\
+	rm -f prog.flow							@@\
+	cflow $(ALLDEFINES) objs locallibs >prog.flow
+
+#endif
+
+/*
+ * Install a list of non-exec files (srclist) into a library 
+ * subdirectory (dstsubdir), using install and INSTDATFLAGS
+ */
+#ifndef InstallLibFile
+#define InstallLibFile(srclist,dstsubdir,dstupdir)			@@\
+install::								@@\
+	MakeDir($(LIBDIR)/dstsubdir)					@@\
+	@(set -x; for i in srclist; do \				@@\
+		$(INSTALL) -c $(INSTDATFLAGS) $$i $(LIBDIR)/dstsubdir ;\@@\
+	done)
+#endif /* InstallLibFile */
+
+/*
+ * Echo distribution file lists
+ */
+#ifndef DistfilesTarget
+#define DistfilesTarget(files)						@@\
+distfiles:: files							@@\
+	@for f in files END; do \					@@\
+		if [ $$f = "END" ]; then break; fi; \			@@\
+		echo $(DISTCURDIR)/$$f ; \				@@\
+	done
+#endif
+
+
+/*
+ * DistCleanTarget - do a make clean with no SUBDIRS.
+ * This target is included in Makefiles by the MakefileAdditions() macro.
+ */
+#ifndef DistCleanTarget
+#define	DistCleanTarget()						@@\
+distclean::								@@\
+	@$(MAKE) $(MFLAGS) MAKE=$(MAKE) clean SUBDIRS=			@@\
+
+#endif /* DistCleanTarget */
+
+/*
+ * Propagate the distfiles and distclean targets to dist subdirectories.
+ * Note that we can't use the more standard NamedTargetSubdirs() macro
+ * since that macro echoes info that would interfere with the list of files
+ * the target is generating.
+ *
+ * We also need to include targets to make Makefiles in the subdirs for
+ * distmakefiles::
+ */
+#ifndef DistfilesSubdirs
+#define DistfilesSubdirs(dirs)						@@\
+distfiles::								@@\
+	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
+	for i in dirs END;\						@@\
+	do \								@@\
+		if [ $$i = "END" ]; then break; fi; \			@@\
+		(cd $$i ; \						@@\
+		   $(MAKE) $(MFLAGS) MAKE=$(MAKE) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
+	done								@@\
+									@@\
+DistMakefileSubdirs(dirs)
+#endif /* DistfilesSubdirs */
+
+
+/*
+ * DistMakefileSubdirs - generate rules to create Makefiles for distmakefiles::
+ */
+#ifndef DistMakefileSubdirs
+#define DistMakefileSubdirs(dirs)					@@\
+MakeMakeSubdirs(dirs,distmakefiles)					@@\
+
+#endif /* DistMakefileSubdirs */
+
+
+/*
+ * TestSubdirs -- Propagate a test target to the given directories.
+ */
+#define TestSubdirs(dirs) \
+NamedTargetSubdirs(test,dirs,testing,NullParameter,test)
+
+
+/*
+ * This is just to add the familiar mf target as a Makefile: alias,
+ * and to add blanks for certain targets in case 
+ * the Imakefile does not include them
+ */
+#ifndef MakefileAdditions
+#define MakefileAdditions()						@@\
+mf:: Makefile								@@\
+	$(MAKE) $(MFLAGS) MAKE=$(MAKE) depend				@@\
+									@@\
+distfiles::								@@\
+									@@\
+distmakefiles::								@@\
+									@@\
+DistCleanTarget()							@@\
+									@@\
+depend::								@@\
+									@@\
+test::									@@\
+									@@\
+install.lib::								@@\
+
+#endif
+
+
+/*
+ * Don't bother giving notice about Makefiles and depend not being
+ * propagated.  Only those targets which would result in something being
+ * built or installed, since those targets can affect other targets.
+ */
+#ifndef OmitBuildRules
+#define OmitBuildRules(name)						@@\
+XCOMM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  @@\
+XCOMM ------ Rules for building name omitted ------			@@\
+XCOMM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  @@\
+									@@\
+all::									@@\
+	@echo Not building name						@@\
+									@@\
+install::								@@\
+	@echo Not installing name					@@\
+									@@\
+includes::								@@\
+	@echo Not doing includes for name				@@\
+
+#endif
+
+
+/*
+ * InstallLibSubdirs --
+ * Propagates the install.lib target to subdirectories.
+ * PassCDebugFlags IS passed, likewise is DESTDIR as it is in InstallSubdirs()
+ */
+#ifndef InstallLibSubdirs
+#define InstallLibSubdirs(dirs)						@@\
+NamedTargetSubdirs(install.lib,dirs,"installing libraries",\
+		   PassCDebugFlags DESTDIR='$(DESTDIR)',install.lib)
+#endif /* InstallLibSubdirs */
+
+
+/*
+ * CompleteProgramTarget - generate rules to compile and link the indicated 
+ * program; since it does not use any default object files, it may be used for
+ * multiple programs in the same Imakefile.  Just like NormalProgramTarget,
+ * except it ALSO adds an install target and adds the program to the all::
+ * dependency list.  To link without an install target, use
+ * NormalProgramTarget().
+ */
+#define	CompleteProgramTarget(program,objects,deplibs,locallibs,syslibs) @@\
+AllTarget(program)							@@\
+									@@\
+NormalProgramTarget(program,objects,deplibs,locallibs,syslibs)		@@\
+									@@\
+InstallProgram(program,$(BINDIR))
+
+
+/* 
+ * CccProgramTarget - generate rules to compile and link a C++
+ * program; since it does not use any default object files, it may be used for
+ * multiple programs in the same Imakefile.  It ALSO adds an install target
+ * for the program.  This relies on an implicit rule for .cc.o: defined
+ * in Project.tmpl.  Note that this macro does not generate a saber target
+ * since I don't know what it should look like.  It should be easy enough to
+ * to add though.
+ */
+#ifndef CccProgramTarget
+#define	CccProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+AllTarget(program)							@@\
+									@@\
+NormalCplusplusProgramTarget(program,objects,deplibs,locallibs,syslibs) @@\
+									@@\
+InstallProgram(program,$(BINDIR))					@@\
+
+#endif /* CccProgramTarget */
+
+/*=======================================================================
+ * The following rules are taken from the MIT X release Project.tmpl
+ *=======================================================================*/
+ 
+/*
+ * InstallAppDefaults - generate rules to install application default files 
+ * if the InstallAppDefFiles configuration parameter is set.
+ */
+#ifndef InstallAppDefaults
+#if InstallAppDefFiles
+#define	InstallAppDefaults(class)					@@\
+InstallNamedTarget(install,class.ad,$(INSTAPPFLAGS),$(XAPPLOADDIR),class)
+#else
+#define	InstallAppDefaults(class)
+#endif /* InstallAppDefFiles */
+#endif /* InstallAppDefaults */
+
+/*
+ * InstallAppDefaultsLong - generate rules to install application default 
+ * files if the InstallAppDefFiles configuration parameter is set.
+ */
+#ifndef InstallAppDefaultsLong
+#if InstallAppDefFiles
+#define	InstallAppDefaultsLong(file,class)				@@\
+InstallNamedTarget(install,file.ad,$(INSTAPPFLAGS),$(XAPPLOADDIR),class)
+#else
+#define	InstallAppDefaultsLong(file,class)
+#endif /* InstallAppDefFiles */
+#endif /* InstallAppDefaultsLong */
+
+
+/*=======================================================================
+ * The following rules re-define rules in Imake.rules, and so will need
+ * be checked when grafting newer releases of Imake.
+ *=======================================================================*/
+
+/*
+ * We must actually redefine the BuildIncludes rule since we want to
+ * use copies rather than links to include files.
+ */
+#ifdef BuildIncludes
+#undef BuildIncludes
+#endif
+#ifdef SunArchitecture	/* we can only use -p on Sun's, not SystemV (HPs) */
+#define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
+includes::								@@\
+	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
+	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
+		$(RM) $$i; \						@@\
+		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+	done)
+#else
+#define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
+includes::								@@\
+	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
+	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
+		$(RM) $$i; \						@@\
+		$(CP) $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+	done)
+#endif /* SunArchitecture */
+
+
+/*
+ * CleanSubdirs - redefine that in Imake.rules so that the distclean target
+ * for subdirs also gets included through Imake.tmpl
+ */
+#ifdef CleanSubdirs
+#undef CleanSubdirs
+#endif
+#define CleanSubdirs(dirs) \
+NamedCleanSubdirs(clean,dirs)						@@\
+									@@\
+NamedTargetSubdirs(distclean,dirs,"cleaning distdirs",/*flags*/,distclean)
+
+
+/*
+ * At the moment we expect to find makedepend outside of the source tree,
+ * and so we redefine the DependDependency to nothing, which is the usual
+ * value when UseInstalled is defined.
+ */
+#ifdef DependDependency
+#undef DependDependency
+#endif
+#define DependDependency() /**/
+
+
+#ifdef InstallNamedTarget
+#undef InstallNamedTarget
+#define	InstallNamedTarget(step,srcname,flags,dest,dstname)		@@\
+step step.srcname:: srcname						@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	$(INSTALL) $(INSTALLFLAGS) flags srcname $(DESTDIR)dest/dstname
+#endif /* InstallNamedTarget */
+
+
+/*
+ * MakeMakeSubdirs - 
+ * generate rules to recursively recreate Makefiles as part
+ * of the specified step in the build.  If $(TOP) is set to an absolute path, 
+ * do not prepend the ../ prefix.  This makes running things outside of the 
+ * source tree to be much easier.
+ * ---
+ * Copied almost exactly from Imake.rules except for actually *using* the
+ * target argument in the rule, which the Imake version fails to do.  This
+ * allows us the separate distmakefiles target.  We also add the END flag
+ * to the dir list to allow empty directory lists (as can happen with
+ * conditional builds).
+ */
+#ifdef MakeMakeSubdirs
+#undef MakeMakeSubdirs
+#endif
+#define MakeMakeSubdirs(dirs,target)					@@\
+target::								@@\
+	-@case '${MFLAGS}' in *[ik]*) set +e;; esac; \			@@\
+	case '${MFLAGS}' in *n*) executeit="no";; esac; \		@@\
+	for i in dirs END ;\						@@\
+	do \								@@\
+		if [ $$i = "END" ]; then break; fi; \			@@\
+		case "$(CURRENT_DIR)" in \				@@\
+		.) curdir= ;; \						@@\
+		*) curdir=$(CURRENT_DIR)/ ;; \				@@\
+		esac; \							@@\
+		echo "making" target "in $$curdir$$i..."; \		@@\
+		itmp="$$i" \						@@\
+		curtmp="$(CURRENT_DIR)" \				@@\
+		toptmp=""; \						@@\
+		case "$$itmp" in \					@@\
+		    ../?*) \ 						@@\
+			while echo "$$itmp" | grep '^../' > /dev/null;\	@@\
+			  do \						@@\
+			     toptmp="/`basename $$curtmp`$$toptmp"; \	@@\
+			     curtmp="`dirname $$curtmp`"; \		@@\
+			     itmp="`echo $$itmp | sed 's;../;;'`"; \	@@\
+			  done \					@@\
+		    ;; \						@@\
+		esac; \							@@\
+		case "$$itmp" in \					@@\
+		*/?*/?*/?*/?*)	newtop=../../../../..;; \		@@\
+		*/?*/?*/?*)	newtop=../../../..;; \			@@\
+		*/?*/?*)	newtop=../../..;; \			@@\
+		*/?*)		newtop=../..;; \			@@\
+		*)		newtop=..;; \				@@\
+		esac; \							@@\
+		newtop="$$newtop$$toptmp"; \				@@\
+		case "$(TOP)" in \					@@\
+		/?*) imaketop=$(TOP) \					@@\
+		     imakeprefix= ;; \					@@\
+		.) imaketop=$$newtop \					@@\
+		   imakeprefix=$$newtop/ ;; \				@@\
+		*) imaketop=$$newtop/$(TOP) \				@@\
+		   imakeprefix=$$newtop/ ;; \				@@\
+		esac; \							@@\
+		cd $$i; \						@@\
+		RemoveFile(Makefile.bak); \				@@\
+		if [ -f Makefile ]; then \				@@\
+			echo "	$(MV) Makefile Makefile.bak"; \		@@\
+			if [ "$$executeit" != "no" ]; then \		@@\
+				$(MV) Makefile Makefile.bak; \		@@\
+			fi; \						@@\
+		fi; \							@@\
+		if [ "$$executeit" != "no" ]; then \			@@\
+			ImakeSubCmdHelper -DTOPDIR=$$imaketop -DCURDIR=$$curdir$$i; \ @@\
+		fi; \							@@\
+		$(MAKE) $(MFLAGS) target; \				@@\
+		cd $$newtop; \						@@\
+	done
+
+/* MakeMakeSubdirs */
+
+
+/*
+ * NamedTargetSubdirs - redefined from Imake.rules to allow empty
+ * directory lists.
+ */
+#ifdef NamedTargetSubdirs
+#undef NamedTargetSubdirs
+#endif
+#define NamedTargetSubdirs(name,dirs,verb,flags,subname)		@@\
+name::									@@\
+	@case '${MFLAGS}' in *[ik]*) set +e;; esac; \			@@\
+	for i in dirs END ;\						@@\
+	do \								@@\
+		if [ $$i = "END" ]; then break; fi; \			@@\
+		(cd $$i ; echo verb "in $(CURRENT_DIR)/$$i..."; \	@@\
+			$(MAKE) $(MFLAGS) flags subname); \		@@\
+	done
+
+/* NamedTargetSubdirs */
+
+
