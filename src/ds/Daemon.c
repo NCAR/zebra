@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.71 1999-08-10 23:10:56 burghart Exp $")
+RCSID ("$Id: Daemon.c,v 3.72 2000-06-07 20:28:52 granger Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -89,8 +89,10 @@ static void 	SendNPlat FP ((char *));
 static void	SendPlatStruct FP ((char *, struct dsp_GetPlatStruct *));
 static void	SendClassStruct FP ((char *, struct dsp_GetPlatStruct *));
 static void	SendPlatformList FP ((char *, struct dsp_PlatformSearch *));
+#ifdef notdef
 static void	DoLookup FP ((char *, char *));
 static void	DoClassLookup FP ((char *who, char *name));
+#endif
 static void	FindDF FP ((char *, struct dsp_FindDF *, int));
 static const SourceId*	SourceList (SourceId wanted, int *nsrcs);
 static void	FindDFLink (char *, struct dsp_FindDFLink *, int);
@@ -585,6 +587,14 @@ struct ui_command *cmds;
 	   case DK_SOURCE:
 		DefineSource (cmds + 1);
 		break;
+
+	/*
+	 * Deal with a require.
+	 */
+	   case DK_REQUIRE:
+		Require (UPTR (cmds[1]));
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown Daemon kw: %d", UKEY (*cmds));
 		break;
@@ -886,7 +896,9 @@ int len;
  * Deal with an incoming data store protocol message.
  */
 {
+#ifdef notdef
 	struct dsp_MarkArchived *dma;
+#endif
 	struct dsp_ProtoVersion dpv;
 	struct dsp_Instance *im;
 	SourceId s;
@@ -1166,7 +1178,6 @@ struct dsp_UpdateFile *request;
     PlatformId pid = df->df_pid;
     const Platform *p = dt_FindPlatform (pid);
     DaemonPlatform *dp = dp_DaemonPlatform (pid);
-    int recent;
     int append = FALSE;
     struct dsp_UpdateAck ack;
     ZebraTime last;
@@ -1332,7 +1343,7 @@ ZebraTime *t;
  */
     for (s = 0; s < NSrcs; s++)
     {
-	DataFileCore dfc, next_dfc;
+	DataFileCore dfc;
     /*
      * Skip read-only sources
      */
@@ -1462,7 +1473,7 @@ DoRescan (cmds)
 struct ui_command *cmds;
 {
 	zbool all = FALSE;
-	const Platform *plat;
+	const Platform *plat = 0;
 
 	all = (cmds[0].uc_ctype == UTT_END) || (cmds[0].uc_ctype == UTT_KW);
 	if (! all)
@@ -1657,7 +1668,6 @@ SendPlatDir (char *to, struct dsp_GetPlatDir *request)
 	answer.dsp_success = 0;
     else
     {
-	Source *src = Srcs[srcid];
 	strcpy (answer.dsp_dir, src_DataDir (Srcs[srcid], p));
 	answer.dsp_success = 1;
     }
@@ -1787,7 +1797,8 @@ struct dsp_PlatformSearch *req;
 
 
 
-
+/* Currently unused */
+#ifdef notdef
 static void
 DoLookup (who, plat)
 char *who, *plat;
@@ -1802,11 +1813,12 @@ char *who, *plat;
 	answer.dsp_pid = p ? pi_Id (p) : BadPlatform;
 	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
+#endif
 
 
 
-
-
+/* Currently unused */
+#ifdef notdef
 static void
 DoClassLookup (who, name)
 char *who, *name;
@@ -1821,7 +1833,7 @@ char *who, *name;
 	answer.dsp_pid = pc ? (pc->dpc_id) : BadClass;
 	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
-
+#endif
 
 
 

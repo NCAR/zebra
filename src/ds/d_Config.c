@@ -34,7 +34,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-RCSID("$Id: d_Config.c,v 2.17 1999-03-01 02:03:39 burghart Exp $")
+RCSID("$Id: d_Config.c,v 2.18 2000-06-07 20:28:53 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -115,7 +115,6 @@ char *superclass;	/* NULL if not specified */
  * Define a platform in the data store configuration.
  */
 {
-    PlatClassRef ref;
     PlatformClass *pc;
 /*
  * Defining a platform implicitly defines a class first, then instantiates
