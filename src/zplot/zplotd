@@ -15,6 +15,8 @@ $D_NoEmail = 4; # Don't email
 $debug = 0;		     	# No debugging
 $FAIL = "ZPLOTD_FAILED";	# failure string
 
+$image_mail_list = " granger louvers ";
+
 # Top zebra directory
 $ztop=$ENV{'ZEB_TOPDIR'};
 $zbin="$ztop/bin";
@@ -341,9 +343,10 @@ sub clear
 
     close PLOG;
     $cmd = "elm -s \"zplotd $status, log $plog\" " .
-	" granger >/dev/null";
+	" $image_mail_list >/dev/null";
     print "$cmd\n";
-    if ($debug < $D_NoEmail && ! open (MAIL, "| cat - $plog | $cmd"))
+#   if ($debug < $D_NoEmail && ! open (MAIL, "| cat - $plog | $cmd"))
+    if ($debug < $D_NoEmail && ! open (MAIL, "| cat - | $cmd"))
     {
 	print "*** Mail failed! ***\n";
     }
@@ -353,7 +356,9 @@ sub clear
 	$images =~ s/^\s+//;
 	foreach $i (split(/\s+/,$images))
 	{
-	    print MAIL "file:$i\n";
+	    $url = $i;
+	    $url =~ s,/net/global/www,, ;
+	    print MAIL "http://www.atd.ucar.edu$url\n";
 	}
 	print MAIL "\n";
 	print MAIL "Log files:\n";
