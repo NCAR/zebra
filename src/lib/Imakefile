@@ -71,12 +71,20 @@ tconvert: tconvert.c convert.o $(DEPLIBS)
 clean::
 	$(RM) tconvert
 
-re_test: re_test.o
+re_test: re_test.o zl_regex.o
 	$(RM) $@
 	$(CC) -o $@ $(ALLDEFINES) re_test.o zl_regex.o $(LDOPTIONS) \
 			$(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
 
 clean::
 	$(RM) re_test
+
+msg_test: msg_test.o msg_lib.o netread.o
+	$(RM) $@
+	$(CC) -o $@ $(ALLDEFINES) msg_test.o msg_lib.o netread.o \
+	   $(LDOPTIONS) $(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
+
+clean::
+	$(RM) msg_test
 
 DistfilesTarget($(DISTFILES))
