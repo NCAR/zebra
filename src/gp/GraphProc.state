@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.19 1992-12-15 18:26:06 corbet Exp $
+! $Id: GraphProc.state,v 1.20 1993-04-13 00:04:10 granger Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -433,7 +433,11 @@ procedure ui$init
 	! Don't die just because we hit something undefined
 	!
 	set ui$bailout false
-	set ui$menu_mark_file '/local/X11R5/include/X11/bitmaps/star' ! XXX
+!
+! Use the default (which conventiently is also a star) instead of hardcoding
+! a non-portable path
+!
+!	set ui$menu_mark_file '/local/X11R5/include/X11/bitmaps/star' ! XXX
 	while (true)
 		run
 	endwhile
