@@ -1,14 +1,18 @@
 /*
- * $Id: SerialStream.hh,v 1.5 1998-05-15 19:37:04 granger Exp $
+ * $Id: SerialStream.hh,v 1.6 1998-09-24 15:02:24 burghart Exp $
  *
  */
 #ifndef _SerialStream_hh_
 #define _SerialStream_hh_
 
+# include <rpc/rpc.h>
+
 class Serializable;
 class SerialBuffer;
 class MemoryXDR;
+# ifndef __sgi__
 class XDR;
+# endif
 
 /*
  * We want basic string serialization built-in.
@@ -79,8 +83,6 @@ public:
 
 	virtual int translate (string &s) = 0;
 
-	virtual int translate (Serializable &object) = 0;
-
 	///
 	/** A default method for translating strings must be implemented by
 	    subclasses.  's' points to the character array in memory, and
@@ -90,6 +92,8 @@ public:
 	    */
 	virtual int cstring (char *s, long maxlen) = 0;
 	
+	virtual int translate (Serializable &object) = 0;
+
 	/* Add binary stream operators << and >> for every type for which
 	 * there is a translate method.
 	 */
