@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.26 2000-11-07 19:54:10 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.27 2000-11-07 22:24:50 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -464,6 +464,14 @@ NextPlatform (PlatformId pid, DumpOptions *opts)
 
     if (opts->subclass && ! pi_IsSubclass (p, opts->subclass))
 	return 0;
+/*
+ * If table output requested, that is all we show.
+ */
+    if (opts->natts > 0)
+    {
+	DumpRow (pid, opts->atts, opts->natts);
+	return;
+    }
     if (! opts->quiet)
 	DumpPlatform (p, opts);
     if (opts->defn)
@@ -519,7 +527,7 @@ main (argc, argv)
     }
     else if (! msg_connect (msg_handler, name) || (! ds_Initialize ()))
     {
-	printf("%s: could not connect to DataStore daemon\n",argv[0]);
+	fprintf(stderr,"%s: could not connect to DataStore daemon\n",argv[0]);
 	exit (1);
     }
     opts->since = ZT_ALPHA;		/* default: show all files */
@@ -541,7 +549,7 @@ main (argc, argv)
 	{
 	    if (exact)
 	    {
-		printf ("%s: -e needs platform name\n",
+		fprintf(stderr,"%s: -e needs platform name\n",
 			argv[0]);
 		exit (2);
 	    }
@@ -628,12 +636,12 @@ main (argc, argv)
 		opts->subclass = dt_FindClassName (argv[opt]);
 		if (! opts->subclass)
 		{
-		    printf ("%s: class unknown\n", argv[opt]);
+		    fprintf(stderr,"%s: class unknown\n", argv[opt]);
 		    exit (1);
 		}
 		break;
 	    default:
-		printf ("%s: illegal option '%s'\n",
+		fprintf(stderr,"%s: illegal option '%s'\n",
 			argv[0], argv[opt]);
 		usage (argv[0]);
 		exit (1);
@@ -644,7 +652,7 @@ main (argc, argv)
 	{
 	    pid = ds_LookupPlatform (argv[opt]);
 	    if (pid == BadPlatform)
-		printf ("%s: bad platform\n", argv[opt]);
+		fprintf (stderr, "%s: bad platform\n", argv[opt]);
 	    else
 	    {
 		matches += NextPlatform (pid, opts);
@@ -662,8 +670,8 @@ main (argc, argv)
 	    {
 		matches += NextPlatform (platforms[i], opts);
 	    }
-	    if (pattern && (nplat == 0))
-		printf ("No matches for '%s'\n", pattern);
+	    if (pattern && (nplat == 0) && !opts->quiet)
+		fprintf(stderr,"No matches for '%s'\n", pattern);
 	    if (platforms)
 		free (platforms);
 	    first = TRUE;
@@ -692,14 +700,6 @@ DumpPlatform (const Platform *p, const DumpOptions *opts)
 {
     PlatformId pid = pi_Id (p);
     const char *name;
-/*
- * If table output requested, that is all we show.
- */
-    if (opts->natts > 0)
-    {
-	DumpRow (pid, opts->atts, opts->natts);
-	return;
-    }
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
