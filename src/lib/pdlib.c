@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.15 1992-10-12 16:10:23 burghart Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.16 1992-10-27 19:34:09 burghart Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -47,7 +47,7 @@ static stbl pd_NewComponent FP ((stbl pd, char *pdname, char *compname));
 /*
  * Size of temp buffer used for writing raw PD's.
  */
-# define RAWTEMP	20480
+# define RAWTEMP	40960
 
 
 /*
@@ -98,7 +98,7 @@ char *name;
 	char table[80];
 	stbl pd;
 	union usy_value v;
-	char **comps, *malloc ();
+	char **comps;
 	int i;
 /*
  * Create a new name and create the symbol table for this PD.
@@ -294,13 +294,12 @@ plot_description pd;
  */
 {
 	raw_plot_description *rpd = NEW (raw_plot_description);
-	char *malloc (), *realloc ();
 	static int pd_UnloadComp ();
 /*
  * Allocate a humungo amount of memory that can hold the largest conceivable
  * pd; we'll recycle it later.
  */
- 	rpd->rp_data = malloc (RAWTEMP);
+ 	rpd->rp_data = (char *) malloc (RAWTEMP);
 	rpd->rp_data[0] = '\0';
 /*
  * Now just go through each component.
@@ -308,11 +307,21 @@ plot_description pd;
 	pd_ForEachComponent (pd, pd_UnloadComp, (int) rpd);
 	rpd->rp_len = strlen (rpd->rp_data);
 /*
+ * Sanity check
+ */
+	if (rpd->rp_len + 1 > RAWTEMP)
+	{
+		msg_ELog (EF_EMERGENCY, 
+			"PD too big (%d)! Increase RAWTEMP in pdlib.c!",
+			rpd->rp_len);
+		exit (1);
+	}
+/*
  * Be sure to include the null terminator when realloc'ing.  This lets
  * rp_data be treated as a string, but note that '\0' will be stripped
  * when sent as message data because it is not included in rp_len
  */
-	rpd->rp_data = realloc (rpd->rp_data, rpd->rp_len + 1);
+	rpd->rp_data = (char *) realloc (rpd->rp_data, rpd->rp_len + 1);
 	return (rpd);
 }
 
