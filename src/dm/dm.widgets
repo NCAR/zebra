@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.36 2000-11-10 22:54:41 granger Exp $
+! $Id: dm.widgets,v 1.37 2000-11-13 17:21:06 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -403,8 +403,9 @@ procedure ShipScalar platform string field string target_win string
 		return
 	endif
 	if (ptype = 'skewt')
-		require sk-add-data
-		sk-add-data #platform #field #target_win
+		local addcmd "sk-add-data"
+		require #addcmd
+		#addcmd #platform #field #target_win
 		return
 	endif
 !
@@ -933,5 +934,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.36 2000-11-10 22:54:41 granger Exp $'
+	local '$Id: dm.widgets,v 1.37 2000-11-13 17:21:06 granger Exp $'
 endprocedure
