@@ -202,7 +202,7 @@ bool	update;
  * Top annotation
  */
 	sprintf (annot, "Skew-t plot (%s).", platform);
-	px_TopAnnot (annot, C_WHITE);
+	An_TopAnnot (annot, C_WHITE);
 }
 
 
