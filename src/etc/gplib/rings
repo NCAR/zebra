@@ -55,4 +55,16 @@ define widget #wname intmenu 'x'
 	line
 	submenu 'Ring color' 'simple-color'
 	submenu 'Line width' 'LineWidth'
+	subment 'Label size' 'RingsLabelSize'
+endmenu
+
+define widget RingsLabelSize intmenu 'Label size'
+	title 'Label Size'
+	line
+	entry 'small' 'parameter #icon_component label-size 10' \
+		(pd_param(icon_component, "label-size", "string") = "10")
+	entry 'medium' 'parameter #icon_component label-size 20' \
+		(pd_param(icon_component, "label-size", "string") = "20")
+	entry 'large' 'parameter #icon_component label-size 30' \
+		(pd_param(icon_component, "label-size", "string") = "30")
 endmenu
