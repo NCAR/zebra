@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.35 1993-12-01 17:16:49 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.36 1994-02-09 23:33:04 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -300,7 +300,9 @@ char	*component;
 		lw_LoadStatus ();
 	}
 /*
- * (2) Global plot not cached.
+ * (2) Global plot not cached.  If you change something here, be aware that
+ *     there is some awfully similar code in mc_GenNFrame that probably will
+ *     have to change too.  I speak from experience.
  */
 	else if (global)
 	{

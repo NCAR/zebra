@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.12 1994-02-01 18:36:50 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.13 1994-02-09 23:32:55 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -285,9 +285,28 @@ int number;
 	FCache[findex].fc_keep = FALSE;
 	FCache[findex].fc_index = number;
 	FCache[findex].fc_inmem = TRUE;
+	fc_CheckDup (findex);
 	FCache[findex].fc_active = CurrentAreas;
 	FreePixmaps[number] = findex;
 }
+
+
+
+/*
+ * Temp debug stuff
+ */
+fc_CheckDup (index)
+int index;
+{
+	int i;
+	for (i = 0; i < MaxFrames; i++)
+		if (FCache[i].fc_active == CurrentAreas)
+			msg_ELog (EF_PROBLEM, "Dup AA list fr %d %d", index,i);
+}
+
+
+
+
 
 
 static int
@@ -781,6 +800,11 @@ fc_GetFreePixmap ()
 			free (FCache[FreePixmaps[i]].fc_pairs);
 			FCache[FreePixmaps[i]].fc_pairs = NULL;
 		}
+		if (FCache[FreePixmaps[i]].fc_active)
+		{
+			aa_FreeList (FCache[FreePixmaps[i]].fc_active);
+			FCache[FreePixmaps[i]].fc_active = NULL;
+		}
 	}
 	return(i);
 }
@@ -850,15 +874,23 @@ int n;
 	for(i = n; i < MaxFrames; i++)
 	{
 		if (FreePixmaps[i] >= 0)
-			if(! fc_PixmapToFile (FreePixmaps[i]))
+		{
+			int frame = FreePixmaps[i];
+			if(! fc_PixmapToFile (frame))
 			{
-				FCache[FreePixmaps[i]].fc_valid = FALSE;
-				if (FCache[FreePixmaps[i]].fc_pairs)
+				FCache[frame].fc_valid = FALSE;
+				if (FCache[frame].fc_pairs)
 				{
-					free (FCache[FreePixmaps[i]].fc_pairs);
-					FCache[FreePixmaps[i]].fc_pairs = NULL;
+					free (FCache[frame].fc_pairs);
+					FCache[frame].fc_pairs = NULL;
+				}
+				if (FCache[frame].fc_active)
+				{
+					aa_FreeList (FCache[frame].fc_active);
+					FCache[frame].fc_active = NULL;
 				}
 			}
+		}
 		FreePixmaps[i] = InvalidEntry;
 	}
 }
