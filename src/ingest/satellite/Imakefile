@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.15 1997-03-11 19:39:06 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.16 1997-06-06 22:30:51 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBMCIDAS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -61,7 +61,7 @@ CompleteProgramTarget(GriddedGOES, $(GRIDOBJS) $(GOES_OBJS),
 TestProgramTarget(testSatIngest,testSatIngest.o $(GOES_OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-CompleteProgramTarget(areadump,areadump.o Area.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(areadump,areadump.o Area.o AreaIngest.o $(GVAR_OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UICppLoadFileTarget(SatIngest.lf,SatIngest.state,keywords.h)
 

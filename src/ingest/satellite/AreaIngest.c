@@ -15,7 +15,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: AreaIngest.c,v 1.1 1997-03-11 19:39:04 granger Exp $")
+RCSID("$Id: AreaIngest.c,v 1.2 1997-06-06 22:30:50 granger Exp $")
 
 
 /*
@@ -242,7 +242,7 @@ AreaIngest (AreaFile *chain, AreaGrid *ag,
 	 * Figure out grid spacing
 	 */
 		grid = NULL;
-		SetAreaLimits (f, ag);
+		/* SetAreaLimits (f, ag); */
 		if (SetGrid (ag, &rg, &loc))
 			grid = DoFile (f, spec, ag);
 	/*
@@ -359,25 +359,49 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
 
 
 
+int
 SetAreaLimits (AreaFile *f, AreaGrid *ag)
+/*
+ * Return 0 on failure.
+ */
 {
 	AreaImage area;
 	int *nav_cod;
+	int result;
+	int one = 1;
 
 	if (ag->limits && ag->origin_lat != NO_ORIGIN)
-		return;
+		return (1);
 
-	ReadArea (f, &Area);
+	ReadArea (f, &area);
 	if (! (nav_cod = ReadNavCod (f, &area, NULL, NULL)))
 	{
-		return;
+		return (0);
+	}
+	if (nvxini_ (&one, nav_cod) < 0)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Bad navigation initialization for file '%s'", 
+			  f->name);
+		return (0);
 	}
 
-	if (! ag->limits)
-	AreaLimits (&area, ag);
+	if (! ag->limits && (result = AreaLimits (&area, ag)))
 		msg_ELog (EF_DEBUG, "Limit estimates: NW %g,%g SE %g,%g",
-			  test.maxlat, test.minlon,
-			  test.minlat, test.maxlon);
+			  ag->maxlat, ag->minlon, ag->minlat, ag->maxlon);
+	else if (! ag->limits)
+		msg_ELog (EF_PROBLEM, "Failed to estimate area limits");
+
+	/*
+	 * Use the middle latitude as the origin latitude.
+	 */
+	if (ag->limits && ag->origin_lat == NO_ORIGIN)
+		ag->origin_lat = (ag->minlat + ag->maxlat) / 2.0;
+
+	return (result);
+}
+
+
 
 
 int

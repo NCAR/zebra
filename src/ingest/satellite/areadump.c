@@ -1,5 +1,5 @@
 /*
- * $Id: areadump.c,v 1.3 1997-03-11 19:39:12 granger Exp $
+ * $Id: areadump.c,v 1.4 1997-06-06 22:30:52 granger Exp $
  */
 
 # include <stdio.h>
@@ -16,11 +16,13 @@ void DumpInfo();
 #define C_RESOLUTION	(1<<1)
 #define C_IMAGE_TYPE	(1<<2)
 #define C_IMAGE_SIZES	(1<<3)
+#define C_LIMITS	(1<<4)
 #define C_ALL		(0xffff)
 #define C_NONE		(0)
 #define C_DEFAULT	(C_DATE | C_RESOLUTION)
 
 
+long	*uc = NULL, *neguc = NULL;
 
 
 void
@@ -36,6 +38,7 @@ char *argv[];
 	printf (" -r  Resolution info\n");
 	printf (" -t  Image type and source\n");
 	printf (" -s  Image sizes: lines, elements, bytes\n");
+	printf (" -l  Estimate area limits (for GOES navigation only)\n");
 	printf (" -a  Display all\n");
 }
 
@@ -76,6 +79,9 @@ char	**argv;
 			   case 'r':
 				code |= C_RESOLUTION;
 				break;
+			   case 'l':
+				code |= C_LIMITS;
+				break;
 			   case 'a':
 				code = C_ALL;
 				break;
@@ -104,9 +110,10 @@ int code;		/* Code detailing what to display */
 {
 	char imtype[5];
 	AreaImage area;
+	AreaGrid ag;
 
 	ReadArea (af, &area);
-	if (! ReadNavCod (af, NULL, imtype))
+	if (! ReadNavCod (af, &area, NULL, imtype))
 	{
 		strcpy (imtype, "ERR");
 	}
@@ -132,6 +139,17 @@ int code;		/* Code detailing what to display */
 		printf("    Prefix length:   %-2i bytes     ", area.prefixlen);
 		printf("Bytes/line:   %-5i   ", area.linelen);
 		printf("Number lines: %-5i\n", area.ny);
+	}
+	if (code & C_LIMITS)
+	{
+		InitGrid (&ag);
+		SetAreaLimits (af, &ag);
+		if (ag.limits)
+			printf ("Limits: %.1f %.1f %.1f %.1f; origin %.1f\n",
+				ag.minlat, ag.minlon, ag.maxlat, ag.maxlon,
+				ag.origin_lat);
+		else
+			printf ("Limits: Estimate failed.\n");
 	}
 	if (code == C_ALL)
 	{

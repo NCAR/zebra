@@ -1,5 +1,5 @@
 /*
- * $Id: Area.h,v 1.1 1997-03-11 19:39:03 granger Exp $
+ * $Id: Area.h,v 1.2 1997-06-06 22:30:49 granger Exp $
  *
  * Prototypes for routies in the Area module
  */
@@ -83,6 +83,7 @@ void ResetGrid (AreaGrid *ag);
 void SetArea (AreaImage *a, int *header);
 void ReadArea (AreaFile *f, AreaImage *area);
 int *ReadNavCod (AreaFile *f, AreaImage *area, int *nav_cod, char *imtype);
+int SetAreaLimits (AreaFile *f, AreaGrid *ag);
 unsigned char *ReadAreaImage (AreaFile *f, AreaImage *area);
 void SetFieldMap (FieldId fid, ScaleInfo *scale, unsigned char *map);
 
