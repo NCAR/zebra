@@ -20,7 +20,7 @@
 # endif /* UNIX */
 
 
-static char *rcsid = "$Id: ui_error.c,v 1.11 1995-05-20 06:46:27 granger Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.12 1995-07-09 15:46:32 granger Exp $";
 /*
  * Stack stuff.
  */
@@ -66,7 +66,7 @@ ui_errinit ()
 
 
 
-# ifdef __STDC__  /* Use the ANSI variable args list */
+# if __STDC__  /* Use the ANSI variable args list */
 
 
 
@@ -97,7 +97,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */
+# endif /* __STDC__ */
 
 /*
  * Write out the message.
@@ -125,7 +125,7 @@ va_dcl
 
 
 
-#ifdef __STDC__  /* Use ANSI variable args */
+#if __STDC__  /* Use ANSI variable args */
 
 
 
@@ -183,7 +183,7 @@ va_dcl
         fmt = va_arg (args, char *);
 
 
-# endif /* ifdef __STDC__ */
+# endif /* __STDC__ */
 
   
 /*
@@ -238,7 +238,7 @@ va_dcl
 
 
 
-# ifdef __STDC__  /* ANSI variable args */
+# if __STDC__  /* ANSI variable args */
 
 
 ui_ns_error (char *fmt, ...)
@@ -263,7 +263,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC __ */
+# endif /* __STDC __ */
 
 /*
  * Write out the message.
@@ -278,7 +278,7 @@ va_dcl
 
 
 
-# ifdef __STDC__  /* ANSI variable args */
+# if __STDC__  /* ANSI variable args */
 
 
 ui_bailout ( char *fmt, ...)
@@ -306,7 +306,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */
+# endif /* __STDC__ */
 
 /*
  * Write out the message.
@@ -330,7 +330,7 @@ va_dcl
 
 
 
-# ifdef __STDC__  /* ANSI variable args */
+# if __STDC__  /* ANSI variable args */
 
 ui_warning (char *fmt, ...)
 
@@ -356,7 +356,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */   
+# endif /* __STDC__ */   
 
 	vsprintf (buf, fmt, args);
         va_end (args);
@@ -419,7 +419,7 @@ ui_epop ()
 
 
 
-# ifdef __STDC__  /* Use ANSI variable args */
+# if __STDC__  /* Use ANSI variable args */
 
 bailout ( char *fmt, ...)
 
@@ -450,7 +450,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */
+# endif /* __STDC__ */
 
         
 /*
@@ -480,7 +480,7 @@ va_dcl
 
 
 
-# ifdef __STDC__  /* Use ANSI variable args */
+# if __STDC__  /* Use ANSI variable args */
 
 sys_error (int status, char *fmt, ...)
 
@@ -513,7 +513,7 @@ va_dcl
         status = va_arg (args, int);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */
+# endif /* __STDC__ */
 
 /*
  * Put out the system error message.
@@ -536,7 +536,7 @@ va_dcl
 
 
 
-# ifdef __STDC__    /* Use ANSI variable args */
+# if __STDC__    /* Use ANSI variable args */
 
 
 warning (char *fmt, ...)
@@ -564,7 +564,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */
+# endif /* __STDC__ */
 
         vsprintf (buf, fmt, args);
 
