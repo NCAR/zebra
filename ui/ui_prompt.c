@@ -15,7 +15,7 @@
 # include "ui_expr.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_prompt.c,v 1.5 1990-04-26 12:14:23 corbet Exp $";
+static char *Rcsid = "$Id: ui_prompt.c,v 1.6 1990-05-23 09:12:44 burghart Exp $";
 
 void ui_pr_cc ();	/* Keyboard interrupt handler.	*/
 
@@ -140,7 +140,7 @@ int lower, upper, def;
 
 
 
-float
+double
 ui_float_prompt (prompt, helpfile, lower, upper, def)
 char *prompt, *helpfile;
 float lower, upper, def;
@@ -252,7 +252,7 @@ float lower, upper, def;
 	 * If we actually got through all that, we can return the given
 	 * value.
 	 */
-	 	return (v.us_v_float);
+	 	return ((double) v.us_v_float);
 	}
 }
 
