@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 2.1 1991-09-16 22:19:36 burghart Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.2 1991-10-02 16:51:21 kris Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -141,7 +141,7 @@ int set;
 	Location loc;
 	time t;
 	ScaleInfo scale[2];
-	char *images[4], attr;
+	char *images[4], *attr;
 	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
 /*
