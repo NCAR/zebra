@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: RadarWidget.c,v 1.6 1993-10-21 17:59:13 burghart Exp $";
+static char *rcsid = "$Id: RadarWidget.c,v 1.7 1995-03-09 16:49:01 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -44,6 +44,8 @@ static Radar	Copy;
  */
 static Widget	WChangeRad, WRadName, WExecute, WDiscard, WScanType, WStatus;
 static Widget	WHits, WStep, WPrf, WMinRng, WMinElev;
+
+Widget	LeftRightButtons ();	/* extern function */
 
 /*
  * Private prototypes

@@ -19,12 +19,12 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: SendWidget.c,v 1.5 1993-10-20 22:46:25 burghart Exp $";
+static char *rcsid = "$Id: SendWidget.c,v 1.6 1995-03-09 16:49:04 burghart Exp $";
 
 # include <stdio.h>
 # include <signal.h>
 # include <time.h>
-# include <sys/timeb.h>		/* needed for ftime call in sw_SendScan */
+# include <sys/time.h>
 # include <setjmp.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -60,6 +60,7 @@ static void sw_KillKermit FP ((int));
  */
 int	Kermit[MAXRAD];
 FILE	*ToKermit[MAXRAD], *FromKermit[MAXRAD];
+# define KERMIT_EXEC "/zeb/src/Optimizer/nkermit/nkermit"
 
 /*
  * The dial/send button and status widget for each radar
@@ -251,7 +252,7 @@ XtPointer	val, junk;
  */
 	int	r = (int) val;
 	int	in_sockets[2], out_sockets[2], status, done;
-	char	label[20], kermit_exec[200];
+	char	label[20];
 	char	speed[10];
 	Arg	arg;
 /*
@@ -296,14 +297,13 @@ XtPointer	val, junk;
 	 */
 		sprintf (speed, "%d\0", Rad[r].baud);
 
-		sprintf (kermit_exec, "%s/Optimizer/nkermit/nkermit", FCCDIR);
-
 		if (! strcmp (Rad[r].phone, "radio-modem"))
-			status = execl (kermit_exec, "nkermit", "slb", 
-				Rad[r].line_out, speed, NULL);
+			status = execl (KERMIT_EXEC, "nkermit", "slb", 
+					Rad[r].line_out, speed, NULL);
 		else
-			status = execl (kermit_exec, "nkermit", "slbn", 
-				Rad[r].line_out, speed, Rad[r].phone, NULL);
+			status = execl (KERMIT_EXEC, "nkermit", "slbn", 
+					Rad[r].line_out, speed, Rad[r].phone, 
+					NULL);
 
 		msg_ELog (EF_PROBLEM, "Error %d executing nkermit!", status);
 		_exit (1);
@@ -378,8 +378,7 @@ XtPointer	val, junk;
  */
 {
 	int	r = (int) val;
-	int	itime;
-	struct timeb tp;
+	time_t	itime;
 	char	fn[20], fullname[40], label[20];
 	Arg	arg;
 /*
@@ -442,8 +441,7 @@ XtPointer	val, junk;
 	msg_ELog (EF_INFO, "Successfully sent %s", fn);
 
 	sprintf (label, "%s ", fn);
-	ftime(&tp);
-	itime = tp.time;
+	time (&itime);
 	strncat (label, ctime (&itime) + 11, 5);
 	XtSetArg (arg, XtNlabel, label);
 	XtSetValues (WStatus[r], &arg, 1);
