@@ -1,5 +1,7 @@
 /*
- * Command execution protocol code.
+ * Command execution code for clients which only want to send
+ * commands and will not need to perform them.  These routines
+ * do not require the UI library.
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -24,30 +26,17 @@
 # include <config.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: cmd_proto.c,v 1.4 1995-04-15 00:11:58 granger Exp $")
-
-
-static int cp_RunCommand FP ((Message *));
+MAKE_RCSID ("$Id: cmd_exec.c,v 2.1 1995-04-15 00:11:39 granger Exp $")
 
 
 void
-cp_SetupCmdProto ()
+cp_Exec (process, command)
+char *process, *command;
 /*
- * Set up to execute incoming commands.
+ * Send the given command to this process.
  */
 {
-	msg_AddProtoHandler (MT_COMMAND, cp_RunCommand);
+	msg_send (process, MT_COMMAND, FALSE, command, strlen (command) + 1);
 }
 
 
-
-static int
-cp_RunCommand (msg)
-Message *msg;
-/*
- * Deal with a command protocol packet.
- */
-{
-	ui_perform (msg->m_data);
-	return (0);
-}
