@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.26 1993-08-25 21:35:05 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.27 1993-09-02 08:12:55 granger Exp $")
 
 
 
@@ -48,13 +48,13 @@ MAKE_RCSID ("$Id: Daemon.c,v 3.26 1993-08-25 21:35:05 granger Exp $")
  */
 static int 	msg_Handler FP ((struct message *));
 static int	ui_Handler FP ((int, struct ui_command *));
-void		Shutdown FP ((void));
 static void	mh_message FP ((struct message *));
 static void	ds_message FP ((char *, struct dsp_Template *));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
 static void	dp_AbortNewFile FP ((struct dsp_AbortNewFile *));
 static void	dp_UpdateFile FP ((char *, struct dsp_UpdateFile *));
 static void	dp_DeleteData FP ((Platform *, ZebTime *));
+static void	dp_DeleteObs FP ((Platform *, ZebTime *));
 static void	ZapDF FP ((DataFile *));
 static void	SetUpEvery FP ((struct ui_command *));
 static void	ExecEvery FP ((ZebTime *, int));
@@ -77,6 +77,11 @@ static void	FindDF FP ((char *, struct dsp_FindDF *));
 static void	FindAfter FP ((char *, struct dsp_FindDF *));
 static int	QueryHandler FP ((char *));
 
+/*
+ * Public forwards
+ */
+void		Shutdown FP ((void));
+void		DataFileGone FP ((DataFile *df));
 
 /*
  * Broadcast stuff.
@@ -496,11 +501,18 @@ struct dsp_Template *dt;
 	   	dp_UpdateFile (from, (struct dsp_UpdateFile *) dt);
 		break;
 	/*
-	 * Delete -- get rid of data.
+	 * DeleteData -- get rid of data before given time.
 	 */
 	   case dpt_DeleteData:
 	   	dp_DeleteData (PTable+((struct dsp_DeleteData *) dt)->dsp_plat,
 				&((struct dsp_DeleteData *) dt)->dsp_when);
+		break;
+	/*
+	 * DeleteObs -- get rid of observation at given time.
+	 */
+	   case dpt_DeleteObs:
+		dp_DeleteObs (PTable+((struct dsp_DeleteData *) dt)->dsp_plat,
+			      &((struct dsp_DeleteData *) dt)->dsp_when);
 		break;
 	/*
 	 * Application notification details.
@@ -751,7 +763,7 @@ ZebTime *t;
  * Handle the delete data request.
  */
 {
-	int index = LOCALDATA (*p), last;
+	int index = LOCALDATA (*p);
 /*
  * If there is no data at all, life is easy.
  */
@@ -772,36 +784,116 @@ ZebTime *t;
 /*
  * Now we go through and remove every file which ends before this time.
  */
-	last = index;
 	ClearLocks (p);
 	while (index)
 	{
-		DataFile *df = DFTable + index;
+		DataFile *df;
 	/*
-	 * If this file is too new, go on to the next one.
+	 * Remove this file if it ends at or before the specified time.
 	 */
-	 	if (TC_Less (*t, df->df_end))
+		df = DFTable + index;
+	        index = df->df_FLink;
+	 	if (TC_LessEq (df->df_end, *t))
 		{
-			last = index;
-			index = df->df_FLink;
-			continue;
-		}
-	/*
-	 * OK, this one goes.  Move the index forward NOW, then zap this
-	 * entry.  NOTE: since DF entries are in reverse time order, we 
-	 * know that once we've found the one to zap, we'll get them all
-	 * from here on out.  So we leave "last" pointing at the last
-	 * entry that will remain when we're done.
-	 */
-	 	msg_ELog (EF_DEBUG, "Zap %d (%s)", index, df->df_name);
-		if (index == p->dp_LocalData)
-			index = p->dp_LocalData = df->df_FLink;
-		else
-			index = DFTable[last].df_FLink = df->df_FLink;
-		ZapDF (df);
-		p->dp_flags |= DPF_DIRTY;
+		/*
+		 * OK, this one goes.
+		 */
+#ifdef notdef	
+		/* 
+		 * We need to use dt_RemoveDFE() instead of the code below so
+		 * that CacheInvalidate messages are sent as needed.
+		 */
+		        if (index == p->dp_LocalData)
+				index = p->dp_LocalData = df->df_FLink;
+			else
+				index = DFTable[last].df_FLink = df->df_FLink;
+#endif
+		        msg_ELog (EF_DEBUG, "DeleteData: zap %d (%s)", 
+				  df->df_index, df->df_name);
+		        ZapDF (df);
+		        dt_RemoveDFE (p, df - DFTable);
+		        p->dp_flags |= DPF_DIRTY;
+	        }
 	}
 }
+
+
+
+
+static void
+dp_DeleteObs (p, t)
+Platform *p;
+ZebTime *t;
+/*
+ * Handle the request to delete a single, whole observation.
+ */
+{
+	int index = LOCALDATA (*p);
+	DataFile *df;
+/*
+ * If there is no data at all, life is easy.
+ */
+	if (! index)
+	{
+		msg_ELog (EF_DEBUG, "DeleteObs on %s -- empty", p->dp_name);
+		return;
+	}
+/*
+ * Sanity check.
+ */
+	if (p->dp_flags & DPF_SUBPLATFORM)
+	{
+		msg_ELog (EF_PROBLEM, "Attempted DeleteObs on subplat %s",
+			p->dp_name);
+		return;
+	}
+/*
+ * Now we go through and find the file which contains the given time.
+ */
+	ClearLocks (p);
+	while (index)
+	{
+		df = DFTable + index;
+	/*
+	 * If this file doesn't contain the specified time, move on.
+	 */
+		if (TC_Less (*t, df->df_begin))
+		{
+			index = df->df_FLink;
+		}
+		else if (TC_Less (df->df_end, *t))
+		{
+		/*
+		 * The rest of the times will be earlier, so we won't
+		 * find the observation at all.  Let such be known and abort.
+		 */
+			msg_ELog (EF_PROBLEM,
+				  "DeleteObs: no observation at that time");
+			return;
+		}
+		else
+			break;
+	}
+
+	if (! index)
+	{
+	/*
+	 * All of the files were newer than the desired time 
+	 */
+		msg_ELog (EF_PROBLEM, "DeleteObs: no observations that old");
+		return;
+	}
+/*
+ * OK, this one goes.  Send notices and unlink the file in ZapDF().  
+ * Remove the DFE from the table and free it in dt_RemoveDFE().
+ */
+ 	msg_ELog (EF_DEBUG, "DeleteObs: zap %d (%s)", 
+		  (df - DFTable), df->df_name);
+	ZapDF (df);
+	dt_RemoveDFE (p, df - DFTable);
+	p->dp_flags |= DPF_DIRTY;
+}
+
 
 
 
@@ -814,7 +906,6 @@ struct dsp_BCDataGone *dg;
 {
 	Platform *plat;
 	int dfindex;
-	DataFile *df;
 /*
  * Make sure this is a platform we know about.
  */
@@ -825,31 +916,26 @@ struct dsp_BCDataGone *dg;
  */
 	for (dfindex = REMOTEDATA (*plat); dfindex;
 			dfindex = DFTable[dfindex].df_FLink)
+	{
 		if (! strcmp (dg->dsp_File, DFTable[dfindex].df_name))
 			break;
+	}
 	if (! dfindex)
 		return;
 /*
- * Now we get rid of it.
+ * Now we unlink the file and remove the DFE.
  */
-	df = DFTable + dfindex;
-	if (df->df_BLink)
-		DFTable[df->df_BLink].df_FLink = df->df_FLink;
-	if (df->df_FLink)
-		DFTable[df->df_FLink].df_BLink = df->df_BLink;
-	ZapDF (df);
+	ZapDF (DFTable + dfindex);
+	dt_RemoveDFE (plat, dfindex);
 }
 
 
 
-
-
-
-static void
-ZapDF (df)
+void
+DataFileGone (df)
 DataFile *df;
 /*
- * Make this file go away.
+ * Notify clients that this DataFile has gone the way of the dinosaurs.
  */
 {
 	struct dsp_DataGone dg;
@@ -871,17 +957,33 @@ DataFile *df;
 		msg_BCast (BCastSocket, &dg, sizeof (dg));
 	}
 /*
- * Make sure we have the file closed, then delete it and it's datafile
- * entry.
+ * Make sure we have the file closed ourselves
  */
 	dfa_ForceClose (df - DFTable);
+}
+
+
+
+
+static void
+ZapDF (df)
+DataFile *df;
+/*
+ * Make this file go away.
+ */
+{
+/*
+ * Let everyone know this file is going away.
+ */
+	DataFileGone (df);
+/*
+ * Unlink the file from in the filesystem.
+ */
 	if (! (df->df_flags & DFF_Remote))
 		if (unlink (dfa_FilePath (PTable + df->df_platform, df)) < 0)
 			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", errno,
 				df->df_name);
-	dt_FreeDFE (df);
 }
-
 
 
 
@@ -1433,6 +1535,8 @@ PlatformId which;
 		answer.dsp_type = dpt_R_PLockGranted;
 		answer.dsp_pid = which;
 		msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+		msg_ELog (EF_DEBUG, 
+			  "Write lock on %s granted to %s",p->dp_name, who);
 	}
 /*
  * Otherwise the request needs to be enqueued.  We do this by putting it 
@@ -1446,6 +1550,8 @@ PlatformId which;
  */
 	else
 	{
+		msg_ELog (EF_DEBUG, 
+			  "%s waiting for write lock on %s", who, p->dp_name);
 		lp->l_Next = p->dp_WLockQ->l_Next;
 		p->dp_WLockQ->l_Next = lp;
 	}
