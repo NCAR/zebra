@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.8 1993-04-21 22:23:39 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.9 1993-05-25 07:03:22 granger Exp $")
 
 /*
  * TODO:
@@ -34,9 +34,6 @@ MAKE_RCSID ("$Id: dc_Transp.c,v 1.8 1993-04-21 22:23:39 granger Exp $")
 
 static DataChunk 	*Dc_TrCreate FP((DataClass));
 static void 		dc_TrDump FP((DataChunk *));
-static PlatformId	*dc_MakePlats FP((DataChunk *));
-static void		dc_MorePlats FP((DataChunk *, int));
-static void		dc_MoreLocs FP((DataChunk *, int));
 /*
  * The basic methods structure.
  */
@@ -94,9 +91,13 @@ typedef struct _AuxTrans
 /*
  * Local routines.
  */
-static AuxTrans * dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
-static int	dc_TrMoreData FP ((DataChunk *, int));
-static int 	dc_PrintSaAttr FP ((char *, char *));
+static PlatformId	*dc_MakePlats FP((DataChunk *));
+static void		dc_MorePlats FP((DataChunk *, int));
+static void		dc_MoreLocs FP((DataChunk *, int));
+static AuxTrans * 	dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
+static int		dc_TrMoreData FP ((DataChunk *, int));
+static int 		dc_PrintSaAttr FP ((char *, char *));
+static int		dc_TrCompareSamples FP((TransSample *, TransSample *));
 
 
 static DataChunk *
@@ -258,7 +259,7 @@ int len;
 	AuxTrans *tp;
 	int offset, ns;
 /*
- * The obbligatory class check.
+ * The obligatory class check.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Add sample"))
 		return;
@@ -422,7 +423,7 @@ ZebTime *t;
 {
 	AuxTrans *tp;
 /*
- * The obbligatory class check.
+ * The obligatory class check.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get sample"))
 		return (FALSE);
@@ -463,7 +464,7 @@ int sample, *len;
 {
 	AuxTrans *tp;
 /*
- * The obbligatory class check.
+ * The obligatory class check.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get sample"))
 		return (NULL);
@@ -489,6 +490,96 @@ int sample, *len;
 
 
 
+void
+dc_SortSamples (dc)
+DataChunk *dc;
+/*
+ * Re-order the samples in this datachunk so that they are in 
+ * chronological order.
+ *
+ * All we need to do is sort the at_Samples array and make sure the
+ * platform list, if any, is kept up to date.
+ */
+{
+	AuxTrans *tp;
+	PlatformId *list;
+	int i;
+	struct sortrecord {
+		TransSample trans;
+		PlatformId pid;
+	} *sr;
+/*
+ * The obligatory class check.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Sort samples"))
+		return ;
+/*
+ * Find our data.
+ */
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
+		return ;
+	}
+/*
+ * If there are 1 or fewer samples, don't bother
+ */
+	if (tp->at_NSample <= 1)
+		return ;
+/*
+ * If there is no platform list, then just sort the at_Samples array
+ */
+	list = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
+					  ST_PLATFORMS, NULL);
+	if (!list)
+	{
+		qsort ((char *)(tp->at_Samples), tp->at_NSample,
+		       sizeof (TransSample), dc_TrCompareSamples);
+		return ;
+	}
+/*
+ * Otherwise combine the TransSample and PlatformId arrays into an array
+ * of sort records, sort the records, and copy the samples and pids from
+ * the sorted array of records.
+ */
+	sr = (struct sortrecord *)malloc(tp->at_NSample * 
+					 sizeof(struct sortrecord));
+	for (i = 0; i < tp->at_NSample; ++i)
+	{
+		sr[i].trans = tp->at_Samples[i];
+		sr[i].pid = list[i];
+	}
+	qsort ((char *)sr, tp->at_NSample,
+	       sizeof (struct sortrecord), dc_TrCompareSamples);
+	for (i = 0; i < tp->at_NSample; ++i)
+	{
+		tp->at_Samples[i] = sr[i].trans;
+		list[i] = sr[i].pid;
+	}
+	free (sr);
+}
+
+
+
+static int
+dc_TrCompareSamples (s1, s2)
+TransSample *s1;
+TransSample *s2;
+/*
+ * Return -1 if time of s1 before s2, 0 if time of s1 == s2, and 
+ * 1 if time of s1 after s2
+ */
+{
+	if (TC_Less(s1->ats_Time, s2->ats_Time))
+		return -1;
+	else if (TC_Less(s2->ats_Time, s1->ats_Time))
+		return 1;
+	else
+		return 0;
+}
+
+
 
 
 static void
@@ -501,8 +592,9 @@ DataChunk *dc;
 	AuxTrans *tp;
 	int i, len;
 	char atime[40];
+	PlatformId *list;
 /*
- * The obbligatory class check.
+ * The obligatory class check.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get sample"))
 		return;
@@ -515,6 +607,8 @@ DataChunk *dc;
 		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
 		return;
 	}
+	list = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
+					  ST_PLATFORMS, NULL);
 /*
  * Go for it.
  */
@@ -527,10 +621,13 @@ DataChunk *dc;
 	 */
 		TransSample *ts = tp->at_Samples + i;
 		TC_EncodeTime (&ts->ats_Time, TC_Full, atime);
-		printf ("\t%2d at %s, len %d offset %d\n", i,
+		printf ("\t%2d at %s, len %d offset %d", i,
 			atime, ts->ats_Len, ts->ats_Offset);
+		if (list)
+			printf (", plat '%s'", ds_PlatformName (list[i]));
+		printf ("\n");
 	/*
-	 * If there are sample attributs, do them too.
+	 * If there are sample attributes, do them too.
 	 */
 		if (dca_GetBlock (dc, DCC_Transparent, ST_ATTR + i, &len))
 			dca_ProcAttrs (dc, DCC_Transparent, ST_ATTR + i,
@@ -679,7 +776,7 @@ Location *loc;
 	Location *locs;
 	AuxTrans *tp;
 /*
- * The obbligatory class check.
+ * The obligatory class check.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "GetLoc"))
 		return;
@@ -734,7 +831,7 @@ int sample, newsize;
 	int i, diff, oldlen = dc->dc_DataLen;
 	TransSample *ts;
 /*
- * The obbligatory class check.
+ * The obligatory class check.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"Adjust sample"))
 		return;
