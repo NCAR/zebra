@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.22 1995-05-24 21:26:53 granger Exp $
+XCOMM $Id: Imakefile,v 1.23 1996-02-03 22:36:50 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -103,12 +103,12 @@ World::
 			INCLUDES=-I../project \
 			BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
+	$(MAKE) -f Makefile.bak MAKE=$(MAKE) $(MFLAGS) Makefile
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) clean
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(WORLDOPTS) install
+	$(MAKE) $(WORLDOPTS) MAKE=$(MAKE) $(MFLAGS) install
 	@echo ""
 	@date
 	@echo ""
@@ -122,14 +122,14 @@ Everything::
 	@date
 	@echo ""
 	cd $(IMAKESRC); \
-		$(MAKE) $(MFLAGS) -f Makefile.ini \
+		$(MAKE) -f Makefile.ini $(MFLAGS) \
 		BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
+	$(MAKE) -f Makefile.bak MAKE=$(MAKE) $(MFLAGS) Makefile
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(WORLDOPTS) install
+	$(MAKE) $(WORLDOPTS) MAKE=$(MAKE) $(MFLAGS) install
 	@echo ""
 	@date
 	@echo ""
@@ -182,7 +182,7 @@ tarfile:
 		cp ../Makefile.ini Makefile \
 	  ) ; \
 	  tar cvhf - $(LINKNAMES) \
-	     `$(MAKE) MAKE=$(MAKE) $(MFLAGS) -s DISTCURDIR=$(TARFILE) distfiles` | \
+	     `$(MAKE) -s MAKE=$(MAKE) $(MFLAGS) DISTCURDIR=$(TARFILE) distfiles` | \
 		  $(ZIPPIPE) > $(TARFILE).tar.$(ZIPEXT) ; \
 	  rm -rf $(TARFILE) ; \
 	  echo Done making $(TARFILE).tar.$(ZIPEXT) ; \
@@ -199,7 +199,7 @@ srcfile:
 		  $(LN) ../$$f . ; \
 	  done) ; \
 	  tar cvhf - \
-	     `$(MAKE) MAKE=$(MAKE) $(MFLAGS) -s DISTCURDIR=$(SRCFILE) \
+	     `$(MAKE) -s MAKE=$(MAKE) $(MFLAGS) DISTCURDIR=$(SRCFILE) \
 	      DISTSUBDIRS="$(SRCSUBDIRS)" distfiles ` | \
 		  $(ZIPPIPE) > $(SRCFILE).tar.$(ZIPEXT) ; \
 	  rm -rf $(SRCFILE) ; \
