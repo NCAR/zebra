@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.24 1996-08-21 22:16:37 granger Exp $ */
+/* $Id: message.h,v 2.25 1996-09-02 06:48:27 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -306,6 +306,7 @@ void msg_join FP ((char *));
 void msg_quit FP ((char *));
 void msg_log FP ((/* char *, ... */));
 void msg_ELog FP ((/* int flag, char *s, ... */));
+int msg_LogCallback FP ((int mask, int (*fn) (), void *arg));
 int msg_ELSendMask FP ((int mask));
 int msg_ELPrintMask FP ((int mask));
 void msg_add_fd FP ((int, int (*handler) ()));

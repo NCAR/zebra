@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.39 1996-08-22 02:13:56 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.40 1996-09-02 06:48:28 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -81,6 +81,9 @@ static int NoConnection = 1; 	/* True when in a non-connected state */
 static int PrintMask = (EF_ALL & ~(EF_DEVELOP) & ~(EF_DEBUG));
 static int SendMask = 0x00;
 static char LogBuffer[1024];	/* for msg_log and msg_ELog to share */
+static int (*LogCB)() = NULL;	/* log callback function */
+static int CBMask = 0;		/* callback mask */
+static void *CBArg = NULL;	/* callback arg */
 
 /*
  * Echo mode: a test mode where we first send all of our messages to 
@@ -1823,6 +1826,12 @@ msg_SendLog (el)
 struct msg_elog *el;
 {
 /*
+ * The callback function, if any, gets first dibs at suppressing the message.
+ */
+	if (LogCB && (el->el_flag & CBMask) &&
+	    (int)(*LogCB)(el->el_flag, el->el_text, CBArg))
+		return;
+/*
  * If this message won't get logged, don't bother sending it.
  */
 	el->el_flag &= ~EF_DEVELOP;
@@ -1847,5 +1856,33 @@ struct msg_elog *el;
 			  sizeof (*el) + strlen (el->el_text));
 	}
 }
+
+
+
+int
+msg_LogCallback (mask, fn, arg)
+int mask;
+int(*fn)();
+void *arg;
+/*
+ * Register this callback function to be called every for every log 
+ * message matched by mask.  Passing zero for the mask or NULL for the
+ * function disables callbacks.
+ */
+{
+	if (! mask || ! fn)
+	{
+		CBMask = 0;
+		LogCB = NULL;
+		CBArg = NULL;
+	}
+	else
+	{
+		CBMask = mask;
+		LogCB = fn;
+		CBArg = arg;
+	}
+}
+
 
 
