@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 3.3 1993-07-01 20:17:18 granger Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 3.4 1994-01-03 07:25:36 granger Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -438,6 +438,7 @@ int newfile;
 	DataDone done;
 	AuxDataChain ade;
 	PlatformId plat = dc->dc_Platform;
+	int i, j;
 /*
  * Create and send out the data header.
  */
@@ -452,8 +453,12 @@ int newfile;
 /*
  * Send out the auxdata entries.
  */
-	for (ade = dc->dc_AuxData; ade; ade = ade->dca_Next)
-		SendAux (plat, ade);
+	for (i = 0; i < ADE_DCC_LEVELS; ++i)
+		for (j = 0; j < ADE_HASH_SIZE; ++j)
+		{
+		   for (ade = dc->dc_AuxData[i][j]; ade; ade = ade->dca_Next)
+			SendAux (plat, ade);
+		}
 /*
  * Send over the data itself.
  */
@@ -790,7 +795,7 @@ DataHdr *hdr;
 	ip->ip_Dc = ALLOC (DataChunk);
 	*ip->ip_Dc = hdr->dh_DChunk;
 	ip->ip_Dc->dc_Platform = ip->ip_Plat;
-	ip->ip_Dc->dc_AuxData = 0;
+	memset ((void *)ip->ip_Dc->dc_AuxData,0,sizeof(ip->ip_Dc->dc_AuxData));
 	ip->ip_Dc->dc_Data = (DataPtr) GetDataArray (ip->ip_Seq,
 					ip->ip_Dc->dc_DataLen);
 /*
@@ -821,7 +826,8 @@ NxAuxData *nxa;
  * Here's a new aux data entry.
  */
 {
-	AuxDataEntry *ade = ALLOC (AuxDataEntry);
+	AuxDataEntry *ade = &(nxa->dh_Ade);
+	DataPtr data;
 	InProgress *ip;
 /*
 	msg_ELog (EF_DEBUG, "ADE, seq %d, len %d, class %d sub %d", 
@@ -834,15 +840,16 @@ NxAuxData *nxa;
 	if (! (ip = FindIP (nxa->dh_DataSeq)))
 		return;
 /*
- * Fill in the ADE and add it to the data chunk.
+ * Create a local copy of the data
  */
-	*ade = nxa->dh_Ade;
-	ade->dca_Data = (DataPtr) malloc (ade->dca_Len);
-	memcpy (ade->dca_Data, nxa->dh_Stuff, ade->dca_Len);
-	ade->dca_Next = ip->ip_Dc->dc_AuxData;
-	ip->ip_Dc->dc_AuxData = ade;
+	data = (DataPtr) malloc (ade->dca_Len);
+	memcpy (data, nxa->dh_Stuff, ade->dca_Len);
+/*
+ * Add this ade and the data by passing the fields from the ade
+ */
+	dc_AddADE (ip->ip_Dc, data, ade->dca_Class, ade->dca_SubType,
+		   ade->dca_Len, ade->dca_Free);
 }
-
 
 
 
