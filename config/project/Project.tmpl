@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.63 1997-09-18 21:50:38 ishikawa Exp $
+XCOMM $Id: Project.tmpl,v 1.64 1997-09-24 16:08:53 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -1027,14 +1027,11 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  */
 #if defined(SGIArchitecture) || defined(AIXArchitecture) || defined(OSF1Architecture)
 .SUFFIXES:	.cc
+#endif
 
-.cc.o:
-	$(CXX) -ansi $(CXXFLAGS) $(DEFINES) -c $<
-#else
 .cc.o:
 	$(CXX) $(CXXFLAGS) $(DEFINES) -c $<
 
-#endif
 
 /*
  * HP's f77 groks .F files, but somebody forgot to tell their make about it.
