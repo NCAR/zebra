@@ -1,4 +1,4 @@
-35
+37
 000000%000000Welcome to Zeb
 788
 
@@ -56,45 +56,8 @@ To remove the help window, click on the <Quit> button found
 above the row of icon buttons in the help window.  If help
 is requested at a later time, the help window will pop up
 again.
-shutdown     Shutting Down Zeb
-1211
-
-/ SHUTTING DOWN ZEB /
-
-Stopping the Zeb system entails two steps.  First, you must
-stop the Zeb graphics display.  Move the cursor to the
-<Zeb> icon in the Icon Bar.  Press and hold the left mouse
-button.  Drag the cursor until the entry "Shut down Zeb
-system" is highlighted.  Release the mouse button.
-
-The Icon Bar, the graphics windows, and all associated
-widgets such as the Time widget, the Hardcopy widget,
-and the Movie and Overlay widgets will disappear from
-the screen.
-
-If it is not possible to use the Icon Bar, the graphics
-display may be stopped by typing the following command at
-the display manager prompt:
-
-        DM> exit
-
-In the second step, the rest of the Zeb background
-processes must be stopped.  Type this command at any
-shell prompt, assuming the Zeb executable directory
-is in your path:
-
-	% zebstop
-
-This command stops processes such as the DataStore and
-the EventLogger.
-
-/ STORM-FEST CD SPECIFICS /
-
-If you are using the STORM-FEST CD-ROM distribution of Zeb,
-the script which starts the Zeb system also automatically
-shuts down all of the Zeb processes once the graphics
-display is shut down.  Hence STORM-FEST CD users do not
-need to perform the second step mentioned above.  
+tablecontentsTable of Contents
+1
 
 components   Zeb System Components
 5088
@@ -337,6 +300,46 @@ the platform icons represent these platform categories:
 	GOES Satellite
 	Aircraft tracks and track data
 	Static overlays
+
+shutdown     Shutting Down Zeb
+1211
+
+/ SHUTTING DOWN ZEB /
+
+Stopping the Zeb system entails two steps.  First, you must
+stop the Zeb graphics display.  Move the cursor to the
+<Zeb> icon in the Icon Bar.  Press and hold the left mouse
+button.  Drag the cursor until the entry "Shut down Zeb
+system" is highlighted.  Release the mouse button.
+
+The Icon Bar, the graphics windows, and all associated
+widgets such as the Time widget, the Hardcopy widget,
+and the Movie and Overlay widgets will disappear from
+the screen.
+
+If it is not possible to use the Icon Bar, the graphics
+display may be stopped by typing the following command at
+the display manager prompt:
+
+        DM> exit
+
+In the second step, the rest of the Zeb background
+processes must be stopped.  Type this command at any
+shell prompt, assuming the Zeb executable directory
+is in your path:
+
+	% zebstop
+
+This command stops processes such as the DataStore and
+the EventLogger.
+
+/ STORM-FEST CD SPECIFICS /
+
+If you are using the STORM-FEST CD-ROM distribution of Zeb,
+the script which starts the Zeb system also automatically
+shuts down all of the Zeb processes once the graphics
+display is shut down.  Hence STORM-FEST CD users do not
+need to perform the second step mentioned above.  
 
 historytime  Setting a History Time
 6415
@@ -1200,114 +1203,6 @@ To return to the perspective from which you zoomed an area,
 press 'b'.  You can zoom an area successively any number of
 times; pressing 'b' steps back from each zoomed perspective
 one zoom at a time.
-addrem       Adding and Removing Data in Horizontal Plots
-3218
-
-/ DATA REPRESENTATIONS /
-
-Several types of data may be displayed in a
-constant-altitude (horizontal cross-section) plot using
-different 'representations'.  The 'representation'
-essentially refers to the type of plot used to display the
-data in a graphics window.  Examples are listed below.
-
-Static overlays; for lat/lon
-grids, x/y grids, range rings, state boundaries, dual
-doppler lobes, and locations of towns, airports, and
-sounding sites,
-
-Raster Images; for radar, satellite, and nowrad,
-
-Filled Contours; for surface data,
-
-Contours; for nowrad and surface data,
-
-Station plots; for surface data, and
-
-Aircraft tracks; for research aircraft.
-
-Raster Images and Filled Contours are opaque, meaning if a
-radar image is added to a window already containing
-satellite data, the satellite data will not be visible.
-
-/ ADDING DATA /
-
-To add a data representation to a window,
-
-	1.  Place the cursor over the icon in the IconBar
-	    which corresponds to the desired data.
-
-	2.  Press and hold the left mouse button.
-
-	3.  Drag the cursor until the desired platform
-	    data and representation is highlighted.  
-
-	4.  Let go of the mouse button.  The mouse cursor
-	    will become a cross-hair symbol.
-
-	5.  Move the cursor into the graphics window where
-	    the data should be added.
-
-	6.  Click the left mouse button.
-
-Here are some examples:  To add a raster-image
-representation of CP4 velocity data, choose the "velocity"
-item from the "CP4" sub-menu under the <Radar> icon on the
-Icon Bar.  To add P-3 aircraft tracks, select "P-3" from
-the <Aircraft> icon pull-down menu.  For mesonet data,
-several combinations are available under the <Mesonet> icon
-menu, from a filled-contour representation of five-minute
-data to irregular station plots of hourly data.  Note that
-choosing data to add usually involves not only a choice of
-the data platform but also a choice of a particular field
-from that platform.
-
-
-/ REMOVING DATA /
-
-To remove data from a graphics window,
-
-	1.  Place the cursor over the icon in the graphics
-	    window (not the Icon Bar) which corresponds to
-	    the data to be deleted.
-
-	2.  Press and hold the left mouse button.
-
-	3.  Drag the cursor until the "Remove" menu entry
-	    is highlighted.
-
-	4.  Let go of the mouse button.
-
-The data and its icon will be removed from the graphics
-window.
-
-
-/ DISABLING AND RE-ENABLING DATA /
-
-Rather than completely remove a data set from a graphics
-window, you can temporarily disable it instead.  Disabling
-a data field means that the representation of the data will
-not be plotted in the window, but the icon and its current
-configuration will remain attached to the graphics window. 
-This allows the data to be quickly re-plotted using its
-most recent settings when the plot representation is
-re-enabled.  To disable or re-enable a data field, follow
-these steps:
-
-	1.  Place the cursor over the icon in the graphics
-	    window which corresponds to the data.
-
-	2.  Press and hold the left mouse button.
-
-	3.  Drag the cursor until the "Disable/Reenable"
-	    menu entry is highlighted.
-
-	4.  Release the mouse button.
-
-The icon will change color, typically to gray, to indicate
-that this icon's data is no longer being displayed in the
-plot.
-
 limitwidgets Adjusting Limits
 4331
 
@@ -1512,6 +1407,113 @@ horizontal plots:
 
 Each of these topics can be reached in succession by
 clicking the <Down> icon button in the help window.
+
+addrem       Adding and Removing Data in Horizontal Plots
+3218
+
+/ DATA REPRESENTATIONS /
+
+Several types of data may be displayed in a
+constant-altitude (horizontal cross-section) plot using
+different 'representations'.  The 'representation'
+essentially refers to the type of plot used to display the
+data in a graphics window.  Examples are listed below.
+
+Static overlays; for lat/lon grids, x/y grids, range rings,
+state boundaries, dual doppler lobes, and locations of
+towns, airports, and sounding sites,
+
+Raster Images; for radar, satellite, and nowrad,
+
+Filled Contours; for surface data,
+
+Contours; for nowrad and surface data,
+
+Station plots; for surface data, and
+
+Aircraft tracks; for research aircraft.
+
+Raster Images and Filled Contours are opaque, meaning if a
+radar image is added to a window already containing
+satellite data, the satellite data will not be visible.
+
+/ ADDING DATA /
+
+To add a data representation to a window,
+
+	1.  Place the cursor over the icon in the IconBar
+	    which corresponds to the desired data.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the desired platform
+	    data and representation is highlighted.  
+
+	4.  Let go of the mouse button.  The mouse cursor
+	    will become a cross-hair symbol.
+
+	5.  Move the cursor into the graphics window where
+	    the data should be added.
+
+	6.  Click the left mouse button.
+
+Here are some examples:  To add a raster-image
+representation of CP4 velocity data, choose the "velocity"
+item from the "CP4" sub-menu under the <Radar> icon on the
+Icon Bar.  To add P-3 aircraft tracks, select "P-3" from
+the <Aircraft> icon pull-down menu.  For mesonet data,
+several combinations are available under the <Mesonet> icon
+menu, from a filled-contour representation of five-minute
+data to irregular station plots of hourly data.  Note that
+choosing data to add usually involves not only a choice of
+the data platform but also a choice of a particular field
+from that platform.
+
+
+/ REMOVING DATA /
+
+To remove data from a graphics window,
+
+	1.  Place the cursor over the icon in the graphics
+	    window (not the Icon Bar) which corresponds to
+	    the data to be deleted.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the "Remove" menu entry
+	    is highlighted.
+
+	4.  Let go of the mouse button.
+
+The data and its icon will be removed from the graphics
+window.
+
+
+/ DISABLING AND RE-ENABLING DATA /
+
+Rather than completely remove a data set from a graphics
+window, you can temporarily disable it instead.  Disabling
+a data field means that the representation of the data will
+not be plotted in the window, but the icon and its current
+configuration will remain attached to the graphics window. 
+This allows the data to be quickly re-plotted using its
+most recent settings when the plot representation is
+re-enabled.  To disable or re-enable a data field, follow
+these steps:
+
+	1.  Place the cursor over the icon in the graphics
+	    window which corresponds to the data.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the "Disable/Reenable"
+	    menu entry is highlighted.
+
+	4.  Release the mouse button.
+
+The icon will change color, typically to gray, to indicate
+that this icon's data is no longer being displayed in the
+plot.
 
 getposition  Displaying Coordinates in Horizontal Plots
 3171
@@ -1924,7 +1926,7 @@ Flag                Definition
                     station or is not applicable
 6                   Estimated Value
 5                   "Glitch"
-xygraph      Using X-Y Graphs
+xygraph      X-Y Graphs
 1268
 
 / X-Y GRAPHS /
@@ -1970,7 +1972,7 @@ If changing the color and the representation of data points
 is allowed, then menus to do this will be found by clicking
 the right mouse button on the icons in the graphics window.
 
-Cross-sectionUsing Cross-section Plots
+Cross-sectionCross-section Plots
 2429
 
 / USING CROSS-SECTION PLOTS /
@@ -2028,6 +2030,8 @@ data.  The value for each point in the plane is interpolated
 bilinearly from the four surrounding source grid points at
 the same vertical level.
 
+xsectplatformSelecting Platforms for Cross-section Plots
+0
 skewt        Skew-T Plots
 1118
 
