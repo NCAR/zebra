@@ -17,7 +17,7 @@
 
 # define HIDE_BUTTON 0
 
-RCSID ("$Id: XArchiver.cc,v 1.2 1999-11-24 00:03:09 granger Exp $")
+RCSID ("$Id: XArchiver.cc,v 1.3 2001-09-18 21:54:32 granger Exp $")
 
 class XArchiverView : public ArchiverView
 {
@@ -354,7 +354,7 @@ XArchiverView::MakeWidgets ()
 	Sync ();
 
 	connection = XConnectionNumber (XtDisplay (Top));
-	msg_add_fd (connection, (int (*)(...))xevent);
+	msg_add_fd (connection, (int (*)())xevent);
 }
 
 

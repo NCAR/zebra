@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.50 2001-02-01 02:03:57 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.51 2001-09-18 21:54:32 granger Exp $")
 
 /*
  * Issues:
@@ -355,9 +355,12 @@ static int	MountJaz  (void);
 static int	netread  (int fd, char *dest, int len);
 
 /*-- Timer event handlers --*/
-extern "C" void	TimerSaveFiles  (ZebTime *zt);
-extern "C" void	TimerResumeWrite (ZebTime *zt);
-extern "C" void TimerRemaining (ZebTime *zt, void *cdata);
+extern "C" 
+{
+  static void TimerSaveFiles  (ZebTime *zt);
+  static void TimerResumeWrite (ZebTime *zt);
+  static void TimerRemaining (ZebTime *zt, void *cdata);
+}
 
 /*-- high-level write and datastore interaction */
 static void	RequestWrite (int finish);
@@ -842,7 +845,7 @@ Usage(char *prog, int argc, char **argv)
 
 
 
-static void
+void
 Finish ()
 /*
  * Finish things out.
@@ -925,7 +928,7 @@ SetupTimer ()
     while (zt.zt_Sec < current.zt_Sec)
 	zt.zt_Sec += DumpInterval * 60;
 						
-    TimerEvent = tl_AbsoluteReq ((void (*)(...))TimerSaveFiles,
+    TimerEvent = tl_AbsoluteReq ((void (*)())TimerSaveFiles,
 				 0, &zt, DumpInterval*60*INCFRAC);
 }
 
@@ -2047,7 +2050,7 @@ WriteNow()
 		 * TimerSaveFiles to be entered upon return from
 		 * this callback, when Message messages are handled
 		 */
-		tl_RelativeReq ((void (*)(...))TimerSaveFiles, 0, 0, 0);
+		tl_RelativeReq ((void (*)())TimerSaveFiles, 0, 0, 0);
 	}
 }
 
@@ -2086,7 +2089,7 @@ SuspendWrite (Widget w, XtPointer call_data)
 	{
 		tl_Cancel(ResumeEvent);
 	}
-	ResumeEvent = tl_RelativeReq((void (*)(...))TimerResumeWrite,
+	ResumeEvent = tl_RelativeReq((void (*)())TimerResumeWrite,
 				     0, waitsecs * INCFRAC, 0);
 
 	/*
@@ -2108,7 +2111,7 @@ SuspendWrite (Widget w, XtPointer call_data)
 	{
 		tl_Cancel(RemainingEvent);
 	}
-	RemainingEvent = tl_RelativeReq((void (*)(...))TimerRemaining, 
+	RemainingEvent = tl_RelativeReq((void (*)())TimerRemaining, 
 					&ends, 0, 15 * INCFRAC);
 
 	/*
