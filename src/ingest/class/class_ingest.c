@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.7 1992-11-20 19:24:25 granger Exp $
+ * $Id: class_ingest.c,v 2.8 1992-12-22 18:44:46 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -29,7 +29,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.7 1992-11-20 19:24:25 granger Exp $")
+   "$Id: class_ingest.c,v 2.8 1992-12-22 18:44:46 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -86,7 +86,7 @@ int main (argc, argv)
 	ZebTime *times;		/* Times for ea. sample in the s'nding file */
 	int nsamples;		/* Number of samples, or pts, in the file */
 	DataChunk *Dchunk;   	/* The DataChunk we will be building */
-	struct ui_command end_cmd = { UTT_END };
+	static struct ui_command end_cmd = { UTT_END };
 	static char ctime[40];
 
 /*
