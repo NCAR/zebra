@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.24 1993-11-24 15:45:45 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.25 1993-11-30 22:14:03 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -268,9 +268,10 @@ char	*param;
 		{
 			pc_PlotHandler ();	/* Schedule an update	*/
 			aa_ResetAreas ();
-			return;			/* That's enough	*/
 		}
-		else mc_ParamChange();
+		else
+			mc_ParamChange();
+		return;
 	}
 /*
  * Otherwise do what it says.
