@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.14 1993-10-22 21:25:08 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.15 1993-10-26 21:29:40 corbet Exp $")
 
 
 
@@ -565,12 +565,7 @@ int dobarnes;
  * Call the ugly interpolation routine.
  */
 	ip = dobarnes ? 2 : 0;
-# ifdef hpux
-	bints
-#else
-	bints_
-# endif
-		(grid, &rg.rg_nX, &rg.rg_nY, xpos, ypos, dp, dz, dzr, &nsta,
+	bints_ (grid, &rg.rg_nX, &rg.rg_nY, xpos, ypos, dp, dz, dzr, &nsta,
 			&ip, &radius, &rmx, &nqd, &nfilt, &badflag);
 /*
  * Finish fixing up the data chunk, and return.
@@ -692,14 +687,7 @@ char *field;
 	msg_ELog (EF_DEBUG,
 		"Call rgrid, %d x %d, np %d, (%.2f %.2f) to (%.2f %.2f)",
 		rg.rg_nX, rg.rg_nY, npoint, xmin, ymin, xmax, ymax);
-
-	status =
-# ifdef hpux
-		do_rgrid
-# else
-		do_rgrid_
-# endif
-			(grid, &rg.rg_nX, &rg.rg_nY, &npoint, dp, &badflag,
+	status = do_rgrid_ (grid, &rg.rg_nX, &rg.rg_nY, &npoint, dp, &badflag,
 			 xpos, ypos, &xmin, &ymin, &xmax, &ymax, scratch);
 /*
  * Clean up.
