@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.50 1997-02-14 07:33:22 granger Exp $")
+RCSID ("$Id: message.c,v 2.51 1997-03-27 00:31:03 granger Exp $")
 
 /*
  * Symbol tables.
@@ -1124,9 +1124,9 @@ struct message *msgp;
 	}
 	else
 	{
-		deadconn (conp->c_fd);
 		log (EF_PROBLEM, "Write failed for %s, errno %d",
 		     conp->c_name, errno);
+		deadconn (conp->c_fd);
 	}
 	if (at)
 		*at = '\0';
