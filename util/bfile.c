@@ -1,15 +1,16 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.6 1990-05-17 14:56:02 corbet Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.7 1990-11-12 14:36:31 burghart Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
  * other systems, and must be emulated.
  */
 # ifdef NETACCESS
-#   include "netdisk.h"
+#	include "netdisk.h"
 # endif
 
 # ifdef UNIX
+#	include <unistd.h>
 /* hack to make rfa work */
 static long Offset = 0;
 # endif
@@ -257,3 +258,25 @@ short rfa[3];
 # endif
 }
 
+
+
+
+bfrewind (fd)
+int fd;
+/*
+ * Rewind this file.
+ */
+{
+# ifdef UNIX
+#    ifdef NETACCESS
+	if (lun_type (fd) == LUN_NTDSK_DISK)
+		drewind (fd);
+	else
+		lseek (lun_lookup (fd), 0, SEEK_SET);
+#    else
+	lseek (fd, 0, SEEK_SET);
+#    endif
+# else
+	drewind (fd);
+# endif
+}
