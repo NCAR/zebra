@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.37 1996-01-23 20:10:25 granger Exp $
+XCOMM $Id: config.h.dist,v 1.38 1996-01-25 01:03:10 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -101,7 +101,6 @@ XCOMM -----------------------------------------------------------------------
 # define BaseDir	/zeb
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
-# define DataDir	/zeb/data
 
 /*
  * If RDSS is already installed on the system elsewhere, define the RDSSDir
@@ -283,20 +282,6 @@ XCOMM -----------------------------------------------------------------------
 # define UseGcc YES
 
 /*
- * The PD monitor utility is an emacs program which provides interactive
- * run-time editing, checking, and monitoring of graphics processes' plot
- * descriptions.  If you have emacs (not version 19), and wish to compile
- * the emacs lisp code for the PD monitor, define HaveEmacs to YES and make
- * sure EmacsPath points to the emacs program.  The default is NO.  Even if
- * the elisp code is not compiled and installed, the elisp source files
- * will still be installed, so these can be used as is or byte-compiled
- * later.  If you have Emacs 19, the elisp code cannot be batch compiled,
- * so set HaveEmacs to NO. The Emacs 19 lisp file will still be installed.
- */
-# define HaveEmacs NO
-# define EmacsPath emacs
-
-/*
  * Zebra uses the RDSS UI compiler to generate load files for much of its
  * user interface.  If the UI compiler, uic, is not in your path, define
  * the full path of uic, including the executable name, in the symbol
@@ -341,16 +326,20 @@ XCOMM -----------------------------------------------------------------------
 /*
  * To change other compiler command line options, such as required by your
  * compiler (floating point stuff, etc.), or optimization flags, define
- * CCOptions and FortOptions.  The default is optimization, -O.  If you change
- * the definition on HP-UX, you must include the +ppu option.
+ * CCOptions and FortOptions.  The default is optimization, -O.
  *
- * HP-UX: Do NOT turn on the ANSI ("-Aa") option with the HP native compiler,
- *	  or you will encounter more weirdness than you ever wished to deal
- *	  with.  If you override the default for FortOptions, you must also
+ * HP-UX: If you will be including the "Proj" map projection library and
+ *	  compiling with the HP native compiler, the HP cc must be given
+ *	  the ANSI "-Aa" option to be able to compile the Proj library
+ *	  header file.  The CCOptions default of "-Aa" for the native
+ *	  compiler should suffice.  If you change CCOptions and you are
+ * 	  compiling Proj, be sure to include the -Aa option. 
+ *
+ * HP-UX: If you override the default for FortOptions, you must also
  *	  provide the "+ppu" option or you will get undefined externals when
  *	  you link the graphics process.  Ordinarily the default will suffice.
- *
  */
+
 /* # define CCOptions -O */
 
 /* # define FortOptions -O +ppu */
@@ -1013,5 +1002,22 @@ XCOMM -----------------------------------------------------------------------
 # define MAX_PLAT_LEN	160	/* Maximum platform len -- remember lists */
 # define MAX_PARAM_LEN	40	/* Length of parameter names		*/
 # define TIME_LEN	40	/* Length needed for encoded times	*/
+
+/* --- Some obsolete configuration symbols put here to be forgotten --- */
+/* --- and to simplify the installation process                     --- */
+
+/*
+ * The PD monitor utility is an emacs program which provides interactive
+ * run-time editing, checking, and monitoring of graphics processes' plot
+ * descriptions.  If you have emacs (not version 19), and wish to compile
+ * the emacs lisp code for the PD monitor, define HaveEmacs to YES and make
+ * sure EmacsPath points to the emacs program.  The default is NO.  Even if
+ * the elisp code is not compiled and installed, the elisp source files
+ * will still be installed, so these can be used as is or byte-compiled
+ * later.  If you have Emacs 19, the elisp code cannot be batch compiled,
+ * so set HaveEmacs to NO. The Emacs 19 lisp file will still be installed.
+ */
+# define HaveEmacs NO
+# define EmacsPath emacs
 
 # endif /* ! _zeb_config_h_ */
