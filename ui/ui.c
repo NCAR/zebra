@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.13 1990-09-19 09:11:09 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.14 1991-12-10 19:23:30 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -88,6 +88,7 @@ bool interact, nokeypad;
  */
 {
 	union usy_value v;
+	char sdfname[200];
 /*
  * Create an initial control stack, which puts us into command mode.  Since
  * new Cstack entries are cloned from existing ones, it behooves us to
@@ -153,6 +154,13 @@ bool interact, nokeypad;
 	v.us_v_ptr = SYSTEM_TYPE;
 	usy_s_symbol   (Ui_variable_table, "ui$system_type", SYMT_STRING, &v);
 	Bail = TRUE;
+/*
+ * Also a variable to say where to get the UI state defs.
+ */
+	strcpy (sdfname, UIDIR);
+	strcat (sdfname, "/ui_commands");
+	v.us_v_ptr = sdfname;
+	usy_s_symbol (Ui_variable_table, "ui$defs_file", SYMT_STRING, &v); 
 /*
  * Initialize other stuff.
  */
@@ -1740,7 +1748,7 @@ char *command;
  * Cause this command to be executed; not returning until it is done.
  */
 {
-	char *fixedcmd = getvm (strlen (command) + 1);
+	char *fixedcmd = getvm (strlen (command) + 2);
 /*
  * Throw the M_NONE entry onto the list.  This mode essentially acts like
  * break, to insure that ui_do_cmode will quit when the input runs out.
