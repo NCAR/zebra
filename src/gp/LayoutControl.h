@@ -97,7 +97,7 @@ typedef struct DataVal_
 	int	i;
 	float	f;
 	double	d;
-	time	t;
+	ZebTime	t;
     } val;
 } DataValRec, *DataValPtr;
 extern  DataValRec	UX0,UX1,UY0,UY1;

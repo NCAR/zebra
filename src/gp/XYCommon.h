@@ -35,9 +35,9 @@ extern void xy_GetCurrentScaleBounds FP((plot_description,char*,int,int,
 extern void xy_AdjustAxes FP((plot_description,char*, int,int,int,int));
 
 /* Data Control routines */
-extern void xy_SetPrivateDD  FP(( plot_description, char*, time*,time*,int*));
-extern void xy_GetDataDescriptors FP(( plot_description,char*,int,time*,time*,
-		time*,time*,int*,int*));
+extern void xy_SetPrivateDD  FP(( plot_description, char*, ZebTime*,ZebTime*,int*));
+extern void xy_GetDataDescriptors FP(( plot_description,char*,int,ZebTime*,ZebTime*,
+		ZebTime*,ZebTime*,int*,int*));
 extern void xy_GetPlotColors FP((plot_description,char*,int,char*[],char*));
 extern void xy_GetDataMinMax FP((int, DataValPtr, DataValPtr, DataValPtr, int));
-extern int xy_AvailableData FP((PlatformId, time,time,time, time*,time*));
+extern int xy_AvailableData FP((PlatformId, ZebTime*,ZebTime*,ZebTime*, ZebTime*,ZebTime*));

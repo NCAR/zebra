@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.4 1992-01-29 22:28:26 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.5 1992-08-10 18:09:16 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -330,8 +330,7 @@ double		incr;
     switch ( d1->type )
     {
 	case 't':
-	    timeSec = GetSec(d1->val.t) - (long)incr;
-	    lc_GetTime ( &(d1->val.t), timeSec);
+	    d1->val.t.zt_Sec -= (long)incr;
 	break;
 	case 'i':
 	    d1->val.i -= (int)incr;
@@ -353,8 +352,7 @@ double		incr;
     switch ( d1->type )
     {
 	case 't':
-	    timeSec = GetSec(d1->val.t) + (long)incr;
-	    lc_GetTime ( &(d1->val.t), timeSec);
+	    d1->val.t.zt_Sec += (long)incr;
 	break;
 	case 'i':
 	    d1->val.i += (int)incr;
@@ -376,7 +374,8 @@ DataValPtr	d1,d2;
     switch ( d1->type )
     {
 	case 't':
-	    val = GetSec(d1->val.t) - GetSec(d2->val.t);
+	    val = d1->val.t.zt_Sec - d2->val.t.zt_Sec;
+	    if ( !val ) val = d1->val.t.zt_MicroSec - d2->val.t.zt_MicroSec;
 	break;
 	case 'i':
 	    val = d1->val.i-d2->val.i;
@@ -404,8 +403,8 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(GetSec(UY1.val.t) - GetSec(UY0.val.t));
-	    uy = (float)(GetSec(user_y->val.t) - GetSec(UY0.val.t));
+	    uy1 = (float)(UY1.val.t.zt_Sec - UY0.val.t.zt_Sec);
+	    uy = (float)(user_y->val.t.zt_Sec - UY0.val.t.zt_Sec);
 	break;
 	case 'd':
 	    uy0 = (float)UY0.val.d;
@@ -462,8 +461,8 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    ux0 = 0.0;
-	    ux1 = (float)(GetSec(UX1.val.t) - GetSec(UX0.val.t));
-	    ux = (float)(GetSec(user_x->val.t) - GetSec(UX0.val.t));
+	    ux1 = (float)(UX1.val.t.zt_Sec - UX0.val.t.zt_Sec);
+	    ux = (float)(user_x->val.t.zt_Sec - UX0.val.t.zt_Sec);
 	break;
 	case 'd':
 	    ux0 = (float)UX0.val.d;
@@ -526,7 +525,7 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    ux0 = 0.0;
-	    ux1 = (float)(GetSec(UX1.val.t) - GetSec(UX0.val.t));
+	    ux1 = (float)(UX1.val.t.zt_Sec - UX0.val.t.zt_Sec);
 	break;
 	case 'f':
 	    ux0 = (float)UX0.val.f;
@@ -567,8 +566,8 @@ unsigned short mode;
     switch (user_x.type = UX0.type)
     {
 	case 't': 
-	    timeSec = GetSec(UX0.val.t) + (long)ux;
-	    lc_GetTime ( &(user_x.val.t), timeSec);
+	    user_x.val.t.zt_Sec = UX0.val.t.zt_Sec + (long)ux;
+	    user_x.val.t.zt_MicroSec = UX0.val.t.zt_MicroSec;
 	break;
 	case 'f':
 	    user_x.val.f = ux;
@@ -598,7 +597,7 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(GetSec(UY1.val.t) - GetSec(UY0.val.t));
+	    uy1 = (float)(UY1.val.t.zt_Sec - UY0.val.t.zt_Sec);
 	break;
 	case 'f':
 	    uy0 = (float)UY0.val.f;
@@ -639,8 +638,8 @@ unsigned short mode;
     switch (user_y.type = UY0.type)
     {
 	case 't': 
-	    timeSec = GetSec(UY0.val.t) + (time_t)uy;
-	    lc_GetTime ( &(user_y.val.t), timeSec);
+	    user_y.val.t.zt_Sec = UY0.val.t.zt_Sec + (long)uy;
+	    user_y.val.t.zt_MicroSec = UY0.val.t.zt_MicroSec;
 	break;
 	case 'f':
 	    user_y.val.f = uy;
