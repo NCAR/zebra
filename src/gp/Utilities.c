@@ -29,7 +29,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.23 1994-05-24 02:42:37 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.24 1994-06-07 20:09:27 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -38,8 +38,9 @@ static char *ImgRules[] =
 {
 	"cat",					/* xwd */
 	"xwdtopnm -quiet | ppmtogif -quiet",	/* gif */
-	"xwd2ps -I",				/* pscolor */
+	"xwd2ps",				/* pscolor */
 	"xwd2ps -I -m",				/* psmono */
+	"xwd2ps -I",				/* psrev */
 };
 
 

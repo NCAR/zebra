@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.23 1994-04-20 21:57:58 corbet Exp $
+! $Id: GraphProc.state,v 1.24 1994-06-07 20:09:22 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -466,6 +466,9 @@ define state img-format
 	endinput
 	input 'psmono' 3
 		next ust$final_unmunged_string
+	endinput
+	input 'psrev' 4
+	        next ust$final_unmunged_string
 	endinput
 enddef
 
