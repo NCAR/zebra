@@ -1,0 +1,30 @@
+
+Usage:
+	fixsonde [-v] netcdf-file ...
+
+fixsonde has one option, -v, which turns on verbose output.  While verbose,
+messages are printed about each file opened and closed, and each variable
+to which the "missing_value" attribute is written.
+
+The required arguments are one or more netcdf files.  Each file will be
+opened for re-definition, and then each float variable will have the
+"missing_value" attribute key added with a value of -9999.  It is OK for
+the missing_value attribute to already exist, but any existing value other
+than -9999 will be overwritten.
+
+Since more than one file can be put on the command line, all of the files
+can be fixed at once with
+
+	fixsonde /apps/data/sgp/platforms/sgpsondeC1.a1/sgpsonde*.cdf
+
+If the netCDf files are changed while Zeb is running, be sure to rescan
+the files immediately after fixing them:
+
+	dsrescan sonde
+
+Otherwise, any graphics processes which already have the files opened will
+run into synchronization problems.  If they start reporting file errors
+with the sonde files, restart the display manager.
+
+If adding a new sonde data file, just fix it before putting it into the
+platform directory.

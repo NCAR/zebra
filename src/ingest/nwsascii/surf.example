@@ -1,0 +1,882 @@
+! PROFS
+subplatform "arvada, co"	39.80000	-105.10000	1.63500
+subplatform aurora		39.77000	-104.87000	1.60800
+subplatform boulder		40.01000	-105.25000	1.61200
+subplatform briggsdale		40.65000	-104.34000	1.48000
+subplatform brighton		39.99000	-104.80000	1.51900
+subplatform byers		39.74000	-104.13000	1.55500
+subplatform elbert		39.23000	-104.63000	2.13500
+subplatform erie		40.05000	-105.01000	1.58400
+subplatform "estes park"	40.37000	-105.56000	2.39600
+subplatform "fort colli"	40.59000	-105.15000	1.60300
+subplatform "fort morga"	40.33000	-103.80000	1.37000
+subplatform greeley		40.42000	-104.63000	1.41500
+subplatform "idaho spri"	39.68000	-105.49000	3.45600
+subplatform keenesburg		40.07000	-104.51000	1.51900
+subplatform lakewood		39.70000	-105.16000	1.82600
+subplatform littleton		39.57000	-104.96000	1.74000
+subplatform longmont		40.17000	-105.16000	1.53600
+subplatform loveland		40.41000	-105.04000	1.51300
+subplatform nunn		40.80000	-104.76000	1.63800
+subplatform plattevill		40.26000	-104.87000	1.44900
+subplatform rollinsvil		39.91000	-105.49000	2.74900
+subplatform ward		40.04000	-105.54000	3.00500
+! ISWS
+subplatform frf		38.38000	-88.38000	0.13600
+subplatform one		38.73000	-88.10000	0.13400
+subplatform siu		37.72000	-89.23000	0.13700
+subplatform sll		40.95000	-88.17000	0.21300
+subplatform snd		40.17000	-90.08000	0.15200
+subplatform mnh		40.92000	-90.73000	0.22900
+subplatform orr		39.80000	-90.83000	0.20600
+subplatform brs		38.95000	-88.95000	0.17700
+subplatform bel		38.52000	-89.88000	0.13300
+subplatform rdl		38.13000	-88.92000	0.13000
+subplatform icc		40.70000	-89.52000	0.20700
+subplatform wfp		40.72000	-89.75000	0.18600
+subplatform cmi		40.08000	-88.23000	0.21900
+subplatform llc		39.52000	-89.62000	0.17700
+subplatform dxs		37.45000	-88.67000	0.16500
+subplatform bnd		40.05000	-88.37000	0.21300
+subplatform dek		41.85000	-88.85000	0.26500
+subplatform fre		42.28000	-89.67000	0.26500
+subplatform scs		41.90000	-88.37000	0.22600
+! ASOSH
+subplatform lnk		40.85000	-96.76000	0.36300
+subplatform 3km		37.75000	-97.22000	0.43300
+subplatform ako		40.17000	-103.22000	1.40900
+subplatform als		37.45000	-105.87000	2.29900
+subplatform bvo		36.76000	-96.01000	0.22000
+subplatform cnk		39.55000	-97.65000	0.45200
+subplatform cnu		37.67000	-95.49000	0.30800
+subplatform cos		38.81000	-104.71000	1.88100
+subplatform ddc		37.76000	-99.96000	0.79000
+subplatform dmo		38.70000	-93.18000	0.27700
+subplatform foe		38.95000	-95.66000	0.32900
+subplatform gck		37.93000	-100.72000	0.87900
+subplatform gri		40.97000	-98.31000	0.56600
+subplatform hlc		39.38000	-99.83000	0.67700
+subplatform ict		37.65000	-97.43000	0.40900
+subplatform laa		38.07000	-102.69000	1.12900
+subplatform lhx		38.05000	-103.51000	1.28500
+subplatform mck		40.21000	-100.59000	0.78600
+subplatform mhk		39.14000	-96.67000	0.32600
+subplatform mko		35.66000	-95.36000	0.18600
+subplatform mlc		34.88000	-95.78000	0.23500
+subplatform ojc		38.85000	-94.74000	0.34300
+subplatform ppf		37.33000	-95.51000	0.27400
+subplatform rsl		38.87000	-98.81000	0.57000
+subplatform sln		38.79000	-97.65000	0.39100
+subplatform sny		41.10000	-102.98000	1.31300
+subplatform stj		39.77000	-94.91000	0.24900
+subplatform top		39.07000	-95.62000	0.27000
+subplatform tqe		41.76000	-96.18000	0.31300
+subplatform wld		37.17000	-97.04000	0.35300
+subplatform emp		38.33000	-96.19000	0.37000
+subplatform hsi		40.60000	-98.43000	0.59200
+subplatform hut		38.07000	-97.86000	0.46500
+subplatform sgf		37.24000	-93.39000	0.38700
+subplatform pub		38.29000	-104.50000	1.43900
+subplatform pwa		35.53000	-97.65000	0.39600
+subplatform gld		39.37000	-101.70000	1.12400
+subplatform okc		35.39000	-97.60000	0.39800
+subplatform pnc		36.73000	-97.10000	0.30400
+subplatform swo		36.16000	-97.09000	0.30000
+subplatform tul		36.20000	-95.89000	0.20600
+subplatform ixd		38.83000	-94.89000	0.33100
+! ASOSQ
+subplatform cvn		34.42000	-103.08000	1.28400
+subplatform frm		43.65000	-94.42000	0.35400
+subplatform aiz		38.10000	-92.55000	0.26500
+subplatform auh		40.89000	-97.99000	0.54900
+subplatform bie		40.32000	-96.75000	0.40200
+subplatform bkx		44.31000	-96.81000	0.49900
+subplatform bvx		35.73000	-91.65000	0.14100
+subplatform cgz		32.96000	-111.77000	0.44600
+subplatform csq		41.02000	-94.36000	0.39500
+subplatform cwi		41.83000	-90.33000	0.21600
+subplatform dns		41.98000	-95.38000	0.38900
+subplatform ear		40.73000	-99.00000	0.64900
+subplatform eau		44.87000	-91.48000	0.27600
+subplatform ege		39.65000	-106.92000	1.98000
+subplatform ewk		38.06000	-97.28000	0.46700
+subplatform fet		41.45000	-96.51000	0.36700
+subplatform flp		36.29000	-92.59000	0.21900
+subplatform fnl		40.45000	-105.02000	1.52900
+subplatform fod		42.55000	-94.18000	0.35300
+subplatform gbd		38.35000	-98.86000	0.57600
+subplatform gxy		40.43000	-104.63000	1.42000
+subplatform h00		36.37000	-94.20000	0.40100
+subplatform hde		40.45000	-99.33000	0.70500
+subplatform hdn		40.50000	-107.25000	2.01100
+subplatform hys		38.85000	-99.27000	0.60900
+subplatform lbl		37.05000	-100.97000	0.88000
+subplatform lxn		40.79000	-99.78000	0.73400
+subplatform mkt		44.22000	-93.92000	0.31100
+subplatform mle		41.20000	-96.11000	0.32000
+subplatform onl		42.47000	-98.68000	0.61900
+subplatform otg		43.65000	-95.58000	0.48000
+subplatform rog		36.37000	-94.11000	0.41500
+subplatform sgt		34.60000	-91.57000	0.06800
+subplatform skx		36.46000	-105.67000	2.16100
+subplatform slg		36.19000	-94.49000	0.36400
+subplatform sqi		41.74000	-89.67000	0.19700
+subplatform sue		44.84000	-87.42000	0.22100
+subplatform tad		37.25000	-104.33000	1.75600
+subplatform uin		39.93000	-91.20000	0.23400
+subplatform ykn		42.92000	-97.38000	0.39700
+subplatform mml		44.45000	-95.82000	0.35900
+subplatform mvn		38.32000	-88.87000	0.14600
+subplatform oga		41.12000	-101.77000	0.99900
+subplatform olu		41.45000	-97.35000	0.44000
+subplatform mtw		44.13000	-87.67000	0.19800
+! HPLAINS
+subplatform ainsworth		42.55000	-99.85000	0.76500
+subplatform "ames south"	42.03000	-93.73000	0.30500
+subplatform beatrice		40.25000	-96.73000	0.37600
+subplatform beresford		43.07000	-96.92000	0.38100
+subplatform "castana ex"	42.03000	-95.80000	0.43200
+subplatform "central ci"	41.10000	-98.00000	0.51700
+subplatform chariton		41.00000	-93.27000	0.39600
+subplatform colby		39.37000	-101.07000	0.96600
+subplatform crawfordsv		41.22000	-91.68000	0.21600
+subplatform "de soto"		38.98000	-94.93000	0.28600
+subplatform dickens		41.00000	-100.92000	0.94500
+subplatform elgin		41.98000	-98.27000	0.61900
+subplatform "garden cit"	37.98000	-100.80000	0.86600
+subplatform gibbon		40.68000	-99.00000	0.62500
+subplatform gilbert		42.03000	-93.73000	0.30500
+subplatform gilmore		42.68000	-94.42000	0.36000
+subplatform halsey		41.90000	-100.32000	0.82400
+subplatform havelock		40.83000	-96.67000	0.35100
+subplatform hays		38.87000	-99.32000	0.61000
+subplatform hesston		38.13000	-97.38000	0.41200
+subplatform holdrege		40.42000	-99.37000	0.70700
+subplatform hutchinson		37.93000	-98.02000	0.47700
+subplatform lexington		40.78000	-99.73000	0.73100
+subplatform "lincoln ia"	40.75000	-96.68000	0.38300
+subplatform manhattan		39.18000	-96.57000	0.32000
+subplatform mccook		40.22000	-100.57000	0.79200
+subplatform mead		41.13000	-96.50000	0.36600
+subplatform "mead turf"		41.15000	-96.50000	0.36600
+subplatform nashua		42.93000	-92.55000	0.36000
+subplatform "north east"	42.37000	-96.97000	0.44500
+subplatform "north plat"	41.07000	-100.73000	0.92200
+subplatform "o'neill"		42.45000	-98.63000	0.67000
+subplatform oacoma		43.78000	-99.32000	0.42700
+subplatform ord			41.60000	-98.93000	0.62500
+subplatform ottawa		38.60000	-95.27000	0.27700
+subplatform parsons		37.37000	-95.27000	0.27700
+subplatform pierre		44.27000	-100.00000	0.45100
+subplatform powhattan		39.78000	-95.80000	0.36500
+subplatform "red cloud"		40.17000	-98.87000	0.52400
+subplatform "rising cit"	41.18000	-97.32000	0.37500
+subplatform rockport		40.47000	-95.87000	0.26800
+subplatform rossville		39.10000	-95.92000	0.28100
+subplatform sandyland		37.93000	-98.75000	0.56400
+subplatform scandia		39.78000	-97.78000	0.45100
+subplatform shelton		40.77000	-98.75000	0.61400
+subplatform "silver lak"	39.10000	-95.83000	0.27100
+subplatform "south cent"	40.52000	-98.13000	0.55200
+subplatform sutherland		42.97000	-95.48000	0.39600
+subplatform tarnov		41.57000	-97.55000	0.47200
+subplatform "unsta curt"	40.63000	-100.50000	0.78400
+subplatform "west point"	41.82000	-96.80000	0.44200
+subplatform wichita		37.87000	-97.50000	0.37900
+subplatform akron		40.15000	-103.13000	1.38400
+subplatform "alliance n"	42.07000	-102.85000	1.21300
+subplatform "alliance w"	42.13000	-102.85000	1.21300
+subplatform "arapahoe p"	41.37000	-101.67000	1.09700
+subplatform arthur		41.63000	-101.50000	1.09700
+subplatform champion		40.37000	-101.72000	1.02900
+subplatform cottonwood		43.97000	-101.85000	0.72200
+subplatform gordon		42.78000	-102.15000	1.10900
+subplatform grant		40.83000	-101.67000	0.97500
+subplatform gudmundsen		42.40000	-101.43000	1.04900
+subplatform nisland		44.67000	-103.55000	0.72200
+subplatform panhandle		41.83000	-103.68000	1.24400
+subplatform "pine bluff"	41.18000	-104.08000	1.55400
+subplatform scottsbluf		41.85000	-103.68000	1.20800
+subplatform sidney		41.22000	-103.00000	1.31700
+subplatform silverthor		41.52000	-102.78000	1.30200
+subplatform sterling		40.45000	-103.02000	1.20000
+subplatform stratton		39.30000	-102.50000	1.39000
+subplatform tribune		38.45000	-101.75000	1.10100
+subplatform walsh		37.27000	-102.20000	1.21000
+subplatform wheatland		42.07000	-104.93000	1.41700
+!
+! WDPD (Plattville station is duplicated above)
+!
+subplatform palestine		31.77917	-95.71333	0.11900
+subplatform "white sand"	32.40611	-106.34917	1.22400
+subplatform dequeen		34.11111	-94.29056	0.19500
+subplatform purcell		34.97972	-97.51862	0.33100
+subplatform haskell		35.80778	-95.78167	0.21200
+subplatform vici		36.07195	-99.21750	0.64800
+subplatform lamont		36.69111	-97.48250	0.30600
+subplatform neodesha		37.38000	-95.63472	0.25500
+subplatform haviland		37.65223	-99.09111	0.64800
+subplatform granada		37.77167	-102.17833	1.15500
+subplatform hillsboro		38.30917	-97.29556	0.44700
+!subplatform plattevill		40.18000	-104.71944	1.52400
+subplatform unknown		33.01667	-100.98000	0.70700
+!
+! NCDC (commented stations are duplicated elsewhere)
+!
+subplatform 8y8		48.26667	-93.11667	0.34100
+subplatform ael		43.68333	-93.36667	0.38500
+subplatform apa		39.56667	-104.85000	1.77600
+subplatform ase		39.21667	-106.86667	2.36000
+subplatform atw		44.26667	-88.51667	0.26300
+subplatform bih		37.36667	-118.36667	1.25300
+subplatform bjc		39.90000	-105.11667	1.71900
+subplatform csm		35.35000	-99.20000	0.59500
+subplatform fbl		44.33333	-93.31667	0.32300
+!subplatform foe	38.95000	-95.66667	0.10000
+subplatform gyr		33.41667	-112.38333	0.29500
+!subplatform hut	38.06667	-97.86667	0.46400
+subplatform lse		43.86667	-91.25000	0.20000
+subplatform mkc		39.11667	-94.60000	0.22700
+subplatform mtj		38.50000	-107.88333	1.75500
+!subplatform ojc	38.85000	-94.73333	0.33900
+subplatform rhv		37.33333	-121.81667	0.04000
+subplatform sck		37.90000	-121.25000	0.01100
+subplatform sdl		33.61667	-111.91667	0.46100
+subplatform sow		34.25000	-110.00000	1.95400
+subplatform u24		39.33333	-112.58333	1.40900
+subplatform bzn		45.78333	-111.15000	1.36200
+subplatform ffz		33.46667	-111.73333	0.43700
+subplatform lar		41.31667	-105.68333	2.21400
+subplatform rbd		32.68333	-96.86667	0.20900
+subplatform sba		34.43333	-119.83333	0.00200
+subplatform see		32.81667	-116.96667	0.11100
+subplatform ttd		45.56667	-122.40000	0.00800
+subplatform tvl		38.90000	-120.00000	1.90600
+subplatform wjf		34.73333	-118.21667	0.71300
+subplatform 75s		48.46667	-122.41667	0.04200
+subplatform adm		34.30000	-97.01667	0.24000
+subplatform ads		32.96667	-96.83333	0.20900
+subplatform anb		33.58333	-85.85000	0.18400
+subplatform eph		47.31667	-119.51667	0.38300
+subplatform ida		43.51667	-112.06667	1.44100
+subplatform psp		33.83333	-116.50000	0.12900
+subplatform sac		38.51667	-121.50000	0.00600
+subplatform toa		33.80000	-118.33333	0.03300
+subplatform 0v1		43.73333	-103.61667	0.51600
+subplatform 1k5		37.00000	-101.88333	1.10500
+subplatform 9v9		43.76667	-99.31667	0.51500
+subplatform acv		40.98333	-124.10000	0.06800
+subplatform blu		39.28333	-120.70000	1.60900
+subplatform byi		42.53333	-113.76667	1.26700
+subplatform cag		40.50000	-107.53333	1.88700
+subplatform drt		29.36667	-100.91667	0.31200
+subplatform jms		46.91667	-98.68333	0.45400
+subplatform mfe		26.18333	-98.23333	0.03000
+subplatform mmo		41.36667	-88.61667	0.19800
+subplatform sdb		34.75000	-118.73333	1.37600
+subplatform sxt		42.61667	-123.36667	1.17000
+subplatform vtn		42.86667	-100.55000	0.78800
+subplatform wrl		43.96667	-107.96667	1.27100
+subplatform 2wx		45.60000	-103.55000	0.91500
+subplatform 87q		35.66667	-121.28333	0.02700
+subplatform alw		46.10000	-118.28333	0.36200
+subplatform bno		43.58333	-118.95000	1.26300
+subplatform cez		37.30000	-108.63333	1.80200
+subplatform dls		45.61667	-121.15000	0.07300
+subplatform e74		32.81667	-109.68333	0.90000
+subplatform flg		35.13333	-111.66667	2.13200
+subplatform hvr		48.55000	-109.76667	0.78700
+subplatform lws		46.38333	-117.01667	0.43900
+subplatform pns		30.46667	-87.20000	0.03500
+subplatform smp		47.28333	-121.33333	1.20900
+subplatform sns		36.66667	-121.60000	0.02100
+subplatform 1o5		41.73333	-122.55000	0.76900
+!subplatform 3km	37.75000	-97.23333	0.43300
+subplatform abr		45.45000	-98.43333	0.40000
+subplatform aia		42.05000	-102.80000	1.23500
+!subplatform ako	40.16667	-103.21667	1.42100
+subplatform alo		42.55000	-92.40000	0.26500
+subplatform ama		35.23333	-101.70000	1.09400
+subplatform aqq		29.73333	-85.03333	0.00600
+subplatform ast		46.15000	-123.88333	0.00300
+subplatform bhm		33.56667	-86.75000	0.19200
+subplatform bil		45.80000	-108.53333	1.09200
+subplatform bis		46.76667	-100.75000	0.50400
+subplatform bke		44.83333	-117.81667	1.02600
+subplatform blh		33.61667	-114.71667	0.11800
+subplatform bna		36.11667	-86.68333	0.18100
+subplatform boi		43.56667	-116.21667	0.87600
+subplatform bpt		29.95000	-94.01667	0.00400
+subplatform bro		25.90000	-97.43333	0.00600
+subplatform btr		30.53333	-91.13333	0.01900
+subplatform cdc		37.70000	-113.10000	1.70900
+subplatform cdr		42.83333	-103.08333	1.01000
+subplatform cds		34.43333	-100.28333	0.59400
+subplatform cew		30.78333	-86.51667	0.05700
+subplatform cid		41.88333	-91.70000	0.26900
+!subplatform cnk	39.55000	-97.65000	0.44800
+subplatform cnm		32.33333	-104.26667	0.98600
+!subplatform cnu	37.66667	-95.48333	0.29800
+subplatform cou		38.81667	-92.21667	0.27200
+subplatform cpr		42.91667	-106.46667	1.62200
+subplatform crp		27.76667	-97.50000	0.01700
+subplatform csv		35.95000	-85.08333	0.57300
+subplatform dal		32.85000	-96.85000	0.15900
+subplatform dbq		42.40000	-90.70000	0.32100
+!subplatform ddc	37.76667	-99.96667	0.78600
+subplatform dfw		32.90000	-97.03333	0.16700
+subplatform dht		36.01667	-102.55000	1.21600
+subplatform dlh		46.83333	-92.18333	0.43500
+subplatform dsm		41.53333	-93.65000	0.29400
+subplatform dvt		33.68333	-112.08333	0.45100
+subplatform eat		47.40000	-120.20000	0.37500
+subplatform eug		44.11667	-123.21667	0.11000
+subplatform evv		38.05000	-87.53333	0.12100
+subplatform far		46.90000	-96.80000	0.27700
+subplatform fat		36.78333	-119.71667	0.10000
+subplatform fca		48.30000	-114.26667	0.90700
+subplatform fsd		43.56667	-96.73333	0.43500
+subplatform fsm		35.33333	-94.36667	0.14100
+subplatform fwa		41.00000	-85.20000	0.24900
+subplatform elo		47.81667	-91.83333	0.44200
+subplatform ffm		46.28333	-96.15000	0.36100
+subplatform inw		35.01667	-110.73333	1.49000
+!subplatform eau	44.86667	-91.48333	0.27100
+subplatform guc		38.55000	-106.91667	2.33800
+subplatform ctb		48.60000	-112.36667	1.16900
+subplatform lgd		45.28333	-118.00000	0.82900
+subplatform ile		31.08333	-97.68333	0.25700
+!subplatform sue	44.91667	-87.41667	0.22000
+subplatform sbn		41.70000	-86.31667	0.23800
+subplatform sea		47.45000	-122.30000	0.13700
+subplatform b23		40.61667	-116.88333	1.38300
+subplatform 9bb		41.10000	-114.96667	1.72300
+subplatform mke		42.95000	-87.90000	0.21000
+subplatform lwt		47.05000	-109.45000	1.26300
+subplatform hib		47.38333	-92.85000	0.41000
+subplatform awh		41.66667	-115.78333	1.89700
+subplatform wmc		40.90000	-117.80000	1.31000
+subplatform mce		37.28333	-120.51667	0.04600
+subplatform 4lw		42.18333	-120.35000	1.45800
+subplatform 4bk		42.03333	-124.25000	0.01400
+subplatform jnw		44.63333	-124.05000	0.03700
+subplatform 4hv		38.36667	-110.71667	1.31300
+subplatform olm		46.96667	-122.90000	0.05900
+subplatform 1v1		39.53333	-107.80000	1.62100
+subplatform 27u		45.18333	-113.90000	1.19800
+subplatform s80		45.91667	-116.13333	1.02400
+!subplatform ord	42.00000	-87.88333	0.20400
+subplatform esc		45.73333	-87.08333	0.18200
+subplatform 4bl		37.61667	-109.48333	1.84100
+subplatform psx		28.71667	-96.25000	0.00400
+!subplatform lbl	37.05000	-100.96667	0.87800
+!subplatform frm	43.65000	-94.41667	0.35300
+subplatform hez		31.61667	-91.28333	0.08200
+subplatform pib		31.46667	-89.33333	0.09000
+!subplatform mml	44.45000	-95.81667	0.36000
+subplatform tvf		48.06667	-96.18333	0.34000
+subplatform bji		47.50000	-94.93333	0.42500
+subplatform dyr		36.01667	-89.40000	0.10300
+subplatform mkg		43.16667	-86.23333	0.19200
+subplatform 76s		48.25000	-122.66667	0.01200
+subplatform cao		36.45000	-103.15000	1.51500
+subplatform uil		47.95000	-124.55000	0.05400
+subplatform env		40.73333	-114.03333	1.29100
+!subplatform hdn	40.50000	-107.25000	2.01200
+subplatform jac		43.60000	-110.73333	1.95700
+subplatform sgu		37.10000	-113.60000	0.89900
+!subplatform skx	36.45000	-105.66667	2.16100
+subplatform cod		44.51667	-109.01667	1.55200
+!subplatform fnl	40.45000	-105.01667	1.52800
+subplatform sdy		47.71667	-104.18333	0.60500
+subplatform mqt		46.53333	-87.55000	0.43100
+!subplatform sny	41.10000	-102.98333	1.31300
+subplatform gfk		47.95000	-97.16667	0.25800
+subplatform sfo		37.61667	-122.38333	0.02700
+subplatform uki		39.13333	-123.20000	0.19100
+subplatform siy		41.78333	-122.46667	0.80300
+subplatform rks		41.60000	-109.06667	2.05400
+subplatform rdd		40.50000	-122.30000	0.15600
+subplatform ely		39.28333	-114.85000	1.90700
+subplatform aty		44.91667	-97.15000	0.53200
+subplatform eld		33.21667	-92.80000	0.07600
+subplatform 4bq		45.43333	-105.40000	0.92400
+subplatform mqm		44.56667	-112.31667	2.06800
+subplatform 0e4		34.23333	-111.33333	1.49700
+!subplatform als	37.45000	-105.86667	2.29800
+!subplatform ege	39.65000	-106.91667	1.98200
+subplatform dvl		48.11667	-98.90000	0.44100
+subplatform 4dg		42.75000	-105.38333	1.46400
+subplatform dro		37.15000	-107.75000	2.03700
+subplatform 3ht		46.43333	-109.83333	1.26100
+subplatform gnt		35.16667	-107.90000	1.98700
+subplatform rbl		40.15000	-122.25000	0.10400
+subplatform dln		45.25000	-112.55000	1.58900
+subplatform esf		31.40000	-92.30000	0.03200
+subplatform hqm		46.98333	-123.93333	0.00700
+subplatform wey		44.65000	-111.10000	2.02900
+subplatform ali		27.73333	-98.03333	0.05400
+subplatform hmn		32.85000	-106.10000	0.38000
+subplatform bli		48.80000	-122.53333	0.04500
+subplatform end		36.33333	-97.91667	0.12100
+subplatform sle		44.91667	-123.00000	0.06000
+subplatform hou		29.65000	-95.28333	0.01500
+subplatform cqv		48.58333	-117.80000	0.91400
+subplatform rnd		29.53333	-98.28333	0.23100
+subplatform 3du		46.66667	-113.15000	1.20100
+subplatform smx		34.90000	-120.45000	0.08100
+subplatform rdm		44.26667	-121.15000	0.93200
+subplatform dys		32.43333	-99.85000	0.54400
+subplatform mcb		31.23333	-90.46667	0.12400
+subplatform vct		28.85000	-96.91667	0.03200
+subplatform row		33.30000	-104.53333	1.11300
+subplatform inl		48.56667	-93.38333	0.36100
+!subplatform lnk	40.85000	-96.75000	0.36400
+subplatform 77m		42.30000	-113.33333	1.38300
+subplatform u78		42.65000	-111.58333	0.54200
+subplatform cmx		47.16667	-88.50000	0.32700
+subplatform prb		35.66667	-120.63333	0.24300
+subplatform bfl		35.41667	-119.05000	0.15200
+subplatform lrd		27.53333	-99.46667	0.17200
+subplatform aus		30.28333	-97.70000	0.17900
+!subplatform mck	40.21667	-100.58333	0.78500
+subplatform 4sl		35.95000	-107.08333	2.19500
+subplatform nkx		32.83333	-117.11667	0.04000
+subplatform abi		32.41667	-99.68333	0.54500
+subplatform lru		32.28333	-106.91667	1.35700
+subplatform vel		40.45000	-109.51667	1.60600
+subplatform tvc		44.73333	-85.58333	0.18800
+subplatform buo		33.93333	-116.96667	0.79200
+subplatform cvs		34.38333	-103.31667	1.30900
+subplatform oth		43.41667	-124.25000	0.00100
+subplatform dug		31.46667	-109.60000	1.25000
+subplatform ftw		32.81667	-97.35000	0.20400
+subplatform 3th		47.60000	-115.36667	0.72500
+subplatform nbe		32.73333	-96.96667	0.14900
+subplatform ssf		29.33333	-98.48333	0.17500
+subplatform iah		29.96667	-95.35000	0.03700
+subplatform msn		43.13333	-89.33333	0.26200
+subplatform sps		33.96667	-98.48333	0.30600
+!subplatform lhx	38.05000	-103.51667	1.27700
+subplatform act		31.61667	-97.21667	0.15200
+subplatform rfd		42.20000	-89.10000	0.22300
+subplatform lvs		35.65000	-105.15000	2.09200
+!subplatform tad	37.25000	-104.33333	1.75100
+subplatform rhi		45.63333	-89.45000	0.48700
+subplatform stc		45.55000	-94.06667	0.31400
+subplatform auw		44.91667	-89.61667	0.36500
+subplatform lax		33.93333	-118.40000	0.03200
+subplatform fcm		44.83333	-93.45000	0.27600
+!subplatform pub	38.28333	-104.51667	1.42000
+subplatform rwf		44.55000	-95.08333	0.31200
+subplatform sjn		34.51667	-109.38333	1.74700
+subplatform hob		32.68333	-103.20000	1.11400
+subplatform 2c2		32.38333	-106.48333	1.29100
+subplatform mwl		32.78333	-98.06667	0.28300
+subplatform gup		35.51667	-108.78333	1.97100
+subplatform dik		46.80000	-102.80000	0.78700
+subplatform mic		45.06667	-93.35000	0.08200
+subplatform e23		36.41667	-105.56667	2.12200
+!subplatform cos	38.81667	-104.71667	1.85700
+subplatform aff		38.96667	-104.81667	2.00300
+subplatform isn		48.18333	-103.63333	0.57900
+subplatform lft		30.20000	-91.98333	0.01100
+subplatform hon		44.38333	-98.21667	0.39100
+subplatform rst		43.91667	-92.50000	0.39200
+subplatform mlu		32.51667	-92.05000	0.02300
+subplatform sbs		40.51667	-106.86667	2.09700
+subplatform pir		44.38333	-100.28333	0.52600
+subplatform mld		42.16667	-112.28333	1.36200
+subplatform mot		48.26667	-101.28333	0.52200
+subplatform 4my		34.98333	-106.05000	1.89500
+subplatform bbw		41.43333	-99.65000	0.77300
+subplatform sux		42.40000	-96.38333	0.33900
+subplatform aex		31.33333	-92.55000	0.02700
+subplatform ofk		41.98333	-97.43333	0.47100
+subplatform phx		33.43333	-112.01667	0.33800
+!subplatform ict	37.65000	-97.43333	0.40200
+subplatform off		41.11667	-95.91667	0.09700
+!subplatform uin	39.93333	-91.20000	0.23200
+subplatform mls		46.43333	-105.86667	0.80100
+!subplatform mlc	34.88333	-95.78333	0.23100
+subplatform mem		35.05000	-90.00000	0.08200
+subplatform hro		36.26667	-93.15000	0.41800
+subplatform laf		40.41667	-86.93333	0.18200
+subplatform dag		34.86667	-116.78333	0.58500
+subplatform msy		29.98333	-90.25000	0.00600
+subplatform pia		40.66667	-89.68333	0.20500
+subplatform mkl		35.60000	-88.91667	0.13100
+subplatform tbn		37.75000	-92.10000	0.33500
+subplatform beh		42.13333	-86.43333	0.19100
+subplatform mwa		37.75000	-89.00000	0.14300
+subplatform axn		45.86667	-95.38333	0.43100
+subplatform btm		45.95000	-112.50000	1.68800
+subplatform huf		39.45000	-87.30000	0.18100
+!subplatform okc	35.40000	-97.60000	0.39100
+subplatform est		43.40000	-94.75000	0.41700
+!subplatform asg	36.16667	-94.11667	0.41300
+subplatform bwg		36.96667	-86.43333	0.16200
+subplatform nmm		32.55000	-88.56667	0.08400
+subplatform lit		34.73333	-92.23333	0.08400
+subplatform mei		32.33333	-88.75000	0.08900
+subplatform txk		33.45000	-94.00000	0.11000
+subplatform 3se		43.16667	-95.15000	0.40500
+subplatform dhn		31.31667	-85.45000	0.10800
+subplatform mgm		32.30000	-86.40000	0.06400
+subplatform hms		46.56667	-119.60000	0.22300
+subplatform tcl		33.23333	-87.61667	0.05100
+subplatform lxv		39.23333	-106.31667	3.02900
+subplatform shr		44.76667	-106.96667	1.20200
+subplatform edw		34.90000	-117.91667	0.22000
+!subplatform pnc	36.73333	-97.10000	0.30400
+subplatform mhv		35.06667	-118.15000	0.86100
+subplatform lgb		33.81667	-118.15000	0.02000
+subplatform nfg		33.30000	-117.35000	0.02200
+subplatform tph		38.06667	-117.08333	1.65200
+subplatform lol		40.06667	-118.55000	1.18800
+subplatform hbr		35.00000	-99.05000	0.47300
+subplatform gbn		32.88333	-112.71667	0.26100
+subplatform bys		35.28333	-116.63333	0.71600
+subplatform mmh		37.63333	-118.85000	2.17200
+subplatform eed		34.76667	-114.61667	0.27800
+subplatform msl		34.75000	-87.61667	0.16400
+subplatform trm		33.63333	-116.16667	0.-3400
+subplatform fcl		40.58333	-105.08333	1.52500
+subplatform ggw		48.21667	-106.61667	0.69600
+subplatform gwo		33.50000	-90.08333	0.04700
+subplatform hsv		34.65000	-86.76667	0.19200
+subplatform gag		36.30000	-99.76667	0.66700
+subplatform otm		41.10000	-92.45000	0.25600
+subplatform eko		40.83333	-115.78333	1.54800
+subplatform bff		41.86667	-103.60000	1.20300
+subplatform fmn		36.75000	-108.23333	1.68600
+subplatform tex		37.95000	-107.90000	2.76900
+subplatform lvm		45.70000	-110.45000	1.41800
+subplatform gjt		39.10000	-108.55000	1.47200
+subplatform rwl		41.80000	-107.20000	2.05300
+subplatform dmn		32.25000	-107.70000	1.31220
+subplatform hln		46.60000	-112.00000	1.18800
+!subplatform mhk	39.15000	-96.66667	0.31800
+subplatform lfk		31.23333	-94.75000	0.08500
+subplatform aln		38.88333	-90.05000	0.17900
+!subplatform bvo	36.75000	-96.00000	2.15600
+subplatform t62		40.16667	-112.20000	1.53800
+subplatform sli		30.33333	-89.81667	0.00200
+subplatform dnv		40.20000	-87.60000	0.21100
+subplatform dra		36.61667	-116.01667	1.00700
+subplatform tup		34.26667	-88.76667	0.10700
+subplatform cha		35.03333	-85.20000	0.20700
+subplatform grb		44.48333	-88.13333	0.21100
+subplatform mws		34.23333	-118.06667	1.73900
+subplatform sep		32.21667	-98.18333	0.39800
+!subplatform hlc	39.38333	-99.83333	0.67000
+!subplatform sln	38.80000	-97.65000	0.38400
+subplatform 4lj		38.08333	-102.61667	1.10500
+subplatform ink		31.78333	-103.20000	0.85700
+subplatform mcw		43.15000	-93.33333	0.36300
+subplatform ind		39.73333	-86.26667	0.24100
+subplatform sus		38.66667	-90.65000	0.14200
+subplatform 5j0		44.25000	-118.95000	1.12500
+subplatform shv		32.46667	-93.81667	0.07700
+subplatform pdt		45.68333	-118.85000	0.45900
+subplatform tdo		46.46667	-122.83333	0.09900
+!subplatform tul	36.20000	-95.90000	0.20300
+subplatform anw		42.58333	-99.98333	0.78800
+subplatform new		30.03333	-90.03333	0.00300
+subplatform cgi		37.23333	-89.56667	0.10300
+subplatform auo		32.61667	-85.43333	0.23600
+!subplatform pwa	35.53333	-97.63333	0.39600
+subplatform 3s2		45.25000	-122.75000	0.05900
+subplatform ack		41.25000	-70.06668	0.01370
+subplatform bvi		40.76667	-80.40000	0.39110
+subplatform hpn		41.06667	-73.71666	0.12190
+subplatform jst		40.31667	-78.83333	0.69490
+subplatform lyh		37.33333	-79.20000	0.29600
+subplatform mfd		40.81667	-82.51667	0.39620
+subplatform oqu		41.60000	-71.40000	0.01070
+subplatform fpr		27.48333	-80.36667	0.00730
+subplatform 3b1		45.46667	-69.58333	0.31610
+subplatform aby		31.53333	-84.18333	0.06340
+subplatform aug		44.31667	-69.80000	0.10670
+subplatform orh		42.26667	-71.86667	0.30180
+subplatform abe		40.65000	-75.43332	0.11550
+subplatform agc		40.35000	-79.93332	0.38650
+subplatform ags		33.36667	-81.96666	0.04510
+subplatform alb		42.75000	-73.80000	0.08990
+subplatform and		34.50000	-82.71666	0.24020
+subplatform aoo		40.30000	-78.31668	0.44990
+subplatform apn		45.06667	-83.56668	0.21090
+subplatform atl		33.65000	-84.43333	0.33830
+subplatform avl		35.43333	-82.55000	0.65870
+subplatform ays		31.25000	-82.40000	0.04270
+subplatform bdl		41.93333	-72.68332	0.06130
+subplatform bdr		41.16667	-73.13333	0.00850
+subplatform bgm		42.21667	-75.98333	0.49320
+subplatform bkw		37.78333	-81.11667	0.76570
+subplatform bos		42.36667	-71.03334	0.00460
+subplatform btv		44.46667	-73.15000	0.10670
+subplatform buf		42.93333	-78.73333	0.21790
+subplatform cak		40.91667	-81.43332	0.37860
+subplatform cdw		40.88333	-74.28334	0.05430
+subplatform chh		41.66667	-69.96666	0.01520
+subplatform cle		41.41667	-81.86667	0.23740
+subplatform cmh		40.00000	-82.88333	0.24780
+subplatform con		43.20000	-71.50000	0.10550
+subplatform crw		38.36667	-81.60000	0.31030
+subplatform csg		32.51667	-84.95000	0.13690
+subplatform cxy		40.21667	-76.85000	0.10300
+subplatform dca		38.85000	-77.03334	0.02290
+subplatform det		42.41667	-83.01667	0.19510
+subplatform eri		42.08333	-80.18332	0.22250
+subplatform ewr		40.70000	-74.16667	0.00880
+subplatform gfl		43.35000	-73.61667	0.09780
+subplatform gso		36.08333	-79.95000	0.27680
+subplatform gsp		34.90000	-82.21666	0.28960
+subplatform htl		44.36667	-84.68333	0.35050
+subplatform iad		38.95000	-77.45000	0.09420
+subplatform ilg		39.66667	-75.60000	0.02410
+subplatform ilm		34.26667	-77.90000	0.01010
+subplatform isp		40.78333	-73.10000	0.02560
+subplatform jkl		37.60000	-83.31668	0.41330
+subplatform jxn		42.26667	-84.46667	0.30630
+subplatform lan		42.76667	-84.60000	0.26550
+subplatform lex		38.03333	-84.60000	0.30180
+subplatform lga		40.76667	-73.90000	0.01190
+subplatform luk		39.10000	-84.43333	0.14940
+subplatform mco		28.45000	-81.31668	0.02870
+subplatform mdt		40.20000	-76.76667	0.11250
+subplatform mia		25.80000	-80.30000	0.00370
+subplatform miv		39.36667	-75.06668	0.02190
+subplatform orf		36.90000	-76.20000	0.01340
+subplatform pbi		26.68333	-80.11667	0.00730
+subplatform phl		39.88333	-75.25000	0.01920
+subplatform pit		40.50000	-80.21666	0.36970
+subplatform pkb		39.35000	-81.43332	0.25330
+subplatform pwm		43.65000	-70.30000	0.01370
+subplatform rdu		35.86667	-78.78334	0.12650
+subplatform ric		37.50000	-77.33333	0.05430
+subplatform roa		37.31667	-79.96666	0.36360
+subplatform ssi		31.15000	-81.38333	0.00430
+subplatform syr		43.11667	-76.11667	0.12800
+subplatform tlh		30.38333	-84.36667	0.01680
+subplatform tol		41.60000	-83.80000	0.21120
+subplatform tpa		27.96667	-82.53334	0.01220
+subplatform tys		35.81667	-83.98333	0.26790
+subplatform vrb		27.65000	-80.41667	0.00730
+subplatform cae		33.95000	-81.11667	0.07470
+subplatform chs		32.90000	-80.03334	0.01430
+subplatform clt		35.21667	-80.93332	0.22490
+subplatform dtw		42.23333	-83.33333	0.19720
+subplatform ewn		35.06667	-77.05000	0.00490
+subplatform ipt		41.25000	-76.91667	0.16550
+subplatform pvd		41.73333	-71.43332	0.01770
+subplatform tri		36.48333	-82.40000	0.47490
+subplatform ahn		33.95000	-83.31668	0.24480
+subplatform avp		41.33333	-75.73333	0.29230
+subplatform bgr		44.80000	-68.81668	0.05640
+subplatform dab		29.18333	-81.05000	0.00880
+subplatform day		39.90000	-84.20000	0.30630
+subplatform hat		35.26667	-75.55000	0.00760
+subplatform hts		38.36667	-82.55000	0.25510
+subplatform jax		30.50000	-81.70000	0.00880
+subplatform lal		28.00000	-82.05000	0.04510
+subplatform roc		43.13333	-77.66667	0.16670
+subplatform sav		32.13333	-81.20000	0.01580
+subplatform amg		31.53333	-82.51667	0.06190
+subplatform car		46.86667	-68.01667	0.19200
+subplatform cvg		39.05000	-84.66667	0.27070
+subplatform fnt		42.96667	-83.75000	0.23470
+subplatform afj		40.13333	-80.28334	0.36120
+subplatform fdy		41.01667	-83.66667	0.24380
+subplatform gnv		29.68333	-82.26667	0.04210
+subplatform mcn		32.70000	-83.65000	0.10970
+subplatform uca		43.15000	-75.38333	0.21700
+subplatform adw		38.81667	-76.86667	0.08600
+subplatform ekn		38.88333	-79.85000	0.60470
+subplatform lfi		37.08333	-76.35000	0.00400
+subplatform mtc		42.60000	-82.83333	0.17860
+subplatform nrb		30.40000	-81.41667	0.00490
+subplatform pob		35.16667	-79.01667	0.06040
+subplatform rme		43.23333	-75.40000	0.15820
+subplatform bid		41.16667	-71.58333	0.03350
+subplatform sby		38.33333	-75.51667	0.01460
+subplatform mrb		39.40000	-77.98333	0.16180
+subplatform fmy		26.58333	-81.86667	0.00460
+subplatform apf		26.15000	-81.76667	0.00370
+subplatform jfk		40.65000	-73.78334	0.00490
+subplatform hff		35.03333	-79.50000	0.11490
+subplatform acy		39.45000	-74.56668	0.03600
+subplatform fay		35.00000	-78.88333	0.05790
+subplatform pou		41.63333	-73.88333	0.04720
+subplatform bfd		41.80000	-78.63333	0.64530
+subplatform leb		43.63333	-72.31668	0.17310
+subplatform art		44.00000	-76.01667	0.09690
+subplatform blf		37.30000	-81.21666	0.87360
+subplatform flo		34.18333	-79.71666	0.04600
+subplatform hky		35.73333	-81.38333	0.34840
+subplatform hul		46.13333	-67.78334	0.15120
+subplatform mgw		39.65000	-79.91667	0.37800
+subplatform mss		44.93333	-74.85000	0.06520
+subplatform duj		41.18333	-78.90000	0.55290
+subplatform pln		45.56667	-84.78333	0.21820
+subplatform een		42.90000	-72.26667	0.14840
+subplatform bhb		44.45000	-68.36667	0.02560
+subplatform rkd		44.06667	-69.10000	0.01680
+subplatform rut		43.53333	-72.95000	0.23990
+subplatform wvl		44.53333	-69.66667	0.10120
+subplatform mwn		44.26667	-71.30000	1.90870
+subplatform hgr		39.70000	-77.71666	0.21460
+subplatform ash		42.78333	-71.51667	0.06100
+subplatform loz		37.08333	-84.06667	0.36210
+subplatform lwm		42.71667	-71.11667	0.04540
+subplatform agr		27.65000	-81.33333	0.02010
+subplatform mpv		44.20000	-72.56668	0.34320
+subplatform mob		30.68000	-88.25000	0.06800
+subplatform sjt		31.37000	-100.50000	0.57900
+subplatform elp		31.80000	-106.40000	1.19800
+subplatform maf		31.95000	-102.18000	0.87200
+subplatform tus		32.13000	-110.93000	0.78600
+subplatform jan		32.32000	-90.08000	0.09000
+subplatform san		32.73000	-117.17000	0.01000
+subplatform ckl		32.90000	-87.25000	0.13800
+subplatform lbb		33.65000	-101.82000	0.99300
+subplatform abq		35.05000	-106.62000	1.61900
+subplatform las		36.08000	-115.17000	0.66400
+subplatform jln		37.15000	-94.50000	0.29800
+subplatform vih		38.12000	-91.77000	0.35000
+subplatform sdf		38.18000	-85.73000	0.14700
+subplatform s29		38.52000	-106.52000	0.66600
+subplatform stl		38.75000	-90.37000	0.17200
+subplatform lic		39.18000	-103.70000	1.10400
+subplatform mci		39.32000	-94.72000	0.29700
+subplatform rno		39.50000	-119.78000	1.34100
+subplatform den		39.77000	-104.87000	1.61100
+subplatform slc		40.78000	-111.95000	1.28600
+subplatform lbf		41.13000	-100.68000	0.84700
+subplatform oma		41.30000	-95.90000	0.29800
+subplatform ovn		41.37000	-96.02000	0.39800
+subplatform mfr		42.38000	-122.88000	0.39600
+subplatform lnd		42.82000	-108.73000	0.16930
+subplatform grr		42.88000	-85.52000	0.24900
+subplatform pih		42.92000	-112.60000	1.36000
+subplatform rap		44.05000	-103.07000	0.96500
+subplatform msp		44.88000	-93.22000	0.26200
+subplatform pdx		45.60000	-122.60000	0.00800
+subplatform mso		46.92000	-114.08000	0.97600
+subplatform gtf		47.48000	-111.37000	1.11700
+subplatform geg		47.63000	-117.53000	0.71900
+subplatform hdo		29.35000	-99.17000	0.27800
+subplatform sat		29.53000	-98.47000	0.24200
+subplatform lch		30.12000	-93.22000	0.00500
+subplatform pkd		46.90000	-95.07000	0.43900
+subplatform brl		40.78000	-91.12000	0.21200
+subplatform 3oi		40.62000	-93.95000	0.34400
+subplatform bny		40.88000	-121.6700	0.95400
+subplatform p05		44.07000	-101.6500	0.68300
+subplatform 4cr		24.10000	-105.6800	1.98100
+subplatform ane		45.15000	-93.2200	0.27700
+!
+! AWOSH
+!
+subplatform ftg		39.79000	-104.55000	1.67200
+subplatform asg		36.18000	-94.13000	0.41200
+!
+! PAM
+!
+subplatform "pam  1"	40.65690	-95.86220	0.32500
+subplatform "pam  2"	40.33470	-94.86220	0.29600
+subplatform "pam  3"	40.41830	-93.59810	0.25600
+subplatform "pam  4"	40.72720	-92.42720	0.26900
+subplatform "pam  5"	39.72720	-94.27140	0.30900
+subplatform "pam  6"	39.78310	-93.49750	0.23700
+subplatform "pam  7"	40.09390	-92.53860	0.29300
+subplatform "pam  8"	40.46280	-91.42860	0.20200
+subplatform "pam  9"	39.01720	-94.21390	0.25700
+subplatform "pam 10"	39.09830	-93.20080	0.23400
+subplatform "pam 11"	39.46470	-92.42920	0.26300
+subplatform "pam 12"	39.72690	-91.44830	0.23200
+subplatform "pam 13"	39.77110	-90.23940	0.18800
+subplatform "pam 14"	38.28030	-95.21670	0.30200
+subplatform "pam 15"	38.28940	-94.34250	0.26400
+subplatform "pam 16"	38.36000	-93.68110	0.24800
+subplatform "pam 17"	38.42720	-92.87440	0.31000
+subplatform "pam 18"	38.81810	-92.21470	0.27100
+subplatform "pam 19"	39.01190	-91.41750	0.23400
+subplatform "pam 20"	38.89080	-90.05330	0.16500
+subplatform "pam 21"	39.53310	-89.32360	0.18800
+subplatform "pam 22"	38.98830	-89.16420	0.16300
+subplatform "pam 23"	38.13060	-91.76310	0.34000
+subplatform "pam 24"	38.37440	-90.97560	0.20300
+subplatform "pam 25"	38.14580	-89.70190	0.16200
+subplatform "pam 26"	37.44310	-94.73310	0.28700
+subplatform "pam 27"	37.66190	-93.81470	0.31700
+subplatform "pam 28"	37.64330	-92.65440	0.40200
+subplatform "pam 29"	37.61860	-91.60750	0.36900
+subplatform "pam 30"	37.76190	-90.42940	0.28000
+subplatform "pam 31"	36.90970	-94.88940	0.24500
+subplatform "pam 32"	36.88000	-93.89810	0.43600
+subplatform "pam 33"	36.97250	-92.68580	0.38500
+subplatform "pam 34"	36.99250	-91.71750	0.35400
+subplatform "pam 35"	37.12440	-90.71250	0.14200
+!
+! PAM-PBL
+!
+subplatform "pam 37"	39.07250	-95.62560	0.26800
+subplatform "pam 39"	40.09830	-95.98810	0.33100
+subplatform "pam 40"	39.79390	-95.64390	0.36400
+subplatform "pam 41"	39.83000	-96.10780	0.38600
+subplatform "pam 42"	39.88670	-96.51390	0.42100
+subplatform "pam 43"	39.50830	-96.13690	0.39000
+subplatform "pam 44"	39.97170	-96.07640	0.37000
+subplatform "pam 45"	39.69610	-96.11530	0.41200
+subplatform "pam 46"	39.87830	-96.29530	0.42700
+subplatform "pam 47"	39.81280	-95.86190	0.40000
+!
+! AWOS1
+!
+subplatform clinton	41.83000	-90.33000	0.21600
+subplatform creston	41.02000	-94.36000	0.39500
+subplatform denison	41.98000	-95.38000	0.38900
+
+
+!
+!	source field		dest field		units	scale	offset
+!	------------		----------		-------	-----	------
+field	stn_pres		pres			mb	0.01	0
+field	qc_flag			qc_flag			special	  1	0
+field	sea_lev_pres		cpres0			mb	0.01	0
+field	qc_flag2		qc_flag2		special	  1	0
+field	computed_sea_lev_pres	computed_sea_lev_pres	mb	0.01	0
+field	qc_flag3		qc_flag3		special	  1	0
+field	temp			tdry			"deg c"	  1	-273.15
+field	qc_flag4		qc_flag4		special	  1	0
+field	dp			dp			"deg c"	  1	-273.15
+field	qc_flag5		qc_flag5		special	  1	0
+field	wnd_spd			wspd			"m/s"	  1	0
+field	qc_flag6		qc_flag6		special	  1	0
+field	wnd_dir			wdir			"deg"	  1	0
+field	qc_flag7		qc_flag7		special	  1	0
+field	rain			rain			"kg/m**2" 1	0
+field	qc_flag8		qc_flag8		special	  1	0
+field	gust_indicator		gust_indicator		special	  1	0
+field	gust_spd		wmax			"m/s"	  1	0
+field	qc_flag9		qc_flag9		special	  1	0
+field	weather_code		weather_code		special	  1	0
+field	qc_flag10		qc_flag10		special	  1	0
+field	horiz_vis		horiz_vis		m	  1	0
+field	qc_flag11		qc_flag11		special	  1	0
+field	ceiling_height		ceiling_height		feet	  1	0
+field	ceiling_flag		ceiling_flag		special	  1	0
+field	qc_flag12		qc_flag12		special	  1	0
+field	cloud_amt		cloud_amt		special	  1	0
+field	qc_flag13		qc_flag13		special	  1	0
+field	ceiling_height2		ceiling_height2		feet	  1	0
+field	ceiling_flag2		ceiling_flag2		special	  1	0
+field	qc_flag14		qc_flag14		special	  1	0
+field	cloud_amt2		cloud_amt2		special	  1	0
+field	qc_flag15		qc_flag15		special	  1	0
+field	ceiling_height3		ceiling_height3		feet	  1	0
+field	ceiling_flag3		ceiling_flag3		special	  1	0
+field	qc_flag16		qc_flag16		special	  1	0
+field	cloud_amt3		cloud_amt3		special	  1	0
+field	qc_flag17		qc_flag17		special	  1	0
