@@ -2,9 +2,9 @@
 ! A pulldown menu allowing a choice of color tables.
 !
 if (defined ('ui$widget_table:color-tables'))
-	local wname 'default-Color-tables'
+	set wname 'default-Color-tables'
 else
-	local wname 'Color-tables'
+	set wname 'Color-tables'
 endif
 
 define widget #wname intmenu 'ctbl'
