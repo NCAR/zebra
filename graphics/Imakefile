@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.2 1993-07-23 19:39:46 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 1993-12-28 20:54:48 case Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,7 +42,10 @@ SRCS= 	$(BINSRCS) $(LIBSRCS)
 
 HEADERS = graphics.h pixel.h
 
-DISTFILES = Imakefile Makefile $(SRCS) $(HEADERS)
+PRIVATE_HEADERS = color.h device.h image.h oplist.h overlay.h param.h \
+	pxl.h ramtek.h tty.h version.h workstation.h 
+
+DISTFILES = Imakefile Makefile $(SRCS) $(HEADERS) $(PRIVATE_HEADERS)
 
 
 NormalLibraryTarget ($(LOCALLIB), $(LIBOBJS))
