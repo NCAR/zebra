@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.25 1995-08-03 20:59:51 corbet Exp $ 
+XCOMM $Id: Imakefile,v 1.26 1995-08-08 04:28:19 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -46,6 +46,11 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
    MAPDEFINE=
 # endif
 DEFINES = $(SHMDEFINES) $(MAPDEFINE) /* -DXDEBUG */
+
+/*
+ * Projection.c needs the proj include directory when projections defined
+ */
+INCLUDES = $(PROJINCLUDES)
 
 # if defined(HPArchitecture) && (! UseGcc)
    ALLOCA=alloca.o
