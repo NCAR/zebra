@@ -69,10 +69,6 @@
  defined in "PixelCoords.h"
 # define ICONSPACE	50
 */
-# define AXIS_BOTTOM    0
-# define AXIS_LEFT      1
-# define AXIS_TOP       2
-# define AXIS_RIGHT     3
 # define F_PIX_HEIGHT   ((int)((FY1-FY0)*GWHeight(Graphics)))
 # define F_PIX_WIDTH    ((int)((FX1-FX0)*GWWidth(Graphics)))
 # define DATA_SERIES    (1<<1)
@@ -81,6 +77,11 @@
 # define MANUAL       (1<<1)
 # define INVERT       (1<<2)
 # define LOG	      (1<<3)
+# define AXIS_BOTTOM	0
+# define AXIS_LEFT      1
+# define AXIS_TOP       2
+# define AXIS_RIGHT     3
+
 
 
 extern float   FX0, FY0, FX1, FY1;
@@ -103,11 +104,11 @@ extern  DataValRec	UX0,UX1,UY0,UY1;
 /*
  * User coordinate to pixel coordinate macros
  */
-# define LC_FXPIX(ux,ux0,ux1)      (int)((short)(0.5 + (float)(GWWidth (Graphics)) * \
-        (FX1 - (((ux) - ux0) / (ux1 - ux0) * (FX1 - FX0)))))
+# define LC_FXPIX(ux,ux0,ux1)      (int)(0.5 + (float)(GWWidth (Graphics)) * \
+        (FX1 - (((ux) - ux0) / (ux1 - ux0) * (FX1 - FX0))))
 
-# define LC_XPIX(ux,ux0,ux1)       (int)((short)(0.5 + (float)(GWWidth (Graphics)) * \
-        (((ux) - ux0) / (ux1 - ux0) * (FX1 - FX0) + FX0)))
+# define LC_XPIX(ux,ux0,ux1)       (int)(0.5 + (float)(GWWidth (Graphics)) * \
+        (((ux) - ux0) / (ux1 - ux0) * (FX1 - FX0) + FX0))
 
 # define LC_FYPIX(uy,uy0,uy1)       (int)((GWHeight(Graphics) - \
 			(FY1 * GWHeight(Graphics))) +\
@@ -132,36 +133,17 @@ extern  DataValRec	UX0,UX1,UY0,UY1;
 
 typedef enum { DataTrans, DeviceTrans, IconTrans, LegendTrans,
 	       ATTrans, ARTrans, ALTrans, ABTrans } TransRegion;
-# ifdef __STDC__
-    extern void lc_SetAxisDim(int,int);
-    extern void lc_SetIconDim(int,int);
-    extern void lc_SetLegendDim(int,int);
-    extern void lc_SetAnnotateDim(int,int);
-    extern void lc_SetUserCoord( DataValPtr, DataValPtr, DataValPtr,DataValPtr);
-    extern void lc_GetTime( time *, time_t );
-    extern void lc_DecrData( DataValPtr,double );
-    extern void lc_IncrData( DataValPtr,double );
-    extern int lc_CompareData( DataValPtr,DataValPtr );
-/*
-    extern int devY(DataValPtr, unsigned short);
-    extern int devX(DataValPtr,unsigned short);
-    extern DataValRec userX(int,unsigned short);
-    extern DataValRec userY(int ,unsigned short);
-*/
-# else
-    extern void lc_SetAxisDim();
-    extern void lc_SetIconDim();
-    extern void lc_SetLegendDim();
-    extern void lc_SetAnnotateDim();
-    extern void lc_SetUserCoord();
-    extern void lc_GetTime();
-    extern void lc_DecrData();
-    extern void lc_IncrData();
-    extern int lc_CompareData();
-    extern int devY();
-    extern int devX();
-    extern DataValRec userX();
-    extern DataValRec userY();
-# endif
 
-
+extern void lc_SetAxisDim FP((int,int));
+extern void lc_SetIconDim FP((int,int));
+extern void lc_SetLegendDim FP((int,int));
+extern void lc_SetAnnotateDim FP((int,int));
+extern void lc_SetUserCoord FP(( DataValPtr, DataValPtr,DataValPtr,DataValPtr));
+extern void lc_GetTime FP(( time *, time_t ));
+extern void lc_DecrData FP(( DataValPtr,double ));
+extern void lc_IncrData FP(( DataValPtr,double ));
+extern int lc_CompareData FP(( DataValPtr,DataValPtr ));
+extern int devY FP((DataValPtr, int ));
+extern int devX FP((DataValPtr,int ));
+extern DataValRec userX FP((int,int ));
+extern DataValRec userY FP((int ,int ));
