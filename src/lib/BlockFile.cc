@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.9 1998-06-02 23:23:50 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.10 1998-06-05 19:33:21 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -452,7 +452,7 @@ BlockFile::Alloc (BlkSize size, BlkSize *actual)
  */
 {
 	WriteLock();
-	freelist->readSync ();
+	//freelist->readSync ();
 	BlkOffset addr = alloc (size, actual);
 	Unlock ();
 	return (addr);
@@ -536,8 +536,7 @@ BlockFile::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 BlkOffset 
 BlockFile::alloc (BlkSize size, BlkSize *actual)
 /*
- * Find a block of space to hold the requested size, including
- * the block prefix.
+ * Find a block of space to hold the requested size.
  */
 {
 	BlkOffset addr;
@@ -600,6 +599,8 @@ BlockFile::write (BlkOffset block, void *buf, BlkSize len)
 {	
 	status = OK;
 	seek (block);
+	++stats.num_writes;
+	stats.bytes_writ += len;
 	if (fwrite ((char *)buf, (size_t)len, 1, fp) != 1)
 	{
 		this->errno = ::errno;
@@ -622,6 +623,8 @@ int
 BlockFile::read (void *buf, BlkOffset block, BlkSize size)
 {	
 	status = OK;
+	++stats.num_reads;
+	stats.bytes_read += size;
 	seek (block);
 	if (fread ((char *)buf, (size_t)size, 1, fp) != 1)
 	{

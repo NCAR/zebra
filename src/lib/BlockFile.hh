@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.9 1998-06-02 23:23:51 granger Exp $
+ * $Id: BlockFile.hh,v 1.10 1998-06-05 19:33:23 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -162,10 +162,10 @@ private:
 	/* statistics and debugging */
 	struct
 	{
-		int nread;
-		int bread;
-		int nwrite;
-		int bwrite;
+		int num_reads;
+		int bytes_read;
+		int num_writes;
+		int bytes_writ;
 	} stats;
 
 	/*
