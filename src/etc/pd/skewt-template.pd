@@ -1,4 +1,6 @@
 global
+	add-data-command:	sk-add-data
+	add-data-mode:		replace
 	pd-name:	skewt-template
 	plot-mode:	history
 	plot-time:	now

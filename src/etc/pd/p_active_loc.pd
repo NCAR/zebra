@@ -1,0 +1,21 @@
+!
+! Locations with active areas.  Middle menu is set to call PutScalar,
+! but that is tweakable.
+!
+global
+	pd-name:	p_active_loc
+p_active_loc
+	platform:	SOMETHING
+	representation:	overlay
+	field:		location
+	color:		white
+	label-size:	10
+	icon:		radar-loc
+	icon-left-menu:		minimal-cap-left-menu
+	icon-right-menu:	location-options
+	posicon-left-menu:	minimal-cap-left-menu
+	posicon-right-menu:	location-options
+	posicon-middle-menu:	pa-send-data
+	label:		platform
+	active-icon:	true
+	require:	location
