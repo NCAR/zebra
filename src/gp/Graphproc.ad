@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.2 1992-12-15 18:25:04 corbet Exp $
+! $Id: Graphproc.ad,v 1.3 1993-03-04 04:12:00 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -100,6 +100,12 @@
 *movieform*Text.translations: #override \n\
 	<Key>Return:	no-op(RingBell) \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
+!
+! GetPosition resources
+!
+*position*origintext.translations: #override 	\n\
+	<Key>Return:	no-op(RingBell) 	\n\
 	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
 !
 ! Color widgets.
