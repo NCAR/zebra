@@ -1,10 +1,11 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.5 1990-06-05 15:06:26 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.6 1990-06-07 11:04:00 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
 # include <X11/Cardinals.h>
+# include <X11/cursorfont.h>
 # include <ui.h>
 
 # include "gp_cmds.h"
@@ -51,9 +52,11 @@ XtAppContext Actx;			/* The application context	*/
 bool Abort = FALSE;			/* Has the current plot been stopped*/
 plot_description Pd = 0, Defaults = 0;	/* Plot description info	*/
 time PlotTime;				/* The current plot time.	*/
-enum pmode PlotMode = RealTime;
+enum pmode PlotMode = None;
 enum wstate WindowState = DOWN;
 bool NewPD = FALSE;
+bool MovieMode = FALSE;
+Cursor BusyCursor, NormalCursor;	/* Our cursors			*/
 
 /*
  * Forward routine definitions.
@@ -111,17 +114,22 @@ finish_setup ()
  */
 {
 	Arg args[10];
+	void Ue_el ();
 	static XtActionsRec actions[] =
 	{
 		{ "ue_pointer_event",	Ue_PointerEvent	},
 		{ "ue_key_event",	Ue_KeyEvent	},
 		{ "ue_button_up",	Ue_ButtonUp	},
+		{ "ue_el",		Ue_el		},
 	};
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
 	uw_ForceWindowMode ((char *) 0, &Top, &Actx);
-	XtAppAddActions (Actx, actions, THREE);
+	XtAppAddActions (Actx, actions, FOUR);
+	XtRegisterGrabAction (Ue_PointerEvent, True,
+	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
+
 /*
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
@@ -136,6 +144,11 @@ finish_setup ()
 	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
 		GrShell, NULL, 0);
 /*
+ * Cursors.
+ */
+	NormalCursor = XCreateFontCursor (XtDisplay (Top), XC_trek);
+	BusyCursor = XCreateFontCursor (XtDisplay (Top), XC_watch);
+/*
  * Initialize color table and user event stuff
  */
 	ct_Init ();
@@ -149,6 +162,10 @@ finish_setup ()
  */
 	lle_AddFD (msg_get_fd (), msg_incoming);
 	lle_AddFD (XConnectionNumber (XtDisplay (Top)), xtEvent);
+/*
+ * Pull in the widget definition file.
+ */
+	ui_perform ("read /fcc/gp/Widgets");
 }
 
 
@@ -248,6 +265,7 @@ struct ui_command *cmds;
  */
 {
 	static bool first = TRUE;
+	struct dm_event dme;
 
 	switch (UKEY (*cmds))
 	{
@@ -267,13 +285,24 @@ struct ui_command *cmds;
 	 */
 	   case GPC_DM:
 	   	msg_log ("DM cmd '%s'", UPTR (cmds[1]));
+		dme.dmm_type = DM_EVENT;
+		strcpy (dme.dmm_data, UPTR (cmds[1]));
+		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
+			sizeof (dme));
+		break;
+
+	/*
+	 * Change a PD parameter.
+	 */
+	   case GPC_PARAMETER:
+		parameter (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]));
 		break;
 
 	   default:
 	   	msg_log ("Unknown kw %d", UKEY (*cmds));
 		break;
 	}
-	return (0);
+	return (TRUE);
 }
 
 
@@ -396,10 +425,12 @@ int len;
 	XtSetArg (args[3], XtNheight, dmsg->dmm_dy);
 	XtSetValues (GrShell, args, FOUR);
 /*
- * If we are not currently on-screen, put it there.
+ * If we are not currently on-screen, put it there.  Also set the cursor 
+ * to our normal value.
  */
 	if (WindowState == DOWN)
 		ChangeState (UP);
+	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), NormalCursor);
 /*
  * Force the window to the bottom.
  */
@@ -538,6 +569,35 @@ struct dm_parchange *dmp;
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
+
+
+
+
+parameter (comp, param, value)
+char *comp, *param, *value;
+/*
+ * Change a parameter on a window.
+ */
+{
+/*
+ * Sanity check.
+ */
+	if (! Pd)
+	{
+		msg_log ("Param change (%s/%s/%s) with no PD", comp, param,
+				value);
+		return;
+	}
+/*
+ * Do the change.
+ */
+	pd_Store (Pd, comp, param, value, SYMT_STRING);
+/*
+ * Now reset things.
+ */
+	NewPD = TRUE;
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+}
 
 
 
