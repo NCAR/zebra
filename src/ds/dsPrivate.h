@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 2.1 1991-09-26 23:02:26 gracio Exp $
+ * $Id: dsPrivate.h,v 2.2 1992-03-18 21:13:33 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -48,14 +48,14 @@ struct ds_ShmHeader
 	int	sm_nDTEUsed;		/* How many used		*/
 	int	sm_DTFreeList;		/* First free entry		*/
 };
-# define SHM_MAGIC	0x71491	/* Change for incompatible changes */
+# define SHM_MAGIC	0x123091	/* Change for incompatible changes */
 
 
 
 /*
  * A platform in the data table is described by this structure.
  */
-# define NAMELEN 60
+# define NAMELEN 80
 typedef struct ds_Platform
 {
 	char	dp_name[NAMELEN];	/* The full name of this platform */
@@ -102,6 +102,7 @@ typedef struct ds_DataFile
 	short	df_nsample;		/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
 	int	df_use;			/* Structure use count		*/
+	bool	df_archived;		/* Has this file been archived?	*/
 } DataFile;
 
 
@@ -113,6 +114,7 @@ typedef struct ds_DataFile
 # define SHM_SIZE 65536*4
 char *ShmSegment;
 struct ds_ShmHeader *ShmHeader;
+
 # define DS_KEY 0x072161
 
 /*
@@ -150,6 +152,7 @@ enum dsp_Types
 	dpt_DeleteData,			/* DANGER remove data		*/
 	dpt_DataGone,			/* Data deletion announcement	*/
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
+	dpt_MarkArchived,		/* Mark a file as archived	*/
 /*
  * Cross-machine broadcast notifications.
  */
@@ -240,6 +243,16 @@ struct dsp_Notify
 	time dsp_when;			/* The lastest time for data	*/
 };
 
+
+/*
+ * A hook to allow an archiver process to mark files as having been 
+ * archived.  Such a mark will prevent further writing to the file.
+ */
+struct dsp_MarkArchived
+{
+	enum dsp_Types 	dsp_type;	/* == dpt_MarkArchived		*/
+	int		dsp_FileIndex;	/* Index of the archived file	*/
+};
 
 
 

@@ -20,7 +20,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: d_DataTables.c,v 2.1 1991-09-26 22:58:13 gracio Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -28,6 +27,7 @@ static char *rcsid = "$Id: d_DataTables.c,v 2.1 1991-09-26 22:58:13 gracio Exp $
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
+MAKE_RCSID("$Id: d_DataTables.c,v 2.2 1992-03-18 21:13:33 corbet Exp $")
 
 
 /*
@@ -39,6 +39,8 @@ static stbl Platforms;
  * What is the default time period to keep data?
  */
 static int DefaultKeep = 60;
+
+
 
 
 void
@@ -337,6 +339,7 @@ bool local;
 {
 	df->df_platform = p - PTable;
 	df->df_use++;
+	df->df_archived = FALSE;
 	if (local)
 		dt_IPAdd (df, &p->dp_LocalData);
 	else
