@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.11 1994-01-21 21:51:33 corbet Exp $
+! $Id: dm.widgets,v 1.12 1994-01-31 20:21:56 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -683,6 +683,14 @@ procedure printer_go
 	set xwd2ps getenv("ZEB_XWD2PS_PATH")	
 	set xwd getenv("ZEB_XWD_PATH")
 	set xpr getenv("ZEB_XPR_PATH")
+!
+! Figure out what you have to run to get a file printed around here.
+!
+	if (SystemType = 'bsd')
+		local pcommand '| lpr -P'
+	else
+		local pcommand '| lp -d '  ! trailing space necessary
+	endif
 
 	! Add a little robustness
 	if (getftext(ui$form,"printer_name") = "")
@@ -746,7 +754,7 @@ procedure printer_go
 	! Now test destination: either a file or a printer
 	!
 	if (getftext(ui$form,"label_name") = "Printer name:")
-		set print_command concat(print_command," | lpr -P")
+		set print_command concat(print_command, pcommand)
 	else
 		set print_command concat(print_command," > ")
 	endif

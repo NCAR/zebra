@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.38 1993-11-17 23:03:04 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.39 1994-01-31 20:21:50 corbet Exp $")
 
 
 /*
@@ -59,7 +59,7 @@ char CTablePath[512];	/* Where are the color tables?		*/
 
 
 char ExecPath[ExecPathLen];	/* path for executables */
-int TBSpace = 0;	/* How much to tweak for title bar space. */
+int TBSpace = 22;	/* How much to tweak for title bar space. */
 /*
  * Is sound enabled?
  */
@@ -82,6 +82,15 @@ int ForceHistory = FALSE;
 int HistoryMode = FALSE;
 ZebTime HistoryTime;
 
+/*
+ * What kind of computer is this, anyway?
+ */
+char SystemType[12] = 
+# if defined(SYSV) || defined(SVR4)
+	"sysv";
+# else
+	"bsd";
+# endif
 
 
 /*
@@ -171,6 +180,7 @@ char **argv;
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	sprintf (CTablePath, "%s/colortables", GetLibDir ());
 	usy_c_indirect (vtable, "ctablepath", CTablePath, SYMT_STRING, 512);
+	usy_c_indirect (vtable, "systemtype", SystemType, SYMT_STRING, 12);
 /*
  * Watch for incoming messages.
  */
