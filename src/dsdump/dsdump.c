@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.31 2001-10-25 18:30:25 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.32 2005-01-16 15:55:05 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -112,6 +112,7 @@ struct dsdump_options
     int tcf;		/* time formats */
     platform_att_id *atts;
     int natts;
+    int nsources;
     PlatClassId subclass;
     ZebraTime since;
     ZebraTime before;
@@ -136,6 +137,7 @@ DumpOptions Options =
     FALSE,		/* full */
     TC_Full,		/* tcf, time formats */
     0, 0,		/* default to no table rows */
+    0,			/* default to showing all sources */
     BadClass		/* don't limit to a particular class */
 };
 	
@@ -328,6 +330,7 @@ char *prog;
     printf("\t-q\tQuiet: skip any default output\n");
     printf("\t-x\tExclude data files from listing\n");
     printf("\t-n\tList platform names only\n");
+    printf("\t-S <n>\tSearch only the first <n> data sources.\n");
     printf("\t-z\tList only the most recent observation\n");
     printf("\t-t\tList fields in each observation ('%s')\n",
 	   "table of contents");
@@ -611,6 +614,14 @@ main (argc, argv)
 	    case 's':
 		opts->subs = TRUE;
 		break;
+	    case 'S':
+	        if (!argv[++opt])
+		{
+		  usage(argv[0]);
+		  exit(1);
+		}
+	        opts->nsources = atoi(argv[opt]);
+		break;
 	    case 'a':
 		opts->sort = TRUE;
 		break;
@@ -781,7 +792,8 @@ DumpPlatform (const Platform *p, const DumpOptions *opts)
 	SourceInfo si;
 	int src = 0;
 	    
-	for (src = 0; ds_GetSourceInfo (src, &si); src++)
+	for (src = 0; (opts->nsources == 0 || src < opts->nsources) &&
+	       ds_GetSourceInfo (src, &si); src++)
 	{
 	    const DataFile *df;
 	    
