@@ -3,13 +3,17 @@
 # Run another display session
 #
 echo $0 started at `date`
-setenv XAPPLRESDIR /zebra/lib/resources
+
+if (! $?ZEBRA_MASTER || ! $?ZEBRA_PROJDIR) then
+    echo "ZEBRA_MASTER and ZEBRA_PROJDIR must be set for newdisplay"
+    exit 1
+endif
 
 #
-# Set up for a remote DS_Daemon if ZEBRA_MASTER is set
+# Set up for a remote DS_Daemon if we are not on ZEBRA_MASTER
 #
 set dshost=""
-if ($?ZEBRA_MASTER  && $ZEBRA_MASTER != `hostname`) then
+if ($ZEBRA_MASTER != `hostname`) then
     if ($ZEBRA_MASTER != `hostname`) setenv DS_DAEMON_HOST $ZEBRA_MASTER
     set dshost = "-dshost $DS_DAEMON_HOST"
 endif
@@ -18,13 +22,13 @@ endif
 # Run an event logger and show status of last data received
 #
 EventLogger -w &
-LastData -g 240x200-0+175 /ops/zebra/LastData.conf &
+LastData -g 240x200-0+175 $ZEBRA_PROJDIR/LastData.conf &
 
 #
 # Run a zebra display and wait for it to terminate
 #
 xterm -name Zebra -title Zebra -iconic -e \
-    zstart $dshost -dm -preserve /ops/zebra
+    zstart $dshost -dm -preserve $ZEBRA_PROJDIR
 
 # 
 # Get rid of the LastData and EventLogger, then quit

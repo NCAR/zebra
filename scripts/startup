@@ -6,30 +6,33 @@ echo $0 started at `date`
 set execdir = $0:h
 
 #
-# Make sure ZEBRA_MASTER is set
+# Make sure ZEBRA_MASTER and ZEBRA_PROJDIR are set
 #
-if (! $?ZEBRA_MASTER) then
-    echo "${0}: You must set the ZEBRA_MASTER environment variable!"
+if (! $?ZEBRA_MASTER || ! $?ZEBRA_PROJDIR) then
+    echo "${0}: ZEBRA_MASTER and ZEBRA_PROJDIR must be set!"
     exit 1
 endif
 
 #
-# See if some part of Zebra is running on ZEBRA_MASTER
+# Make a good guess for XAPPLRESDIR
 #
-@ new_zebra = (! { msg_ping $ZEBRA_MASTER } )
+set zstart = `which zstart`
+set libdir = $zstart:h/../lib	# should end up as <zebra_installdir>/lib
+setenv XAPPLRESDIR $libdir/resources
 
 #
 # Fire up Zebra with the datastore running on ZEBRA_MASTER 
 # and the display on the local machine 
 #
-setenv XAPPLRESDIR /usr/local/zebra/lib/resources
-zstart -n -dshost $ZEBRA_MASTER -dsonly /ops/zebra
+zstart -n -dshost $ZEBRA_MASTER -dsonly $ZEBRA_PROJDIR
 $execdir/newdisplay &
 
 #
 # Run some extra stuff if we're on the master machine and an
 # instance of Archiver is not running
 #
+if (#?SKIP_EXTRAS) exit 0
+
 mstatus | fgrep Archiver >& /dev/null
 @ need_extras = $status
 
