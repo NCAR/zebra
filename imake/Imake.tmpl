@@ -7,7 +7,6 @@
 #endif
 XCOMM -------------------------------------------------------------------------
 XCOMM Makefile generated from IMAKE_TEMPLATE and INCLUDE_IMAKEFILE
-XCOMM $XFree86: mit/config/Imake.tmpl,v 2.11 1994/05/02 11:40:57 dawes Exp $
 XCOMM $XConsortium: Imake.tmpl,v 1.139 91/09/16 08:52:48 rws Exp $
 XCOMM
 XCOMM Platform-specific parameters may be set in the appropriate <vendor>.cf
@@ -42,16 +41,6 @@ XCOMM
  *     4.  Create a .cf file with the name given by MacroFile.
  */
 
-#ifndef INCLUDE_PLATFORM
-#define INCLUDE_PLATFORM <noop.rules>
-#endif
-#include INCLUDE_PLATFORM
-
-#ifndef MacroIncludeFile
-/* If INCLUDE_PLATFORM was included, both MacroFile and MacroIncludeFile
- * will already be defined.
- */
-
 #ifdef ultrix
 #define MacroIncludeFile <ultrix.cf>
 #define MacroFile ultrix.cf
@@ -74,7 +63,7 @@ XCOMM
 #define VaxArchitecture
 #endif
 
-#if defined(sun) && !defined(SOLX86) 
+#if defined(sun) && !defined(SOLX86)
 #define MacroIncludeFile <sun.cf>
 #define MacroFile sun.cf
 #undef sun
@@ -236,7 +225,7 @@ XCOMM
 #  define SVR4
 #  define i386SVR4Architecture
 #  undef i386SVR3Architecture
-#  define i386SVR4Solarisx86 
+#  define i386SVR4Solarisx86
 # endif
 # define MacroIncludeFile <x386.cf>
 # define MacroFile x386.cf
@@ -378,8 +367,6 @@ XCOMM This might mean that BOOTSTRAPCFLAGS was not set when building imake.
 #define MacroFile generic.cf
 #endif
 
-#endif /* MacroIncludeFile */
-
 /*****************************************************************************
  *                                                                           *
  *                       DO NOT MODIFY BELOW THIS LINE                       *
@@ -445,10 +432,10 @@ XCOMM the platform-specific parameters - edit site.def to change
 #define SystemV4		NO	/* SVR4 */
 #endif
 #ifndef i386Bsd
-#define i386Bsd			NO
+#define i386Bsd                 NO
 #endif
 #ifndef i386Mach
-#define i386Mach		NO
+#define i386Mach                NO
 #endif
 #ifndef OSMajorVersion
 #define OSMajorVersion          0
@@ -595,20 +582,17 @@ XCOMM the platform-specific parameters - edit site.def to change
 #ifndef DefaultCCOptions
 #define DefaultCCOptions /* as nothing: this is for floating point, etc. */
 #endif
-#ifndef AnsiCCOptions
-#define AnsiCCOptions /* as nothing */
-#endif
 #ifndef InstPgmFlags
 #define InstPgmFlags -s
 #endif
 #ifndef InstBinFlags
-#define InstBinFlags -m 0755
+#define InstBinFlags -m 0775
 #endif
 #ifndef InstUidFlags
 #define InstUidFlags -m 4755
 #endif
 #ifndef InstLibFlags
-#define InstLibFlags -m 0644
+#define InstLibFlags -m 0664
 #endif
 #ifndef InstIncFlags
 #define InstIncFlags -m 0444
@@ -639,7 +623,7 @@ XCOMM the platform-specific parameters - edit site.def to change
 #if HasGcc
 #define CcCmd gcc -fstrength-reduce -fpcc-struct-return 
 #else
-#define CcCmd cc
+#define CcCmd cc 
 #endif
 #endif
 #if HasFortran
@@ -663,7 +647,7 @@ XCOMM the platform-specific parameters - edit site.def to change
 #define CompressCmd compress
 #endif
 #ifndef CppCmd
-#define CppCmd /lib/cpp
+#define CppCmd /lib/cpp 
 #endif
 #ifndef PreProcessCmd
 #define PreProcessCmd CcCmd -E
@@ -758,9 +742,6 @@ XCOMM the platform-specific parameters - edit site.def to change
 #define NdbmDefines /**/
 #endif
 #endif
-#ifndef OSLibraries
-#define OSLibraries /**/
-#endif
 #ifndef ExtraLibraries
 #if SystemV4
 #if HasSockets
@@ -784,7 +765,6 @@ XCOMM the platform-specific parameters - edit site.def to change
 #endif
 #if defined(MakeLdRunPath) && AlternateUsrLibDir
 #define LdRunPath MakeLdRunPath($(USRLIBDIR))
-#define LdLinkPath MakeLdLinkPath($(USRLIBDIR))
 #else
 #define LdRunPath /* */
 #endif
@@ -856,9 +836,6 @@ XCOMM the platform-specific parameters - edit site.def to change
   BOOTSTRAPCFLAGS = BootstrapCFlags	/* set if cpp does not have uniq sym */
                CC = CcCmd
                AS = AsCmd
-              LEX = LexCmd
-           LEXLIB = LexLib
-             YACC = YaccCmd
 #if HasFortran
                FC = FortranCmd
       FDEBUGFLAGS = FortranDebugFlags
@@ -885,14 +862,11 @@ XCOMM the platform-specific parameters - edit site.def to change
          MSMACROS = MsMacros
               TBL = TblCmd
               EQN = EqnCmd
-            NROFF = NroffCmd
-             NEQN = NeqnCmd
      STD_INCLUDES = StandardIncludes
   STD_CPP_DEFINES = StandardCppDefines
       STD_DEFINES = StandardDefines
  EXTRA_LOAD_FLAGS = ExtraLoadFlags
   EXTRA_LIBRARIES = ExtraLibraries
-     OS_LIBRARIES = OSLibraries
              TAGS = TagsCmd
 #if ConstructMFLAGS
            MFLAGS = -$(MAKEFLAGS)
@@ -970,10 +944,6 @@ XCOMM the platform-specific parameters - edit site.def to change
 #endif
       CDEBUGFLAGS = DefaultCDebugFlags
         CCOPTIONS = DefaultCCOptions	/* to distinguish from param flags */
-    ANSICCOPTIONS = AnsiCCOptions
-
-        LDRUNPATH = LdRunPath
-       LDLINKPATH = LdLinkPath
 /*
  * STD_INCLUDES contains system-specific includes
  * TOP_INCLUDES specifies how to get to /usr/include or its build substitute
@@ -983,25 +953,17 @@ XCOMM the platform-specific parameters - edit site.def to change
  */
       ALLINCLUDES = $(INCLUDES) $(EXTRA_INCLUDES) $(TOP_INCLUDES) $(STD_INCLUDES)
        ALLDEFINES = $(ALLINCLUDES) $(STD_DEFINES) $(EXTRA_DEFINES) $(PROTO_DEFINES) $(DEFINES)
-           CFLAGS = $(ANSICCOPTIONS) $(CDEBUGFLAGS) $(CCOPTIONS) $(ALLDEFINES)
+           CFLAGS = $(CDEBUGFLAGS) $(CCOPTIONS) $(ALLDEFINES)
         LINTFLAGS = $(LINTOPTS) -DLINT $(ALLDEFINES)
-#ifdef Amoeba
-           LDLIBS = $(SYS_LIBRARIES) $(OS_LIBRARIES) $(EXTRA_LIBRARIES)
-#else
 #if AlternateUsrLibDir && !defined(UseInstalled)
-           LDLIBS = -L$(USRLIBDIR) $(OS_LIBRARIES) $(SYS_LIBRARIES) $(EXTRA_LIBRARIES)
+           LDLIBS = -L$(USRLIBDIR) $(SYS_LIBRARIES) $(EXTRA_LIBRARIES)
 #else
-           LDLIBS = $(OS_LIBRARIES) $(SYS_LIBRARIES) $(EXTRA_LIBRARIES)
+           LDLIBS = $(SYS_LIBRARIES) $(EXTRA_LIBRARIES)
 #endif
-#endif
-#if !CrossCompiling
 #if AlternateUsrLibDir && defined(UseInstalled)
-        LDOPTIONS = $(ANSICCOPTIONS) $(CDEBUGFLAGS) $(CCOPTIONS) $(LOCAL_LDFLAGS) -L$(USRLIBDIR) $(LDRUNPATH)
+        LDOPTIONS = $(CDEBUGFLAGS) $(CCOPTIONS) $(LOCAL_LDFLAGS) -L$(USRLIBDIR) LdRunPath
 #else
-        LDOPTIONS = $(ANSICCOPTIONS) $(CDEBUGFLAGS) $(CCOPTIONS) $(LOCAL_LDFLAGS) $(LDRUNPATH)
-#endif
-#else
-        LDOPTIONS =
+        LDOPTIONS = $(CDEBUGFLAGS) $(CCOPTIONS) $(LOCAL_LDFLAGS) LdRunPath
 #endif
    LDCOMBINEFLAGS = LdCombineFlags
       DEPENDFLAGS = DependFlags
@@ -1032,18 +994,6 @@ XCOMM the platform-specific parameters - edit site.def to change
 XCOMM -------------------------------------------------------------------------
 XCOMM start of Imakefile
 #include INCLUDE_IMAKEFILE
-
-#ifdef INoCrossCompilation
-/* When we are crosscompiling, the programs that are to run on the local host
- * (like makedepend, imake(!), ..)  should be compiled by the host's compiler.
- * If this is the case, insert a define of INoCrossCompilation in the
- * Imakefile. The following include will then take care of redefining
- * parameters like CC.
- */
-#include "hostcc.def"
-     OS_LIBRARIES =
-#endif
-
 
 XCOMM -------------------------------------------------------------------------
 XCOMM common rules for all Makefiles - do not edit
@@ -1079,7 +1029,6 @@ XCOMM rules for building in SUBDIRS - do not edit
 
 InstallSubdirs($(SUBDIRS))
 InstallManSubdirs($(SUBDIRS))
-InstallLinkKitSubdirs($(SUBDIRS))
 CleanSubdirs($(SUBDIRS))
 TagSubdirs($(SUBDIRS))
 MakefileSubdirs($(SUBDIRS))
@@ -1094,9 +1043,6 @@ install::
 
 install.man::
 	@echo "install.man in $(CURRENT_DIR) done"
-
-install.linkkit::
-	@echo "install.linkkit in $(CURRENT_DIR) done"
 
 Makefiles::
 
