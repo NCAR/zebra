@@ -24,9 +24,10 @@
 
 # ifndef lint
 static char *rcsid = 
-   "$Id: trmm_rain.c,v 1.6 1993-06-07 18:54:34 granger Exp $";
+   "$Id: trmm_rain.c,v 1.7 1993-06-22 21:00:40 granger Exp $";
 # endif
 
+# include <assert.h>
 # include <time.h>
 # include <errno.h>
 # include <stdio.h>
@@ -36,13 +37,17 @@ static char *rcsid =
 # include <ingest.h>
 
 # define BADVAL	-9999.0
+# define DC_SIZE_LIMIT (65000)
 
 # define PlatformName(pid) ((NoDataStore)?"platname":ds_PlatformName(pid))
+# define StoreBlocks(a,b,c,d) ((NoDataStore)?(TRUE):\
+			       (ds_StoreBlocks(a,b,c,d)))
 
 /*
  * Table of sites
  */
 #define TIMEZONE_FILE 	"Australia/North"
+/*#define TIMEZONE_FILE	"GMT"	*/
 #define NUM_SITES 	((sizeof(Sites)/sizeof(Sites[0])) - 1)
 struct _sites
 {
@@ -81,18 +86,18 @@ struct _sites
  * The number of the month to limit our ingestion to, 1..12
  */
 int Month = 0;
+int Day = 0;	/* Day of the month to limit ingestion to */
+short OptionIR = 0;	/* True when ingesting an irgrid  */
 
 static DataChunk *InitScalarDC FP ((FILE *infile, FieldId fid, int *year));
 static DataChunk *InitIRGridDC FP ((char *irplat_name, FieldId fid));
-static void	GrabData FP ((FILE *infile, DataChunk *dc, FieldId, int year));
+static DataChunk *CopyScalarDC FP ((DataChunk *src));
+static void	GrabData FP ((FILE *infile, DataChunk **dc, int *ndc,
+			      FieldId, int *year));
 static void	ConvertYearDay FP((int year, int yday, int *month, int *mday));
-#ifdef notdef /* functions no longer used */
-static time_t	YearSeconds FP ((int));
-static void	dc_IRAddScalarDC FP((DataChunk *irgrid_dc, 
-				     DataChunk *scalar_dc,
-				     int sample, int nsamples,
-				     int nfield, FieldId *fields));
-#endif
+static inline int MonthNDays FP((int month, int year));
+static void IngestFiles FP((int argc, char **argv, char *irplat_name,
+			    int *year));
 
 
 static void
@@ -100,39 +105,35 @@ Usage (prog)
 char *prog;
 {
 	printf ("Usage: %s [ingest options] ", prog);
-	printf ("[-ir <name>] [-m <month>] file ...\n");
+	printf ("[-ir <name>] [-m <month> [-d <day>]] file ...\n");
 	printf ("   -ir\tIngest to irregular platform <name> rather than\n");
 	printf ("      \tindividually as scalar time series.\n");
-	printf ("   -m \tIngest data for this month only, where <month>");
-	printf (" is in the range 1..12, (local time).\n");
+	printf ("   -m \tIngest data for this month only, where <month>\n");
+	printf ("      \tis in the range 1..12 (UTC time).\n");
 	printf ("      \tRecommended when using -ir with large datasets.\n");
+	printf ("   -d \tIngest data for this day of the given month,");
+	printf (" 1..31\n");
+	printf ("      \tWithout -d, data for a whole month is ");
+	printf ("ingested one day at a time.\n");
 	IngestUsage ();
 }
 	
 
-
-main (argc, argv)
-int	argc;
-char	**argv;
+static void
+ParseOptions (rargc, argv, irplat_name)
+int *rargc;
+char *argv[];
+char **irplat_name;
 {
 	int i = 1;
-	FILE *infile;
-	int year;
-	char *irplat_name;
-	DataChunk *dc, *irdc;
-	int option_ir = 0;
-	FieldId fid;
-	char env[50];
-/*
- * Search for the IR option to see if we're supposed to do the IR plat
- * rather than individual scalars.
- */
+	int argc = *rargc;
+
 	while (i < argc)
 	{
 		if (!strcmp(argv[i],"-ir") && (i + 1 < argc))
 		{
-			option_ir = 1;
-			irplat_name = argv[i+1];
+			OptionIR = 1;
+			*irplat_name = argv[i+1];
 			IngestRemoveOptions(&argc, argv, i, 2);
 		}
 		else if (!strcmp(argv[i],"-m") && (i + 1 < argc))
@@ -146,9 +147,34 @@ char	**argv;
 			}
 			IngestRemoveOptions(&argc, argv, i, 2);
 		}
+		else if (!strcmp(argv[i],"-d") && (i + 1 < argc))
+		{
+			Day = atoi(argv[i+1]);
+			if ((Day < 1) || (Day > 31))
+			{
+				printf ("%s: bad day number\n", argv[0]);
+				Usage (argv[0]);
+				exit (1);
+			}
+			IngestRemoveOptions(&argc, argv, i, 2);
+		}
 		else
 			++i;
 	}
+	*rargc = argc;
+}
+
+
+
+main (argc, argv)
+int	argc;
+char	**argv;
+{
+	char *irplat_name;
+	char env[50];
+	int year;
+
+	ParseOptions (&argc, argv, &irplat_name);
 /*
  * Parse general ingest options
  */
@@ -177,12 +203,50 @@ char	**argv;
  */
 	IngestInitialize ("TRMM_Rain");
 	IngestLog (EF_INFO, "Using '%s' as timezone of local times", env);
-	fid = F_DeclareField ("rainr", "Rain gauge rates", "mm/hr");
-	if (option_ir)
-		irdc = InitIRGridDC (irplat_name, fid);
 /*
- * Now ingest from each file left on the command line
+ * Now ingest from each file left on the command line.  If we're limiting
+ * to one whole month, do it one day at a time.
  */
+	if (Month && (Day == 0))
+	{
+	        Day = 1;
+		do {
+			IngestFiles (argc, argv, irplat_name, &year);
+			++Day;
+		} while (Day <= MonthNDays(Month, year));
+	}
+	else
+		IngestFiles (argc, argv, irplat_name, &year);
+
+	exit (0);
+}
+
+
+
+static void
+IngestFiles (argc, argv, irplat_name, year)
+int argc;
+char *argv[];
+char *irplat_name;
+int *year;
+{
+	FILE *infile;
+	DataChunk *dc[10], *irdc[10];
+	int ndc;
+	int i,n;
+	FieldId fid;
+
+	fid = F_DeclareField ("rainr", "Rain gauge rates", "mm/hr");
+
+	if (Month && Day)
+		IngestLog (EF_INFO, "Reading month #%d, day #%d", 
+			   Month, Day);
+	else if (Month)
+		IngestLog (EF_INFO, "Limiting data to #%d", Month);
+
+	for (n = 0; n < 10; ++n)
+		irdc[n] = NULL;
+
 	i = 1;
 	while (i < argc)
 	{
@@ -196,67 +260,87 @@ char	**argv;
 			printf ("Error %d opening  '%s'!\n", errno, argv[i]);
 			exit (1);
 		}
-		dc = InitScalarDC (infile, fid, &year);
+		dc[0] = InitScalarDC (infile, fid, year);
 	/*
-	 * Build the data chunk
+	 * Build the data chunks
 	 */
-		GrabData (infile, dc, fid, year);
-		
+		GrabData (infile, dc, &ndc, fid, year);
 	/*
-	 * If not storing as an IRGrid, stored this scalar DC and continue
-	 * on.  Otherwise, add the DC to the IR DC.
+	 * If not storing as an IRGrid, store as a scalar DC and continue
+	 * on.  Otherwise, add the DC to the IR DC.  Note we are counting
+	 * on the gap-filling in GrabData() to mesh all of the scalar chunks
+	 * and prevent BadValue's from appearing in any of the grids.
 	 */
-		if (! option_ir)
+		if (dc_GetNSample (dc[0]) == 0)
+			IngestLog (EF_PROBLEM, "No samples read from file");
+		if (! OptionIR)
 		{
-			if (! ds_StoreBlocks (dc, FALSE, (dsDetail *) 0, 0))
+		    for (n = 0; i < ndc; ++n)
+		    {
+			    if (DumpDataChunks)
+				    dc_DumpDC (dc[n]);
+			if (! StoreBlocks (dc[n], FALSE, (dsDetail *) 0, 0))
 				IngestLog (EF_EMERGENCY, 
 					   "%s: Failure storing data", 
-					   PlatformName (dc->dc_Platform));
+					   PlatformName (dc[0]->dc_Platform));
 			else
 				IngestLog (EF_INFO, "File %s ingested",
 					   argv[i]);
+		    }
 		}
 		else
 		{
+			int nsamp = 0;
+
 			IngestLog (EF_INFO,
 				   "Merging scalar into IR plat '%s'",
 				   irplat_name);
-			dc_IRAddScalarDC (irdc, dc, 0, 0, 0, 0);
+			for (n = 0; n < ndc; ++n)
+			{
+				if (!irdc[n])
+					irdc[n] = InitIRGridDC (irplat_name,
+								fid);
+				dc_IRAddScalarDC (irdc[n], dc[n], 0, 0, 0, 0);
+				nsamp += dc_GetNSample(irdc[n]);
+			}
 			IngestLog (EF_INFO,
 		   "File %s merged into IR plat '%s'; now %i samples in DC",
-		   argv[i], irplat_name, dc_GetNSample(irdc));
+		   argv[i], irplat_name, nsamp);
 		}
 	/*
 	 * Either way we're done with the file and the scalar DC
 	 */
 		fclose (infile);
-		dc_DestroyDC (dc);
+		for (n = 0; n < ndc; ++n)
+			dc_DestroyDC (dc[n]);
 		++i;
 	}
 /*
  * If we're not doing the IR option, we're done.  Otherwise we must sort
  * the IR dc to avoid any insert cases, store the IR dc, and then we're done.
  */
-	if (! option_ir)
-		exit (0);
+	if (! OptionIR)
+		return ;
 
-	if (DumpDataChunks)
-		dc_DumpDC (irdc);
-	IngestLog (EF_INFO, "Sorting irgrid samples...");
-	dc_SortSamples (irdc);
-	IngestLog (EF_INFO, "Sorting complete.");
-	if (DumpDataChunks)
-		dc_DumpDC (irdc);
-	if (! ds_StoreBlocks (irdc, FALSE, (dsDetail *) 0, 0))
+	for (n = 0; n < ndc; ++n)
 	{
-		IngestLog (EF_EMERGENCY, 
-			   "%s: Failure storing data", irplat_name);
-		exit (5);
+		IngestLog (EF_DEBUG, "Sorting irgrid samples...");
+		dc_SortSamples (irdc[n]);
+		IngestLog (EF_DEBUG, "Sorting complete.");
+		if (DumpDataChunks)
+			dc_DumpDC (irdc[n]);
+		if (! StoreBlocks (irdc[n], FALSE, (dsDetail *) 0, 0))
+		{
+			IngestLog (EF_EMERGENCY, 
+				   "%s: Failure storing datachunk %d", 
+				   irplat_name, n);
+			exit (5);
+		}
+		
+		IngestLog (EF_INFO, "Successful ingest of IR plat '%s'",
+			   irplat_name);
+		dc_DestroyDC (irdc[n]);
 	}
-
-	IngestLog (EF_INFO, "Successful ingest of IR plat '%s'",
-		   irplat_name);
-	exit (0);
 }
 
 
@@ -326,6 +410,37 @@ int *year;
 
 
 static DataChunk *
+CopyScalarDC (src)
+DataChunk *src;
+/*
+ * Create our data chunk and initialize based on the first line of the input
+ * file.  Initialize the irregular data chunk if that hasn't been done yet.
+ */
+{
+	DataChunk *dc;
+	int nfields;
+	FieldId *fids;
+	Location	loc;
+/*
+ * Create the data chunk and put in the platform ID, location, field ID, and
+ * bad value flag from the src datachunk
+ */
+	dc = dc_CreateDC (DCC_Scalar);
+	dc->dc_Platform = src->dc_Platform;
+
+	fids = dc_GetFields (src, &nfields);
+	dc_SetScalarFields (dc, nfields, fids);
+	dc_SetBadval (dc, dc_GetBadval(src));
+	dc_GetLoc (src, 0, &loc);
+	dc_SetStaticLoc (dc, &loc);
+	
+	return (dc);
+}
+
+
+
+
+static DataChunk *
 InitIRGridDC (irplat_name, fid)
 char *irplat_name;
 FieldId fid;
@@ -370,38 +485,85 @@ FieldId fid;
 
 
 static void
-GrabData (infile, dc, fid, year)
-FILE *infile;
-DataChunk *dc;
+FillGap (dc, idc, t1, t2, ndx, fid)
+DataChunk **dc;
+int *idc;
+unsigned long t1;
+unsigned long t2;
+int *ndx;
 FieldId fid;
-int year;
 /*
- * Put all the data into the data chunk
+ * Fills a gap between t1 and t2, NON-INCLUSIVE.  
+ * No sample will be stored for either t1 or t2.
+ * t1 and t2 should be multiples of 60, i.e. in even minutes.
  */
 {
-	ZebTime	t;
+	ZebTime tmp;
+	float data;
+	unsigned long l;
+	
+	tmp.zt_MicroSec = 0;
+	data = 0;
+	if (t2 - t1 > 60)
+		IngestLog (EF_DEBUG,
+			   "Filling gap of %d minutes",
+			   (t2 - t1)/60 - 1);
+	for (l = t1 + 60; l < t2; l += 60)
+	{
+		tmp.zt_Sec = l;
+		dc_AddScalar (dc[*idc], &tmp, (*ndx)++, fid, &data);
+		if (*ndx >= DC_SIZE_LIMIT)
+		{
+			IngestLog (EF_DEBUG, "Creating DataChunk #%d", *idc+2);
+			dc[*idc+1] = CopyScalarDC (dc[*idc]);
+			++(*idc);
+			*ndx = 0;
+		}
+
+	}
+}
+
+
+
+
+static void
+GrabData (infile, dc, ndc, fid, ryear)
+FILE *infile;
+DataChunk **dc;
+int *ndc;
+FieldId fid;
+int *ryear;	/* year used for the Month and Day being ingested */
+/*
+ * Put all the data in the file into the data chunk.
+ * Fill in time gaps with zeroes.  If Month is not set, no limit is put
+ * on the times of the samples, otherwise both Month and Day must be
+ * valid, and data is limited to that Month and Day.
+ *
+ * Because of the gap filling, the datachunks get large fast.  Hence we
+ * need to create new datachunks as needed.  We expect dc[0] to exist,
+ * the others are copied from it.
+ */
+{
+	ZebTime	t, last, end;
 	struct tm local;
 	int	ndx = 0, prevday = 0, num, jday, hour, minute, second;
 	int	month, mday;
 	float	rate;
 	char	msg[100];
+	int idc;
+	int year = *ryear;
 
-	/* yearsec = YearSeconds(year); */
-	local.tm_sec = 0;
+	assert((Month == 0) || ((Month > 0) && (Day > 0)));
+	local.tm_sec = 0;	/* seconds of all sample times are 0'ed */
 	local.tm_year = year - 1900;
 	local.tm_wday = 0;
 	local.tm_yday = 0;
 	local.tm_zone = NULL;
 	local.tm_gmtoff = 0;
-	t.zt_MicroSec = 0;
-
-	/*
-	 * Note to user whether we're limiting data to a particular month
-	 */
-	if (Month)
-	{
-		IngestLog (EF_INFO, "Limiting data to month #%d", Month);
-	}
+	t.zt_MicroSec = 0;	/* we won't be using micro-seconds */
+	last.zt_MicroSec = last.zt_Sec = 0;
+	end.zt_MicroSec = end.zt_Sec = 0;
+	idc = 0;
 
 	while ((num = fscanf (infile, " %d %d:%d:%d %f ", 
 			      &jday, &hour, &minute, &second, &rate)) == 5)
@@ -413,6 +575,7 @@ int year;
 		{
 			++year;
 			local.tm_year = year - 1900;
+			*ryear = year;
 		}
 		prevday = jday;
 	/*
@@ -423,11 +586,6 @@ int year;
 	 * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	 */
 		ConvertYearDay (year, jday, &month, &mday);
-	/*
-	 * Skip this point if not in the month we want
-	 */
-		if (Month && (month != Month))
-			continue;
 	/*
 	 * Construct a tm structure and use it to convert the file's time
 	 * to UTC using timelocal().  We're assuming that the program is
@@ -440,20 +598,78 @@ int year;
 		local.tm_mon = month - 1;
 		t.zt_Sec = (unsigned long) timelocal (&local);
 	/*
-	 * Throw this sample into the data chunk
+	 * If we have an end time, and t is later, we know we can
+	 * abort now.
 	 */
-		dc_AddScalar (dc, &t, ndx++, fid, &rate);
+		if (end.zt_Sec && (t.zt_Sec >= end.zt_Sec))
+			break;
+	/*
+	 * If we've at least found the correct month, use it to
+	 * set up our day boundaries.  If we find no data, the day
+	 * will be filled with zeroes.
+	 */
+		TC_ZtSplit (&t, 0, &month, &mday, 0, 0, 0, 0);
+		if (Month && (month != Month))
+			continue;
+	/*
+	 * If restricting samples to a particular day, last should
+	 * be set to the beginning of the day.  Find it by
+	 * "zero"ing the hours and minutes.  The end of our day is set
+	 * in 'end' by adding 24 hours.
+	 */
+		if (!last.zt_Sec && Month)
+		{
+			TC_ZtAssemble (&last, year - 1900, Month, 
+				       Day, 0, 0, 0, 0);
+			end.zt_Sec = last.zt_Sec + 24*60*60;
+			last.zt_Sec -= 60;
+		}
+	/*
+	 * Skip this point if not in the day wanted
+	 */
+		if (mday != Day)
+			continue;
+	/*
+	 * If we have a last time, fill any gap between it and this sample
+	 */
+		if (last.zt_Sec)
+		{
+			FillGap (dc, &idc, last.zt_Sec, t.zt_Sec, &ndx, fid);
+		}
+		last.zt_Sec = t.zt_Sec;
+	/*
+	 * Throw (toss, lob, volley) this sample into the data chunk
+	 */
+		dc_AddScalar (dc[idc], &t, ndx++, fid, &rate);
 		if ((ndx % 250) == 0)
 			IngestLog (EF_DEBUG, "%d points read", ndx);
+		if (ndx >= DC_SIZE_LIMIT)
+		{
+			IngestLog (EF_DEBUG, "Creating DataChunk #%d", idc+2);
+			dc[idc+1] = CopyScalarDC (dc[idc]);
+			++idc;
+			ndx = 0;
+		}
 		TC_EncodeTime (&t, TC_Full, msg);
 		sprintf (msg+strlen(msg)," %f ", rate);
 		IngestLog (EF_DEVELOP, "%s", msg);
 	}
 
-	if (num > 0)
+	if ((num > 0) && (num != 5))
 		IngestLog (EF_PROBLEM, "Stopping at bad data line");
+/*
+ * We have the first minute of the next in end, so fill any gap
+ * between our last sample and the end of the day.  Note that
+ * no sample is stored for the zero minute of the next day.
+ */
+	if (Month && last.zt_Sec)
+	{
+		FillGap (dc, &idc, last.zt_Sec, end.zt_Sec, &ndx, fid);
+	}
 
-	IngestLog (EF_INFO, "%d good data points", ndx);
+	IngestLog (EF_INFO, "%d data points, including gaps", 
+		   ndx + (idc * DC_SIZE_LIMIT));
+	*ndc = idc + 1;
 }
 
 
@@ -466,171 +682,30 @@ ConvertYearDay (year, yday, month, mday)
 	int *month;	/* month of year, 1..12 	*/
         int *mday;	/* day of month, 1..31 		*/
 {
-	static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 
-				      31, 30, 31, 30, 31};
+	int mdays;
 
-	if ((year % 4) == 0)
-		Mdays[2] = 29;	/* February has 29 days in leap years */
 	*month = 1;
-	while (yday > Mdays[*month])
-		yday -= Mdays[(*month)++];
-	Mdays[2] = 28;
+	while (yday > (mdays = MonthNDays(*month, year)))
+	{
+		yday -= mdays;
+		++(*month);
+	}
 	*mday = yday;
 }
 
 
 
-#ifdef notdef
-static time_t
-YearSeconds (year)
-/*
- * Turn the year into a UNIX time
- */
+static inline 
+int
+MonthNDays (month, year)
+int month;		/* month of year, 1..12 */
+int year;		/* year, four digits	*/
 {
-	struct tm	t;
+	static const int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 
+				    31, 30, 31, 30, 31};
 
-	t.tm_year = year - 1900;
-	t.tm_sec = t.tm_min = t.tm_hour = t.tm_mon = 0;
-	t.tm_mday = 1;
-	t.tm_zone = (char *) 0;
-	t.tm_wday = t.tm_isdst = t.tm_yday = 0;
-	return (timegm (&t));
-}
-#endif
-
-
-
-#ifdef notdef /* moved to dc_IRGrid.c */
-static void
-dc_IRAddScalarDC (irgrid_dc, scalar_dc, sample, nsample, nfield, fields)
-DataChunk *irgrid_dc;
-DataChunk *scalar_dc;
-int sample;
-int nsample;
-int nfield;
-FieldId *fields;
-/*
- * adds a Scalar chunk of data to an irgrid chunk, taking nsample's of data
- * beginning at sample, using nfield fields whose ids are listed in
- * 'fields'.  NULL 'fields' or zero 'nfield' implies use all those that
- * exist in the IRGrid DC.  Zero 'nsample' implies take them all.
- *
- * When a new sample is being created---either inserted, appended, or
- * prepended---fill it in with bad values first.  Otherwise, just change
- * the data value of the Scalar chunk's platform in the sample.  For now,
- * take advantage of the fact that samples can be non-chronological.
- */
-{
-	FieldId *fids;
-	ZebTime sc_zt;
-	int i, f, d, s;
-	int ir_nsample;
-	PlatformId *platforms;
-	int nplat;
-	float badval;
-	float *blank_grid;
-	float *ir_data;
-	ZebTime *ir_times;
-	float sc_data;
-	int sc_plat_idx;	/* index of scalar plat into irgrid list */
-/*
- * Set up the list of samples and fields to use.
- */
-	if (nsample == 0)	/* default to the whole thing */
-	{
-		sample = 0;
-		nsample = dc_GetNSample (scalar_dc);
-	}
-	fids = fields;
-	if (fids == NULL || nfield == 0)
-	{
-		fids = dc_GetFields (scalar_dc, &nfield);
-	}
-/*
- * Get some information about the irgrid we're storing to, and set up a
- * 'blank' irgrid sample full of bad values.
- */
-	ir_nsample = dc_GetNSample (irgrid_dc);
-	nplat = dc_IRGetNPlatform (irgrid_dc);
-	platforms = (PlatformId *)malloc(nplat * sizeof(PlatformId));
-	dc_IRGetPlatforms (irgrid_dc, platforms, NULL);
-	badval = dc_GetBadval (irgrid_dc);
-	blank_grid = (float *)malloc(nplat * sizeof(float));
-	for (d = 0; d < nplat; ++d)
-		blank_grid[d] = badval;
-/*
- * Find the scalar platform in the list of irgrid platforms
- */
-	for (i = 0; i < nplat; ++i)
-	{
-		if (platforms[i] == scalar_dc->dc_Platform)
-			break;
-	}
-	if (i < nplat)
-		sc_plat_idx = i;
+	if ((month == 2) && (year % 4 == 0))
+		return (29);
 	else
-	{
-		/* scalar platform not in IRGrid, abandon efforts */
-		free (platforms);
-		free (blank_grid);
-		return;
-	}
-/*
- * Construct a list of times from the irgrid chunk so that we don't
- * have to query the chunk in each loop.
- */
-	ir_times = (ZebTime *)malloc (sizeof(ZebTime)*(nsample + ir_nsample));
-	for (i = 0; i < ir_nsample; ++i)
-		dc_GetTime (irgrid_dc, i, ir_times+i);
-/*
- * For each field in the field list, and then for each sample, extract
- * the data.  Try to retrieve a sample from the irgrid for the same time
- * and the same field.
- */
-	for (f = 0; f < nfield; ++f)
-	{
-		for (i = sample; i < sample + nsample; ++i)
-		{
-			dc_GetTime (scalar_dc, i, &sc_zt);
-			sc_data = dc_GetScalar (scalar_dc, i, fids[f]);
-			for (s = 0; s < ir_nsample; ++s)
-			{
-				if (TC_Eq(ir_times[s], sc_zt))
-					break;
-			}
-			if (s < ir_nsample)	/* found a sample */
-			{
-				ir_data = dc_IRGetGrid (irgrid_dc, s, fids[f]);
-			}
-			else			/* no sample, use bad values */
-			{
-				ir_data = blank_grid;
-			}
-		/*
-		 * Now we have a grid to modify according to what platform
-		 * we're trying to add
-		 */
-			ir_data[sc_plat_idx] = sc_data;
-		/*
-		 * If this was a new grid, we need to add it back to the ir_dc
-		 */
-			if (ir_data == blank_grid)
-			{
-				ir_times[ir_nsample] = sc_zt;
-				dc_IRAddGrid (irgrid_dc, &sc_zt,
-					      ir_nsample++, fids[f],
-					      ir_data);
-				blank_grid[sc_plat_idx] = badval;
-			}
-		/*
-		 * Otherwise we're done and we can move on to the next
-		 * sample from the scalar chunk.
-		 */
-		}
-	}
-
-	free (platforms);					
-	free (blank_grid);
-	free (ir_times);
+		return (Mdays[month]);
 }
-#endif
