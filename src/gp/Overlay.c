@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.8 1992-05-27 16:43:42 kris Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.9 1992-05-29 14:48:10 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1471,8 +1471,7 @@ char *name;
  * Nope.  Time to get it from a file. 
  */
 	icon = ALLOC (OvIcon);
-	strcpy (filename, "../lib/icons/");
-	strcat (filename, name);
+	sprintf (filename, "%s/icons/%s", LIBDIR, name);
 	if (XReadBitmapFile (Disp, RootWindow (Disp, 0), filename, &icon->oi_w,
 		&icon->oi_h, &icon->oi_pixmap, &icon->oi_xh, &icon->oi_yh)
 		!= BitmapSuccess)
