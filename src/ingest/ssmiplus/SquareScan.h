@@ -2,7 +2,7 @@
  *
  * The Scan structures
  *
- * $Id: SquareScan.h,v 1.3 1994-02-02 23:49:50 burghart Exp $
+ * $Id: SquareScan.h,v 1.4 1994-11-16 19:31:05 granger Exp $
  */
 
 #ifndef _SquareScan_h_
@@ -21,6 +21,8 @@ typedef enum { NO_SCAN_TYPE = 0, A_scan, B_scan } ScanType;
 typedef enum { NO_CHANNEL = 0, 
 	       ch19v, ch19h, ch22v, ch37v, ch37h, 
 	       ch85v, ch85h, sfcidx } Channel;
+
+typedef enum { NOT_TEMPERATURE = 0, TA, TB } TempType;
 
 inline int High (Channel ch)	// surface indices count as high-frequency
 {
