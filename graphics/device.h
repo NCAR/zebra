@@ -1,9 +1,9 @@
-/* $Id: device.h,v 1.8 1993-07-23 18:01:02 case Exp $ */
+/* $Id: device.h,v 1.9 1993-11-03 00:35:36 cook Exp $ */
 /* 5/87 jc */
 /*
  * This file contains the definition of the device structure.
  */
-# define MAXALT		9
+# define MAXALT		12	/* max number of alt device names */
 
 struct device
 {
