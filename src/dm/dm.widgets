@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.7 1993-11-17 23:03:06 corbet Exp $
+! $Id: dm.widgets,v 1.8 1993-11-18 00:24:32 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -34,33 +34,20 @@ endprocedure
 define widget pd-menu intmenu 'PD Templates'
 	title 'Select a Plot Description'
 	line
-	entry 'Search PD Directory' 'pddir /zeb/etc/pd'
-	line
-	entry 'Aircraft'	'formtext #ui$form pdname "aircraft"'
-	entry 'Cape'		'formtext #ui$form pdname "cape"' 
-	entry 'Pam'		'formtext #ui$form pdname "pam"' 
-	entry 'Mesonet'		'formtext #ui$form pdname "mesonet"' 
-	entry 'Overlays'	'formtext #ui$form pdname "overlays"'
-	entry 'Radar'		'formtext #ui$form pdname "radar"' 
-	entry 'Skew-t'		'formtext #ui$form pdname "skewt"'
-	entry 'Time Series'	'formtext #ui$form pdname "tseries"' 
-	entry 'Winds'		'formtext #ui$form pdname "winds"' 
-	entry 'Cross-Sect'	'formtext #ui$form pdname "xsect"' 
-	entry 'Empty'		'formtext #ui$form pdname ""' 
-	entry 'Empty'		'formtext #ui$form pdname ""' 
-	entry 'Empty'		'formtext #ui$form pdname ""' 
-	entry 'Empty'		'formtext #ui$form pdname ""' 
-	entry 'Empty'		'formtext #ui$form pdname ""' 
+	entry 'Constant altitude plot' 'cw_setpd cap-template'
+	entry 'Time-series plot' 'cw_setpd tseries-template'
+	entry 'Skew-t plot' 'cw_setpd skewt-template'
+	entry 'Wind profile' 'cw_setpd wind-template'
 endmenu
 
 	
 define widget bmap-menu intmenu 'Button Maps'
 	title 'Select a Button Map'
 	line
-	entry 'Aircraft'	'formtext #ui$form bmap "aircraft"'
+!	entry 'Aircraft'	'formtext #ui$form bmap "aircraft"'
 	entry 'Basic'		'formtext #ui$form bmap "basic"' 
-	entry 'Big'		'formtext #ui$form bmap "big"' 
-	entry 'Optimizer'	'formtext #ui$form bmap "optimizer"' 
+!	entry 'Big'		'formtext #ui$form bmap "big"' 
+!	entry 'Optimizer'	'formtext #ui$form bmap "optimizer"' 
 	entry 'Radar'		'formtext #ui$form bmap "radar"' 
 	entry 'Sounding'	'formtext #ui$form bmap "sounding"'
 endmenu
