@@ -21,11 +21,23 @@
  */
 
 # include <sys/types.h>
+
+# ifdef __osf__
+# include <sys/statvfs.h>
+# include <sys/mount.h>
+# else
+# ifdef aix
+# include <sys/vfs.h>
+# include <sys/statfs.h>
+# else
 # ifdef SVR4
 #    include <sys/statvfs.h>
 # else
 #    include <sys/vfs.h>
 # endif
+# endif
+# endif
+
 # include <fcntl.h>
 # include <errno.h>
 # include <string.h>
@@ -47,7 +59,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.59 1996-12-03 06:57:43 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.60 1997-05-12 21:47:37 ishikawa Exp $")
 
 /*
  * Local forwards.
