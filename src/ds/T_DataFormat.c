@@ -357,6 +357,7 @@ T_MakeFileName ()
 	char stime[64];
 	DataFormat *fmt;
 	char *bar;
+	char *ext, alternate_ext[16];
 	int ndetail;
 	dsDetail details[5];
 	
@@ -402,18 +403,19 @@ T_MakeFileName ()
 		ndetail = 0;
 		if (bar)
 		{
-			ndetail = ds_SetStringDetail (DD_FILE_EXT, bar,
-						      details, ndetail);
-			sprintf (name, "%s.%s%s", fplat.name, stime, bar);
+		    strcpy(alternate_ext, bar);
+		    ext = alternate_ext;
+		    ndetail = ds_SetStringDetail (DD_FILE_EXT, ext,
+						  details, ndetail);
+		    sprintf (name, "%s.%s%s", fplat.name, stime, ext);
 
-			errors += CheckFileName (p, &when, name, 
-						 details, ndetail);
+		    errors += CheckFileName (p, &when, name, details, ndetail);
 		}
 		else
-			bar = dfa_GetExt (fmt);
+		    ext = dfa_GetExt (fmt);
 		ndetail = ds_SetStringDetail (DD_FILE_BASE, "basename",
 					      details, ndetail);
-		sprintf (name, "%s%s", "basename", bar);
+		sprintf (name, "%s%s", "basename", ext);
 		errors += CheckFileName (p, &when, name, details, ndetail);
 		/*
 		 * Test error messages for faulty extensions
