@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.17 1992-05-27 17:26:55 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.18 1992-07-22 16:17:43 kris Exp $")
 
 /*
  * Default resources.
@@ -313,8 +313,8 @@ finish_setup ()
 /*
  * More initialization
  */
-	mc_DefMovieWidget ();		/* Movie control	*/
-	fc_InvalidateCache ();		/* Clear frame cache	*/
+	mc_DefMovieWidget ();		/* Movie control		*/
+	fc_InitFrameCache ();		/* Initialize the frame cache	*/
 	tl_ChangeHandler (NewTime);
 /*
  * Indirect variables.
