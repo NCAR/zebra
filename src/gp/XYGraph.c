@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.29 1994-05-02 20:51:30 corbet Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.30 1994-05-09 21:06:31 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -397,7 +397,7 @@ ZebTime *time;
  * Throw together the basic info.
  */
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
-	sprintf(label, "%s|%d|%s|%s : %s", style, color, plat, xfield, yfield);
+	sprintf(label, "%s|%d|%s|%s|%s", style, color, plat, xfield, yfield);
 	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
 		sprintf (label+strlen(label), "(%s)", dimns);
 /*

@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.21 1994-04-15 21:25:37 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.22 1994-05-09 21:06:28 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -965,7 +965,8 @@ int datalen, begin, space;
  *	style|color|platform[|line...]
  */
 {
-	int limit, left, cheight, nstuff, i;
+	int limit, left, cheight, nstuff, i, fxpos, active;
+	int sx, sy, ex, ey;
 	float scale;
 	char *stuff[20];
 	Pixel color;
@@ -1005,10 +1006,47 @@ int datalen, begin, space;
 	I_ActivateArea (left, begin, cheight, cheight, "annot", comp,
 			stuff[2], 0);
 /*
+ * X  field.
+ */
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, left,
+			begin + cheight, stuff[3], 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), left,
+			begin + cheight, stuff[3], 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	if (pda_Search (Pd, comp, "x-annot-active", "xy", (char *) &active,
+			SYMT_BOOL) && active)
+		I_ActivateArea (sx - 2, ey + 1, ex - sx + 4, sy - ey + 2,
+				"xfield", comp, stuff[2], 0);
+/*
+ * Throw in the divider text
+ */
+	fxpos = ex;
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, fxpos,
+			begin + cheight, " : ", 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), fxpos,
+			begin + cheight, " : ", 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	fxpos = ex;
+/*
+ * Y field.
+ */
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, fxpos,
+			begin + cheight, stuff[4], 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), fxpos,
+			begin + cheight, stuff[4], 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	if (pda_Search (Pd, comp, "y-annot-active", "xy", (char *) &active,
+			SYMT_BOOL) && active)
+		I_ActivateArea (sx - 2, ey + 1, ex - sx + 4, sy - ey + 2,
+				"yfield", comp, stuff[2], 0);
+/*
  * Draw any additional lines.
  */
-	for (i = 3; i < nstuff; i++)
+	for (i = 5; i < nstuff; i++)
 		DrawText (Graphics, GWFrame (Graphics), AnGcontext,
-			  left, begin + cheight*(i - 2),
+			  left, begin + cheight*(i - 3),
 			  stuff[i], 0.0, scale, JustifyLeft, JustifyTop);
 }
