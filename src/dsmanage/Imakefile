@@ -3,11 +3,6 @@
  */
 # undef DataDir
 
-XCOMM This variable is hardcoded to TOP/include in Imake.tmpl and inserted
-XCOMM into CXXFLAGS.  We don't need it, and it could cause confusion, 
-XCOMM so override it.
-CXXIDL_INCLUDES = 
-
 TISRCS = TapeIndex.cc
 SRCS = dsmanage.cc dsmWindows.cc DataDir.cc Index.cc MainWindow.cc Dialog.cc \
 	LoadData.cc StatusWin.cc DLoad.cc Tape.cc TBCleanup.cc $(TISRCS) \
@@ -42,9 +37,8 @@ InstallAppDefaults(dsmanage)
 
 DistfilesTarget($(DISTFILES))
 
-#ifdef notdef
-DependTarget()
-#endif
+ZebraMakeDepend()
+CccDependTarget($(SRCS))
 
 XCOMM Dependencies added by hand for now
 
