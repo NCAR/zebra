@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.4 1991-12-07 17:53:43 kris Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.5 1991-12-08 22:49:08 corbet Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,14 +19,9 @@ MFVERSION="$Id: Makefile.cpp,v 1.4 1991-12-07 17:53:43 kris Exp $"
 
 # include "../include/config.h"
 
-# ifdef sun
-/*
- * Sun options
- */
 CC=CCompiler
-CFLAGS=CCOptions -I$(FCCINC) -I$(RDSSINC)
-LIBS=ZebLibrary -lrdss -ltermcap -lXaw -lXmu -lXt -lXext -lX11 -lm
-# endif
+CFLAGS=CCOptions IncludeDirs
+LIBS=ZebLibrary MiscLibs XLibraries
 
 OBJS= dm.o dm_pd.o dm_ui.o dm_color.o DialBox.o dm_pick.o
 
@@ -34,7 +29,7 @@ all:	dm dm.lf
 
 install:	dm dm.lf include
 	install -c dm D_BINDIR
-	install -c dm.lf D_LIBDIR
+	install -c -m 0444 dm.lf D_LIBDIR
 
 include:
 	install -c -m 0444 dm.h D_FCCINC
