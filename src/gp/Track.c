@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.13 1991-03-08 00:59:34 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.14 1991-06-25 19:24:06 kris Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -48,7 +48,8 @@ bool update;
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
 	int arrow, a_invert, a_int, numfields = 1, dummy, xannot, yannot;
-	int timenow, vectime = 0, a_lwidth, tacmatch, ctlimit;
+	int a_lwidth, tacmatch, ctlimit;
+	long timenow, vectime = 0;
 	unsigned int udummy, dwidth, dheight;
 	bool mono; 
 	time begin;
@@ -239,8 +240,7 @@ bool update;
 	 */
 		if(arrow)
 		{
-			timenow = tr_GetSec(((dobj->do_times) + i - 1)
-				->ds_hhmmss);
+			timenow = TC_FccToSys (dobj->do_times);
 			if(((timenow % a_int) == 0) || 
 			   ((vectime + a_int) < timenow))
 			{
@@ -547,17 +547,3 @@ GC Gcontext;
 }
 
 
-
-tr_GetSec(hhmmss)
-int hhmmss;
-{
-	int sec, sub;
-
-	sec = hhmmss % 100;
-	hhmmss -= sec;
-	sub = hhmmss % 10000;
-	sec += sub / 100 * 60;
-	hhmmss -= sub;
-	sec += hhmmss / 10000 * 3600;
-	return(sec);
-}	
