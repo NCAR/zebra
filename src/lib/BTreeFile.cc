@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.11 1998-09-17 00:51:33 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.12 1998-09-21 19:50:50 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -423,10 +423,10 @@ BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, Node *parent,
 		child = (BlockNode<K,T> *)children[i].local;
 		if (child)
 		{
-			cout << string(depth*3,' ');
-			cout << " - Child " << (void*)child 
-			     << " in memory, lru:" << child->lru;
-			cout << endl;
+			IFD(cout << string(depth*3,' ');
+			    cout << " - Child " << (void*)child;
+			    cout << " in memory, lru:" << child->lru;
+			    cout << endl);
 			/*
 			 * Let this child check its subtree.
 			 */
@@ -451,9 +451,13 @@ BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, Node *parent,
 
 
 
+/*
+ * If we currently have more nodes cached than we should, release
+ * the extra ones.
+ */
 template <class K, class T>
-BlockNode<K,T> * 
-BTreeFile<K,T>::lookupCache (int node_depth)
+void
+BTreeFile<K,T>::trimCache ()
 {
 	BlockNode<K,T> *that;
 
@@ -466,39 +470,52 @@ BTreeFile<K,T>::lookupCache (int node_depth)
 	{
 		maxcache = 3*depth;
 	}
-#ifdef notdef
-	if (ncache >= maxcache)
+
+	/*
+	 * Loop through the LRU nodes and release them until under the
+	 * maxcache threshold.
+	 */
+	while (ncache > maxcache)
 	{
-#endif
 		// Find an old one in memory.  Note that findLRU() could
 		// return the root node back to us if it had no children,
 		// which would be bad, but that cannot happen else there
-		// would be more memory cache slots.
+		// would be more open memory cache slots and we wouldn't
+		// be here.
 		//
 		Node *parent;
 		that = (BlockNode<K,T> *)rootNode.local;
-
-	if (that)
-	{	
-		cout << "Current context: ";
-		current->show (cout);
-		cout << "Looking for least LRU in root:" << endl;
-		int n = 0;
-		that = that->findLRU (0, 0, &parent, &n);
-		cout << "Found node " << (void*)that 
-		     << " depth:" << that->depth << " lru:" << that->lru
-		     << "; nodes searched: " << n << "; ncache: " << ncache
-		     << endl;
+		if (that)
+		{	
+			IFD(cout << "Current context: ";
+			    current->show (cout);
+			    cout << "Looking for least LRU in root:" << endl);
+			int n = 0;
+			that = that->findLRU (0, 0, &parent, &n);
+			IFD(cout << "Found node " << (void*)that 
+			     << " depth:" << that->depth
+			     << " lru:" << that->lru
+			     << "; nodes searched: " << n 
+			     << "; ncache: " << ncache << endl);
+		}
+		if (that)
+		{
+			// Release it
+			current->invalidate (that);
+			parent->local = 0;
+			that->sync ();
+			delete that;
+		}
 	}
+}
 
-	if (ncache >= maxcache && that)
-	{
-		// Release it
-		current->invalidate (that);
-		parent->local = 0;
-		that->sync ();
-		delete that;
-	}
+
+
+template <class K, class T>
+BlockNode<K,T> * 
+BTreeFile<K,T>::lookupCache (int node_depth)
+{
+	BlockNode<K,T> *that;
 
 	++ncache;
 	that = new BlockNode<K,T> (*bf, *this, node_depth);
@@ -509,14 +526,14 @@ BTreeFile<K,T>::lookupCache (int node_depth)
 
 template <class K, class T>
 BTreeNode<K,T> * 
-BTreeFile<K,T>::get (Node &node, int depth)
+BTreeFile<K,T>::get (Node &node, int node_depth)
 {
 	// The simple case is when this node is still in memory
 	BlockNode<K,T> *that = (BlockNode<K,T> *)node.local;
 
 	if (! that)
 	{
-		that = lookupCache (depth);
+		that = lookupCache (node_depth);
 		node.local = that;
 		that->block.offset = node.addr;
 		assert (that->block.offset > 0);
@@ -538,10 +555,11 @@ BTreeFile<K,T>::get (Node &node, int depth)
 
 template <class K, class T>
 BTreeNode<K,T> * 
-BTreeFile<K,T>::make (int depth)
+BTreeFile<K,T>::make (int node_depth)
 {
-	log.Info (Format(" + creating node, depth: %i") % depth);
-	BlockNode<K,T> *made = lookupCache (depth);
+	log.Info (Format(" + creating node, depth: %i") % node_depth);
+	BlockNode<K,T> *made;
+	made = lookupCache (node_depth);
 	made->thisNode.local = made;
 	made->lru = lru++;
 	// Force allocation to get an address
@@ -549,7 +567,7 @@ BTreeFile<K,T>::make (int depth)
 	assert (made->block.offset > 0);
 	made->thisNode.addr = made->block.offset;
 	log.Info (Format(" + node created (%u,%u), depth: %i")
-		  % made->block.offset % made->block.length % depth);
+		  % made->block.offset % made->block.length % node_depth);
 	return (made);
 }
 
@@ -579,6 +597,9 @@ BTreeFile<K,T>::leave ()
 {
 	if (/*bf->WriteLockPending() &&*/ lock == 1 && root)
 	{
+		// Reduce the node cache to its threshold
+		trimCache();
+
 		// Need to tell all nodes in memory to writeSync(), which
 		// right now is done by a recursive sync() method.
 		root->sync();

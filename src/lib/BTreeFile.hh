@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.9 1998-09-17 00:51:33 granger Exp $
+ * $Id: BTreeFile.hh,v 1.10 1998-09-21 19:50:51 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -190,6 +190,7 @@ protected:
 	int maxcache;
 	int ncache;
 	node_type *lookupCache (int depth);
+	void trimCache ();
 
 	// The basic node size stays fixed while there are nodes in the
 	// tree.  It gets set by the first node to be encoded.
