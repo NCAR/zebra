@@ -1,4 +1,4 @@
-    fortran MOVB(num, inbuf, outbuf, offset)
+    movb_(num, inbuf, outbuf, offset)
 /* *** PC-McIDAS Revision History *** */
 /* *** PC-McIDAS Revision History *** */
 /* Move num bytes from inbuf to outbuf (with offset) */
