@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.4 1993-03-19 23:29:02 granger Exp $
+! $Id: DisplayMgr.ad,v 1.5 1993-03-23 20:23:34 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -6,6 +6,9 @@
 !
 *allowShellResize:	true
 *input:		True
+dm.time.form.background: gray90
+dm.iconbar.form.background: cadetblue
+dm.?.form.Background:	gray95
 *time.Form.Form.horizDistance:	4
 *time.Form.Form.vertDistance:	5
 *time*Label*font:	-*-helvetica-bold-r-*-*-*-100-*-*-*-*-*-*
@@ -52,3 +55,5 @@
 *UIForm*Command*background: Gray90
 *UIForm.background: gray95
 *UIForm*Label.background: gray95
+*UIForm*MenuButton*borderColor: red
+*UIForm*MenuButton*background: Gray90
