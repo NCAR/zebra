@@ -5,8 +5,10 @@
 SRCS = dsdwidget.c
 OBJS = dsdwidget.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 
 NormalProgramTarget(dsdwidget, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults (dsdwidget)
+
+DependTarget ()
