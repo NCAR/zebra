@@ -47,7 +47,7 @@ Testing mode which reads bytes from file and sends to consumer
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.12 2000-06-02 21:09:25 granger Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.13 2000-06-15 23:54:45 granger Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -212,14 +212,6 @@ char **name;		/* Our process name	 */
 			break;
 		}
 	}
-#ifdef notdef
-	if (*argc - optind != 1)
-	{
-		printf ("%s: need exactly one consumer name", argv[0]);
-		exit (1);
-	}
-	conn->c_Consumer = argv[optind];
-#endif
 	if (*argc - optind > 1)
 	{
 		printf ("%s: only one consumer name allowed", argv[0]);
@@ -319,7 +311,9 @@ static void
 Connect (conn)
 Connection *conn;
 /*
- * Make a connection to this port.
+ * Make a connection to this port.  Connect() should only be called once,
+ * and only after the first initialization of the connection.  Reconnect()
+ * should be called all other times.
  */
 {
 /*
@@ -344,7 +338,10 @@ Reconnect (conn)
 Connection *conn;
 /*
  * Close our fd, create a new connection, and change our fd with the
- * message handler.
+ * message handler.  We enter this routine with the assumption that
+ * the connection members which may have been changing, such as the
+ * buffer, fd, and timer slot, need to be reset to their initialized
+ * state before trying a Connect() again.  
  */
 {
 	if (conn->c_Fd >= 0)
@@ -353,6 +350,22 @@ Connection *conn;
 		close (conn->c_Fd);	/* Easy way to drop DTR */
 		conn->c_Fd = -1;
 	}
+/*
+ * Cancel any timer requests.
+ */
+	if (conn->c_TSlot >= 0)
+	{
+	    tl_Cancel (conn->c_TSlot);
+	    conn->c_TSlot = -1;
+	}
+/*
+ * Clear the buffer.
+ */
+	conn->c_nbuf = 0;
+	conn->c_buf[0] = 0;
+/*
+ * Finally we can attempt to connect.
+ */
 	Connect (conn);
 }
 
@@ -572,7 +585,7 @@ SLDataHandler ()
  */
 {
 	Connection *conn;
-	int nread, nleft, nused;
+	int nread, nused;
 	char *cp, *newline;
 /*
  * Get our global connection.  If we ever need to handle more than one
@@ -585,9 +598,18 @@ SLDataHandler ()
 /*
  * If things are dead, start over.
  */
-	if (nread <= 0)
+	if (nread < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d reading port", errno);
+		Reconnect (conn);
+		return (0);
+	}
+	else if (nread == 0)
+	{
+		msg_ELog (EF_PROBLEM, "0 bytes read from port, %s", 
+			  "trying to reconnect.");
+		msg_ELog (EF_DEBUG, "buffer size: %d, used: %d",
+			  BUFSIZE, conn->c_nbuf);
 		Reconnect (conn);
 		return (0);
 	}
@@ -595,6 +617,11 @@ SLDataHandler ()
  * Otherwise update our buffer status and pass it on according to mode
  */
 	conn->c_nbuf += nread;
+/*
+ * Go ahead and terminate our buffer, just in case someone expects it.
+ * Since we made room for the null termination above, why waste it...?
+ */
+	conn->c_buf[conn->c_nbuf] = '\0';
 	if (conn->c_Mode == TextMode)
 	{
 		nused = SendLines (conn, conn->c_nbuf - nread);
@@ -604,12 +631,29 @@ SLDataHandler ()
 		nused = SendBlocks (conn, conn->c_nbuf - nread);
 	}
 /*
- * Copy over what's left and we're done.
+ * Copy over what's left and we're done.  Use memmove since this is likely
+ * an overlapping copy.
  */
-	nleft = conn->c_nbuf - nused;
-	if (nleft > 0)
-		memcpy (conn->c_buf, conn->c_buf + nused, nleft);
-	conn->c_nbuf = nleft;
+	if (nused > 0)
+	{
+	    int nleft = conn->c_nbuf - nused;
+	    if (nleft > 0)
+		memmove (conn->c_buf, conn->c_buf + nused, nleft);
+	    conn->c_nbuf -= nused;
+	}
+	if (conn->c_nbuf + 1 == BUFSIZE)
+	{
+	    /* 
+	     * We've just tried to process data, and yet our buffer
+	     * is full: buffer overrun!  Throw out the current data.
+	     */
+	    msg_ELog (EF_PROBLEM, "buffer full, %s",
+		      "dropping data to clear buffer");
+	    msg_ELog (EF_DEBUG, "buffer size: %d, used: %d, processed: %d",
+		      BUFSIZE, conn->c_nbuf, nused);
+	    conn->c_nbuf = 0;
+	    conn->c_buf[0] = '\0';
+	}
 	return (0);
 }
 
@@ -636,15 +680,6 @@ int start;		/* where in the buffer the new data begins */
 		     cp < conn->c_buf + conn->c_nbuf; cp++)
 			*cp &= 0x7f;
 	}
-#ifdef notdef
-/*
- * From the beginning, skip past returns, parse out any lines that we find.
- */
-	for (cp = conn->c_buf; 
-	     (cp - conn->c_buf < conn->c_nbuf) && 
-	     (*cp < '\040'); cp++)
-		/* null statement */;
-#endif
 /*
  * Now look for newlines indicating that whole lines have been read,
  * from the beginning of the buffer.
@@ -775,12 +810,7 @@ int parm;
 	else
 		return;
 /*
- * Cancel the timer request.
- */
-	tl_Cancel (conn->c_TSlot);
-	conn->c_TSlot = -1;
-/*
- * Now close the port and start over.
+ * Attempt another connection.
  */
 	Reconnect (conn);
 }
