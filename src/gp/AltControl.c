@@ -1,7 +1,7 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 1.2 1990-07-08 12:46:16 corbet Exp $";
+static char *rcsid = "$Id: AltControl.c,v 1.3 1990-12-04 15:07:53 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -28,12 +28,13 @@ int nstep;
  * Step the altitude by this many steps.
  */
 {
-	int nalt, alts[50], alt, dist = 99999, closest = 0, i;
+	int nalt, closest = 0, i;
+	float alts[50], alt, dist = 9999.9;
 	char platform[40], **comps = pd_CompList (Pd), calt[20];
 /*
  * Find out our current altitude, and what the choices are.
  */
-	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_INT);
+	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 	if (! pd_Retrieve (Pd, comps[1], "platform", platform, SYMT_STRING))
 		return;
 	if (! ga_AvailableAlts (&PlotTime, platform, alts, &nalt))
@@ -61,6 +62,6 @@ int nstep;
  * Store the new altitude.  This method is a bit kludgy, but it works, and
  * will cause things to be redrawn.
  */
-	sprintf (calt, "%d", alts[closest]);
+	sprintf (calt, "%.2f", alts[closest]);
 	parameter ("global", "altitude", calt);
 }
