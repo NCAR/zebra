@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.10 1995-02-10 01:12:17 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.11 1995-02-24 22:53:47 burghart Exp $")
 #endif
 
 /*
@@ -295,6 +295,8 @@ dc_NSDefineDimension(dc, field, size)
  */
 {
 	NSpaceInfo *info;
+	NSpaceDimInfo *dinfo;
+	char *name;
 
 	if (! IsNSpace(dc,"NSDefineDimension"))
 		return;
@@ -302,7 +304,18 @@ dc_NSDefineDimension(dc, field, size)
 	info = GetInfo(dc);
 	if (! CheckOpen(info, "NSDefineDimension"))
 		return;
-	(void) DefineDimension (dc, info, F_GetName(field), field, size, 
+/*
+ * Use the existing name if we have a dimension with this ID already.  
+ * Otherwise, get the name using F_GetName().  These will *not* always
+ * be the same, especially for names like "alt" and "altitude" which may be
+ * valid aliases for the same field/dimension.
+ */
+	if ((dinfo = FindDimnByID (dc, info, field)) != NULL)
+		name = dinfo->nsd_Name;
+	else
+		name = F_GetName (field);
+      
+	(void) DefineDimension (dc, info, name, field, size, 
 				"NSDefineDimension", TRUE);
 
 }
@@ -452,8 +465,9 @@ dc_NSDefineField(dc, field, ndims, dimnames, dimsizes, is_static)
 	 */
 	for (i = 0; i < ndims; ++i)
 	{
-		dinfo = DefineDimension (dc, info, dimnames[i], BadField, 
-					 dimsizes[i], "NSDefineField", FALSE);
+		dinfo = DefineDimension (dc, info, dimnames[i], 
+					 F_Declared (dimnames[i]), dimsizes[i],
+					 "NSDefineField", FALSE);
 		if (! dinfo)
 		{
 			msg_ELog (EF_PROBLEM, 
