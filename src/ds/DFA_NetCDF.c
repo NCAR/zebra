@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.56 1996-11-19 10:57:42 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.57 1996-11-21 23:11:47 granger Exp $")
 
 # include <netcdf.h>
 
@@ -69,13 +69,6 @@ RCSID ("$Id: DFA_NetCDF.c,v 3.56 1996-11-19 10:57:42 granger Exp $")
 #define X_LONGNAME	"grid spacing in west->east direction"
 #define Y_LONGNAME	"grid spacing in south->north direction"
 #define Z_LONGNAME	"grid spacing along vertical"
-
-/*
- * Do DataChunk attributes override default fields table attributes?
- */
-#ifndef CFG_NC_DCATTS_OVERRIDE
-# define STRICT_FIELDS_TABLE_ATTS
-#endif
 
 /*
  * Do we try to store, read, apply, and fill bad values?  If we don't fill
@@ -3412,7 +3405,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.56 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.57 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3433,23 +3426,12 @@ void *arg;
 {
 	struct AttArg *attarg = (struct AttArg *)arg;
 
-#ifdef STRICT_FIELDS_TABLE_ATTS
-	/*
-	 * Ignore certain attributes so that we don't override the
-	 * legitimate ones, but only for non-global attributes.
-	 */
-	if ((attarg->varid == NC_GLOBAL) || 
-	    (strcmp(key, VATT_MISSING) && 
-	     strcmp(key, VATT_LONGNAME) && strcmp(key, VATT_UNITS)))
-#endif /* STRICT_FIELDS_TABLE_ATTS */
-	{
-		if (type == DCT_String)
-			(void)ncattput(attarg->tag->nc_id, attarg->varid,
-				       key, NC_CHAR, strlen(value)+1, value);
-		else
-			(void)ncattput(attarg->tag->nc_id, attarg->varid,
-				       key, dnc_NCType(type), nval, value);
-	}
+	if (type == DCT_String)
+		(void)ncattput(attarg->tag->nc_id, attarg->varid,
+			       key, NC_CHAR, strlen(value)+1, value);
+	else
+		(void)ncattput(attarg->tag->nc_id, attarg->varid,
+			       key, dnc_NCType(type), nval, value);
 	return(0);
 }
 
