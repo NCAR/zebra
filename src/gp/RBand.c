@@ -1,9 +1,10 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 1.3 1991-01-09 16:17:35 burghart Exp $";
+static char *rcsid = "$Id: RBand.c,v 1.4 1991-01-11 22:16:47 burghart Exp $";
 
 # include <X11/Intrinsic.h>
+# include <X11/cursorfont.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
@@ -22,6 +23,11 @@ typedef enum
 	RBTEllipse,
 # endif
 } RubberBandType;
+
+/*
+ * Cursor to use while rubber banding
+ */
+static Cursor	RBandCursor = NULL;
 
 /*
  * Rubber band drawing parameters.
@@ -94,12 +100,19 @@ struct ui_command *cmds;
 	if (! RBandGC)
 		rb_MakeGC ();
 /*
+ * Switch to the pencil cursor
+ */
+	if (! RBandCursor)
+		RBandCursor = XCreateFontCursor (Disp, XC_center_ptr);
+
+	XDefineCursor (Disp, XtWindow (Graphics), RBandCursor);
+/*
  * Figure out where the pointer is now -- that's our anchor.
  */
 	XQueryPointer (Disp, XtWindow (Graphics), &wjunk, &wjunk, &rx, &ry,
 		&RBandX0, &RBandY0, (unsigned int *) &mask);
-	msg_ELog (EF_DEBUG, "Initial pt at %d %d (%.2f %.2f)", RBandX0, RBandY0,
-		XUSER (RBandX0), YUSER (RBandY0));
+	msg_ELog (EF_DEBUG, "Initial pt at %d %d (%.2f %.2f)", RBandX0, 
+		RBandY0, XUSER (RBandX0), YUSER (RBandY0));
 	msg_ELog (EF_DEBUG, "	(Win is (%2.f %.2f) to (%.2f %.2f))", Xlo, Ylo,
 		Xhi, Yhi);
 /*
@@ -222,6 +235,10 @@ XEvent *event;
  */
 	rb_Draw ();
 /*
+ * Switch to the normal cursor
+ */
+	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
+/*
  * Clean up.
  */
 	msg_ELog (EF_DEBUG, "Final coords at %d %d (%.2f %.2f)", 
@@ -289,6 +306,13 @@ char *name;
  * interpret such an event as a user abort.
  */
 {
+/*
+ * Switch to the normal cursor
+ */
+	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
+/*
+ * Clean up
+ */
 	msg_ELog (EF_DEBUG, "Rubber band abort");
 	rb_Draw ();
 	RBandActive = FALSE;
