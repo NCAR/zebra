@@ -34,7 +34,7 @@
 # include <ui_date.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: DataMenu.c,v 2.20 1998-12-17 17:17:56 burghart Exp $")
+RCSID ("$Id: DataMenu.c,v 2.21 2000-06-12 23:43:36 granger Exp $")
 
 
 /*
@@ -43,7 +43,7 @@ RCSID ("$Id: DataMenu.c,v 2.20 1998-12-17 17:17:56 burghart Exp $")
 # define MAXENTRY 20
 static Widget Menu, Entries[MAXENTRY];
 static ZebTime Times[MAXENTRY];
-static char EPlats[40][MAXENTRY];
+static char EPlats[MAXENTRY][CFG_PLATNAME_LEN];
 static int NManaged;
 
 static stbl VTable;
