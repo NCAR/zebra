@@ -6,6 +6,17 @@
 #ifndef _ZEBRA_H_RPCGEN
 #define	_ZEBRA_H_RPCGEN
 
+/*
+ * glibc rpc.h defines TRUE and FALSE in an obnoxious manner, without first
+ * checking to see if they exist.  It conflicts with a lot of things,
+ * including zl_param.h and X11/Intrinsic.h.  Clear any existing definitions
+ * of those macros when we're in this situation, and just let it have its
+ * way...
+ */
+# ifdef __GLIBC__
+#	undef TRUE
+#	undef FALSE
+# endif
 #include <rpc/rpc.h>
 
 #ifdef __cplusplus
@@ -13,7 +24,7 @@ extern "C" {
 #endif
 
 /*
- * $Id: zebra.h,v 2.3 1998-03-13 15:29:25 burghart Exp $
+ * $Id: zebra.h,v 2.4 1998-03-16 17:21:02 corbet Exp $
  *
  * XDR definitions and interface for basic zebra types and structures
  */

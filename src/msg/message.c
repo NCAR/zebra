@@ -20,6 +20,7 @@
  */
 
 # include <unistd.h>
+# include <sys/uio.h>
 # include <pwd.h>	/* to get username from uid */
 # include <stdio.h>
 # include <varargs.h>
@@ -51,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.54 1997-10-15 16:17:47 corbet Exp $")
+RCSID ("$Id: message.c,v 2.55 1998-03-16 17:21:09 corbet Exp $")
 
 /*
  * Symbol tables.

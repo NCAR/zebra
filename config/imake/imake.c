@@ -511,7 +511,7 @@ void
 LogFatal(x0,x1)
 	char *x0, *x1;
 {
-#ifndef WIN32
+#if ! defined (WIN32) && ! defined (__GLIBC__)
 	extern char	*sys_errlist[];
 #endif
 	static boolean	entered = FALSE;
