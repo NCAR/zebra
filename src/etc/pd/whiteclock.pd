@@ -1,0 +1,14 @@
+! $Id: whiteclock.pd,v 1.1 2000-06-07 20:34:52 granger Exp $
+!---------------------------------------------------------------------------
+! The ubiquitous whiteclock pd, used by some of the default configuration
+! tools to add clocks to displays and such.
+!
+
+global
+	pd-name: whiteclock
+
+clock
+	background: white
+	foreground: black
+	xfont: '-*-new century schoolbook-bold-r-*-*-25-*-*-*-*-*-*-*'
+

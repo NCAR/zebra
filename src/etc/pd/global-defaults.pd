@@ -1,0 +1,181 @@
+! $Id: global-defaults.pd,v 1.1 2000-06-07 20:34:52 granger Exp $
+!
+! This file contains default values for some plot description parameters.
+! By default, this pd is loaded from the libray pd directory.  To use it,
+! the project configuration should drop the parameters from the defaults
+! component into the defaults component of the defaults pd.  It is also
+! possible to use these defaults without overriding any set by the project.
+!
+defaults
+	pd-name:			global-defaults
+!
+! Project origin
+!
+	origin-lat:			35
+	origin-lon:			-100
+	origin-alt:			0.0
+!
+! The default, big picture zoom locations for constant altitude plots.  These
+! values are in km w.r.t. the origin above.  Make 'em smaller for smaller scale
+! projects and bigger for bigger scale projects...
+!
+	x-min:				-500
+	x-max:				500
+	y-min:				-500
+	y-max:				500
+!
+! Icons to use for various platforms.  The icons themselves can be created
+! using the X Window "bitmap" utility, and saved in the <project>/icons 
+! directory.  In general, it is good to have a separate icon for each platform.
+! Example:
+!
+!	cp2-icon:		cp2
+!	goes-icon:		goes
+!
+	null-icon:		null
+!
+! Age limits for data (i.e., when to make the icon red)
+! Although we set a default of 15 minutes, a separate value is generally 
+! used for each platform.  Example:
+!
+!	icon-age-limit:		15m
+!	cp2-icon-age-limit:	2m
+!	goes-icon-age-limit:	120m
+!
+	icon-age-limit:		15m
+!
+! Will you be using tracks of mobile platforms?  If so, it can be useful
+! to assign a special color to each one.
+!
+! Example:
+!	electra-color:		orange
+!	kingair-color:		cyan
+!
+	null-color:		white
+!
+! Add named locations to your heart's delight.  Many locations have already
+! been set in the library 'locations' pd.  You can drop it into the
+! project defaults to access all of those locations.
+!
+! Form: 
+!	<sitename>-location:	<lat> <lon> <alt>
+!
+	boulder-location:	40.0 -105.3 1600.0
+!
+! Origins for the get position widget.
+!
+	pos-origin:	boulder
+!
+! UNLESS YOU NEED TO TWEAK ONE OR MORE OF THE "SAFE" DEFAULTS BELOW, YOU'RE
+! DONE!
+!
+!****************************************************************************
+! 
+! The parameters below are pretty safe defaults and can almost always be left
+! as they are.  Leave them alone unless you know what you're doing!
+!
+
+!
+! Adjust limit procedures.
+!
+	track-arrow-limit-proc:		adj_arrow_scale
+	track-time-limit-proc:		adj_time_period
+	track-centstep-limit-proc:	adj_center_step
+	raster-highrange-limit-proc:	adj_highlight_range
+	raster-centstep-limit-proc:	adj_center_step
+	raster-limit-proc:		adj_center_step
+	vector-limit-proc:		adj_arrow_scale
+	contour-limit-proc:		adj_center_step
+	filled-contour-limit-proc:	adj_center_step
+	contour-limit-proc:		adj_center_step
+	filled-contour-centstep-limit-proc:	adj_center_step
+	contour-centstep-limit-proc:	adj_center_step
+	skewt-pres-limit-proc:		adj_pres_minmax
+	skewt-temp-limit-proc:		adj_temp_minmax
+	global-x-limit-proc:		adj_x_minmax
+	global-y-limit-proc:		adj_y_minmax
+	lightning-limit-proc:		adj_time_step
+
+! ================
+! Default Window Layouts
+!
+! These are defaults for all graph types which are overridden below as 
+! needed.  Leave a little space on the left hand side for axis information,
+! but the top and right axes are used less often.
+!
+	axis-bottom-space:	25
+	axis-left-space:	30
+	axis-top-space:		5
+	axis-right-space:	5
+
+! CAPs: The top space is rarely needed, but we need room for grid labels
+!       in the axis space.
+!
+	cap-axis-bottom-space:	30	! leave room for grid labels
+	cap-axis-left-space:	30
+	cap-axis-top-space:	0
+	cap-axis-right-space:	5	! Separate legend from plots
+
+! Skewt's turn most things off since they plot everything directly to the
+! data region, including the legend (sa).  Use the default right axis space
+! to give the plot some border space on the right.
+!
+	skewt-sa-space:			0
+	skewt-axis-left-space:		0
+	skewt-axis-top-space:		0
+	skewt-axis-bottom-space:	0
+
+!
+! Where to put the frame cache files and the maximum number of frames
+! to store in the cache.
+!
+	file-path:	/tmp
+	max-frames:	30
+!
+! Command to be executed out of the DataAvailable menu.
+!
+	data-available-command:		DefaultDataAvail
+!
+! Generic icon stuff
+!
+	global-icon:			global
+	icon-color:			yellow
+	icon-background:		midnight blue
+	disabled-icon-color:		gray90
+	disabled-icon-background:	gray40
+	icon-age-foreground:		pink
+	icon-age-background:		red
+!
+! Various menus for the icons in the plot windows.
+!
+	icon-left-menu:			standard-cap-left-menu
+	global-icon-left-menu:		global-left
+	global-icon-right-menu:		globaltopannot
+!
+! Default to matched top annotation colors where allowed.
+!
+	ta-color-match:			true
+!
+! Post processing mode parameters.
+!
+	post-proc-mode:			true
+	pp-dm-time-adjust:		65m
+!
+! What RBand uses to draw the box/line.  Don't mess with it.
+!
+	xorvalue:			63
+	xor-line-width:			3
+!
+! Where cross sections are done.
+!
+	xsect-window:			all
+	xsect-component:		global
+
+truecolor
+!
+! RBand settings for displays with greater than 8-bit depth.
+! Use
+!      pddrop global-defaults truecolor defaults defaults
+! 
+        xorvalue:                       16777215
+        xor-line-width:                 3
