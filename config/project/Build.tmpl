@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.25 1997-06-26 17:35:54 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.26 1997-06-27 20:51:33 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -70,10 +70,10 @@ XCOMM --- Auto-binary distribution
 #endif
 
 /*
- * See if we're supposed to build RDSS in this tree also; default to NO
+ * See if we're supposed to build RDSS in this tree also; default to YES
  */
 #ifndef BuildRDSS
-#define BuildRDSS NO
+#define BuildRDSS YES
 #endif
 
 /*
