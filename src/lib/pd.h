@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.8 1992-10-10 04:43:27 granger Exp $
+ * $Id: pd.h,v 1.9 1992-11-12 17:43:36 burghart Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -21,6 +21,17 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+/*
+ * Deal with prototypes in both STDC and non-STDC worlds
+ */
+# ifndef FP
+#    ifdef __STDC__
+#	define FP(stuff) stuff
+#    else
+#	define FP(stuff) ()
+#    endif
+# endif
 
 /*
  * The format of a raw plot description.  This stuff needs to be moved around
