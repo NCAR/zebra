@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.4 1991-02-14 17:18:11 kris Exp $ */
+/* $Id: GraphProc.h,v 1.5 1991-03-05 23:20:27 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -8,14 +8,10 @@
  * plot operation.
  */
 extern bool Abort;
-
 /*
- * When HoldProcess is TRUE, only things at the PUrgent priority will be
- * executed in the event queue.  The purpose of this is to delay replots
- * while certain things (i.e. rubber banding or changes in multiple plot
- * parameters) are happening.
+ * Our name.
  */
-extern bool HoldProcess;
+extern char Ourname[40];
 
 /*
  * Keep the variable table around, since we use it at times.
@@ -34,7 +30,11 @@ extern plot_description Pd, Defaults;
 extern time PlotTime;		/* Time currently shown on the screen	*/
 extern enum pmode PlotMode;	/* The current plot mode		*/
 extern bool MovieMode;		/* Movie mode?				*/
-
+/*
+ * Needed for opening the FrameFile.
+ */
+extern char FrameFilePath[40];	/* Path to the FrameFile 		*/
+extern int  FrameFileFlag;	/* True when FrameFile should be opened */
 /*
  * Our plot type and user plot limits
  */
@@ -75,7 +75,6 @@ extern XtAppContext Actx;		/* The application context	*/
 extern Cursor BusyCursor, NormalCursor;	/* Our cursors		*/
 # endif
 extern int FrameCount;			/* How many frames?		*/
-extern int MaxPixmaps;			/* Max number of pixmaps        */
 extern int DisplayFrame;		/* Frame to display		*/
 extern int DrawFrame;			/* Frame to draw in		*/
 
@@ -102,11 +101,14 @@ extern bool ga_GridBBox (time *, char *, float *, float *, float *, float *);
 extern void ga_RotateGrid (float *, float *, int, int);
 extern bool ga_AvailableAlts (time *, char *, float *, int *);
 extern void fc_InvalidateCache (void);
+extern void fc_UnMarkFrames (void);
+extern void fc_CreateFrameFile (void);
+extern void fc_SetNumFrames (int);
+extern char *fc_GetInfo (int);
 extern void fc_AddFrame (time *, int);
 extern int fc_LookupFrame (time *);
 extern int fc_GetFrame (void);
 extern void fc_MarkFrames (time *, int);
-extern int fc_GetFrameData(int);
 extern void mc_DefMovieWidget (void);
 extern void mc_Dial (int);
 extern char *px_FldDesc (char *, char *);
@@ -149,11 +151,14 @@ extern bool cvt_Origin (double, double);
 	extern bool ga_GridBBox ();
 	extern bool ga_AvailableAlts ();
 	extern void fc_InvalidateCache ();
+	extern void fc_UnMarkFrames ();
+	extern void fc_CreateFrameFile ();
+	extern void fc_SetNumFrames ();
+	extern char *fc_GetInfo ();
 	extern void fc_AddFrame ();
 	extern int fc_LookupFrame ();
 	extern int fc_GetFrame ();
 	extern void fc_MarkFrames ();
-	extern int fc_GetFrameData();
 	extern void mc_DefMovieWidget ();
 	extern void mc_Dial ();
 	extern char *px_FldDesc ();
