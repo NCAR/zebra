@@ -1,3 +1,9 @@
+First unpack the archive, and go to the directory which is
+created:
+
+	$ zcat rdsslibs-<version>.tar.gz | tar xvf -
+	$ cd rdsslibs-<version>
+
 For a default installation, with files installed under /usr/local,
 the following is all that is necessary:
 
@@ -5,7 +11,7 @@ the following is all that is necessary:
 	$ make
 	$ make install
 
-To install under a directory other than /usr/local, the first line above
-can be changed to:
+To install under a directory other than /usr/local, use the "--prefix"
+option for configure:
 
 	$ ./configure --prefix=<dir>
