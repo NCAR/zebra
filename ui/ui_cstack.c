@@ -10,7 +10,7 @@
 # include "ui_error.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_cstack.c,v 1.4 1989-06-05 16:03:51 corbet Exp $";
+static char *Rcsid = "$Id: ui_cstack.c,v 1.5 1989-08-21 10:21:46 corbet Exp $";
 
 /*
  * The list of free cs_entry structures.  Whenever we need a new one,
@@ -284,7 +284,7 @@ bool cleanup;
 /*
  * If this is a file source, we need to close the file.
  */
- 	if (old->s_type == IST_FILE)
+ 	if (old->s_type == IST_FILE && old->s_lun)
 		dclose (old->s_lun);
 /*
  * Csave sources need to be released.
