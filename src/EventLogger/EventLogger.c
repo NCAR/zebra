@@ -46,7 +46,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.32 1995-07-06 04:15:53 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.33 1995-09-10 16:45:52 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -97,7 +97,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.32 1995-07-06 04:15:53 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.33 1995-09-10 16:45:52 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -1342,6 +1342,8 @@ char *msg;
 	char *fmt;
 
 	fmt = FormatMessage ('-', from, msg);
+	if (! fmt)
+		return;
 	AppendToLogFile (fmt);
 	if (Windows)
 		AppendToDisplay (fmt);
@@ -1357,6 +1359,8 @@ char *msg_in;
 /*
  * Format the code, from, and msg strings into the log message.  If the
  * message should not be logged for repeat reasons, NULL is returned.
+ * If the msg is NULL, clear the repeat counter and return the "repeated"
+ * message, else NULL.
  */
 {
 #	define FMTLEN 256
@@ -1370,11 +1374,18 @@ char *msg_in;
  * Format the message to be logged.  For robustness, make sure the msg is
  * not too long for our buffer.
  */
-	strncpy (from, from_in, FROMLEN-1);
-	from[FROMLEN-1] = '\0';
-	strncpy (msg, msg_in, FMTLEN - 30);
-	msg[FMTLEN - 30] = '\0';
-	sprintf (fmtbuf, "%c %-*s %s\n", code, FROMLEN-1, from, msg);
+	if (msg_in)
+	{
+		strncpy (from, from_in, FROMLEN-1);
+		from[FROMLEN-1] = '\0';
+		strncpy (msg, msg_in, FMTLEN - 30);
+		msg[FMTLEN - 30] = '\0';
+		sprintf (fmtbuf, "%c %-*s %s\n", code, FROMLEN-1, from, msg);
+	}
+	else
+	{
+		fmtbuf[0] = '\0';
+	}
 /*
  * See if we've seen this message before: if so, print the repeat count
  * at regular intervals; otherwise reset repeat count and proceed as usual.
@@ -1499,12 +1510,19 @@ clearbutton ()
  */	
 {
 	Arg args[2];
+	char *log;
 
-	AppendToLogFile ("\n");
+	/* Clear the text buffer */
 	XtSetArg (args[0], XtNstring, "");
 	XtSetValues (Text, args, 1);
 	XawTextDisplay (Text);
 	Buflen = 0;
+	/* Clear repeat message, and possibly log the repeat count */
+	log = FormatMessage (0, LOGNAME, NULL);
+	if (log && Windows)
+		AppendToDisplay (log);
+	if (log)
+		AppendToLogFile (log);
 }
 
 
@@ -2011,6 +2029,8 @@ void *param;
 #endif
 	TC_EncodeTime (t, TC_Full, buf + strlen(buf));
 	msg = FormatMessage ('T', LOGNAME, buf);
+	if (! msg)
+		return;
 	AppendToLogFile (msg);
 	if (Windows)
 		AppendToDisplay (msg);
