@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.26 1995-09-12 20:58:54 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.27 1995-09-27 16:07:26 granger Exp $")
 
 /*
  * Exported variables
@@ -728,6 +728,13 @@ struct cf_window *win;
 {
 	struct dm_reconfig msg;
 	struct cf_graphic *g;
+	int sendpd = 0;
+/*
+ * Determine whether this reconfig message will be followed by a new pd
+ */
+	g = win->cfw_graphic;
+	if (IsGraphic(win) && (g->g_linkpar || g->g_forcepd || g->g_tmpforce))
+		sendpd = 1;
 /*
  * Fill in the message structure.
  */
@@ -737,17 +744,17 @@ struct cf_window *win;
 	msg.dmr_dx = win->cfw_dx;
 	msg.dmr_dy = win->cfw_dy - TBSpace;
 	strcpy (msg.dmr_name, win->cfw_name);
+	msg.dmr_pdwait = sendpd;
 /*
  * Ship out the config.  The rest is only for graphic windows.
  */
 	dmsg_SendWindow (win, (char *) &msg, sizeof (struct dm_reconfig));
 	if (IsGraphic (win))
 	{
-		g = win->cfw_graphic;
 		/*
 		 * Ship over the PD, including the defaults.
 		 */
-		if (g->g_linkpar || g->g_forcepd || g->g_tmpforce)
+		if (sendpd)
 		{
 			dg_SendDefault (win);
 			dg_SendPD (win);
