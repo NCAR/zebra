@@ -1,6 +1,7 @@
+// -*- C++ -*-
 //
 // The Zebra data store field class
-// $Id: Field.h,v 2.1 1999-07-10 01:15:35 granger Exp $
+// $Id: Field.h,v 2.2 2001-01-04 21:12:26 granger Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research
