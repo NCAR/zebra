@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Optimizer.c,v 1.3 1991-09-17 16:07:31 burghart Exp $";
+static char *rcsid = "$Id: Optimizer.c,v 1.4 1991-09-26 16:41:17 gracio Exp $";
 
 # include <copyright.h>
 # include <ctype.h>
@@ -29,6 +29,7 @@ static char *rcsid = "$Id: Optimizer.c,v 1.3 1991-09-17 16:07:31 burghart Exp $"
 # include <ui.h>
 # include <ui_date.h>
 # include <ui_error.h>
+# include <config.h>
 # include "globals.h"
 # include "radar.h"
 # include "keywords.h"
@@ -324,7 +325,7 @@ char	*cfg;
  */
 {
 	int	status, i, baud;
-	char	fname[50], string[30], line[30], phone[30];
+	char	fname[200], string[30], line[30], phone[30];
 	FILE	*cfile;
 	Radar	r;
 /*
@@ -333,7 +334,7 @@ char	*cfg;
 	strcpy (fname, cfg);
 	if (access (fname, R_OK) != 0)
 	{
-		sprintf (fname, "/fcc/optimizer/%s", cfg);
+		sprintf (fname, "%s/optimizer/%s", FCCDIR, cfg);
 		if (access (fname, R_OK) != 0)
 		{
 			msg_ELog (EF_PROBLEM, "Cannot open '%s' config file!",
