@@ -32,7 +32,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.12 1992-11-19 19:58:56 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.13 1993-02-11 22:48:17 burghart Exp $")
 
 # include "netcdf.h"
 
@@ -70,7 +70,8 @@ typedef struct _nctag
  * assumption that all the files for a given platform are organized the same
  * way, which should be safe.
  */
-#define MAXPLAT	1024		/* How many different platforms we expect */
+#define MAXPLAT	4096		/* How many different platforms we expect */
+				/* ~3000 platforms for STORM-FEST precip! */
 #define BASEDONE	-1	/* Flag to mark bases which are done	 */
 #define UNKNOWN	-2
 static int      SPMap[MAXPLAT] = {0};
@@ -745,7 +746,7 @@ char *s;
 /*
  * Print the error message
  */
-	if (ncerr <= 22)
+	if (ncerr <= 22 && ncerr >= 0)
 		msg_ELog (EF_PROBLEM, "NetCDF error %d (%s) -- %s", ncerr, 
 			errmsg[ncerr], s);
 	else
@@ -1807,7 +1808,7 @@ NCTag **rtag;
 		sprintf(history,"created by Zeb DataStore, ");
 		(void)gettimeofday(&tv, NULL);
 		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.12 $\n");
+		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.13 $\n");
 		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
 			       NC_CHAR, strlen(history)+1, history);
 	}
