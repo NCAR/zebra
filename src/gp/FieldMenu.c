@@ -20,6 +20,8 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <copyright.h>
+# include <string.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/SimpleMenu.h>
@@ -34,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.6 1993-10-26 16:07:15 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.7 1994-02-03 22:08:16 burghart Exp $")
 
 
 /*
@@ -258,7 +260,7 @@ SetupFields ()
 	SValue v;
 	int type, nfield = MAXENTRY;
 	PlatformId pid;
-	char *comma, *strchr ();
+	char *comma;
 /*
  * See which is our component and platform.
  */

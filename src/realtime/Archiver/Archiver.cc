@@ -24,6 +24,7 @@
 
 
 # include <copyright.h>
+# include <string.h>
 # include <stdio.h>
 # include <fcntl.h>
 # include <errno.h>
@@ -50,7 +51,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.25 1994-02-02 20:31:06 burghart Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.26 1994-02-03 22:08:43 burghart Exp $")
 
 /*
  * Issues:
@@ -821,7 +822,7 @@ LoadFileList ()
  */
 {
 	FILE *fp;
-	char pname[200], *strchr (), *colon;
+	char pname[200], *colon;
 	SValue v;
 	date d;
 /*
