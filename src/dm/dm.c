@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.45 1994-06-06 22:27:33 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.46 1994-06-29 20:21:13 case Exp $")
 
 
 /*
@@ -177,7 +177,7 @@ char **argv;
 	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
 	usy_c_indirect (vtable, "tbspace", &TBSpace, SYMT_INT, 0);
 	strcpy (ExecPath, GetBinDir ());
-	usy_c_indirect (vtable, "execpath", &ExecPath, SYMT_STRING,
+	usy_c_indirect (vtable, "execpath", ExecPath, SYMT_STRING,
 			ExecPathLen);
 	usy_c_indirect (vtable, "forcehistory", &ForceHistory, SYMT_BOOL, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
