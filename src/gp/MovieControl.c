@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.6 1990-10-10 13:09:55 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.7 1990-11-15 13:37:41 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -707,6 +707,7 @@ int *frame;
 {
 	if (*frame >= 0 && *frame < Nframes)
 	{
+		/* DoSound ("click"); */
 		PlotTime = Mtimes[*frame];
 		mc_SetIndicator (*frame);
 		px_PlotExec ("global");
