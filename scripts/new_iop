@@ -3,7 +3,7 @@ import sys,os,os.path,time
 # make a new iop directory
 
 def safeunlink(filename):
-    """ remove a link w/o throwning an execption if it does not exist """
+    """ remove a link w/o throwing an execption if it does not exist """
 #    print 'unlinking %s' % filename
     try:
         os.unlink(filename)
@@ -11,49 +11,53 @@ def safeunlink(filename):
         pass
 
 def main():
-    iopDir = '/scr/data/iops'
-    spolLink = 'spol'
-    subsetDir = '/scr/data/iop_subsets'
-    subsetLink = 'spol_subset'
+    baseDir = '/scr/data/'
+    spolLink = 'spol'	# <baseDir>/<spolLink> will always point to the
+    			# current IOP
 
-    stdPlatforms = ['ncgrids', 'particles', 'particles/pdesc', 'particles8',
-		'particles8/pdesc', 'precip.basic',
-                    'precip.hourly', 'precip.storm', 'rain', 'rain/basic',
-                    'rain/hourly','rain/storm',  'spol', 'sweepfiles']
+    #
+    # These are directories always necessary for S-Pol operations.
+    #
+    alwaysDirs = ['spol', 'particles', 'precip.basic', 'precip.hourly',
+                  'precip.storm', 'particles/pdesc', 'rain', 'rain/basic',
+                  'rain/hourly', 'rain/storm', 'sweepfiles', 'boundary']
 
-    extraPlatforms = ['radar_composite', 'goes', 'mesonet']
+    #
+    # and these are the project-specific extra directories (usually
+    # extra Zebra platforms)
+    #
+    extraDirs = ['radar_composite', 'goes', 'p3', 'kingair', 'dc8', 'mesonet',
+                 'particles8', 'particles8/pdesc']
 
-#    UsageStr = 'name_of_iop'
+    #
+    # Verify that we got no args
+    #
     if len(sys.argv) != 1:
 	print 'usage: %s ' % sys.argv[0]
 	sys.exit(-1)
 
-    iop = time.strftime('iop_%Y_%m_%d_%H00', time.gmtime(time.time()))
-    newDir = os.path.join(iopDir, iop)
-    theLink = os.path.join(os.path.basename(iopDir), iop)
+    #
+    # Create a new IOP directory, named by the current date and time
+    #
+    iop = time.strftime('iops/iop_%Y_%m_%d_%H00', time.gmtime(time.time()))
+    newDir = os.path.join(baseDir, iop)
+
     if os.path.exists(newDir):
 	print 'ERROR - %s already exists!' % newDir
 	sys.exit(-2)
     os.mkdir(newDir)
 
-    allPlatforms = stdPlatforms + extraPlatforms;
-    for d in allPlatforms:
+    allDirs = alwaysDirs + extraDirs
+    for d in allDirs:
 	os.mkdir(os.path.join(newDir, d))
 
-    os.chdir('/scr/data')
+    #
+    # Make <baseDir>/<spolLink> point to the new IOP directory
+    #
+    os.chdir(baseDir)
 
     safeunlink(spolLink)
-    os.symlink(theLink, spolLink)
-
-# create subset directory
-    newDir = os.path.join(subsetDir, iop)
-    theLink = os.path.join(os.path.basename(subsetDir), iop)
-    if os.path.exists(newDir):
-	print 'ERROR - %s already exists!' % newDir
-	sys.exit(-2)
-    os.mkdir(newDir)
-    safeunlink(subsetLink)
-    os.symlink(theLink, subsetLink)
+    os.symlink(iop, spolLink)
 
 if __name__ == '__main__':
     main()
