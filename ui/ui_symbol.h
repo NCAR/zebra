@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_symbol.h,v 1.1 1989-02-08 13:28:21 corbet Exp $ */
+/* $Id: ui_symbol.h,v 1.2 1989-04-13 15:38:18 corbet Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -28,6 +28,13 @@ union usy_value
 	date	us_v_date;	/* Date value			*/
 	char	*us_v_ptr;	/* Everything else		*/
 };
+
+/*
+ * Symbol operations.
+ */
+# define SOP_READ	0x1	/* Read operation		*/
+# define SOP_WRITE	0x2	/* Write operation		*/
+# define SOP_DESTROY	0x4	/* Destroy			*/
 
 /*
  * The (external) type for a symbol table.
