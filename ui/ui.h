@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.2 1990-04-20 14:13:32 corbet Exp $ */
+/* $Id: ui.h,v 1.3 1990-05-23 09:11:09 burghart Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -45,7 +45,7 @@ struct ui_command
  * Forward definitions of useful routines.
  */
 int ui_int_prompt ();
-float ui_float_prompt ();
+double ui_float_prompt ();
 
 /*
  * Let the application know if X support is present.
