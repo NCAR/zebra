@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.8 1991-05-03 18:18:59 kris Exp $
+! $Id: GraphProc.state,v 1.9 1991-06-14 22:36:09 kris Exp $
 !
 ! State entries for the graphics process.
 !
@@ -180,6 +180,9 @@ define state act-widget
 	endinput
 	input 'singleint' 4
 		next act-si-comp
+	endinput
+	input 'stationwidget' 5
+		next ust$final_string
 	endinput
 enddef
 
