@@ -21,7 +21,9 @@ p_xytrace
 	icon-middle-menu:	FieldMenu
 	icon-right-menu:	xytrace-right
 	field-select-command:	xytrace-field
-	posicon-left-menu:	xy-an-left
-	posicon-middle-menu:	FieldMenu
-	posicon-right-menu:	simple-color
+	annot-left-menu:	xy-an-left
+	annot-middle-menu:	FieldMenu
+	annot-right-menu:	simple-color
 	color-tweaker:		xytrace-color
+	limit-proc:		xytrace-adjust
+
