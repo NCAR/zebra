@@ -8,7 +8,7 @@ HELPFILES = \
 
 /*
  * These files are for backwards compatibility with xhelp topics and can
- * be removed when xhelp is aboandoned.  Most are exact copies of the html
+ * be removed when xhelp is abandoned.  Most are exact copies of the html
  * file with the newer topic name.
  */ 
 BCFILES = overlaytimes.html shutdown.html limitwidgets.html editdconfig.html \
@@ -21,7 +21,8 @@ HTMLFILES = color-lables.html components.html cross-section.html \
 	event-logger.html getposition.html graphic-overview.html \
 	graphic-windows.html graphics-icons.html help.html historytime.html \
 	horizontal-plots.html hp-aircraft.html hp-altitude.html \
-	hp-coords.html hp-data.html hp-meso-fields.html iconbar.html \
+	hp-coords.html hp-data.html hp-meso-fields.html hp-projection.html \
+	iconbar.html \
 	index.html interpmethods.html intro.html keys.html limits.html \
 	model-time.html movies.html overlay-time.html \
 	plxsect.html posicons.html printer.html shut-down.html skewt.html \
