@@ -21,7 +21,7 @@ global
 	xy-axis-b-font-scale:	10
 	xy-axis-t-font-scale:	10
 	xy-axis-l-font-scale:	10
-	xy-axis-r-font-scale:	10
+	xy-axis-r-font-scale:	12
 !
 ! This component just draws a grid.
 !
@@ -35,7 +35,7 @@ xy-grid
 	axis-top:		false
 	icon:			none
 	axis-b-label:		Time
-	axis-b-tic-interval:	10m
+	axis-b-tic-interval:	0
 	do-side-annotation:	false
 	platform:		null
 	field-color:		red

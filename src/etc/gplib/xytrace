@@ -1,25 +1,46 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.2 1993-10-18 19:30:35 corbet Exp $
+! $Id: xytrace,v 1.3 1994-05-02 20:50:13 corbet Exp $
+
+define widget xysideannot intmenu ' '
+	title 'Side annotation size'
+	line
+	entry 'Small' 'parameter #icon_component sa-scale 9' \
+		(PDParam (icon_component, 'sa-scale') = '9')
+	entry 'Medium' 'parameter #icon_component sa-scale 12' \
+		(PDParam (icon_component, 'sa-scale') = '12')
+	entry 'Large' 'parameter #icon_component sa-scale 16' \
+		(PDParam (icon_component, 'sa-scale') = '16')
+endmenu
+
 
 define widget xytrace-right intmenu 'x'
 	title 'XYGraph options'
 	line
-! want color here but don't know how
-! want line width here but no such option in xygraphs
 	entry 'Line representation' 'xyrep line' \
 		(PDParam (icon_component, 'representation-style') = 'line')
 	entry 'Point representation' 'xyrep point' \
-		(PDParam (icon_component, 'representation-style') = 'point')
+		(PDParam (icon_component, 'point-icon') = 'point')
 	entry 'Cross representation' 'xyrep cross' \
-		(PDParam (icon_component, 'representation-style') = 'cross')
+		(PDParam (icon_component, 'point-icon') = 'cross')
 	entry 'X-mark representation' 'xyrep xmark' \
-		(PDParam (icon_component, 'representation-style') = 'xmark')
+		(PDParam (icon_component, 'point-icon') = 'xmark')
+	entry 'Circle representation' 'xyrep fmill-loc' \
+		(PDParam (icon_component, 'point-icon') = 'fmill-loc')
+	line
+	submenu 'Side annotation size' xysideannot
+	entry 'Show time in side annotation' 'ToggleBoolean time-annot' \
+		(PDParam (icon_component, 'time-annot') = 'true')
 endmenu
 
 procedure xyrep rep string
-	parameter #icon_component representation-style #rep
+	if (rep = 'line')
+		parameter #icon_component representation-style #rep
+	else
+		parameter #icon_component representation-style icon
+		parameter #icon_component point-icon #rep
+	endif
 endprocedure
 
 !

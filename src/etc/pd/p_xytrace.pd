@@ -26,4 +26,5 @@ p_xytrace
 	annot-right-menu:	simple-color
 	color-tweaker:		xytrace-color
 	limit-proc:		xytrace-adjust
-
+	time-annot:		true
+	sa-scale:		12
