@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.16 2002-04-27 04:38:48 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.17 2002-10-15 18:20:32 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.16 2002-04-27 04:38:48 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.17 2002-10-15 18:20:32 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -644,7 +644,7 @@ SetPlatform (DataChunk *dc, char PlatformName[])
 			/* relies on DefDataDir from ingest module */
 			ds_AssignClass (pc, OrgScalar, FTNetCDF,
 					TRUE/*mobile*/);
-			ds_SetMaxSample (pc, 10000);
+			ds_SetMaxSample (pc, 20000);
 			ds_SetComment (pc, "standalone CLASS platform ");
 			cid = ds_DefineClass (pc);
 		}
