@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.1 1992-01-02 17:07:29 barrett Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.2 1992-01-03 00:29:30 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -527,24 +527,31 @@ char	*topAnnColor;
 /*
  * Get line color for data from each platform
  */
-	if ( pda_Search (pd, c, "line-color", NULL, attrs, SYMT_STRING))
+	if ( linecolor )
 	{
-	    nattr = CommaParse( attrs, attrlist);
-	    if ( nattr < nplat )
+	    if ( pda_Search (pd, c, "line-color", NULL, attrs, SYMT_STRING))
 	    {
-		msg_ELog ( EF_INFO, 
+	        nattr = CommaParse( attrs, attrlist);
+	        if ( nattr < nplat )
+	        {
+		    msg_ELog ( EF_INFO, 
 		    "Not enough line-colors specified, filling in with white.");
-	    }
-	    for ( i = 0; i < nplat; i++)
-	    {
-	        if (GWDepth(Graphics) == 1 || i >= nattr )
-		     strcpy(linecolor[i], "white");
-		else
-		     strcpy(linecolor[i], attrlist[i]);
+	        }
+	        for ( i = 0; i < nplat; i++)
+	        {
+	            if (GWDepth(Graphics) == 1 || i >= nattr )
+		         strcpy(linecolor[i], "white");
+		    else
+		         strcpy(linecolor[i], attrlist[i]);
+	        }
 	    }
 	}
-	if (! pda_Search (Pd,"global","ta-color", NULL,topAnnColor,SYMT_STRING))
+	if ( topAnnColor )
+	{
+	    if (! pda_Search (Pd,"global","ta-color", NULL,
+			topAnnColor,SYMT_STRING))
 		strcpy(topAnnColor, "white");
+	}
 }
 
 int
