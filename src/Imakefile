@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.11 1995-01-26 21:17:27 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.12 1995-01-26 21:25:35 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -98,20 +98,20 @@ DistfilesSubdirs($(DISTSUBDIRS))
 TARGET = all
 
 programs:
-	$(MAKE) $(MFLAGS) ETC= LIBS= GP=$(GP) $(TARGET)
+	$(MAKE) $(MFLAGS) ETC= LIBS= GP='$(GP)' $(TARGET)
 
 libraries:
 	$(MAKE) $(MFLAGS) SUBDIRS='$(LIBS)' $(TARGET)
 
 dsclients:
-	$(MAKE) $(MFLAGS) SUBDIRS='$(DSCLIENTS)' GP=$(GP) LIBS=$(LIBS) \
+	$(MAKE) $(MFLAGS) SUBDIRS='$(DSCLIENTS)' GP='$(GP)' LIBS='$(LIBS)' \
 		$(TARGET)
 
 dsutils:
-	$(MAKE) $(MFLAGS) SUBDIRS='$(DSUTILS)' LIBS=$(LIBS) $(TARGET)
+	$(MAKE) $(MFLAGS) SUBDIRS='$(DSUTILS)' LIBS='$(LIBS)' $(TARGET)
 
 msgutils:
-	$(MAKE) $(MFLAGS) SUBDIRS='$(MSGUTILS)' ZEBLIB=$(ZEBLIB) $(TARGET)
+	$(MAKE) $(MFLAGS) SUBDIRS='$(MSGUTILS)' ZEBLIB='$(ZEBLIB)' $(TARGET)
 
 #if !BuildIngest
 OmitBuildRules(ingest utilities)
