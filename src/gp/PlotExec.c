@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.8 1992-02-19 23:53:53 barrett Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.9 1992-03-26 20:14:24 kris Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -292,6 +292,7 @@ char	*component;
  */
 	else if (global)
 	{
+		I_ClearPosIcons ();
 		px_GlobalPlot (&cachetime);
 		An_DoSideAnnot ();
 		ac_DisplayAxes ();
