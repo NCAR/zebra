@@ -13,7 +13,7 @@
  * Graphics context (don't use the global one in GC.h because we don't
  * want to have to worry about clipping)
  */
-static GC	AnGcontext;
+static GC	AnGcontext = 0;
 
 /*
  * Top annotation stuff
