@@ -1,5 +1,5 @@
 /*
- * $Id: c130fest_ingest.c,v 1.3 1992-11-19 02:15:43 granger Exp $
+ * $Id: c130fest_ingest.c,v 1.4 1992-12-09 23:14:24 granger Exp $
  *
  * Ingest ASCII data files for the U of Washington's C-130 Convair.
  * As far as I can determine from the files, they follow this format:
@@ -12,20 +12,21 @@
  *
  * Other points to note:
  * -99.0 seems to be the "bad value indicator" for ALL fields, including lat/lon.
- * This value will be set to BadValueFlag in the DataChunk.
+ * Fields with this value are set to BAD_VALUE_FLAG (-9999) before storage into
+ * a data chunk.
  * 
  * Strategy:
  * We require that three specific fields be in the file: timeh, latgps,
- * longps, and palt.
- * Each line of the file corresponds to a sample in a DataChunk.
- * The timeh value is converted to ZebTime and used as the time of the
- * sample.  The latgps and longps fields are used to assign a location to
- * the sample.  All of the other fields are stored into the DataChunk.
- * The entire file will be ingested as one DataChunk.
- * The timeh, latgps, longps, and palt fields will not stored as individual
- * fields in the DataChunk, as these will be stored as the location of each
- * sample.  The flight number and date from the first line
- * of the file will be stored as global attributes in the DataChunk.
+ * longps, and palt.  Each line of the file corresponds to a sample in a
+ * DataChunk.  The timeh value is converted to ZebTime and used as the time
+ * of the sample.  The latgps, longps, and palt fields are used to assign a
+ * location to the sample.  All of the other fields are stored into the
+ * DataChunk.  The entire file will be ingested as one DataChunk, except
+ * where gaps in time necessitate a split.  The timeh, latgps, longps, and
+ * palt fields are not stored as individual fields in the DataChunk, as
+ * these will be stored as the location of each sample.  The flight number
+ * and date from the first line of the file will be stored as global
+ * attributes in the DataChunk.
  *
  * The platform name will be the C-130's STORMFEST id; I think this id
  * was "storm4".  
@@ -44,7 +45,9 @@
 #define PLATFORM_NAME		"storm4"
 #define INGEST_NAME		"C-130 Ingest"
 #define LINE_BUFFER_SIZE	256
-#define BAD_VALUE_FLAG		(-99.0)
+#define BAD_VALUE_FLAG		((float)-9999.0)	/* Bad value used in DC   */
+#define BAD_LOCN_FLAG		BAD_VALUE_FLAG		/* For lat, lon, and alt  */
+#define FILE_BAD_VALUE		((float)-99.0)		/* Bad value used in file */
 #define TIME_FIELD		"timeh"
 #define LAT_FIELD		"latgps"
 #define LON_FIELD		"longps"
@@ -53,7 +56,12 @@
 
 #define AttFlightDate		"flight_date"
 #define AttFlightNumber		"flight_number"
-#define AttIngestVersion	"ingest_version"
+#define AttIngestor		"zeb_ingestor"
+#define AttLatBadValue		"lat_bad_value"
+#define AttLonBadValue		"lon_bad_value"
+#define AttAltBadValue		"alt_bad_value"
+#define AttFilePart		"part"
+#define AttWindsFilename	"winds_filename"
 
 #define Abs(x)			((x>0)?(x):(-(x)))
 #define Min(x,y)		(((x)<(y))?(x):(y))
@@ -77,6 +85,7 @@ extern void InterpolateGap
 	FP((DataChunk *dc, ZebTime *btime, Location *blocn,
 	    ZebTime *etime, Location *elocn, int *sample));
 static DataChunk *ReCreateDataChunk FP((DataChunk *dc));
+static void DumpFields FP((FieldId *fields, int nfields));
 
 /*----------------------------------------------------------------
  * Global variables
@@ -87,6 +96,8 @@ int TimeField = -1;
 int LatField = -1;
 int LonField = -1;
 int AltField = -1;
+
+int FilePart = 0;	/* The no. of the current output file in relation to original */
 
 DataChunk *DestDC;	/* Used to pass dc to CopyAttribute() */
 
@@ -119,8 +130,25 @@ main(argc, argv)
 					 * time, lat, lon fields will not be
 					 * explicitly stored as fields */
 	FieldId *fields;		/* The field ids we'll be ingesting */
+	int i;
+	short show_fields;
 
 	IngestParseOptions(&argc, argv, Usage);
+
+	i = 1;
+	show_fields = 0;
+	while (i < argc)
+	{
+		if ((strlen(argv[i]) > 1) &&
+		    !strncmp(argv[i],"-fields",strlen(argv[i])))
+		{
+			show_fields = 1;
+			IngestRemoveOptions(&argc, argv, i, 1);
+			IngestSetDryRun();
+		}
+		else
+			++i;
+	}
 
 	if (argc > 3)
 	{
@@ -155,16 +183,27 @@ main(argc, argv)
 	 * All set to start processing the file.
 	 * Get a DataChunk, and the number of fields we'll ingest.
 	 */
+	IngestLog(EF_INFO,"Ingesting data from %s",(argc == 3)?argv[1]:"stdin");
 	dc = CreateDataChunk(datafile, &nfields, &flight_date);
 
 	fields = GetFields(datafile, parmfile, nfields);
 	fclose(parmfile);
+
+	if (show_fields)
+	{
+		DumpFields(fields, nfields);
+		exit(0);
+	}
 
 	/*
 	 * Setup the fields in the DataChunk
 	 */
 	dc_SetScalarFields(dc, nfields, fields);
 	dc_SetBadval(dc, BAD_VALUE_FLAG);
+
+#ifdef DEBUG
+	dc_DumpDC(dc);
+#endif
 
 	/*
 	 * We now have all of our preliminary info.
@@ -187,6 +226,8 @@ void
 StoreDataChunk(dc)
 	DataChunk *dc;
 {
+	static dsDetail dsd = { DD_NC_TIME_FLOAT, 0 };
+
 	/*
 	 * Store the data chunk, as long as we got some samples
 	 */
@@ -203,7 +244,7 @@ StoreDataChunk(dc)
 	 */
 	IngestLog(EF_INFO,"Storing %i samples to new data file...",
 		  dc_GetNSample(dc));
-	ds_Store(dc, /*newfile*/ TRUE, /*details*/ NULL, /*ndetail*/ 0);
+	ds_StoreBlocks(dc, /*newfile*/ TRUE, &dsd, 1);
 	IngestLog(EF_INFO,"Done storing to file.");
 }
 
@@ -217,9 +258,11 @@ Usage(prog)
 	char *prog;
 {
 	fprintf(stderr,
-		"Usage: %s [ingest options] [file name] <parameter file>\n",prog);
+	 "Usage: %s [ingest options] [-fields] [file name] <parameters>\n",prog);
 	fprintf(stderr,
 		"   If no file name specified, stdin will be used for input\n");
+	fprintf(stderr,
+	 "   -fields		Just show the fields that will be ingested\n");
 	IngestUsage();
 }
 
@@ -299,7 +342,7 @@ CreateDataChunk(in, nfields, flight_date)
 	int *nfields;
 	ZebTime *flight_date;
 {
-	static char version_info[] = "$RCSfile: c130fest_ingest.c,v $ $Revision: 1.3 $";
+	static char version_info[] = "$RCSfile: c130fest_ingest.c,v $ $Revision: 1.4 $";
 	char *buf;
 	int num_fields;
 	int flight_no;
@@ -355,7 +398,28 @@ CreateDataChunk(in, nfields, flight_date)
 		  flight_no, att_val);
 	sprintf(att_val, "%i", flight_no);
 	dc_SetGlobalAttr(dc, AttFlightNumber, att_val);
-	dc_SetGlobalAttr(dc, AttIngestVersion, version_info);
+	dc_SetGlobalAttr(dc, AttIngestor, version_info);
+
+	FilePart = 1;
+	sprintf(att_val, "%i", FilePart);
+	dc_SetGlobalAttr(dc, AttFilePart, att_val);
+
+	/*
+	 * Derive the file name that should be given to this file later for
+	 * use with winds.
+	 */
+	sprintf(att_val, "%04i%c", flight_no, (char)('a' - 1 + FilePart));
+	dc_SetGlobalAttr(dc, AttWindsFilename, att_val);
+
+	/*
+	 * Provide some kind of notice that some samples will specify
+	 * bad location fields using these flags.  This may or may not be
+	 * the same as the bad value for other fields.  
+	 */
+	sprintf(att_val, "%f", BAD_LOCN_FLAG);
+	dc_SetGlobalAttr(dc, AttLatBadValue, att_val);
+	dc_SetGlobalAttr(dc, AttLonBadValue, att_val);
+	dc_SetGlobalAttr(dc, AttAltBadValue, att_val);
 
 	*nfields = num_fields - NREQ_FIELDS;	/* Don't include time or locn */
 
@@ -609,27 +673,38 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 			while (msg_poll(0) != -1);
 
 		/*
-		 * Check for bad values in the location.  A location will
-		 * be marked bad if lat, lon, AND alt are BAD_VALUE_FLAG (-99)
+		 * Check for bad values in the location.  A sample will be 
+		 * considered bad if all of the field values are bad.  Otherwise
+		 * bad location fields will be stored as BAD_LOCN_FLAG and all
+		 * other fields copied directly from the data.
 		 */
-		if ((slocn.l_lat == BAD_VALUE_FLAG) ||
-		    (slocn.l_lon == BAD_VALUE_FLAG) ||
-		    (slocn.l_alt == BAD_VALUE_FLAG))
+		for (i = 0; i < nfields+NREQ_FIELDS; ++i)
+			if ((i != TimeField) && (values[i] != BAD_VALUE_FLAG))
+				break;
+
+		if (i == nfields+NREQ_FIELDS)
 		{
 			nbad_locns++;
 			if (nbad_locns == 1)
 				IngestLog(EF_PROBLEM,
-					  "Bad locn found at %s",ctime);
+					  "Bad sample found at %s",ctime);
 			continue;
 		}
 
 		if (nbad_locns)
 		{
 			IngestLog(EF_PROBLEM,
-				  "Good locn found at %s, %i bad locns skipped",
+				  "Good sample found at %s, %i bad samples skipped",
 				  ctime, nbad_locns);
 			nbad_locns = 0;
 		}
+
+		if (slocn.l_lat == BAD_VALUE_FLAG) /* in case we want them different */
+			slocn.l_lat = BAD_LOCN_FLAG;
+		if (slocn.l_lon == BAD_VALUE_FLAG)
+			slocn.l_lon = BAD_LOCN_FLAG;
+		if (slocn.l_alt == BAD_VALUE_FLAG)
+			slocn.l_alt = BAD_LOCN_FLAG;
 
 		/*
 		 * Quality control checking.  Check for gaps between sample times
@@ -645,7 +720,17 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 				IngestLog(EF_PROBLEM,
 					  "Time went backwards in sample %i, at %s !",
 					  nsample, ctime);
-			if (stime.zt_Sec - prev_time.zt_Sec > 1)
+			if (TC_Eq(stime,prev_time))
+			{
+				/* This is a repeat of the previous time.  So just
+				 * back up and overwrite the previous sample.
+				 */
+				nsample -= (nsample) ? 1 : 0;
+				IngestLog(EF_PROBLEM,
+					  "Duplicate times, sample %i, at %s",
+					  nsample, ctime);
+			}
+			else if (stime.zt_Sec - prev_time.zt_Sec > 1)
 			{
 				IngestLog(EF_DEBUG,
 					  "Time gap of %i secs at sample %i, %s",
@@ -709,12 +794,16 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 		 */
 		if (prev_locn.l_lat)		/* Not the first valid locn */
 		{
-			if (Abs(slocn.l_lat - prev_locn.l_lat) > 0.1)
+			if ((slocn.l_lat != BAD_LOCN_FLAG) &&
+			    (prev_locn.l_lat != BAD_LOCN_FLAG) &&
+			    Abs(slocn.l_lat - prev_locn.l_lat) > 0.1)
 				IngestLog(EF_DEBUG,
 					  "sample %i, lat %f differs by %f degrees",
 					  nsample, slocn.l_lat, 
 					  slocn.l_lat - prev_locn.l_lat);
-			if (Abs(slocn.l_lon - prev_locn.l_lon) > 0.1)
+			if ((slocn.l_lon != BAD_LOCN_FLAG) &&
+			    (prev_locn.l_lon != BAD_LOCN_FLAG) &&
+			    Abs(slocn.l_lon - prev_locn.l_lon) > 0.1)
 				IngestLog(EF_DEBUG,
 					  "sample %i, lon %f differs by %f degrees",
 					  nsample, slocn.l_lon, 
@@ -722,9 +811,10 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 		}
 
 		/*
-		 * We should now have a valid sample time and valid location
+		 * We should now have at least a valid sample time.  Hopefully the
+		 * the location is valid, but parts of it may be bad.
 		 */
-		IngestLog(EF_DEBUG | ((nsample % 1000) ? 0 : EF_INFO),
+		IngestLog(EF_DEVELOP | ((nsample % 1000) ? 0 : EF_INFO),
 			  "Sample %5i, %s, %.2f lat, %.2f lon, alt %5.3f km",
 			  nsample, ctime, slocn.l_lat, slocn.l_lon, slocn.l_alt);
 
@@ -769,11 +859,11 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 
 
 /*
- * Calculate a sample time from a packed time
- * given the flight date (time 00:00:00).  The first time this function is called,
- * the static variable 'start' is set to the resultant time so that subsequent
- * rollovers in the date can be detected.  Hence this is not an all-purpose
- * converter; it expects to be called in the chronological order of the file.
+ * Calculate a sample time from a packed time given the flight date (time
+ * 00:00:00).  The first time this function is called, the static variable
+ * 'start' is set to the resultant time so that subsequent rollovers in the
+ * date can be detected.  Hence this is not an all-purpose converter; it
+ * expects to be called in the chronological order of the file.
  */
 void
 DateFromPackedTime(sample_time, flight_date, packed_time)
@@ -866,6 +956,13 @@ ReadSampleLine(in, sample_time, sample_locn, values, nfields, flight_date)
 				  "only got %i field values, expecting %i, %s %i",
 				  i, nfields, "skipping line", nline);
 			break;
+		} 
+		else if (values[i] == FILE_BAD_VALUE)
+		{
+			/*
+			 * Convert any bad values into our own bad value
+			 */
+			values[i] = BAD_VALUE_FLAG;
 		}
 		buf += n;
 	}
@@ -900,6 +997,7 @@ DataChunk *ReCreateDataChunk(src)
 	 */
 	int CopyAttribute(/* char *key, char *value */);
 	DataChunk *dc;
+	char attr[10];
 
 	dc = dc_CreateDC(DCC_Scalar);
 	dc->dc_Platform = src->dc_Platform;
@@ -912,13 +1010,28 @@ DataChunk *ReCreateDataChunk(src)
 	/*
 	 * Copy all of the global attributes into the new data chunk
 	 */
-	DestDC = src;
+	DestDC = dc;
 	dc_ProcessAttrs(src, NULL, CopyAttribute);
 	
 	/*
 	 * Copy the bad value flag
 	 */
 	dc_SetBadval(dc, dc_GetBadval(src));
+
+	/*
+	 * Update the part number
+	 */
+	FilePart++;
+	sprintf(attr, "%i", FilePart);
+	dc_SetGlobalAttr(dc, AttFilePart, attr);
+
+	/*
+	 * Derive the file name that should be given to this file later for
+	 * use with winds.
+	 */
+	sprintf(attr, "%04i%c", (int)(atoi(dc_GetGlobalAttr(src, AttFlightNumber))),
+		(char)('a' - 1 + FilePart));
+	dc_SetGlobalAttr(dc, AttWindsFilename, attr);
 
 	dc_DestroyDC(src);
 	return (dc);
@@ -933,5 +1046,26 @@ CopyAttribute(key, value)
 {
 	dc_SetGlobalAttr(DestDC, key, value);
 	return(0);
+}
+
+
+
+/*
+ * Dump field info to stdout
+ */
+void
+DumpFields(fields, nfields)
+	FieldId *fields;
+	int nfields;
+{
+	int fld;
+
+	for (fld = 0; fld < nfields; ++fld)
+	{
+		printf("%-10s %-15s %-50s\n",
+		       F_GetName(fields[fld]),
+		       F_GetUnits(fields[fld]),
+		       F_GetDesc(fields[fld]));
+	}
 }
 
