@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.44 1994-05-25 19:52:11 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.45 1994-06-06 22:27:33 corbet Exp $")
 
 
 /*
@@ -109,6 +109,8 @@ static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
 static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
+static struct config *TryConfigDir FP ((char *, char *));
+
 
 
 
@@ -643,70 +645,80 @@ char *name;
  * Try to find a configuration by this name.
  */
 {
-	int type;
+	int type, ndir, i;
 	SValue v;
-	char fname[200];
-	char delim = ',';	/* a token delimiter for strtok() */
-	char * ccd;		/* current configs directory 	*/
-	int firstime = TRUE;	/* Check the default dir first 	*/
-	
-/*
- * If ConfigPath is defined, get it, otherwise set it to "."
- */
- 	if (usy_g_symbol (Configs, "configpath", &type, &v) == FALSE)
-		ccd = NULL;
-	else
-	{
-		strcpy(ConfigPath, v.us_v_ptr);
-		ccd = strtok(ConfigPath, &delim);
-	}
+	char path[512], *dirs[32];
+	struct config *ret;
 /*
  * Look up this config in the configs table.
  */
  	if (usy_g_symbol (Configs, name, &type, &v))
 		return ((struct config *) v.us_v_ptr);
 /*
- * If we didn't find it in the table, search ConfigDir and ConfigPath to 
- * try and find it, load it and return if it exists, else keep trying.
+ * OK, not there.  Let's try ConfigDir first.
  */
-	while (firstime || ccd)
+	if ((ret = TryConfigDir (ConfigDir, name)))
+		return (ret);
+/*
+ * Still no go.  Now we plow through ConfigPath and see if we have any
+ * more luck there.
+ */
+ 	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "configpath",
+			&type, &v))
 	{
-		if(firstime == FALSE)
-		{
-			if (ccd != NULL)
-				strcpy(ConfigDir, ccd);
-			else
-				strcpy(ConfigDir, ".");
-		}
+		strcpy (path, v.us_v_ptr);
+		ndir = CommaParse (path, dirs);
+		for (i = 0; i < ndir; i++)
+			if ((ret = TryConfigDir (dirs[i], name)))
+				return (ret);
+	}
+	ui_error ("Unknown configuration: %s", name);
+	return (NULL);
+}
 
-		sprintf (fname, "read %s/%s%s", ConfigDir, name, SAVED_EXT);
-		msg_ELog (EF_DEBUG, "Looking for config in %s", fname);
-		if (access (fname + 5, F_OK) == 0)
-		{
-			ui_perform (fname);
-		}
-		else	/* Try the old naming scheme with no extension */
-		{
-			sprintf (fname, "read %s/%s", ConfigDir, name);
-			msg_ELog (EF_DEBUG, "Looking for config in %s", fname);
-			if (access (fname + 5, F_OK) == 0)
-			{
-				ui_perform (fname);
-			}
-		}
+
+
+
+
+static struct config *
+TryConfigDir (dir, name)
+char *dir, *name;
+/*
+ * See if we can't pull this configuration in out of the current directory.
+ */
+{
+	char fname[200];
+	int type;
+	SValue v;
+/*
+ * Make up a "read" command and try to run it.
+ */
+	sprintf (fname, "read %s/%s%s", dir, name, SAVED_EXT);
+	if (access (fname + 5, F_OK) == 0)
+	{
+		ui_perform (fname);
 		if (usy_g_symbol (Configs, name, &type, &v))
 		{
 			msg_ELog(EF_DEBUG, "Found config %s in %s",name,fname);
 			return ((struct config *) v.us_v_ptr);
 		}
-
-		if (firstime == FALSE)
-			ccd = strtok(NULL, &delim);
-		else
-			firstime = FALSE;
 	}
-
-	ui_error ("Unknown configuration: '%s'\n", name);
+/*
+ * Failing that, try again without the extension.
+ */
+	sprintf (fname, "read %s/%s", dir, name);
+	if (access (fname + 5, F_OK) == 0)
+	{
+		ui_perform (fname);
+		if (usy_g_symbol (Configs, name, &type, &v))
+		{
+			msg_ELog(EF_DEBUG, "Found config %s in %s",name,fname);
+			return ((struct config *) v.us_v_ptr);
+		}
+	}
+/*
+ * No go.
+ */
 	return (NULL);
 }
 

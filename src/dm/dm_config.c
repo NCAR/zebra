@@ -31,7 +31,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.13 1994-05-24 09:02:04 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.14 1994-06-06 22:27:36 corbet Exp $")
 
 
 /*
@@ -70,6 +70,11 @@ char *name;
  */
 	cfg = LookupConfig (Cur_config);
 	UpdateConfig (cfg);
+/*
+ * Make a brief attempt to create the configuration directory if it doesn't
+ * exist.
+ */
+	(void) mkdir (ConfigDir, 0777);
 /*
  * Create the file and start writing.
  */
