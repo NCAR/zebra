@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.6 1998-02-25 22:17:24 burghart Exp $
+ * $Id: AuxBlock.hh,v 1.7 1998-05-15 19:36:34 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -38,7 +38,7 @@ class AuxBlock : virtual public RefBlock, virtual public SerialBlock
 public:
 	AuxBlock ()
 	{
-		cout << "AuxBlock constructor" << endl;
+		// cout << "AuxBlock constructor" << endl;
 	}
 
 	virtual ~AuxBlock ()

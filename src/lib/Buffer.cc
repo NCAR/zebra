@@ -6,11 +6,12 @@
     Create the buffer on existing space, but if we need more space malloc
     our own and copy the existing into the new buffer?  */
 
-#include <defs.h>
+#include <stdlib.h>
 
 #include "Buffer.hh"
 
-RCSID ("$Id: Buffer.cc,v 1.2 1997-12-28 05:57:33 granger Exp $")
+//#include <defs.h>
+//RCSID ("$Id: Buffer.cc,v 1.3 1998-05-15 19:36:50 granger Exp $")
 
 
 const int Buffer::BUFFER_ZONE = 256;

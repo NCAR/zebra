@@ -2,11 +2,11 @@
  * Implementation of the auxillary block methods.
  */
 
-#include <std.h>
-#include <defs.h>
-#undef bool
-
-RCSID("$Id: AuxBlock.cc,v 1.3 1997-12-13 00:24:21 granger Exp $")
+//#include <std.h>
+//#include <defs.h>
+//#undef bool
+//
+//RCSID("$Id: AuxBlock.cc,v 1.4 1998-05-15 19:36:33 granger Exp $")
 
 #include "AuxBlock.hh"
 #include "BlockFile.hh"

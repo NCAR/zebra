@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.5 1998-03-16 20:43:37 granger Exp $
+/* $Id: BlockObject.hh,v 1.6 1998-05-15 19:36:48 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -184,7 +184,7 @@ public:
 	RefBlock (Block &_ref, SyncBlock *_parent = 0) : 
 		ref(&_ref), parent(_parent)
 	{
-		cout << "RefBlock constructor" << endl;
+		// cout << "RefBlock constructor" << endl;
 	}
 
 	// Override the needsRead and updateRev methods
@@ -252,19 +252,19 @@ class SerialBlock : virtual public SyncBlock, virtual public Serializable
 public:
 	SerialBlock ()
 	{
-		cout << "SerialBlock constructor" << endl;
+		// cout << "SerialBlock constructor" << endl;
 	}
 
 	virtual void write ()
 	{
-		// Encode ourself onto a serial buffer from the block file
+		// Encode ourself onto a serial buffer from the block file.
 		// Be careful to size and allocate before encoding, in
-		// case the object changes (e.g., FreeList) when allocated
+		// case the object changes (e.g., FreeList) when allocated.
 		SerialBuffer *sbuf = bf->writeBuffer (block.length);
 		unsigned long growth = encodedSize (*sbuf);
 		sbuf->Need (growth);
 
-		// Now make sure we have space, then write into it
+		// Now make sure we have space, then write into it.
 		allocate (growth);
 		encode (*sbuf);
 		bf->Write (block.offset, sbuf);
@@ -298,7 +298,7 @@ class TranslateBlock : virtual public SerialBlock
 public:
 	TranslateBlock ()
 	{
-		cout << "TranslateBlock constructor" << endl;
+		// cout << "TranslateBlock constructor" << endl;
 	}
 
 	int encode (SerialBuffer &buf);

@@ -1,5 +1,5 @@
 /*
- * $Id: Buffer.hh,v 1.4 1998-03-16 20:44:19 granger Exp $
+ * $Id: Buffer.hh,v 1.5 1998-05-15 19:36:51 granger Exp $
  * 
  * Simple expandable sequential buffer.
  */
@@ -101,7 +101,7 @@ public:
 	/** Set/extend the buffer position and return a pointer to it,
 	    and optionally the amount of buffer space remaining.
 	    */
-	void *Peek (long pos, long *len = 0)
+	void *Peek (long pos, long *len)
 	{
 		if (! setPosition (pos))
 			return (0);

@@ -3,9 +3,10 @@
  * Translatable virtual interfaces.
  */
 
-#include <defs.h>
+//#include <defs.h>
+//#undef bool
 
-RCSID ("$Id: Serializable.cc,v 1.2 1998-02-25 22:17:29 burghart Exp $")
+//RCSID ("$Id: Serializable.cc,v 1.3 1998-05-15 19:37:05 granger Exp $")
 
 #include "Serializable.hh"
 #include "SerialBuffer.hh"

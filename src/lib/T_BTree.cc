@@ -20,12 +20,13 @@
 
 #include "SerialZTime.hh"
 #include "BTree.hh"
-
-typedef BTree<ZTime,ZTime> TimeTree;
-
+#include "BTreeStats.hh"
 #include <string>
 
-typedef BTree<string,string> StringTree;
+#include "BTreeFile.hh"
+
+typedef BTreeFile<ZTime,ZTime> TimeTree;
+typedef BTreeFile<string,string> StringTree;
 
 /*
  * Choose the test_key type for the test trees.
@@ -34,7 +35,7 @@ typedef BTree<string,string> StringTree;
 //typedef string test_key;
 typedef ZTime test_key;
 
-typedef BTree<test_key,test_key> test_tree;
+typedef BTreeFile<test_key,test_key> test_tree;
 
 static int Debug = 0;
 
@@ -54,7 +55,8 @@ int __getfpucw ()
 template <class K, class T>
 Summarize (ostream &out, BTree<K,T> &t)
 {
-	BTreeStats s = t.Statistics ();
+	BTreeStats s;
+	t.Statistics (s);
 
 	out << "             Depth: " << t.Depth() << endl;
 	out << "Number of elements: " << s.numElements() << endl;
@@ -284,6 +286,8 @@ T_Removal (test_tree &tree,
 	   vector<test_key>::iterator k, 
 	   vector<test_key>::iterator last, int check_empty = 1)
 {
+	test_tree::value_type v0, v;	// Accept default initialization
+
 	// As removing, make sure the removed key cannot be found
 	//cout << " ...removing key: ";
 	int err = 0;
@@ -302,10 +306,16 @@ T_Removal (test_tree &tree,
 			     << "key " << *k << endl;
 			++err;
 		}
-		if (tree.Find (*k))
+		if (tree.Find (*k, &v))
 		{
 			cout << "***** Removal: removed key still found: "
-			     << *k << endl;
+			     << *k << " value: " << v << endl;
+			++err;
+		}
+		else if (v != v0)
+		{
+			cout << "***** Removal: key not found: "
+			     << *k << " but value still set: " << v << endl;
 			++err;
 		}
 		if (Debug) tree.Print (cout);
@@ -466,8 +476,9 @@ T_Traversal (test_tree &tree)
 	iv = keys.begin();
 	int step = keys.size() / 10 + 1;
 	cout << " ...stepping forward by " << step << ": ";
-	tree.First (&key);
-	do {
+	tree.First ();
+	while (tree.Current (&key))
+	{
 		cout << key << " ";
 		if (*iv != key)
 		{
@@ -476,16 +487,17 @@ T_Traversal (test_tree &tree)
 			++err;
 		}
 		iv += step;
+		tree.Next (step);
 	}
-	while (tree.Next (step, &key));
 	cout << endl;
 	
 	// Now traverse backwards in increments of 1/13 the size.
 	iv = keys.end() - 1;
 	step = keys.size() / 13 + 1;
 	cout << " ...stepping backwards by " << step << ": ";
-	tree.Last (&key);
-	do {
+	tree.Last ();
+	while (tree.Current (&key))
+	{
 		cout << key << " ";
 		if (*iv != key)
 		{
@@ -494,8 +506,8 @@ T_Traversal (test_tree &tree)
 			++err;
 		}
 		iv -= step;
+		tree.Prev (step);
 	}
-	while (tree.Prev (step, &key));
 	cout << endl;
 	return err;
 }

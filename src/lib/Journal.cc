@@ -7,9 +7,8 @@
 #include <iostream.h>
 #include <iomanip.h>
 
-#include <defs.h>
-
-RCSID ("$Id: Journal.cc,v 1.5 1998-02-25 22:17:27 burghart Exp $");
+//#include <defs.h>
+//RCSID ("$Id: Journal.cc,v 1.6 1998-05-15 19:36:57 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff

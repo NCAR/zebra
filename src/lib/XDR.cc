@@ -4,9 +4,8 @@
 
 #include "XDR.hh"
 
-#include <defs.h>
-
-RCSID("$Id: XDR.cc,v 1.3 1997-11-24 10:20:19 granger Exp $")
+//#include <defs.h>
+//RCSID("$Id: XDR.cc,v 1.4 1998-05-15 19:37:11 granger Exp $")
 
 
 void StdioXDR::create (xdr_op op)

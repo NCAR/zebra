@@ -7,9 +7,8 @@
 #include <iostream.h>
 #include <iomanip.h>
 
-#include <defs.h>
-
-RCSID ("$Id: BlockFile.cc,v 1.5 1997-12-17 03:47:08 granger Exp $");
+//#include <defs.h>
+//RCSID ("$Id: BlockFile.cc,v 1.6 1998-05-15 19:36:45 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -173,6 +172,23 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 
 
 
+
+/*
+ * Set the application's header block.
+ */
+int
+BlockFile::setHeader (Block &b)
+{
+	WriteLock ();
+	header->app_header = b;
+	header->mark();
+	Unlock ();
+	return (0);
+}
+
+
+
+
 /*
  * Close the file if open, and release any allocated memory.  Upon
  * return we should be in the exact same state as after the default
@@ -248,10 +264,10 @@ BlockFile::Unlock ()
 {
 	if (lock == 1)
 	{
-		log->Debug (Printf("Unlocking '%s'", path));
 		if (writelock && header)
 			WriteSync ();
 		writelock = 0;
+		log->Debug (Printf("Unlocked '%s'", path));
 	}
 	--lock;
 }

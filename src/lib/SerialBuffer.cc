@@ -2,8 +2,8 @@
  * SerialBuffer methods.
  */
 
-#include <defs.h>
-
+//#include <defs.h>
+//#undef bool
 
 #include "SerialBuffer.hh"
 

@@ -7,9 +7,8 @@
 #include <iostream.h>
 #include <iomanip.h>
 
-#include <defs.h>
-
-RCSID ("$Id: FreeList.cc,v 1.7 1998-02-25 22:17:27 burghart Exp $");
+//#include <defs.h>
+//RCSID ("$Id: FreeList.cc,v 1.8 1998-05-15 19:36:53 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff

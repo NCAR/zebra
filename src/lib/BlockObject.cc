@@ -2,11 +2,11 @@
  * Implementation of the auxillary block methods.
  */
 
-#include <std.h>
-#include <defs.h>
-#undef bool
-
-RCSID("$Id: BlockObject.cc,v 1.4 1998-02-25 22:17:25 burghart Exp $")
+//#include <std.h>
+//#include <defs.h>
+//#undef bool
+//
+//RCSID("$Id: BlockObject.cc,v 1.5 1998-05-15 19:36:47 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -15,7 +15,7 @@ RCSID("$Id: BlockObject.cc,v 1.4 1998-02-25 22:17:25 burghart Exp $")
 SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
 	bf(&_bf), block(exist)
 {
-	cout << "SyncBlock constructor" << endl;
+	// cout << "SyncBlock constructor" << endl;
 	block.revision = 0;	// we have no revision in memory yet
 	marked = 0;
 	changed = 0;
@@ -32,7 +32,7 @@ SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
 SyncBlock::SyncBlock (BlockFile &_bf) :
 	bf(&_bf), block()
 {
-	cout << "SyncBlock constructor" << endl;
+	// cout << "SyncBlock constructor" << endl;
 	marked = 0;
 	changed = 0;
 	lock = 0;
@@ -123,7 +123,12 @@ SyncBlock::allocate (BlkSize need)
 		if (block.offset)
 			bf->Free (block.offset, block.length);
 		need = grow (need);
-		block.offset = bf->Alloc (need, &block.length);
+		//
+		// If the object does not want its block to grow any larger,
+		// then don't reallocate the block.
+		//
+		if (need > block.length)
+			block.offset = bf->Alloc (need, &block.length);
 	}
 }
 
@@ -144,8 +149,8 @@ SyncBlock::free ()
 BlkSize
 SyncBlock::grow (BlkSize needed)
 {
-	// Default growth algorithm, round to the nearest 256
-	// bytes, then add on half as many 256-byte blocks.
+	// Default growth algorithm, round to the nearest 256 bytes, then
+	// add on half as many 256-byte blocks.
 	long npages = (needed >> 8) + 1;
 	npages += (npages >> 1);
 	return (npages << 8);
@@ -181,10 +186,12 @@ SyncBlock::writeLock ()
 void
 SyncBlock::unlock ()
 {
-	if (lock == 1 && writelock)
+	if (lock == 1)
 	{
-		writeSync ();
+		if (writelock)
+			writeSync ();
 		writelock = 0;
+		bf->Unlock ();
 	}
 	--lock;
 }

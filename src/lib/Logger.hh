@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.4 1997-12-14 23:50:15 granger Exp $
+ * $Id: Logger.hh,v 1.5 1998-05-15 19:36:58 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -19,7 +19,7 @@
 #include <stdlib.h>		// For malloc() and free()
 #include <iostream.h>
 #include <strstream.h>
-#include <string.h>		// for strerror()
+#include <string>		// for strerror()
 #include <errno.h>
 
 
@@ -51,16 +51,6 @@
 class Logger
 {
 public:
-#ifdef notdef
-	static const int EMERGENCY = 0x01;
-	static const int PROBLEM = 0x02;
-	static const int ERROR = 0x02;
-	static const int CLIENT = 0x04;
-	static const int DEBUG = 0x08;
-	static const int INFO = 0x10;
-	static const int DEVELOP = 0x20;
-	static const int ALL = 0x3f;
-#endif
 	static const int EMERGENCY;
 	static const int PROBLEM;
 	static const int ERROR;

@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.2 1997-12-09 09:26:31 granger Exp $
+ * $Id: Format.hh,v 1.3 1998-05-15 19:36:52 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -33,10 +33,12 @@
 #ifndef _Format_hh_
 #define _Format_hh_
 
-#include <stdarg.h>
-#include <std.h>
-#include <iostream.h>
 #include <string>
+#include <stdio.h>	// vsprintf() and sprintf()
+#include <stdlib.h>
+#include <stdarg.h>
+//#include <std.h>
+#include <iostream.h>
 
 class Format
 {
@@ -162,6 +164,11 @@ public:
 
 #	undef PERCENT
 
+	operator const char * ()
+	{
+		return buf.c_str();
+	}
+
 	/// Return error string for a given error
 	const string &errstr (Error e)
 	{
@@ -262,10 +269,12 @@ public:
 		buf = sbuf;
 	}
 
+#ifdef notdef
 	operator const char * ()
 	{
 		return buf.c_str();
 	}
+#endif
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.8 1998-03-16 20:56:41 granger Exp $
+ * $Id: BTree.hh,v 1.9 1998-05-15 19:36:37 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -7,7 +7,8 @@
 #ifndef _BTree_hh_
 #define _BTree_hh_
 
-#include "Factory.hh"
+#include <iostream.h>
+#include "Factory.hh"		// Need the Node class
 
 /*
  * Opaque forward references.
@@ -46,14 +47,15 @@ public:
 
 	int Insert (const K &key, const T &value);
 
-	/** Find a key in the tree.  Returns zero if not found, and the
-	 current key remains unchanged.  If found, the value will be
-	 assigned to 'value', and the current key becomes the found key. */
+	/** Find a key in the tree.  Returns zero if not found, and
+	    non-zero otherwise.  Regardless of the result, the search key
+	    becomes the current key.  If found and 'value' is non-zero,
+	    the key's value will be assigned to 'value'. */
 
 	int Find (const K &key, T *value);
 
-	/** Just check for existence of a given key, or attempt to set 
-	    the current key to this, but don't return the value. */
+	/** Just check for the existence of a given key and make it
+	    the current key.  Return non-zero if the key is found. */
 
 	int Find (const K &key)
 	{
@@ -156,12 +158,19 @@ public:
 
 	/* ----- Public constructors and destructors ----- */
 
-	/// Create a simple empty BTree
+	/// Create a simple, empty BTree
 	BTree (int order = DEFAULT_ORDER, long sz = sizeof(T), int fix = 0);
 
 	virtual ~BTree ();
 
 protected:
+
+	// Constructor reserved for subclasses to delay some of the
+	// initialization, especially the factory.
+	//BTree (int order, long sz, int fix /*,NodeFactory<K,T> *f */);
+
+	// Delayed initialization must be completed with this call.
+	void Setup (int order, long sz, int fix /*,NodeFactory<K,T> *f */);
 
 	// Persistent state
 	int depth;
@@ -184,7 +193,7 @@ protected:
 	/* ---------------- The pseudo factory interface ---------------- */
 	/*
 	 * Pseudo because we do not use a separate factory object, so I
-	 * suppose thses follow the Factory Method pattern.  However,
+	 * suppose these follow the Factory Method pattern.  However,
 	 * the methods isolate not just the kind of nodes we need to create,
 	 * but also the kind of behavioural extensions different 
 	 * factory implementations may need.  I.e., a persistent factory
@@ -192,16 +201,33 @@ protected:
 	 * in the root node.
 	 */
 
-	NodeFactory<K,T> *factory;	// Reference to our node factory
+	//NodeFactory<K,T> *factory;	// Reference to our node factory
 
 	virtual void enterWrite () {}
 	virtual void enterRead () {}
 	virtual void leave () {}
-
-	// Right now the only way we change is if our root node changes
 	virtual void mark () {}
 
+	/* ---------------- Nodes call into the tree here ---------------- */
+
+	friend BTreeNode<K,T>;
+
+	/// Resurrect a reference to a node
+	virtual node_type *get (Node &, int depth);
+
+	/// Create a new node
+	virtual node_type *make (int depth);
+
+	/// Release this tree.  This is called by the base destructor.  The
+	/// default implementation erases the tree.  Subclasses can override
+	/// this to delete any nodes in memory without deleting the 
+	/// persistent copy.
+	virtual void release ();
+
 #ifdef notdef
+	/// Delete a node.
+	virtual void destroy (node_type *node);
+
 	// Done with this btree
 	virtual void release ();
 	virtual void writeLock ();
@@ -209,20 +235,6 @@ protected:
 	virtual void unlock ();
 #endif
 
-#ifdef notdef
-	/* ---------------- Nodes call into the tree here ---------------- */
-
-	friend BTreeNode<K,T>;
-
-	// Get a reference to a node
-	virtual node_type *get (Node &, int depth);
-
-	/// Create a new node
-	virtual node_type *make (int depth);
-
-	/// Delete a node.
-	virtual void destroy (node_type *node);
-#endif
 };
 
 

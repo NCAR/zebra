@@ -2,9 +2,10 @@
  * SerialStream method implementations.
  */
 
-#include <defs.h>
+//#include <defs.h>
+//#undef bool
 
-RCSID ("$Id: SerialStream.cc,v 1.4 1998-03-16 20:49:21 granger Exp $")
+//RCSID ("$Id: SerialStream.cc,v 1.5 1998-05-15 19:37:02 granger Exp $")
 
 #include "SerialStream.hh"
 #include "SerialBuffer.hh"
@@ -89,6 +90,20 @@ SerialEncodeStream::SerialEncodeStream (SerialBuffer &buf) :
 }
 
 
+int
+SerialEncodeStream::translate (string &s)
+{
+	static const char zero[4] = { '\0', '\0', '\0', '\0' };
+	int len = s.length();
+	int pad = 4 - (len % 4);
+	len += pad;
+	*this << len;
+	sbuf->Write (s.c_str(), len-pad);
+	sbuf->Write (zero, pad);
+	return 0;
+}
+
+
 
 int
 SerialEncodeStream::cstring (char *s, long /*max*/)
@@ -144,6 +159,18 @@ SerialDecodeStream::SerialDecodeStream (SerialBuffer &buf) :
 	// We need a decoding memory xdr stream
 	xdrs = new MemReadXDR (buf.getBuffer(), buf.Length());
 }
+
+
+int
+SerialDecodeStream::translate (string &s)
+{
+	int len;
+
+	*this >> len;
+	s = static_cast<char *>(sbuf->Advance (len));
+	return 0;
+}
+
 
 
 int
@@ -224,6 +251,17 @@ SerialCountStream::translate (void *data, xdr_translator xp)
 	return (0);
 }
 #endif
+
+
+int
+SerialCountStream::translate (string &s)
+{
+	int len = s.length();
+	*this << len;
+	Add (len + 4 - (len % 4));
+	return 0;
+}
+
 
 
 int

@@ -6,16 +6,16 @@
 #include <stdlib.h>
 #include <iostream.h>
 
-#include <defs.h>
-extern "C" {
-#include <message.h>
-}
+//#include <defs.h>
+//extern "C" {
+//#include <message.h>
+//}
 
-RCSID ("$Id: BTree.cc,v 1.11 1998-03-16 20:56:39 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.12 1998-05-15 19:36:36 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
-#include "HeapFactory.hh"
+//#include "HeapFactory.hh"
 
 // XDR_ADDTYPE (tree_base);
 
@@ -27,63 +27,52 @@ RCSID ("$Id: BTree.cc,v 1.11 1998-03-16 20:56:39 granger Exp $")
 
 // const int BTree::DEFAULT_ORDER = 128;
 
+
+
 template <class K, class T>
-BTree<K,T>::BTree (int _order, long sz, int fix) :
-	// persistent
-	depth(-1),
-	order (_order), 
-	rootNode (),
-	fixed(fix),
-	sizes(sz),
-	// transient
-	root(0), 
-	check(0),
-	err(0),
-	current (new Shortcut<K,T>),
-	factory(new HeapFactory<K,T>())
+BTree<K,T>::BTree (int _order, long sz, int fix)
 {
-	if (order < 3)
-		order = DEFAULT_ORDER;
+	Setup (_order, sz, fix /*,new HeapFactory<K,T>()*/);
 }
 
 
 #ifdef notdef
+/*
+ * For subclasses:
+ */
 template <class K, class T>
-BTree<K,T>::BTree (BlockFile &bf, int _order) :
-	factory (new BlockFactory (bf, *this)),
-	// persistent
-	depth(-1),
-	order (_order), 
-	root(), 
-	// transient
-	check(0),
-	err(0),
-	current (new Shortcut<K,T>)
-{ }
-
-
-
-template <class K, class T>
-BTree<K,T>::BTree (BlockFile &bf, BlkOffset offset) :
-	factory (new BlockFactory (bf, offset, *this)),
-	// persistent
-	depth(-1),
-	order (_order), 
-	root(), 
-	// transient
-	check(0),
-	err(0),
-	current (new Shortcut<K,T>)
-{ }
+BTree<K,T>::BTree (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
+{
+	Setup (_order, sz, fix/*, f*/);
+}
 #endif
+
+
+template <class K, class T>
+void
+BTree<K,T>::Setup (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
+{
+	depth = -1;
+	root = 0;
+	check = 0;
+	err = 0;
+	current = new Shortcut<K,T>;
+
+	order = _order;
+	fixed = fix;
+	sizes = sz;
+	//factory = f;
+	if (order < 3)
+		order = DEFAULT_ORDER;
+}
 
 
 
 template <class K, class T>
 BTree<K,T>::~BTree ()
 {
-	factory->release (*this);
-	delete factory;
+	release ();
+	//delete factory;
 	if (current)
 		delete current;
 }
@@ -97,7 +86,7 @@ BTree<K,T>::Erase ()
 	enterWrite ();
 	current->clear ();
 	if (! Empty())
-		root->destroy ();
+		root->erase ();
 	setRoot (0);
 	leave ();
 }
@@ -114,7 +103,7 @@ BTree<K,T>::Insert (const K &key, const T &value)
 	int bootstrap = Empty();
 	if (bootstrap)
 	{
-		root = factory->make (*this, /*depth*/ 0);
+		root = make (/*depth*/ 0);
 		setRoot (root);
 	}
 	// Find the location and insert
@@ -123,7 +112,7 @@ BTree<K,T>::Insert (const K &key, const T &value)
 	if (bootstrap && !r)
 	{
 		// Enforce legal root of at least one key
-		root->destroy ();
+		root->erase ();
 		setRoot (0);
 		current->clear();
 	}
@@ -221,7 +210,7 @@ BTree<K,T>::Check ()
 		{
 			cout << "***** TREE CHECK FAILED; " 
 			     << e << " errors:" << endl;
-			root->print (cout);
+			Print (cout);
 		}
 		//cout << endl;
 	}
@@ -313,8 +302,40 @@ BTree<K,T>::setRoot (BTreeNode<K,T> *node)
 }
 
 
+/*
+ * The default implementation of the btree "factory" interface for nodes.
+ * Just pass the call on to the factory with this tree.
+ */
+template <class K, class T>
+BTreeNode<K,T> *
+BTree<K,T>::get (Node &node, int /*depth*/)
+{
+	return ((BTreeNode<K,T> *)node.local);
+}
+
+
+template <class K, class T>
+BTreeNode<K,T> *
+BTree<K,T>::make (int depth)
+{
+	return new BTreeNode<K,T> (*this, depth);
+}
+
+
+template <class K, class T>
+void
+BTree<K,T>::release ()
+{
+	// For a heap tree we just erase ourself to give up our memory.
+	Erase ();
+}
+
 
 #ifdef notdef
+/*
+ * The default implementation of the btree "factory" interface for nodes.
+ * Just pass the call on to the factory with this tree.
+ */
 template <class K, class T>
 BTreeNode<K,T> *
 BTree<K,T>::get (Node &node, int depth)
@@ -331,6 +352,7 @@ BTree<K,T>::make (int depth)
 }
 
 
+#ifdef notdef
 template <class K, class T>
 void
 BTree<K,T>::destroy (BTreeNode<K,T> *node)
@@ -340,13 +362,22 @@ BTree<K,T>::destroy (BTreeNode<K,T> *node)
 #endif
 
 
+template <class K, class T>
+void
+BTree<K,T>::release ()
+{
+	factory->release (*this);
+}
+#endif
+
+
 /*================================================================
  * BTreeNode implementation
  *================================================================*/
 
 template <class K, class T>
-BTreeNode<K,T>::BTreeNode (NodeFactory<K,T> &f, BTree<K,T> &t, int d) : 
-	factory(f), tree(t), depth(d)
+BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : 
+	tree(t), depth(d)
 {
 	int maxkeys = tree.Order();
 	children = 0;
@@ -398,22 +429,22 @@ BTreeNode<K,T>::~BTreeNode ()
 
 
 
+/*
+ * Recursively prune all of this node's children and finally the
+ * node itself.
+ */
 template <class K, class T>
 void
-BTreeNode<K,T>::destroy ()
+BTreeNode<K,T>::erase ()
 {
-	if (depth == 0)
+	if (depth > 0)
 	{
-		factory.destroy (this);
-		return;
+		for (int i = 0; i < nkeys; ++i)
+		{
+			follow(children[i])->erase ();
+		}
 	}
-
-	for (int i = 0; i < nkeys; ++i)
-	{
-		follow(children[i])->destroy ();
-	}
-
-	factory.destroy (this);
+	prune ();
 }
 
 

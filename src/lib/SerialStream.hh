@@ -1,5 +1,5 @@
 /*
- * $Id: SerialStream.hh,v 1.4 1998-03-16 20:49:22 granger Exp $
+ * $Id: SerialStream.hh,v 1.5 1998-05-15 19:37:04 granger Exp $
  *
  */
 #ifndef _SerialStream_hh_
@@ -9,6 +9,11 @@ class Serializable;
 class SerialBuffer;
 class MemoryXDR;
 class XDR;
+
+/*
+ * We want basic string serialization built-in.
+ */
+#include <string>
 
 /*
  * SerialStreams are responsible for keeping their position in sync with
@@ -72,6 +77,8 @@ public:
 	virtual int translate (void *data, xdr_translator xp);
 #endif
 
+	virtual int translate (string &s) = 0;
+
 	virtual int translate (Serializable &object) = 0;
 
 	///
@@ -100,6 +107,7 @@ public:
 	SS_OPERATOR(unsigned short);
 	SS_OPERATOR(float);
 	SS_OPERATOR(double);
+	SS_OPERATOR(string);
 
 	SS_OPERATOR(Serializable);
 
@@ -177,6 +185,8 @@ public:
 
 	/* Inherit all of the SerialStream methods for primitive types */
 
+	virtual int translate (string &s);
+
 	int translate (Serializable &object);
 
 	///
@@ -207,6 +217,8 @@ public:
 	SerialDecodeStream (SerialBuffer &sbuf);
 
 	/* Inherit all of the SerialStream methods for primitive types */
+
+	virtual int translate (string &s);
 
 	int translate (Serializable &object);
 
@@ -281,6 +293,8 @@ public:
 	}
 
 	virtual int cstring (char *s, long /*maxlen*/);
+
+	virtual int translate (string &s);
 
 	virtual int translate (Serializable &object);
 
