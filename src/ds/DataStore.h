@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.22 1994-10-11 16:24:39 corbet Exp $
+ * $Id: DataStore.h,v 3.23 1994-11-21 22:51:22 granger Exp $
  *
  * Public data store definitions.
  */
@@ -7,8 +7,9 @@
 # ifndef __zeb_DataStore_h_
 # define __zeb_DataStore_h_
 
-# include <config.h>		/* To get CFG_ parameter definitions */
-# include "ds_fields.h"
+# include <config.h>		/* CFG_ parameter definitions 	*/
+# include <defs.h>		/* RGrid and ScaleInfo structs	*/
+# include "ds_fields.h"		/* FieldId and function protos	*/
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -54,25 +55,11 @@ typedef int PlatformId;
 # define BadClass    -1
 
 
-/*
- * Scale and bias info for integer-encoded fields. (OrgImage)
+/* ================================================================
+ * RGrid and ScaleInfo type definitions have moved to defs.h in the
+ * Zeb library.
+ * ================================================================
  */
-typedef struct _ScaleInfo
-{
-	float	s_Scale;		/* real value = data/s_scale	*/
-	float	s_Offset;		/*   + s_Offset			*/
-} ScaleInfo;
-
-/*
- * Regular grids, on the other hand, have this sort of appearance.
- */
-typedef struct _RGrid
-{
-	float	rg_Xspacing;		/* X dimension spacing		*/
-	float	rg_Yspacing;		/* Y (north/south) spacing	*/
-	float	rg_Zspacing;		/* Vertical spacing		*/
-	int	rg_nX, rg_nY, rg_nZ;	/* Dimensions			*/
-} RGrid;
 
 
 /*
