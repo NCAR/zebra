@@ -1,7 +1,11 @@
+Mon Nov 21 16:03:28 1994  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* ds, lib: move RGrid and ScaleInfo from DataStore.h to defs.h
+
 Sun Nov 20 15:42:00 1994  Gary Granger  <granger@narnia>
 
 	* dm: fix pickwin to agree with documentation; change recent pd
-	  commands to pdstore, pdwrite, and pdshow
+	  command additions to pdstore, pdwrite, and pdshow
 
 	* dm: newpd and exchange commands check for string expressions
 	  rather than crashing dm when args are not quoted; list cmd takes
