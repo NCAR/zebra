@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.9 2001-01-04 21:14:16 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.10 2001-01-04 22:49:27 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -55,6 +55,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <math.h>
 #include <string>
 #include <iostream.h>
 #include <fstream.h>
@@ -73,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.9 2001-01-04 21:14:16 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.10 2001-01-04 22:49:27 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -158,9 +159,14 @@ DefineField(F_stemp, "stemp", FT_Temp, "degC", "surface temperature")
 DefineField(F_srh, "srh", FT_RH, "%", "surface relative humidity")
 DefineField(F_swdir, "swdir", FT_WDir, "degrees", "surface wind direction")
 DefineField(F_swspd, "swspd", FT_WSpd, "m/s", "surface wind speed")
-DefineField(F_sdewpoint, "sdp", FT_DP, "degC", "surface dewpoint")
+DefineField(F_sdz, "sdz", "", "m/s", "pre-launch ascent rate")
+DefineField(F_slon, "slon", "", "degrees_north", "pre-launch longitude")
+DefineField(F_slat, "slat", "", "degrees_east", "pre-launch latitude")
+DefineField(F_salt, "salt", "", "m", "pre-launch altitude above MSL")
+DefineField(F_ssa, "ssa", "", "1", "pre-launch GPS satellites")
 
 DefineField(F_dewpoint, "dp", FT_DP, "degC", "dewpoint")
+DefineField(F_sdewpoint, "sdp", FT_DP, "degC", "surface dewpoint")
 
 DefineField(F_u, "u_wind", FT_UWind, "m/s", "u wind component")
 DefineField(F_v, "v_wind", FT_VWind, "m/s", "v wind component")
@@ -245,6 +251,13 @@ struct GlassFileRecord
 	F_srh srh[MAX_SURFACE];
 	F_swdir swdir[MAX_SURFACE];
 	F_swspd swspd[MAX_SURFACE];
+	F_sdz sdz[MAX_SURFACE];
+	F_slon slon[MAX_SURFACE];
+	F_slat slat[MAX_SURFACE];
+	F_salt salt[MAX_SURFACE];
+	F_ssa ssa[MAX_SURFACE];
+
+	F_sdewpoint sdp[MAX_SURFACE];
 
 	template <class E>
 	void enumerateSurfaceFields (E &e)
@@ -252,6 +265,9 @@ struct GlassFileRecord
 		e << stime[nsurface] << spres[nsurface];
 		e << stemp[nsurface] << srh[nsurface];
 		e << swdir[nsurface] << swspd[nsurface];
+		e << sdz[nsurface] << slon[nsurface];
+		e << slat[nsurface] << salt[nsurface];
+		e << ssa[nsurface];
 	}
 
 	int nsurface;
@@ -484,6 +500,7 @@ CreateSoundingDC (Sounding &snd)
 			      GlassFileRecord::MAX_SURFACE);
 	CollectFields sf (&nfields, fields);
 	snd.gl->enumerateSurfaceFields (sf);
+	fields[nfields++] = F_sdewpoint::fieldId();
 	FieldId dimn = F_stime::fieldId();
 	for (i = 0; i < nfields; ++i)
 	{
@@ -1021,6 +1038,7 @@ struct AddRecord
 };
 
 
+
 /*
  * Read the samples from the sounding file into the datachunk,
  * skipping samples with bad times, setting all fields to bad values
@@ -1102,7 +1120,9 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 
 		// Now we should have the fields, we need to insert a sample.
 		when = snd.tlaunch;
-		when += snd.tdelta();
+		when.zt_Sec += (int)snd.tdelta();
+		when.zt_MicroSec += 
+			(int)((snd.tdelta() - (int)snd.tdelta())*1e6);
 
 		if (snd.pres() == BADVAL)
 		{
@@ -1114,6 +1134,24 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 #endif
 			++badlines;
 		}
+
+		// From Chris Burghart:
+		//
+		// From relative humidity (%) and temperature (K!), you can
+		// get to dewpoint (also K) using two functions:
+		//
+		//   dp = dewpoint (0.01 * rh * e_sw (t)); */
+		//
+		double ddp = BADVAL;
+		if (snd.rh() != BADVAL && snd.temp() != BADVAL)
+		{
+			ddp = dewpoint (0.01 * snd.rh() * 
+					e_sw(snd.temp() + 273.15));
+			ddp -= 273.15;
+			if (isnan(ddp))
+				ddp = BADVAL;
+		}
+		F_dewpoint dp = ddp;
 
 		// Records with negative tdelta are stored as surface fields.
 		int sample = dc_GetNSample(dc);
@@ -1129,6 +1167,12 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			gl->srh[i] = gl->rh.value();
 			gl->swdir[i] = gl->wdir.value();
 			gl->swspd[i] = gl->wspd.value();
+			gl->sdz[i] = gl->dz.value();
+			gl->slon[i] = gl->lon.value();
+			gl->slat[i] = gl->lat.value();
+			gl->salt[i] = gl->alt.value();
+			gl->ssa[i] = gl->sa.value();
+			gl->sdp[i] = dp.value();
 			++gl->nsurface;
 			continue;
 		}
@@ -1148,6 +1192,13 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			dc_NSAddStatic (dc, F_srh::fieldId(), gl->srh);
 			dc_NSAddStatic (dc, F_swdir::fieldId(), gl->swdir);
 			dc_NSAddStatic (dc, F_swspd::fieldId(), gl->swspd);
+
+			dc_NSAddStatic (dc, F_sdz::fieldId(), gl->sdz);
+			dc_NSAddStatic (dc, F_slon::fieldId(), gl->slon);
+			dc_NSAddStatic (dc, F_slat::fieldId(), gl->slat);
+			dc_NSAddStatic (dc, F_salt::fieldId(), gl->salt);
+			dc_NSAddStatic (dc, F_ssa::fieldId(), gl->ssa);
+			dc_NSAddStatic (dc, F_sdewpoint::fieldId(), gl->sdp);
 			msg_ELog (EF_DEBUG, "%d surface records found.",
 				  gl->nsurface);
 		}
@@ -1164,20 +1215,6 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		snd.enumerate (estore);
 		dc_SetLoc (dc, sample, &loc);
 
-/* From Chris Burghart:
-
-   From relative humidity (%) and temperature (K!), you can get to
-   dewpoint (also K) using two functions:
-
-   dp = dewpoint (0.01 * rh * e_sw (t)); */
-
-		F_dewpoint dp = BADVAL;
-		if (snd.rh() != BADVAL && snd.temp() != BADVAL)
-		{
-			dp = dewpoint (0.01 * snd.rh() * 
-				       e_sw(snd.temp() + 273.15));
-			dp -= 273.15;
-		}
 		dc_NSAddSample (dc, &when, sample, dp.fieldId(), &dp.value());
 	}
 	IngestLog (EF_INFO,
