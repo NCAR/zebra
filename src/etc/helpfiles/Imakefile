@@ -6,7 +6,70 @@ HELPFILES = \
 	xhelp.hlp zeb.hlp \
 	fest_stations.hlp fest_soundings.hlp fest_codes.hlp fest_profilers.hlp
 
-DISTFILES = Imakefile $(HELPFILES)
+/*
+ * These files are for backwards compatibility with xhelp topics and can
+ * be removed when xhelp is aboandoned.  Most are exact copies of the html
+ * file with the newer topic name.
+ */ 
+BCFILES = overlaytimes.html shutdown.html limitwidgets.html editdconfig.html \
+	timeseries.html
+
+HTMLFILES = color-lables.html components.html cross-section.html \
+	default-configs.html disable.html dmwidget.html dsdwidget.html \
+	dsmanage.html ec-add.html ec-delete.html ec-display.html \
+	ec-rearrange.html ec-save.html ec-start.html editing-configs.html \
+	event-logger.html getposition.html graphic-overview.html \
+	graphic-windows.html graphics-icons.html help.html historytime.html \
+	horizontal-plots.html hp-aircraft.html hp-altitude.html \
+	hp-coords.html hp-data.html hp-meso-fields.html iconbar.html \
+	index.html interpmethods.html intro.html keys.html limits.html \
+	model-time.html movies.html overlay-time.html \
+	plxsect.html posicons.html printer.html shut-down.html skewt.html \
+	spatialfilter.html spatialoffset.html start.html time-height.html \
+	time-series.html time.html widgets.html xy-contour-limits.html \
+	xy-graphs.html zoom.html zzxsect.html $(BCFILES)
+
+GIFFILES = \
+	acannot.gif acarrows.gif acwidget.gif adj1.gif \
+	adj2.gif aircraft.gif configs-icon.gif contour-icon.gif \
+	dsdfiles.gif dsdwidget.gif dsmanage.gif dsmdel-large.gif \
+	dsmdelb.gif dsmdelbr.gif dsmdelclr.gif dsmdelnsel.gif \
+	dsmdelperf.gif dsmdelsb.gif dsmdelsbu.gif dsmdeltime.gif \
+	dsmdeluall.gif dsmvictim.gif ec-confedit.gif ec-delete.gif \
+	ec-newwindow.gif ec-save.gif event-clear.gif event-ctl.gif \
+	event.gif hcdevtype.gif hcname.gif hcprint.gif \
+	hcremove.gif hcrevv.gif hcscreen.gif hcwidget.gif \
+	iconbar-help.gif iconbar-over.gif iconbar-sat-gray.gif \
+	iconbar-sat-red.gif \
+	iconbar-sat.gif iconbar-zeb.gif iconbar.gif interpparams.gif \
+	iss-aa-menu.gif iss-marker-active.gif iss-marker.gif la.gif \
+	menu1.gif menu2.gif microboat.gif model-widget-eight.gif \
+	model-widget-five.gif model-widget-four.gif model-widget-one.gif \
+	model-widget-seven.gif \
+	model-widget-six.gif model-widget-three.gif model-widget-title.gif \
+	model-widget-two.gif \
+	model-widget.gif movie-dismiss.gif movie-end.gif movie-rt.gif \
+	movie-run.gif movie-speed.gif movie-stat.gif movie-stop.gif \
+	movie-tu.gif movie.gif offadvect.gif offconst.gif \
+	offenable.gif offsets.gif overlay-times.gif overlays.gif \
+	position-dd.gif position-dis.gif position-dms.gif position-km.gif \
+	position-ll.gif position-nm.gif position.gif print-icon.gif \
+	ra.gif skewt-top.gif skewt.gif skewt3.gif \
+	sounding-icon.gif sounding1.gif sounding2.gif sounding3.gif \
+	sounding4.gif spfilter.gif stannot.gif stannot2.gif \
+	stannoti.gif staquad.gif starrow.gif stmenu.gif \
+	th-3color.gif th-empty.gif th-profile.gif th-solid.gif \
+	th-vector.gif th-wwidget.gif time-widget-date.gif \
+	time-widget-mode.gif \
+	time-widget-skip.gif time-widget-window.gif time-widget.gif \
+	tools-icon.gif \
+	track-a.gif track.gif ts-empty.gif ts-first.gif \
+	ts-limits.gif ts-nolines.gif ts-sannot.gif ts-split.gif \
+	ts-two.gif tseries-icon.gif ua.gif vector-icon.gif \
+	widgets.gif xsect-icon.gif xy-contour-limits.gif zeb-icon.gif \
+	zoombox.gif zzxs-apply.gif zzxs-clear.gif zzxs-sel.gif
+
+DISTFILES = Imakefile $(HELPFILES) $(HTMLFILES) $(GIFFILES)
 
 all::
 
@@ -16,12 +79,9 @@ all::
 InstallLibFile ($(HELPFILES),help,.)
 
 /*
- * Install all the new junk.  I don't feel much like typing them all in.
+ * Install the HTML and GIF files.
  */
-install::
-	MakeDir ($(LIBDIR)/help)
-	for file in *.gif *.html ; do \
-		$(INSTALL) -m 444 $${file} $(LIBDIR)/help ; \
-	done
+InstallLibFile ($(HTMLFILES),help,.)
+InstallLibFile ($(GIFFILES),help,.)
 
 DistfilesTarget ($(DISTFILES))
