@@ -1,4 +1,4 @@
-/* $Id: ui_window.h,v 1.6 1992-01-30 21:12:02 corbet Exp $ */
+/* $Id: ui_window.h,v 1.7 1992-12-04 20:42:28 corbet Exp $ */
 /*
  * Definitions for windowing code.
  */
@@ -51,7 +51,7 @@ Cursor Zapcursor;	/* The cursor for zap buttons		*/
  */
 Pixmap Mb_mark;
 char Mb_mark_file[200];
-# define DEFAULT_MARK_FILE "/usr/include/X11/bitmaps/star"
+# define DEFAULT_MARK_FILE "/local/X11R5/lib/X11/bitmaps/star"
 
 
 
