@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.56 1995-08-03 20:59:33 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.57 1995-08-28 21:39:38 granger Exp $")
 
 
 /*
@@ -1616,7 +1616,7 @@ bool	update;
 	char	param[50], outrange[40];
 	int	xdim, ydim, slow;
 	int	nsteps;
-	bool	ok, highlight, fastloop, autoscale;
+	bool	ok, highlight, autoscale;
 	float	*fgrid;			/* Floating point grid	*/
 	unsigned char *igrid;		/* Image grid		*/
 	float	x0, x1, y0, y1, alt;
@@ -1799,7 +1799,7 @@ bool	update;
 		RasterPlot (dc, &loc, fgrid, xdim, ydim);
 	else
 		RasterXIPlot (Graphics, GWFrame (Graphics), fgrid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
+			pix_x0, pix_y0, pix_x1, pix_y1, /*fastloop*/ TRUE);
 /*
  * Free the data chunk.
  */
