@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.62 1997-10-03 23:47:01 ishikawa Exp $ */
+/* $Id: GraphProc.h,v 2.63 1998-02-05 23:50:18 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -236,7 +236,7 @@ extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
 			     float *));
 extern void ga_RotateGrid FP ((float *, float *, int, int));
 extern bool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *));
-extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
+extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, FieldId, int *,
 				  int *, float *, float *, float *, float *, 
 				  float *, int *));
 
@@ -421,9 +421,9 @@ extern void FindWindsFields FP ((char *comp, PlatformId, ZebTime *,
 				 FieldId *, WindInfo *));
 extern void GetWindData FP ((WindInfo *, float *, float *, double));
 
-extern DataChunk *GetVorticity ( ZebTime *, char *, char *, char *, int *, 
-				int *,  float *, float *, float *, float *, 
-				float *, int * );
+extern DataChunk *GetVorticity ( ZebTime *, char *, char *, FieldId, int *, 
+				 int *,  float *, float *, float *, float *, 
+				 float *, int * );
 
 
 /* This stuff contains window system oriented stuff, so is only brought

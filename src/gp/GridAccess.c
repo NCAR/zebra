@@ -28,7 +28,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.29 1997-10-07 17:19:12 ishikawa Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.30 1998-02-05 23:50:20 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -37,12 +37,12 @@ MAKE_RCSID ("$Id: GridAccess.c,v 2.29 1997-10-07 17:19:12 ishikawa Exp $")
 /*
  * Our routines.
  */
-static bool 	ga_Regularize FP ((DataChunk **, char *, char *, char *));
-static bool 	ga_RgridRegularize FP ((DataChunk **, char *));
-static bool	ga_BarnesRegularize FP ((DataChunk **, char *, char *, char *,
+static bool 	ga_Regularize FP ((DataChunk **, FieldId, char *, char *));
+static bool 	ga_RgridRegularize FP ((DataChunk **, FieldId));
+static bool	ga_BarnesRegularize FP ((DataChunk **, FieldId, char *, char *,
 			int));
 static void 	ga_RangeLimit FP ((char *, int, float *, double));
-static void 	ga_ImgToCGrid FP ((DataChunk **, char *));
+static void 	ga_ImgToCGrid FP ((DataChunk **, FieldId));
 static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
 static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
 
@@ -112,10 +112,11 @@ float	*x0, *y0, *x1, *y1;
 
 
 DataChunk *
-ga_GetGrid (plot_time, comp, platform, fname, xdim, ydim, x0, y0, x1, y1,
+ga_GetGrid (plot_time, comp, platform, fid, xdim, ydim, x0, y0, x1, y1,
 	    alt, shift)
 ZebTime	*plot_time;
-char 	*comp, *platform, *fname;
+char 	*comp, *platform;
+FieldId fid;
 int	*xdim, *ydim, *shift;
 float	*x0, *y0, *x1, *y1, *alt;
 {
@@ -130,7 +131,6 @@ float	*x0, *y0, *x1, *y1, *alt;
 	int 		len;
 	char		datestring[32];
 	char		dimn_parms[512];
-	FieldId		fid;
 	dsDetail	details[10];
 	int		ndet = 0;
 /*
@@ -148,7 +148,6 @@ float	*x0, *y0, *x1, *y1, *alt;
 
 	platorg = ds_PlatformDataOrg (pid);
 
-	fid = F_Lookup (fname);
 	switch (platorg)
 	{
 		case Org3dGrid:
@@ -228,7 +227,8 @@ float	*x0, *y0, *x1, *y1, *alt;
 	if (! (dc = ds_Fetch (pid, platclass, &dtime, &dtime, &fid, 1, 
 			      details, ndet)))
 	{
-		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", platform, fname);
+		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", platform, 
+			  F_GetFullName (fid));
 		return (0);
 	}
 /*
@@ -240,7 +240,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	 * IRGrids can be interpolated.
 	 */
 	   case OrgIRGrid:
-		if (! ga_Regularize (&dc, fname, platform, comp))
+		if (! ga_Regularize (&dc, fid, platform, comp))
 		{
 			dc_DestroyDC (dc);
 			return (0);
@@ -250,7 +250,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	 * Images can be turned into real info.
 	 */
 	   case OrgImage:
-	   	ga_ImgToCGrid (&dc, fname);
+	   	ga_ImgToCGrid (&dc, fid);
 		break;
 	/*
 	 * Scalar implies NSpace stuff, and we'll take a shot at making a
@@ -284,7 +284,7 @@ float	*x0, *y0, *x1, *y1, *alt;
  * Pull out the info and return it.  For now we yank out the data and 
  * assume that it can be freed later.
  */
-	ret = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
+	ret = dc_RGGetGrid (dc, 0, fid, &loc, &rg, &len);
 	prj_Project (loc.l_lat, loc.l_lon, x0, y0);
 	*xdim = rg.rg_nX;
 	*ydim = rg.rg_nY;
@@ -319,9 +319,9 @@ float latspacing, lonspacing;
 
 
 static void
-ga_ImgToCGrid (dc, field)
-DataChunk	**dc;
-char		*field;
+ga_ImgToCGrid (dc, fid)
+DataChunk **dc;
+FieldId fid;
 /*
  * Turn an image format data chunk into a regular grid with compression.
  */
@@ -334,7 +334,6 @@ char		*field;
 	int		i, npx, npy, x, y,len;
 	float		badval, lonstep, latstep;
 	DataChunk	*rdc;
-	FieldId		fid;
 	ZebTime		when;
 	Location	origin;
 /*
@@ -344,7 +343,6 @@ char		*field;
 /*
  * Get the image from the data chunk.
  */
-	fid = F_Lookup (field);
 	img = dc_ImgGetImage (*dc, 0, fid, &origin, &rg, &len, &sc);
 	npx = rg.rg_nX/COMPRESS; 
 	npy = rg.rg_nY/COMPRESS;
@@ -425,9 +423,10 @@ char		*field;
 
 
 static bool
-ga_Regularize (dc, field, platform, comp)
+ga_Regularize (dc, fid, platform, comp)
 DataChunk 	**dc;
-char		*field, *platform, *comp;
+FieldId		fid;
+char		*platform, *comp;
 /*
  * Turn an irregular grid into a regular one.
  */
@@ -442,15 +441,15 @@ char		*field, *platform, *comp;
 		if (dc_IRGetNPlatform (*dc) > 100)
 		{
 			msg_ELog (EF_PROBLEM, "too many stations for rgrid");
-			return (ga_BarnesRegularize (dc, field, platform,
-					comp, TRUE));
+			return (ga_BarnesRegularize (dc, fid, platform,
+						     comp, TRUE));
 		}
-		return (ga_RgridRegularize (dc, field));
+		return (ga_RgridRegularize (dc, fid));
 	}
 	else if (! strcmp (method, "barnes"))
-		return ga_BarnesRegularize (dc, field, platform, comp, TRUE);
+		return ga_BarnesRegularize (dc, fid, platform, comp, TRUE);
 	else if (! strcmp (method, "closest-point"))
-		return ga_BarnesRegularize (dc, field, platform, comp, FALSE);
+		return ga_BarnesRegularize (dc, fid, platform, comp, FALSE);
 	else
 	{
 		msg_ELog (EF_PROBLEM, "Bad grid method: %s", method);
@@ -463,9 +462,10 @@ char		*field, *platform, *comp;
 
 
 static bool
-ga_BarnesRegularize (dc, field, platform, comp, dobarnes)
+ga_BarnesRegularize (dc, fid, platform, comp, dobarnes)
 DataChunk **dc;
-char *field, *platform, *comp;
+FieldId fid;
+char *platform, *comp;
 int dobarnes;
 /*
  * Use the BINTS routine to do barnes/closest point interpolation.
@@ -476,7 +476,6 @@ int dobarnes;
 	float ymax = -99999.0, badflag, *grid, *dz, *dzr, radius, rmx, *dp;
 	float xspacing, yspacing, spacing, border, lats, lons, olat, olon;
 	Location *locs, location;
-	FieldId fid;
 	RGrid rg;
 	ZebTime when;
 	DataChunk *rdc;
@@ -508,7 +507,6 @@ int dobarnes;
  * Platform locations, field ID, and data.
  */
 	dc_IRGetPlatforms (*dc, NULL /* don't need platids */, locs);
-	fid = F_Lookup (field);
 	dp = dc_IRGetGrid (*dc, 0, fid);
 	badflag = dc_GetBadval (*dc);
 /*
@@ -593,7 +591,7 @@ int dobarnes;
 /*
  * Apply limits.
  */
-	ga_RangeLimit (field, nsta, dp, badflag);
+	ga_RangeLimit (F_GetName (fid), nsta, dp, badflag);
 /*
  * Allocate other chunks of memory.
  */
@@ -641,9 +639,9 @@ int dobarnes;
 
 
 static bool
-ga_RgridRegularize (dc, field)
+ga_RgridRegularize (dc, fid)
 DataChunk **dc;
-char *field;
+FieldId fid;
 /*
  * Regularize a grid through use of RGRID.
  */
@@ -656,7 +654,6 @@ char *field;
 	DataChunk	*rdc;
 	int		npoint;
 	Location	*locs, location;
-	FieldId		fid;
 	ZebTime		when;
 /*
  * Get stuff out of the data chunk...number of points (platforms).
@@ -667,10 +664,6 @@ char *field;
  * Platform locations.
  */
 	dc_IRGetPlatforms (*dc, NULL /* don't need platids */, locs);
-/*
- * Field id.
- */
-	fid = F_Lookup (field);
 /*
  * Data values.
  */
@@ -722,7 +715,7 @@ char *field;
 /*
  * Apply limits.
  */
-	ga_RangeLimit (field, npoint, dp, badflag);
+	ga_RangeLimit (F_GetName (fid), npoint, dp, badflag);
 /*
  * Use RGRID to generate gridded data
  *
@@ -802,7 +795,7 @@ float	*data, badflag;
 /*
  * If there is a minimum limit, apply it to the data.
  */
-	if (pda_Search (Pd, "global", "range-min", fname, (char *) &limit,
+	if (pda_Search (Pd, "global", "range-min", fname, (char *) &limit, 
 			SYMT_FLOAT))
 		for (i = 0; i < npt; i++)
 			if (data[i] != badflag && data[i] < limit)
@@ -813,7 +806,7 @@ float	*data, badflag;
 /*
  * Same for the max.
  */
-	if (pda_Search (Pd, "global", "range-max", fname, (char *) &limit,
+	if (pda_Search (Pd, "global", "range-max", fname, (char *) &limit, 
 			SYMT_FLOAT))
 		for (i = 0; i < npt; i++)
 			if (data[i] != badflag && data[i] > limit)
@@ -1230,10 +1223,11 @@ FieldId *fid;		/* Returned FieldId of coordinate variable 	*/
 /* 
  * Return the derivation of Vorticity or Divergence as a DataChunk.
  */
-DataChunk * GetVorticity( when, comp, platform, fname, xdim, ydim, 
+DataChunk * GetVorticity( when, comp, platform, fid, xdim, ydim, 
 			x0, y0, x1, y1, alt, shifted)
 ZebTime *when;
-char    *comp, *platform, *fname;
+char    *comp, *platform;
+FieldId	fid;
 int     *xdim, *ydim, *shifted;
 float   *x0, *y0, *x1, *y1, *alt;
 {
@@ -1247,6 +1241,7 @@ WindInfo    wi;
 Location    loc;
 RGrid       rg;
 int         len;
+bool        do_divergence;
 float       badvalue;
 AltUnitType altunits;
 
@@ -1263,8 +1258,8 @@ AltUnitType altunits;
 /*
  * Get u component.
  */
-   if (! (udc = ga_GetGrid (when, comp, platform, F_GetName(winds[0]), 
-            xdim, ydim, x0, y0, x1, y1, alt, shifted)))
+   if (! (udc = ga_GetGrid (when, comp, platform, winds[0], xdim, ydim, 
+			    x0, y0, x1, y1, alt, shifted)))
    {
       msg_ELog (EF_PROBLEM, "No U field for this '%s'", platform);
       return(0);
@@ -1283,8 +1278,8 @@ AltUnitType altunits;
 /*
  * Get v component.
  */
-   if (! (vdc = ga_GetGrid (when, comp, platform, F_GetName(winds[1]), 
-            xdim, ydim, x0, y0, x1, y1, alt, shifted)))
+   if (! (vdc = ga_GetGrid (when, comp, platform, winds[1], xdim, ydim, 
+			    x0, y0, x1, y1, alt, shifted)))
    {
       msg_ELog (EF_PROBLEM, "No V field for this '%s'", platform);
       return(0);
@@ -1303,22 +1298,27 @@ AltUnitType altunits;
       msg_ELog (EF_PROBLEM, "Could not allocate memory"); 
       return ( 0 );
    }
+/*
+ * Are we really doing divergence rather than vorticity?
+ */
+   do_divergence = ! strcasecmp (F_GetName (fid), "divergence");
 
 /*
- * Compute divergence or vorticity. 
+ * Compute
  */
-   if ( !strcasecmp (fname, "vorticity") )        /* Calculate Vorticity */
-     {
-        msg_ELog (EF_DEBUG, "Deriving Vorticity"); 
-        if(!Derive_Vorticity (adiv, ugrid, vgrid, &loc, &rg, badvalue, 1.0 ))
-	  return(0);
-     } 
-   else                                           /* Calculate Divergence */ 
+   
+   if ( do_divergence )        /* Calculate Divergence */ 
      {
         msg_ELog (EF_DEBUG, "Deriving Divergence");
         if(!Derive_Vorticity (adiv, vgrid, ugrid, &loc, &rg, badvalue, -1.0 ))
 	  return(0);
      }
+   else                        /* Calculate Vorticity */
+     {
+        msg_ELog (EF_DEBUG, "Deriving Vorticity"); 
+        if(!Derive_Vorticity (adiv, ugrid, vgrid, &loc, &rg, badvalue, 1.0 ))
+	  return(0);
+     } 
 
 /*
  * We don't need the data arrays and the data chunks any more.
@@ -1340,28 +1340,11 @@ AltUnitType altunits;
    dc_SetBadval (vortdc, badvalue );
    dc_SetLocAltUnits (vortdc, altunits );
 
-   if ( !strcasecmp (fname, "vorticity") )
-   {
-
-     vortfld = F_DeclareField ("vorticity", "Vorticity", "vort");
-     if ( vortfld == BadField )   msg_ELog (EF_PROBLEM, "Bad field ID");
-      dc_RGSetup   ( vortdc, 1, &vortfld ); 
-      if (!dc_RGAddGrid (vortdc, 0, vortfld, &loc, &rg, when, adiv, len))
-      {
-         msg_ELog (EF_PROBLEM, "Error to add a sample to datachunk");
-	 return (0);
-      };
-   }
-   else
-   {
-      divfld  = F_DeclareField ("divergence", "Divergence", "diver");
-      if ( divfld == BadField )   msg_ELog (EF_PROBLEM, "Bad field ID");
-      dc_RGSetup   ( vortdc, 1, &divfld );
-      if(!dc_RGAddGrid (vortdc, 0, divfld, &loc, &rg, when, adiv, len ))
-      { 
-        msg_ELog (EF_PROBLEM, "Error to add a sample to datachunk");
-	return (0);
-      }
+   dc_RGSetup   ( vortdc, 1, &fid );
+   if(!dc_RGAddGrid (vortdc, 0, fid, &loc, &rg, when, adiv, len ))
+   { 
+       msg_ELog (EF_PROBLEM, "Error to add a sample to datachunk");
+       return (0);
    }
 
    free ( adiv );

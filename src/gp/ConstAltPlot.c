@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.68 1997-10-23 22:13:58 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.69 1998-02-05 23:50:16 burghart Exp $")
 
 
 /*
@@ -111,7 +111,7 @@ void		CAP_Raster FP ((char *, int));
 void		CAP_LineContour FP ((char *, int));
 static void	CAP_Contour FP ((char *, contour_type, char **, char **, 
 				 float *, float *, char **, int *));
-static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *, 
+static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, FieldId, 
 			int *, int *, float *, float *, float *, float *, 
 			float *, int *));
 static int	CAP_AutoScale FP ((char *c, char *qual, char *platform,
@@ -345,6 +345,7 @@ int *shifted;
 	RGrid	rg;
 	Location 	loc;
 	float	badvalue;
+	FieldId	fid;
 	AltUnitType	altunits;
 	PlatformId	pid;
 /*
@@ -451,23 +452,27 @@ int *shifted;
 
 	if ( !strcasecmp(fname, "vorticity"))
 	{
-           if (! (dc = GetVorticity ( &zt, c, platform, fname, &xdim, &ydim, 
-				     &x0, &y0, &x1, &y1, &alt, shifted )))
-	     return;
-        }
-	else
-	  if (!strcasecmp(fname, "divergence"))
-	  {
-	    if (! (dc = GetVorticity ( &zt, c, platform, fname, &xdim, &ydim, 
-				       &x0, &y0, &x1, &y1, &alt, shifted )))
-	     return;
-          }
-	  else
-	    if(! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim, 
-				   &x0, &y0, &x1, &y1, &alt, shifted )))
+	    fid = F_Field (fname, 0, "vorticity", "1/s");
+	    if (! (dc = GetVorticity ( &zt, c, platform, fid, &xdim, &ydim, 
+				       &x0, &y0, &x1, &y1, &alt, shifted)))
 		return;
+        }
+	else if (!strcasecmp(fname, "divergence"))
+	{
+	    fid = F_Field (fname, 0, "vorticity", "1/s");
+	    if (! (dc = GetVorticity ( &zt, c, platform, fid, &xdim, &ydim, 
+				       &x0, &y0, &x1, &y1, &alt, shifted)))
+		return;
+	}
+	else
+	{
+	    fid = F_Lookup (fname);
+	    if (! (dc = ga_GetGrid (&zt, c, platform, fid, &xdim, &ydim, 
+				    &x0, &y0, &x1, &y1, &alt, shifted)))
+		return;
+	}
 
-	rgrid = (float *)dc_RGGetGrid(dc, 0, F_Lookup(fname), &loc, &rg, &len);
+	rgrid = (float *)dc_RGGetGrid(dc, 0, fid, &loc, &rg, &len);
 /*
  * Get the badvalue flag and altitude units.
  */
@@ -479,7 +484,7 @@ int *shifted;
  */
 	if (autoscale)
 	{
-		FindCenterStep (dc, F_Lookup (fname), Monocolor ? 10 : Ncolors,
+		FindCenterStep (dc, fid, Monocolor ? 10 : Ncolors,
 				center, step);
 		sprintf (param, "%s-center", fname);
 		pd_Store (Pd, c, param, (char *) center, SYMT_FLOAT);
@@ -1363,8 +1368,8 @@ bool	update;
  * serious check, maybe the following can be cleaned up substantially by
  * just using the projection-aware routine all the time.
  */
-	if (! (udc = ga_GetGrid (&zt, c, platform, F_GetName(winds[0]), 
-			&xdim, &ydim, &x0, &y0, &x1, &y1, &alt, &shifted)))
+	if (! (udc = ga_GetGrid (&zt, c, platform, winds[0], &xdim, &ydim, 
+				 &x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
 	if (proj)
 	{
@@ -1383,8 +1388,8 @@ bool	update;
  * Get v component.
  */
 	zt = PlotTime;
-	if (! (vdc = ga_GetGrid (&zt, c, platform, F_GetName(winds[1]), 
-			&xdim, &ydim, &x0, &y0, &x1, &y1, &alt, &shifted)))
+	if (! (vdc = ga_GetGrid (&zt, c, platform, winds[1], &xdim, &ydim, 
+				 &x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
 	if (proj)
 		vgrid = (float *)dc_RGGetGrid(vdc, 0, winds[1], &loc,&rg,&len);
@@ -1707,6 +1712,7 @@ bool	update;
 	Location loc;
 	int	len;
 	RGrid	rg;
+	FieldId	fid;
 	AltUnitType	altunits;
 /*
  * Get necessary parameters from the plot description
@@ -1719,6 +1725,8 @@ bool	update;
 				   &center, &step);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);
+
+	fid = F_Lookup (fname);
 /*
  * We want special radar annotation whether we get data or not, so the
  * user knows what selection criteria are in effect.
@@ -1822,19 +1830,17 @@ bool	update;
 	zt = PlotTime;
 	if (image)
 	{
-		if (! (dc = CAP_ImageGrid (c, &zt, pid, fname, &xdim, &ydim,
+		if (! (dc = CAP_ImageGrid (c, &zt, pid, fid, &xdim, &ydim,
  				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		igrid = dc_ImgGetImage (dc, 0, F_Lookup (fname), 
-					&loc, &rg, &len, &scale);
+		igrid = dc_ImgGetImage (dc, 0, fid, &loc, &rg, &len, &scale);
 	}
 	else
 	{
-		if (! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim,
+		if (! (dc = ga_GetGrid (&zt, c, platform, fid, &xdim, &ydim,
 				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		fgrid = (float *) dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc,
-						&rg, &len);
+		fgrid = (float *) dc_RGGetGrid (dc, 0, fid, &loc, &rg, &len);
 	}
 	if ((image && !igrid) || (!image && !fgrid))
 	{
@@ -1862,7 +1868,7 @@ bool	update;
  */
 	if (autoscale)
 	{
-		FindCenterStep (dc, F_Lookup (fname), nsteps, &center, &step);
+		FindCenterStep (dc, fid, nsteps, &center, &step);
 		sprintf (param, "%s-center", fname);
 		pd_Store (Pd, c, param, (char *) &center, SYMT_FLOAT);
 		sprintf (param, "%s-step", fname);
@@ -2029,10 +2035,11 @@ int datalen, begin, space;
 
 
 static DataChunk *
-CAP_ImageGrid (c, when, pid, field, xdim, ydim, x0, y0, x1, y1, alt, shift)
-char	*c, *field;
+CAP_ImageGrid (c, when, pid, fid, xdim, ydim, x0, y0, x1, y1, alt, shift)
+char	*c;
 ZebTime *when;
 PlatformId pid;
+FieldId fid;
 int	*xdim, *ydim, *shift;
 float	*x0, *y0, *x1, *y1, *alt;
 /*
@@ -2045,7 +2052,6 @@ float	*x0, *y0, *x1, *y1, *alt;
 	Location origin;
 	int len;
 	DataChunk *dc;
-	FieldId	fid = F_Lookup (field);
 /*
  * Get a data time, applying altitude selection if appropriate.
  */
@@ -2059,7 +2065,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 			      NULL, 0)))
 	{
 		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", 
-			ds_PlatformName (pid), field);
+			  ds_PlatformName (pid), F_GetFullName (fid));
 		return (0);
 	}
 	*shift =  ApplySpatialOffset (dc, c, &realtime);
