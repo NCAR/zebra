@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.6 1996-01-15 07:47:43 granger Exp $
+ * $Id: apple.c,v 3.7 1996-01-23 04:54:30 granger Exp $
  */
 
 /*
@@ -157,11 +157,7 @@ to 'expect'?
 #define DUMMY_FILES
 #define DATA_TIMES
 
-#ifndef DEBUG
-#define PRINT_MASK	(EF_INFO | EF_EMERGENCY | EF_PROBLEM)
-#else
-#define PRINT_MASK	(EF_ALL & ~EF_DEVELOP)
-#endif
+static int Debug = 0;
 
 struct TestField {
 	char *name;
@@ -372,7 +368,10 @@ Initialize()
 /*
  * Try to limit our output to what's important
  */
-	msg_ELPrintMask (PRINT_MASK);
+	if (Debug)
+		msg_ELPrintMask (EF_ALL);
+	else
+		msg_ELPrintMask (EF_INFO | EF_EMERGENCY | EF_PROBLEM);
 	msg_ELSendMask (0);
 	InitializePlatforms();
 }
@@ -388,6 +387,14 @@ main (argc, argv)
 	ZebTime when, begin, end;
 	int i;
 	int errors;
+
+#ifdef NoBuffer
+	setvbuf (stdout, NULL, _IONBF, 0);
+	setvbuf (stderr, NULL, _IONBF, 0);
+#endif
+	for (i = 1; i < argc; ++i)
+		if (!strncmp(argv[i],"-debug",strlen(argv[i])))
+			Debug = 1;
 
 	Initialize();
 	errors = 0;
