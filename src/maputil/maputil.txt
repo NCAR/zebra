@@ -1,4 +1,4 @@
-$Id: maputil.txt,v 1.1 2001-10-05 16:09:18 burghart Exp $
+$Id: maputil.txt,v 1.2 2001-10-05 19:11:38 burghart Exp $
 
                        Generating Zebra maps
                        ---------------------
@@ -146,7 +146,7 @@ where <W>, <S>, <E>, <N> are the lat/lon bounds for the filtered
 data.  
 
 As an example, assume that file rivers.map covers all of Oregon, but
-only the region from 42N to 44N and 125E to 122E is desired.  The
+only the region from 42N to 44N and 125W to 122W is desired.  The
 file can be filtered to generate a new map new_rivers.map using the
 command:
 
@@ -168,7 +168,7 @@ lat/lon bounds specified by <S>, <W>, <N>, and <E>, and writes the results
 to netCDF file <outfile>.
 
 As an example, assume that a map for a portion of Oregon is desired,
-over the area 42N to 47N and 125E to 121E.  With the appropriate CD
+over the area 42N to 47N and 125W to 121W.  With the appropriate CD
 mounted on /mnt/cdrom, the command would be:
 
     $ dem2zebra oregon_elev.nc 42 -125 47 -121 /mnt/cdrom/[a-z]*
@@ -183,6 +183,6 @@ can be used multiple times, changing CDs between runs.  The successive
 runs will add to the existing file rather than overwriting it.
 
 To use the resulting netCDF file, copy it to the /zebra/project/<project>/elev
-directory.  Recent SPOL projects like STEPS and IMPROVE are already
+directory.  Recent S-Pol projects like STEPS and IMPROVE are already
 configured to make use of the data from the elev directory.
 
