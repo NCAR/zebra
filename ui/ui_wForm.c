@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.7 1994-09-26 15:40:33 case Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.8 1996-01-30 21:04:03 burghart Exp $";
 
 
 # define MAXENTRY 100
@@ -538,6 +538,9 @@ XtPointer junk, xfe;
 	v.us_v_ptr = fe->fe_Frame->fw_name;
 	usy_s_symbol (Ui_variable_table, "ui$form", SYMT_STRING, &v);
 
+	v.us_v_ptr = XtName (w);
+	usy_s_symbol (Ui_variable_table, "ui$formentry", SYMT_STRING, &v);
+
 	ui_perform (fe->fe_AuxText);
 }
 
@@ -557,10 +560,13 @@ Cardinal *cardjunk;
 	SValue v;
 	char *menu = args[1];
 /*
- * Set the symbol so that the form may be found.
+ * Set symbols so that the form and entry may be found.
  */
 	v.us_v_ptr = args[0];
 	usy_s_symbol (Ui_variable_table, "ui$form", SYMT_STRING, &v);
+
+	v.us_v_ptr = XtName (w);
+	usy_s_symbol (Ui_variable_table, "ui$formentry", SYMT_STRING, &v);
 /*
  * Now make the menu appear.
  */
@@ -591,6 +597,11 @@ Cardinal *cardjunk;
 	{
 		v.us_v_ptr = args[0],
 		usy_s_symbol (Ui_variable_table, "ui$form", SYMT_STRING, &v);
+
+		v.us_v_ptr = XtName (w);
+		usy_s_symbol (Ui_variable_table, "ui$formentry", SYMT_STRING, 
+			      &v);
+
 		ui_perform (fe->fe_AuxText);
 	}
 }
