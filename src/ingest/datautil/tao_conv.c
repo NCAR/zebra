@@ -276,7 +276,7 @@ ConvertTime (zt, jday, mstime)
 
 	if (!base.zt_Sec)
 		TC_ZtAssemble (&base, 93, 1, 1, 0, 0, 0, 0);
-	zt->zt_Sec = base.zt_Sec + ((jday - 2448989UL) * 24 * 60 * 60);
+	zt->zt_Sec = base.zt_Sec + ((jday - 2448989) * 24 * 60 * 60);
 	zt->zt_Sec += mstime/1000;
 	zt->zt_MicroSec = 0;
 }
