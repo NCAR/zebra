@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.4 1990-06-04 15:38:32 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.5 1990-06-05 15:06:26 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -7,6 +7,7 @@ static char *rcsid = "$Id: GraphProc.c,v 1.4 1990-06-04 15:38:32 corbet Exp $";
 # include <X11/Cardinals.h>
 # include <ui.h>
 
+# include "gp_cmds.h"
 # include "../include/defs.h"
 # include "EventQueue.h"
 # include "../include/message.h"
@@ -88,15 +89,15 @@ char **argv;
 /*
  * Hand off our information to the UI, and initialize things.
  */
-	ui_setup ("GraphProc", argc, argv, Resources);
 	ui_init ("/fcc/lib/graphproc.lf", FALSE, TRUE);
+	ui_setup ("Graphproc", argc, argv, Resources);
 /*
  * Now we have to go into the UI, and finish our setup later.  This is
  * essentially a kludge designed to keep UI from trying to open tty
  * sources to a terminal that doesn't exist (or which should not be
  * mucked with).
  */
-	ui_get_command ("initial", "you shouldn't see this", dispatcher, 0);
+	ui_get_command ("initial", Ourname, dispatcher, 0);
 	shutdown ();
 }
 
@@ -239,14 +240,39 @@ greet_dm ()
 
 
 
-dispatcher (cmds)
+dispatcher (junk, cmds)
+int junk;
 struct ui_command *cmds;
 /*
  * The command dispatcher.  Assume it is RUN for now.
  */
 {
-	finish_setup ();
-	lle_MainLoop ();
+	static bool first = TRUE;
+
+	switch (UKEY (*cmds))
+	{
+	/*
+	 * RUN is our hook through UI to get things going.  This should only
+	 * happen once, but let's guard just to be sure.
+	 */
+	   case GPC_RUN:
+	   	if (first++)
+			finish_setup ();
+		else
+			msg_log ("Somebody typed RUN again");
+		lle_MainLoop ();
+		break;
+	/*
+	 * DM for sending literal commands back to the display manager.
+	 */
+	   case GPC_DM:
+	   	msg_log ("DM cmd '%s'", UPTR (cmds[1]));
+		break;
+
+	   default:
+	   	msg_log ("Unknown kw %d", UKEY (*cmds));
+		break;
+	}
 	return (0);
 }
 
@@ -287,6 +313,9 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_PDCHANGE:
 	   	ChangePD ((struct dm_pdchange *) dmsg);
+		break;
+	   case DM_PARCHANGE:
+	   	ChangeParam ((struct dm_parchange *) dmsg);
 		break;
 	/*
 	 * History mode.
@@ -482,6 +511,38 @@ struct dm_pdchange *dmp;
 
 
 
+ChangeParam (dmp)
+struct dm_parchange *dmp;
+/*
+ * Change one parameter in our plot description.
+ */
+{
+/*
+ * Make sure this makes sense.
+ */
+	if (! Pd)
+	{
+		msg_log ("Param change (%s/%s/%s) with no PD", dmp->dmm_comp,
+			dmp->dmm_param, dmp->dmm_value);
+		return;
+	}
+/*
+ * Store the new parameter.
+ */
+	pd_Store (Pd, dmp->dmm_comp, dmp->dmm_param, dmp->dmm_value, 
+		SYMT_STRING);
+/*
+ * Now reset things.
+ */
+	NewPD = TRUE;
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+}
+
+
+
+
+
+
 ChangeDefaults (dmp)
 struct dm_pdchange *dmp;
 /*
@@ -529,13 +590,14 @@ struct dm_history *dmh;
 		msg_log ("History mode requested with no plot description!");
 		return;
 	}
-	else
-		msg_log ("History mode: %d %d", dmh->dmm_time.ds_yymmdd,
-			dmh->dmm_time.ds_hhmmss);
 /*
  * Cancel anything that might be going now.
  */
 	pc_CancelPlot ();
+/*
+ * Stash the plot time into the PD.
+ */
+	pd_Store (Pd, "global", "plot-time", (char *)&dmh->dmm_time,SYMT_DATE);
 /*
  * Set the time and do a full display.
  */
