@@ -41,8 +41,7 @@
 # include "commands.h"
 # include "regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.30 1994-01-03 07:13:48 granger Exp $")
-
+MAKE_RCSID ("$Id: Daemon.c,v 3.31 1994-01-03 10:25:32 granger Exp $")
 
 
 /*
@@ -55,7 +54,6 @@ struct SearchInfo {
 	regex_t si_regex;
 	char *si_to;
 };
-
 
 
 /*
@@ -1273,7 +1271,7 @@ struct dsp_PlatformSearch *req;
 	if (re_result == 0)
 	{
 		dt_SearchPlatforms (MatchPlatform, (void *)&info, 
-				    req->dsp_alphabet, "^[^/][^/]*$");
+				    req->dsp_alphabet, /*regexp*/ NULL);
 		if (req->dsp_regexp[0])
 			regfree (&info.si_regex);
 	}
@@ -1309,6 +1307,17 @@ struct SearchInfo *info;
 	struct dsp_PlatformList *answer = info->si_list;
 	struct dsp_PlatformSearch *req = info->si_req;
 /*
+ * Always skip subplatform symbols with parent qualifiers in the name,
+ * or regular platforms where the symbol does not match the name.
+ */
+	if (plat->dp_flags & DPF_SUBPLATFORM)
+	{
+		if (strchr (symbol, '/'))
+			return (TRUE);
+	}
+	else if (strcmp(plat->dp_name, symbol))
+		return (TRUE);
+/*
  * Ignore subplatforms if so requested
  */
 	if (!req->dsp_subplats && (plat->dp_flags & DPF_SUBPLATFORM))
@@ -1317,7 +1326,8 @@ struct SearchInfo *info;
  * If we're looking for subplatforms of a particular parent, ignore
  * all other platforms.
  */
-	if ((req->dsp_children) && (plat->dp_parent != req->dsp_parent))
+	if ((req->dsp_children) && (((plat->dp_flags & DPF_SUBPLATFORM) == 0)
+	    || (plat->dp_parent != req->dsp_parent)))
 		return (TRUE);
 
 	pids = answer->dsp_pids;
