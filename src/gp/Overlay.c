@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.50 1995-09-21 21:24:27 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.51 1995-09-26 15:36:14 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -455,11 +455,12 @@ bool update;
 		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
 			CapButt, JoinMiter);
 /*
- * Draw a box or a line based on the plot type
+ * Draw a box or a line based on the plot type.  If a box, the upper left
+ * corner of the rectangle is actually (x0,y1), and py0 > py1.
  */
 	if (! strcmp (ptype, "CAP"))
-		XDrawRectangle (disp, d, Gcontext, px0, py0, px1 - px0 + 1,
-			py1 - py0 + 1);
+		XDrawRectangle (disp, d, Gcontext, px0, py1, px1 - px0 + 1,
+				py0 - py1 + 1);
 	else
 		XDrawLine (disp, d, Gcontext, px0, py0, px1, py1);
 /*
