@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.33 1996-11-19 08:00:34 granger Exp $ */
+/* $Id: defs.h,v 2.34 1996-12-06 21:24:30 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,6 +25,7 @@
 /*
  * This at least seems safe enough 
  */
+# include <stdio.h>
 # include <stdlib.h>
 
 /*
