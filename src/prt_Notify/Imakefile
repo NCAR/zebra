@@ -5,7 +5,9 @@
 SRCS = prt_Notify.c d_Notify.c
 OBJS = prt_Notify.o d_Notify.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
 
 NormalProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+DependTarget ()
