@@ -1,4 +1,4 @@
-/* $Id: zl_param.h,v 2.1 1996-11-19 07:56:07 granger Exp $ */
+/* $Id: zl_param.h,v 2.2 1998-01-15 22:03:54 burghart Exp $ */
 /*
  * Basic UI types needed regardless of whether we're linking with UI.
  */
@@ -10,10 +10,13 @@
  * Data types of interest.
  */
 typedef unsigned char byte;	/* Basic byte variable */
-# ifndef __cplusplus
+
+/*
+ * So far only g++ has the predefined bool type per the final draft ANSI C++
+ * standard.  Everywhere else, we have to use our own typedef.
+ */
+# if !(__cplusplus && __GNUC__)
 typedef char bool;		/* Boolean variable	*/
-# else
-# define bool char	/* For some reason g++ doesn't like the typedef */
 # endif
 
 struct date_st
