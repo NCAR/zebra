@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.8 1992-05-27 16:42:42 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.9 1992-07-07 23:59:01 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -32,9 +32,10 @@ static char *rcsid = "$Id: LimitWidgets.c,v 2.8 1992-05-27 16:42:42 kris Exp $";
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/Toggle.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
+# include <defs.h>
+# include <message.h>
+# include <DataStore.h>
+# include <pd.h>
 # include "GraphProc.h"
 
 
@@ -45,9 +46,11 @@ static char *rcsid = "$Id: LimitWidgets.c,v 2.8 1992-05-27 16:42:42 kris Exp $";
 
 static int Sw_Nsta;			/* Number of stations		*/
 static Widget Sw_Swidgets[MAXSTA];	/* Per-station toggles		*/
+static Widget Sw_Form;			/* Form that holds the stations	*/
 static bool Sw_Sset[MAXSTA];		/* Is this station selected?	*/
-static char Sw_RetSta[30*MAXSTA];	/* What we return		*/
-static char Sw_Plat[30], SavePlat[30*MAXSTA];
+static char Sw_RetSta[40*MAXSTA];	/* What we return		*/
+static char Sw_Plat[40], SavePlat[40*MAXSTA];
+static int SwNManaged;		/* Number of managed sw boxes	*/
 
 /*
  * The types of widgets we know.
@@ -75,7 +78,7 @@ typedef struct _WidgetQueue_
 	void	*wq_wdata;		/* Widget-specific data		*/
 	WidgetType	wq_type;	/* Type of this widget		*/
 	char	wq_comp[32];		/* Component			*/
-	char	wq_param[2][32];		/* Parameter			*/
+	char	wq_param[2][32];	/* Parameter			*/
 } WidgetQueue;
 
 /*
@@ -99,48 +102,25 @@ typedef struct _WidgetDesc_
 /*
  * Routines that manipulate specific widgets.
  */
-# ifdef __STDC__
-	static Widget lw_SFCreate (char *, Widget, XtAppContext);
-	static void lw_SFSetup (WidgetQueue *, struct ui_command *);
-	static void lw_SFStore (Widget, WidgetQueue *, XtPointer);
-	static Widget lw_DFCreate (char *, Widget, XtAppContext);
-	static void lw_DFSetup (WidgetQueue *, struct ui_command *);
-	static void lw_DFStore (Widget, WidgetQueue *, XtPointer);
-	static Widget lw_SSCreate (char *, Widget, XtAppContext);
-	static void lw_SSSetup (WidgetQueue *, struct ui_command *);
-	static void lw_SSStore (Widget, WidgetQueue *, XtPointer);
-	static Widget lw_TSCreate (char *, Widget, XtAppContext);
-	static void lw_TSSetup (WidgetQueue *, struct ui_command *);
-	static void lw_TSStore (Widget, WidgetQueue *, XtPointer);
-	static Widget lw_SICreate (char *, Widget, XtAppContext);
-	static void lw_SISetup (WidgetQueue *, struct ui_command *);
-	static void lw_SIStore (Widget, WidgetQueue *, XtPointer);
-	static Widget lw_SWCreate (char *, Widget, XtAppContext);
-	static void lw_SWSetup (WidgetQueue *, struct ui_command *);
-	static void lw_SWStore (Widget, WidgetQueue *, XtPointer);
-	static Widget lw_OvCreate (char *, Widget, XtAppContext);
-# else
-	static Widget lw_SFCreate ();
-	static void lw_SFSetup ();
-	static void lw_SFStore ();
-	static Widget lw_DFCreate ();
-	static void lw_DFSetup ();
-	static void lw_DFStore ();
-	static Widget lw_SSCreate ();
-	static void lw_SSSetup ();
-	static void lw_SSStore ();
-	static Widget lw_TSCreate ();
-	static void lw_TSSetup ();
-	static void lw_TSStore ();
-	static Widget lw_SICreate ();
-	static void lw_SISetup ();
-	static void lw_SIStore ();
-	static Widget lw_SWCreate ();
-	static void lw_SWSetup ();
-	static void lw_SWStore ();
-	static Widget lw_OvCreate ();
-# endif
-
+static Widget	lw_SFCreate FP ((char *, Widget, XtAppContext));
+static void	lw_SFSetup FP ((WidgetQueue *, struct ui_command *));
+static void	lw_SFStore FP ((Widget, WidgetQueue *, XtPointer));
+static Widget	lw_DFCreate FP ((char *, Widget, XtAppContext));
+static void	lw_DFSetup FP ((WidgetQueue *, struct ui_command *));
+static void	lw_DFStore FP ((Widget, WidgetQueue *, XtPointer));
+static Widget	lw_SSCreate FP ((char *, Widget, XtAppContext));
+static void	lw_SSSetup FP ((WidgetQueue *, struct ui_command *));
+static void	lw_SSStore FP ((Widget, WidgetQueue *, XtPointer));
+static Widget	lw_TSCreate FP ((char *, Widget, XtAppContext));
+static void	lw_TSSetup FP ((WidgetQueue *, struct ui_command *));
+static void	lw_TSStore FP ((Widget, WidgetQueue *, XtPointer));
+static Widget	lw_SICreate FP ((char *, Widget, XtAppContext));
+static void	lw_SISetup FP ((WidgetQueue *, struct ui_command *));
+static void	lw_SIStore FP ((Widget, WidgetQueue *, XtPointer));
+static Widget	lw_SWCreate FP ((char *, Widget, XtAppContext));
+static void	lw_SWSetup FP ((WidgetQueue *, struct ui_command *));
+static void	lw_SWStore FP ((Widget, WidgetQueue *, XtPointer));
+static Widget	lw_OvCreate FP ((char *, Widget, XtAppContext));
 
 
 static WidgetDesc WTable[N_WIDGET_TYPES] =
@@ -186,23 +166,13 @@ static char OvStatus[1024];
 /*
  * Other local routines.
  */
-# ifdef __STDC__
-	static void lw_Popup (WidgetQueue *);
-	static void lw_CBPopdown (Widget, WidgetQueue *, XtPointer);
-	static void lw_Popdown (WidgetQueue *);
-	static void lw_Setup (WidgetQueue *, int, struct ui_command *);
-	static WidgetQueue *lw_GetWidget (int);
-	static void lw_InitOverlay ();
-	static void lw_SwCb ();
-# else
-	static void lw_Popup ();
-	static void lw_CBPopdown ();
-	static void lw_Popdown ();
-	static void lw_Setup ();
-	static WidgetQueue *lw_GetWidget ();
-	static void lw_InitOverlay ();
-	static void lw_SwCb ();
-# endif
+static void	 lw_Popup FP ((WidgetQueue *));
+static void	 lw_CBPopdown FP ((Widget, WidgetQueue *, XtPointer));
+static void	 lw_Popdown FP ((WidgetQueue *));
+static void	 lw_Setup FP ((WidgetQueue *, int, struct ui_command *));
+static WidgetQueue	 *lw_GetWidget FP ((int));
+static void	 lw_InitOverlay FP ((void));
+static void	 lw_SwCb FP ((Widget, int, int));
 
 
 void
@@ -241,6 +211,7 @@ struct ui_command *cmds;
 	{
 		pda_Search (Pd, UPTR(cmds[0]), "num-stations", NULL, 
 			(char *) &Sw_Nsta, SYMT_INT);
+		if (Sw_Nsta > MAXSTA) Sw_Nsta = MAXSTA;
 		msg_ELog (EF_DEBUG, "Setting Sw_Nsta to %d", Sw_Nsta);
 	}
 /*
@@ -326,18 +297,22 @@ WidgetQueue *w;
  * Set the geometry of this widget to be near the pointer.
  * But make sure the whole widget is on the screen
  */
-	if ((x -= 150) < 0)
+	if ((x -= 500) < 0)
 		x = 0;
-	if ((y -= 50) < 0)
+	if ((y -= 100) < 0)
 		y = 0;
-
+# ifdef notdef
+/*
+ * This doesn't work because wq_widget is never assigned a value.
+ */
 	n = 0;
 	XtSetArg (args[n], XtNwidth, &width);		n++;
 	XtSetArg (args[n], XtNheight, &height);		n++;
 /*  this was bombing, so hope 150 is enough...
 	XtGetValues (w->wq_widget, args, n);*/
-	width = 150;
-	height = 50;
+# endif
+	width = 500;
+	height = 100;
 	swidth = XWidthOfScreen(XtScreen(Top));
 	sheight = XHeightOfScreen(XtScreen(Top));
 	if ((x + width) > swidth)
@@ -362,7 +337,7 @@ XtAppContext actx;
  */
 {
 	Widget form, w, above;
-	Arg args[20];
+	Arg args[40];
 	int n;
 	struct SFWData *wdata = ALLOC (struct SFWData);
 	WidgetQueue *wq = (WidgetQueue *) tag;
@@ -1336,27 +1311,24 @@ lw_LoadStatus ()
 
 
 void
-lw_TimeStatus (comp, t)
-char *comp;
+lw_TimeStatus (comp, plat, t)
+char	*comp, *plat;
 ZebTime *t;
 /*
  * Add a status line.
  */
 {
 	char *cp = OvStatus + strlen (OvStatus);
-	char plat[40], fld[40];
+	char fld[40];
 	time uitime;
 
 /*
  * Convert from ZebTime to UI time.
  */
 	TC_ZtToUI (t, &uitime);
-
-	strcpy (plat, "--");
 /*
  * Retrieve all necessary data.
  */
-	pd_Retrieve (Pd, comp, "platform", plat, SYMT_STRING);
 	if (! pd_Retrieve (Pd, comp, "field", fld, SYMT_STRING) &&
 	    ! pd_Retrieve (Pd, comp, "color-code-field", fld, SYMT_STRING) &&
 	    ! pd_Retrieve (Pd, comp, "arrow-type", fld, SYMT_STRING))
@@ -1388,7 +1360,7 @@ XtAppContext	appc;
 	Widget form, box, w;
 	Arg args[10];
 	int sta, n;
-	char name[30];
+	char name[40];
 	WidgetQueue *wq = (WidgetQueue *) tag;
 /*
  * Create the form widget to hold everything.
@@ -1398,6 +1370,7 @@ XtAppContext	appc;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
 	form = XtCreateWidget ("stationform", formWidgetClass, parent,
 		args, n);
+	Sw_Form = form;
 /*
  * Make a box to hold the stations.
  */
@@ -1408,9 +1381,9 @@ XtAppContext	appc;
 	box = XtCreateManagedWidget ("stationbox", boxWidgetClass, form,
 		args, n);
 /*
- * Now add each station to the box.
+ * Now add the maximum number of stations to the box.
  */
-	for (sta = 0; sta < Sw_Nsta; sta++)
+	for (sta = 0; sta < MAXSTA; sta++)
 	{
 		sprintf (name, "%d", sta + 1);
 		XtSetArg (args[0], XtNlabel, name);
@@ -1420,6 +1393,7 @@ XtAppContext	appc;
 			(XtCallbackProc) lw_SwCb, (XtPointer) sta);
 		Sw_Sset[sta] = FALSE;
 	}
+	SwNManaged = MAXSTA;
 /*
  * Store and Cancel buttons.
  */
@@ -1453,13 +1427,31 @@ struct ui_command	*cmds;
  * Set up the station widget.
  */
 {
-	char	platforms[20*MAXSTA], *pnames[MAXSTA];
+	char	platforms[40*MAXSTA], *pnames[MAXSTA];
 	int	i, sta, nump;
 	Arg	args[2];
 /*
  *  Stash the platform name.
  */
 	strcpy (Sw_Plat, UPTR (cmds[0]));
+	strcpy (wq->wq_param[0], UPTR (cmds[0]));
+/*
+ * Unmanage and/or manage the correct number of buttons.
+ */
+	XawFormDoLayout (Sw_Form, False);
+
+	for (i = SwNManaged; i < Sw_Nsta; i++)
+		if (! XtIsManaged (Sw_Swidgets[i]))
+		{
+			XtManageChild (Sw_Swidgets[i]);
+			SwNManaged++;
+		}
+	for (i = Sw_Nsta; i < MAXSTA; i++)
+		if (XtIsManaged (Sw_Swidgets[i]))
+		{
+			XtUnmanageChild (Sw_Swidgets[i]);
+			SwNManaged--;
+		}
 /*
  * Save the other platforms.
  */
@@ -1477,13 +1469,16 @@ struct ui_command	*cmds;
 		}
 		else
 		{
-			pnames[i] += 8;
-			sta = atoi (pnames[i]);
+			pnames[i] += strlen (wq->wq_param[0]) + 1;
+			sta = atoi (pnames[i]) - 1;
 			XtSetArg (args[0], XtNstate, True);
 			XtSetValues (Sw_Swidgets[sta], args, 1);
 			Sw_Sset[sta] = TRUE;
 		}
 	}
+
+	XawFormDoLayout (Sw_Form, True);
+
 	msg_ELog (EF_DEBUG, "save platforms %s", SavePlat);
 }
 
@@ -1511,7 +1506,7 @@ int sta, new;
  */
 {
 	int	i;
-	char	name[30];
+	char	name[40];
 	
 	Sw_Sset[sta] = new;
 	Sw_RetSta[0] = '\0';
@@ -1519,6 +1514,8 @@ int sta, new;
 		if (Sw_Sset[i])
 		{
 			sprintf (name, "%s/%d", Sw_Plat, i + 1);
+			if (ds_LookupPlatform (name) == BadPlatform)
+				sprintf (name, "%s.%d", Sw_Plat, i + 1);
 			strcat (Sw_RetSta, name);
 			strcat (Sw_RetSta, ",");
 		}
