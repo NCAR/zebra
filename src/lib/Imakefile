@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.41 2002-02-12 23:33:47 granger Exp $ */
+/* $Id: Imakefile,v 1.42 2002-06-27 14:58:45 burghart Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -182,7 +182,7 @@ TBTREEOBJS = T_BTree.o TestTrees.o $(BSOBJS) ZTime.o TCvt.o version.o
 CccTestProgramTarget (tbtree,$(TBTREEOBJS),/**/,/**/,/**/)
 
 RunTestProgram(tblocks,block files,./tblocks > tblocks.log 2>&1)
-RunTestProgram(tbtree,b+trees,(if [ -f /usr/dict/words ]; then cat /usr/dict/words; elif [ -f /usr/share/lib/dict/words ]; then cat /usr/share/lib/dict/words; fi) | ./tbtree 1000 >tbtree.log 2>&1)
+RunTestProgram(tbtree,b+trees,(if [ -f /usr/dict/words ]; then cat /usr/dict/words; elif [ -f /usr/share/dict/words ]; then cat /usr/share/dict/words; fi) | ./tbtree 1000 >tbtree.log 2>&1)
 
 clean::
 	$(RM_CMD) tbtree.log tblocks.log
