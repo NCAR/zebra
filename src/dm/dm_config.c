@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.9 1994-05-05 19:40:55 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.10 1994-05-10 21:39:28 corbet Exp $")
 
 
 /*
@@ -171,11 +171,11 @@ struct config *cfg;
 		XGetGeometry (Dm_Display, qwin, &root, &wp->cfw_x,
 			&wp->cfw_y, (unsigned int *) &junk,
 			(unsigned int *) &junk, &bw, &depth);
+		wp->cfw_x += bw;
+		wp->cfw_y += bw;
 		XGetGeometry (Dm_Display, realwin, &root, &junk,
 			&junk, (unsigned int *) &wp->cfw_dx,
 			(unsigned int *) &wp->cfw_dy, &bw, &depth);
-		wp->cfw_x += bw;
-		wp->cfw_y += bw;
 	}
 }
 
