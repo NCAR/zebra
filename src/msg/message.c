@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.36 1996-01-12 01:11:32 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.37 1996-08-08 20:39:20 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -260,7 +260,7 @@ static void route FP ((int fd, struct message *msg));
 static void identify FP ((int fd, struct message *msg));
 static void join FP ((int fd, struct message *msg));
 static void create_group FP ((struct connection *conp, char *name));
-static void Stats FP ((struct connection *conp, char *to));
+static void Stats FP ((struct connection *conp, char *to, int query));
 static void ack FP ((struct connection *conp, struct message *msg));
 static int psig FP ((void));
 
@@ -1794,6 +1794,15 @@ struct message *msg;
 			route (fd, msg);
 		break;
 	/*
+	 * Ditto for queries.
+	 */
+	   case MT_QUERY:
+	   	if (! strcmp (msg->m_to, MSG_MGR_NAME))
+			Stats (Fd_map[fd], msg->m_from, 1);
+		else
+			route (fd, msg);
+		break;
+	/*
 	 * Check for elog messages sent to us to update our mask
 	 */
 	   case MT_ELOG:
@@ -1883,7 +1892,7 @@ Message *msg;
 	 */
 	   case MH_STATS:
 		if (! strcmp (msg->m_to, MSG_MGR_NAME))
-			Stats (Fd_map[fd], msg->m_from);
+			Stats (Fd_map[fd], msg->m_from, 0);
 		else
 			route (fd, msg);
 		break;
@@ -2648,29 +2657,45 @@ psig ()
 
 
 static void
-Stats (conp, to)
+Stats (conp, to, query)
 struct connection *conp;
 char *to;
+int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
 /*
  * Send statistics back to this guy.
  */
 {
-	char buffer[200];
+	char buffer[256];
 	char *text;
 	char *username;
 	struct message msg;
 	struct mh_stats *mhs = (struct mh_stats *) buffer;
+	struct mh_template *mh = (struct mh_template *) buffer;
+	int len; /* sizeof msg_data, including null chr, excl the string */
 	int i;
 /*
  * Fill in a message structure to be used in sending back the data.
  */
 	strcpy (msg.m_to, to);
 	strcpy (msg.m_from, MSG_MGR_NAME);
-	msg.m_proto = MT_MESSAGE;
-	msg.m_flags = 0;
-	msg.m_data = (char *) mhs;
-	mhs->mh_type = MH_STATS;
-	text = mhs->mh_text;
+	if (query)
+	{
+		msg.m_proto = MT_QUERY;
+		msg.m_flags = 0;
+		msg.m_data = (char *) mh;
+		mh->mh_type = MHQ_QTEXT;
+		text = buffer + sizeof (struct mh_template);
+		len = sizeof (struct mh_template) + 1;
+	}
+	else
+	{
+		msg.m_proto = MT_MESSAGE;
+		msg.m_flags = 0;
+		msg.m_data = (char *) mhs;
+		mhs->mh_type = MH_STATS;
+		text = mhs->mh_text;
+		len = sizeof (struct mh_stats);
+	}
 /*
  * Process name, user name, user id:
  */
@@ -2685,7 +2710,7 @@ char *to;
 /*
  * The 1 character in mh_text included in sizeof holds space for the '\0'
  */
-	msg.m_len = sizeof (struct mh_stats) + strlen (text);
+	msg.m_len = len + strlen (text);
 	send_msg (conp, &msg);
 /*
  * UNIX socket path and Internet port:
@@ -2695,13 +2720,13 @@ char *to;
 		sprintf(text+strlen(text), "internet socket: port %d", Port);
 	else
 		strcat (text, "internet socket: not enabled");
-	msg.m_len = sizeof (struct mh_stats) + strlen (text);
+	msg.m_len = len + strlen (text);
 	send_msg (conp, &msg);
 /*
  * Session genesis time
  */
 	sprintf (text, "session began: %s", (char *) ctime(&S_genesis));
-	msg.m_len = sizeof (struct mh_stats) + strlen (text) - 1;
+	msg.m_len = len + strlen (text) - 1;
 	text[strlen(text) - 1] = '\0';	/* remove \n from ctime */
 	send_msg (conp, &msg);
 /*
@@ -2709,12 +2734,12 @@ char *to;
  */
 	sprintf (text, "%d messages sent, %d bytes (%d/%d broadcast)",
 		S_nmessage, S_bnmessage, S_nbcast, S_bnbcast);
-	msg.m_len = sizeof (struct mh_stats) + strlen (text);
+	msg.m_len = len + strlen (text);
 	send_msg (conp, &msg);
 	sprintf (text,
 		"\t%d disconnects, with %d pipe signals, %d del rd %d wt",
 		S_ndisc, S_npipe, S_NDRead, S_NDWrite);
-	msg.m_len = sizeof (struct mh_stats) + strlen (text);
+	msg.m_len = len + strlen (text);
 	send_msg (conp, &msg);
 /*
  * Now go through and report on each connection.
@@ -2729,14 +2754,22 @@ char *to;
 			c->c_inet ? "Internet" : "Process ",
 			c->c_name, i, c->c_pid, c->c_nsend, c->c_bnsend,
 			c->c_nrec, c->c_bnrec, c->c_ndwrite);
-		msg.m_len = sizeof (struct mh_stats) + strlen (text);
+		msg.m_len = len + strlen (text);
 		send_msg (conp, &msg);
 	}
 /*
  * Send the EOF and quit.
  */
-	mhs->mh_text[0] = '\0';
-	msg.m_len = sizeof (struct mh_stats);
+	if (query)
+	{
+		mh->mh_type = MHQ_QDONE;
+		msg.m_len = sizeof (struct mh_template);
+	}
+	else
+	{
+		mhs->mh_text[0] = '\0';
+		msg.m_len = len;
+	}
 	send_msg (conp, &msg);
 }
 
