@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.7 1989-09-07 15:55:30 burghart Exp $	*/
+/* $Id: dev_x11.c,v 1.8 1989-09-28 11:28:39 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -13,9 +13,12 @@
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
 
-# define PTR_SIZE	18
+# define TGT_SIZE	17
 
 # define ABS(x)		((x) < 0 ? -(x) : x)
+
+# define TRUE	1
+# define FALSE	0
 
 typedef struct {
 	short x, y;
@@ -33,10 +36,12 @@ struct xtag
 	Visual	*x_visual;	/* The visual			*/
 	int	x_xres, x_yres;	/* The resolution of our window	*/
 	int	x_mono;		/* Is this a mono screen?	*/
-	long	x_fg, x_bg;	/* Foreground and background colors */
+	long	x_fg, x_bg;	/* Foreground and background colors	*/
 	int 	*x_dev_bg;	/* KLUGE: pointer to bg color in dev struct */
-	int	x_xptr, x_yptr;	/* Pointer position		*/
-	Pixmap	x_ptr_pixmap;	/* Pixmap to save data covered by pointer */
+	int	x_xtgt, x_ytgt;	/* Target position			*/
+	GC	x_tgt_gc;	/* Target GC (no clipping)		*/
+	int	x_do_pxm;	/* Do we need to do the target pixmap?	*/
+	Pixmap	x_tgt_pixmap;	/* Pixmap to save data covered by target*/
 };
 
 
@@ -96,13 +101,14 @@ struct device *dev;
 	}
 	screen = DefaultScreen (tag->x_display);
 	tag->x_mono = DefaultDepth (tag->x_display, screen) == 1;
+
 	tag->x_fg = 1;
 	tag->x_bg = 0;
 /*
- * No pointer for now
+ * No target for now
  */
-	tag->x_xptr = -1;
-	tag->x_yptr = -1;
+	tag->x_xtgt = -1;
+	tag->x_ytgt = -1;
 /*
  * Try to find a pseudocolor visual.  If we succeed, we use it; otherwise
  * it's monochrome city.
@@ -152,10 +158,10 @@ struct device *dev;
  */
  	XMapWindow (tag->x_display, tag->x_window);
 /*
- * Get the pixmap to save the area covered by the pointer
+ * Get the pixmap to save the area covered by the target
  */
-	tag->x_ptr_pixmap = XCreatePixmap (tag->x_display, tag->x_window, 
-		PTR_SIZE + 2, PTR_SIZE + 2, 
+	tag->x_tgt_pixmap = XCreatePixmap (tag->x_display, tag->x_window, 
+		TGT_SIZE + 2, TGT_SIZE + 2,
 		DefaultDepth (tag->x_display, screen));
 /*
  * Get a graphics context.
@@ -163,6 +169,12 @@ struct device *dev;
  	gcontext.foreground = WhitePixel (tag->x_display, screen);
 	gcontext.background = BlackPixel (tag->x_display, screen);
 	tag->x_gc = XCreateGC (tag->x_display, tag->x_window, 
+		GCForeground | GCBackground, &gcontext);
+/*
+ * Create a separate graphics context for the target, since we don't want
+ * clipping to affect it
+ */
+	tag->x_tgt_gc = XCreateGC (tag->x_display, tag->x_window, 
 		GCForeground | GCBackground, &gcontext);
 /*
  * Get the cursor set up.
@@ -230,15 +242,16 @@ char *ctag;
 
 	XClearWindow (tag->x_display, tag->x_window);
 /*
- * Clear the pointer, too
+ * Clear the target pixmap and remember we need to redo it
  */
-	tag->x_xptr = -1;
-	tag->x_yptr = -1;
+	XSetForeground (tag->x_display, tag->x_tgt_gc, 
+		BlackPixel (tag->x_display, 0));
+	XFillRectangle (tag->x_display, tag->x_tgt_pixmap, tag->x_tgt_gc, 
+		0, 0, TGT_SIZE + 2, TGT_SIZE + 2);
+	XSetForeground (tag->x_display, tag->x_tgt_gc, 
+		WhitePixel (tag->x_display, 0));
 
-	XSetFunction (tag->x_display, tag->x_gc, GXset);
-	XFillRectangle (tag->x_display, tag->x_ptr_pixmap, tag->x_gc, 
-		0, 0, PTR_SIZE + 2, PTR_SIZE + 2);
-	XSetFunction (tag->x_display, tag->x_gc, GXcopy);
+	tag->x_do_pxm = TRUE;
 }
 
 
@@ -264,11 +277,11 @@ int color, ltype, npt, *data;
  */
 	if (ltype == GPLT_SOLID)
 		XSetLineAttributes (tag->x_display, tag->x_gc, 0, LineSolid,
-			CapProjecting, JoinMiter);
+			CapButt, JoinMiter);
 	else
 	{
 		XSetLineAttributes (tag->x_display, tag->x_gc, 0,
-			LineOnOffDash, CapProjecting, JoinMiter);
+			LineOnOffDash, CapButt, JoinMiter);
 		XSetDashes (tag->x_display, tag->x_gc, 1,
 			D_table[ltype].d_pattern, D_table[ltype].d_ndash);
 	}
@@ -302,21 +315,35 @@ char *ctag;
 {
 	struct xtag *tag = (struct xtag *) ctag;
 /*
- * Draw in the pointer if it's been placed
+ * Draw in the target if it's been placed
  */
-	if (tag->x_xptr >= 0 && tag->x_yptr >= 0)
+	if (tag->x_xtgt >= 0 && tag->x_ytgt >= 0)
 	{
-		XSetForeground (tag->x_display, tag->x_gc, 
-			WhitePixel (tag->x_display, 0));
-		XDrawArc (tag->x_display, tag->x_window, tag->x_gc, 
-			tag->x_xptr - PTR_SIZE/2, tag->x_yptr - PTR_SIZE/2, 
-			PTR_SIZE, PTR_SIZE, 0, 25000);
-		XDrawLine (tag->x_display, tag->x_window, tag->x_gc, 
-			tag->x_xptr - PTR_SIZE/2, tag->x_yptr, 
-			tag->x_xptr + PTR_SIZE/2, tag->x_yptr);
-		XDrawLine (tag->x_display, tag->x_window, tag->x_gc, 
-			tag->x_xptr, tag->x_yptr - PTR_SIZE/2, 
-			tag->x_xptr, tag->x_yptr + PTR_SIZE/2);
+	/*
+	 * Save the portion of the screen which will be overwritten by 
+	 * the target, if necessary
+	 */
+		if (tag->x_do_pxm)
+		{
+			XCopyArea (tag->x_display, tag->x_window, 
+				tag->x_tgt_pixmap, tag->x_tgt_gc, 
+				tag->x_xtgt - TGT_SIZE/2 - 1, 
+				tag->x_ytgt - TGT_SIZE/2 - 1, 
+				TGT_SIZE + 2, TGT_SIZE + 2, 0, 0);
+			tag->x_do_pxm = FALSE;
+		}
+	/*
+	 * Draw the target
+	 */
+		XDrawArc (tag->x_display, tag->x_window, tag->x_tgt_gc, 
+			tag->x_xtgt - TGT_SIZE/2, tag->x_ytgt - TGT_SIZE/2, 
+			TGT_SIZE, TGT_SIZE, 0, 25000);
+		XDrawLine (tag->x_display, tag->x_window, tag->x_tgt_gc, 
+			tag->x_xtgt - TGT_SIZE/2, tag->x_ytgt, 
+			tag->x_xtgt + TGT_SIZE/2, tag->x_ytgt);
+		XDrawLine (tag->x_display, tag->x_window, tag->x_tgt_gc, 
+			tag->x_xtgt, tag->x_ytgt - TGT_SIZE/2, 
+			tag->x_xtgt, tag->x_ytgt + TGT_SIZE/2);
 	}
 /*
  * Flush everything out
@@ -372,8 +399,8 @@ int *x, *y;
 {
 	struct xtag *tag = (struct xtag *) ctag;
 
-	*x = tag->x_xptr;
-	*y = tag->x_yres - tag->x_yptr;
+	*x = tag->x_xtgt;
+	*y = tag->x_yres - tag->x_ytgt;
 	return;
 }
 
@@ -388,26 +415,23 @@ int	x, y;
 {
 	struct xtag *tag = (struct xtag *) ctag;
 /*
- * Restore the data under the old pointer location (if there is an old
- * pointer location)
+ * Restore the data under the old target location (if there is an old
+ * target location)
  */
-	if (tag->x_xptr > 0 && tag->x_yptr > 0)
-		XCopyArea (tag->x_display, tag->x_ptr_pixmap, tag->x_window,
-			tag->x_gc, 0, 0, PTR_SIZE + 2, PTR_SIZE + 2, 
-			tag->x_xptr - PTR_SIZE/2 - 1, 
-			tag->x_yptr - PTR_SIZE/2 - 1);
+	if (tag->x_xtgt > 0 && tag->x_ytgt > 0)
+		XCopyArea (tag->x_display, tag->x_tgt_pixmap, tag->x_window,
+			tag->x_tgt_gc, 0, 0, TGT_SIZE + 2, TGT_SIZE + 2, 
+			tag->x_xtgt - TGT_SIZE/2 - 1, 
+			tag->x_ytgt - TGT_SIZE/2 - 1);
 /*
  * Save the new target location
  */
-	tag->x_xptr = x;
-	tag->x_yptr = tag->x_yres - y;
+	tag->x_xtgt = x;
+	tag->x_ytgt = tag->x_yres - y;
 /*
- * Copy the portion of the screen which will be overwritten by the target
+ * Make sure we redo the pixmap on the next flush
  */
-	XCopyArea (tag->x_display, tag->x_window, tag->x_ptr_pixmap,
-		tag->x_gc, tag->x_xptr - PTR_SIZE/2 - 1, 
-		tag->x_yptr - PTR_SIZE/2 - 1, 
-		PTR_SIZE + 2, PTR_SIZE + 2, 0, 0);
+	tag->x_do_pxm = TRUE;
 
 	x11_flush (ctag);
 	return;
