@@ -10,7 +10,7 @@
 # include "ui_error.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_cstack.c,v 1.5 1989-08-21 10:21:46 corbet Exp $";
+static char *Rcsid = "$Id: ui_cstack.c,v 1.6 1994-04-14 14:15:09 burghart Exp $";
 
 /*
  * The list of free cs_entry structures.  Whenever we need a new one,
@@ -49,7 +49,10 @@ ucs_new_entry ()
 		Free_list = Free_list->cs_next;
 	}
 	else
+	{
 		new = (struct cs_entry *) getvm (sizeof (struct cs_entry));
+		memset ((char *) new, 0, sizeof (struct cs_entry));
+	}
 /*
  * Initialize it and put it onto the stack.
  */
