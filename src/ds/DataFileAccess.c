@@ -35,7 +35,7 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.12 1993-09-02 08:13:53 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.13 1993-09-23 08:25:06 granger Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -919,8 +919,8 @@ dfa_ForceClosure ()
 {
 	OpenFile *ofp, *next;
 
-	for (ofp = OpenFiles; ofp; ofp = ofp->of_next)
-		dfa_CloseFile (ofp);
+	while (OpenFiles)
+		dfa_CloseFile (OpenFiles);
 	/*
 	 * Free the memory in the OpenFile list as well
 	 */
