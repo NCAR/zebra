@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.1 1997-05-13 11:24:19 granger Exp $")
+RCSID ("$Id: Radar.c,v 2.2 1997-05-14 00:38:20 granger Exp $")
 
 
 static char *ScanNames[5] = 
@@ -216,10 +216,12 @@ char *comp;
 R_ScanMode scan;
 float *angle;
 {
+#ifdef notdef
 	char parm[64];
 
 	sprintf (parm, "%s-angle", r_ScanModeName(scan));
 	if (! pd_Retrieve (Pd, comp, parm, (char *)angle, SYMT_FLOAT))
+#endif
 	{
 		*angle = 0.0;
 		pd_Retrieve (Pd, "global", "altitude", 
@@ -462,15 +464,29 @@ float *alts;
 	msg_ELog (EF_DEBUG, "%s ...", buf);
 /*
  * Store the target scan type in the component for future reference.
- * If we're stepping to another altitude, we need to hold the angle
- * else we could revert to the most recent.
+ * If we're stepping to another altitude, and we *have* more than one
+ * altitude, we need to enter "hold angle" mode else we could revert 
+ * to the most recent.
  */
-	if (nstep != 0)
+	if (nstep != 0 && nalt > 1)
 		r_SetHoldAngle (comp, TRUE);
 	r_SetRadarScan (comp, scan);
 	return (nalt);
 }
 
+
+
+
+void
+r_NewAlt (char *comp, float alt)
+/*
+ * AltControl wants to tell us about the new altitude, so we need to
+ * update the angle for the particular scan type.
+ */
+{
+	R_ScanMode scan = r_TargetScanType (comp);
+	r_SetScanAngle (comp, scan, alt);
+}
 
 
 
@@ -565,7 +581,7 @@ R_ScanMode *scan;
  * to the type of the current scan.
  */
 	attr = r_ScanMode (comp);
-	if (nstep != 0)
+	if (attr == R_ANY && nstep != 0)
 	{
 		/* Use the type of the current scan, if any */
 		attr = r_TargetScanType (comp);

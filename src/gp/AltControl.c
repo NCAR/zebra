@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.22 1997-05-13 11:24:15 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.23 1997-05-14 00:38:19 granger Exp $")
 
 #define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -351,6 +351,10 @@ int nstep;
 	msg_ELog (EF_DEBUG, "new altitude %.1f", alts[next]);
 	sprintf (scratch, "%.4f", alts[next]);
 	pd_Store (Pd, "global", "altitude", scratch, SYMT_STRING);
+#ifdef notdef
+	if (rspace)
+		r_NewAlt (comps[AltControlComp], alts[next]);
+#endif
 /*
  * and the new altitude label
  */

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.58 1997-05-13 21:32:28 ishikawa Exp $ */
+/* $Id: GraphProc.h,v 2.59 1997-05-14 00:38:20 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -362,6 +362,7 @@ int r_RadarSpace (char *comp);
 R_ScanMode r_ScanMode (char *comp);
 int r_GetAlts (PlatformId pid, char *comp, int nstep, float *alts);
 int r_GetAngle (PlatformId pid, ZebTime *t, float *angle, R_ScanMode *scan);
+void r_NewAlt (char *comp, float alt);
 void r_AddAnnot (char *comp, char *platform);
 
 /* Rubber bands */
