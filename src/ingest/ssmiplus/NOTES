@@ -1,0 +1,153 @@
+
+write header file which holds 1b header and data scan record structures
+ ---> Done.
+
+add option to specify 1b format and file name
+ ---> Done.
+
+Finish C++ implementation of the source and scan classes for the L1B formats.
+ ---> Done.
+
+Use ssmil1btatb.f to calculate an OUTDAT structure and then process it for
+L1B same as for RSS.
+ ---> Done.
+
+In ProcessFile(), create two SquareScans, one for antenna temperatures and
+one for brightness temperatures (if needed).  Either that or add space for
+brightness temperatures in SquareScan and add a method AddTBOutdat for
+adding an OUTDAT with brightness temperatures in it.
+
+Add Tcl interpreter for specifying region limits, resolutions, platform
+names, fields to ingest, input devices, formats, and other such parameters.
+ ---> Done.
+
+Add some Tk stuff to provide fancy feedback and maybe allow some settings
+to be made or modified at startup.
+
+If we want to do both ta and tb, adjust square scans to have both
+ta and tb arrays (and a flag for which arrays are valid?) and slots
+for any other fields we want, such as hot and cold counts.
+
+Add extended tcl and use the C++ interp object in tcl++.h
+
+warning in SS::AddOutdat about when rolling over
+
+test result from ReadABScan for end-of-file; add eof test to
+MoreScans() also.
+
+report when file didn't contain as many records as expected
+
+file after /net/tcw/data/ssmi/S4.D92363.S2210.intoga contains
+bad number of records in header
+
+---------------------------------------------------------------------
+The doc to be included with the data:
+
+The tape contains 4 tar files.  Each extracts into a single directory:
+
+	ssmi_s2		platform data directories
+	ssmi_s4
+	ssmi_s5
+
+	config		README (this file), display config files,
+			and ingestor source
+
+I screwed up making the tape, so the order of the files on the tape
+is ssmi_s4, ssmi_s5, config, and ssmi_s2.
+
+There are three platforms, all with the prefix "ssmi_": 
+
+	ssmi_s2		Satellite 'craft id' 2 aka F-8
+	ssmi_s4		Satellite 'craft id' 4 aka F-10
+	ssmi_s5		Satellite 'craft id' 5 aka F-11
+
+The original data files were named Sx.*, where 'x' was the craft id as
+above.  For each satellite, only the antenna temperatures are calculated,
+corresponding to each of the 7 channels of the microwave imager:
+
+	'Low' frequencies, A scans only, 64 cells per scan:
+	-----
+	ta19v		Antenna temperature, 19 GHz vertical polarization
+	ta19h		...and so on...
+	ta22v
+	ta37v
+	ta37h
+
+	'High' frequencies, A and B scans, 128 cells per scan:
+	-----
+	ta85v
+	ta85h
+
+Neither the surface-type index nor the brightness temperatures were
+calculated.  They could be calculated later if necessary.  At this point I
+am quite willing to do without trying to add the calculations.
+
+I've included the source for the ingestor, along with the original data
+tapes, in case anything needs to be re-ingested.  I have the copies of the
+data in /net/tcw/data/ssmi.  The ingestor works by compiling consecutive
+scans into one set, verifying that the scans are close to each other in
+time.  The lat/lon location of each cell of each scan is converted to
+coordinates on a km grid whose origin is the origin of the coare CAP plots.
+A grid is designed according to the range of the scan cells and the
+resolution parameter.  Since the high and low frequencies have different
+coverage, two different mappings are generated for mapping scan cells into
+grid points.  A grid point receives the closest cell within a specific
+radius.  For each of the high- and low- mappings, the cell temperature
+values are filled into the grid.  Grid points which did not fall into the
+range of the mapping are filled with zero.  The scale and offset for
+compressing the temperatures (K) into bytes are 1 and 100, respectively.
+So fill values will show up as temperatures of 100 K.  As long as the
+center and step of the raster plot do not include 100 K, the raster plots
+will give a good representation of the satellite scans.  Because of the
+radius limit, a series of bad scans will appear broken up.
+
+The parameters used to ingest this dataset, taken directly from the tcl
+script:
+
+set Format level1b			;# "rss", "level1b", or "1b"
+set Resolution 12.5			;# kilometers
+set MinScans 32				;# min number of scans to make an image
+set DisableLimits true			;# take everything
+set Radius 50.0				;# kilometers
+Origin -9.42 159.97 			;# use the same origin for all images
+SetFields 	ta19v ta19h ta22v ta37v ta37h ta85v ta85h
+
+The 85 GHz channels on F-8 are frequently bad and so the raster plots will
+show up as a solid color.  Even though all of the images are created with
+12.5 km resolution, only the 85 GHz channels are actually sampled at that
+resolution.  The low-frequency cells are about 25 km apart.
+
+I've played around with plotting all three satellite platforms at once.
+The effect looks pretty good, but it would be really cool if raster plots
+supported transparency.  Maybe we should add a 'fill-byte' or
+'transparent-byte' parameter to raster plots for setting the GC clip-mask,
+or use OR for the logical function?  Wouldn't that be neat!
+
+Configuration changes:
+
+There is a module file, 'ssmi', to add to the modules directory, and a
+generic ssmi plot component, 'p_ssmi', to add to the pd directory.  The
+module file only contains a field menu, and the plot description is similar
+to p_raster except for setting the middle menu to the module menu.  The
+IconBar includes three submenus for the satellite icon menu.  Each submenu
+selects one of the fields for one of the three satellites.  I added an icon
+for each of the satellite names in the icons directory.
+
+The defaults pd contains some generic center-step defaults for each of the
+fields.  These are not tailored to each specific field, consequently some
+of the plots show up with gaps from out-of-range values.
+
+A quick display configuration is in ssmi.dc.
+
+And, of course, ds.config needs three more Satellite instances: ssmi_s2,
+ssmi_s4, and ssmi_s5.
+
+All of the stuff on tape is also under stout:/sfcd/ssmi.  The config
+directory is also in stout:/sfcd/ssmi/config.tar.gz.
+
+In the ingestor source directory, config/ssmi_ingest, the script which
+processed the data files is ssmi.tcl.
+
+P.S. Thank Dick for the tapes; I stole them from his office.
+
+P.P.S Sorry this took so long.
