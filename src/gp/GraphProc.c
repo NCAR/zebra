@@ -28,6 +28,8 @@
 # include <ui.h>
 # include <fcntl.h>
 
+# include "xhelp.h"
+
 # include "config.h"
 # include "defs.h"
 # include "message.h"
@@ -43,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.13 1991-12-07 18:04:04 kris Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.14 1991-12-13 15:35:09 kris Exp $")
 
 /*
  * Default resources.
@@ -227,6 +229,8 @@ finish_setup ()
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
 	int pd_removeparam (), substr_remove(), strlength ();
 	char *initfile, perf[80];
+	XSizeHints hints;
+	long supplied;
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
@@ -250,11 +254,9 @@ finish_setup ()
  * our output.
  */
 	XtSetArg (args[0], XtNinput, True);
-# ifdef notdef
-	XtSetArg (args[1], XtNoverrideRedirect, False);
-# endif
+	XtSetArg (args[1], XtNwidthInc, 4);
 	GrShell = XtCreatePopupShell ("grshell", applicationShellWidgetClass,
-		Top, args, 1);
+		Top, args, 2);
 /*
  * Inside this shell goes the graphics widget itself.
  */
@@ -461,6 +463,7 @@ struct ui_command *cmds;
 	static bool first = TRUE;
 	extern void mc_MovieRun ();
 	struct dm_event dme;
+	char helpfile[100];
 
 	switch (UKEY (*cmds))
 	{
@@ -593,6 +596,14 @@ struct ui_command *cmds;
 		break;
 	   case GPC_ALIAS:
 	   	F_Alias (UPTR (cmds[1]), UPTR (cmds[2]));
+		break;
+	/*
+	 * Get some help.
+	 */
+	   case GPC_HELP:
+		fixdir ("ZEB_HELPFILE", LIBDIR, "zeb.hlp", helpfile);
+		XhCallXHelp (Graphics, helpfile, XHELP_INTRO_ID, 
+			"Welcome to Zeb");
 		break;
 	/*
 	 * "Should never happen"
