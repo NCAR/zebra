@@ -45,7 +45,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.17 1995-08-10 18:45:23 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.18 1995-09-07 21:20:46 granger Exp $")
 
 
 # define LABELWIDTH	65
@@ -83,10 +83,7 @@ static Widget HT_Text = NULL;
 
 static Widget TW_WindowMenu = NULL;
 
-# define LAST_VISITED	"last visited"
 # define MAX_VISITED	5
-static ZebTime Visited[MAX_VISITED];
-static int NVisited = 0;
 
 static Widget Htext = NULL;
 static Widget Stext = NULL;
@@ -149,9 +146,11 @@ static void tw_HTAddCurrent FP ((Widget w, XtPointer client, XtPointer call));
 static void tw_HTEntryCallback FP ((Widget w, XtPointer client, XtPointer ));
 static void tw_HTDeleteCallback FP ((Widget w, XtPointer client, 
 				     XtPointer call));
-static void tw_HTSyncEntries FP ((Widget menu, int entry));
+static void tw_HTSyncEntries FP ((Widget menu));
+static void tw_HTSyncMenus FP ((void));
 static void tw_HTLabel FP ((char *label));
-static void tw_InsertHotTime FP ((ZebTime *zt, char *label));
+static int tw_InsertHotTime FP ((ZebTime *zt, char *label));
+static int tw_RemoveHotTime FP ((ZebTime *zt));
 static Widget tw_HTCreateMenu FP ((Widget parent, char *title,
 				   char *menuname, void (*callback)()));
 static Widget tw_CreateWindowMenu FP ((Widget parent, char *title,
@@ -161,8 +160,6 @@ static Widget tw_SkipMenu FP ((Widget parent, char *title, char *name,
 			       void (*callback)()));
 static void tw_SkipMenuCallback FP ((Widget w, XtPointer client, XtPointer));
 static void tw_Visited FP ((ZebTime *zt));
-static void tw_AppendVisited FP ((ZebTime *zt));
-
 
 
 void
@@ -240,9 +237,6 @@ char *label;
  * window.  All changes must go through here.
  */
 {
-#ifdef notdef
-	int year, month, day, hour, minute, second;
-#endif
 	Arg true, false;
 
 	XtSetArg (true, XtNstate, True);
@@ -260,10 +254,6 @@ char *label;
 	}
 	if (! label)
 		label = (zt) ? "History Mode" : "Real Time Mode";
-#ifdef notdef
-	TC_ZtSplit (&Histdate, &year, &month, &day, &hour, &minute, &second,0);
-	TC_ZtAssemble (&Histdate, year, month, day, hour, minute, 0, 0);
-#endif
 	Histdate.zt_MicroSec = 0;
 /*
  * If no zt we've gone into real time mode, else we've gone to history.
@@ -770,6 +760,7 @@ XtAppContext appc;
 					    button_bar, args, n);
 	HT_ForgetMenu = tw_HTCreateMenu (menubutton, "Forget History Time", 
 				 HT_ForgetMenuName, tw_HTDeleteCallback);
+	tw_HTSyncMenus ();
 /*
  * End of hot-times bar
  * ======================================================================
@@ -1129,37 +1120,43 @@ void (*func)();
 }
 
 
+
+
 void
 tw_AddHotTime (zt, label)
 ZebTime *zt;
 char *label;
 {
-	if (strstr (label, LAST_VISITED))
-		tw_AppendVisited (zt);
-	else
-		tw_InsertHotTime (zt, label);
+	tw_InsertHotTime (zt, label);
+	/*
+	 * Sync the menu labels and call the add callback
+	 */
+	tw_HTSyncMenus ();
+	if (HT_AddCallback)
+		(*HT_AddCallback) (zt, label);
 }
 
 
 
-static void
+static int
 tw_InsertHotTime (zt, label)
 ZebTime *zt;
 char *label;
 /*
  * Insert this hot time into the list.  The label is truncated if necessary
  * to fit into the hot time structure.  Keep the list sorted in
- * reverse chronological order (most recent times first).
- * If the time already exists, then only the label is changed.
+ * reverse chronological order (most recent times first).  Return the
+ * slot in the hot times array to which the entry was added.
  */
 {
 	int i;
-	int insert;
+	int insert, last;
 
 	for (i = 0; i < NTimes; ++i)
 		if (TC_LessEq (HTimes[i].ht_zt, *zt))
 			break;
 	insert = i;
+	last = 0;
 	if (insert < NTimes)
 	{
 		if (! TC_Eq (HTimes[insert].ht_zt, *zt))
@@ -1177,8 +1174,13 @@ char *label;
 			}
 		}
 		/*
-		 * If the times are equal we overwrite this spot
+		 * If the times are equal we overwrite this spot, but
+		 * we carry over the visited order.
 		 */
+		else
+		{
+			last = HTimes[insert].ht_visited;
+		}
 	}
 	else if (insert >= MAX_HOT_TIMES)
 		/*
@@ -1189,16 +1191,10 @@ char *label;
 		++NTimes;	/* Adding to the end of the array */
 
 	HTimes[insert].ht_zt = *zt;
+	HTimes[insert].ht_visited = last;
 	strncpy (HTimes[insert].ht_label, label, HT_LABEL_LEN);
 	HTimes[insert].ht_label[HT_LABEL_LEN - 1] = '\0';
-	/*
-	 * Sync the menu labels and call the add callback
-	 */
-	tw_HTSyncEntries (HT_Menu, insert);
-	tw_HTSyncEntries (HT_ForgetMenu, insert);
-	if (HT_AddCallback)
-		(*HT_AddCallback) (&HTimes[insert].ht_zt, 
-				   HTimes[insert].ht_label);
+	return (insert);
 }
 
 
@@ -1207,36 +1203,57 @@ void
 tw_DeleteHotTime (zt)
 ZebTime *zt;
 /*
- * Remove this hot time from the list.  Just find it and move everything
- * up a slot on top of it.
+ * Remove the hot time from the list, and if there sync the menus.
  */
 {
-	int i;
-
-	for (i = 0; i < NTimes; ++i)
-		if (TC_Eq (HTimes[i].ht_zt, *zt))
-			break;
-	if (i < NTimes)
+	if (tw_RemoveHotTime (zt) >= 0)
 	{
-		/*
-		 * So we need to move everything up one.
-		 */
-		--NTimes;
-		for ( ; i < NTimes; ++i)
-		{
-			HTimes[i] = HTimes[i + 1];
-		}
 		/*
 		 * Sync the menu labels and call the delete callback
 		 */
-		tw_HTSyncEntries (HT_Menu, -1);
-		tw_HTSyncEntries (HT_ForgetMenu, -1);
+		tw_HTSyncMenus ();
 		if (HT_DeleteCallback)
 			(*HT_DeleteCallback) (zt);
 	}
+}
+
+
+
+static int
+tw_RemoveHotTime (zt)
+ZebTime *zt;
+/*
+ * Remove this hot time from the list.  Just find it and move everything
+ * up a slot on top of it.  Don't bother sync'ing the menus just yet.
+ * If the entry had a visited count, we'll have to move up all the counts
+ * below it.
+ */
+{
+	int i, v, last;
+
+	for (v = 0; v < NTimes; ++v)
+		if (TC_Eq (HTimes[v].ht_zt, *zt))
+			break;
+	if (v >= NTimes)
+		return (-1);
+	last = HTimes[v].ht_visited;
+	if (last > 0 && last < MAX_VISITED)
+	{
+		for (i = 0; i < NTimes; ++i)
+		{
+			if (HTimes[i].ht_visited > last)
+				--HTimes[i].ht_visited;
+		}
+	}
 	/*
-	 * If we didn't find it we don't do anything
+	 * Now we need to move everything up one slot.
 	 */
+	--NTimes;
+	for (i = v; i < NTimes; ++i)
+	{
+		HTimes[i] = HTimes[i + 1];
+	}
+	return (v);
 }
 
 
@@ -1331,14 +1348,19 @@ char *label;
 
 
 static void
-tw_HTSyncEntries (menu, entry)
+tw_HTSyncMenus ()
+{
+	tw_HTSyncEntries (HT_Menu);
+	tw_HTSyncEntries (HT_ForgetMenu);
+}
+
+
+
+static void
+tw_HTSyncEntries (menu)
 Widget menu;
-int entry;
 /*
- * Sync the menu entries with the list of hot times.  If non-negative, entry
- * is the index of the hot time which has been added or changed.  It needs
- * to be unmanaged and re-managed so that the menu recalculates its
- * geometry.
+ * Sync the menu entries with the list of hot times.
  */
 {
 	Arg args[10];
@@ -1361,28 +1383,28 @@ int entry;
 	wlist += 2;
 	nchildren -= 2;
 	/*
-	 * For each of the times in the list, give the entry widget
-	 * the correct label and make sure it is managed.
+	 * For each of the times in the list, give the entry widget the
+	 * correct label.  Unmanage all of the children first so that the
+	 * new geometry includes changes in any currently managed entries.
+	 * Brutal but effective.
 	 */
-	if (entry >= 0)
-		XtUnmanageChild (wlist[entry]);	/* it gets re-managed below */
+	XtUnmanageChildren (wlist, nchildren);
 	for (i = 0; (i < NTimes) && (i < nchildren); ++i)
 	{
 		Widget w = wlist[i];
-		sprintf (label, "%19s  %s", 
-			 TC_AscTime (&HTimes[i].ht_zt, TC_Full),
-			 HTimes[i].ht_label);
+		if (HTimes[i].ht_visited > 0)
+			sprintf (label, "%19s %2i %s", 
+				 TC_AscTime (&HTimes[i].ht_zt, TC_Full),
+				 HTimes[i].ht_visited, HTimes[i].ht_label);
+		else
+			sprintf (label, "%19s    %s", 
+				 TC_AscTime (&HTimes[i].ht_zt, TC_Full),
+				 HTimes[i].ht_label);
 		XtSetArg (args[0], XtNlabel, label);
 		XtSetValues (w, args, (Cardinal)1);
 	}
 	if (i)
 		XtManageChildren (wlist, (Cardinal) i);
-	/*
-	 * If an entry beyond the active ones is still managed, then one
-	 * or more children need to be unmanaged.
-	 */
-	if ((i < nchildren) && XtIsManaged (wlist[i]))
-		XtUnmanageChildren (wlist + i, nchildren - i);
 }
 
 
@@ -1405,6 +1427,7 @@ void (*callback)();
 
 	narg = 0;
 	XtSetArg (args[narg], XtNlabel, title);	++narg;
+	XtSetArg (args[narg], XtNallowShellResize, True); ++narg;
 	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
 				   parent, args, narg);
 /*
@@ -1622,61 +1645,100 @@ static void
 tw_Visited (zt)
 ZebTime *zt;
 /*
- * Put this time at the front of the visited list.  If it has already
- * been visited, then swap it with the first entry.
+ * Add this time to the top of the most-recently-visited entries
  */
 {
-	int i, slot = -1;
-	char label[64];
-
-	/*
-	 * So first we need to remove the existing visited entries.
-	 */
-	for (i = 0; i < NVisited; ++i)
-	{
-		if (TC_Eq (Visited[i], *zt))
-			slot = i;
-		tw_DeleteHotTime (&Visited[i]);
-	}
-	/*
-	 * If this one existed, then only shift times down as far
-	 * as the existing slot, which gets overwritten.
-	 */
-	if ((slot < 0) && (NVisited < MAX_VISITED))
-		++NVisited;
-	if (slot < 0)
-		slot = NVisited - 1;
-	for (i = slot; i > 0; --i)
-		Visited[i] = Visited[i-1];
-	Visited[0] = *zt;
-	/*
-	 * Now add them back to the hot times list, but in reverse so that
-	 * more recently visited duplicates appear rather than older ones.
-	 */
-	for (i = NVisited - 1; i >= 0; --i)
-	{
-		sprintf (label, "#%d %s", i+1, LAST_VISITED);
-		tw_InsertHotTime (&Visited[i], label);
-	}
+	tw_AddVisited (zt, 1, NULL);
 }
 
 
 
-static void
-tw_AppendVisited (zt)
+void
+tw_AddVisited (zt, visited, label)
 ZebTime *zt;
+int visited;
+char *label;
 /*
- * Append a previously-existing visited time to the end of the
- * current visited list.
+ * Set the visited count of this time and shift the other counts to make
+ * room for it.  If the time is new, use the given label.  Otherwise the
+ * label has no effect.
  */
 {
-	char label[64];
-
-	if (NVisited == MAX_VISITED)
-		return;
-	Visited[NVisited] = *zt;
-	sprintf (label, "#%d %s", NVisited+1, LAST_VISITED);
-	tw_InsertHotTime (&Visited[NVisited], label);
-	++NVisited;
+	static char *generic = "";
+	int last;
+	HotTime *ht, *remove = NULL;
+	int insert;
+	int shift;
+/*
+ * Enforce some limits
+ */
+	if (visited < 0 || visited > MAX_VISITED)
+		visited = 0;
+/*
+ * See if this time is already in the menu, and see if another time already
+ * has this visited count.
+ */
+	shift = 0;
+	insert = -1;
+	for (ht = HTimes; ht - HTimes < NTimes; ++ht)
+	{
+		if (TC_Eq (ht->ht_zt, *zt))
+			insert = ht - HTimes;
+		if (ht->ht_visited == visited)
+			shift = 1;
+	}
+	last = MAX_VISITED + 1;
+	if (insert < 0)
+	{
+		insert = tw_InsertHotTime (zt, (label) ? label : generic);
+	}
+	else if (HTimes[insert].ht_visited)
+	{
+		last = HTimes[insert].ht_visited;
+	}
+/*
+ * Now go back through the hot times and shift the visited counts
+ * to make room for the new one, unless the new one's count is zero or
+ * there was no time with that count and we don't need to shift.
+ */
+	for (ht = HTimes; ht - HTimes < NTimes; ++ht)
+	{
+		if (TC_Eq (ht->ht_zt, *zt))
+		{
+			ht->ht_visited = visited;
+		}
+		else if (visited > 0 && shift)
+		{
+			if ((ht->ht_visited >= visited) && 
+			    (ht->ht_visited < last))
+			{
+				++ht->ht_visited;
+				if (ht->ht_visited > MAX_VISITED &&
+				    ht->ht_label[0] == '\0')
+					remove = ht;
+				ht->ht_visited %= (MAX_VISITED + 1);
+			}			
+		}
+	}	
+	/*
+	 * Even though the time may not be new, the visit count changed.
+	 */
+	if (HT_AddCallback)
+		(*HT_AddCallback) (zt, HTimes[insert].ht_label);
+	/*
+	 * Remove a generic visited time which dropped off the end.
+	 */
+	if (remove)
+	{
+		ZebTime rm = remove->ht_zt;
+		tw_RemoveHotTime (&rm);
+		if (HT_DeleteCallback)
+			(*HT_DeleteCallback) (&rm);
+	}
+	/*
+	 * Sync the menus on our way out.
+	 */
+	tw_HTSyncMenus ();
 }
+
 
