@@ -11,7 +11,7 @@
 
 #include "defs.h"
 
-RCSID("$Id: version.c,v 2.1 1996-11-19 07:57:57 granger Exp $")
+RCSID("$Id: version.c,v 2.2 2000-02-04 17:46:56 burghart Exp $")
 
 /*
  * Hand edit these lines until it can be done automatically.  One possibility
@@ -20,13 +20,13 @@ RCSID("$Id: version.c,v 2.1 1996-11-19 07:57:57 granger Exp $")
  * well as updating the ChangeLog and this file. $Name: not supported by cvs2svn $
  */
 static const char _zl_version_id1[] = 
-"@(#)$ZebraVersion: 4.2.x $";
+"@(#)$ZebraVersion: 5.0beta-ExportDate $";
 
 static const char _zl_version_id2[] = 
 "@(#)$ZebraVersion: Research Data Program, NCAR $";
 
 static const char _zl_version_id3[] = 
-"@(#)$Copyright: University Corporation for Atmospheric Research, 1987-1996 $";
+"@(#)$Copyright: University Corporation for Atmospheric Research, 1987-2000 $";
 
 const char *V_format (buf, a, b, c, d)
 char *buf;
