@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.6 1990-03-02 15:57:14 corbet Exp $ */
+/* $Id: ui_tty.c,v 1.7 1990-06-06 13:28:29 corbet Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -290,8 +290,10 @@ tty_set ()
 	tptr = TC_home;
 	if (cp = tgetstr ("ho", &tptr))
 		strcpy (TC_home, cp);
+	tptr = TC_cl_eos;
 	if (cp = tgetstr ("cl", &tptr))
 		strcpy (TC_cl_eos, cp);
+	tptr = TC_cm;
 	if (cp = tgetstr ("cm", &tptr))
 		strcpy (TC_cm, cp);
 	N_lines = tgetnum ("li");
@@ -322,6 +324,7 @@ tty_set ()
 		syserr (status, "No se");
 	TC_se[len] = 0;
 # else
+	tptr = TC_se;
 	if (cp = tgetstr ("se", &tptr))
 		strcpy (TC_se, cp);
 # endif
@@ -336,8 +339,10 @@ tty_set ()
 			&TC_BUF_SIZ, &len, TC_ue);
 	TC_ue[len] = '\0';
 # else
+	tptr = TC_ul;
 	if (cp = tgetstr ("us", &tptr))
 		strcpy (TC_ul, cp);
+	tptr = TC_ue;
 	if (cp = tgetstr ("ue", &tptr))
 		strcpy (TC_ue, cp);
 # endif
