@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.20 1994-11-01 03:27:23 case Exp $
+/**/# $Id: site-def.h.template,v 1.21 1995-01-19 18:56:21 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -361,8 +361,8 @@
 
 /*
  * If you are installing REORDER and wish to add the Dorade alpha version,
- * set this to yes.  Solo must have already been installed if you wish to use this
- * option.
+ * set this to yes.  Solo must already be installed if you wish to 
+ * use this option.
  */
 
 # define BuildDoradeReorder NO
