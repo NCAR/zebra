@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.33 1997-08-22 14:19:48 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.34 1997-08-26 22:44:03 burghart Exp $")
 
 
 /*
@@ -402,18 +402,6 @@ static Regular Regular2 =
     2.5,	/* lon_spacing */
     -90.0,	/* s_lat */
     0.0		/* w_lon */
-};
-
-
-static Regular RegularBogus = 
-/*
- * 0.5 degree spacing in both directions
- */
-{
-    0.5,	/* lat_spacing */
-    0.5,	/* lon_spacing */
-    28.0,	/* s_lat */
-    -95.0	/* w_lon */
 };
 
 
