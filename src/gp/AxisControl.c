@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.14 1993-10-07 16:57:09 corbet Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.15 1993-11-15 22:42:16 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1023,7 +1023,7 @@ float   *ticInterval;
 
 
 
-void
+static void
 ac_GetLabel (pd, c, side, label)
 plot_description pd;
 char *c, side, *label;
