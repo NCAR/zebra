@@ -29,7 +29,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.24 1994-06-07 20:09:27 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.25 1994-07-14 17:22:47 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -140,7 +140,7 @@ Location *loc;
  */
 {
 
-	char sloc[80];
+	char sloc[80], ltime[80];
 	PlatformId pid;
 	DataChunk *dc;
 /*
@@ -166,7 +166,20 @@ Location *loc;
 		msg_ELog (EF_PROBLEM, "Unknown platform %s for loc", platform);
 		return (FALSE);
 	}
-	if (! ds_DataTimes (pid, when, 1, DsBefore, actual))
+/*
+ * Some platforms want the location closest to the display time (i.e. aircraft,
+ * boats); others need the observation beginning (soundings).
+ */
+	if (pda_Search (Pd, c, "location-time", platform, ltime, SYMT_STRING)
+			&& ! strcmp (ltime, "observation"))
+	{
+		if (! ds_GetObsTimes (pid, when, actual, 1, 0))
+		{
+			msg_ELog (EF_DEBUG, "No position for %s", platform);
+			return (FALSE);
+		}
+	}
+	else if (! ds_DataTimes (pid, when, 1, DsBefore, actual))
 	{
 		msg_ELog (EF_DEBUG, "No position info for %s", platform);
 		return (FALSE);

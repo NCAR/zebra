@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.34 1994-05-24 01:00:12 granger Exp $";
+	"$Id: Overlay.c,v 2.35 1994-07-14 17:22:43 corbet Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -1547,21 +1547,21 @@ int update;
 		px = XPIX (x);
 		py = YPIX (y);
 		I_PositionIcon (comp, plist[plat], &loctime, icon, px, py, fg);
-# ifdef notdef
-		XSetTSOrigin (Disp, Gcontext, px, py);
-		XFillRectangle (Disp, GWFrame (Graphics), Gcontext, px, py,
-			icon->oi_w, icon->oi_h);
-# endif
 		(void) I_GetPMap (icon, &xh, &yh, &width, &height);
 	/*
 	 * Annotate beneath the icon if called for.
 	 */
 	 	if (opt != NoLabel)
 		{
+			char *strrchr (), *plabel;
+			if (plabel = strrchr (plist[plat], '/'))
+				plabel++;
+			else
+				plabel = plist[plat];
 			XSetFillStyle (Disp, Gcontext, FillSolid);
 			DrawText (Graphics, GWFrame (Graphics), Gcontext,
 				px + width/2 - xh, py + height - yh, 
-				(opt == LabelString) ? label : plist[plat],
+				(opt == LabelString) ? label : plabel,
 				0.0, asize, JustifyCenter, JustifyTop);
 			XSetFillStyle (Disp, Gcontext, FillStippled);
 		}
