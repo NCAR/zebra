@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.16 1993-08-26 20:18:30 corbet Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.17 1993-10-14 20:21:59 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,16 +20,19 @@ static char *rcsid = "$Id: Icons.c,v 2.16 1993-08-26 20:18:30 corbet Exp $";
  * maintenance or updates for its software.
  */
 # include <X11/Intrinsic.h>
+# include <X11/IntrinsicP.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/MenuButton.h>
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
+# include <X11/extensions/shape.h>
 # include "defs.h"
 # include "pd.h"
 # include "message.h"
 # include "DataStore.h"
 # include "GraphProc.h"
+# include "ActiveArea.h"
 # include "config.h"
 
 
@@ -92,9 +95,9 @@ static struct 	IconList *I_GetWidget FP ((struct IconList **,
 			struct IconList **));
 static void 	I_MenuPopup FP ((Widget, XEvent *, String *, Cardinal *));
 static void	I_Clear FP ((struct IconList **, struct IconList **));
-void		I_PositionIcon FP ((char *, char *, ZebTime, char *, int, 
-			int, int));
 void		I_ClearPosIcons FP (());
+static Pixmap	I_GetPMap FP ((char *, int *, int *, int *, int *));
+static void	I_AAButton FP ((ActiveArea *, XEvent *));
 
 
 /*
@@ -129,12 +132,6 @@ I_init ()
 	XtRegisterGrabAction (I_MenuPopup, True,
 		ButtonPressMask|ButtonReleaseMask, GrabModeAsync,
 		GrabModeAsync);
-# ifdef notdef
-/* 
- * Set up our translations.
- */
-	MBTranslations = XtParseTranslationTable (Translations);
-# endif
 }
 
 
@@ -178,6 +175,102 @@ I_ClearPosIcons ()
 }
 
 
+
+
+
+void
+I_PositionIcon (comp, platform, zt, name, x, y, fg)
+char	*comp, *platform;
+ZebTime	*zt;
+char	*name;
+int	x, y, fg;
+/*
+ * Place a position icon named 'name' at the location (x,y), color fg.
+ */
+{
+	int xh, yh, w, h;
+	Pixmap pmap = I_GetPMap (name, &xh, &yh, &w, &h);
+	XGCValues vals;
+	bool active = FALSE;
+/*
+ * Back off to put the hotspot on the requested place.
+ */
+	x -= xh;
+	y -= yh;
+/*
+ * Write the icon into the display frame.
+ */
+	SetClip (TRUE);
+	vals.foreground = fg;
+	vals.fill_style = FillStippled;
+	vals.stipple = pmap;
+	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple, &vals); 
+	XSetTSOrigin (Disp, Gcontext, x, y);
+	XFillRectangle (Disp, GWFrame (Graphics), Gcontext, x, y, w, h);
+	ResetGC ();
+/*
+ * See if they want this to be an active area, and set it up if so.
+ */
+	if (pda_Search (Pd, comp, "active-icon", platform, &active, SYMT_BOOL)
+	    && active)
+		aa_AddArea (x, y, w, h, comp, platform, 0, I_AAButton);
+}
+
+
+
+
+static void
+I_AAButton (area, ev)
+ActiveArea *area;
+XEvent *ev;
+/*
+ * Somebody has poked on this area.
+ */
+{
+	static char *bnames[3] = { "left", "middle", "right" };
+	char pname[32], menu[64];
+	char *mp = menu; /* kludge */
+	SValue v;
+	Arg arg;
+/*
+ * Look up a menu for this button.
+ */
+	sprintf (pname, "posicon-%s-menu", bnames[ev->xbutton.button - 1]);
+	if (! pda_Search (Pd, area->aa_comp, pname, area->aa_plat, menu,
+			  SYMT_STRING))
+		return;
+/*
+ * Tweak variable values.
+ */
+	v.us_v_ptr = area->aa_comp;
+	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
+	v.us_v_int = TRUE;
+	usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
+	v.us_v_ptr = area->aa_plat;
+	usy_s_symbol (Vtable, "icon_platform", SYMT_STRING, &v);
+/*
+ * Throw it up onto the screen, and let it handle things from here.
+ */
+	if (strcmp (menu, "DataAvailable") && strcmp (menu, "FieldMenu"))
+		uw_IWRealize (menu, Graphics);
+/*
+ * Specify the menu name in the MenuButton's menuName resource so that
+ * further actions can find it
+ */
+	XtSetArg (arg, XtNmenuName, menu);
+	XtSetValues (Graphics, &arg, (Cardinal)1 );
+/*
+ * We have to explicitly call the actions from here since attempting to
+ * popup the menu is conditional on whether a menu was found for this
+ * menu for the particular button.  Hence the actions cannot be 
+ * unconditionally called via the <BtnDn> translation.
+ */
+	XtCallActionProc (Graphics, "PositionAndPopupRdssMenu", ev, &mp, 1);
+}
+
+
+
+# ifdef notdef /* ancient */
 void
 I_PositionIcon (comp, platform, zt, name, x, y, fg)
 char	*comp, *platform;
@@ -189,36 +282,26 @@ int	x, y, fg;
  */
 {
 	union usy_value	v;
-	int		n, type, xh, yh, junk;
+	int		n, type, xh, yh, junk, xp = 0, yp = 0;
 	unsigned int	w, h, ujunk;
 	date		t;
-	char		fname[120];
-	Pixmap		pmap;
+	char		mask[40];
+	Pixmap		pmap, maskpmap;
 	Display		*disp = XtDisplay (Graphics);
 	Window		root = RootWindow (disp, 0);
-	Arg		args[5];
+	Arg		args[10];
 	struct IconList	*ilp;
+	XColor bg;
+	Widget parent;
+	bool doshape;
 /*
- * Get the pixmap for this icon.
+ * Get the pixmap and widget for this icon.
  */
-	if (! usy_g_symbol (IconTable, name, &type, &v))
-	{
-		sprintf (fname, "%s/icons/%s", GetLibDir (), name);
-		if (XReadBitmapFile(disp, root, fname, &w, &h, &pmap, &xh, &yh)
-			!= BitmapSuccess)
-		{
-			msg_ELog (EF_PROBLEM, "Unable to read icon file '%s'",
-				fname);
-			return; 
-		}
-		v.us_v_ptr = (char *) pmap;
-		usy_s_symbol (IconTable, name, SYMT_POINTER, &v);
-	}
-	pmap = (Pixmap) v.us_v_ptr;
-/*
- * Get a label widget.
- */
+	pmap = I_GetPMap (name, &xh, &yh);
+	x -= xh;
+	y -= yh;
 	ilp = I_GetWidget (&AvailPos, &UsedPos);
+	ct_GetColorByName ("black", &bg);
 /*
  * Store the component name.
  */
@@ -255,8 +338,34 @@ int	x, y, fg;
 	XtSetArg (args[n], XtNy, y);				n++;
 	XtSetArg (args[n], XtNforeground, fg);			n++;
 	XtSetArg (args[n], XtNshapeStyle, XmuShapeRectangle);	n++;
+	XtSetArg (args[n], XtNbackground, bg.pixel);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);			n++;
+	XtSetArg (args[n], XtNinternalHeight, 1);		n++;
+	XtSetArg (args[n], XtNinternalWidth, 1);		n++;
 	XtSetValues (ilp->il_icon, args, n);
+/*
+ * Try to tweak the shape of this icon. 
+ * The 1's correspond to the internal width/height, so far as I can tell.
+ */
+/*	XShapeCombineMask (Disp, XtWindow (ilp->il_icon), ShapeBounding,
+			   0, 0, None, ShapeSet); */
+	if (pd_Retrieve (Pd, comp, "do-shape", &doshape, SYMT_BOOL) && doshape)
+	{
+		sprintf (mask, "%s-mask", name);
+		if (! (maskpmap = I_GetPMap (mask, &xh, &yh)))
+			maskpmap = pmap;
+		XShapeCombineMask (Disp, XtWindow (ilp->il_icon),
+				   ShapeBounding, 1, 1, maskpmap, ShapeSet);
+	}
 }
+
+# endif
+
+
+
+
+
+
 
 
 void
@@ -338,14 +447,9 @@ int *fg, *bg, disable;
  * Try to get the icon for this component.
  */
 {
-	char platform[500], iname[40], fname[120], color[40]; 
-	union usy_value v;
-	int type, yh, xh;
-	unsigned int h, w;
-	Pixmap pmap;
-	Display *disp = XtDisplay (Graphics);
-	Window root = RootWindow (disp, 0);
+	char platform[500], iname[40], color[40]; 
 	XColor xc;
+	int xh, yh, w, h;
 /*
  * Figure out the name of the icon to use.
  */
@@ -372,15 +476,48 @@ int *fg, *bg, disable;
 	ct_GetColorByName (color, &xc);
 	*bg = xc.pixel;
 /*
+ * Finally, dig up the pixmap.
+ */
+	return I_GetPMap (iname, &xh, &yh, &w, &h);
+}
+
+
+
+static Pixmap
+I_GetPMap (iname, xh, yh, w, h)
+char *iname;
+int *xh, *yh, *w, *h;
+/*
+ * Return the pixmap corresponding to this name.
+ */
+{
+	union usy_value v;
+	int type;
+	Pixmap pmap;
+	Window root = RootWindow (Disp, 0);
+	char fname[120];
+	struct iconinfo
+	{
+		Pixmap ic_pmap;
+		int ic_xh, ic_yh, ic_w, ic_h;
+	} *icinfo;
+/*
  * If this icon already exists in our table, we can just return it.
  */
 	if (usy_g_symbol (IconTable, iname, &type, &v))
-		return ((Pixmap) v.us_v_ptr);
+	{
+		icinfo = (struct iconinfo *) v.us_v_ptr;
+		*xh = icinfo->ic_xh;
+		*yh = icinfo->ic_yh;
+		*w = icinfo->ic_w;
+		*h = icinfo->ic_h;
+		return (icinfo->ic_pmap);
+	}
 /*
  * Otherwise we gotta go dig it up.
  */
-	if (! FindFile (iname, IconPath, fname) || XReadBitmapFile (disp,
-		 root, fname, &w, &h, &pmap, &xh, &yh) != BitmapSuccess)
+	if (! FindFile (iname, IconPath, fname) || XReadBitmapFile (Disp,
+		 root, fname, w, h, &pmap, xh, yh) != BitmapSuccess)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to load icon  '%s'", iname);
 		return (0);
@@ -388,7 +525,13 @@ int *fg, *bg, disable;
 /*
  * Remember this one.
  */
-	v.us_v_ptr = (char *) pmap;
+	icinfo = ALLOC (struct iconinfo);
+	icinfo->ic_xh = *xh;
+	icinfo->ic_yh = *yh;
+	icinfo->ic_w = *w;
+	icinfo->ic_h = *h;
+	icinfo->ic_pmap = pmap;
+	v.us_v_ptr = (char *) icinfo;
 	usy_s_symbol (IconTable, iname, SYMT_POINTER, &v);
 	return (pmap);
 }
@@ -489,11 +632,43 @@ struct IconList	**avail, **used;
 
 
 
+void
+I_RedirectButton (win, ev)
+Window win;
+XEvent *ev;
+/*
+ * Try to redirect an event to an icon.
+ */
+{
+	struct IconList *ilp;
+/*
+ * Search the lists to see what we can find.  This is inefficient in that
+ * I_MenuPopup will simply repeat the search, but we can worry about that
+ * after this kludge works.
+ */
+	for (ilp = UsedIcons; ilp; ilp = ilp->il_next)
+		if (XtWindow (ilp->il_icon) == win)
+		{
+			I_MenuPopup (ilp->il_icon, ev, 0, 0);
+			return;
+		}
+	for (ilp = UsedPos; ilp; ilp = ilp->il_next)
+		if (XtWindow (ilp->il_icon) == win)
+		{
+			I_MenuPopup (ilp->il_icon, ev, 0, 0);
+			return;
+		}
+}
+
+
+
+
+
 /* ARGSUSED */
 static void
 I_MenuPopup (w, ev, stringjunk, cardjunk)
-Widget w;					/* Should be the MenuButton 	*/
-XEvent *ev;					/* The button down event	*/
+Widget w;				/* Should be the MenuButton 	*/
+XEvent *ev;				/* The button down event	*/
 String *stringjunk;
 Cardinal *cardjunk;
 /*
@@ -504,6 +679,7 @@ Cardinal *cardjunk;
 	struct IconList *ilp;
 	union usy_value v;
 	Arg arg;
+	bool posicon = FALSE;
 /*
  * First, we need to find the icon that generated this event.
  */
@@ -514,7 +690,10 @@ Cardinal *cardjunk;
 	if (! ilp)
 		for (ilp = UsedPos; ilp; ilp = ilp->il_next)
 			if (ilp->il_icon == w)
+			{
+				posicon = TRUE;
 				break;
+			}
 	if (! ilp)
 	{
 		msg_ELog (EF_PROBLEM, "Weird button event on 0x%x", w);
@@ -531,6 +710,8 @@ Cardinal *cardjunk;
  */
 	v.us_v_ptr = ilp->il_component;
 	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
+	v.us_v_int = posicon;
+	usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
 	if (ilp->il_data != NULL)
 	{
 		v.us_v_ptr = ilp->il_data->id_platform;

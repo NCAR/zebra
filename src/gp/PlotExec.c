@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.31 1993-09-27 21:22:35 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.32 1993-10-14 20:22:14 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -305,6 +305,7 @@ char	*component;
 	else if (global)
 	{
 		I_ClearPosIcons ();
+		aa_ResetAreas ();
 		px_GlobalPlot (&cachetime);
 		An_DoSideAnnot ();
 		ac_DisplayAxes ();
@@ -326,8 +327,8 @@ char	*component;
 /*
  * Display the frame
  */
-/*	DisplayFrame = DrawFrame; */
 	GWDisplayFrame (Graphics, DisplayFrame);
+	Ue_UnHighlight ();
 /*
  * Call the end of plot handler, if there is one.
  */

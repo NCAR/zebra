@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.2 1991-11-13 22:03:24 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.3 1993-10-14 20:22:20 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,6 +27,7 @@ static char *rcsid = "$Id: UserEvent.c,v 2.2 1991-11-13 22:03:24 corbet Exp $";
 # include "../include/message.h"
 # include "GraphProc.h"
 # include "EventQueue.h"
+# include "ActiveArea.h"
 
 
 
@@ -60,21 +61,23 @@ static void (*MotionHandler) () = 0;	/* Motion event handler		*/
 static void (*ORBtnDown)() = 0;		/* Override button down handler	*/
 static void (*ORBtnUp) () = 0;		/* Override button up handler	*/
 
+/*
+ * Here is stuff for dealing with highlighting of active areas.
+ */
+static Pixmap AaPmap = 0;	/* Save-under for highlight	*/
+static int Pm_w, Pm_h;		/* Dimensions of AaPmap		*/
+ActiveArea *Highlighted = 0;	/* Which area is highlighted?	*/
+
+
 
 /*
  * Forward definitions.
  */
-# ifdef __STDC__
-	static EventResponse *Ue_FindResponse (char *);
-	static void Ue_EDMReport (XEvent *, char *);
-	static void Ue_ELocal (XEvent *, char *);
-	static void Ue_EMenu (XEvent *, char *);
-# else
-	static EventResponse *Ue_FindResponse ();
-	static void Ue_EDMReport ();
-	static void Ue_ELocal ();
-	static void Ue_EMenu ();
-# endif
+static EventResponse *Ue_FindResponse FP ((char *));
+static void Ue_EDMReport FP ((XEvent *, char *));
+static void Ue_ELocal FP ((XEvent *, char *));
+static void Ue_EMenu FP ((XEvent *, char *));
+static void Ue_HighlightArea FP ((ActiveArea *));
 
 
 
@@ -279,9 +282,92 @@ Cardinal *nparam;
  */
 {
 	XMotionEvent *xme = (XMotionEvent *) event;
+	bool button = xme->state & (Button1Mask|Button2Mask|Button3Mask);
+	ActiveArea *which;
+/*
+ * If somebody is snarfing motions, forward this off to them.
+ */
 	if (MotionHandler)
 		(*MotionHandler) (xme->x, xme->y);
+/*
+ * Otherwise look for active areas to deal with.
+ */
+	else if (which = aa_Which (xme->x, xme->y))
+		Ue_HighlightArea (which);
+	else if (Highlighted)
+		Ue_UnHighlight ();
 }
+
+
+
+
+static void
+Ue_HighlightArea (which)
+ActiveArea *which;
+/*
+ * Highlight this area.
+ */
+{
+/*
+ * If we have this one highlighted now, do nothing.
+ */
+	if (which == Highlighted)
+		return;
+	ResetGC ();
+	SetClip (TRUE);
+/*
+ * If something is highlighted now, restore the old contents.
+ */
+	if (Highlighted)
+		Ue_UnHighlight ();
+/*
+ * Make sure we have a pixmap which can handle this.
+ */
+	if (AaPmap && (Pm_w < which->aa_width || Pm_h < which->aa_height))
+	{
+		XFreePixmap (Disp, AaPmap);
+		AaPmap = 0;
+	}
+	if (! AaPmap)
+	{
+		Pm_w = which->aa_width;
+		Pm_h = which->aa_height;
+		AaPmap = XCreatePixmap (Disp, XtWindow (Graphics), Pm_w,
+					Pm_h, GWDepth (Graphics));
+	}
+/*
+ * Copy out the information under the highlight and draw the rectangle.
+ */
+	XCopyArea (Disp, XtWindow (Graphics), AaPmap, Gcontext, which->aa_x,
+		   which->aa_y, which->aa_width, which->aa_height, 0, 0);
+	SetColor ("global", "active-icon-color", 0, "white");
+	XDrawRectangle (Disp, XtWindow (Graphics), Gcontext, which->aa_x,
+			which->aa_y, which->aa_width - 1, which->aa_height -1);
+	Highlighted = which;
+}
+
+
+
+
+
+void
+Ue_UnHighlight ()
+/*
+ * Unhighlight an area.
+ */
+{
+	if (Highlighted)
+	{
+		XCopyArea (Disp, AaPmap, XtWindow (Graphics), Gcontext,
+			   0, 0, Highlighted->aa_width, Highlighted->aa_height,
+			   Highlighted->aa_x, Highlighted->aa_y);
+		Highlighted = 0;
+	}
+}
+
+
+
+
 
 
 
@@ -298,6 +384,7 @@ Cardinal *nparam;
  */
 {
 	EventResponse *resp;
+	ActiveArea *area;
 /*
  * Make sure params are right.
  */
@@ -314,6 +401,27 @@ Cardinal *nparam;
 	if (ORBtnDown)
 	{
 		(*ORBtnDown) (event, params[0]);
+		return;
+	}
+/*
+ * If this event has a subwindow, then what we really have is a button
+ * press in an icon which should be redirected there.  We get it due
+ * to the passive grab in the graphics window...the real problem is
+ * that the graphics and composite widgets should be separate; then the
+ * graphics window could be a sibling of the icons and this would not
+ * happen.  Someday.
+ */
+	if (event->xbutton.subwindow != None)
+	{
+		I_RedirectButton (event->xbutton.subwindow, event);
+		return;
+	}
+/*
+ * See if this is an active area.
+ */
+	if ((area = aa_Which (event->xbutton.x, event->xbutton.y)) != NULL)
+	{
+		(*area->aa_action) (area, event);
 		return;
 	}
 /*

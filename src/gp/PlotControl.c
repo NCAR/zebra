@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.21 1993-10-07 16:57:20 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.22 1993-10-14 20:22:10 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -687,7 +687,7 @@ pc_UnZoom ( )
 }
 
 
-
+# ifdef notdef
 /*======================================================================*/
 /*
  *  Old Movie Routines
@@ -751,6 +751,12 @@ pc_NextFrame ()
 	GWDisplayFrame (Graphics, DisplayFrame);
 	XSync (XtDisplay (Top), False);
 }
+
+# endif
+
+
+
+
 
 void
 pc_TriggerGlobal()

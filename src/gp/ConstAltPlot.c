@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.32 1993-09-27 21:22:20 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.33 1993-10-14 20:21:43 corbet Exp $")
 
 
 /*
@@ -440,7 +440,8 @@ bool update;
  */
 {
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
-	char	quadrants[4][20], *quads[6], quadclr[30], string[10], data[100];
+	char	quadrants[4][20], *quads[6], quadclr[30], string[10];
+	char	data[100], sticon[40];
 	char	*strchr ();
 	static const int offset_x[4] = { -15, -15, 15, 15 };
 	static const int offset_y[4] = { -10, 10, -10, 10 };
@@ -460,6 +461,12 @@ bool update;
 	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
 			&linewidth, &unitlen, &color))
 		return;
+/*
+ * See about position icons.
+ */
+	if (! pda_Search (Pd, c, "station-icon", platform, sticon,
+			   SYMT_STRING))
+		strcpy (sticon, "pam-loc");
 /*
  * Get the platform ID.
  */
@@ -585,6 +592,7 @@ bool update;
 /*
  * Graphics context stuff.
  */
+	ResetGC ();
 	XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
 /*
  * Draw the vectors.
@@ -600,9 +608,13 @@ bool update;
 		pix_x0 = sinfo[i].si_x;
 		pix_y0 = sinfo[i].si_y;
 	/*
+	 * Place an icon at the station location.
+	 */
+		I_PositionIcon (c, ds_PlatformName (platforms[i]), &zt,
+				sticon, pix_x0, pix_y0, color.pixel);
+	/*
 	 * Plot the arrow.
 	 */
-		ov_PositionIcon ("pam-loc", pix_x0, pix_y0, color.pixel);
 		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
 			linewidth, LineSolid, CapButt, JoinMiter);
 		if ((ugrid[i] != badvalue) && (vgrid[i] != badvalue))

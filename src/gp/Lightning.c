@@ -1,7 +1,7 @@
 /*
  * Locaton display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.7 1993-07-01 20:14:27 granger Exp $";
+static char *rcsid = "$Id: Lightning.c,v 2.8 1993-10-14 20:22:03 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -170,7 +170,7 @@ bool update;
 		if ((index < 0) || (index >= numcolor))
 			index = 0;
 		if (showicon)
-			I_PositionIcon (comp, platform, when, iconname, x, y,
+			I_PositionIcon (comp, platform, &when, iconname, x, y,
 				colors[index].pixel);
 		else
 			ov_PositionIcon (iconname, x, y, colors[index].pixel);

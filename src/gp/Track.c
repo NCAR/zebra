@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.25 1993-09-27 21:22:37 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.26 1993-10-14 20:22:17 corbet Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -325,14 +325,9 @@ bool update;
  * If this isn't an update, indicate which end of the track is the front.
  */
 	if ((! update) && showposition && (samp0 >= 0))
-	{
-		if (mono) 
-			ov_PositionIcon (positionicon, x0, y0, xc.pixel);
-		else 
-			ov_PositionIcon (positionicon, x0, y0, 
-					 (index >= 0 &&	index < nc) ? 
-					 colors[index].pixel : outrange.pixel);
-	}
+		I_PositionIcon (comp, platform, &zt, positionicon, x0, y0,
+				mono ? xc.pixel : (index >= 0 && index < nc) ? 
+				colors[index].pixel : outrange.pixel);
 /*
  * If this isn't an update, see about annotating the track with times.
  */

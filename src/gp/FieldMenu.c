@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.3 1993-09-27 21:22:24 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.4 1993-10-14 20:21:46 corbet Exp $")
 
 
 /*
@@ -266,6 +266,7 @@ SetupFields ()
 	SValue v;
 	int type, nfield = MAXENTRY;
 	PlatformId pid;
+	char *comma, *strchr ();
 /*
  * See which is our component and platform.
  */
@@ -274,6 +275,12 @@ SetupFields ()
 	strcpy (IComp, v.us_v_ptr);
 	if (! pd_Retrieve (Pd, IComp, "platform", Platform, SYMT_STRING))
 		return (Funky ("No platform!"));
+/*
+ * If we are dealing with a comma-separated list of platforms, just
+ * use the first.  This may not be the ideal behavior, but then, what is?
+ */
+	if (comma = strchr (Platform, ','))
+		*comma = '\0';
 /*
  * Query the fields that are available.
  */

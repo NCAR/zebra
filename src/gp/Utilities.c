@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.12 1993-09-27 21:22:38 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.13 1993-10-14 20:22:22 corbet Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -225,8 +225,10 @@ ResetGC ()
 	vals.cap_style = CapButt;
 	vals.join_style = JoinMiter;
 	vals.fill_style = FillSolid;
+	vals.subwindow_mode = IncludeInferiors;
 	XChangeGC (Disp, Gcontext, GCFunction | GCLineWidth | GCLineStyle |
-		GCCapStyle | GCJoinStyle | GCFillStyle, &vals);
+		GCCapStyle | GCJoinStyle | GCFillStyle | GCSubwindowMode,
+		&vals);
 }
 
 

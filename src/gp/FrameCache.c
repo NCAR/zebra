@@ -29,7 +29,9 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.9 1993-02-24 08:24:15 granger Exp $")
+# include "ActiveArea.h"
+
+MAKE_RCSID ("$Id: FrameCache.c,v 2.10 1993-10-14 20:21:48 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -67,6 +69,7 @@ static struct FrameCache
 	int	fc_index;  /* pixmap index if in memory file offset if in*/
                            /* FrameFile                                 */
 	char	*fc_info;	/* Overlay time info string		*/
+	AAList	*fc_active;	/* Active area list			*/
 } FCache[NCACHE];
 
 
@@ -91,21 +94,12 @@ static int Lru = 0;
 /*
  * Our routines.
  */
-void		fc_InitFrameCache FP ((void));
-void		fc_InvalidateCache FP ((void));
-void		fc_CreateFrameFile FP ((void));
-void		fc_AddFrame FP ((ZebTime *, int));
-int		fc_LookupFrame FP ((ZebTime *, char **));
-int		fc_GetFrame FP ((void));
-void		fc_MarkFrames FP ((ZebTime *, int));
-void		fc_UnMarkFrames FP ((void));
 static int	fc_FileToPixmap FP ((int, int));
 static int	fc_PixmapToFile FP ((int));
 void		fc_PrintCache FP ((void));
 static int	fc_GetFreeFile FP ((void)); 
 static int	fc_GetFreeFrame FP ((void)); 
 static int	fc_GetFreePixmap FP ((void));
-void		fc_SetNumFrames FP ((int));
 static int	fc_SetPFPairs FP ((char **, PF_Pair **));
 static int	fc_ComparePairs FP ((PF_Pair *, int, PF_Pair *, int));
 
@@ -122,6 +116,7 @@ fc_InitFrameCache ()
 	{
 		FCache[i].fc_pairs = NULL;
 		FCache[i].fc_info = NULL;
+		FCache[i].fc_active = NULL;
 	}
 
 	fc_InvalidateCache ();
@@ -154,6 +149,11 @@ fc_InvalidateCache ()
 		{
 			free (FCache[i].fc_info);
 			FCache[i].fc_info = NULL;
+		}
+		if (FCache[i].fc_active)
+		{
+			aa_FreeList (FCache[i].fc_active);
+			FCache[i].fc_active = NULL;
 		}
 		BufferTable[i] = FREE;
 		FreePixmaps[i] = InvalidEntry;
@@ -285,6 +285,7 @@ int number;
 	FCache[findex].fc_keep = FALSE;
 	FCache[findex].fc_index = number;
 	FCache[findex].fc_inmem = TRUE;
+	FCache[findex].fc_active = CurrentAreas;
 	FreePixmaps[number] = findex;
 }
 
@@ -447,6 +448,7 @@ char **info_return;
 			pindex = FCache[i].fc_index;
 		if (pairs) free (pairs);
 		*info_return = FCache[i].fc_info;
+		aa_ReloadAreas (FCache[i].fc_active);  /* XXX */
 	    	return (pindex);
 	    }
 	}
@@ -792,7 +794,10 @@ fc_GetFreeFrame ()
  */
 {
 	int i, minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
-
+/*
+ * Pass through the frame list.  Maybe we luck out and find an invalid one;
+ * otherwise keep track of which one we are happiest about zapping.
+ */
 	for(i = 0; i < MaxFrames; i++)
 	{
 		if(! FCache[i].fc_valid)
@@ -808,7 +813,9 @@ fc_GetFreeFrame ()
 			klru = FCache[i].fc_lru;
 		}
 	}
-	
+/*
+ * OK, we need to zap a frame.  Go for it.
+ */
 	i = (kframe >= 0) ? kframe : minframe;
 	FCache[i].fc_keep = FCache[i].fc_valid = FALSE;
 	if (FCache[i].fc_pairs)
@@ -816,6 +823,9 @@ fc_GetFreeFrame ()
 		free (FCache[i].fc_pairs);
 		FCache[i].fc_pairs = NULL;
 	}
+	if (FCache[i].fc_active)
+		aa_FreeList (FCache[i].fc_active);
+	FCache[i].fc_active = NULL;
 	if(FCache[i].fc_inmem)
 		FreePixmaps[FCache[i].fc_index] = FREE;
 	else

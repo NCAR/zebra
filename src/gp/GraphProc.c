@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.31 1993-09-27 21:47:57 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.32 1993-10-14 20:21:51 corbet Exp $")
 
 /*
  * Default resources.
@@ -251,10 +251,8 @@ finish_setup ()
  */
 	uw_ForceWindowMode ((char *) 0, &Top, &Actx);
 	XtAppAddActions (Actx, actions, FIVE);
-# ifdef notdef
 	XtRegisterGrabAction (Ue_PointerEvent, True,
 	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
-# endif
 /*
  * If there is a parameter left on the "command line", it will be the name
  * of an initialization file to read.
