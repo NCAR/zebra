@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 2.2 1991-11-22 20:50:59 kris Exp $";
+static char *rcsid = "$Id: GetList.c,v 2.3 1992-03-18 21:12:44 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -349,9 +349,12 @@ int begin, *end;
  * huge gap in time between the end of the last file and our current time.
  * (4) is implemented for now by just checking that they refer to the same
  * day.  Something smarter is desirable.
+ *
+ * Also now (5) the file has not been archived.
  */
 	dp = DFTable + LOCALDATA (*plat);
 	if (! new && LOCALDATA (*plat) && dp->df_nsample < plat->dp_maxsamp &&
+		! dp->df_archived &&
 		dp->df_end.ds_yymmdd == dobj->do_times[begin].ds_yymmdd)
 	{
 	/*
