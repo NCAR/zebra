@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.10 1995-08-28 21:51:04 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.11 1995-11-19 17:08:33 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 #ifndef UseInstalledZebra
@@ -37,30 +37,31 @@ XCOMM -----------------------------------------------------------------------
 #define BuildRDSS NO
 #endif
 
+/*
+ * Default to HDF on all architectures
+ */
 #ifndef HasHDF
-# if defined(SunArchitecture)	/* HDF only on SunOS and Solaris */
+/* # ifndef LinuxArchitecture */ /* alas, cannot yet compile HDF on linux */
 #  define HasHDF YES
-# else
+/* # else
 #  define HasHDF NO
-# endif
+# endif /* ndef linux */
 #endif /* ndef HasHDF */
 #define HDFIncDir /usr/local/include/hdf
 
 /*
  * Include map projections on systems which have it installed, but only
- * when we're using a compiler which supports ANSI prototypes.
+ * when we're using a compiler which supports ANSI prototypes (thanks
+ * to projects.h).  If the compiler is not GNU, then the machine cannot
+ * be SunOS 4.
  */
 #ifndef MapProjections
-# ifdef SunArchitecture
-#  if defined(SVR4) || defined(solaris) || UseGcc
+# if defined(SunArchitecture) && !defined(SVR4) && !defined(solaris)
+#   define MapProjections NO /* SunOS 4 native cannot compile projects.h */
+# else
 #   define MapProjections YES
 #   define ProjLibDir /usr/local/lib
 #   define ProjIncDir /usr/local/include
-#  else
-#   define MapProjections NO /* SunOS native cannot compile projects.h */
-#  endif
-# else
-#  define MapProjections NO
 # endif
 #endif
 
@@ -71,7 +72,7 @@ XCOMM -----------------------------------------------------------------------
 /* #define WantCvsIgnore NO */
 
 /*
- * If a BaseDir is defined, use it give defaults to BinDir and LibDir.
+ * If a BaseDir is defined, use it to give defaults to BinDir and LibDir.
  * Otherwise BinDir and LibDir default to relative paths in Project.tmpl,
  * and BaseDir defaults to /zeb.
  */
@@ -115,7 +116,17 @@ XCOMM -----------------------------------------------------------------------
 # define	BuildClassIngest 	NO /* needs libsuds.a from RDSS tree */
 # define	BuildPamIngest			NO
 # define	BuildRealtimeDataStoreTools	YES
-# define	BuildDataManager		NO
+
+/*
+ * Compile data manager if we have gcc
+ */
+#ifndef BuildDataManager
+# if UseGcc
+#  define	BuildDataManager		YES
+# else
+#  define	BuildDataManager		NO
+# endif
+#endif /* ndef BuildDataManager */
 
 #ifdef SunArchitecture
 # ifndef UseOpenWindows
@@ -133,6 +144,24 @@ XCOMM -----------------------------------------------------------------------
 #define XSharedMemory YES
 
 XCOMM --- Deciding C compiler and options
+
+/*
+ * Allow existence of a Static symbol to set our flags for a static
+ * (e.g. binary distribution) build.
+ */
+
+#ifdef Static
+# if UseGcc
+#  define StaticFlag -static
+# else /* guess */
+#   define StaticFlag -Bstatic
+# endif
+# ifndef CDebugFlags
+#  define CDebugFlags StaticFlag
+# endif
+#endif /* Static */   
+
+#endif
 
 #ifndef CDebugFlags
 # define CDebugFlags -g
@@ -210,6 +239,11 @@ XCOMM --- Deciding FORTRAN library paths
 #ifdef SGIArchitecture
 /* IRIX 5.x */
 # define FortranLibraries -lF77 -lI77 -lU77 -lisam
+#endif
+
+#ifdef LinuxArchitecture
+# define FortranCompiler g77
+# define FortranLibraries -lf2c
 #endif
 
 XCOMM --- Finished with Build.tmpl
