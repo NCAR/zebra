@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.2 1992-03-17 22:52:31 barrett Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.3 1992-03-17 23:02:02 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,10 +19,19 @@ static char *rcsid = "$Id: Contour.c,v 2.2 1992-03-17 22:52:31 barrett Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+/*
+ * A macro to make function prototypes a little easier across both STDC and
+ * non-STDC implementations.
+ */
+# ifdef __STDC__
+#  define FP(stuff) stuff
+# else
+#  define FP(stuff) ()
+# endif
+
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <defs.h>
 # include <message.h>
 # include "Contour.h"
 # include "DrawText.h"
