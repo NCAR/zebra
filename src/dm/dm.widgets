@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.16 1994-07-14 19:49:56 corbet Exp $
+! $Id: dm.widgets,v 1.17 1994-08-04 17:55:57 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -13,16 +13,11 @@ define widget SaveConfig form 'Configuration saver'
 	newline
 	label l2 'Config directory: '
 	blank configdir variable configdir width 300
-	newline
-	label l3 'PD directory:     '
-	blank configpd variable configpd width 300
-!	newline
 endform
 
 
 procedure do_cfg_save
 	set configdir getftext(ui$form,'configdir')
-	set configpd getftext(ui$form,'configpd')
 	local configname quote(getftext(ui$form,'cname'))
 	
 	cfgsave #configname
