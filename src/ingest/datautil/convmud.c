@@ -2,7 +2,7 @@
  * Convert mudras files to netcdf.
  */
 # include <stdio.h>
-# include "netcdf.h"
+# include <netcdf.h>
 # include <math.h>
 # include <defs.h>
 # include "mudutil.h"
@@ -287,9 +287,8 @@ float *grid;
 
 
 
-
-
-
+#ifdef notdef	/* use the library routines which now work even when not
+		   connected to a message manager */
 
 /*
  * lat,lon <-> x,y conversion utilities
@@ -378,3 +377,6 @@ float	lat, lon;
 	Origin_lat = lat * PI / 180.0;
 	Origin_lon = lon * PI / 180.0;
 }
+
+#endif
+

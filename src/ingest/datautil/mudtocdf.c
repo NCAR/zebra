@@ -1,7 +1,7 @@
 /*
  * Translate MUDRAS files to netcdf.
  */
-static char *rcsid = "$Id: mudtocdf.c,v 1.4 1993-10-26 21:18:22 corbet Exp $";
+static char *rcsid = "$Id: mudtocdf.c,v 1.5 1995-04-19 14:44:06 granger Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,8 +20,10 @@ static char *rcsid = "$Id: mudtocdf.c,v 1.4 1993-10-26 21:18:22 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include "netcdf.h"
 # include <math.h>
+# include <netcdf.h>
+
+# include <defs.h>	/* Time and coordinate conversions */
 
 extern char *getenv ();
 
@@ -295,6 +297,8 @@ char *tmp;
 
 
 
+#ifdef notdef 	/* use the library versions, which now work even when
+		   not connected to a message manager */
 
 /*
  * lat,lon <-> x,y conversion utilities
@@ -383,3 +387,5 @@ float	lat, lon;
 	Origin_lat = lat * PI / 180.0;
 	Origin_lon = lon * PI / 180.0;
 }
+#endif /* notdef */
+
