@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.4 1991-10-11 19:00:23 kris Exp $";
+static char *rcsid = "$Id: dm.c,v 2.5 1991-11-20 23:21:09 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -90,6 +90,7 @@ char **argv;
 	fixdir_t ("DMLOADFILE", LIBDIR, "dm.lf", loadfile, ".lf");
 	ui_init (loadfile, TRUE, FALSE);
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
+	SetupConfigVariables ();
 /*
  * Create our symbol tables.
  */
