@@ -26,23 +26,9 @@
 #	define NO 0
 # endif
 
-#ifdef notdef
-/*
- * Include the config.h file for Zebra if we're not doing an auto-build.
- * Otherwise read the definitions from Build.tmpl.
- */
-#ifdef AutoBuild
-# define ProjectConfigFile "Build.tmpl"
-#else
-# define MAKING_MAKEFILE
-# define ProjectConfigFile "config.h"
-#endif
-#include ProjectConfigFile
-#endif
-
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.30 1995-05-25 00:19:38 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.31 1995-05-25 00:21:07 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -457,30 +443,6 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 #endif /* CCompiler */
 
-#ifdef notdef /* -------------- ignored */
-#ifndef DefaultCcc
-#define DefaultCcc CC /* could be set in a system's .cf or site.def file */
-                      /* this is a reasonable default for Sun's */
-#endif
-#ifndef CccCompiler /* C++ compiler */
-#if UseGcc
-#define CccCompiler g++
-#else
-#define CccCompiler DefaultCcc
-#endif
-#endif /* CccCompiler */
-#ifndef CccOptions
-#define CccOptions	/* as nothing */
-#endif
-#ifndef CccLibs
-#if UseGcc
-#define CccLibs -lg++
-#else
-#define CccLibs /* who knows ? */
-#endif
-#endif /* CccLibs */
-#endif /* notdef ---------------------- */
-
 #ifndef CCOptions
 #define CCOptions DefaultCCOptions
 #endif
@@ -644,9 +606,6 @@ XCOMM -----------------------------------------------------------------------
            LIBDIR = LibDir		/* Zebra project library */
           DESTDIR = 
        DISTCURDIR = $(CURRENT_DIR)	/* Default, usually on cmd-line */
-#ifdef notdef /* this line already exists in Imake.tmpl */
-        CONFIGDIR = ConfigDir		/* build configuration information */
-#endif
       XAPPLOADDIR = XAppLoadDir         /* Resource file installation dir */
           RDSSDIR = RDSSDir		/* Top of RDSS installation */
       OPENWINHOME = OpenWinHome
@@ -762,10 +721,6 @@ XCOMM -----------------------------------------------------------------------
           LIBRDSS = RDSSLibrary
         LIBRDSSUI = RDSSUILibrary
       LIBRDSSUTIL = RDSSUtilLibrary
-#ifdef notdef
-         RDSSUTIL = $(LIBRDSSUTIL)	/* for RDSS tree compatibility */
-           RDSSUI = $(LIBRDSSUI)	/* for RDSS tree compatibility */
-#endif
      LIBRDSSGRAPH = RDSSGraphics
           LIBSUDS = SudsLibrary
            LIBUNP = PamCfgLibrary
@@ -779,21 +734,6 @@ XCOMM -----------------------------------------------------------------------
           DEPLIBS = $(LIBZEB)
           MATHLIB = $(LIBMATH)
        TERMCAPLIB = $(LIBTERMCAP)
-
-#ifdef notdef	/* should be taken from Imake.tmpl from now on */
-/*
- * Compiler commands and options
- */
-               CC = CCompiler
-        CCOPTIONS = CCOptions 
-      CDEBUGFLAGS = CDebugFlags
-#endif
-#ifdef notdef
-              C++ = CccCompiler
-         C++FLAGS = CccOptions $(CFLAGS)
-          C++LIBS = CccLibs /* variable should be explicitly included in */
-                            /* targets for c++ progs 			 */
-#endif
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
@@ -819,15 +759,6 @@ XCOMM -----------------------------------------------------------------------
               UIB = UibCmd
             ARADD = ArAdd
      INSTAPPFLAGS = InstAppFlags
-
-#ifdef notdef /* in Imake.tmpl now */
-/*
- * Debugging tools
- */
-/*          PROOF = /net/CenterLine/bin/proof	*/
-            PROOF = proof
-        PROOFOPTS = /* nothing */
-#endif
 
             EMACS = EmacsPath
           EMACS19 = Emacs19Path
