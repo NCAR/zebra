@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.9 1998-09-10 21:54:01 burghart Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.10 1998-09-12 17:38:18 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -48,6 +48,8 @@ static char *rcsid = "$Id: ac_ingest.c,v 1.9 1998-09-10 21:54:01 burghart Exp $"
 # include "ratshex.h"
 
 /*# include <sgtty.h>*/
+
+# define DIAL
 
 OurAc	AircraftList[MAXOURS];
 int	NumAc = 0;
