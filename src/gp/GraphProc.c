@@ -29,7 +29,9 @@
 # include <ui.h>
 # include <fcntl.h>
 
+# ifdef notdef
 # include "xhelp.h"
+# endif
 
 # include "config.h"
 # include "defs.h"
@@ -48,7 +50,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.48 1994-10-11 16:26:05 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.49 1994-10-19 21:42:14 corbet Exp $")
 
 /*
  * Default resources.
@@ -732,6 +734,12 @@ struct ui_command *cmds;
 	 * Get some help.
 	 */
 	   case GPC_HELP:
+		dme.dmm_type = DM_EVENT;
+		sprintf (dme.dmm_data, "help %s", (cmds[1].uc_ctype == UTT_END)
+				? "" : UPTR (cmds[1]));
+		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
+			sizeof (dme));
+# ifdef notdef
 		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
 		if (cmds[1].uc_ctype == UTT_END)
 			strcpy (topic, XHELP_INTRO_ID);
@@ -742,6 +750,7 @@ struct ui_command *cmds;
 			topic[13] = '\0';
 		}
 		XhCallXHelp (Graphics, helpfile, topic, "Welcome to Zeb");
+# endif
 		break;
 	/*
 	 * The user wants to annotate something.
@@ -1721,6 +1730,13 @@ XtPointer client_data;
 XtPointer call_data;
 {
 	char *topic = (char *)client_data;
+	struct dm_event dme;
+
+	dme.dmm_type = DM_EVENT;
+	sprintf (dme.dmm_data, "help %s", topic ? topic : "");
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+
+# ifdef notdef
 	char helpfile[100];
 	char full_topic[40];
 /*
@@ -1734,6 +1750,7 @@ XtPointer call_data;
 	full_topic[13] = '\0';
 	fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
 	XhCallXHelp (Graphics, helpfile, full_topic, "Welcome to Zeb");
+# endif
 }
 
 
