@@ -38,7 +38,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: RBand.c,v 2.14 1996-11-19 07:29:08 granger Exp $")
+RCSID("$Id: RBand.c,v 2.15 1997-02-21 00:05:05 burghart Exp $")
 
 /*
  * Types of things we can rubber band
@@ -837,7 +837,17 @@ rb_PLConvert ()
 /*
  * Add the boundary.
  */
-	tl_Time (&zt);
+	if (OldPlotMode == History)
+	{
+	    zt = PlotTime;
+	/*
+	 * Kluge: Set the microsecond field to zero to avoid problems 
+	 */
+	    zt.zt_MicroSec = 0;
+	}
+	else
+	    tl_Time (&zt);
+
 	dc_BndAdd (dc, &zt, PolyPlatform, pts, npt);   
 /*
  * Store this polyline, then free our dynamic memory.
