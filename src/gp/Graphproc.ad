@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.19 1996-02-05 16:52:24 burghart Exp $
+! $Id: Graphproc.ad,v 1.20 2000-04-06 14:45:51 burghart Exp $
 !
 ! The Graphics process resource file.
 !
@@ -209,7 +209,9 @@ Graphproc.?.form.background:	gray95
 !
 ! Color widgets.
 !
-*simple-color*background:	Midnight Blue
+*simple-color*foreground:	white
+*simple-color*background:	midnightblue
+
 *simple-color*red.foreground:	red
 *simple-color*lavender.foreground:	lavender
 *simple-color*magenta.foreground:	magenta
@@ -217,18 +219,30 @@ Graphproc.?.form.background:	gray95
 *simple-color*sky.foreground:	DeepSkyBlue
 *simple-color*gray.foreground:	DarkSlateGray1
 *simple-color*spring.foreground:	SpringGreen1
-*simple-color*blue.foreground:	blue
-*simple-color*cyan.foreground:	cyan
-*simple-color*green.foreground:	green
-*simple-color*khaki.foreground:	khaki
+*simple-color*blue.foreground:		blue
+*simple-color*medium blue.foreground:	blue3
+*simple-color*dark blue.foreground:	blue4
+*simple-color*cyan.foreground:		cyan
+*simple-color*medium cyan.foreground:	cyan3
+*simple-color*dark cyan.foreground:	cyan4
+*simple-color*green.foreground:		green
+*simple-color*medium green.foreground:	green3
+*simple-color*dark green.foreground:	green4
 *simple-color*yellow.foreground:	yellow
+*simple-color*medium yellow.foreground:	yellow3
+*simple-color*dark yellow.foreground:	yellow4
+*simple-color*khaki.foreground:	khaki
 *simple-color*tan.foreground:	tan
 *simple-color*brown.foreground:	brown
 *simple-color*orange.foreground:	orange
 *simple-color*pink.foreground:	DeepPink
 *simple-color*violet.foreground:	violet
 *simple-color*olive.foreground:	DarkOliveGreen1
-*simple-color*foreground:	white
+
+*simple-gray*foreground:		white
+*simple-gray*background:		midnightblue
+
+*simple-gray*Black.foreground:		black
 *simple-gray*10-Percent.foreground:	gray10
 *simple-gray*20-Percent.foreground:	gray20
 *simple-gray*30-Percent.foreground:	gray30
@@ -238,7 +252,7 @@ Graphproc.?.form.background:	gray95
 *simple-gray*70-Percent.foreground:	gray70
 *simple-gray*80-Percent.foreground:	gray80
 *simple-gray*90-Percent.foreground:	gray90
-*simple-gray*background:		Midnight Blue
+*simple-gray*White.foreground:		white
 
 *form-color-menu*background:		black
 *form-color-menu*red.foreground:	red
