@@ -37,8 +37,9 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "dsDaemon.h"
+# include "byteorder.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.29 1996-01-23 19:58:36 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.30 1996-01-31 17:45:39 corbet Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -908,8 +909,14 @@ bool version;	/* include the cache key if non-zero */
 	}
 	name[i] = '\0';
 	if (version)
-		sprintf (fname, "%s/%s.%x.ds_cache", 
-			 local ? p->dp_dir : p->dp_rdir, name, CacheKey);
+		sprintf (fname, "%s/%s.%x%s.ds_cache", 
+				local ? p->dp_dir : p->dp_rdir, name,
+				CacheKey,
+# ifdef LITTLE_ENDIAN
+				"-l");
+# else
+				"");
+# endif
 	else
 		sprintf (fname, "%s/%s.ds_cache", 
 			 local ? p->dp_dir : p->dp_rdir, name);
