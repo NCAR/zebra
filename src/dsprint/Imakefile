@@ -1,0 +1,18 @@
+#
+# $Id: Imakefile,v 1.1.1.1 1995-01-26 21:02:48 granger Exp $
+#
+# Imakefile for dsprint program stolen from NEXUS
+#
+
+SRCS = dsprint.c
+OBJS = dsprint.o
+
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+
+DISTFILES = $(SRCS) Imakefile
+
+NormalProgramTarget(dsprint, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()
