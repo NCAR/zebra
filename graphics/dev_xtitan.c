@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_xtitan.c,v 1.4 1989-10-11 14:00:25 corbet Exp $ */
+/* $Id: dev_xtitan.c,v 1.5 1990-02-08 10:23:30 burghart Exp $ */
 /*
  * Graphics driver for the X window system, version 11.3, with Titan 
  * enhancements.
@@ -167,7 +167,7 @@ struct device *dev;
  */
 	attr.background_pixel = 1;
 	attr.border_pixel = tag->x_fg;
-	attr.backing_store = WhenMapped;
+	attr.backing_store = NotUseful;
 	attr.event_mask = KeyPressMask | ButtonPressMask | ExposureMask;
 	amask = CWBackPixel | CWBorderPixel | CWBackingStore | CWEventMask;
 	if (tag->x_pseudo)
@@ -219,9 +219,9 @@ struct device *dev;
 /*
  * Clear the window.
  */
-	printf ("Waiting for expose...\n");
+	printf ("Waiting for expose...");
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
-	printf ("Got it.\n");
+	printf ("got it.\r\n");
 	/* XClearWindow (tag->x_display, tag->x_window); */
 	XSync (tag->x_display, False);
 /*
@@ -276,18 +276,17 @@ char *ctag;
 	struct xtag *tag = (struct xtag *) ctag;
 
 	xt_change (tag);
-	/* XClearWindow (tag->x_display, tag->x_window); */
+/*
+ * Fill the window with the background color
+ */
+	XdFillRectangle (tag->x_handle, 0, 0, tag->x_xres, tag->x_yres, 
+		0, 0, FillColor);
 /*
  * Clear the pointer, too
  */
 	tag->x_xptr = -1;
 	tag->x_yptr = -1;
-# ifdef notdef
-	XSetFunction (tag->x_display, tag->x_gc, GXset);
-	XFillRectangle (tag->x_display, tag->x_ptr_pixmap, tag->x_gc, 
-		0, 0, PTR_SIZE + 2, PTR_SIZE + 2);
-	XSetFunction (tag->x_display, tag->x_gc, GXcopy);
-# endif
+
 	xt_flush (ctag);
 }
 
