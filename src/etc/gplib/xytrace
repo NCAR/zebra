@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.4 1994-10-28 16:08:03 corbet Exp $
+! $Id: xytrace,v 1.5 1994-10-28 20:04:37 corbet Exp $
 
 define widget xysideannot intmenu ' '
 	title 'Side annotation size'
@@ -212,4 +212,5 @@ endprocedure
 ! Get another field added on to this plot.
 !
 procedure xyaddfield
+	dm 'TSNewField'	! delegate
 endprocedure
