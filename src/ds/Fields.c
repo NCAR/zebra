@@ -19,20 +19,20 @@
  * maintenance or updates for its software.
  */
 
+# include <config.h>		/* For CFG_ parameters */
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.7 1994-11-22 00:29:58 granger Exp $")
-
+MAKE_RCSID ("$Id: Fields.c,v 3.8 1995-01-19 18:53:19 granger Exp $")
 
 
 /*
  * The structure defining a field.
  */
-# define MaxFieldID		512
-# define MaxFieldName		40
-# define MaxFieldLongName 	80
-# define MaxFieldUnits		20
+# define MaxFieldID		CFG_FIELD_MAX_ID
+# define MaxFieldName		CFG_FIELD_NAME_LEN
+# define MaxFieldLongName 	CFG_FIELD_LONG_LEN
+# define MaxFieldUnits		CFG_FIELD_UNITS_LEN
 
 typedef struct _FieldDesc
 {
