@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.5 1993-04-26 16:04:05 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 1993-04-28 23:00:57 corbet Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -70,9 +70,6 @@ DISTFILES = Imakefile $(SRCS) $(HEADERS) Daemon.state NetXfr.state \
 
 
 NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
-
-NormalProgramTarget(dscopy,dscopy.o $(DSLIBOBJS) $(DCOBJS),
 		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
