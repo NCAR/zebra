@@ -77,6 +77,8 @@ int	BaudRate;
 float	RangeRes, AzimuthRes;
 float	RadarLat, RadarLon;
 float	AltMin, AltMax, LatMin, LatMax, LonMin, LonMax;
+bool	PhonyData = FALSE;
+float	PhonyTime = 0.5;
 
 /*
  * File descriptor of device file where black box is.
