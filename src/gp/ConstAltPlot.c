@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.61 1995-09-23 02:32:59 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.62 1996-11-18 17:25:26 burghart Exp $")
 
 
 /*
@@ -96,6 +96,10 @@ typedef struct _StInfo
 } StInfo;
 
 
+/*
+ * Quadrant format info
+ */
+typedef char	QFormat[16];
 
 
 /*----------------------------------------------------------------
@@ -125,15 +129,17 @@ static void	CAP_AddStatusLine FP ((char *, char *, char *, double,
 				       AltUnitType, ZebTime *));
 static void	CAP_StDoScalar FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
-				    FieldId quadfields[4], XColor *color,
-				    XColor *qcolor, ZebTime *zt, char *sticon,
-				    int linewidth, double unitlen, int, 
+				    FieldId quadfields[4], QFormat qformats[4],
+				    XColor *color, XColor *qcolor, ZebTime *zt,
+				    char *sticon, int linewidth, 
+				    double unitlen, int do_vectors, 
 				    bool quadstn[4], WindInfo *wi));
 static void	CAP_StDoIRGrid FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
-				    FieldId quadfields[4], XColor *color,
-				    XColor *qcolor, ZebTime *zt, char *sticon,
-				    int linewidth, double unitlen, int, 
+				    FieldId quadfields[4], QFormat qformats[4],
+				    XColor *color, XColor *qcolor, ZebTime *zt,
+				    char *sticon, int linewidth, 
+				    double unitlen, int do_vectors, 
 				    bool quadstn[4], WindInfo *wi, float *));
 static DataChunk *CAP_StGetData FP ((char *c, PlatformId plat, FieldId *fields,
 				     int nfield, int *shifted));
@@ -143,7 +149,10 @@ static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0,
 				      int linewidth, float *ugrid, 
 				      float *vgrid, double badvalue, 
 				      double unitlen, float *qgrid[4],
-				      int, bool quadstn[4]));
+				      QFormat qformats[4], int do_vectors, 
+				      bool quadstn[4]));
+static bool	CAP_TimeCheck FP ((char *c, PlatformId pid));
+
 
 
 void
@@ -338,6 +347,7 @@ int *shifted;
 	Location 	loc;
 	float	badvalue;
 	AltUnitType	altunits;
+	PlatformId	pid;
 /*
  * Set up the return strings
  */
@@ -353,6 +363,16 @@ int *shifted;
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
 	autoscale = CAP_AutoScale (c, "contour", platform, fname,
 				   center, step);
+/*
+ * Bail on too old data, if requested
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform: %s", platform);
+		return;
+	}
+	if (! CAP_TimeCheck (c, pid))
+		return;
 /*
  * color coding info.
  */
@@ -578,8 +598,8 @@ bool update;
 	char	*pnames[MaxPlatforms];
 	PlatformId pid;
 	float vscale, unitlen;
-	int linewidth, shifted, i, nplat;
-	bool	tacmatch, quad = FALSE, do_vectors;
+	int linewidth, shifted = FALSE, i, nplat, f;
+	bool	tacmatch, do_vectors;
 	ZebTime zt;
 	XColor	color, qcolor;
 	bool	quadstn[4];
@@ -588,29 +608,38 @@ bool update;
 	Location loc;
 	AltUnitType altunits;
 	WindInfo wi;
+	QFormat	qformats[4];
 	int 	nfield;
 	float	alt;
 	DataChunk	*dc;
 /*
  * Get necessary parameters from the plot description
  */
-	if (! CAP_VecParams (c, platform, &vscale, cname, 
-			     &linewidth, &unitlen, &color, &do_vectors))
+	if (! CAP_VecParams (c, platform, &vscale, cname, &linewidth, &unitlen,
+			     &color, &do_vectors))
 		return;
 /*
- * Initialize quadrant info
+ * Defaults for quadrant info
  */
 	for (i = 0; i < 4; i++)
 	{
 		quadstn[i] = FALSE;
 		quadfields[i] = BadField;
 		quadrants[i][0] = '\0';
+		strcpy (qformats[i], "%.1f");
 	}
+/*
+ * Get quadrant fields and formats specified in the PD
+ */
+	for (i = 0; i < 4; i++)
+	{
+		char	param[16];
 
-	quad |= pd_Retrieve (Pd, c, "quad1", quadrants[0], SYMT_STRING);
-	quad |= pd_Retrieve (Pd, c, "quad2", quadrants[1], SYMT_STRING);
-	quad |= pd_Retrieve (Pd, c, "quad3", quadrants[2], SYMT_STRING);
-	quad |= pd_Retrieve (Pd, c, "quad4", quadrants[3], SYMT_STRING);
+		sprintf (param, "quad%d", i + 1);
+		pda_Search (Pd, c, param, NULL, quadrants[i], SYMT_STRING);
+		strcat (param, "-format");
+		pda_Search (Pd, c, param, NULL, qformats[i], SYMT_STRING);
+	}
 /*
  * Get a color for the quadrants.  Do this whether or not we have data in
  * the quads -- we'll be drawing the axes regardless.
@@ -655,9 +684,9 @@ bool update;
 	{
 		if (pda_Search (Pd, c, "ta-color-match", NULL, (char *)
 				&tacmatch, SYMT_BOOL) && tacmatch)
-			An_TopAnnot ("Vector winds plot (", color.pixel);
+			An_TopAnnot ("Station plot (", color.pixel);
 		else
-			An_TopAnnot ("Vector winds plot (", Tadefclr.pixel);
+			An_TopAnnot ("Station plot (", Tadefclr.pixel);
 	}
 /*
  * Go through all the platforms.
@@ -693,9 +722,9 @@ bool update;
 		if (dc->dc_Class == DCC_IRGrid)
 		{
 			CAP_StDoIRGrid (c, dc, pnames[i], fields, nfield,
-					quadfields, &color, &qcolor, &zt, 
-					sticon, linewidth, unitlen, do_vectors,
-					quadstn, &wi, &alt);
+					quadfields, qformats, &color, &qcolor, 
+					&zt, sticon, linewidth, unitlen, 
+					do_vectors, quadstn, &wi, &alt);
 		/*
 		 * Check for stations with altitudes
 		 */
@@ -712,9 +741,9 @@ bool update;
 			alt = loc.l_alt;
 			altunits = dc_GetLocAltUnits (dc);
 			CAP_StDoScalar (c, dc, pnames[i], fields, nfield,
-					quadfields, &color, &qcolor, &zt, 
-					sticon, linewidth, unitlen, do_vectors,
-					quadstn, &wi);
+					quadfields, qformats, &color, &qcolor, 
+					&zt, sticon, linewidth, unitlen, 
+					do_vectors, quadstn, &wi);
 		}
 		dc_DestroyDC (dc);
 	/*
@@ -743,8 +772,8 @@ bool update;
 /*
  * Side annotation.
  */
-	sprintf (data, "%s %li %li %f %d ", "10m/sec", color.pixel, 
-		 qcolor.pixel, do_vectors ? unitlen : 0, 4 /*numquads*/);
+	sprintf (data, "%s %li %li %f %d ", "m/s", color.pixel, qcolor.pixel, 
+		 do_vectors ? unitlen : 0, 4 /*numquads*/);
 
 	for (i = 0; i < 4; i++)
 	{
@@ -809,7 +838,8 @@ int nsta;
 
 static void
 CAP_StPlotVector (c, pt, zt, x0, y0, plat, sticon, color, qcolor, linewidth, 
-		  ugrid, vgrid, badvalue, unitlen, qgrid, do_vectors, quadstn)
+		  ugrid, vgrid, badvalue, unitlen, qgrid, qformats, 
+		  do_vectors, quadstn)
 char *c;
 int pt;
 ZebTime *zt;
@@ -819,6 +849,7 @@ char *sticon;
 XColor *color, *qcolor;
 int linewidth;
 float *ugrid, *vgrid, badvalue, unitlen, *qgrid[4];
+QFormat qformats[4];
 bool do_vectors;
 bool quadstn[4];
 /*
@@ -827,8 +858,10 @@ bool quadstn[4];
 {
 	char buf[64];
 	char *label;
-	static const int offset_x[4] = { -15, 15, -15, 15 };
-	static const int offset_y[4] = { -10, -10, 10, 10 };
+	static const int hjust[4] = { JustifyRight, JustifyLeft, JustifyRight,
+				      JustifyLeft };
+	static const int vjust[4] = { JustifyBottom, JustifyBottom, 
+				      JustifyTop, JustifyTop };
 	int j;
 /*
  * Place an icon at the station location.
@@ -842,16 +875,17 @@ bool quadstn[4];
 			linewidth, LineSolid, CapButt, JoinMiter);
 	if ((ugrid[pt] != badvalue) && (vgrid[pt] != badvalue))
 	{
-		if (do_vectors)
+		double	u = ugrid[pt], v = vgrid[pt];
+
+		if (u == 0 && v == 0)
+			/* nothing */;
+		else if (do_vectors)
 			draw_vector (XtDisplay (Graphics), GWFrame (Graphics), 
-				     Gcontext, x0, y0, ugrid[pt], vgrid[pt], 
-				     unitlen);
+				     Gcontext, x0, y0, u, v, unitlen);
 		else
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
-				   Gcontext, x0, y0, 
-				   ATAN2 (vgrid[pt], ugrid[pt]), 
-				   hypot (vgrid[pt], ugrid[pt]), unitlen, 
-				   FALSE);
+				   Gcontext, x0, y0, ATAN2 (-v, -u), 
+				   hypot (v, u), unitlen, FALSE);
 	}
 /*
  * Do quadrants if necessary.
@@ -860,6 +894,7 @@ bool quadstn[4];
 
 	for (j = 0; j < 4; j++)
 	{
+		int	border_x, border_y;
 	/*
 	 * Create station name label for this quadrant
 	 */
@@ -874,15 +909,18 @@ bool quadstn[4];
 	 */
 		else if (qgrid[j] != NULL && qgrid[j][pt] != badvalue)
 		{
-			sprintf(buf, "%.1f", qgrid[j][pt]); 
+			sprintf(buf, qformats[j], qgrid[j][pt]); 
 			label = buf;
 		}
 		else
 			continue;
+
+		border_x = ((j == 0) || (j == 2)) ? -2 : 2;
+		border_y = ((j == 0) || (j == 1)) ? -2 : 2;
+		
 		DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				x0 + offset_x[j], y0 + offset_y[j],
-				label, 0.0, Sascale, JustifyCenter,
-				JustifyCenter);
+			  x0 + border_x, y0 + border_y,
+			  label, 0.0, Sascale, hjust[j], vjust[j]);
 	}
 /*
  * Tweak the foreground back.
@@ -899,16 +937,16 @@ char *c;
 PlatformId plat;
 FieldId *fields;
 int nfield, *shifted;
-/*
- * Get some data.
+/* 
+* Get some data.
  */
 {
 	ZebTime zt;
 	DataOrganization org = (DataOrganization) ds_PlatformDataOrg (plat);
 	DataChunk *dc;
 	dsDetail details[5];
-	int ndetail;
-	char dimn_parms[256];
+	int ndetail, seconds;
+	char string[256];
 /*
  * Make sure this makes sense.
  */
@@ -928,11 +966,16 @@ int nfield, *shifted;
 		return (0);
 	}
 /*
+ * Bail on too old data, if requested
+ */
+	if (! CAP_TimeCheck (c, plat))
+		return (0);
+/*
  * Get the data.
  */
 	ndetail = 0;
-	if (pda_Search (Pd, c, "dimensions", NULL, dimn_parms, SYMT_STRING))
-		dc_NSFixedDetails (dimn_parms, details, &ndetail);
+	if (pda_Search (Pd, c, "dimensions", NULL, string, SYMT_STRING))
+		dc_NSFixedDetails (string, details, &ndetail);
 	details[ndetail].dd_Name = "altitude";
 	details[ndetail].dd_V.us_v_float = Alt;
 	ndetail++;
@@ -951,15 +994,16 @@ int nfield, *shifted;
 
 
 static void
-CAP_StDoIRGrid (c, dc, platform, fields, nfield, quadfields, color, qcolor, 
-		zt, sticon, linewidth, unitlen, do_vectors, quadstn, wi,
-		alt)
+CAP_StDoIRGrid (c, dc, platform, fields, nfield, quadfields, qformats, color, 
+		qcolor, zt, sticon, linewidth, unitlen, do_vectors, quadstn, 
+		wi, alt)
 char *c;
 DataChunk *dc;
 char *platform;
 FieldId *fields;
 int nfield;
 FieldId quadfields[4];
+QFormat qformats[4];
 XColor *color, *qcolor;
 ZebTime *zt;
 char *sticon;
@@ -1043,7 +1087,7 @@ float *alt;	/* return an altitude for the irgrid */
 		CAP_StPlotVector (c, i, zt, sinfo[i].si_x, sinfo[i].si_y,
 				  platforms[i], sticon, color, qcolor, 
 				  linewidth, ugrid, vgrid, badvalue, unitlen, 
-				  qgrid, do_vectors, quadstn);
+				  qgrid, qformats, do_vectors, quadstn);
 	}
 /*
  * Free the data.
@@ -1057,14 +1101,16 @@ float *alt;	/* return an altitude for the irgrid */
 
 
 static void
-CAP_StDoScalar (c, dc, platform, fields, nfield, quadfields, color, qcolor, 
-		zt, sticon, linewidth, unitlen, do_vectors, quadstn, wi)
+CAP_StDoScalar (c, dc, platform, fields, nfield, quadfields, qformats, color, 
+		qcolor, zt, sticon, linewidth, unitlen, do_vectors, quadstn,
+		wi)
 char *c;
 DataChunk *dc;
 char *platform;
 FieldId *fields;
 int nfield;
 FieldId quadfields[4];
+QFormat	qformats[4];
 XColor *color, *qcolor;
 ZebTime *zt;
 char *sticon;
@@ -1118,7 +1164,7 @@ WindInfo *wi;
  */
 	CAP_StPlotVector (c, 0, zt, XPIX (x0), YPIX (y0), dc->dc_Platform,
 			  sticon, color, qcolor, linewidth, &u, &v, badvalue, 
-			  unitlen, qgrid, do_vectors, quadstn);
+			  unitlen, qgrid, qformats, do_vectors, quadstn);
 }
 
 
@@ -1397,14 +1443,15 @@ bool	update;
  */
 	if (do_vectors)
 	{
-		sprintf (data, "%s %li %f %f %f", "10m/s", color.pixel, 10.0, 
-			 0.0, unitlen); 
+		int	length = 10;
+		sprintf (data, "%d %s %li %f %f %f", length, "m/s",
+			 color.pixel, (float) length, 0.0, unitlen); 
 		An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
 				 40, FALSE, FALSE);
 	}
 	else
 	{
-		sprintf (data, "m/s %li %d", color.pixel, (int)unitlen);
+		sprintf (data, "%s %li %d", "m/s", color.pixel, (int)unitlen);
 		An_AddAnnotProc (An_BarbLegend, c, data, strlen (data), 100, 
 				 FALSE, FALSE);
 	}
@@ -1431,14 +1478,15 @@ bool *do_vectors;
  * Get common parameters for vector plots.
  */
 {
-	char style[16];
+	char string[16];
 	bool ok;
+	PlatformId pid;
 /*
  * Vectors or barbs?
  */
 	*do_vectors = TRUE;
-	if (pda_Search (Pd, c, "wind-style", NULL, style, SYMT_STRING))
-		*do_vectors = strncmp (style, "barb", 4);
+	if (pda_Search (Pd, c, "wind-style", NULL, string, SYMT_STRING))
+		*do_vectors = strncmp (string, "barb", 4);
 /*
  * Required stuff
  */
@@ -1515,8 +1563,8 @@ int datalen, begin, space;
  * Routine to do station plot side annotation.
  */
 {
-	char string[40], qname[4][40];
-	float unitlen, used, scale; 
+	char string[40], units[40], qname[4][40];
+	float unitlen, used, scale, speed = 10.0; 
 	int i, left, numquads, limit, middle;
 	Pixel vc, qc;
 /*
@@ -1526,27 +1574,38 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-        sscanf (data, "%s %li %li %f %d %s %s %s %s", string, &vc, &qc, 
+        sscanf (data, "%s %li %li %f %d %s %s %s %s", units, &vc, &qc, 
 		&unitlen, &numquads, qname[0], qname[1], qname[2], qname[3]);
 /*
  * Put in the vector (unless unitlen == 0, implying wind barbs).
  */
+	left = An_GetLeft ();
+	XSetForeground (XtDisplay (Graphics), Gcontext, vc);
+
 	if (unitlen > 0)
 	{
-		left = An_GetLeft ();
-
-		XSetForeground (XtDisplay (Graphics), Gcontext, vc);
+		sprintf (string, "%.0f %s", speed, units);
 
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
-			  "10 m/sec", 0.0, scale, JustifyLeft, JustifyTop);
+			  string, 0.0, scale, JustifyLeft, JustifyTop);
 		used = DT_ApproxHeight (Graphics, scale, 1);
 		begin += used;
 		space -= used;
 
 		draw_vector (XtDisplay (Graphics), GWFrame (Graphics), 
-			     Gcontext, left, begin + 5, 10.0, 0.0, unitlen);
+			     Gcontext, left, begin + 5, speed, 0.0, unitlen);
 		begin += 10;
 		space -= 10;
+	}
+	else	/* just show units for wind barbs */
+	{
+		sprintf (string, "barbs in %s", units);
+
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
+			  string, 0.0, scale, JustifyLeft, JustifyTop);
+		used = DT_ApproxHeight (Graphics, scale, 1);
+		begin += used;
+		space -= used;
 	}
 /*
  * Put in the quadrant annotation.
@@ -1676,6 +1735,11 @@ bool	update;
 		msg_ELog (EF_PROBLEM, "Can't do raster plots of %s", platform);
 		return;
 	}
+/*
+ * Bail on too old data, if requested
+ */
+	if (! CAP_TimeCheck (c, pid))
+		return;
 /*
  * Get info for highlighting and area.
  */
@@ -2026,5 +2090,63 @@ ZebTime *t;
 
 	ot_Append (string);
 }
+
+
+
+static bool
+CAP_TimeCheck (c, pid)
+char	*c;
+PlatformId	pid;
+/*
+ * Return TRUE if we are showing data of any age, or if time limiting is
+ * enabled and available data are new enough to be within the time limit.
+ * Otherwise, return FALSE.
+ */
+{
+	bool	limit_data_age;
+	int	seconds;
+	char	string[16];
+	ZebTime	zt;
+/*
+ * Data age check enabled?
+ */
+	limit_data_age = FALSE;	/* historical default */
+	pda_Search (Pd, c, "limit-data-age", NULL, (char *) &limit_data_age,
+		    SYMT_BOOL);
+	if (! limit_data_age)
+		return (TRUE);
+/*
+ * Nearest data time
+ */
+	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
+	{
+		msg_ELog(EF_INFO,"No data available at all for '%s'",
+			 ds_PlatformName (pid));
+		return (FALSE);
+	}
+/*
+ * Get the age limit
+ */	
+	if (pda_Search (Pd, c, "data-age-limit", ds_PlatformName (pid), 
+			string, SYMT_STRING) ||
+	    pda_Search (Pd, c, "icon-age-limit", ds_PlatformName (pid), 
+			string, SYMT_STRING))
+		seconds = pc_TimeTrigger (string); 
+	else
+		seconds = 0;
+/*
+ * Finally, test to see if the data are recent enough
+ */	
+	if ((seconds > 0) && (PlotTime.zt_Sec - zt.zt_Sec) > seconds)
+	{
+		msg_ELog (EF_INFO, "%s data too old, not displayed", 
+			  ds_PlatformName (pid));
+		return (FALSE);
+	}
+
+	return (TRUE);
+}
+
+
 
 # endif  /* C_PT_CAP */
