@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.59 1997-07-01 23:57:03 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.60 1997-07-10 22:01:26 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -1017,6 +1017,9 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 
             EMACS = EmacsPath
           EMACS19 = Emacs19Path
+
+             RPCG = rpcgen
+        RPCGFLAGS = -C
 
 /*
  * Our own implicit rules, such as for C++ files (.cc extension)

@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.15 1997-06-06 22:37:00 ishikawa Exp $
+XCOMM $Id: Zebra.rules,v 1.16 1997-07-10 22:01:27 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -255,6 +255,24 @@ CvsIgnoreFile(loadfile)						@@\
 								@@\
 clean::								@@\
 	RemoveFile(loadfile)
+
+
+/*
+ * A target for generating the .h and _xdr.c files from RPC source
+ * using rpcgen.  Relies on RPCG and RPCGFLAGS in the makefile template.
+ * The generated files are added to the 'xdr' and 'xdrclean', and the
+ * generated .h file is added to a depend:: target.
+ */
+#define XDRTarget(base) \
+xdr:: base.h Concat(base,_xdr).c					@@\
+									@@\
+base.h Concat(base,_xdr).c: base.x					@@\
+	$(RPCG) $(RPCGFLAGS) base.x					@@\
+									@@\
+depend:: base.h								@@\
+									@@\
+xdrclean::								@@\
+	$(RM) base.h Concat(base,_xdr).c				@@\
 
 
 /*
