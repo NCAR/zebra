@@ -30,15 +30,13 @@
 # include <sys/file.h>
 # include <fcntl.h>
 
-# include <ui_symbol.h>
-# include <ui_error.h>
-
 # include <config.h>
+# include <ui.h>
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.23 1995-06-29 23:09:45 granger Exp $")
+RCSID ("$Id: pdlib.c,v 1.24 1996-09-11 14:30:49 granger Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */

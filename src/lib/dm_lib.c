@@ -12,13 +12,14 @@
 
 #include <X11/Xlib.h>
 
+#include <ui.h>
 #include <config.h>
 #include "defs.h"
 #include "message.h"
 
 #include "dm.h"
 
-RCSID ("$Id: dm_lib.c,v 2.2 1995-05-02 23:16:25 granger Exp $")
+RCSID ("$Id: dm_lib.c,v 2.3 1996-09-11 14:31:15 granger Exp $")
 
 /*
  * Private prototypes

@@ -25,6 +25,7 @@
 # include <string.h>
 # include <ctype.h>
 
+# include <ui.h>
 # include <ui_symbol.h>
 # include <ui_error.h>
 # include <ui_date.h>
@@ -35,7 +36,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdretrv.c,v 2.1 1995-04-15 00:43:21 granger Exp $")
+RCSID ("$Id: pdretrv.c,v 2.2 1996-09-11 14:30:51 granger Exp $")
 
 bool
 pd_Retrieve (pd, comp, param, target, type)
