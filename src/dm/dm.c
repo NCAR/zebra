@@ -22,7 +22,6 @@
 # include <stdio.h>
 # include <unistd.h>
 # include <math.h>
-# include <varargs.h>
 # include <fcntl.h>
 # include <signal.h>
 # include <errno.h>
@@ -44,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.70 1999-08-10 23:10:54 burghart Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.71 2000-03-01 20:31:21 burghart Exp $")
 
 /*
  * Pick a help browser.
