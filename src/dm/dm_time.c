@@ -15,7 +15,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.6 1995-09-07 21:29:26 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.7 1995-09-26 15:06:14 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
@@ -68,6 +68,7 @@ dt_Init ()
 	usy_c_indirect (vtable, "timefile", TimeFile, SYMT_STRING, 
 			TIME_FILE_LEN);
 	tw_DefTimeWidget (dt_TWCallback, "System Time Control");
+	tw_AddPopupCallback (dt_SetWindowNames);
 	aw_DefAlarmWidget ();
 }
 
