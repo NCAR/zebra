@@ -15,11 +15,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 2004-10-25 21:51:29 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 2004-12-02 20:58:27 burghart Exp $"
 
 #LIBS = -L/usr/local/lib $(DFALIBS) $(ZLIBS)
 
-PYSCRIPTS = DataTimes.py vor_position.py latlon_position.py dc_shiftloc.py
+PYSCRIPTS = DataTimes.py vor_position.py latlon_position.py dc_shiftloc.py \
+            PlatformDirWatcher.py
 
 DISTFILES = $(SRCS) ($HEADERS) Imakefile 
 
