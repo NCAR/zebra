@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.5 1999-08-05 20:50:51 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.6 1999-10-15 03:55:21 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -62,7 +62,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.5 1999-08-05 20:50:51 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.6 1999-10-15 03:55:21 granger Exp $")
 
 #include "ZTime.hh"
 #include "FieldClass.h"
@@ -1426,6 +1426,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	} 
 
 	// Start reading data values
+	ZTime when = 0;
 	while (getline (fin, line))
 	{
 		++lino;
@@ -1443,7 +1444,10 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		}			
 
 		// Now we should have the fields we need to insert a sample.
-		if (snd.tdelta() == BADVAL)
+		// We check for bad launch deltas, and ignore any leading
+		// lines with deltas further than a minute.
+		if (snd.tdelta() == BADVAL ||
+		    (when == 0 && snd.tdelta() > 60))
 		{
 			IngestLog (EF_DEBUG, 
 				   "Bad time value on line %d: %s",
@@ -1451,7 +1455,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			++badlines;
 			continue;
 		}
-		ZTime when = snd.tlaunch;
+		when = snd.tlaunch;
 		when += snd.tdelta();
 
 		// If the pressure value is bad, store all fields as bad.
