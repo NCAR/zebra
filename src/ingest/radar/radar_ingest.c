@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.7 1993-08-18 15:34:47 burghart Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.8 1993-12-28 18:04:47 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -53,6 +53,7 @@ int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
 bool Project = TRUE;
 bool MhrMode = FALSE;
+bool ForceRealTime = TRUE;	/* Force data times to real time?	*/
 float MhrTop = 21.0;
 
 /*
@@ -207,6 +208,7 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "project", &Project, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "mhrmode", &MhrMode, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "mhrtop", &MhrTop, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "forcerealtime", &ForceRealTime, SYMT_BOOL, 0);
 /*
  * Thresholding parameters.
  */
@@ -473,9 +475,13 @@ int newvol, left, right, up, down, mode;
 	strcpy (attr, newvol ? "newfile," : "");
 	strcat (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");
 /*
- * Force time -- we know better than they do.
+ * Force time unless told not to -- we usually know better than they do.
  */
-	tl_GetTime (&t);
+	if (ForceRealTime)
+		tl_GetTime (&t);
+	else
+		t = *bt;
+
 	IX_SendFrame (ShmDesc, ImageSet, &t, &rg, &loc, Scale, left, up,
 			right, down, attr);
 	ImageSet = -1;
@@ -553,6 +559,7 @@ BeginSweep ()
  * Get set to do a new sweep.
  */
 {
+	int i;
 	char s[50];
 # ifdef notdef
 	ui_printf ("Next sweep: ");
@@ -570,10 +577,16 @@ BeginSweep ()
 /*
  * Otherwise we get a new set.
  */
-	if ((ImageSet = IX_GetWriteFrame (ShmDesc, (char **) Image, TRUE)) < 0)
-		return (FALSE);
-	Rd[0].rd_image = Image[0];
-	Rd[1].rd_image = Image[1];
+	while ((ImageSet = 
+		IX_GetWriteFrame (ShmDesc, (char **) Image, FALSE)) < 0)
+	{
+		msg_ELog (EF_DEBUG, "Waiting for image frame...");
+		sleep (1);
+	}
+
+	for (i = 0; i < NField; i++)
+		Rd[i].rd_image = Image[i];
+
 	/* ClearImages (); */
 	return (TRUE);
 }
