@@ -1,0 +1,13 @@
+!
+! Save these parameters.  They are good for testing.
+! Radar lat and lon are CP2, but range_res and azimuth_res are from
+! the parker radar, so the data will not be 'real'
+!
+set black_box "/dev/cua0"
+set dial_out "atdt 6780768"
+set baud_rate 2400
+set our_aircraft ""
+set range_res 0.125
+set azimuth_res 0.0875
+set radar_lat 39.95
+set radar_lon -105.19
