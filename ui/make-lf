@@ -1,3 +1,0 @@
-read ui.state
-vset ui$pager_mode false
-save ui.lf all
