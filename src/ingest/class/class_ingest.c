@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.6 1992-07-31 16:11:06 pai Exp $
+ * $Id: class_ingest.c,v 2.7 1992-11-20 19:24:25 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -29,7 +29,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.6 1992-07-31 16:11:06 pai Exp $")
+   "$Id: class_ingest.c,v 2.7 1992-11-20 19:24:25 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -463,7 +463,7 @@ ParseCommandLineOptions(argc, argv)
 		   continue;
 		}
 
-		RemoveOptions(argc, argv, i, 1);
+		IngestRemoveOptions(argc, argv, i, 1);
 	}
 }
 
