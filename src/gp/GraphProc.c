@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.23 1991-02-14 17:53:14 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.24 1991-02-19 17:41:11 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -88,18 +88,16 @@ static void DMButton (), UiErrorReport (), UiPfHandler ();
 extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 extern void Ue_MotionEvent ();
 
-# ifdef __STDC__
-	static void NewTime (time *);
-# else
-	static void NewTime ();
-# endif
-
-
 /*
  * Routines called through the event queue mechanism.
  */
 void eq_reconfig (), eq_sync ();
 
+# ifdef __STDC__
+	static void NewTime (time *);
+# else
+	static void NewTime ();
+# endif
 
 
 
@@ -109,15 +107,10 @@ GPShutDown ()
  * Finish up and quit.
  */
 {
-	int i;
-	
 	ui_finish ();
 # ifdef SHM
 	RP_ZapSHMImage (Graphics);
-	for(i = 0; i < FrameCount; i++)
-		gw_ZapShmPixmap(Graphics, i);
 # endif
-	unlink("FrameFile");
 	exit (0);
 }
 
@@ -272,7 +265,6 @@ finish_setup ()
  */
 	sprintf (perf, "read %s", initfile);
 	ui_perform (perf);
-
 }
 
 
@@ -575,8 +567,6 @@ struct dm_msg *dmsg;
 
 
 
-
-
 void
 eq_reconfig (dmsg, len)
 struct dm_msg *dmsg;
@@ -587,7 +577,6 @@ int len;
 {
 	Arg args[10];
 	bool schanged, wchanged;
-	
 /*
  * Figure out if anything really important has changed.
  */
@@ -733,7 +722,6 @@ struct dm_pdchange *dmp;
  */
 {
 	raw_plot_description rpd;
-
 /*
  * If we have an old plot description, get rid of it.  Also cancel any
  * pending plot activity and free the colors we were using.
@@ -759,7 +747,6 @@ struct dm_pdchange *dmp;
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
-	
 }
 
 
