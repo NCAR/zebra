@@ -35,7 +35,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID("$Id: Lightning.c,v 2.13 1997-04-17 16:02:07 corbet Exp $")
+RCSID("$Id: Lightning.c,v 2.14 1997-07-25 15:23:41 burghart Exp $")
 
 extern Pixel	White;
 
@@ -53,7 +53,7 @@ bool update;
 	char	platform[30], step[30], ctable[30], field[40], color[40];
 	char	tadefcolor[30], data[100], temp[50], iconname[40];
 	char	dannot[32];
-	int	period, dsperiod, x, y, numcolor, pid, istep;
+	int	period, x, y, numcolor, pid, istep;
 	int	i, index, nsamp, showicon, doannot = FALSE;
 	ZebTime	begin, when;
 	float	fx, fy, sascale;
@@ -149,9 +149,9 @@ bool update;
  */
 	begin = PlotTime;
 	istep = period / 60;
+
 	period *= numcolor;
-	dsperiod = update ? 15 : period;
-	begin.zt_Sec -= dsperiod;
+	begin.zt_Sec -= period;
 /*
  * Get the data.
  */
