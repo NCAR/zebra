@@ -27,11 +27,11 @@
 # include <message.h>
 # include <DataStore.h>
 # include <time.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "LayoutControl.h"
 
-RCSID("$Id: LayoutControl.c,v 1.14 1996-11-19 07:28:52 granger Exp $")
+RCSID("$Id: LayoutControl.c,v 1.15 1997-10-16 20:41:35 burghart Exp $")
 
 /*
  * This set of routines maintains the division of the (NDC) coordinate

@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.37 1997-06-28 16:31:55 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.38 1997-10-16 20:41:33 burghart Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -63,7 +63,7 @@ FOBJDIR =
 
 COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	AxisControl.o ColorTable.o ConstAltPlot.o Contour.o \
-	DataMenu.o derive.o DrawText.o EventQueue.o FieldMenu.o FillContour.o \
+	DataMenu.o DrawText.o EventQueue.o FieldMenu.o FillContour.o \
 	FrameCache.o GraphProc.o GridAccess.o Histogram.o Icons.o \
 	InsertWidget.o $(LABELOBJS) LayoutControl.o Lightning.o \
 	LimitWidgets.o LLEvent.o ModelWidget.o MovieControl.o Ov_Grid.o \
@@ -91,7 +91,7 @@ OBJS =	$(COBJS) $(FOBJS)
 
 SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
 	AxisControl.c ColorTable.c ConstAltPlot.c Contour.c \
-	DataMenu.c derive.c DrawText.c EventQueue.c FieldMenu.c FillContour.c \
+	DataMenu.c DrawText.c EventQueue.c FieldMenu.c FillContour.c \
 	FrameCache.c GraphProc.c GridAccess.c Histogram.c Icons.c \
 	InsertWidget.c Label.c LayoutControl.c Lightning.c \
 	LimitWidgets.c LLEvent.c ModelWidget.c MovieControl.c Ov_Grid.c \
@@ -111,8 +111,8 @@ ALLFSRCS = cfitf2c.c rgridf2c.c bintsf2c.c cfit.F rgrid.F bints.f
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \
-	PlotPrim.h XYCommon.h ContourP.h Skewt.h derive.h getpagesize.h \
-	gp_cmds.h rg_status.h rgrid.h f2c.h
+	PlotPrim.h XYCommon.h ContourP.h Skewt.h getpagesize.h gp_cmds.h \
+	rg_status.h rgrid.h f2c.h
 
 DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad

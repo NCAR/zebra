@@ -28,14 +28,14 @@
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.30 1996-11-19 07:29:17 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.31 1997-10-16 20:41:42 burghart Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 

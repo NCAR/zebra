@@ -31,7 +31,7 @@
 # include <message.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.20 1996-11-19 07:29:22 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.21 1997-10-16 20:41:48 burghart Exp $")
 
 /*
  * Enum to tell how we anchor z values

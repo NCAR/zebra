@@ -30,7 +30,7 @@
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.29 1996-11-19 07:29:24 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.30 1997-10-16 20:41:50 burghart Exp $")
 
 /*
  * General definitions

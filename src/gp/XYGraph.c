@@ -31,7 +31,7 @@
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
@@ -40,7 +40,7 @@
 # include "PlotPrim.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XYGraph.c,v 1.35 1996-11-19 07:29:21 granger Exp $")
+RCSID ("$Id: XYGraph.c,v 1.36 1997-10-16 20:41:46 burghart Exp $")
 
 /*
  * Prototypes

@@ -28,7 +28,7 @@
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.36 1997-02-14 22:05:44 burghart Exp $")
+RCSID("$Id: XYContour.c,v 1.37 1997-10-16 20:41:44 burghart Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 

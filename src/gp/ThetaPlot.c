@@ -34,7 +34,7 @@
 # include <message.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "PixelCoord.h"
@@ -43,7 +43,7 @@
 
 
 
-RCSID ("$Id: ThetaPlot.c,v 2.2 1997-06-02 19:34:56 corbet Exp $")
+RCSID ("$Id: ThetaPlot.c,v 2.3 1997-10-16 20:41:40 burghart Exp $")
 
 
 /*

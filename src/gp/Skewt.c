@@ -33,7 +33,7 @@
 # include <GraphicsW.h>
 # include <DataStore.h>
 # include <DataChunk.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "PixelCoord.h"
@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.29 1997-05-21 21:09:23 corbet Exp $")
+RCSID ("$Id: Skewt.c,v 2.30 1997-10-16 20:41:39 burghart Exp $")
 
 /*
  * General definitions

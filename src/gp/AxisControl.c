@@ -28,7 +28,7 @@
 # include <message.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
@@ -36,7 +36,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.27 1997-10-16 19:50:05 burghart Exp $")
+RCSID("$Id: AxisControl.c,v 1.28 1997-10-16 20:41:31 burghart Exp $")
 
 /*
  * Convenient scratch string

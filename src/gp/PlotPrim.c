@@ -34,14 +34,14 @@
 # include <GraphicsW.h>
 # include <message.h>
 # include <DataStore.h>
-# include "derive.h"
+# include <met_formulas.h>
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.13 1996-11-19 07:29:06 granger Exp $")
+RCSID("$Id: PlotPrim.c,v 1.14 1997-10-16 20:41:37 burghart Exp $")
 
 
 static int PP_LineWidth = 0;
