@@ -89,7 +89,10 @@ ddir_again:
 	echo 'Starting core zeb processes: '
 	echo -n '	message daemon '
 	$ZEB_MESSAGE & 
-	sleep 1
+#
+# Wait for startup of the message process.  "sleep 1" was insufficient.
+#
+	sleep 3
 	mstatus > /dev/null
 
 	echo -n '	event logger '
@@ -104,9 +107,14 @@ ddir_again:
 	cd $projdir
 	if ( -f proj_startup ) source proj_startup
 #
-# Fire off the data store daemon and the display manager.
+# Fire off the data store daemon and the display manager.  Daemon only if
+# there is not a pointer to a remote host, however
 #
-	$ZEB_DSDAEMON ds.config &
+	if ($?DS_DAEMON_HOST) then
+		echo '	(DS Daemon running on' $DS_DAEMON_HOST ')'
+	else
+		$ZEB_DSDAEMON ds.config &
+	endif
 	sleep 5
 	if ( ! $?DEFAULT_CONFIG ) setenv DEFAULT_CONFIG empty
 	$ZEB_DM dm.config
