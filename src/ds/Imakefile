@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.53 1996-12-30 20:35:46 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.54 1997-01-09 23:03:07 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -285,6 +285,7 @@ test.close:
 
 clean::
 	$(RM) $(SOCKET)
+	$(RM) test.znf		/* created by apple test program */    
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
