@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.11 1992-12-18 21:10:30 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.12 1993-04-09 16:18:19 granger Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -27,7 +27,7 @@ static char *rcsid = "$Id: ui_wPulldown.c,v 1.11 1992-12-18 21:10:30 corbet Exp 
 /* #  include <X11/Xaw/SmeMenu.h> */
 #  include "SmeMenu.h"
 #  include "submenu.h"
-#  include "rdssMenu.h"
+#  include "RdssMenu.h"
 #  define MenuWidgetClass rdssMenuWidgetClass
 # else
 #  include <X11/Xaw/SimpleMenu.h>
