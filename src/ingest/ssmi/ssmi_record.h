@@ -2,7 +2,7 @@
  * Record structure of SSM/I Antenna Temperature tapes from Remote Sensing 
  * Systems
  *
- * $Id: ssmi_record.h,v 1.1 1993-05-18 06:51:05 granger Exp $
+ * $Id: ssmi_record.h,v 1.2 1993-06-07 18:35:40 granger Exp $
  */
 /*
  *		Copyright (C) 1993 UCAR
@@ -43,6 +43,9 @@
 typedef unsigned char	LoData[10];
 typedef unsigned char	HiData[12];
 
+/*
+ * SSMI Logical Record 
+ */
 typedef struct _SSMI_Rec
 {
 	long	time_sec;	/* integer time for scan from begin of 1987 */
@@ -74,4 +77,10 @@ typedef struct _SSMI_Rec
 	short	ab_diff[19];	/* packed B-scan minus A-scan lat/lon diffs */
 	LoData	lo_data[64];	/* 19, 22, 37 GHz T_A's & sfc. types (K) */
 	HiData	hi_data[64];	/* 85 GHz T_A's (K) */
-} SSMI_Rec;
+} SSMI_Rec, SSMI_LogicalRec;
+
+
+/* 
+ * SSMI Physical Record is an array of at most 16 logical records
+ */
+typedef SSMI_LogicalRec SSMI_PhysicalRec[16];
