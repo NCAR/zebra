@@ -1,5 +1,5 @@
 /*
- * $Id: tao_ingest.c,v 1.2 1993-07-01 14:40:08 granger Exp $
+ * $Id: tao_ingest.c,v 1.3 1994-02-01 08:48:19 granger Exp $
  *
  * Ingest TAO moorings data as an irregular grid
  *
@@ -23,18 +23,24 @@
  */
 
 #include "ingest.h"
+
+#if defined(SYSV) || defined(SVR4)
+#include <string.h>
+#else
 #include <strings.h>
+#endif
+
 #include <copyright.h>
 
 #ifndef lint
-MAKE_RCSID("$Id: tao_ingest.c,v 1.2 1993-07-01 14:40:08 granger Exp $")
+MAKE_RCSID("$Id: tao_ingest.c,v 1.3 1994-02-01 08:48:19 granger Exp $")
 #endif
 
 # define NUMBER(arr)		((unsigned long)(sizeof(arr)/sizeof(arr[0])))
 # define INGEST_NAME 		"TAO Ingest"
 # define BADVAL 		-999.0
-# define FIRST_GUESS_SIZE	(14 * NUMBER(TaoFields))	/* 2 weeks worth    */
-# define STEP_SIZE		(14 * NUMBER(TaoFields))	/* Add two weeks    */
+# define FIRST_GUESS_SIZE	(14 * NUMBER(TaoFields)) /* 2 weeks worth    */
+# define STEP_SIZE		(14 * NUMBER(TaoFields)) /* Add two weeks    */
 # define DAYS(a,b)		(((b).zt_Sec - (a).zt_Sec)/(24 * 60 * 60))
 
 /*
