@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.3 1991-09-16 21:54:46 burghart Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.4 1991-09-26 18:23:23 gracio Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -32,6 +32,7 @@ static char *rcsid = "$Id: ac_ingest.c,v 1.3 1991-09-16 21:54:46 burghart Exp $"
 # include <signal.h>
 # include <string.h>
 
+# include <config.h>
 # include "ac_ingest.h"
 
 
@@ -150,12 +151,12 @@ char	**argv;
 	msg_connect (MsgDispatcher, "Ac_Ingest");
 	if (argc > 1)
 	{
-		ui_init ("/fcc/lib/ac_ingest.lf", FALSE, TRUE);
+		ui_init (strcat(LIBDIR, "/ac_ingest.lf"), FALSE, TRUE);
 		v.us_v_ptr = argv[1];
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 			SYMT_STRING, &v);
 	}
-	else ui_init ("/fcc/lib/ac_ingest.lf", TRUE, FALSE);
+	else ui_init (strcat(LIBDIR, "/ac_ingest.lf"), TRUE, FALSE);
 	ui_setup ("ac_ingest", &argc, argv, 0);
 	SetupIndirect ();
 	ds_Initialize ();
