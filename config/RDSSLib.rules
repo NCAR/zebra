@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: RDSSLib.rules,v 1.4 1994-03-17 18:40:46 case Exp $
+XCOMM $Id: RDSSLib.rules,v 1.5 1995-05-24 22:59:34 granger Exp $
 XCOMM
 XCOMM Rules specific to the RDSS Libraries project, including some which
 XCOMM override definitions in Imake.rules
@@ -281,6 +281,35 @@ loadfile: uisrc1 uisrc2						@@\
 								@@\
 clean::								@@\
 	$(RM) loadfile
+
+
+/*
+ * Taken from R6 Imake.rules; can be removed after transition
+ */
+#ifndef RemoveFile
+#define RemoveFile(file) $(RM) file
+#endif /* RemoveFile */
+
+/*
+ * Target which creates a .lf boot-file from uisrc, installs it and
+ * cleans it as well.  Additional dependencies can be passed in
+ * the 'deps' parameter.  Just like UILoadFileDepsTarget except it
+ * uses uib instead of uic.
+ */
+#define UIBootFileDepsTarget(loadfile,uisrc,deps)		@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExecFile(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc deps						@@\
+	RemoveFile(loadfile)					@@\
+	echo read uisrc \; \					@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIB)				@@\
+								@@\
+clean::								@@\
+	RemoveFile(loadfile)
 
 /*
  * for RDSS Libraries ui
