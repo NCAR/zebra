@@ -1,0 +1,5 @@
+limits 32.5 -105.5 43 -88
+set originLat 39.71
+set platform "goes"
+file /dt/burghart/area105-vis-4 vis
+set kmResolution 4
