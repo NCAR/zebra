@@ -17,9 +17,9 @@ _E_3_[][hPa] = 6.1078;		/* saturation vapor pressure over a plane
 
 _T_3_[][K] = 273.15;		/* Temperature of triple point of water */
 
-_epsilon_[][ ] = 0.622;		/* Ratio of molecular weight of water to
+_epsilon_[][1] = 0.622;		/* Ratio of molecular weight of water to
 				   molecular weight of dry air.  This is
-				   dimensionless, hence [ ] for the
+				   dimensionless, hence [1] for the
 				   units (rather than [], which means
 				   units are not specified) */
 
@@ -37,8 +37,11 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 /*
  * Mixing ratio (g/kg) from vapor pressure (hPa) and pressure (hPa)
  * Ref: Note 2 of FOPPCD
+ *
+ * This used to be g/kg, but udunits interprets 'g' as the gravity
+ * acceleration constant, or standard_free_fall.  Oops.
  */
-[w][g/kg] = 1000 * _epsilon_ * ([e][hPa] / ([P][hPa] - [e][hPa]));
+[w][gram/kg] = 1000 * _epsilon_ * ([e][hPa] / ([P][hPa] - [e][hPa]));
 
 /*
  * Vapor pressure (hPa) from relative humidity (%) and saturation vapor 
