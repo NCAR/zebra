@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.41 1996-09-06 21:05:28 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.42 1996-11-19 07:51:48 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -80,10 +80,6 @@ static int NoConnection = 1; 	/* True when in a non-connected state */
  */
 static int PrintMask = (EF_ALL & ~(EF_DEVELOP) & ~(EF_DEBUG));
 static int SendMask = 0x00;
-static char LogBuffer[1024];	/* for msg_log and msg_ELog to share */
-static int (*LogCB)() = NULL;	/* log callback function */
-static int CBMask = 0;		/* callback mask */
-static void *CBArg = NULL;	/* callback arg */
 
 /*
  * Echo mode: a test mode where we first send all of our messages to 
@@ -173,7 +169,7 @@ char *ident;
 	struct message msg;
 	struct mh_greeting greet;
 	struct mh_ident id;
-	char *sn = getenv ("ZEB_SOCKET");
+	char *sn = NULL;
 /*
  * Preserve our identity
  */
@@ -197,6 +193,8 @@ char *ident;
 /*
  * Connect.
  */
+	if (! (sn = getenv (MSG_SOCKET_VARIABLE)))
+		sn = getenv ("ZEB_SOCKET");
  	saddr.sun_family = AF_UNIX;
 	strcpy (saddr.sun_path, sn ? sn : UN_SOCKET_NAME);
 	if (connect (Msg_fd, (struct sockaddr *) &saddr,
@@ -399,6 +397,20 @@ ifptr handler;
 {
 	if (proto >= 0 && proto < MT_MAX_PROTO)
 		ProtoHandlers[proto] = handler;
+}
+
+
+
+
+ifptr
+msg_ProtoHandler (proto)
+int proto;
+{
+	if (proto >= 0 && proto < MT_MAX_PROTO &&
+	    ProtoHandlers[proto])
+		return (ProtoHandlers[proto]);
+	else
+		return (Msg_handler);
 }
 
 
@@ -1726,6 +1738,19 @@ int *reply;
 
 
 
+/* =====================================================================
+ * Message logging interface
+ * ---------------------------------------------------------------------
+ */
+
+static char LogBuffer[512];	/* for msg_log and msg_ELog to share */
+static char PushBuffer[512];	/* for the callback routine to use */
+static struct msg_elog *EL = (struct msg_elog *) LogBuffer;
+static int (*LogCB)() = NULL;	/* log callback function */
+static int CBMask = 0;		/* callback mask */
+static void *CBArg = NULL;	/* callback arg */
+
+
 
 int
 msg_ELPrintMask (mask)
@@ -1775,9 +1800,9 @@ va_dcl
  */
  	va_start (args);
 	fmt = va_arg (args, char *);
-	vsprintf (LogBuffer, fmt, args);
+	vsprintf (EL->el_text, fmt, args);
 	va_end (args);
-	fprintf (stderr, "%s: %s\n", Identity, LogBuffer);
+	fprintf (stderr, "%s: %s\n", Identity, EL->el_text);
 }
 
 
@@ -1790,7 +1815,7 @@ va_dcl
  * Send a message to the event logger with a default mask of EF_INFO.
  */
 {
-	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
+	struct msg_elog *el = EL;
 	va_list args;
 	char *fmt;
 /*
@@ -1813,7 +1838,7 @@ va_dcl
  * Extended message logging interface.
  */
 {
-	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
+	struct msg_elog *el = EL;
 	va_list args;
 	char *fmt;
 /*
@@ -1830,6 +1855,26 @@ va_dcl
 
 
 
+static int
+msg_CheckCallback (el)
+struct msg_elog *el;
+{
+	static int push = 0;
+	int suppress = 0;
+
+	if (LogCB && !push && (el->el_flag & CBMask))
+	{
+		push = 1;
+		EL = (struct msg_elog *) PushBuffer;
+		suppress = (int)(*LogCB)(el->el_flag, el->el_text, CBArg);
+		EL = (struct msg_elog *) LogBuffer;
+		push = 0;
+	}
+	return (suppress);
+}
+
+
+
 static void
 msg_SendLog (el)
 struct msg_elog *el;
@@ -1837,8 +1882,7 @@ struct msg_elog *el;
 /*
  * The callback function, if any, gets first dibs at suppressing the message.
  */
-	if (LogCB && (el->el_flag & CBMask) &&
-	    (int)(*LogCB)(el->el_flag, el->el_text, CBArg))
+	if (msg_CheckCallback (el))
 		return;
 /*
  * If this message won't get logged, don't bother sending it.
@@ -1868,7 +1912,7 @@ struct msg_elog *el;
 
 
 
-int
+void
 msg_LogCallback (mask, fn, arg)
 int mask;
 int(*fn)();
