@@ -46,7 +46,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.31 1995-06-29 21:03:01 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.32 1995-07-06 04:15:53 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -97,7 +97,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.31 1995-06-29 21:03:01 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.32 1995-07-06 04:15:53 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -198,7 +198,6 @@ static void BroadcastEMask FP ((void));
 static void SendEMask FP ((char *who));
 int	SendDbgMask FP ((char *, int, SValue *, long));
 int	PassDebug FP ((int,  char *));
-int 	xevent (), msg_event ();
 static void dm_msg FP ((struct dm_msg *dmsg));
 static void clearbutton FP ((void));
 static void reconfig FP ((int x, int y, int w, int h));
@@ -229,6 +228,8 @@ static void AppendToLogFile FP ((char *fmtbuf));
 static void DoLog FP ((char *from, char *msg));
 static void LogFortune FP((void));
 static void Wait FP ((void));
+static int xevent FP((void));
+static int msg_event FP((struct message *msg));
 
 
 #define USAGE \
@@ -267,7 +268,7 @@ const char *flags;
  * Convert the characters in the string 'flags' to an event mask
  */
 {
-	int mask, i;
+	int mask;
 	const char *c;
 
 	mask = 0;
@@ -290,7 +291,7 @@ const char *flags;
 			mask |= EF_DEBUG;
 			break;
 		   default:
-			printf ("Illegal character '%c' in mask\n");
+			printf ("Illegal character '%c' in mask\n", *c);
 			break;
 		}
 	return (mask);
@@ -462,6 +463,7 @@ CreateBitmaps()
 
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -1143,7 +1145,7 @@ XtPointer call_data;
 
 
 
-
+static int
 xevent ()
 /*
  * Deal with an Xt event.
@@ -1167,7 +1169,7 @@ xevent ()
 
 
 
-
+static int
 msg_event (msg)
 struct message *msg;
 /*
@@ -1527,7 +1529,6 @@ struct dm_msg *dmsg;
  * Deal with a DM message.
  */
 {
-	struct dm_hello reply;
 /*
  * See what we got.
  */
@@ -1657,7 +1658,6 @@ wm ()
 {
 	Arg	args[2];
 	int	n;
-	XEvent	event;
 /*
  * If the window is up, take it down.
  */
@@ -1913,7 +1913,7 @@ XtPointer proc, xpinfo;
  */
 	if (! usy_g_symbol (ProcTable, (char *) proc, &type, &v))
 	{
-		printf ("Proc '%s' not in ProcInfo!\n", proc);
+		printf ("Proc '%s' not in ProcInfo!\n", (char *) proc);
 		return;
 	}
 /*
@@ -2048,7 +2048,7 @@ LogFortune ()
 	FILE *pipe;
 	char command[80];
 	char fortune[FORTUNE_LEN];
-	int len, nread;
+	int len;
 
 	sprintf (command, "%s", FORTUNE_CMD);
 	pipe = (FILE *) popen (command, "r");
