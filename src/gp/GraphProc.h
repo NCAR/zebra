@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.61 1997-07-01 01:06:25 granger Exp $ */
+/* $Id: GraphProc.h,v 2.62 1997-10-03 23:47:01 ishikawa Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -421,6 +421,9 @@ extern void FindWindsFields FP ((char *comp, PlatformId, ZebTime *,
 				 FieldId *, WindInfo *));
 extern void GetWindData FP ((WindInfo *, float *, float *, double));
 
+extern DataChunk *GetVorticity ( ZebTime *, char *, char *, char *, int *, 
+				int *,  float *, float *, float *, float *, 
+				float *, int * );
 
 
 /* This stuff contains window system oriented stuff, so is only brought
