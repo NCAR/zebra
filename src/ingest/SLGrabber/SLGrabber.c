@@ -48,6 +48,7 @@ Less global variables: put them all in a global state structure.
 # include <errno.h>
 # include <fcntl.h>
 # include <termios.h>
+# include <sys/ioctl.h>
 # include <string.h>
 
 # include <defs.h>
@@ -55,7 +56,7 @@ Less global variables: put them all in a global state structure.
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.8 1997-12-16 16:21:57 burghart Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.9 2000-04-10 20:55:28 burghart Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -725,12 +726,19 @@ int parm;
  * Check to see that we are still connected here.
  */
 {
-	int mbits;
 	Connection *conn = (Connection *)parm;
+	int mbits, status;
+# ifdef linux
+	struct termios tinfo;
+	status = tcgetattr (conn->c_Fd, &tinfo);
+	mbits = tinfo.c_line;	/* Non-standard! */
+# else
+	status = ioctl (conn->c_Fd, TIOCMGET, &mbits);
+# endif
 /*
  * Do the check.
  */
-	if (ioctl (conn->c_Fd, TIOCMGET, &mbits) < 0)
+	if (status < 0)
 		msg_ELog (EF_PROBLEM, "DCD Check ioctl failure %d", errno);
 	else if (! mbits & TIOCM_CAR)
 		msg_ELog (EF_PROBLEM, "Carrier lost on port");
