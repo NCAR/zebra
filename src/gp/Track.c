@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.11 1991-12-06 00:45:13 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.12 1991-12-06 22:03:03 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -66,16 +66,14 @@ bool update;
 	char *fields[5], mtcolor[20], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30], a_type[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid, index;
-	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 1, dummy;
+	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 1;
 	int arrow, a_lwidth, showposition;
 	long timenow, vectime = 0;
-	unsigned int udummy, dwidth, dheight;
 	bool mono; 
 	time begin;
 	float *data, fx, fy, base, incr, a_scale, *a_xdata, *a_ydata;
-	float a_x, a_y, unitlen, center, step;
+	float unitlen, center, step;
 	Drawable d;
-	Window win;
 	XColor xc, *colors, outrange, a_clr;
 	DataObject *dobj;
 /*
@@ -155,13 +153,14 @@ bool update;
 	if (mono)
 	{
 		ct_GetColorByName (mtcolor, &xc);
-		XSetForeground (Disp, Gcontext, xc.pixel);
+		FixForeground (xc.pixel);
 	}
 	d = GWFrame (Graphics);
 /*
  * How wide do they like their lines?
  */
 	lwidth = SetLWidth (comp, "line-width", platform, 0);
+	unitlen = GWHeight (Graphics) * a_scale;
 /*
  * Now work through the data.
  */
@@ -188,16 +187,10 @@ bool update;
 			   ((vectime + a_int) < timenow))
 			{
 				vectime = timenow - timenow % a_int;
-				XGetGeometry(Disp, d, &win, &dummy, &dummy,
-					&dwidth, &dheight, &udummy, 
-					&udummy);
-				unitlen = dheight * a_scale;
-				XSetForeground(Disp, Gcontext, a_clr.pixel);
-				a_x = *(a_xdata + i - 1);
+				FixForeground (a_clr.pixel);
 				FixLWidth (a_lwidth);
-				a_y = *(a_ydata + i - 1);
 				draw_vector (Disp, d, Gcontext, x0, y0, 
-					a_x, a_y, unitlen);
+					a_xdata[i-1], a_ydata[i-1], unitlen);
 				FixLWidth (lwidth);
 			}
 		}
@@ -207,8 +200,7 @@ bool update;
 	 	if (! mono)
 		{
 			index = (data[i] - base)/incr;
-			XSetForeground (Disp, Gcontext,
-				(index >= 0 && index < nc) ?
+			FixForeground ((index >= 0 && index < nc) ?
 				colors[index].pixel : outrange.pixel);
 		}
 	/*
