@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.12 1995-11-20 23:32:41 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.13 1995-11-27 05:54:36 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 #ifndef UseInstalledZebra
@@ -52,17 +52,27 @@ XCOMM -----------------------------------------------------------------------
 /*
  * Include map projections on systems which have it installed, but only
  * when we're using a compiler which supports ANSI prototypes (thanks
- * to projects.h).  If the compiler is not GNU, then the machine cannot
- * be SunOS 4.
+ * to projects.h).
  */
 #ifndef MapProjections
-# if defined(SunArchitecture) && !defined(SVR4) && !defined(solaris)
-#   define MapProjections NO /* SunOS 4 native cannot compile projects.h */
-# else
+# if UseGcc
 #   define MapProjections YES
-#   define ProjLibDir /usr/local/lib
-#   define ProjIncDir /usr/local/include
+# else
+#  if defined(SunArchitecture) && !defined(SVR4) && !defined(solaris)
+#   define MapProjections NO /* SunOS 4 native cannot compile projects.h */
+#  else
+#   if defined(SGIArchitecture)
+#    define MapProjections NO /* IRIX native cc cannot compile it */
+#   else
+#    define MapProjections YES
+#   endif
+#  endif
 # endif
+#endif
+
+#if MapProjections
+# define ProjLibDir /usr/local/lib
+# define ProjIncDir /usr/local/include
 #endif
 
 /*
