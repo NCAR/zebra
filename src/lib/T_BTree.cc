@@ -94,7 +94,7 @@ int main (int argc, char *argv[])
 
 	srand (1000);
 
-	Logger::SetPrototype (NullLogger("logger prototype"));
+	// Logger::Prototype (StreamLogger());
 
 	cout << "-----------------================----------------" << endl;
 	if (argc > 1)
@@ -103,7 +103,8 @@ int main (int argc, char *argv[])
 		order = atoi(argv[2]);
 
 	int err = 0;
-	if (argc > 1)
+	// When both number and order given, test that combo once.
+	if (argc > 2)
 	{{
 		test_tree tree(order, sizeof(test_key));
 		tree.Check();
@@ -120,12 +121,14 @@ int main (int argc, char *argv[])
 	exit (err);
 	}
 
-	// Perform the tests on trees of various orders, using a bigger N
+	// Perform the tests on trees of various orders, using a given N
 	if (argc <= 1)
 		N = 5000;
-	for (int o = 3; o < N / 10; o *= 3)
+	for (int o = 3; (o == 3) || (o < N / 10); o *= 3)
 	{
-		test_tree tree(o, sizeof(test_key));
+		BlockFile bf("btree.bf");
+		test_tree tree(0, bf, o);
+		cout << "BTreeFile address: " << tree.Address() << endl;
 		tree.Erase ();	// Start fresh
 		
 		cout << "Testing tree of order " << tree.Order() 
