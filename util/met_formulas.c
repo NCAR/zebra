@@ -5,7 +5,7 @@
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
  *
- * $Revision: 1.3 $ $Date: 1990-05-04 13:34:58 $ $Author: burghart $
+ * $Revision: 1.4 $ $Date: 1990-05-11 14:35:19 $ $Author: burghart $
  */
 
 # include <math.h>
@@ -275,17 +275,18 @@ double	theta, p;
 
 
 double
-theta_e (t, p)
-double	t, p;
+theta_e (t, dp, p)
+double	t, dp, p;
 /*
- * Equivalent potential temperature of saturated air at t (deg. K) 
- * and p (mb)
+ * Equivalent potential temperature at temperature t (K), dewpoint dp (K),
+ * and pressure p (mb)
  */
 {
-	double	w = w_sat (t, p);
+	double	w = w_sat (dp, p);
 	double	theta = theta_dry (t, p);
+	double	t_l = lcl_temp (t, dp);
 
-	return (theta * exp ((3.376 / t - 0.00254) * w * (1 + 0.00081 * w)));
+	return (theta * exp ((3.376 / t_l - 0.00254) * w * (1 + 0.00081 * w)));
 }
 
 
@@ -299,7 +300,7 @@ double	ept, p;
 {
 	double	t_s = T_3, delta = 60.0, x;
 
-	x = ept - theta_e (t_s, p);
+	x = ept - theta_e (t_s, t_s, p);
 
 	while (x > 0.01 || x < -0.01)
 	{
@@ -307,7 +308,7 @@ double	ept, p;
 		delta /= 2.0;
 		if (delta == 0.0)
 			delta = 60.0;
-		x = ept - theta_e (t_s, p);
+		x = ept - theta_e (t_s, t_s, p);
 	}
 
 	return (t_s);
