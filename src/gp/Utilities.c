@@ -33,7 +33,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.42 1997-02-15 02:53:44 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.43 1997-02-15 03:41:25 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -828,7 +828,11 @@ char *file;
     header.window_y = 0;
     header.window_bdrwidth = 0;
 # ifdef LITTLE_ENDIAN
-    swap4 ((void *) &header, sizeof(header));
+    for (i = 0; i < sizeof(header); i += 4)
+    {
+	void *ptr = (void*)((char*)&header + i);
+	swap4 (ptr);
+    }
 # endif
 /*
  * Write out the header
@@ -857,10 +861,10 @@ char *file;
 	xwdc.flags = xc.flags;
 
 # ifdef LITTLE_ENDIAN
-	swap4 ((void *) &(xwdc.pixel), sizeof(long));
-	swap2 ((void *) &(xwdc.red), sizeof(short));
-	swap2 ((void *) &(xwdc.green), sizeof(short));
-	swap2 ((void *) &(xwdc.blue), sizeof(short));
+	swap4 ((void *) &(xwdc.pixel));
+	swap2 ((void *) &(xwdc.red));
+	swap2 ((void *) &(xwdc.green));
+	swap2 ((void *) &(xwdc.blue));
 # endif
 
 	fwrite ((char *) &xwdc, SIZEOF(XWDColor), 1, xwdfile);
