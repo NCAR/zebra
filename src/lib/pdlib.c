@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.11 1992-03-17 22:40:33 barrett Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.12 1992-06-26 16:40:58 corbet Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -757,7 +757,8 @@ int type;
 		* (int *) target = v.us_v_int;
 		break;
 	   case SYMT_DATE:
-	   	* (date *) target = v.us_v_date;
+	   	/* * (date *) target = v.us_v_date; */
+		TC_UIToZt (&v.us_v_date, (ZebTime *) target);
 		break;
 	   case SYMT_FLOAT:
 	   	* (float *) target = v.us_v_float;
@@ -878,7 +879,8 @@ int type;
 		   	sprintf (kludge, "%.4f", * (float *) value);
 			break;
 		   case SYMT_DATE:
-		   	ud_format_date (kludge, (date *) value, UDF_FULL);
+		   	/* ud_format_date (kludge, (date *) value, UDF_FULL);*/
+			TC_EncodeTime ((ZebTime *) value, TC_Full, kludge);
 			break;
 		}
 	}
