@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_globals.h,v 1.1 1989-02-08 13:28:17 corbet Exp $ */
+/* $Id: ui_globals.h,v 1.2 1989-07-12 09:10:22 corbet Exp $ */
 /*
  * Global variable definitions.
  */
@@ -48,4 +48,9 @@ var bool Keypad_on;
  * The central control stack.
  */
 var struct cs_entry *Cs;
+
+/*
+ * TRUE iff we should bail out of command files on errors.
+ */
+var bool Bailout;
 # endif
