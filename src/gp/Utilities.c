@@ -26,7 +26,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.4 1992-05-27 16:46:38 kris Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.5 1992-07-02 15:44:00 kris Exp $")
 
 
 
@@ -194,24 +194,20 @@ int width;
 
 
 int
-AgeCheck (comp, t)
-char *comp;
-ZebTime *t;
+AgeCheck (comp, platform, t)
+char	*comp, *platform;
+ZebTime	*t;
 /*
  * If this component has an age limit, enforce it.  Return FALSE if the
  * given time is too old, relative to the plot time.
  */
 {
-	char	limit[100], platform[60], *qual;
-	int seconds, psec, dsec;
+	char	limit[100];
+	int	seconds, psec, dsec;
 /*
  * Look for the limit.  If none exists, return TRUE.
  */
-	if (pd_Retrieve (Pd, comp, "platform", platform, SYMT_STRING))
-		qual = platform;
-	else
-		qual = 0;
-	if (! pda_Search (Pd, comp, "age-limit", qual, limit, SYMT_STRING))
+	if (! pda_Search (Pd, comp, "age-limit", platform, limit, SYMT_STRING))
 		return (TRUE);
 /*
  * Turn this thing into a useful number.
