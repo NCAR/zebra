@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.4 1993-05-26 22:00:16 corbet Exp $
+XCOMM $Id: Imakefile,v 1.5 1993-06-16 15:32:37 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -11,29 +11,12 @@ XCOMM distribution.
      CHECKFNSRC = $(UTILSRC)/checkfn
         CHECKFN = $(CHECKFNSRC)/checkfn
 
-#if BuildOptimizer
-      OPTIMIZER = Optimizer
-#endif
-#if BuildDataUtilities
-       DATAUTIL = datautil
-#endif
-#if BuildDataManager
-       DSMANAGE = dsmanage
-#endif
-
-XCOMM Note that only the SUBDIRS variable is conditional.  All known
-XCOMM directories and source files will be distributed whether or
-XCOMM not they are configured to be compiled.
-
         SUBDIRS = config src 
-
+    DISTSUBDIRS = config src imake
+     SRCSUBDIRS = config src imake
       DISTFILES = Imakefile Makefile.ini README 
        LINKDIRS = dist/zeb/doc dist/zeb/cape
       LINKNAMES = $(TARNAME)/doc $(TARNAME)/cape
-    DISTSUBDIRS = config lib timer pd DataStore dsmanage \
-		  gp dm util datautil Optimizer ingest imake
-     SRCSUBDIRS = src config timer pd DataStore dsmanage gp dm \
-                  util datautil Optimizer ingest imake
 
 XCOMM From the top-level directory, the default "all" behavior will
 XCOMM be the same as the "Everything" target, i.e. make sure all
@@ -164,7 +147,7 @@ distclean:: clean
  * variable from the command line, e.g.
  *
  * 	make srcfile SRCNAME=pikes-copy \
- *		SRCSUBDIRS="imake config msg"
+ *		SRCSUBDIRS="imake config src/msg"
  */
 TARFILE = zeb-1.0
 SRCFILE = zeb-src
