@@ -23,7 +23,7 @@
 # include "BoundaryFile.h"
 
 
-RCSID("$Id: bfdump.c,v 2.4 1996-12-06 00:40:28 granger Exp $")
+/* $Id: bfdump.c,v 2.5 2002-02-12 23:40:38 granger Exp $ */
 
 
 main (argc, argv)
