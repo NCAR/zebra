@@ -1,35 +1,19 @@
 /* -*- C -*-
  * PD library files.
  *
- * $Id: Imakefile,v 1.14 1999-05-12 15:13:51 burghart Exp $
+ * $Id: Imakefile,v 1.15 1999-11-19 16:59:52 burghart Exp $
  */
 
 INSTALLPD = $(INSTALL) $(INSTALLFLAGS) $(INSTDATFLAGS)
 
 all::	/* nothing */
 
-/*
- * defaults.pd is here as a template or resource for developing projects.
- * It is purposely not installed into the library pd directory.
- */	
-PDFILES = cap-template.pd /* defaults.pd */ depth-contour-template.pd \
-	depth-profile-template.pd lineplot-template.pd locations.pd \
-	p_active_loc.pd p_boattrack.pd p_boundary.pd p_contour.pd \
-	p_fcontour.pd p_opt_boundary.pd \
-	p_irg_winds.pd p_iss_loc.pd p_kmgrid.pd p_llgrid.pd p_loc.pd \
-	p_map.pd p_model.pd p_model_winds.pd p_radar.pd p_raster.pd \
-	p_rg_winds.pd p_rings.pd p_simple_track.pd p_slowtrack.pd \
-	p_station.pd p_track.pd p_wbounds.pd p_xytrace.pd rass-template.pd \
-	skewt-template.pd time-depth-template.pd time-height-template.pd \
-	tseries-template.pd wind-template.pd xsect-template.pd \
-	xygraph-template.pd thetaplot-template.pd
-
 install::
 	MakeDir ($(LIBDIR)/pd)
-	for pd_file in $(PDFILES) ; do \
+	for pd_file in *.pd ; do \
 		$(INSTALLPD) $${pd_file} $(LIBDIR)/pd ; \
 	done
 
-DISTFILES = Imakefile $(PDFILES) defaults.pd
+DISTFILES = Imakefile *.pd
 
 DistfilesTarget($(DISTFILES))
