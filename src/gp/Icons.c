@@ -8,7 +8,6 @@ static char *rcsid = "$id$";
 # include <X11/Xaw/MenuButton.h>
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
-# include <X11/Command.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
@@ -314,7 +313,7 @@ int *xpos, fg, bg;
  */
 	XtSetArg (args[0], XtNbitmap, icon);
 	XtSetArg (args[1], XtNx, *xpos);
-	XtSetArg (args[2], XtNy, gh - height - 5);
+	XtSetArg (args[2], XtNy, gh - height - 10);
 	XtSetArg (args[3], XtNforeground, fg);
 	XtSetArg (args[4], XtNbackground, bg);
 	XtSetValues (ilp->il_icon, args, FIVE);
@@ -337,6 +336,7 @@ I_GetWidget ()
 {
 	Arg args[5];
 	struct IconList *ilp;
+	int n;
 /*
  * Return one off the available list if possible.
  */
@@ -351,15 +351,15 @@ I_GetWidget ()
  */
 	else
 	{
-		/* uw_IWRealize ("iconmenu", Graphics); */
 		ilp = ALLOC (struct IconList);
-		XtSetArg (args[0], XtNinternalHeight, 0);
-		XtSetArg (args[1], XtNinternalWidth, 0);
-		XtSetArg (args[2], XtNborderWidth, 3);
-		XtSetArg (args[3], XtNmenuName, "iconmenu");
-		XtSetArg (args[4], XtNsensitive, True);
+		n = 0;
+		XtSetArg (args[n], XtNinternalHeight, 3);	n++;
+		XtSetArg (args[n], XtNinternalWidth, 2);	n++;
+		XtSetArg (args[n], XtNborderWidth, 1);		n++;
+		XtSetArg (args[n], XtNmenuName, "iconmenu");	n++;
+		XtSetArg (args[n], XtNsensitive, True);		n++;
 		ilp->il_icon = XtCreateManagedWidget ("icon",
-			menuButtonWidgetClass, Graphics, args, FIVE);
+			menuButtonWidgetClass, Graphics, args, n);
 		XtRealizeWidget (ilp->il_icon);
 	}
 /*
