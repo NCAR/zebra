@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.7 1993-04-15 19:36:12 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.8 1993-09-09 17:39:41 corbet Exp $")
 
 
 /*
@@ -446,7 +446,9 @@ struct cf_window *win;
  * description for this window.  Do it now so that parameter changes that
  * occur before the window checks in will be honored.
  */
-	if (win->cfw_pd = pda_GetPD (win->cfw_desc))
+	if (win->cfw_pd)
+		;	/* Already there don't mung it */
+	else if (win->cfw_pd = pda_GetPD (win->cfw_desc))
 		win->cfw_pd = pd_CopyPD (win->cfw_pd);
 	else
 	{
