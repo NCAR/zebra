@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.20 1996-02-05 23:22:38 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.21 1996-03-12 02:20:29 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -200,6 +200,9 @@ XCOMM --- Deciding C compiler and options
 # ifndef CDebugFlags
 #  define CDebugFlags -g StaticFlag
 # endif
+# ifndef CplusplusDebugFlags
+#  define CplusplusDebugFlags -g StaticFlag
+# endif
 #endif /* Static */   
 
 #ifndef CDebugFlags
@@ -233,6 +236,30 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 #  endif
 # endif
 #endif /* SunArchitecture */
+
+/* explicitly name the .a X libraries */
+#if defined(AutoBinary) && !defined(SunArchitecture)
+# if defined(LinuxArchitecture) /* X11R6 */
+#  define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
+	$(XLIBDIR)/libXt.a $(XLIBDIR)/libSM.a $(XLIBDIR)/libXext.a \
+        $(XLIBDIR)/libX11.a $(XLIBDIR)/libICE.a
+# endif
+# if defined(SGIArchitecture)	/* X11R6 */
+/* Leave SGI as default of shared X libraries since IRIX doesn't seem
+ * to come with a static libX11.a
+ */
+# ifdef notdef
+#  define XLibDir /usr/lib
+#  define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
+	$(XLIBDIR)/libXt.a $(XLIBDIR)/libSM.a $(XLIBDIR)/libXext.a \
+        $(XLIBDIR)/libX11_s.a $(XLIBDIR)/libICE.a
+# endif
+# endif
+# if defined(HPArchitecture)	/* X11R5 */
+#  define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
+	$(XLIBDIR)/libXt.a $(XLIBDIR)/libXext.a $(XLIBDIR)/libX11.a
+# endif
+#endif
 
 #if !BuildRDSS
 # define RDSSLibDir /usr/local/lib
@@ -309,7 +336,12 @@ XCOMM --- Deciding FORTRAN library paths
 
 #ifdef SGIArchitecture
 /* IRIX 5.x */
-# define FortranLibraries -lF77 -lI77 -lU77 -lisam
+# ifndef AutoBinary
+#  define FortranLibraries -lF77 -lI77 -lU77 -lisam
+# else
+#  define FortranLibraries /usr/lib/libF77.a /usr/lib/libI77.a \
+	/usr/lib/libU77.a /usr/lib/libisam.a
+# endif
 #endif
 
 #ifdef LinuxArchitecture
@@ -323,7 +355,11 @@ XCOMM --- Deciding FORTRAN library paths
 
 #if defined(SunArchitecture) && defined(AutoBinary)
 # define MathLibrary /usr/lib/libm.a
-# define TermcapLibrary /usr/lib/libtermcap.a
+# ifdef SolarisArchitecture
+#  define TermcapLibrary /usr/ccs/lib/libtermcap.a
+# else
+#  define TermcapLibrary /usr/lib/libtermcap.a
+# endif
 # ifndef RegexpLibrary
 #  if SystemV || SystemV4
 #     define RegexpLibrary /usr/lib/libgen.a

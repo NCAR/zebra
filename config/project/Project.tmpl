@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.42 1996-02-05 23:28:12 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.43 1996-03-12 02:20:34 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -670,7 +670,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #else
 #define ImakeSubCmdHelper $$imakeprefix$(IMAKE) -I$$imakeprefix$(PROJECTSRC) \
           -I$$imakeprefix$(IRULESRC) $(IMAKE_DEFINES) \
-          $(AUTO_DEFINES) -DAutoDefines="$(AUTO_DEFINES)"
+          $(AUTO_DEFINES) -DAutoDefines='$(AUTO_DEFINES)'
 #endif
 
 
@@ -713,7 +713,7 @@ XCOMM -----------------------------------------------------------------------
    IMAKE_INCLUDES = -I$(NEWTOP)$(PROJECTSRC) -I$(NEWTOP)$(IRULESRC)
 
      AUTO_DEFINES = AutoDefines
-       IMAKE_AUTO = $(AUTO_DEFINES) -DAutoDefines="$(AUTO_DEFINES)"
+       IMAKE_AUTO = $(AUTO_DEFINES) -DAutoDefines='$(AUTO_DEFINES)'
          IRULESRC = $(CONFIGSRC)/cf
        IMAKE_ARGS = $(IMAKE_INCLUDES) $(IMAKE_DEFINES) $(IMAKE_AUTO)
         IMAKE_CMD = $(NEWTOP)$(IMAKE) $(IMAKE_ARGS)

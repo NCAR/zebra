@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.34 1996-01-12 01:11:01 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.35 1996-03-12 02:23:38 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -533,11 +533,12 @@ msg_await ()
          * this select (ie. within a message handler) by msg_delete_fd
 	 */
 		for (fd = 0; fd <= Max_fd && nsel > 0; fd++)
-			if (FD_ISSET (fd, &fds) && Fd_funcs[fd])
+			if (FD_ISSET (fd, &fds))
 			{
 				int ret;
 				nsel--;
-				if ((ret = (*Fd_funcs[fd]) (fd)))
+				if ((Fd_funcs[fd]) &&
+				    (ret = (*Fd_funcs[fd]) (fd)))
 					return (ret);
 			}
 	}
@@ -748,10 +749,11 @@ int timeout; /* seconds */
 	 */
 		for (fd = 0; fd <= Max_fd && nsel > 0; fd++)
 		{
-			if (FD_ISSET (fd, &fds) && Fd_funcs[fd])
+			if (FD_ISSET (fd, &fds))
 			{
 				nsel--;
-				return ((*Fd_funcs[fd]) (fd));
+				if (Fd_funcs[fd])
+					return ((*Fd_funcs[fd]) (fd));
 			}
 		}
 	}
@@ -824,7 +826,7 @@ int *protolist;	/* array of protocols to handle */
 	 */
 		for (fd = 0; fd <= Max_fd && nsel > 0; fd++)
 		{
-			if (FD_ISSET (fd, &fds) && Fd_funcs[fd])
+			if (FD_ISSET (fd, &fds))
 			{
 				nsel--;
 				if (fd == Msg_fd)
@@ -840,7 +842,7 @@ int *protolist;	/* array of protocols to handle */
 					else
 						msg_AddQueue (msg);
 				}			
-				else
+				else if (Fd_funcs[fd])
 					return ((*Fd_funcs[fd]) (fd));
 			}
 		}

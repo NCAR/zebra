@@ -1,6 +1,6 @@
 XCOMM -*- C -*-
 XCOMM
-XCOMM $Id: Docs.rules,v 1.3 1996-02-21 00:07:57 granger Exp $
+XCOMM $Id: Docs.rules,v 1.4 1996-03-12 02:20:31 granger Exp $
 XCOMM
 XCOMM An Imake rules file for fules which generate postscript and html
 XCOMM from FrameMaker books.
@@ -8,6 +8,7 @@ XCOMM
 
 
 FM2HTML = /usr/local/bin/frame/fm2html
+FM2HTMLFLAGS = -c -s -nf
 FRAMELIB = /usr/local/lib/frame
 TAGSFILE = $(FRAMELIB)/zebra.htags
 PRINTFILE = $(FRAMELIB)/mif2gif.printsettings
@@ -31,7 +32,7 @@ all:: ps html
 #define InstallPostscriptDoc(file)					@@\
 install.ps:: file							@@\
 	@echo Installing PostScript files into $(POSTSCRIPTDIR)		@@\
-	MakeDir($(POSTSCRIPTDIR))					@@\
+	MakeDir($(POSTSCRIPTDIR)) ;\					@@\
 	$(CP) file $(POSTSCRIPTDIR)					@@\
 
 #endif
@@ -40,12 +41,12 @@ install.ps:: file							@@\
  * Install fm2html hypertext files into html directory
  */
 #ifndef InstallHTMLFiles
-#define InstallHTMLFiles(depfile)					@@\
-install.html:: depfile							@@\
-	@echo Installing HTML files into $(HTMLDIR)			@@\
-	MakeDir($(HTMLDIR))						@@\
+#define InstallHTMLFiles(bookname)					@@\
+install.html:: bookname.html						@@\
+	@echo Installing HTML files into $(HTMLDIR)/bookname		@@\
+	MakeDir($(HTMLDIR)/bookname) ;\					@@\
 	$(CP) *.html \
-	   `ls *.fig_*.ps *.tbl_*.ps *.gif 2>/dev/null` $(HTMLDIR)	@@\
+	 `ls *.fig_*.ps *.tbl_*.ps *.gif 2>/dev/null` $(HTMLDIR)/bookname @@\
 
 #endif
 
@@ -58,7 +59,7 @@ install.html:: depfile							@@\
 									@@\
 bookname.html:: bookname.book chapters					@@\
 	MIF2HTMLTAGSFILE=$(TAGSFILE) DOCUMENTLANGUAGE=$(LANGUAGE) \
-		$(FM2HTML) -c -s -a author bookname.book		@@\
+		$(FM2HTML) $(FM2HTMLFLAGS) -a author bookname.book	@@\
 									@@\
 html:: bookname.html							@@\
 									@@\
@@ -85,9 +86,9 @@ bookname.ps:: bookname.book chapters					@@\
 	$(FMBATCH) < batch.$$$$ ;\					@@\
 	$(RM) batch.$$$$ ;\						@@\
 	i=0; while [ \! -f $@ ]; do \					@@\
-	  i=`expr $$i + 1`; if [ $$i -gt 6 ]; then exit 1; fi; \	@@\
+	  i=`expr $$i + 1`; if [ $$i -gt 20 ]; then exit 1; fi; \	@@\
 	  echo "($$i) waiting for $@ to finish printing..."; \		@@\
-	  sleep 10; \							@@\
+	  sleep 15; \							@@\
 	done ;\								@@\
 	echo "Done."							@@\
 									@@\
@@ -109,13 +110,15 @@ BookToHypertextTarget(book,chapters,author)				@@\
 									@@\
 InstallPostscriptDoc(book.ps)						@@\
 									@@\
-InstallHTMLFiles(book.html)						@@\
+InstallHTMLFiles(book)							@@\
 
 #endif
 
 /*
  * General targets used by any Imakefile which includes this rule file
+ * and does not have subdirectories.
  */
+#ifndef IHaveSubdirs
 install:: install.ps install.html
 
 DISTCLEANHTML = *.gif *.mif *.html *.html1 *.html2 *.tmp *.000? *.000??
@@ -123,6 +126,7 @@ DISTCLEANPS = *.ps *.backup
 
 distclean::
 	$(RM) $(DISTCLEANHTML) $(DISTCLEANPS)
+#endif
 
 /*
  * For Imakefiles which don't have any rules for these
@@ -134,6 +138,15 @@ html::
 install.html::
 
 install.ps::
+
+/*
+ * A helpful implicit rule for converting individual chapters to HTML
+ */
+.SUFFIXES: .fm .html
+
+.fm.html:
+	MIF2HTMLTAGSFILE=$(TAGSFILE) DOCUMENTLANGUAGE=$(LANGUAGE) \
+		$(FM2HTML) $(FM2HTMLFLAGS) -a $(AUTHOR) $<
 
 .PHONY: install.html install.ps html ps
 

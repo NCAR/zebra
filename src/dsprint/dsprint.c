@@ -17,6 +17,12 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.5.2.1  1996/02/21  23:34:48  granger
+ * define USE_STRERROR for SVR4, SYSV, and linux, otherwise use sys_errlist
+ *
+ * Updates: Revision 1.5  1996/01/10 18:42:47  granger
+ * Updates: cast gmtime arg to (time_t *) for hpux ANSI cc
+ * Updates:
  * Revision 1.4  1995/06/29  22:33:57  granger
  * fix compiler warnings, especially solaris cc -v -Xa
  *
@@ -79,7 +85,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.5 1996-01-10 18:42:47 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.6 1996-03-12 02:25:58 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -110,8 +116,10 @@ char           *time_string = NULL;	/* if sample time is specified */
 
 int             errno;
 
-#if !defined(SVR4) && !defined(SYSV)
-char           *sys_errlist[];
+#if defined(SVR4) || defined(SYSV) || defined(linux)
+# define USE_STRERROR
+#else
+extern char    *sys_errlist[];
 #endif
 
 enum
@@ -219,7 +227,7 @@ char *argv[];
 	exit (0);
     }
     if (gettimeofday (&tv, &tz)) {
-#if defined(SVR4) || defined(SYSV)
+#ifdef USE_STRERROR
 	printf ("couldn't get timeofday, errno %d %s\n", errno, strerror(errno));
 #else
 	printf ("couldn't get timeofday, errno %d %s\n", errno, sys_errlist[errno]);

@@ -91,6 +91,7 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #ifndef CCOptions
 # if UseGcc
 #  define CCOptions OptimizedCDebugFlags
+#  define CplusplusOptions OptimizedCDebugFlags
 # else
 #  ifdef HPArchitecture
 #   define CCOptions -Aa  /* now that we handle it, we may as well use it */
@@ -105,7 +106,7 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #endif
 
 /*
- * Override the vendors DeafultCCOptions with CCOptions from config.h
+ * Override the vendors DefaultCCOptions with CCOptions from config.h
  */
 #ifdef DefaultCCOptions
 #undef DefaultCCOptions
@@ -113,6 +114,7 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #define DefaultCCOptions CCOptions
 
 #define DefaultCDebugFlags CDebugFlags
+#define DefaultCplusplusDebugFlags CDebugFlags
 
 #if defined(SunArchitecture) && defined(SparcArchitecture)
 #define HasCodeCenter	YES

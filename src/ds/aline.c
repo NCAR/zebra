@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.8 1996-01-23 19:56:47 granger Exp $
+ * $Id: aline.c,v 3.9 1996-03-12 02:24:50 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -78,6 +78,11 @@ static int UseZNF = 0;
  * opposed to cascading.
  */
 static int Concurrent = 0;
+/*
+ * If true, consumers will attempt to write attributes back to a file,
+ * meaning multiple processes will have the file open read/write.
+ */
+static int ConcurrentWrite = 0;
 
 #define NFIELDS (sizeof(FieldNames)/sizeof(FieldNames[0]))
 
@@ -183,6 +188,9 @@ char *prog;
 	printf (" -remove                Remove consumer file (default)\n");
 	printf (" -overwrite             Overwrite file rather than remove\n");
 	printf (" -concurrent            Concurrent consumer access\n");
+	printf ("                        (Default is sequential access)\n");
+	printf (" -write                 Consumers write attributes back\n");
+	printf ("                        to data file (default: read-only)\n");
 	printf (" -help                  This message.\n");
 }
 
@@ -265,12 +273,25 @@ char **argv;
 			RemoveDest = 0;
 		else if (!strncmp(argv[opt], "-concurrent", optlen))
 			Concurrent = 1;
+		else if (!strncmp(argv[opt], "-write", optlen))
+			ConcurrentWrite = 1;
 		else
 		{
 			printf ("unrecognized option: %s\n", argv[opt]);
 			Usage (argv[0]);
 			exit (1);
 		}
+	}
+	/*
+	 * If consumers are read-only, then the consumer read access must
+	 * be concurrent since the write notifies won't be available to
+	 * synchronize the consumers sequentially.
+	 */
+	if (! ConcurrentWrite && ! Concurrent)
+	{
+		printf ("%s: read-only consumers forcing concurrent access\n",
+			argv[0]);
+		Concurrent = 1;
 	}
 }
 
@@ -291,6 +312,7 @@ main (argc, argv)
 	int err = 0;
 	int opt;
 
+	alarm (4*NConsumers*Interval*Inventory);
 #ifdef NoBuffer
 	setvbuf (stdout, NULL, _IONBF, 0);
 	setvbuf (stderr, NULL, _IONBF, 0);
@@ -697,7 +719,7 @@ UpdCode ucode;
 		}
 		value = (int)value + 1.0;
 	    }
-	    if (i > 0)
+	    if (ConcurrentWrite && (i > 0))
 	    {
 		    char name[128];
 		    /*

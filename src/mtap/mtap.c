@@ -81,6 +81,7 @@ char **argv;
 	struct msg_mtap mt;
 	extern char *optarg;
 	int c;
+	int ret = 0;
 
 	msg_connect (Handler, "Eavesdropper");
 
@@ -93,8 +94,13 @@ char **argv;
 			strcpy (mt.mt_clients[mt.mt_nclient++], optarg);
 	}
 	msg_send (MSG_MGR_NAME, MT_MTAP, FALSE, &mt, sizeof (mt));
-	msg_await ();
-	return (0);
+	while (ret == 0 || ret == MSG_TIMEOUT)
+	{
+		ret = msg_poll (5);
+		if (ret == MSG_TIMEOUT)  /* flush stdout when we're idle */
+			fflush (stdout);
+	}
+	return (ret);
 }
 
 
@@ -129,7 +135,6 @@ char *mtdata;
 		DumpLog (msg);
 		break;
 	}
-	fflush(stdout);
 }
 
 

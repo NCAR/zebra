@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.27 1996-01-02 20:48:34 corbet Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.28 1996-03-12 02:28:22 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -1075,32 +1075,45 @@ float lonstep, latstep;
 int nx, ny, *x0, *y0, *x1, *y1;
 /*
  * Figure out the area of the window covered by this grid.  This does not
- * yet work right.
+ * yet work right.  For the moment, traverse the border in intervals
+ * to find a reasonable bounding box.
  */
 {
 	int x, y;
 	float xk, yk;
+	int i;
+	float latint, lonint;
+#	define NLIMITSTEPS 20
 
-	prj_Project (loc->l_lat, loc->l_lon, &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-
-	prj_Project (loc->l_lat, WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-
-	prj_Project (loc->l_lat + ny*latstep, loc->l_lon, &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-
-	prj_Project (loc->l_lat + ny*latstep,
-			WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+	latint = nx*latstep/NLIMITSTEPS;
+	lonint = ny*lonstep/NLIMITSTEPS;
+	for (i = 0; i <= NLIMITSTEPS; ++i)
+	{
+		/* left edge */
+		prj_Project (loc->l_lat + i*latint, loc->l_lon,
+			     &xk, &yk);
+		x = XPIX (xk); y = YPIX (yk);
+		*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+		*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+		/* right edge */
+		prj_Project (loc->l_lat + i*latint, 
+			     WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
+		x = XPIX (xk); y = YPIX (yk);
+		*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+		*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+		/* top edge */
+		prj_Project (loc->l_lat + ny*latstep, 
+			     WRAPLON (loc->l_lon + i*lonint), &xk, &yk);
+		x = XPIX (xk); y = YPIX (yk);
+		*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+		*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+		/* bottom edge */
+		prj_Project (loc->l_lat, WRAPLON (loc->l_lon + i*lonint),
+			     &xk, &yk);
+		x = XPIX (xk); y = YPIX (yk);
+		*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+		*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+	}
 }
 
 
@@ -1119,7 +1132,7 @@ RGrid *rg;
  */
 {
 	float olat, olon, latstep, lonstep, lat, lon;
-	int shm, nx = rg->rg_nX, ny = rg->rg_nY, yoff, xp, yp;
+	int shm, nx = rg->rg_nX, ny = rg->rg_nY, yoff, xoff, xp, yp;
 	int x0 = 9999, y0 = 9999, x1 = -9999, y1 = -9999, x, y, lwidth;
 	GC gcontext;
 	unsigned char *destimg;
@@ -1147,11 +1160,15 @@ RGrid *rg;
 	gloc.l_lon = olon + xdelt*lonstep;
 # endif
 /*
- * Figure where the corners of the grid are now.  We need to look at all
- * four, since they could be in surprising places.
+ * Approximate a bounding box for the image, since the projected points
+ * can end up in surprising places.
  */
 	RP_FindLimits (loc, lonstep, rg->rg_nX, latstep, rg->rg_nY, &x0, &y0,
-			&x1, &y1);
+		       &x1, &y1);
+/*
+ * If the image is bigger than our clipping region, don't bother placing
+ * points which are outside of that region.
+ */
 	if (x0 < Clip.x)
 		x0 = Clip.x;
 	if (x1 > (int)(Clip.x + Clip.width))
@@ -1177,7 +1194,8 @@ RGrid *rg;
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
 		lwidth = GWGetBPL (w, frame);
 		shm = TRUE;
-		yoff = 0;
+		yoff = 0;  /* x and y correspond to graphics frame */
+		xoff = x0;
 	}
 	else
 # endif
@@ -1188,7 +1206,8 @@ RGrid *rg;
 		destimg = (unsigned char *) image->data;
 		lwidth = image->bytes_per_line;
 		shm = FALSE;
-		yoff = y0;
+		yoff = y0;  /* x and y must be translated to image coords */
+		xoff = 0;
 	}
 /*
  * Now we plow through the pixels, reverse map each one, and assign the
@@ -1196,7 +1215,7 @@ RGrid *rg;
  */
 	for (y = y0; y <= y1; y++)
 	{
-		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
+		unsigned char *dest = destimg +  (y - yoff)*lwidth + xoff;
 		for (x = x0; x <= x1; x++)
 		{
 			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
@@ -1204,10 +1223,11 @@ RGrid *rg;
 				lon += 360;
 			xp = (lon - loc->l_lon)/lonstep + 0.5;
 			yp = (lat - loc->l_lat)/latstep + 0.5;
-			*dest++ = (xp > 0 && xp < nx && yp > 0 && yp < ny) ?
+			*dest++ = (xp >= 0 && xp < nx && yp >= 0 && yp < ny) ?
 				 cmap[grid[(ny - yp - 1)*nx + xp]] : cmap[255];
 		}
 	}
+#ifdef notdef
 /*
  * Time for some additional fun.  Since latitude lines are no longer
  * necessarily straight, we could actually have a good chunk of data
@@ -1220,7 +1240,7 @@ RGrid *rg;
 	for (y = y1 + 1; y < (int)(Clip.y + Clip.height); y++)
 	{
 		int indata = FALSE;
-		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
+		unsigned char *dest = destimg +  (y - yoff)*lwidth + xoff;
 		for (x = x0; x <= x1; x++)
 		{
 			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
@@ -1228,7 +1248,7 @@ RGrid *rg;
 				lon += 360;
 			xp = (lon - loc->l_lon)/lonstep + 0.5;
 			yp = (lat - loc->l_lat)/latstep + 0.5;
-			if (xp > 0 && xp < nx && yp > 0 && yp < ny)
+			if (xp >= 0 && xp < nx && yp >= 0 && yp < ny)
 			{
 				*dest++ = cmap[grid[(ny - yp - 1)*nx + xp]];
 				indata = TRUE;
@@ -1245,7 +1265,7 @@ RGrid *rg;
 	for (y = y0 - 1; y >= Clip.y; y--)
 	{
 		int indata = FALSE;
-		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
+		unsigned char *dest = destimg +  (y - yoff)*lwidth + xoff;
 		for (x = x0; x <= x1; x++)
 		{
 			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
@@ -1253,7 +1273,7 @@ RGrid *rg;
 				lon += 360;
 			xp = (lon - loc->l_lon)/lonstep + 0.5;
 			yp = (lat - loc->l_lat)/latstep + 0.5;
-			if (xp > 0 && xp < nx && yp > 0 && yp < ny)
+			if (xp >= 0 && xp < nx && yp >= 0 && yp < ny)
 			{
 				*dest++ = cmap[grid[(ny - yp - 1)*nx + xp]];
 				indata = TRUE;
@@ -1264,6 +1284,7 @@ RGrid *rg;
 		if (! indata)	/* We're out */
 			break;
 	}
+#endif
 /*
  * If we doing things with an XImage we need to ship it out.
  */

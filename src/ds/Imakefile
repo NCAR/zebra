@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.39 1996-02-02 20:55:40 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.40 1996-03-12 02:24:48 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -172,7 +172,7 @@ test.apple: test.apple.only test.close
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
 
 
-test.session $(SOCKET): $(ZEBPROGS) dsDaemon nstest.config
+test.session $(SOCKET): $(ZEBPROGS) dsDaemon dsDaemon.lf nstest.config
 	TEST_ENV
 	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET; \
