@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.12 1993-11-15 22:34:55 burghart Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.13 1993-11-30 01:31:51 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -157,7 +157,7 @@ XtAppContext 	actx;
 /*
  * The text widget for entering the origin.
  */
-	strcpy (GPOrigin, "");
+	strcpy (GPOrigin, "(none)");
 
         n = 0;
         XtSetArg (args[n], XtNfromHoriz, DMSButton); n++;
@@ -326,10 +326,14 @@ pw_PosDisplay ()
  */
 	if (! GetLocation (GPOrigin, &PlotTime, &loc))
 	{
-		msg_ELog (EF_PROBLEM, "Unable to locate origin '%s'.",
-			GPOrigin);
-		sprintf (statusstr, "Unable to locate origin: '%s'.", GPOrigin);
-		SetStatus (statusstr);
+		if (strcmp (GPOrigin, "(none)"))
+		{
+			msg_ELog (EF_PROBLEM, "Unable to locate origin '%s'.",
+				  GPOrigin);
+			sprintf (statusstr, "Unable to locate origin: '%s'.",
+				 GPOrigin);
+			SetStatus (statusstr);
+		}
         /*
 	 * At least display lat/lon since we've already gone to the trouble
 	 */

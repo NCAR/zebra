@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.12 1993-10-14 20:21:56 corbet Exp $
+! $Id: Graphproc.ad,v 1.13 1993-11-30 01:31:50 corbet Exp $
 !
 ! The Graphics process resource file.
 !
@@ -32,7 +32,7 @@ Graphproc.?.form.background:	gray95
 *UIForm*overrideRedirect:	False
 *UIForm*transient:		False
 !
-*grshell.Graphics.icon.translations:	#override \n\
+*Graphics.icon.translations:	#override \n\
 	<EnterWindow>:		highlight() \n\
 	<LeaveWindow>:		reset() \n\
 	<BtnDown>:		IconMenuPopup()
@@ -47,7 +47,7 @@ Graphproc.?.form.background:	gray95
 *MenuButton*borderColor:	gray60
 *MenuButton*foreground:		black
 *MenuButton*background:		gray80
-*grshell.Graphics.translations: #override \n\
+*Graphics.translations: #override \n\
 	Shift<Btn1Down>:	ue_pointer_event(mb-s-left) \n\
 	Shift<Btn2Down>:	ue_pointer_event(mb-s-middle) \n\
 	Shift<Btn3Down>:	ue_pointer_event(mb-s-right) \n\
@@ -89,6 +89,7 @@ Graphproc.?.form.background:	gray95
 !
 ! UIForm stuff.
 !
+*UIForm*foreground:	black
 *UIForm*Text*translations: #override \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
@@ -217,51 +218,6 @@ Graphproc.?.form.background:	gray95
 *arrow-color*pink.foreground:	HotPink
 *arrow-color*violet.foreground:	violet
 *arrow-color*foreground:	white
-*top-annot-color*background:	black
-*top-annot-color*red.foreground:	red
-*top-annot-color*lavender.foreground:	lavender
-*top-annot-color*gray.foreground:	gray60
-*top-annot-color*blue.foreground:	blue
-*top-annot-color*cyan.foreground:	cyan
-*top-annot-color*green.foreground:	green
-*top-annot-color*khaki.foreground:	khaki
-*top-annot-color*yellow.foreground:	yellow
-*top-annot-color*tan.foreground:	tan
-*top-annot-color*brown.foreground:	brown
-*top-annot-color*orange.foreground:	orange
-*top-annot-color*pink.foreground:	HotPink
-*top-annot-color*violet.foreground:	violet
-*top-annot-color*foreground:	white
-*contour-color*background:	Midnight Blue
-*contour-color*red.foreground:	red
-*contour-color*lavender.foreground:	lavender
-*contour-color*gray.foreground:	gray60
-*contour-color*blue.foreground:	blue
-*contour-color*cyan.foreground:	cyan
-*contour-color*green.foreground:	green
-*contour-color*khaki.foreground:	khaki
-*contour-color*yellow.foreground:	yellow
-*contour-color*tan.foreground:	tan
-*contour-color*brown.foreground:	brown
-*contour-color*orange.foreground:	orange
-*contour-color*pink.foreground:	HotPink
-*contour-color*violet.foreground:	violet
-*contour-color*foreground:	white
-*quadrant-color*background:	Midnight Blue
-*quadrant-color*red.foreground:	red
-*quadrant-color*lavender.foreground:	lavender
-*quadrant-color*gray.foreground:	gray60
-*quadrant-color*blue.foreground:	blue
-*quadrant-color*cyan.foreground:	cyan
-*quadrant-color*green.foreground:	green
-*quadrant-color*khaki.foreground:	khaki
-*quadrant-color*yellow.foreground:	yellow
-*quadrant-color*tan.foreground:	tan
-*quadrant-color*brown.foreground:	brown
-*quadrant-color*orange.foreground:	orange
-*quadrant-color*pink.foreground:	HotPink
-*quadrant-color*violet.foreground:	violet
-*quadrant-color*foreground:	white
 !
 ! Coloring for LimitWidgets.  Intended to look consistent with UIForm.
 !

@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.34 1993-10-22 21:25:02 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.35 1993-11-30 01:31:47 corbet Exp $")
 
 /*
  * Default resources.
@@ -275,7 +275,7 @@ finish_setup ()
  */
 	XtSetArg (args[0], XtNinput, True);
 	XtSetArg (args[1], XtNwidthInc, 4);
-	GrShell = XtCreatePopupShell ("grshell", applicationShellWidgetClass,
+	GrShell = XtCreatePopupShell (Ourname, applicationShellWidgetClass,
 		Top, args, 2);
 /*
  * Inside this shell goes the graphics widget itself.
