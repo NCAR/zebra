@@ -15,7 +15,7 @@
 static void
 usage (char *arg0)
 {
-	printf ("usage: %s [-h] <database>\n", arg0);
+	printf ("usage: %s [-h] [<database>]\n", arg0);
 	printf ("   where -h gives help, and\n");
 	printf ("   <database> is the database file without the extension\n");
 	printf ("examples:\n");
@@ -49,10 +49,10 @@ main (int argc, char *argv[])
 			exit (1);
 		}
 	}
+	if (! database)
+		database = DUMPED_FILES;
 
 	msg_connect (NULL, argv[0]);
-
-	database = argv[1];
 	if (db_Read (database) != 0)
 	{
 		msg_ELog (EF_PROBLEM, "could not open database '%s'",
@@ -72,5 +72,5 @@ main (int argc, char *argv[])
 	}
 	fprintf (stderr, "---\n%d records.\n", nf);
 	db_Close ();
-	exit (0);
+	return 0;
 }

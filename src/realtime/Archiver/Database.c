@@ -12,6 +12,7 @@
 #include <message.h>
 #include <DataStore.h>
 
+#include "Database.h"
 
 static DBM *File = NULL;	/* For now Archiver only opens one database */
 
@@ -76,6 +77,27 @@ db_Insert (const char *fname, const DataFileCore *dfc)
 
 
 
+
+typedef struct s_OldDataFileInfo
+{
+	char    dfi_Name[80];		/* Name of this file            */
+        ZebTime dfi_Begin;              /* Begin time                   */
+        ZebTime dfi_End;                /* End time                     */
+        int     dfi_NSample;            /* How many samples             */
+        int     dfi_Plat;               /* It's platform                */
+        char    dfi_Archived;           /* Has been archived?           */
+        int     dfi_Next;               /* Next file in chain           */
+} OldDataFileInfo;
+
+
+typedef struct _OldEntry
+{
+	OldDataFileInfo dfi;
+	ZebraTime dump;		/* time this file was dumped */
+} 
+OldEntry;
+
+
 static int
 db_Value (datum *key, DataFileCore *dfc)
 {
@@ -83,11 +105,44 @@ db_Value (datum *key, DataFileCore *dfc)
 	int found = 0;
 
 	value = dbm_fetch (File, *key);
-	if (value.dptr)
+  	if (! value.dptr)
 	{
-		found = 1;
+		/* Nothing to do here */
+	}
+  	else if (value.dsize == sizeof(DataFileCore))
+	{
+  		found = 1;
+ 		if (dfc)
+		{
+			// *dfc = *(DataFileCore*)(value.dptr);
+			memcpy ((char *)dfc, (char *)value.dptr, value.dsize);
+		}
+  	}
+	else if (value.dsize == sizeof(OldEntry))
+	{
+		/* Try a simple conversion from old DataFileInfo struct */
 		if (dfc)
-			*dfc = *(DataFileCore*)(value.dptr);
+		{
+			OldEntry here;
+			OldDataFileInfo *dfi = &here.dfi;
+			memcpy ((char *)&here, (char *)value.dptr,
+				sizeof (here));
+			strncpy (dfc->dfc_name, dfi->dfi_Name,
+				 sizeof(dfc->dfc_name) - 1);
+			dfc->dfc_name[sizeof(dfc->dfc_name) - 1] = '\0';
+			dfc->dfc_begin = dfi->dfi_Begin;
+			dfc->dfc_end = dfi->dfi_End;
+			dfc->dfc_rev = TC_ZtToSys (&here.dump);
+			dfc->dfc_inode = 0;
+			dfc->dfc_ftype = FTUnknown;
+			dfc->dfc_nsample = dfi->dfi_NSample;
+		}
+		found = 1;
+	}
+	else
+	{
+		fprintf (stderr, "database error: %s: key %s", 
+			 "structure size unknown", key->dptr);
 	}
 	return (found);
 }

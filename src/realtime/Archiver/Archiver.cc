@@ -1,10 +1,8 @@
 /*
- * Seriously quick and immensely dirty data store archiver.
- *
  * Basically: we wake up every so often, look at all the files in the system,
  * and write them out to tape in tar format.
  */
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*		Copyright (C) 1987-99 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -24,12 +22,13 @@
 
 
 # include <copyright.h>
+
 # include <unistd.h>
-# include <string.h>
-# include <stdio.h>
+# include <iostream>
 # include <fcntl.h>
 # include <errno.h>
 # include <sys/types.h>
+# include <sys/stat.h>
 # include <sys/time.h>
 # include <sys/ioctl.h>
 # ifdef AIXV3
@@ -41,30 +40,32 @@
 
 #if defined(SVR4) || defined(__osf__)
 # include <sys/statvfs.h>
+# define STATVFS statvfs
 #else
 # ifndef AIXV3
-# include <sys/vfs.h>
+#  include <sys/vfs.h>
+#  define STATVFS statfs
 # else
-# include <sys/statfs.h>
+#  include <sys/statfs.h>
+#  define STATVFS statvfs
 # endif
 #endif
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
-# include <X11/Xaw/Label.h>
-# include <X11/Xaw/Form.h>
-# include <X11/Xaw/Command.h>
 
 # include <defs.h>
-# include <zl_symbol.h>
 # include <message.h>
+extern "C" {
 # include <timer.h>
-# include <config.h>
+}
+# include <Platforms.h>
 # include <DataStore.h>
 
 # include "Database.h"
+# include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.41 1998-08-18 16:06:14 corbet Exp $")
+RCSID ("$Id: Archiver.cc,v 1.42 1999-11-24 00:03:06 granger Exp $")
 
 /*
  * Issues:
@@ -123,6 +124,14 @@ RCSID ("$Id: Archiver.cc,v 1.41 1998-08-18 16:06:14 corbet Exp $")
   prior to the most recent file of a platform and still be dumped.
  */
 
+/*
+ * 1/6/99: Hack it all to hell all over again.  Separate Archiver
+ * into model and view interfaces, and move the X11 GUI view implementation
+ * into a separate file.  Allow the Archiver to be started in
+ * automatic mode and without an X display, so that it can archive in
+ * the background.
+ */
+
 /*------------------------------------------------------------------------*/
 
 # define DEF_DUMPINTERVAL 120	/* how often, in minutes, to dump	*/
@@ -138,32 +147,20 @@ RCSID ("$Id: Archiver.cc,v 1.41 1998-08-18 16:06:14 corbet Exp $")
 # define DEF_MINDISK ((unsigned long) 10000)
 # endif /* __STDC__ */
 
-# define AR_TAPE 1
-# define AR_EOD 2
+enum AR_DeviceModes { AR_TAPE = 1, AR_EOD = 2, AR_JAZ = 4 };
+# define AR_DISK (AR_EOD|AR_JAZ)
 
-# define MAX_WAITBUTTONS 5
+# define ARCHIVER_GROUP "Archiver"
 
-# define DUMPED_FILES "DumpedFiles"
+/*
+ * Allow various parts to be disabled to facilitate testing.
+ */
+//# define NO_MOUNT
+//# define NO_RUNTAR
 
 /*------------------------------------------------------------------------
  * GLOBAL VARIABLES and FLAGS
  */
-
-#ifdef notdef
-/*
- * This table contains an entry for each platform that we dump, indicating
- * the latest data which has been written.
- */
-stbl	DumpedTable;
-char listfile[200];	
-#endif
-
-/*
- * The indices of the tarred files, kept until after the tar successfully
- * completes, to be added to the database.
- */
-int	*DumpedFiles = NULL;
-int	NFiles = 0;		/* Number files in DumpedFiles */
 
 /*
  * Platform exclusion stuff.
@@ -199,20 +196,33 @@ int	DeviceFD = -1;		/* output device file descriptor:
 unsigned long	BytesWritten = 0;	/* Statistics stuff */
 int		FilesWritten = 0;
 
-static char Tarbuf[65536]; 	/* Where the tar command is built.  */
-unsigned long Tarlen = 0;       /* == strlen(Tarbuf) at all times */
+static char Tarbuf[65536]; 	/* Where the tar command is built.	*/
+unsigned long Tarlen = 0;       /* == strlen(Tarbuf) at all times	*/
+unsigned long Tarcmdlen = 0;	/* == length of the command portion of	*/
+				/*    Tarbuf (i.e., no filenames)	*/
 
-/*
- * Widget info.
- */
-Widget Top, Form, WStatus, Bytes;
-Widget FinishButton, Action, WriteButton;
-Widget WaitButtons[MAX_WAITBUTTONS+1];
-XtAppContext Appc;
 
-Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
+ArchiverModel *model = 0;	/* Keeper of our state */
 
 /*------------------------------------------------------------------------*/
+
+/* Archiver message protocol for starting external views */
+
+# define MT_ARCHIVER 70
+
+struct msg_archiver
+{
+	int ma_command;
+	char ma_data[64];
+};
+
+
+enum msg_archiver_commands
+{
+	MA_NONE = 0,		// no command
+	MA_OPENDISPLAY,		// open a view on display string in data
+	MA_OPENDEFAULT,		// ignore display in data and open default
+};
 
 
 /*---------------------------------------------------------------------
@@ -227,7 +237,7 @@ Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
 	String	MountName;	/* EOD mode: opt disk mount point */
 	int	DumpInterval;	/* Minutes between dumps */
 	int	StartMinute;	/* Hour offset at which dumps start */
-	int	MinDisk;	/* EOD mode: minimum disk size */
+	unsigned int MinDisk;	/* EOD mode: minimum disk size */
 	String  ModeString;	/* cmd-line option "eod" or "tape" */
 	int	ArchiveMode;	/* AR_TAPE or AR_EOD mode */
 	Boolean	ZeroZFree;	/* Free tape at 0z */
@@ -235,6 +245,10 @@ Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
 	String  Database;	/* Name of the database file */
 	int	BFactor;	/* Blocking factor to calculate blk size */
 	String  ExclPlatNames;	/* Excluded platforms	*/
+	Boolean	AutomaticOpen;	/* Take device right away. */
+	Boolean Hide;		/* No GUI */
+	String	Reveal;		/* Tell an existing Archiver to reveal itself*/
+
 
 #define DEF_BFACTOR 120
 
@@ -271,7 +285,13 @@ static XtResource AppResources[] = {
    { "blockFactor", "BlockFactor", XtRInt, sizeof(int),
       0, XtRImmediate, (XtPointer)DEF_BFACTOR },
    { "exclude", "Exclude", XtRString, sizeof (String),
-      0, XtRString, DEF_EXCLUDE }
+      0, XtRString, DEF_EXCLUDE },
+   { "automatic", "Automatic", XtRBoolean, sizeof(Boolean),
+      0, XtRImmediate, (XtPointer)False },
+   { "hide", "Hide", XtRBoolean, sizeof(Boolean),
+      0, XtRImmediate, (XtPointer)False },
+   { "reveal", "Reveal", XtRString, sizeof(String),
+      0, XtRString, "" }
 };
 
 static XtPointer OptionBase[] = {
@@ -279,7 +299,10 @@ static XtPointer OptionBase[] = {
    (XtPointer) &MountName, (XtPointer) &DumpInterval, (XtPointer) &StartMinute,
    (XtPointer) &MinDisk, (XtPointer) &ModeString, (XtPointer) &ZeroZFree, 
    (XtPointer) &WaitTimes, (XtPointer) &Database, (XtPointer) &BFactor,
-   (XtPointer) &ExclPlatNames };
+   (XtPointer) &ExclPlatNames, (XtPointer) &AutomaticOpen,
+   (XtPointer) &Hide, (XtPointer) &Reveal,
+   
+};
 
 /*
  * For loading these resource from the command line:
@@ -300,61 +323,52 @@ static XrmOptionDescRec Options[] = {
    {"-wait",	".waitTimes",	XrmoptionSepArg,	NULL},
    {"-database",".database",	XrmoptionSepArg,	NULL},
    {"-b",	".blockFactor",	XrmoptionSepArg,	NULL},
-   {"-exclude",	".exclude",	XrmoptionSepArg,	NULL}
+   {"-exclude",	".exclude",	XrmoptionSepArg,	NULL},
+   {"-automatic",".automatic",	XrmoptionNoArg,		(caddr_t) "yes" },
+   {"-hide",	".hide",	XrmoptionNoArg,		(caddr_t) "yes" },
+   {"-reveal",	".reveal",	XrmoptionSepArg,	NULL}
 };
 
 /*---------------------------------------------------------------------*/
 
 /*-- initialization --*/
-static void	InitArchiver FP ((int *, char**));
-static void	MakeWidget FP ((int *, char **));
-static Widget	CreateWaitButtons FP ((String times, Widget parent,
-			Widget left, Widget above));
-static void	Usage FP((char *prog, int argc, char *argv[]));
-static void	Die FP ((void));
+static void	InitArchiver (int *, char**);
+static void	Usage (char *prog, int argc, char *argv[]);
+static void	Die  (void);
 
 /*-- socket i/o handlers --*/
-static int	Handler FP ((Message *));
-static int	xevent FP ((int));
-static void	Sync FP ((void));
+static int	Handler  (Message *);
 
-/*-- Xt callbacks --*/
-static void	Finish FP ((void));
-static void	ActionButton FP ((void));
-static void	WriteNow FP((void));
-static void 	SuspendWrite FP((Widget w, XtPointer call_data));
-
-/*-- Xt convenience fns --*/
-static void	SetStatus FP ((int, char *));
-static void	SetWaitSensitivity FP((int sensitive));
+/*-- View routines --*/
+static void	SetStatus  (int, char *);
+static void	OpenView (char *display);
+static void	SendReveal (char *display);
 
 /*-- low-level device i/o --*/
-static int	OpenTapeDevice FP ((void));
-static void	WriteEOF FP ((void));
-static void	SpinOff FP ((void));
-static int	EjectEOD FP ((void));
-static void	MountEOD FP ((void));
-static int	netread FP ((int fd, char *dest, int len));
+static int	OpenTapeDevice  (void);
+static void	WriteEOF  (void);
+static void	SpinOff  (void);
+static int	EjectEOD  (void);
+static int	MountEOD  (void);
+static int	EjectJaz  (void);
+static int	MountJaz  (void);
+static int	netread  (int fd, char *dest, int len);
 
 /*-- Timer event handlers --*/
-static void	TimerSaveFiles FP ((ZebTime *zt));
-static void	TimerResumeWrite FP((ZebTime *zt));
-static void	TimerRemaining FP((ZebTime *zt, void *cdata));
+extern "C" void	TimerSaveFiles  (ZebTime *zt);
+extern "C" void	TimerResumeWrite (ZebTime *zt);
+extern "C" void TimerRemaining (ZebTime *zt, void *cdata);
 
 /*-- high-level write and datastore interaction */
-static void	RequestWrite FP((int finish));
-static void	DoTheWriteThing FP((int finish));
-static void	SaveFiles FP ((int));
-/* static void	LoadFileList FP ((void)); */
-static int *	GetFileChain FP ((PlatformId pid, const ZebTime *since, 
-				  int *count));
-static int	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
-static int	RunTar FP ((char *));
-static void	UpdateList FP ((void));
-static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
-static int	TellDaemon FP ((char *, int, SValue *, int));
-/* static void	UpdateMem FP ((void)); */
-static void	FinishFinishing FP((int error));
+static void	RequestWrite (int finish);
+static void	DoTheWriteThing (int finish);
+static void	SaveFiles  (int);
+static DataFile* GetFileList (int srcid, const Platform *p, 
+			      const ZebTime *since, int *count);
+static int	DumpPlatform (const Platform *p, int all);
+static int	RunTar  (char *);
+static void	TarFailed (void);
+static void	FinishFinishing (int error);
 static void	SetupExcludes ();
 static int	Excluded (PlatformId pid);
 
@@ -362,9 +376,7 @@ static int	Excluded (PlatformId pid);
 
 
 int
-main (argc, argv)
-int argc;
-char **argv;
+main (int argc, char **argv)
 {
 	int i;
 /*
@@ -372,33 +384,55 @@ char **argv;
  * help by checking for the -h option and forgetting any others
  */
 	for (i = 1; i < argc; ++i)
-		if (strncmp(argv[i],"-h",2) == 0)
+	{
+		int len = strlen(argv[i]);
+		if (len > 1 && strncmp(argv[i],"-help",len) == 0)
 		{
 			Usage(argv[0],1,argv);
 			exit(0);
-		};
+		}
+	}
 /*
- * Initialize.
+ * Initialize.  Our model object will be destroyed when we exit
  */
-	usy_init ();
-	if (!msg_connect (Handler, "Archiver"))
+	ArchiverModel our_model(Options, XtNumber(Options), argc, argv);
+	model = &our_model;
+	char name[64];
+	sprintf (name, "Archiver-%li", getpid());
+	if (!msg_connect (Handler, name))
 	{
 		fprintf(stderr,"Archiver: could not connect to message\n");
 		Die();
 	}
+	InitArchiver (&argc,argv);
+	// Join group after init in case we just send a reveal and exit
+	msg_join (ARCHIVER_GROUP);
+	switch ( ArchiveMode )
+	{
+	    case AR_TAPE:
+		model->setActionStatus ("Take tape");
+		break;
+	    case AR_EOD:
+		model->setActionStatus ("Mount optical disk");
+		break;
+	    case AR_JAZ:
+		model->setActionStatus ("Mount Jaz disk");
+		break;
+	}
+	model->enableAction ();
+	model->disableWrite ();
+	model->disableFinish ();
+	model->disableWait ();
+	model->setWriteStatus ("Write Now");
+	model->setBytes ("0 Bytes in 0 files             ");
+	SetStatus (FALSE, "Opening database");
+
 	if (!ds_Initialize ())
 	{
 		fprintf(stderr,"Archiver: DataStore initialization failed\n");
 		Die();
 	}
-	InitArchiver(&argc,argv);
-/*
- * Window sys initialization.
- */
-	MakeWidget (&argc, argv);
-
 	chdir ( GetProjDir() );
-	/* LoadFileList (); */
 	if (db_Open (Database) != 0)
 	{
 		msg_ELog (EF_PROBLEM, "Cannot open database %s, exiting",
@@ -406,41 +440,89 @@ char **argv;
 		exit (-9);
 	}
 	db_Close ();		/* Leave it closed except while needed */
-	/* UpdateMem (); */
-	switch (ArchiveMode)
+/*
+ * If not hidden, open our view.
+ */
+	if (! Hide)
 	{
-	    case AR_TAPE:
-		SetStatus (TRUE, "Awaiting tape");
-	    break;
-	    case AR_EOD:
-		SetStatus (TRUE, "Awaiting optical disk");
-	    break;
+		OpenView (0);
 	}
 /*
- * Go into our dump loop.
+ * Try to open archive device immediately if requested.
  */
-	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xevent);
-	msg_await ();
+	if (AutomaticOpen)
+	{
+		msg_ELog (EF_INFO,
+			  "Attempting to automatically open archive device");
+		model->setStatus (FALSE, "Attempting automatic open");
+		ActionButton ();
+	}
+	else
+	{
+		switch (ArchiveMode)
+		{
+		case AR_TAPE:
+			SetStatus (TRUE, "Awaiting tape");
+			break;
+		case AR_EOD:
+			SetStatus (TRUE, "Awaiting optical disk");
+			break;
+		case AR_JAZ:
+			SetStatus (TRUE, "Awaiting Jaz disk");
+			break;
+		}
+	}
+/*
+ * Go into our dump loop, disabling a view if it throws any exceptions.
+ */
+	while (1)
+	{
+		try {
+			msg_await ();
+			break;
+		}
+		catch (ArchiverView::ErrorException &e)
+		{
+			msg_ELog (EF_DEBUG, "caught view error");
+			model->error (e);
+		/*
+		 * If we aren't background-enabled, then a
+		 * window closure forces a full exit.
+		 */
+			if (! Hide)
+			    break;
+		}
+	}
 	db_Close ();
 	return (-9);
 }
 
 
-static void
-InitArchiver (argc, argv)
-int *argc;
-char **argv;
-{
-	int i;
 
+static void
+InitArchiver (int *argc, char **argv)
+{
+	unsigned int i;
+
+	/*
+	 * Just initialize X as much as we can short of connecting
+	 * to a display, since we don't know yet if we have one.
+	 */
+	XtToolkitInitialize();
+	XrmInitialize();
+	XrmDatabase cldb = 0;
+	XrmParseCommand (&cldb, Options, XtNumber(Options), "Archiver",
+			 argc, argv);
+#ifdef notdef
+	if (! cldb)
+		msg_ELog (EF_PROBLEM, "null database after XrmParseCommand");
+	XrmPutFileDatabase (cldb, "options.rdb");
 	/*
 	 * Initialize X and the Toolkit, get our toplevel shell and AppContext,
 	 * and get our application options from the resource database
 	 */
-	Top = XtAppInitialize (&Appc, "Archiver", 
-		Options, XtNumber(Options),
-		argc, argv,
-		NULL, NULL, 0);
+	Top = XtAppInitialize (&Appc, "Archiver", Options, XtNumber(Options),
+			       argc, argv, NULL, NULL, 0);
 
 	/*
 	 * If any args are left, there was an error on the command line
@@ -451,29 +533,114 @@ char **argv;
 		Usage(argv[0], *argc, argv);
 		Die();
 	}
+#endif
+	/* We can no longer detect bad command lines because any unknown
+	 * options may be meant for the toolkit when we open a view, and
+	 * I cannot think of any easy way to detect otherwise...
+	 */
 
 	/*
 	 * Now retrieve each of our global options from the rm database
 	 */
+	XtResource *res = AppResources;
+	XrmValue value;
+	XrmQuark qRBoolean = XrmStringToQuark (XtRBoolean);
+	XrmQuark qRInt = XrmStringToQuark (XtRInt);
+	XrmQuark qRString = XrmStringToQuark (XtRString);
+	XrmQuark qRImmediate = XrmStringToQuark (XtRImmediate);
 	for (i = 0; i < XtNumber(AppResources); ++i)
 	{
+		String resource_type;
+		char fullname[256];
+		char fullclass[256];
+		sprintf (fullname, "%s.%s", "Archiver", res->resource_name);
+		sprintf (fullclass, "%s.%s", "Archiver", res->resource_class);
+		Boolean found = XrmGetResource (cldb, fullname, fullclass,
+						&resource_type, &value);
+		XrmQuark qrval;
+		if (!found)
+		{
+			/* Use the default */
+			value.addr = (char *)res->default_addr;
+			value.size = res->resource_size;
+			qrval = XrmStringToQuark (res->default_type);
+		}
+		else
+		{
+			qrval = XrmStringToQuark (resource_type);
+		}
+		XrmQuark qrdest = XrmStringToQuark (res->resource_type);
+		char *dest = (char *)OptionBase[i] + res->resource_offset;
+		if (qrval == qRImmediate)
+			memcpy (dest, &(value.addr), sizeof(value.addr));
+		else if (qrval != qRString)
+			fprintf (stderr, "Unexpected rep for source: %s",
+				 XrmQuarkToString(qrval));
+		else if (qrdest == qRString)
+			*(String *)dest = (String)value.addr;
+		else if (qrdest == qRInt)
+			*(int *)dest = atoi((String)value.addr);
+		else if (qrdest == qRBoolean)
+		{
+			char *v = (String)value.addr;
+			Bool result;
+			if (! strcmp (v, "false"))
+				result = False;
+			else if (! strcmp (v, "true"))
+				result = True;
+			else if (! strcmp (v, "no"))
+				result = False;
+			else if (! strcmp (v, "yes"))
+				result = True;
+			else if (! strcmp (v, "FALSE"))
+				result = False;
+			else if (! strcmp (v, "TRUE"))
+				result = True;
+			else
+				result = (atoi(v) != 0);
+			*(Boolean *)dest = result;
+		}
+		else
+			msg_ELog (EF_PROBLEM, "Unexpected rep for dest: %s",
+				  XrmQuarkToString (qrdest));
+		++res;
+#ifdef notdef
 	   XtGetApplicationResources(Top, OptionBase[i], 
 			&AppResources[i], 1, NULL, 0);
+#endif
 	}
-
 	/*
 	 * Now do some error checking and feedback to the user
 	 */
+	if (Reveal[0] != '\0')
+	{
+		msg_ELog (EF_INFO, 
+			  "reveal requested: all other options ignored");
+		SendReveal (Reveal);
+		msg_disconnect ();
+		Die ();
+	}
 	if (StartMinute > 60)
 	{
 		msg_ELog (EF_PROBLEM, "Bad start minute %d, using 0", 
-			StartMinute);
+			  StartMinute);
 		StartMinute = 0;
 	}
 	if ( strcmp ( ModeString, "tape") == 0 )
+	{
+		msg_ELog (EF_INFO, "Tape drive mode");
 		ArchiveMode = AR_TAPE;
+	}
 	else if ( strcmp ( ModeString, "eod") == 0 )
+	{
+		msg_ELog (EF_INFO, "Optical disk mode");
 		ArchiveMode = AR_EOD;
+	}
+	else if ( strcmp ( ModeString, "jaz") == 0 )
+	{
+		msg_ELog (EF_INFO, "Jaz disk mode");
+		ArchiveMode = AR_JAZ;
+	}
 	else
 	{
 		msg_ELog(EF_PROBLEM,"Unknown archive mode %s",ModeString);
@@ -481,23 +648,21 @@ char **argv;
 		Die();
 	}
 	msg_ELog (EF_DEBUG, "Free tape on 0Z: %s.", ZeroZFree?
-		"true" : "false");
+		  "true" : "false");
 
 	msg_ELog (EF_INFO, "dump interval: %d, start: %d",
-		DumpInterval, StartMinute);
-	if ( ArchiveMode == AR_EOD )
+		  DumpInterval, StartMinute);
+	if ( ArchiveMode & AR_DISK )
 	{
-		msg_ELog (EF_INFO, "Optical disk mode");
 		msg_ELog (EF_INFO, 
-			"mount name: %s, dump files to directory: %s",
-			MountName, OutputDir);
+			"%s: %s, mount name: %s, dump files to directory: %s",
+			"device", DriveName, MountName, OutputDir);
 		msg_ELog (EF_INFO, 
-			"minimum optical disk to dump: %d kb",MinDisk);
+			"minimum disk to dump: %d kb", MinDisk);
 	}
 	else
 	{
-		msg_ELog (EF_INFO, "Tape drive mode");
-		msg_ELog (EF_INFO, "device name: %s, bf:%d, blocksize:%d, "
+		msg_ELog (EF_INFO, "tape device: %s, bf:%d, blocksize:%d, "
 			  "tapelimit: %lu", DriveName, BFactor,
 			  (BFactor*512), TapeLimit);
 	}
@@ -506,6 +671,60 @@ char **argv;
 		msg_ELog (EF_INFO, "Excluding %s", ExclPlatNames);
 		SetupExcludes ();
 	}
+	if (Hide)
+	{
+		msg_ELog (EF_INFO,
+			  "Hiding in background without window interface");
+	}
+	if (Hide && !AutomaticOpen)
+	{
+		msg_ELog (EF_PROBLEM, "Warning: archiver hidden but %s",
+			  "automatic open not enabled");
+	}
+}
+
+
+
+static void
+OpenView (char *display)
+{
+	char *dstring = display ? display : "<default>";
+	msg_ELog (EF_INFO, "Opening X11 view on display: %s", dstring);
+	ArchiverView *view = CreateXView (model, display);
+	if (! view)
+	{
+		msg_ELog (EF_PROBLEM, "X11 window interface on %s failed",
+			  dstring);
+	}
+	else
+	{
+		model->addView (*view);
+	}
+}
+
+
+
+static void
+SendReveal (char *display)
+/*
+ * Send an open display message to the Archiver group, so that any active
+ * archiver will try to reveal itself.
+ */
+{
+	struct msg_archiver ma;
+
+	msg_ELog (EF_INFO, "sending reveal message to Archiver group "
+		  "for display %s", display ? display : "<default>");
+	if (display)
+	{
+		ma.ma_command = MA_OPENDISPLAY;
+		strcpy (ma.ma_data, display);
+	}
+	else
+	{
+		ma.ma_command = MA_OPENDEFAULT;
+	}
+	msg_send (ARCHIVER_GROUP, MT_ARCHIVER, TRUE, &ma, sizeof(ma));
 }
 
 
@@ -557,12 +776,9 @@ Excluded (PlatformId pid)
  * Explain all of the command line options of Archiver
  */
 static void
-Usage(prog, argc, argv)
-	char *prog;
-	int argc;
-	char **argv;
+Usage(char *prog, int argc, char **argv)
 {
-   short i;
+   unsigned short i;
 
    /*
     * Mention all of the illegal options
@@ -575,7 +791,7 @@ Usage(prog, argc, argv)
    fprintf(stderr,"Usage: %s [options], where options are the following:\n",
 			prog);
    fprintf(stderr,"   %-20s Archive mode: optical disk or tape (tape)\n",
-			"-mode eod|tape");
+			"-mode eod|tape|jaz");
    fprintf(stderr,"   %-20s Device name (%s)\n",
 			"-device,-v,-f <dev>",DEF_DEVICEFILE);
    fprintf(stderr,"   %-20s Starting hour offset, 0-60 minutes. (0)\n",
@@ -584,6 +800,13 @@ Usage(prog, argc, argv)
 			"-t,-interval <min>",DEF_DUMPINTERVAL);
    fprintf(stderr,"   %-20s Free device at 0z (yes)\n","-z yes|no");
    fprintf(stderr,"   %-20s Delay button times (1,2,5)\n","-wait n1,n2,...");
+   fprintf(stderr,"   %-20s Open archive device automatically on startup %s\n",
+	   "-automatic", "(off)");
+   fprintf(stderr,"   %-20s Run hidden without a window interface (off)\n",
+	   "-hide");
+   fprintf(stderr,"   %-20s %s (off)\n",
+	   "-reveal <display>", 
+	   "Tell other Archivers to open views on <display>");
    fprintf(stderr,"   %-20s Specify database file, default '%s'\n",
 	   "-database", DUMPED_FILES);
    fprintf(stderr,"   %-20s Show this information\n","-h,-help");
@@ -608,175 +831,12 @@ Usage(prog, argc, argv)
    for (i = 0; i < XtNumber(AppResources); ++i)
    {
       fprintf(stderr,"   %-20s %-20s %-20s\n",
-			AppResources[i].resource_name,
-			AppResources[i].resource_class,
-			AppResources[i].resource_type);
+	      AppResources[i].resource_name,
+	      AppResources[i].resource_class,
+	      AppResources[i].resource_type);
    }
 }
 
-
-
-
-static void
-MakeWidget (argc, argv)
-int *argc;
-char **argv;
-/*
- * Put together the control widget.  The Top widget shell should already
- * have been set in InitArchiver()
- */
-{
-	Arg args[10];
-	int n;
-	Widget w, above, button;
-	XColor screen, exact;
-
-/*
- * The inevitable form.
- */
-	Form = XtCreateManagedWidget ("form", formWidgetClass, Top, NULL, 0);
-	above = NULL;
-/*
- * Give our status.
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Archiver status:");	n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, above);		n++;
-	w = XtCreateManagedWidget ("stitle", labelWidgetClass, Form, args, n);
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Unknown");	n++;
-	XtSetArg (args[n], XtNfromHoriz, w);		n++;
-	XtSetArg (args[n], XtNfromVert, above);		n++;
-	XtSetArg (args[n], XtNresizable, True);		n++;
-	WStatus = XtCreateManagedWidget ("status", labelWidgetClass, Form,
-			args, n);
-/*
- * The line of control buttons.  All but the "take/release button" start
- * out insensitive, until we have a device to write to.
- * The sensitivity will be updated in the ActionButton() callback,
- * depending on whether the device is being opened or closed.
- */
-	n = 0;
-	above = w;
-	XtSetArg (args[n], XtNlabel, "Finish");		n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, above);		n++;
-	button = XtCreateManagedWidget ("finish", commandWidgetClass, Form,
-			args, n);
-	XtAddCallback (button, XtNcallback, (XtCallbackProc) Finish, 0);
-	FinishButton = button;
-	XtSetSensitive(FinishButton, False);
-/*
- * A "take/release" button.
- */
-	n = 0;
-	switch ( ArchiveMode )
-	{
-	    case AR_TAPE:
-		XtSetArg (args[n], XtNlabel, "Take tape");	n++;
-	    break;
-	    case AR_EOD:
-		XtSetArg (args[n], XtNlabel, "Mount optical disk");	n++;
-	    break;
-	}
-	XtSetArg (args[n], XtNfromHoriz, button);	n++;
-	XtSetArg (args[n], XtNfromVert, above);		n++;
-	Action = XtCreateManagedWidget ("action", commandWidgetClass, Form,
-			args, n);
-	XtAddCallback (Action, XtNcallback, (XtCallbackProc) ActionButton, 0);
-/*
- * The explicit request for "write now".  While suspended, this button
- * will read "Resume" rather than "Write Now"
- */
-	n = 0;
-	XtSetArg(args[n], XtNlabel, "Write Now");	n++;
-	XtSetArg(args[n], XtNfromHoriz, Action);	n++;
-	XtSetArg(args[n], XtNfromVert, above);		n++;
-	button = XtCreateManagedWidget ("write", commandWidgetClass,
-					Form, args, n);
-	XtAddCallback(button, XtNcallback, (XtCallbackProc) WriteNow, 0);
-	WriteButton = button;
-	XtSetSensitive(WriteButton, False);
-
-	above = CreateWaitButtons(WaitTimes, Form, button, above);
-	SetWaitSensitivity(False);
-
-/*
- * Status info.
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "0 Bytes in 0 files             "); n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, above);		n++;
-	XtSetArg (args[n], XtNresize, True);            n++;
-	Bytes = XtCreateManagedWidget ("bytes", labelWidgetClass, Form,args,n);
-
-	XtRealizeWidget (Top);
-	Sync ();
-
-/*
- * Also look up a couple of pixel colors.
- */
-	XAllocNamedColor (XtDisplay (Top), DefaultColormap (XtDisplay (Top),0),
-		"red", &exact, &screen);
-	RedPix = screen.pixel;
-	XAllocNamedColor (XtDisplay (Top), DefaultColormap (XtDisplay (Top),0),
-		"white", &exact, &screen);
-	WhitePix = screen.pixel;
-}
-
-
-/*
- * Create the wait buttons as specified in the string 'times'
- * The global WaitButtons array will be NULL terminated when done
- * Returns the widget which further widgets would come below,
- * i.e. either the first WaitButton, or 'above' if there is none
- */
-static Widget
-CreateWaitButtons(times, parent, left, above)
-	String times;
-	Widget parent;
-	Widget left, above;
-{
-	Arg args[5];
-	int n,i;
-	int ntimes;
-	char *scan = times;
-	int delays[MAX_WAITBUTTONS];
-	char buf[30];
-
-	ntimes = 0;
-	while (*scan && (ntimes < MAX_WAITBUTTONS) &&
-			(sscanf(scan,"%i",&delays[ntimes]) == 1))
-	{
-		++ntimes;
-		if ((scan = strchr(scan,',')) == NULL)
-			break;
-		++scan;		/* skip the comma */
-	}
-
-	for (i = 0; i < ntimes; ++i)
-	{
-		n = 0;
-		sprintf(buf, "Wait %d min", delays[i]);
-		XtSetArg(args[n], XtNlabel, buf);		n++;
-		XtSetArg(args[n], XtNfromHoriz, left);		n++;
-		XtSetArg(args[n], XtNfromVert, above);		n++;
-		WaitButtons[i] = XtCreateManagedWidget ("suspend", 
-					commandWidgetClass,
-					parent, args, n);
-		XtAddCallback(WaitButtons[i], XtNcallback, 
-		      (XtCallbackProc) SuspendWrite, 
-		      (XtPointer)(delays[i]*60));
-		left = WaitButtons[i];
-	}
-	WaitButtons[ntimes] = NULL;
-	if (ntimes == 0)
-		return(above);
-	else
-		return(WaitButtons[0]);
-}
 
 
 
@@ -792,10 +852,13 @@ Finish ()
 	    {
 	      case AR_TAPE:
 		SetStatus (TRUE, "Can't finish -- no tape");
-	      break;
+		break;
 	      case AR_EOD:
 		SetStatus (TRUE, "Can't finish -- no optical disk");
-	      break;
+		break;
+	      case AR_JAZ:
+		SetStatus (TRUE, "Can't finish -- no Jaz disk");
+		break;
 	    }
 	}
 	else
@@ -807,26 +870,30 @@ Finish ()
 
 
 /*
- * Things to do when finishing off, such as releasing devices
- * and dying
+ * Things to do when finishing off, such as releasing devices and dying.
+ * error is non-zero if we're finishing due to an error.
  */
 static void
-FinishFinishing(error)
-int error;  /* non-zero if we're finishing due to an error */
+FinishFinishing (int error)
 {
 	msg_ELog(EF_DEBUG, "finishing a finish");
+	model->disableFinish ();
+	model->disableWrite ();
 	switch ( ArchiveMode )
 	{
 	    case AR_TAPE:
-		XtSetSensitive(FinishButton, False);
-		XtSetSensitive(WriteButton, False);
 		SpinOff();
-	    break;
+		break;
 	    case AR_EOD:
 		if (DeviceFD >= 0)
 			close(DeviceFD);
 		EjectEOD ();
-	    break;
+		break;
+	    case AR_JAZ:
+		if (DeviceFD >= 0)
+			close(DeviceFD);
+		EjectJaz ();
+		break;
 	}
 	if (error)
 		SetStatus (TRUE, "CROAK");
@@ -838,7 +905,7 @@ int error;  /* non-zero if we're finishing due to an error */
 
 
 
-static void
+void
 ActionButton ()
 /*
  * Take or release the tape.
@@ -847,11 +914,10 @@ ActionButton ()
 	static int TimerEvent;		/* The regular write event */
 					/* This function both starts and
 					 * cancels it */
-	Arg args[2];
 	ZebTime current, zt;
 	int year, month, day;
 	int status;
-
+	char *action;
 /*
  * If in the middle of a write, we can't do anything now since we don't
  * want to release the tape while writing.
@@ -863,6 +929,7 @@ ActionButton ()
  */
 	if (DeviceFD < 0)
 	{
+		SetStatus (FALSE, "Opening archive device...");
 		switch ( ArchiveMode )
 		{
 			case AR_TAPE:
@@ -871,20 +938,33 @@ ActionButton ()
 		         */
 			    if (! OpenTapeDevice ())
 			    {
-				SetStatus (TRUE, "Unable to open tape");
+				SetStatus (TRUE, "Unable to open tape!");
 				return;
 			    }
-	
-			    SetStatus (FALSE, "Sleeping");
-			    XtSetArg (args[0], XtNlabel, "Free tape");
-			break;
+			    action = "Free tape";
+			    break;
 			case AR_EOD:
-			    MountEOD();
-			    XtSetArg (args[0], XtNlabel, "Free optical disk.");
-			break;
+			    if (MountEOD() != 0)
+			    {
+				    SetStatus (TRUE, "Mount failed!");
+				    return;
+			    }
+			    DeviceFD = 0;
+			    action = "Free optical disk";
+			    break;
+			case AR_JAZ:
+			    if (MountJaz() != 0)
+			    {
+				    SetStatus (TRUE, "Mount failed!");
+				    return;
+			    }
+			    DeviceFD = 0;
+			    action = "Free Jaz disk";
+			    break;
 		}
-		XtSetSensitive(FinishButton, True);
-		XtSetSensitive(WriteButton, True);
+		SetStatus (FALSE, "Sleeping");
+		model->enableFinish ();
+		model->enableWrite ();
 	
 		/*
 		 * Start saving stuff.  Find the next time by searching 
@@ -897,8 +977,8 @@ ActionButton ()
 		while (zt.zt_Sec < current.zt_Sec)
 			zt.zt_Sec += DumpInterval * 60;
 						
-		TimerEvent = tl_AbsoluteReq (TimerSaveFiles, 0, &zt,
-			DumpInterval*60*INCFRAC);
+		TimerEvent = tl_AbsoluteReq ((void (*)(...))TimerSaveFiles,
+					     0, &zt, DumpInterval*60*INCFRAC);
 	}
 /*
  * Otherwise we give it away.
@@ -909,88 +989,50 @@ ActionButton ()
 	    switch ( ArchiveMode )
 	    {
 		case AR_TAPE:
-		    XtSetArg (args[0], XtNlabel, "Take tape");
-		    XtSetSensitive(FinishButton, False);
-		    XtSetSensitive(WriteButton, False);
+		    action = "Take tape";
+		    model->disableFinish ();
+		    model->disableWrite ();
 		    SpinOff ();
 		    close (DeviceFD);
 		    DeviceFD = -1;
 		    SetStatus (TRUE, "Awaiting tape");
-		break;
+		    break;
 		case AR_EOD:
 		    status = EjectEOD();
 		    if ( !status )
 		    {
-		        XtSetArg (args[0], XtNlabel, "Mount optical disk");
+			action = "Mount optical disk";
 		        DeviceFD = -1;
 		        SetStatus (TRUE, "Awaiting optical disk");
-		        XtSetSensitive(FinishButton, False);
-		        XtSetSensitive(WriteButton, False);
+			model->disableFinish ();
+			model->disableWrite ();
 		    }
 		    else
 		    {
-		        XtSetArg (args[0], XtNlabel, "Retry eject");
-		        SetStatus (TRUE, "Optical Disk Eject Error!");
+		        action = "Retry eject";
+		        SetStatus (TRUE, "Optical disk eject error!");
 		    }
-		break;
+		    break;
+		case AR_JAZ:
+		    status = EjectJaz();
+		    if ( !status )
+		    {
+			action = "Mount Jaz disk";
+		        DeviceFD = -1;
+		        SetStatus (TRUE, "Awaiting Jaz disk");
+			model->disableFinish ();
+			model->disableWrite ();
+		    }
+		    else
+		    {
+		        action = "Retry eject";
+		        SetStatus (TRUE, "Jaz disk eject error!");
+		    }
+		    break;
 	    }
 	}
-	XtSetValues (Action, args, 1);
+	model->setActionStatus (action);
 }
-
-
-
-#ifdef notdef
-static void
-LoadFileList ()
-/*
- * Pull in the list of files which have already been dumped to disk.
- */
-{
-	FILE *fp;
-	char pname[200], *colon;
-	SValue v;
-	date d;
-/*
- * Open up the file.
- */
-	sprintf (listfile, "%s/%s", GetProjDir(), DUMPED_FILES );
-	DumpedTable = usy_c_stbl ("DumpedTable");
-	if ((fp = fopen (listfile, "r")) == NULL)
-	{
-		msg_ELog (EF_INFO, "No dumped file list, '%s'", listfile);
-		return;
-	}
-/*
- * Go through and read each platform.
- */
-	msg_ELog (EF_DEBUG, "Reading dumped file list from %s", listfile);
-	while (fgets (pname, 200, fp))
-	{
-	/*
-	 * Split apart the entry.
-	 */
-		if ((colon = strchr (pname, ':')) == 0 || 
-		  sscanf(colon+1, "%li %li", &d.ds_yymmdd, &d.ds_hhmmss) != 2)
-		{
-			msg_ELog (EF_PROBLEM, "Bad %s line: %s",
-				  DUMPED_FILES, pname);
-			continue;
-		}
-		*colon = '\0';
-	/*
-	 * Store it.
-	 */
-		v.us_v_date = d;
-		usy_s_symbol (DumpedTable, pname, SYMT_DATE, &v);
-	}
-/*
- * All done.
- */
-	fclose (fp);
-}
-#endif
-
 
 
 
@@ -1022,8 +1064,7 @@ OpenTapeDevice ()
  * executed from DoTheWriteThing().
  */
 static void
-RequestWrite(finish)
-	int finish;
+RequestWrite (int finish)
 {
 	static int pending = FALSE;  /* A write request is pending */
 	static int pending_finish;   /* True if a pending request has made
@@ -1034,7 +1075,10 @@ RequestWrite(finish)
 	 * If we have no tape, we do nothing.
 	 */
 	if (DeviceFD < 0)
+	{
+		SetStatus (TRUE, "Write request failed: no archive device");
 		return;
+	}
 
 	/*
 	 * If a SaveFiles is already in progress, just set the pending flag
@@ -1082,29 +1126,9 @@ RequestWrite(finish)
 	if (DeviceFD >= 0)
 		SetStatus (FALSE, "Sleeping");  /* Otherwise leave msg */
 	WriteInProgress = FALSE;
-	SetWaitSensitivity(False);
-	XtSetSensitive(FinishButton, True);
-	XtSetSensitive(Action, True);
-	Sync();
-}
-
-
-/*
- * The timer calls this function at regular intervals (DumpInterval)
- * to instigate a write.  This function just does a RequestWrite(),
- * and that takes care of it.  This request could end up pending
- * because of a current write in progress, so the current time is
- * ignored and calculated at the time of the actual write
- */
-static void
-TimerSaveFiles(zt)
-	ZebTime *zt;
-{
-	char stime[50];
-
-	TC_EncodeTime(zt, TC_Full, stime);
-	msg_ELog(EF_DEBUG,"%s, TimerSaveFiles() requesting a write",stime);
-	RequestWrite(FALSE);
+	model->disableWait ();
+	model->enableFinish ();
+	model->enableAction ();
 }
 
 
@@ -1118,8 +1142,7 @@ TimerSaveFiles(zt)
  * If false, all files may still be written if deemed necessary here.
  */
 static void
-DoTheWriteThing(explicit_finish)
-	int explicit_finish;
+DoTheWriteThing (int explicit_finish)
 {
 	static int FreshTape = TRUE;	/* True if the current tape has
 					 * never been written to */
@@ -1130,11 +1153,7 @@ DoTheWriteThing(explicit_finish)
 	ZebTime daystart;
 	ZebTime zt;	/* The current time, the time this write begins */
 	char datafile[120];
-#if defined(SVR4) || defined (__osf__)
-	struct statvfs buf;
-#else
-	struct statfs buf;
-#endif
+	struct STATVFS buf;
 /*
  * Special check -- if this is the first dump of a new day, and not
  *		    already a fresh tape, we clean up everything
@@ -1161,22 +1180,27 @@ DoTheWriteThing(explicit_finish)
 		break;
 
 	   case AR_EOD:
+	   case AR_JAZ:
 		/*
 		 * For optical disks, the ZeroZFree flag is ignored (?) 
 		 * Just write until the disk is full
 		 */
 		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
-		    OutputDir,year,month,day,hour,minute );
+			 OutputDir,year,month,day,hour,minute );
+		mkdir (OutputDir, 0775);
 		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
 		{
-		    SetStatus ( TRUE, "Bad file open on EOD" );
+		    SetStatus ( TRUE, "Bad file open on disk" );
 		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
 		    /*
 		     * If we're supposed to finish, then we do so despite the
 		     * error
 		     */
 		    if (explicit_finish)
-			FinishFinishing(TRUE);
+		    {
+			    FinishFinishing(TRUE);	// Does not return.
+		    }
+		    return;
 		}
 		break;
 	}
@@ -1226,20 +1250,21 @@ DoTheWriteThing(explicit_finish)
 	    break;
 
 	   case AR_EOD:
+	   case AR_JAZ:
 		/*
 		 * Finished writing another file onto optical disk
 		 * Make sure there is room for more, else request
 		 * a new disk
 		 */
 		close ( DeviceFD );
-		status = statfs(DriveName,&buf);
+		status = STATVFS(DriveName,&buf);
 		if ( !status && buf.f_bavail < MinDisk )
 		{
 			msg_ELog(EF_DEBUG,
 			   "Disk full. %li kb left less than %li",
 			   buf.f_bavail, MinDisk);
 			ActionButton ();
-			SetStatus (TRUE, "Need new optical disk.");
+			SetStatus (TRUE, "Need new disk.");
 		}
 	    	break;
 	}
@@ -1262,22 +1287,20 @@ DoTheWriteThing(explicit_finish)
  * The only function which should call this is DoTheWriteThing()
  */
 static void
-SaveFiles (all)
-int all;
+SaveFiles (int all)
 /*
  * Pass through the list of stuff and save files to the tape.
  */
 {
-	int plat, nplat = ds_GetNPlat ();
-	PlatformInfo pi;
-	int cmdlen;
+	int pid, nplat = ds_GetNPlat ();
+	const Platform *p;
 
 	/*
 	 * The tar command, less the file names
 	 */
 	sprintf (Tarbuf, "exec tar cfb - %d ", BFactor);
-	cmdlen = strlen (Tarbuf);
-	Tarlen = cmdlen;
+	Tarcmdlen = strlen (Tarbuf);
+	Tarlen = Tarcmdlen;
 
 	/*
 	 * Our cache of dumped file indices to which DumpPlatform
@@ -1291,9 +1314,6 @@ int all;
 		SetStatus (TRUE, buf);
 		return;
 	}
-	DumpedFiles = (int *) malloc (2048 * sizeof (int));
-	NFiles = 0;
-	
 
 	/*
 	 * Pass through the platform table and dump things.  Keep adding
@@ -1305,16 +1325,14 @@ int all;
 	 * at zero, but that could change.
 	 */
 	SetStatus (FALSE, "Scanning platforms");
-	for (plat = 0; plat < nplat; plat++)
+	for (pid = 0; pid < nplat; pid++)
 	{
-		if (Excluded (plat))
-			continue;
-		ds_GetPlatInfo (plat, &pi);
-		if (! pi.pl_SubPlatform)
-		{
-			if (! DumpPlatform (plat, &pi, all))
-				break;
-		}
+	    if (Excluded (pid))
+		continue;
+
+	    p = dt_FindPlatform (pid);
+	    if (! pi_Subplatform (p) && ! DumpPlatform (p, all))
+		break;
 	}
 	db_Close ();	/* Leave closed during the long delay in writing */
 
@@ -1322,42 +1340,53 @@ int all;
 	 * Run the tar command to put this all together, but only if
 	 * we actually got any files to write
 	 */
-	if ( Tarlen > cmdlen )
+	if ( Tarlen > Tarcmdlen )
 	{
 		/* 
 		 * Do all the settings to signal a write in progress 
 		 */
 		SetStatus (FALSE, "Writing");
 		WriteInProgress = TRUE;
-		SetWaitSensitivity(True);
-		XtSetSensitive(FinishButton, False);
-		XtSetSensitive(Action, False);
-		Sync();
+		model->enableWait ();
+		model->disableFinish ();
+		model->disableAction ();
 
 		/*
 		 * Now try running the tar command
 		 */
+# ifndef NO_RUNTAR
 		if (RunTar (Tarbuf))
+#endif
 		{
-			/* The tar succeeded, so put an EOF marker
-			 * on the tape */
-			switch ( ArchiveMode )
-			{
-			   case AR_TAPE:
-				WriteEOF ();
-				break;
-			   case AR_EOD:
-				break;
-			}
-			UpdateList ();
+		    char string[80];
+		/*
+		 * The tar succeeded, so put an EOF marker
+		 * on the tape
+		 */
+		    switch ( ArchiveMode )
+		    {
+		    case AR_TAPE:
+			WriteEOF ();
+			break;
+		    case AR_EOD:
+			break;
+		    case AR_JAZ:
+			break;
+		    }
+		/*
+		 * Update the widget too.
+		 */
+		    sprintf (string, "%.2f MBytes in %d files.",
+			     (float)BytesWritten / (1024 * 1024), 
+			     FilesWritten);
+		    model->setBytes (string);
 		}
+		else
+		    TarFailed ();
+
 		WriteInProgress = FALSE;
 	}	
 
-	if (DumpedFiles)
-		free (DumpedFiles);
-	DumpedFiles = NULL;
-	NFiles = 0;
 	/*
 	 * Another write may be pending so we'll just return.
 	 * If all writing is finished, it is up to the calling function to
@@ -1366,231 +1395,116 @@ int all;
 }
 
 
-
-static int *
-GetFileChain (PlatformId pid, const ZebTime *since, int *count)
+  
+static DataFile*
+GetFileList (int srcid, const Platform *p, const ZebTime *since, int *count)
 /*
- * Return an array of data file indices from latest to oldest.
+ * Return an array of data files in time-sequential order, starting after the
+ * given time.
+ *
  * The array must be freed by the caller.
  */
 {
-	DataFileInfo dfi;
-	DataSrcInfo dsi;
-	int *chain;
-	int nchain;
-	int findex;
-	int n;
-
-	n = 0;
-	chain = NULL;
+    int nfiles = 0, listsize = 0;
+    DataFile *dflist = 0;
+    const DataFile *df;
 /*
  * Fill the array
  */
-	ds_LockPlatform (pid);
-	ds_GetDataSource (pid, 0, &dsi);
-	findex = dsi.dsrc_FFile;
-	if (findex != 0)
-		ds_GetFileInfo (findex, &dfi);
-	while (findex && TC_Less (*since, dfi.dfi_End))
+    for (df = ds_FindDFAfter (srcid, pi_Id (p), since); df; 
+	 df = ds_NextFile (df))
+    {
+	if (nfiles == listsize)
 	{
-		if (! chain)
-		{
-			nchain = 32;
-			chain = (int *) malloc (nchain * sizeof(int));
-		}
-		else if (n == nchain)
-		{
-			nchain *= 2;
-			chain = (int *) realloc (chain, nchain * sizeof(int));
-
-		}
-		chain[n++] = findex;
-		if ((findex = dfi.dfi_Next) > 0)
-			ds_GetFileInfo (findex, &dfi);
+	    listsize += 100;
+	    dflist = (DataFile*) realloc (dflist, 
+					  listsize * sizeof (DataFile));
 	}
 
-	ds_UnlockPlatform (pid);
-	*count = n;
-	return (chain);
+	dflist[nfiles++] = *df;
+    }
+
+    *count = nfiles;
+    return (dflist);
 }
-
-
-
-
-#ifdef notdef 
+  
+  
+  
+  
 static int
-DumpPlatform (pid, pi, all)
-PlatformId pid;
-PlatformInfo *pi;
-int all;
+DumpPlatform (const Platform *p, int all)
 /*
  * Dump out any files from this platform by appending each file name onto
  * the Tarbuf command buffer
  */
 {
-	ZebTime dumptime;
-	SValue v;
-	int *chain;
-	int type;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-	int findex;
-	int nfiles, i;
-	char buf[512];
-	int ret;
-
+    ZebTime dumptime;
+    ZebraTime now;
+    DataFile *dflist;
+    DataFileCore dfc;
+    SourceInfo dsi;
+    int ndumped;
+    int nfiles, s;
+    int ok;
+ 
+    tl_Time (&now);
 /*
- * Find the last time this thing was dumped.
+ * Archive all of the writable sources.  The (somewhat arbitrary) assumption
+ * here is that read-only sources are probably archived by someone else.
  */
-	if (usy_g_symbol (DumpedTable, pi->pl_Name, &type, &v))
-		TC_UIToZt (&(v.us_v_date), &dumptime);
-	else
-		dumptime.zt_Sec = dumptime.zt_MicroSec = 0;
-	ds_LockPlatform (pid);
-	ds_GetDataSource (pid, 0, &dsi);
-	chain = GetFileChain (pid, &dumptime, &nfiles);
+    for (s = 0; ds_GetSourceInfo (s, &dsi); s++)
+    {
+	int i;
+	
+	if (dsi.src_ReadOnly)
+	    continue;
+    /*
+     * Get a list of all the files for this source/platform combo
+     */
+	dflist = GetFileList (s, p, &ZT_ALPHA, &nfiles);
 
-	TC_EncodeTime (&dumptime, TC_Full, buf);
-	msg_ELog (EF_DEBUG, "platform '%s' has %d files since %s",
-		  ds_PlatformName (pid), nfiles, buf);
-/*
- * Now step through the file chain as far as we can.  We'll skip the loop
- * entirely if we have no files, or if there is only one and we are not
- * supposed to do all of them.  We have to traverse the file chain in time
- * order in case we have to abort before putting all of the file names on
- * the command line.  That way we can advance the dump time forward with
- * each file as its put on the tar command line.
- */
-	ret = 1;
-	for (i = nfiles - 1; (nfiles > 0) && (i >= (all ? 0 : 1)); --i)
-	{
-		char *fname;
-
-		findex = chain[i];
-		ds_GetFileInfo (findex, &dfi);
-	/*
-	 * Fix up the file name
-	 */
-		fname = dfi.dfi_Name;
-		sprintf (buf, "%s/%s ", dsi.dsrc_Where, fname);
-	/*
-	 * If this file name will not fit in the tar command line, skip it
-	 * and the rest of the files in this platform.
-	 */
-		if (Tarlen + strlen(buf) + 1 >= sizeof(Tarbuf))
-		{
-			msg_ELog (EF_DEBUG, "tar command line full");
-			ret = 0;
-		        break;
-		}
-		msg_ELog (EF_DEBUG, "Dumping file '%s' (index %d)", 
-			  fname, findex);
-		strcat (Tarbuf, buf);
-		Tarlen += strlen(buf);
-	/*
-	 * Send the MarkArchived request now, even though we do not know
-	 * that the tar will succeed.  This is to help insure that nothing
-	 * is written to the file while archiving it.  If the archive fails,
-	 * we'll try again later, since we go by our own dates, and not the
-	 * archived flag, when picking files to write.
-	 */
-		ds_MarkArchived (findex);
-	/*
-	 * Advance the dumped time to include this file
-	 */
-		dumptime = dfi.dfi_End;
-	}
-	if (chain)
-		free (chain);
-/*
- * Record the new time.
- */
-	TC_EncodeTime (&dumptime, TC_Full, buf);
-	msg_ELog (EF_INFO, "platform '%s' being dumped up to %s",
-		  ds_PlatformName (pid), buf);
-	TC_ZtToUI (&dumptime, &(v.us_v_date));
-	usy_s_symbol (DumpedTable, pi->pl_Name, SYMT_DATE, &v);
-	ds_UnlockPlatform (pid);
-	return (ret);
-}
-#endif /* notdef */
-
-
-
-static int
-DumpPlatform (pid, pi, all)
-PlatformId pid;
-PlatformInfo *pi;
-int all;
-/*
- * Dump out any files from this platform by appending each file name onto
- * the Tarbuf command buffer
- */
-{
-	ZebTime dumptime;
-	SValue v;
-	int *chain;
-	int type;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-	int findex;
-	int ndumped;
-	int nfiles, i;
-	char buf[512];
-	int ret;
-/*
- * Get a chain of all the files in this platform.
- */
-	ds_LockPlatform (pid);
-	ds_GetDataSource (pid, 0, &dsi);
-	chain = GetFileChain (pid, &ZT_ALPHA, &nfiles);
-/*
- * Make sure there's room in our file list.
- */
-	if (nfiles)
-		DumpedFiles = (int *) realloc (DumpedFiles, 
-					       (NFiles + nfiles)*sizeof(int));
-
-	msg_ELog (EF_DEBUG, "platform '%s' has %d files on disk",
-		  ds_PlatformName (pid), nfiles);
-/*
- * Now step through the file chain as far as we can.  We'll skip the loop
- * entirely if we have no files, or if there is only one and we are not
- * supposed to do all of them.
- */
-	ret = 1;
+	msg_ELog (EF_DEBUG, "src %s, platform %s: %d files on disk",
+		  dsi.src_Name, pi_Name (p), nfiles);
+    /*
+     * Now step through the file list, skipping the last file in the list 
+     * (i.e., the latest) if we're not doing all of the files.
+     */
+	ok = 1;
 	ndumped = 0;
-	for (i = nfiles - 1; (nfiles > 0) && (i >= (all ? 0 : 1)); --i)
+  
+	for (i = 0; i < (all ? nfiles : nfiles - 1); i++)
 	{
-		char *fname;
-
-		findex = chain[i];
-		ds_GetFileInfo (findex, &dfi);
-	/*
-	 * Skip this file if already in the database.  Someday this can
-	 * check for number of samples or revision or such.
-	 */
-		if (! db_Fetch (ds_PlatformName(dfi.dfi_Plat),&dfi,NULL,NULL))
-			continue;
-	/*
-	 * Fix up the file name
-	 */
-		fname = dfi.dfi_Name;
-		sprintf (buf, "%s/%s ", dsi.dsrc_Where, fname);
-	/*
-	 * If this file name will not fit in the tar command line, skip it
-	 * and the rest of the files in this platform.
-	 */
-		if (Tarlen + strlen(buf) + 1 >= sizeof(Tarbuf))
-		{
-			msg_ELog (EF_DEBUG, "tar command line full");
-			ret = 0;
-		        break;
-		}
-		msg_ELog (EF_DEBUG, "Dumping file '%s' (index %d)", 
-			  fname, findex);
-		strcat (Tarbuf, buf);
-		Tarlen += strlen(buf);
+	    const DataFile *df = dflist + i;
+	    const char *fname = df->df_fullname;
+	    char buf[1 + sizeof (df->df_fullname)];
+  	/*
+	 * Skip this file if already in the database and the rev number
+	 * is the same.
+  	 */
+	    if (db_Fetch (fname, &dfc) && dfc.dfc_rev == df->df_core.dfc_rev)
+		continue;
+  	/*
+  	 * If this file name will not fit in the tar command line, skip it
+  	 * and the rest of the files in this platform.
+  	 */
+	    sprintf (buf, " %s", fname);
+  
+	    if (Tarlen + strlen(buf) >= sizeof(Tarbuf))
+	    {
+		msg_ELog (EF_DEBUG, "tar command line full");
+		ok = 0;
+		break;
+	    }
+  
+	    msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
+	    strcat (Tarbuf, buf);
+	    Tarlen += strlen(buf);
+  	/*
+	 * Add this file to the database of dumped files.  We may remove
+	 * it later if the tar fails.
+  	 */
+	    db_Insert (fname, &df->df_core);
+# ifdef notdef /* no more MarkArchived */
 	/*
 	 * Send the MarkArchived request now, even though we do not know
 	 * that the tar will succeed.  This is to help insure that nothing
@@ -1600,28 +1514,33 @@ int all;
 	 * index is kept in an array of files to be added to the database
 	 * later.
 	 */
-		ds_MarkArchived (findex);
-		DumpedFiles[NFiles++] = findex;
+	    ds_MarkArchived (findex);
+# endif
 	/*
 	 * Advance the dumped time for this platform
 	 */
-		++ndumped;
-		dumptime = dfi.dfi_End;
+	    ++ndumped;
+	    dumptime = df->df_core.dfc_end;
 	}
-	if (chain)
-		free (chain);
-/*
- * Record the new time.
- */
+
+	if (dflist)
+	    free (dflist);
+    /*
+     * Record the new time.
+     */
 	if (ndumped > 0)
-		msg_ELog (EF_INFO, "%s: dumping %d files up to %s",
-			  ds_PlatformName (pid), ndumped, 
-			  TC_AscTime (&dumptime, TC_Full));
+	    msg_ELog (EF_INFO, "src %s, plat %s: dumping %d files up to %s", 
+		      dsi.src_Name, pi_Name (p), ndumped, 
+		      TC_AscTime (&dumptime, TC_Full));
 	else
-		msg_ELog (EF_INFO, "%s: no new files to be dumped",
-			  ds_PlatformName (pid));
-	ds_UnlockPlatform (pid);
-	return (ret);
+	    msg_ELog (EF_INFO, "src %s, plat %s: no new files to be dumped", 
+		      dsi.src_Name, pi_Name (p));
+
+	if (! ok)
+	    break;
+    }
+
+    return (ok);
 }
 
 
@@ -1629,8 +1548,7 @@ int all;
 
 
 static int
-RunTar (cmd)
-char *cmd;
+RunTar (char *cmd)
 /*
  * Run this tar command, and deal with writing its output to tape.
  * To help reduce system load, at the cost of some response time,
@@ -1640,7 +1558,8 @@ char *cmd;
 	FILE *pfp = (FILE *) popen (cmd, "r");
 	static char *fbuf = NULL;
 	int rstatus;
-	unsigned long nb, tnb = 0;
+	long nb;
+	unsigned long tnb = 0;
 	int step = 4;
 	unsigned long nblocks = 0;
 	unsigned long blocksize = BFactor * 512;
@@ -1676,11 +1595,10 @@ char *cmd;
 		{
 			msg_ELog (EF_EMERGENCY,"Archive device write error %d",
 				  errno);
-			if ( ArchiveMode == AR_EOD ) close(DeviceFD);
+			if ( ArchiveMode & AR_DISK ) close(DeviceFD);
 			ActionButton (); /* Free drive */
 			SetStatus (TRUE, "Device write error!");
 			pclose (pfp);
-			/* LoadFileList (); */
 			return (FALSE);
 		}
 		tnb += nb;
@@ -1702,7 +1620,6 @@ char *cmd;
 					 "Writing... %lu blocks, %lu KB", 
 					 nblocks, tnb >> 10);
 			SetStatus (FALSE, stat);
-			Sync ();
 		}
 				 
 		/*
@@ -1738,15 +1655,19 @@ char *cmd;
 
 
 
-static void
+static int
 MountEOD()
 {
     char cmd[80];
     int	status;
     sprintf ( cmd, "eodmount %s /%s", DriveName, MountName );
     status = system(cmd);
-    DeviceFD = 0;
+    status = WEXITSTATUS(status);
+    if (status)
+	    msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
+    return status;
 }
+
 
 
 static int
@@ -1758,47 +1679,106 @@ EjectEOD()
     {
 	sprintf ( cmd, "eodmount -u %s", DriveName );
 	status = system(cmd);
+	status = WEXITSTATUS(status);
+	if (status)
+		msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
     }
     sprintf ( cmd, "eodutil %s eject", MountName);
     status = system(cmd);
-    return ( WEXITSTATUS(status));
+    status = WEXITSTATUS(status);
+    if (status)
+	    msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
+    return status;
 }
 
 
+
 static int
-xevent (fd)
-int fd;
-/*
- * Deal with an Xt event.
- */
+MountJaz()
 {
-	XEvent event;
-/*
- * Deal with events as long as they keep coming.
- */
- 	while (XtAppPending (Appc))
-	{
-		XtAppNextEvent (Appc, &event);
-		XtDispatchEvent (&event);
-	}
-	return (0);
+    int	status = 0;
+#ifndef NO_MOUNT
+    char cmd[256];
+    sprintf ( cmd, "/iss/bin/jaz umount" );
+    msg_ELog (EF_INFO, cmd);
+    status = system(cmd);
+    sprintf ( cmd, "/iss/bin/jaz mount" );
+    msg_ELog (EF_INFO, cmd);
+    status = system(cmd);
+    status = WEXITSTATUS(status);
+    if ( status )
+	    msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
+#endif
+    return status;
 }
 
 
+
 static int
-Handler (msg)
-Message *msg;
+EjectJaz()
+{
+    int	 status = 0;
+#ifndef NO_MOUNT
+    char cmd[256];
+    if ( DeviceFD >= 0 )
+    {
+	sprintf ( cmd, "/iss/bin/jaz umount" );
+	msg_ELog (EF_INFO, cmd);
+	status = system(cmd);
+	status = WEXITSTATUS(status);
+	if (status)
+		msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
+    }
+    sprintf ( cmd, "/iss/bin/jaz eject" );
+    msg_ELog (EF_INFO, cmd);
+    status = system(cmd);
+    status = WEXITSTATUS(status);
+    if (status)
+	    msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
+#endif
+    return status;
+}
+
+
+
+static void
+ArchiverMessage (struct msg_archiver *ma)
+{
+	switch (ma->ma_command)
+	{
+	case MA_NONE:
+		msg_ELog (EF_DEBUG, "null command received");
+		break;
+	case MA_OPENDISPLAY:
+		OpenView (ma->ma_data);
+		break;
+	default:
+		msg_ELog (EF_PROBLEM, "Unknown archiver command %d",
+			  ma->ma_command);
+		break;
+	}
+}
+
+
+
+static int
+Handler (Message *msg)
 /*
  * Deal with an incoming message.
  */
 {
 	struct mh_template *tmpl;
+	struct msg_archiver *ma = (struct msg_archiver *)msg->m_data;
 
 	switch (msg->m_proto)
 	{
+	   case MT_ARCHIVER:
+		ArchiverMessage (ma);
+		break;
+
 	   case MT_MESSAGE:
 	   	tmpl = (struct mh_template *) msg->m_data;
-		if (tmpl->mh_type == MH_DIE)
+		if (tmpl->mh_type == MH_DIE || tmpl->mh_type == MH_SHUTDOWN)
 		{
 			/*
 			 * We can't die if we're in the middle of a 
@@ -1836,96 +1816,54 @@ Die ()
  */
 {
 	db_Close ();
+	model->quit ();
 	exit (0);
 }
 
 
 
 static void
-UpdateList ()
+TarFailed ()
 /*
- * Update the list that says when we've dumped things.
+ * Since our tar command failed, remove the files on the tar command line
+ * from the database.
  */
 {
-	ZebTime now;
-	char string[80];
-	Arg args[2];
-	int i;
-#ifdef notdef
-	FILE *fp;
-/*
- * Open up the file.
- */
-	sprintf (listfile, "%s/DumpedFiles", GetProjDir() );
-	if ((fp = fopen (listfile, "w")) == NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to open %s", listfile);
-		return;
-	}
-/*
- * Scan through our table and write everything.
- */
-	msg_ELog (EF_DEBUG, "Writing dumped file dates to '%s'", listfile);
-	usy_traverse (DumpedTable, WriteFileDate, (long) fp, FALSE);
-	fclose (fp);
-#endif
-	if (db_Open (Database) != 0)
-	{
-		char buf[100];
-		sprintf (buf, "Failed to update database '%s'", Database);
-		msg_ELog (EF_PROBLEM, "%s", buf);
-		SetStatus (TRUE, buf);
-		Sync ();
-		return;
-	}
-/*
- * Insert the dumped files into the database.
- */
-	tl_Time (&now);
-	for (i = 0; i < NFiles; ++i)
-	{
-		DataFileInfo dfi;
+    char fname[CFG_FILEPATH_LEN];
+    const char *pos;
 
-		ds_GetFileInfo (DumpedFiles[i], &dfi);
-		db_Insert (ds_PlatformName (dfi.dfi_Plat), &dfi, &now);
-	}
-	db_Close ();
+    if (db_Open (Database) != 0)
+    {
+	char buf[256];
+	sprintf (buf, "TarFailed: Cannot open database '%s'", Database);
+	msg_ELog (EF_PROBLEM, "%s", buf);
+	SetStatus (TRUE, buf);
+	return;
+    }
 /*
- * Update the widget too.
+ * Remove the files in the failed tar command from the database.
  */
-	sprintf (string, "%.2f MBytes in %d files.",
-		(float)BytesWritten/1000.0, FilesWritten);
-	XtSetArg (args[0], XtNlabel, string);
-	XtSetValues (Bytes, args, 1);
-	Sync ();
+    for (pos = Tarbuf + Tarcmdlen + 1; pos < Tarbuf + Tarlen; 
+	 pos += strlen (fname) + 1)
+    {
+    /*
+     * Read the next file name from the tar command line
+     */
+	sscanf (pos, "%s", fname);
+    /*
+     * Remove this file from the database
+     */
+	db_Remove (fname);
+    }
+
+    db_Close ();
 }
-
-
-
-#ifdef notdef
-static int
-WriteFileDate (sym, type, v, fp)
-char *sym;
-int type;
-SValue *v;
-FILE *fp;
-/*
- * Write out a single file date.
- */
-{
-	fprintf (fp, "%s: %li %li\n", sym, v->us_v_date.ds_yymmdd,
-			v->us_v_date.ds_hhmmss);
-	return (TRUE);
-}
-#endif
-
+  
+  
 
 
 static int
-netread (fd, dest, len)
-int fd;
-char *dest;
-int len;
+netread (int fd, char *dest, int len)
 /*
  * Read a full len from the link.
  */
@@ -1990,109 +1928,17 @@ SpinOff ()
 
 
 static void
-SetStatus (problem, s)
-int problem;
-char *s;
+SetStatus (int problem, char *s)
 /*
  * Set our status window.
  */
 {
-	Arg args[4];
-	int n = 0;
-
-	XtSetArg (args[n], XtNlabel, s);	n++;
-	XtSetArg (args[n], XtNbackground, problem ? RedPix : WhitePix); n++;
-	XtSetValues (WStatus, args, n);
-	Sync ();
 	/*
 	 * Note the status in the log as well
 	 */
 	msg_ELog(problem ? EF_PROBLEM : EF_DEBUG, s);
+	model->setStatus (problem, s);
 }
-
-
-/*
- * Set the sensitivity of the wait buttons, since
- * they only make sense while a write is occurring
- */
-static void
-SetWaitSensitivity(sensitive)
-	Boolean sensitive;
-{
-	Widget *buttons = WaitButtons;
-
-	while (*buttons)
-		XtSetSensitive(*buttons++, sensitive);
-}
-
-
-
-static void
-Sync ()
-/*
- * Synchronize the display.
- */
-{
-	XSync (XtDisplay (Top), False);
-	xevent (0);
-}
-
-
-#ifdef notdef
-static void
-UpdateMem ()
-/*
- * Update the "archived" flags on the daemon side.
- */
-{
-/*
- * Scan through our table.
- */
-	usy_traverse (DumpedTable, TellDaemon, 0, FALSE);
-}
-
-
-
-/* ARGSUSED */
-static int
-TellDaemon (sym, type, v, junk)
-char *sym;
-int type;
-SValue *v;
-int junk;
-/*
- * Update this platform.
- */
-{
-	int index;
-	ZebTime ftime;
-	PlatformId pid;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-/*
- * Plow through the file entries, marking everything that we have written 
- * out.
- */
-	if ((pid = ds_LookupPlatform (sym)) != BadPlatform)
-	{
-		TC_UIToZt (&(v->us_v_date), &ftime);
-
-		ds_GetDataSource (pid, 0, &dsi);
-		for (index = dsi.dsrc_FFile; index; index = dfi.dfi_Next)
-		{
-			/*
-			 * If this file is already marked or hasn't been done, 
-			 * move on.  Otherwise send the notification.
-			 */
-			ds_GetFileInfo (index, &dfi);
-			if (TC_LessEq(dfi.dfi_End, ftime) && !dfi.dfi_Archived)
-				ds_MarkArchived (index);
-		}
-	}
-	return (TRUE);
-}
-#endif /* notdef */
-
 
 
 
@@ -2101,7 +1947,7 @@ int junk;
  * If a write is currently suspended, this just resumes the current
  * write instead.
  */
-static void
+void
 WriteNow()
 {
 	if (Suspended)	/* Resume from a suspended state */
@@ -2124,8 +1970,7 @@ WriteNow()
 		Suspended = FALSE;
 
 		/* Restore our button's label */
-		XtVaSetValues(WriteButton, XtNlabel, "Write Now", NULL);
-
+		model->setWriteStatus ("Write Now");
 		SetStatus (FALSE, "Writing");
 	}
 	else
@@ -2137,7 +1982,7 @@ WriteNow()
 		 * TimerSaveFiles to be entered upon return from
 		 * this callback, when Message messages are handled
 		 */
-		tl_RelativeReq(TimerSaveFiles, 0, 0, 0);
+		tl_RelativeReq ((void (*)(...))TimerSaveFiles, 0, 0, 0);
 	}
 }
 
@@ -2147,10 +1992,12 @@ WriteNow()
  * register a resume timer event the given number of seconds from now.
  * If a resume event already existed, it is cancelled first.
  */
-static void
-SuspendWrite(w, call_data)
-	Widget w;
-	XtPointer call_data;
+#ifdef notdef
+void
+SuspendWrite(int waitsecs)
+#endif
+void
+SuspendWrite (Widget w, XtPointer call_data)
 {
 	int waitsecs = (int) call_data;
 	ZebTime now;
@@ -2174,8 +2021,8 @@ SuspendWrite(w, call_data)
 	{
 		tl_Cancel(ResumeEvent);
 	}
-	ResumeEvent = tl_RelativeReq(TimerResumeWrite, 0,
-				     waitsecs * INCFRAC, 0);
+	ResumeEvent = tl_RelativeReq((void (*)(...))TimerResumeWrite,
+				     0, waitsecs * INCFRAC, 0);
 
 	/*
 	 * Figure out the time this suspension will time out so
@@ -2196,8 +2043,8 @@ SuspendWrite(w, call_data)
 	{
 		tl_Cancel(RemainingEvent);
 	}
-	RemainingEvent = tl_RelativeReq(TimerRemaining, &ends, 0, 
-				15 * INCFRAC);
+	RemainingEvent = tl_RelativeReq((void (*)(...))TimerRemaining, 
+					&ends, 0, 15 * INCFRAC);
 
 	/*
 	 * Now set the Suspended flag.  This will be caught by the
@@ -2208,7 +2055,8 @@ SuspendWrite(w, call_data)
 	Suspended = TRUE;
 	sprintf(buf,"Write suspended for %i seconds",waitsecs);
 	SetStatus(TRUE, buf);
-	XtVaSetValues(WriteButton, XtNlabel, "Resume", NULL);
+
+	model->setWriteStatus ("Resume");
 }
 
 
@@ -2216,10 +2064,8 @@ SuspendWrite(w, call_data)
  * Given the ending time in *cdata, calculate the time remaining from
  * now and show this time in the status label
  */
-static void
-TimerRemaining(zt, cdata)
-	ZebTime *zt;
-	void *cdata;
+void
+TimerRemaining (ZebTime *zt, void *cdata)
 {
 	ZebTime *ends = (ZebTime *)cdata;   /* Time we're counting till */
 	long seconds;			    /* Calculated seconds remaining */
@@ -2257,9 +2103,8 @@ TimerRemaining(zt, cdata)
  * a manual WriteNow() could cancel it
  */
 /* ARGSUSED */
-static void
-TimerResumeWrite(zt)
-	ZebTime *zt;
+void
+TimerResumeWrite (ZebTime *zt)
 {
 	char stime[50];
 
@@ -2275,6 +2120,24 @@ TimerResumeWrite(zt)
 		msg_ELog(EF_DEBUG,
 		   "%s, resume event while not suspended", stime);
 	}
+}
+
+
+/*
+ * The timer calls this function at regular intervals (DumpInterval)
+ * to instigate a write.  This function just does a RequestWrite(),
+ * and that takes care of it.  This request could end up pending
+ * because of a current write in progress, so the current time is
+ * ignored and calculated at the time of the actual write
+ */
+void
+TimerSaveFiles (ZebTime *zt)
+{
+	char stime[50];
+
+	TC_EncodeTime(zt, TC_Full, stime);
+	msg_ELog(EF_DEBUG,"%s, TimerSaveFiles() requesting a write",stime);
+	RequestWrite(FALSE);
 }
 
 
