@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.1 1995-01-03 22:13:38 case Exp $
+XCOMM $Id: Imakefile,v 1.2 1999-06-25 19:04:08 burghart Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the RDSS Libraries distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -29,12 +29,12 @@ XCOMM Note that only the SUBDIRS variable is conditional.  All known
 XCOMM directories and source files will be distributed whether or
 XCOMM not they are configured to be compiled.
 
-        SUBDIRS = config util ui graphics xact
+        SUBDIRS = config util ui graphics
       DISTFILES = Makefile.ini README.libraries Imakefile
       LINKNAMES = $(TARFILE)/doc/library
        LINKDIRS = doc
-    DISTSUBDIRS = config Makedepend imake util ui graphics xact 
-     SRCSUBDIRS = config Makedepend imake util ui graphics xact 
+    DISTSUBDIRS = config Makedepend imake util ui graphics 
+     SRCSUBDIRS = config Makedepend imake util ui graphics 
 
 installdist::
 	@echo ""
