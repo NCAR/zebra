@@ -1,3 +1,35 @@
+Thu Jan 27 09:37:04 1994  Chris Burghart  (burghart@trenco)
+
+	* GraphicsW.c: Test for X shared memory extension now calls 
+	  XShmQueryExtension() before trying to call XShmQueryVersion().
+	  The latter generates a fatal X error if the extension is not in
+	  the server, while the former just returns a boolean to tell whether
+	  the extension is in place.
+
+Wed Jan 26 08:30:57 1994  Gary Granger  (granger@kodiak)
+
+	* Added CFG_ parameters and project customizations to config.h.
+	  Added the version.h header file to zeb/config.  Non-compiling
+	  ingest modules were removed from the tree.
+
+	* Conditional directory distribution, and the distfiles, 
+	  distmakefiles, and distclean make targets.
+
+	* ...and sometime before here GNU regexp was removed from libZeb.
+
+Fri Jan 21 14:51:41 1994  Jonathan Corbet  (corbet@ale)
+
+	* Moved the print widget into the DM loadfile, since it's one of
+	  those things we'll want everywhere.
+
+Mon Jan  3 00:50:21 1994  Gary Granger  (granger@kodiak)
+
+	* Non-window, non-interactive option added to EventLogger.
+
+	* DataChunk optimization, field and attribute types.  Numerous
+	  DataStore fixes and enhancements, such as platform searches
+	  and more flexible and efficient ZNF files.
+
 Mon Dec 27 14:08:31 1993  Jonathan Corbet  (corbet@ale)
 
 	* Tagging V4.0beta2
