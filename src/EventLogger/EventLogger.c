@@ -42,7 +42,7 @@
 # include <config.h>
 # include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.25 1994-10-11 16:24:04 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.26 1994-10-26 03:29:00 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.25 1994-10-11 16:24:04 corbet Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.26 1994-10-26 03:29:00 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -191,6 +191,8 @@ Widget	MakeDbgButton FP ((Widget));
 void	NewProc FP ((char *));
 void	DeadProc FP ((char *));
 void	ToggleProc FP ((Widget, XtPointer, XtPointer));
+static void BroadcastEMask FP ((void));
+static void SendEMask FP ((char *who));
 int	SendDbgMask FP ((char *, int, SValue *, long));
 int	PassDebug FP ((int,  char *));
 int 	xevent (), msg_event ();
@@ -1124,7 +1126,7 @@ XtPointer call_data;
  * Update the global mask and broadcast it.
  */
 	Emask |= (*mask);
-	SendEMask ();
+	BroadcastEMask ();
 }
 
 
@@ -1298,7 +1300,7 @@ char *text;
 		 */
 		static int nsend = 0;
 		if ((nsend++ % 15) == 0)
-			SendEMask ();
+			BroadcastEMask ();
 			return;
 	}
 	/*
@@ -1666,8 +1668,8 @@ wm ()
 
 
 
-
-SendEMask ()
+static void
+BroadcastEMask ()
 /*
  * Broadcast the event mask to the world.
  */
@@ -1683,6 +1685,30 @@ SendEMask ()
  * requested.
  */
 	usy_search (ProcTable, SendDbgMask, 0, FALSE, 0);
+}
+
+
+
+static void
+SendEMask (who)
+char *who;
+/*
+ * Send the event mask to a particular process.
+ */
+{
+	int flag;
+	int type;
+	SValue v;
+	ProcInfo *pinfo;
+
+	flag = Emask | EF_SETMASK;
+	if (usy_g_symbol (ProcTable, who, &type, &v))
+	{
+		pinfo = (ProcInfo *) v.us_v_ptr;
+		if (pinfo->pi_enabled)
+			flag |= EF_DEBUG;
+	}
+	msg_send (who, MT_ELOG, FALSE, &flag, sizeof (flag));
 }
 
 
@@ -1781,6 +1807,10 @@ char *name;
 			XtCallCallbacks (TimestampEntry, XtNcallback, 0);
 #endif
 	}		
+/*
+ * Finally, let this process know its event mask 
+ */
+	SendEMask (pinfo->pi_name);
 }
 
 
@@ -1856,7 +1886,7 @@ XtPointer proc, xpinfo;
 /*
  * Tweak this process's event mask.
  */
-	SendEMask ();
+	SendEMask (pinfo->pi_name);
 }
 
 
