@@ -86,7 +86,9 @@ double floor();
 #define circular_inc(A) A = (((A+1) > 359) ? 0 : A+1)
 #define circular_dec(A) A = (((A-1) < 0) ? 359 : A-1)
 #endif
-#define MIN(A,B) ((A<B) ? A : B)
+#ifndef MIN
+#  define MIN(A,B) ((A<B) ? A : B)
+#endif
 #define DBZ2RVP(F) dbz2rvp((F))
 #define dbz2rvp(F) (unsigned char)(2*F+64)
 #define RVP2DBZI(I) rvp2dbz((I))
