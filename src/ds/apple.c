@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.5 1996-01-10 21:15:49 granger Exp $
+ * $Id: apple.c,v 3.6 1996-01-15 07:47:43 granger Exp $
  */
 
 /*
@@ -227,6 +227,14 @@ struct TestPlatform {
 	{ "t_att_types_cdf" },
 	{ "t_time_units" },
 	{ "t_time_units_2" },
+	{ "t_blocks" },
+	{ "t_scalar" },
+	{ "t_fixed" },
+	{ "t_1dgrid_cdf" },
+	{ "t_1dgrid_znf" },
+	{ "t_irgrid_cdf" },
+	{ "t_irgrid_znf" }
+
 };
 
 	
