@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.5 1991-12-07 18:06:51 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.6 1992-02-19 23:54:41 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -310,6 +310,10 @@ WidgetQueue *w;
  * Put this one on the screen.
  */
 {
+	Arg	args[2];
+	int	n = 0;
+	int width,height;
+	int swidth,sheight;
 	Window wjunk;
 	int junk, x, y;
 /*
@@ -320,11 +324,27 @@ WidgetQueue *w;
 	msg_ELog (EF_DEBUG, "Popup, ptr at %d %d", x, y);
 /*
  * Set the geometry of this widget to be near the pointer.
+ * But make sure the whole widget is on the screen
  */
 	if ((x -= 150) < 0)
 		x = 0;
 	if ((y -= 50) < 0)
 		y = 0;
+
+	n = 0;
+	XtSetArg (args[n], XtNwidth, &width);		n++;
+	XtSetArg (args[n], XtNheight, &height);		n++;
+/*  this was bombing, so hope 150 is enough...
+	XtGetValues (w->wq_widget, args, n);*/
+	width = 150;
+	height = 150;
+	swidth = XWidthOfScreen(XtScreen(Top));
+	sheight = XHeightOfScreen(XtScreen(Top));
+	if ((x += width) > swidth)
+		x =  swidth - width;
+	if ((y += height) > sheight)
+		y = sheight -height;
+	fprintf ( stdout, "\rx = %d y = %d\n",x,y);
 	uw_SetGeometry (w->wq_name, x, y, 0, 0);
 /*
  * Now force it up on the screen.
