@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.5 1992-10-27 18:34:53 granger Exp $
+ * $Id: DataStore.h,v 3.6 1992-12-11 17:43:06 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -41,6 +41,7 @@ typedef enum {
 	OrgCmpImage	= 7,
         Org1dGrid       = 8,
 	OrgTransparent  = 9,
+	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zeb */
 } DataOrganization;
 
 /*
