@@ -45,7 +45,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.7 2000-11-07 19:53:18 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.8 2000-11-08 19:03:28 granger Exp $")
 
 
 
@@ -333,18 +333,22 @@ zbool
 dt_ValidateClass (pc)
 PlatformClass *pc;
 /*
- * Make sure this platform class is properly filled out. This means
- * making sure the organization and filetype have been specified, at a
- * minimum.  Of course, if this class is abstract only, we don't care
- * what's in it since the subclasses may fill in the rest.
+ * Make sure this platform class is properly filled out. This means making
+ * sure the organization and filetype have been specified, at a minimum.
+ * Of course, if this class is abstract only, we don't care what's in it
+ * since the subclasses may fill in the rest.  Likewise if it's virtual,
+ * then the rest of the checks are irrelevant since they deal with actually
+ * storing data (i.e. org and format), which virtual platforms are not
+ * meant to do.
  *
  * And how could I forget: subplatforms of course have but one
- * requirement at the moment, that they be scalar.
- */
+ * requirement at the moment, that they be scalar.  */
 {
 	zbool valid = TRUE;
 
 	if (pc->dpc_flags & DPF_ABSTRACT)
+		return (TRUE);
+	if (pc->dpc_flags & DPF_VIRTUAL)
 		return (TRUE);
 	if (pc->dpc_flags & DPF_SUBPLATFORM)
 	{
