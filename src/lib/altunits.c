@@ -22,14 +22,14 @@
 # include "copyright.h"
 # include "defs.h"
 
-MAKE_RCSID("$Id: altunits.c,v 2.3 1994-02-22 16:57:02 burghart Exp $")
+MAKE_RCSID("$Id: altunits.c,v 2.4 1994-03-19 22:19:32 granger Exp $")
 
 /*
  * 
  * The order of strings in the arrays below *must* match the order of
  * the AltUnitType enum declaration in defs.h.
  */
-struct _unames
+static const struct _unames
 {
 	char	*shortname;	/* default short name	*/
 	char	*longname;	/* default long name	*/
@@ -38,64 +38,67 @@ struct _unames
 } Unames[] =
 {
 	/* AU_kmMSL */
-	{"km MSL", "km above MSL", "%.2f", {"km > MSL", "km", ""}},
+	{"km MSL", "km above MSL", "%.2f", 
+	 {"km > MSL", "km", "kilometers", ""}},
 	/* AU_mMSL */
-	{"m MSL", "meters above Mean Sea Level", "%.0f", {"m > MSL", "m", ""}},
+	{"m MSL", "meters above Mean Sea Level", "%.0f", 
+	 {"m > MSL", "m", "meters", ""}},
 	/* AU_mb */
-	{"mb", "millibars", "%.0f", {"mbar", "hPa", ""}},
+	{"mb", "millibars", "%.0f", 
+	 {"mbar", "hPa", "millibar", ""}},
 };
 
 
-int Ntypes = sizeof (Unames) / sizeof (struct _unames);
+static const int Ntypes = sizeof (Unames) / sizeof (struct _unames);
 
-char	*Unknown = "unknown";
+static const char *Unknown = "unknown";
 
 /*
  * Return string for labels we build.
  */
-char	ReturnLabel[80];	/* *should* be long enough... */
+static char	ReturnLabel[80];	/* *should* be long enough... */
 
 
 
-char *
+const char *
 au_UnitsName (atype)
 AltUnitType	atype;
 {
 	if (atype > Ntypes)
 		return (Unknown);
 	else
-		return (Unames[atype].shortname);
+		return ((const char *)Unames[atype].shortname);
 }
 
 
 
 
-char *
+const char *
 au_LongUnitsName (atype)
 AltUnitType	atype;
 {
 	if (atype > Ntypes)
 		return (Unknown);
 	else
-		return (Unames[atype].longname);
+		return ((const char *)Unames[atype].longname);
 }
 
 
 
-char *
+const char *
 au_PrintFormat (atype)
 AltUnitType	atype;
 {
 	if (atype > Ntypes)
 		return (Unknown);
 	else
-		return (Unames[atype].format);
+		return ((const char *)Unames[atype].format);
 }
 
 
 
 
-char *
+const char *
 au_AltLabel (alt, atype)
 double	alt;
 AltUnitType	atype;
@@ -110,13 +113,13 @@ AltUnitType	atype;
 	sprintf (ReturnLabel + strlen (ReturnLabel), " %s", 
 		 au_UnitsName (atype));
 
-	return (ReturnLabel);
+	return ((const char *)ReturnLabel);
 }
 
 
 
 
-char *
+const char *
 au_LongAltLabel (alt, atype)
 double	alt;
 AltUnitType	atype;
@@ -131,7 +134,7 @@ AltUnitType	atype;
 	sprintf (ReturnLabel + strlen (ReturnLabel), " %s", 
 		 au_LongUnitsName (atype));
 
-	return (ReturnLabel);
+	return ((const char *)ReturnLabel);
 }
 
 	

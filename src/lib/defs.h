@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.22 1994-03-11 22:23:22 burghart Exp $ */
+/* $Id: defs.h,v 2.23 1994-03-19 22:19:33 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,6 +28,26 @@
 # include <stdlib.h>
 # if (! defined(__GNUC__) || __GNUC__ < 2)
 # 	include <memory.h>   /* Conflicts with gcc2 builtin */
+# endif
+
+/*
+ * A macro to make function prototypes a little easier across both STDC and
+ * non-STDC implementations.
+ */
+# ifdef __STDC__
+#  define FP(stuff) stuff
+# else
+#  define FP(stuff) ()
+# endif
+/*
+ * Set up inline and const so that we can use them.
+ */
+# ifndef __STDC__
+# define const
+# endif
+
+# ifndef __GNUC__
+# define inline
 # endif
 
 /*
@@ -81,16 +101,6 @@ typedef enum
 } AltUnitType;
 
 /*
- * A macro to make function prototypes a little easier across both STDC and
- * non-STDC implementations.
- */
-# ifdef __STDC__
-#  define FP(stuff) stuff
-# else
-#  define FP(stuff) ()
-# endif
-
-/*
  * Functions.
  */
 void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
@@ -127,12 +137,12 @@ int     FindFile FP ((char *, char *, char *));
 /*
  * Altitude units convenience utilities
  */
-char	*au_UnitsName FP ((AltUnitType atype));
-char	*au_LongUnitsName FP ((AltUnitType atype));
-char	*au_PrintFormat FP ((AltUnitType atype));
-char	*au_AltLabel FP ((double alt, AltUnitType atype));
-char	*au_LongAltLabel FP ((double alt, AltUnitType atype));
-bool	au_ConvertName FP ((char *name, AltUnitType *atype));
+const char	*au_UnitsName FP ((AltUnitType atype));
+const char	*au_LongUnitsName FP ((AltUnitType atype));
+const char	*au_PrintFormat FP ((AltUnitType atype));
+const char	*au_AltLabel FP ((double alt, AltUnitType atype));
+const char	*au_LongAltLabel FP ((double alt, AltUnitType atype));
+bool		au_ConvertName FP ((char *name, AltUnitType *atype));
 
 /*
  * Some macros for the new time format.
@@ -161,16 +171,6 @@ bool	au_ConvertName FP ((char *name, AltUnitType *atype));
 
 # define DLE(d1,d2) ((d1).ds_yymmdd < (d2).ds_yymmdd || \
 	((d1).ds_yymmdd == (d2).ds_yymmdd && (d1).ds_hhmmss <= (d2).ds_hhmmss))
-/*
- * Set up inline and const so that we can use them.
- */
-# ifndef __STDC__
-# define const
-# endif
-
-# ifndef __GNUC__
-# define inline
-# endif
 
 /*
  * Use more complete macro from version.h
