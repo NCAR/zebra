@@ -2,6 +2,7 @@
  * State table manipulation.
  */
 # include "ui.h"
+# include "ui_globals.h"
 # include "ui_state.h"
 # include "ui_commands.h"
 # include "ui_loadfile.h"
@@ -469,6 +470,7 @@ union usy_value *v;
  */
 {
 	struct state_table_entry *ste =(struct state_table_entry *)v->us_v_ptr;
+	bool babble = usy_defined (Ui_variable_table, "ui$save_babble");
 /*
  * See if we really want to save this one.
  */
@@ -478,11 +480,13 @@ union usy_value *v;
  * Write out the structure.  If there is an associated keyword array, write
  * that too.
  */
- 	ui_printf ("Saving state '%s'", ste->sta_name);
+	if (babble)
+	 	ui_printf ("Saving state '%s'", ste->sta_name);
 	bfput (lun, ste, sizeof (struct state_table_entry));
 	if (ste->sta_nkw > 0)
 	{
-		ui_printf (" (+ %d keywords)", ste->sta_nkw);
+		if (babble)
+			ui_printf (" (+ %d keywords)", ste->sta_nkw);
 		bfput (lun, ste->sta_kw,
 			ste->sta_nkw * sizeof (struct state_keyword));
 	}
@@ -490,7 +494,8 @@ union usy_value *v;
 		bfput (lun, ste->sta_eosact, sizeof (struct state_action));
 	if (ste->sta_flags & STF_OTHER)
 		bfput (lun, ste->sta_otheract, sizeof (struct state_action));
-	ui_printf ("\n");
+	if (babble)
+		ui_printf ("\n");
 	return (TRUE);
 }
 

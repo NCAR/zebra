@@ -26,7 +26,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.18 1992-01-30 21:12:02 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.19 1992-01-30 21:58:18 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -994,7 +994,8 @@ union usy_value *v;
 /*
  * Put out the frame-specific stuff.
  */
-	ui_printf ("Saving widget '%s'\n", frame->fw_name);
+	if (usy_defined (Ui_variable_table, "ui$save_babble"))
+		ui_printf ("Saving widget '%s'\n", frame->fw_name);
 	bfput (lun, &gw->gw_type, sizeof (int));
 	bfput (lun, &frame->fw_flags, sizeof (int));
 	bfput (lun, frame->fw_name, strlen (frame->fw_name) + 1);

@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.17 1992-01-30 21:08:10 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.18 1992-01-30 21:58:18 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -1578,7 +1578,8 @@ union usy_value *v;
  * Write out, in order, the proc structure, the arg list, then the
  * actual text.
  */
- 	ui_printf ("Saving procedure '%s'\n", name);
+	if (usy_defined (Ui_variable_table, "ui$save_babble"))
+	 	ui_printf ("Saving procedure '%s'\n", name);
 	bfput (lun, (char *) proc, sizeof (struct procedure));
 	if (proc->p_narg > 0)
 		bfput (lun, (char *) proc->p_args,

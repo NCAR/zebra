@@ -1,5 +1,5 @@
 /* 12/87 jc */
-/* $Id: ui_menu.c,v 1.4 1992-01-30 21:10:32 corbet Exp $ */
+/* $Id: ui_menu.c,v 1.5 1992-01-30 21:58:18 corbet Exp $ */
 /*
  * Menuing functions are handled here.
  */
@@ -420,7 +420,8 @@ union usy_value *v;
 /*
  * Write out the menu structure.
  */
-	ui_printf ("Saving menu '%s'\n", mp->m_name);
+	if (usy_defined (Ui_variable_table, "ui$save_babble"))
+		ui_printf ("Saving menu '%s'\n", mp->m_name);
 	bfput (lun, mp, sizeof (struct menu));
 	bfput (lun, mp->m_choices, mp->m_nchoice*sizeof (struct mchoice));
 	return (TRUE);
