@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.23 1992-11-17 03:30:29 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.24 1992-12-09 16:42:07 corbet Exp $")
 
 
 /*
@@ -378,12 +378,13 @@ bool update;
 {
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
 	char	quadrants[120], *quads[6], quadclr[30], string[10], data[100];
+	char	*strchr ();
 	static const int offset_x[4] = { -15, -15, 15, 15 };
 	static const int offset_y[4] = { -10, 10, -10, 10 };
 	PlatformId pid, *platforms;
 	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
 	int linewidth, numquads = 0, shifted, npts, i, j, pix_x0, pix_y0;
-	bool	filter = FALSE, tacmatch;
+	bool	filter = FALSE, tacmatch, stationname = FALSE;
 	ZebTime zt;
 	XColor	color, qcolor;
 	FieldId	fields[6];
@@ -432,6 +433,18 @@ bool update;
 		if (numquads > 4)
 			numquads = 4;
 	}
+/*
+ * Kludge of sorts...see if any of the quadrants is "station".  If so,
+ * remove it from the of the list and hide it so that we don't try to
+ * get it from the data store....
+ */
+	for (i = 0; i < numquads; i++)
+		if (! strcmp (quads[i], "station"))
+		{
+			numquads--;
+			quads[i] = quads[numquads];
+			stationname = TRUE;
+		}	
 /*
  * Create the field list for our data fetch.
  */
@@ -520,6 +533,22 @@ bool update;
 				string, 0.0, Sascale, JustifyCenter,
 				JustifyCenter);
 		}
+	/*
+	 * Station name too if that's what they wanted.
+	 */
+	 	if (stationname)
+		{
+			char *slash = ds_PlatformName (platforms[i]);
+			if (strchr (slash, '/'))
+				slash = strchr (slash, '/') + 1;
+			DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				pix_x0 + offset_x[3], pix_y0 + offset_y[3],
+				slash, 0.0, Sascale, JustifyCenter,
+				JustifyCenter);
+		}
+	/*
+	 * Tweak the foreground back.
+	 */
 		XSetForeground (XtDisplay (Graphics), Gcontext,
 				color.pixel);
 	}
