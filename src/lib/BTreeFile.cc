@@ -13,7 +13,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.4 1998-06-02 23:28:40 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.5 1998-06-05 19:31:38 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -54,6 +54,21 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 
 
 
+
+template <class K, class T>
+BTreeFile<K,T>::BTreeFile (const char *fname, int order, long sz, int fix) :
+	BTree(0, 0, 0),
+	SyncBlock (*(new BlockFile (fname, MAGIC
+				    /*BlockFile::BF_CREATE*/))),
+	bf (SyncBlock::bf),
+	our_bf(1)
+{
+	Init (order, sz, fix);
+}
+
+
+
+
 template <class K, class T>
 void
 BTreeFile<K,T>::Reopen ()
@@ -83,6 +98,12 @@ BTreeFile<K,T>::Init (int order, long sz, int fix)
 	node_size = 0;
 	leaf_size = 0;
 	log = Logger::For("BTreeFile");
+
+	if (bf->Status() != BlockFile::OK)
+	{
+		++err;
+		return;
+	}
 
 	// We have been given the blockfile to store into, so look for the
 	// correct app magic number with an existing app header, else
@@ -401,6 +422,7 @@ BTreeFile<K,T>::nodeSize (BlockNode<K,T> *node)
 		{
 			enterWrite ();
 			node_size = node->nodeSize (*bf->writeBuffer(256));
+			node_size = (((node_size-1) >> 7) + 1) << 7;
 			leave();
 		}
 		return (node_size);
@@ -409,6 +431,7 @@ BTreeFile<K,T>::nodeSize (BlockNode<K,T> *node)
 	{
 		enterWrite ();
 		leaf_size = node->leafSize (*bf->writeBuffer(256));
+		leaf_size = (((leaf_size-1) >> 7) + 1) << 7;
 		leave();
 	}
 	return (leaf_size);
@@ -443,19 +466,30 @@ BlockNode<K,T>::~BlockNode ()
 }
 
 
+
 template <class K, class T>
 void
 BlockNode<K,T>::prune ()
 {
 	// Free ourselves from the block file, then call the 
-	// superclass method for the rest.
+	// superclass prune() for the rest.
+	free();
+	BTreeNode<K,T>::prune();
+}
+
+
+
+template <class K, class T>
+void
+BlockNode<K,T>::free ()
+{
 	if (overflow.offset)
 	{
 		bf->Free (overflow.offset, overflow.length);
 	}
-	free();
-	BTreeNode<K,T>::prune();
+	TranslateBlock::free ();
 }
+
 
 
 template <class K, class T>
@@ -476,22 +510,6 @@ BlockNode<K,T>::sync ()
 			}
 		}
 	}
-#ifdef notdef
-	else if (depth == 1)
-	{
-		for (int i = 0; i < nkeys; ++i)
-		{
-			BlockNode<K,T> *child = 
-				(BlockNode<K,T> *)children[i].local;
-			if (child)
-			{
-				child->writeSync();
-			}
-		}
-	}
-	filetree.log->Debug (Printf("Write sync node (%u,%u,%u)", 
-			    block.offset, block.length, block.revision));
-#endif
 	assert (thisNode.addr > 0);
 	assert (block.offset > 0 && block.length > 0);
 	writeSync ();
@@ -531,9 +549,9 @@ BlockNode<K,T>::write ()
 
 	// Determine whether we need overflow space, and if so allocate or
 	// reallocate our overflow block as necessary.
-	if (len > nspace)
+	if (len > nspace && (len - nspace > overflow.length))
 	{
-		if (overflow.offset && (len - nspace > overflow.length))
+		if (overflow.offset)
 		{
 			// Reallocate
 			bf->Free (overflow.offset, overflow.length);
@@ -543,7 +561,7 @@ BlockNode<K,T>::write ()
 		// Allocate
 		overflow.offset = bf->Alloc (len - nspace, &overflow.length);
 	}
-	else
+	else if (len <= nspace)
 	{
 		// At some point, this would be where we release an
 		// overflow block which is no longer needed.
@@ -552,13 +570,12 @@ BlockNode<K,T>::write ()
 	// Only do the encoding once the overflow state has been set
 	translate (*(wb->encodeStream ()));
 
-	// Write our buffer
+	// Write our buffer, and overflow if any
 	bf->Write (block.offset, wb->Peek(0, 0), 
 		   (len > nspace) ? nspace : len);
-	if (overflow.offset)
+	if (len > nspace)
 	{
-		bf->Write (overflow.offset, wb->Peek(nspace, 0),
-			   len - nspace);
+		bf->Write (overflow.offset, wb->Peek(nspace, 0), len - nspace);
 	}
 }
 
@@ -577,9 +594,9 @@ BlockNode<K,T>::read ()
 
 	if (overflow.offset)
 	{
-		rb->seekEnd ();
+		rb->Seek (block.length);
 		rb->Need (overflow.length);
-		bf->Read (sbuf->Peek (), overflow.offset, overflow.length);
+		bf->Read (rb->Peek (), overflow.offset, overflow.length);
 	}
 
 	rb->Reset ();
@@ -613,7 +630,9 @@ BlockNode<K,T>::translate (SerialStream &ss)
 	{
 		// Translate the contents of our serial buffer
 		ss << table[nkeys];
-		ss.opaque (sbuf->getBuffer (), table[nkeys].offset);
+		sbuf->Reset ();
+		sbuf->Need (table[nkeys].offset);
+		ss.opaque (sbuf->Peek (), table[nkeys].offset);
 	}
 }
 
