@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.8 1993-09-09 17:39:41 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.9 1994-05-05 19:40:55 corbet Exp $")
 
 
 /*
@@ -132,7 +132,7 @@ struct config *cfg;
  * weren't looking.
  */
 {
-	Window root, qwin, *children;
+	Window root, realwin, qwin, *children;
 	int win, junk;
 	unsigned int bw, depth, nchild;
 /*
@@ -147,8 +147,8 @@ struct config *cfg;
 	 	if (wp->cfw_flags & CF_WIDGET)
 		{
 			Widget tmp = uw_IWWidget (wp->cfw_name);
-			qwin = XtWindow (XtParent (XtParent (tmp)));
-			XQueryTree (Dm_Display, qwin, &root, &qwin,
+			realwin = XtWindow (XtParent (XtParent (tmp)));
+			XQueryTree (Dm_Display, realwin, &root, &qwin,
 				&children, &nchild);
 			XFree (children);
 		}
@@ -159,15 +159,20 @@ struct config *cfg;
 		{
 			XQueryTree (Dm_Display, wp->cfw_win, &root, &qwin,
 				&children, &nchild);
+			realwin = wp->cfw_win;
 			XFree (children);
 		}
 		else
 			continue;
 	/*
-	 * Get the info.
+	 * Get the info.  The positioning comes from the parent window while
+	 * the size comes from the real window.
 	 */
 		XGetGeometry (Dm_Display, qwin, &root, &wp->cfw_x,
-			&wp->cfw_y, (unsigned int *) &wp->cfw_dx,
+			&wp->cfw_y, (unsigned int *) &junk,
+			(unsigned int *) &junk, &bw, &depth);
+		XGetGeometry (Dm_Display, realwin, &root, &junk,
+			&junk, (unsigned int *) &wp->cfw_dx,
 			(unsigned int *) &wp->cfw_dy, &bw, &depth);
 		wp->cfw_x += bw;
 		wp->cfw_y += bw;
