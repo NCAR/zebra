@@ -239,6 +239,7 @@ char *symbol;
  * We have to unlink this symbol from the chain.  If it is the first one,
  * we have it easy.
  */
+	symbol = zapcase (usy_string (symbol));
  	slot = HASH (symbol);
  	if (table->st_ste[slot] == sym)
 		table->st_ste[slot] = sym->ste_next;
