@@ -1,7 +1,7 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 2.2 1993-07-01 20:16:29 granger Exp $";
+static char *rcsid = "$Id: ImageXfr.c,v 2.3 1993-08-16 17:00:09 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -452,4 +452,15 @@ unsigned char value;
 
 	memset (desc->id_shmseg + desc->id_desc->sd_Frames[0], value,
 		hdr->ixh_NSet*hdr->ixh_FrPerSet*hdr->ixh_XSize*hdr->ixh_YSize);
+}
+
+
+char *
+IX_GetConsumer (desc)
+ix_desc *desc;
+/*
+ * Return the consumer name
+ */
+{
+	return (desc->id_hdr->ixh_Consumer);
 }

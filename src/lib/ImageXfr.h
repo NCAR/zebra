@@ -31,6 +31,7 @@
 	void	IX_ReleaseFrame (struct _ix_desc *, int);
 	void	IX_Detach (struct _ix_desc *);
 	void	IX_LockMemory (struct _ix_desc *);
+	char	*IX_GetConsumer (struct _ix_desc *);
 # else
 	struct _ix_desc * IX_HookIn ();
 	struct _ix_desc * IX_Create ();
@@ -40,5 +41,6 @@
 	void	IX_ReleaseFrame ();
 	void	IX_Detach ();
 	void	IX_LockMemory ();
+	char	*IX_GetConsumer ();
 # endif
 
