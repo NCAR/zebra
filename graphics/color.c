@@ -2,7 +2,6 @@
  * Color management.
  */
 # include <stdio.h>
-# include "config.h"
 # include "color.h"
 # include "graphics.h"
 # include "device.h"
@@ -40,7 +39,9 @@ int ncolor;
 	wsta->ws_color = (struct colors *) getvm (sizeof (struct colors));
 	wsta->ws_color->c_base = 0;
 	wsta->ws_color->c_nc = ncolor;
-	wsta->ws_color->c_next = (struct colors *) 0;
+	wsta->ws_color->c_next = 
+               (struct colors *) getvm (sizeof (struct colors));
+        wsta->ws_color->c_next = (struct colors *) 0;
 }
 
 
