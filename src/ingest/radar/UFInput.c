@@ -96,7 +96,7 @@ ScaleInfo	*scale;
  */
 {
 	int	numfields = 0, i, j;
-	float	londeg, latdeg;
+	float	londeg, latdeg, fcount;
 	int	status, rec_len, rec_len2;
 	short	raw_rec[BUFLEN];
 	short	*fldhdr[MAXFIELD], *flddata[MAXFIELD];
@@ -276,8 +276,13 @@ ScaleInfo	*scale;
 			if (dp[j] != uf_badval)
 			{
 				val = dp[j] / ufscale;
-				count = nint ((val - scale[i].s_Offset) /
-					      scale[i].s_Scale);
+				fcount = (val - scale[i].s_Offset) / 
+					scale[i].s_Scale;
+			/*
+			 * I wish the HP had nint()...
+			 */
+				count = (int)(fcount + 
+					      ((fcount < 0.0) ? -0.5 : 0.5));
 			}
 			else
 				count = 0xff;
