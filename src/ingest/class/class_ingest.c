@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.9 1993-01-15 23:51:34 mueller Exp $
+ * $Id: class_ingest.c,v 2.10 1993-01-27 18:38:47 mueller Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -29,7 +29,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.9 1993-01-15 23:51:34 mueller Exp $")
+   "$Id: class_ingest.c,v 2.10 1993-01-27 18:38:47 mueller Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -85,7 +85,7 @@ int main (argc, argv)
 	int nfields;		/* The number of fields to be stored */
 	ZebTime *times;		/* Times for ea. sample in the s'nding file */
 	int nsamples;		/* Number of samples, or pts, in the file */
-	DataChunk *Dchunk;   	/* The DataChunk we will be building */
+	DataChunk *Dchunk;   	/* The DataChunk will be building */
 	static struct ui_command end_cmd = { UTT_END };
 	static char ctime[40];
 
@@ -359,7 +359,7 @@ GetPlatformName (classfile, plat)
         else if (strncmp (site, "North Little Rock, AR", 21) == 0)
                 strcpy (plat, "slit");
         else if (strncmp (site, "Lander, WY", 10) == 0)
-                strcpy (plat, "lno");
+                strcpy (plat, "lnd");
         else if (strncmp (site, "Midland, TX", 11) == 0)
                 strcpy (plat, "maf");
         else if (strncmp (site, "Omaha, NE", 9) == 0)
@@ -373,7 +373,7 @@ GetPlatformName (classfile, plat)
         else if (strncmp (site, "Rapid City, SD", 14) == 0)
                 strcpy (plat, "rap");
         else if (strncmp (site, "Stephenville, TX", 16) == 0)
-                strcpy (plat, "sep");
+                strcpy (plat, "ssep");
         else if (strncmp (site, "St Cloud, MN", 12) == 0)
                 strcpy (plat, "sstc");
         else if (strncmp (site, "Topeka, KS", 10) == 0)
@@ -387,7 +387,7 @@ GetPlatformName (classfile, plat)
         else if (strncmp (site, "Desert Rock, NV", 15) == 0)
                 strcpy (plat, "sdra");
         else if (strncmp (site, "Boise, ID", 9) == 0)
-                strcpy (plat, "boi");
+                strcpy (plat, "sboi");
         else if (strncmp (site, "Ely, NV", 7) == 0)
                 strcpy (plat, "sely");
         else if (strncmp (site, "Spokane, WA", 11) == 0)
@@ -423,7 +423,7 @@ GetPlatformName (classfile, plat)
         else if (strncmp (site, "Yakutat, AK", 11) == 0)
                 strcpy (plat, "yak");
 
-        /* AESTAR */
+        /* AES */
         else if (strncmp (site, "WSE Edmonton-Stony Plain", 10) == 0)
                 strcpy (plat, "wse");
         else if (strncmp (site, "WVK Vernon", 10) == 0)
@@ -443,6 +443,39 @@ GetPlatformName (classfile, plat)
         else if (strncmp (site, "YZT Port Hardy.", 10) == 0)
                 strcpy (plat, "yzt");
 
+	/* Air Weather Service Dropsonde*/
+
+        else if (strncmp (site, "AWS C130 CDH", 10) == 0)
+                strcpy (plat, "aws");
+
+	/* Flatland */
+
+        else if (strncmp (site, "WIL Flatlands, IL", 10) == 0)
+                strcpy (plat, "wil");
+
+	/* Fort Sill */
+
+        else if (strncmp (site, "FSI Fort Sill", 10) == 0)
+                strcpy (plat, "fsi");
+
+	/* Picket Fence */
+
+        else if (strncmp (site, "CGO Cottage Grove, OR.", 10) == 0)
+                strcpy (plat, "cgo");
+        else if (strncmp (site, "ILA Williams, CA.", 10) == 0)
+                strcpy (plat, "ila");
+        else if (strncmp (site, "NPS Monterey, CA.", 10) == 0)
+                strcpy (plat, "nps");
+        else if (strncmp (site, "NTD Point Mugu, CA.", 10) == 0)
+                strcpy (plat, "ntd");
+        else if (strncmp (site, "OLM Longview Olympia, WA.", 10) == 0)
+                strcpy (plat, "olm");
+        else if (strncmp (site, "PRB Pasarobles, CA.", 10) == 0)
+                strcpy (plat, "prb");
+        else if (strncmp (site, "RDD Redding, CA.", 10) == 0)
+	        strcpy (plat, "rdd");
+        else if (strncmp (site, "VBG Vandenberg AFB, CA.", 10) == 0)
+                strcpy (plat, "vbg");
 
         /* It's over!  If we haven't got it yet, just give up! */
 	else
