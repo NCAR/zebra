@@ -19,12 +19,13 @@
  * maintenance or updates for its software.
  */
 
-# include <copyright.h>
 # include <unistd.h>
 # include <errno.h>
 # include <math.h>
 # include <stdio.h>
 # include <dirent.h>
+
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -32,7 +33,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: gvarIngest.c,v 1.1 1995-09-19 21:59:11 burghart Exp $")
+RCSID("$Id: gvarIngest.c,v 1.2 1997-01-21 17:42:26 granger Exp $")
 
 # include "keywords.h"
 
@@ -126,7 +127,7 @@ static void	FileLimits FP ((void));
 static int	MDispatcher FP ((struct message *));
 static void *	DoFile FP ((int));
 static void	GetFileTime FP ((int, ZebTime *));
-static void	Die FP ((void));
+static int	Die FP ((void));
 static inline unsigned char	imageval FP ((int, int));
 
 
@@ -188,7 +189,7 @@ char **argv;
 
 
 
-static void
+static int
 Die ()
 /*
  * Uh-oh.  Get out now.
@@ -196,6 +197,7 @@ Die ()
 {
 	ui_finish ();
 	exit (1);
+	return (0);
 }
 
 

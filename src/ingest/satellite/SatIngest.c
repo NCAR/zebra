@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <dirent.h>
 
-# include <copyright.h>
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.13 1995-09-19 21:35:30 burghart Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.14 1997-01-21 17:42:25 granger Exp $")
 
 # include "keywords.h"
 

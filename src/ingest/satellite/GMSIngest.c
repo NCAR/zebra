@@ -26,15 +26,15 @@
 # include <stdio.h>
 # include <dirent.h>
 
+# include <ui.h>
 # include <config.h>
-# include <copyright.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.11 1996-06-27 20:26:41 burghart Exp $")
+RCSID("$Id: GMSIngest.c,v 1.12 1997-01-21 17:42:18 granger Exp $")
 
 # include "keywords.h"
 
