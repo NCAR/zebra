@@ -1,7 +1,7 @@
 /*
  * UI routines for dealing with the configuration process.
  */
-static char *rcsid = "$Id: d_Config.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: d_Config.c,v 1.3 1991-02-26 19:10:03 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -127,7 +127,13 @@ struct ui_command *cmds;
 	 * Keep time, in minutes.
 	 */
 	   case DK_KEEP:
-	   	plat->dp_keep = InterpDTime (UPTR (cmds[1]))/60;
+	   	plat->dp_keep = InterpDTime (UPTR (cmds[1]))*60;
+		break;
+	/*
+	 * Maximum samples.
+	 */
+	   case DK_MAXSAMPLES:
+	   	plat->dp_maxsamp = UINT (cmds[1]);
 		break;
 	/*
 	 * Various flags.
