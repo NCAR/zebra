@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_param.h,v 1.1 1989-02-08 13:28:20 corbet Exp $ */
+/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_param.h,v 1.2 1989-03-16 15:45:33 corbet Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -50,6 +50,7 @@ typedef struct date_st date;		/* Date in date/time format */
  * Utilities.
  */
 char *getvm ();
+# define NEW(type) ((type *) getvm (sizeof (type)))
 
 /*
  * Cheap absolute value.
