@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.18 1996-12-10 20:50:43 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.19 1996-12-10 21:00:32 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -31,11 +31,11 @@ OBJS =	radar_ingest.o adrad_ingest.o adradInput.o Input.o mtape.o \
 	Rasterize.o StatusWidget.o XDisplay.o ds_consumer.o adradFieldList.o \
 	RadarStatus.o UFIngest.o UFInput.o cp2.o
 
+HEADERS = BeamBuffer.h
+
 HDRS =  Ethernet.h HouseKeeping.h RadarInfo.h Types.h cvrt.h display.h \
 	portable.h radar.h radar_ingest.h radinfo.h raw.h sunrise_head.h \
-	sunrise_time.h xdr.h
-
-HEADERS = BeamBuffer.h
+	sunrise_time.h xdr.h $(HEADERS)
 
 APPDEFAULTS = radar_ingest.ad adrad_ingest.ad UFIngest.ad RadarStatus.ad
 
