@@ -28,6 +28,9 @@
 # endif
 # include <fcntl.h>
 # include <errno.h>
+# include <string.h>
+# include <stdio.h>
+
 # include <copyright.h>
 # include <config.h>
 # include <defs.h>
@@ -36,10 +39,12 @@
 # include <zl_regex.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "dslib.h"
+# include "dfa.h"
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.44 1994-11-19 00:29:35 burghart Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.45 1995-02-10 01:27:18 granger Exp $")
 
 
 /*
@@ -95,7 +100,7 @@ static void	FindAfter FP ((char *, struct dsp_FindDF *));
 /*
  * Public forwards
  */
-void		Shutdown FP ((void));
+int		Shutdown FP ((void));
 void		DataFileGone FP ((DataFile *df));
 
 /*
@@ -174,6 +179,7 @@ char *opt;
 
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -192,7 +198,11 @@ char **argv;
 		exit (1);
 	}
 		
+#ifdef MSG_CLIENT_EVENTS
+	msg_join (MSG_CLIENT_EVENTS);
+#else
 	msg_join ("Client events");
+#endif
 	msg_DeathHandler (Shutdown);
 	msg_SetQueryHandler (dbg_AnswerQuery);
 /*
@@ -266,6 +276,7 @@ char **argv;
 		printf ("Reading command file %s\n", initfile);
 	ui_get_command ("initial", "dsd>", ui_Handler, 0);
 	Shutdown ();
+	return (0);
 }
 
 
@@ -526,7 +537,7 @@ char *data;
 
 
 
-void
+int
 Shutdown ()
 /*
  * Shut things down.
@@ -851,7 +862,7 @@ struct dsp_UpdateFile *request;
  * client in the DFA.
  */
 	if (StatRevisions)
-		df->df_rev = StatRevision (plat, df);
+		df->df_rev = StatRevision (plat, df, &df->df_inode);
 	else
 		df->df_rev += 1;
 	df->df_nsample += request->dsp_NSamples;
@@ -1095,6 +1106,12 @@ DataFile *df;
 {
 	struct dsp_DataGone dg;
 /*
+ * If no one could have possibly heard of this file yet, then no
+ * one wants to know that it's not there.
+ */
+	if (InitialScan)
+		return;
+/*
  * Broadcast a notification to the world.
  */
 	dg.dsp_type = dpt_DataGone;
@@ -1112,7 +1129,8 @@ DataFile *df;
 		msg_BCast (BCastSocket, &dg, sizeof (dg));
 	}
 /*
- * Make sure we have the file closed ourselves
+ * Make sure we have the file closed ourselves.  This may be pointless (for
+ * the moment) since the daemon never keeps any files open.
  */
 	dfa_ForceClose (df - DFTable);
 }
@@ -1277,6 +1295,7 @@ union usy_value *argv, *rv;
  */
 	rv->us_v_int = sfs.f_bavail;
 	*rt = SYMT_INT;
+	return (0);
 }
 
 
@@ -1329,7 +1348,7 @@ struct dsp_PlatformSearch *req;
 	struct dsp_PlatformList *answer;
 	struct SearchInfo info;
 	char *re_result;
-	int len, i;
+	int len;
 /*
  * Create space for all possible matches, but we'll send only as many as we
  * fill.
@@ -1391,7 +1410,6 @@ struct SearchInfo *info;
  * PlatformList answer.
  */
 {
-	int npids;
 	PlatformId *pids;
 	int len;
 	Platform *plat = (Platform *) value->us_v_ptr;
@@ -1890,7 +1908,7 @@ int expect;
  * Release a lock on this platform.
  */
 {
-	Lock *lp, *zap;
+	Lock *zap;
 	Platform *p = PTable + which;
 /*
  * Make sure there's a lock and that it's the owner doing the releasing.  
