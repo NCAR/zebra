@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.12 1994-04-15 21:26:28 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.13 1994-09-16 19:59:59 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -279,6 +279,7 @@ sk_Background ()
 	float	t, pt, p, annot_angle, slope, intercept, xloc, yloc;
 	static float	mr[] = {0.1, 0.2, 0.4, 1.0, 2.0, 3.0, 5.0, 8.0, 
 			12.0, 20.0, 30.0, 40.0, 50.0, 60.0, 0.0};
+	float step = Pstep;
 /*
  * ICAO standard atmosphere pressures for altitudes from 0 km to 16 km
  * every 1 km
@@ -346,7 +347,7 @@ sk_Background ()
 	x[0] = 0.0;
 	x[1] = 1.0;
 	for (p = Pmax; p >= Pmin; 
-		p -= ((int) p % Pstep) ? ((int) p % Pstep) : Pstep)
+		p -= ((int) p % (int) step) ? ((int) p % (int) step) : step)
 	{
 	/*
 	 * Draw the isobar
@@ -360,6 +361,12 @@ sk_Background ()
 		sprintf (string, "%d", (int) p);
 		sk_DrawText (string, -0.01, y[0], 0.0, Tadefclr, 0.025, 
 			JustifyRight, JustifyCenter);
+	/*
+	 * Kludge: if we get below the step value, decrease it so we continue
+	 * to get lines.
+	 */
+		if (p <= step)
+			step /= 5;
 	}
 /*
  * Standard atmosphere altitude scale
@@ -373,7 +380,7 @@ sk_Background ()
 
 	x[0] = Xlo / 2.0;
 	x[1] = x[0] - 0.01;
-	for (i = 0; i <= 16; i++)
+	for (i = 0; i <= 16; i++)  /* FIX THIS 16!! */
 	{
 	/*
 	 * Tick mark
