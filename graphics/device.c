@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.9 1989-10-11 14:03:23 corbet Exp $ */
+/* $Id: device.c,v 1.10 1989-10-20 14:07:07 corbet Exp $ */
 /*
  * Handle device specifics.
  */
@@ -19,7 +19,7 @@ extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
 extern int x11_pixel (), x11_put_target (), x11_untarget (), x11_clip ();
-extern int x11_vp (), x11_event ();
+extern int x11_vp (), x11_event (), x11_coff (), x11_readscreen ();
 # endif
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
@@ -105,6 +105,7 @@ struct device D_tab[] =
 		___,			/* (no) viewport adjustment	*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 # ifdef DEV_XWIN
@@ -145,6 +146,7 @@ struct device D_tab[] =
 		___,			/* (no) viewport adjustment	*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 
@@ -183,6 +185,7 @@ struct device D_tab[] =
 		___,		/* (no)	viewport adjustment	*/
 		___,		/* readscreen			*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 
@@ -224,8 +227,9 @@ struct device D_tab[] =
 		x11_casn,		/* Color assignment		*/
 		x11_event,		/* Exposure checking		*/
 		x11_vp,			/* viewport adjustment	*/
-		___,			/* readscreen			*/
+		x11_readscreen,		/* readscreen			*/
 		x11_pick,		/* pick		*/
+		x11_coff,		/* (no) color offset		*/
 	},
 # endif
 
@@ -268,6 +272,7 @@ struct device D_tab[] =
 		xt_vp,			/* (no)	viewport adjustment	*/
 		xt_readscreen,		/* readscreen			*/
 		xt_pick,			/* pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 
@@ -309,6 +314,7 @@ struct device D_tab[] =
 		sv_vp,		/* (no)	viewport adjustment	*/
 		sv_readscreen,		/* readscreen			*/
 		sv_pick,		/* pick				*/
+		___,			/* (no) color offset		*/
 	},
 
 	{
@@ -345,6 +351,7 @@ struct device D_tab[] =
 		sv_vp,		/* (no)	viewport adjustment	*/
 		sv_readscreen,		/* readscreen			*/
 		sv_pick,		/* pick				*/
+		___,			/* (no) color offset		*/
 	},
 
 	{
@@ -381,6 +388,7 @@ struct device D_tab[] =
 		sv_vp,		/* (no)	viewport adjustment	*/
 		sv_readscreen,		/* readscreen			*/
 		sv_pick,		/* pick				*/
+		___,			/* (no) color offset		*/
 	},
 
 # endif /* DEV_SUNVIEW */
@@ -424,6 +432,7 @@ struct device D_tab[] =
 		rm_vp,			/* Viewport adjustment		*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 /*
  * The Ramtek 9460 in "image" (quarter-screen) mode.
@@ -462,6 +471,7 @@ struct device D_tab[] =
 		rm_vp,			/* Viewport adjustment		*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 /*
  * The Ramtek 9460 in "image" (quarter-screen) mode.  This variant uses
@@ -502,6 +512,7 @@ struct device D_tab[] =
 		rm_vp,			/* Viewport adjustment		*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 
@@ -543,6 +554,7 @@ struct device D_tab[] =
 		tek_vp,			/* (no) viewport adjustment	*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 /*
  * This is a special variation on the 4107 that uses the pixel operations
@@ -584,6 +596,7 @@ struct device D_tab[] =
 		tek_vp,			/* (no) viewport adjustment	*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 
@@ -625,6 +638,7 @@ struct device D_tab[] =
 		___,			/* (no) viewport adjustment	*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 
@@ -666,6 +680,7 @@ struct device D_tab[] =
 		___,			/* Viewport adjustment		*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
 	},
 # endif
 };
