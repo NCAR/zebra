@@ -51,7 +51,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.27 1994-05-21 07:24:07 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.28 1994-10-13 23:08:25 sobol Exp $")
 
 /*
  * Issues:
@@ -111,7 +111,7 @@ MAKE_RCSID ("$Id: Archiver.cc,v 1.27 1994-05-21 07:24:07 granger Exp $")
 # define DEF_DEVICEFILE "/dev/nrst8"
 # define DEF_MOUNTNAME "eod0"
 # define DEF_OUTPUTDIR "/eod0"
-# define DEF_TAPELIMIT ((unsigned long) 3500000000ul)
+# define DEF_TAPELIMIT ((unsigned long) 3500000000)
 # define DEF_MINDISK ((unsigned long) 10000)
 
 # define AR_TAPE 1
@@ -195,9 +195,10 @@ Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
  * The offset of each of these is zero since we want to store the
  * values directly into the global variable rather than into a single
  * structure
+ * NOTE: sizeof(int) == sizeof(long)
  */
 static XtResource AppResources[] = {
-   { "tapeLimit", "TapeLimit", XtRInt, sizeof(int) /* == sizeof(long) */,
+   { "tapeLimit", "TapeLimit", XtRInt, sizeof(int),
       0, XtRImmediate, (XtPointer)DEF_TAPELIMIT },
    { "driveName", "DriveName", XtRString, sizeof(String),
       0, XtRString, DEF_DEVICEFILE },
