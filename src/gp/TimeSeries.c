@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.7 1992-07-31 19:25:40 kris Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.8 1992-09-01 21:18:03 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,7 +33,6 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.7 1992-07-31 19:25:40 kris Exp $";
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
-# include <DataChunk.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
@@ -49,17 +48,6 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.7 1992-07-31 19:25:40 kris Exp $";
 # define PARAMLEN	30		/*  Parameter string length	*/
 
 /*
- *  Convert values between field coordinates and plot window coordinates
- */
-# define CONVERT(i, min, max)	(float)((float)((i)-(min))/(float)((max)-(min)))
-# define UNCONVERT(i, min, max)	(float)(((i) * ((max) - (min))) + (min))
-
-/*
- * Plot window coordinates.
- */
-static float	X0 = 0.0, X1 = 1.0, Y0 = 0.0, Y1 = 1.0;
-
-/*
  * Pixel limits for the plot
  */
 static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
@@ -68,23 +56,28 @@ static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
  * Minimum and Maximum data values and time values.
  */
 static float	Minval[MAXFLDS], Maxval[MAXFLDS];
-static long	TMinval, TMaxval;
 
 /*
- * Begin and End times, and the fixed PlotTime.
+ * Begin and End times of the whole plot, and the time from which we're
+ * updating
  */
-static ZebTime	Begin, End, FixPT;
+static ZebTime	Begin, End, Update_begin;
 
 /*
  * Save the last data points plotted, used during updates.
  */
-static long	Save_x[MAXPLTS * MAXFLDS];
-static float	Save_y[MAXPLTS * MAXFLDS];
+static long	Save_t[MAXPLTS * MAXFLDS];
+static float	Save_v[MAXPLTS * MAXFLDS];
 
 /*
  * Should time axis be flipped.
  */
 static int	FlipTime;
+
+/*
+ * Update plot?
+ */
+static bool	Update = FALSE;
 
 /*
  * Save the sa-scale value.
@@ -110,10 +103,11 @@ static XRectangle	Clip, Unclip;
 void		ts_Plot FP ((char *, int)); 
 static void	ts_Annotate FP ((char *, char **, int, char **, int)); 
 static void	ts_Background FP ((char *, char **, int, float *, float *)); 
-static void	ts_PutData FP ((int, char *, char **, int, char **, int));
-static void	ts_AnnotTime FP ((int)); 
+static void	ts_PutData FP ((char *, char **, int, char **, int));
+static void	ts_AnnotTime FP ((void)); 
 static void	ts_SlideData FP (()); 
-static void	ts_DrawLines FP ((int, int));
+static void	ts_DrawLines FP ((int));
+static void	ts_TimeTick FP ((ZebTime *, ZebTime *, ZebTime *, long *));
 
 
 void
@@ -131,6 +125,11 @@ bool	update;
 	char	interval[PARAMLEN], color[PARAMLEN], trigger[PARAMLEN];
 	int	period, nplat, nfld, nstep, i;
 	float	center[MAXFLDS], step[MAXFLDS];
+	ZebTime	prev_begin, prev_end;
+/*
+ * Set the update status
+ */
+	Update = update;
 /*
  * Get the platform and field from the plot description.
  */
@@ -163,6 +162,11 @@ bool	update;
 	if (! ok)
 		return;
 /*
+ * Make sure we use an odd number of steps
+ */
+	if ((nstep & 0x1) == 0)
+		nstep--;
+/*
  * Get other plot description parameters.
  */
 	FlipTime = FALSE;
@@ -180,17 +184,45 @@ bool	update;
 	ct_LoadTable (ctname, &Colors, &Ncolors);
 	ct_GetColorByName ("black", &Black);
 /*
+ * Save the begin and end of the previous plot
+ */
+	prev_begin = Begin;
+	prev_end = End;
+/*
+ * Figure the begin time.
+ */
+	End = PlotTime;
+	if ((PlotMode == RealTime) && (! Update))
+		px_FixPlotTime (&End);
+
+	Begin = End;
+	if((period = pc_TimeTrigger (interval)) == 0)	
+		period = 300;
+	Begin.zt_Sec -= period;
+/*
+ * Build the Minval and Maxval arrays
+ */
+
+	if (! Update)
+	{
+		for (i = 0; i < nfld; i++)
+		{
+			Minval[i] = center[i] - ((nstep - 1) / 2) * step[i];
+			Maxval[i] = center[i] + ((nstep - 1) / 2) * step[i];
+		}
+	}
+/*
  * Set pixel limits.
  */
-	Xlo = X0;
-	Xhi = X1;
-	Ylo = -0.04;
-	Yhi = Y1;
-	
-	Pix_left = XPIX (X0);
-	Pix_right = XPIX (X1);
-	Pix_bottom = YPIX (Y0);
-	Pix_top = YPIX (Y1);
+	Xlo = FlipTime ? (float)(End.zt_Sec - Begin.zt_Sec) : 0.0;
+	Xhi = FlipTime ? 0.0 : (float)(End.zt_Sec - Begin.zt_Sec);
+	Pix_left = XPIX (Xlo);
+	Pix_right = XPIX (Xhi);
+
+	Ylo = 0.0;
+	Yhi = 1.0;
+	Pix_bottom = YPIX (Ylo);
+	Pix_top = YPIX (Yhi);
 /*
  * Clip and unclip rectangles
  */
@@ -204,75 +236,36 @@ bool	update;
 	Unclip.width = GWWidth (Graphics);
 	Unclip.height = GWHeight (Graphics);
 /*
- * Figure the begin time.
+ * If we're updating then slide the old data over and draw the new
+ * stuff starting from the old end
  */
-	if ((PlotMode == RealTime) && (! update))
-		px_FixPlotTime (&FixPT);
-	else
-		FixPT = PlotTime;
-	Begin = FixPT;
-	if((period = pc_TimeTrigger (interval)) == 0)	
-		period = 300;
-	Begin.zt_Sec -= period;
-/*
- * If we're updating then slide the old data over to make room for the new.
- */
-	if (update) 
-		ts_SlideData ();
-/*
- * Get Minval and Maxval, TMinval and TMaxval.
- */
-	if (! update)
+	if (Update)
 	{
-		if ((nstep & 0x1) == 0)
-			nstep--;
-		for (i = 0; i < nfld; i++)
-		{
-			Minval[i] = center[i] - ((nstep - 1) / 2) * step[i];
-			Maxval[i] = center[i] + ((nstep - 1) / 2) * step[i];
-		}
-	}
-	if (! FlipTime)
-	{
-		TMinval = Begin.zt_Sec;
-		TMaxval = FixPT.zt_Sec;
+		ts_SlideData (&prev_begin, &prev_end);
+		Update_begin = prev_end;
 	}
 	else
-	{
-		TMinval = FixPT.zt_Sec;
-		TMaxval = Begin.zt_Sec;
-	}
-/*
- * Annotate the time on the horizontal axis of the background.
- */
-	ts_AnnotTime (update);
-/*
- * If we're updating reset the begin time.
- */
-	if (update) 
-		Begin = End;
+		Update_begin = Begin;
 /*
  * Draw lines on the background.
  */
-	ts_DrawLines (update, nstep);
+	ts_DrawLines (nstep);
 /*
  * Annotate
  */
-	if (! update) 
+	if (! Update) 
 		ts_Annotate(c, pnames, nplat, fnames, nfld);
+
+	ts_AnnotTime ();
 /*
  * Draw the background
  */
-	if (! update)
+	if (! Update)
 		ts_Background (c, fnames, nfld, center, step);
 /*
  * Draw the data 
  */
-	ts_PutData (update, c, pnames, nplat, fnames, nfld);
-/*
- * Set the end time.
- */
-	End = FixPT;
+	ts_PutData (c, pnames, nplat, fnames, nfld);
 }
 
 
@@ -301,7 +294,7 @@ int	nplat, nfld;
 		SYMT_BOOL);
 	if(! pda_Search (Pd, comp, "sa-scale", "tseries", (char *) &sascale, 
 		SYMT_FLOAT))
-		sascale = 0.02;
+		sascale = 0.03;
 /*
  *  Top Annotation
  */
@@ -348,8 +341,7 @@ int	nplat, nfld;
 
 
 static void
-ts_AnnotTime (update)
-bool	update;
+ts_AnnotTime ()
 /*
  *  Annotate the begin and end time on the horizontal axis of the plot.
  */
@@ -360,32 +352,39 @@ bool	update;
 /*
  * If this is an update blank out the old times.
  */
-	if (update)
+	if (Update)
 	{
 		XSetForeground (disp, Gcontext, Black.pixel);
-		XFillRectangle (disp, d, Gcontext, Pix_left, Pix_bottom + 1, 
-			Pix_right - Pix_left, 
+		XFillRectangle (disp, d, Gcontext, 0, Pix_bottom + 1, 
+			GWWidth (Graphics) - 1,
 			(int) (TSScale * (float) GWHeight (Graphics)));
 	}
 	XSetForeground (disp, Gcontext, BackColor.pixel);
+/*
+ * "Time" label
+ */
+	DrawText (Graphics, d, Gcontext, 0.5 * GWWidth (Graphics), 
+		Pix_bottom + 1, "Time", 0.0, TSScale, JustifyCenter, 
+		JustifyTop);
 /*
  * Put time on the left side.
  */
 	if (! FlipTime) 
 		TC_EncodeTime (&Begin, TC_Full, string);
 	else
-		TC_EncodeTime (&FixPT, TC_Full, string);
-	DrawText (Graphics, d, Gcontext, XPIX (X0), Pix_bottom, string, 
-		0.0, TSScale, JustifyLeft, JustifyTop);
+		TC_EncodeTime (&End, TC_Full, string);
+	DrawText (Graphics, d, Gcontext, Pix_left - 0.04 * GWWidth (Graphics),
+		Pix_bottom + 1, string, 0.0, TSScale, JustifyLeft, JustifyTop);
 /*
  * Put time on the right side.
  */
 	if (! FlipTime) 
-		TC_EncodeTime (&FixPT, TC_Full, string);
+		TC_EncodeTime (&End, TC_Full, string);
 	else
 		TC_EncodeTime (&Begin, TC_Full, string);
-	DrawText (Graphics, d, Gcontext, XPIX (X1), Pix_bottom, string, 
-		0.0, TSScale, JustifyRight, JustifyTop);
+	DrawText (Graphics, d, Gcontext, Pix_right + 0.04 * GWWidth (Graphics),
+		Pix_bottom + 1, string, 0.0, TSScale, JustifyRight, 
+		JustifyTop);
 }
 
 
@@ -398,10 +397,11 @@ float 	*center, *step;
  * Draw the background.
  */
 {
-	float		tick, tickinc;
-	char		string[STRLEN];	
-	int		dolabel;
-	XPoint		pts[5];
+	float	tick;
+	char	string[STRLEN];	
+	int	dolabel;
+	int	gwidth = GWWidth (Graphics), gheight = GWHeight (Graphics);
+	XPoint	pts[5];
 	Display		*disp = XtDisplay (Graphics);
 	Drawable	d = GWFrame(Graphics);
 	
@@ -417,41 +417,37 @@ float 	*center, *step;
 
 	XDrawLines (disp, d, Gcontext, pts, 5, CoordModeOrigin);
 /*
- * Label the horizontal axis.
- */
-	DrawText (Graphics, d, Gcontext, XPIX (0.5), YPIX (-0.04), "Time", 
-		0.0, TSScale, JustifyCenter, JustifyTop);
-/*
  * Label the vertical axis (left). 
  */
-	DrawText (Graphics, d, Gcontext, XPIX (-0.04), YPIX (0.5), 
-		px_FldDesc(comp, fields[0]), 90.0, TSScale, JustifyCenter, 
-		JustifyBottom);
+	DrawText (Graphics, d, Gcontext, Pix_left - 0.035 * gwidth,
+		0.5 * gheight, px_FldDesc (comp, fields[0]), 90.0, TSScale, 
+		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (left).
  */
-	tickinc = CONVERT (step[0], 0.0, Maxval[0] - Minval[0]);
 	dolabel = TRUE;
 
-	for (tick = Y0; tick <= Y1; tick += tickinc)
+	Ylo = Minval[0];
+	Yhi = Maxval[0];
+
+	for (tick = Minval[0]; tick <= Maxval[0]; tick += step[0])
 	{
 	/*
 	 * Draw the tick
 	 */
 		pts[0].y = pts[1].y = YPIX (tick);
 		pts[0].x = Pix_left;
-		pts[1].x = XPIX (-0.025);
+		pts[1].x = Pix_left - 0.01 * gwidth;
 		XDrawLines (disp, d, Gcontext, pts, 2, CoordModeOrigin);
 	/*
 	 * Label every other tick
 	 */
 		if (dolabel)
 		{
-			sprintf (string, "%d", (int) UNCONVERT(tick, Minval[0],
-				Maxval[0]));
-			DrawText (Graphics, d, Gcontext, XPIX (-0.005), 
-				YPIX (tick), string, 0.0, TSScale, 
-				JustifyRight, JustifyBottom);
+			sprintf (string, "%d", nint (tick));
+			DrawText (Graphics, d, Gcontext, 
+				Pix_left - 0.005 * gwidth, YPIX (tick), string,
+				0.0, TSScale, JustifyRight, JustifyBottom);
 		}
 		dolabel = ! dolabel;
 	}
@@ -462,22 +458,24 @@ float 	*center, *step;
 /*
  * Label the vertical axis (right). 
  */
-	DrawText (Graphics, d, Gcontext, XPIX (1.04), YPIX (0.5), 
-		px_FldDesc(comp, fields[1]), -90.0, TSScale, 
+	DrawText (Graphics, d, Gcontext, Pix_right + 0.035 * gwidth, 
+		0.5 * gheight, px_FldDesc(comp, fields[1]), -90.0, TSScale, 
 		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (right).
  */
-	tickinc = CONVERT (step[1], 0.0, Maxval[1] - Minval[1]);
 	dolabel = TRUE;
 
-	for (tick = Y0; tick <= Y1; tick += tickinc)
+	Ylo = Minval[1];
+	Yhi = Maxval[1];
+
+	for (tick = Minval[1]; tick <= Maxval[1]; tick += step[1])
 	{
 	/*
 	 * Draw the tick
 	 */
 		pts[0].y = pts[1].y = YPIX (tick);
-		pts[0].x = XPIX (1.025);
+		pts[0].x = Pix_right + 0.01 * gwidth;
 		pts[1].x = Pix_right;
 		XDrawLines (disp, d, Gcontext, pts, 2, CoordModeOrigin);
 	/*
@@ -485,10 +483,10 @@ float 	*center, *step;
 	 */
 		if (dolabel)
 		{
-			sprintf (string, "%d", (int) UNCONVERT(tick, Minval[1],
-				Maxval[1]));
-			DrawText (Graphics, d, Gcontext, XPIX (1.005), 
-				YPIX (tick), string, 0.0, TSScale, JustifyLeft, 
+			sprintf (string, "%d", nint (tick));
+			DrawText (Graphics, d, Gcontext, 
+				Pix_right + 0.005 * gwidth, YPIX (tick), 
+				string, 0.0, TSScale, JustifyLeft, 
 				JustifyBottom);
 		}
 		dolabel = ! dolabel;
@@ -496,19 +494,20 @@ float 	*center, *step;
 }
 
 
+
+
 static void
-ts_PutData (update, comp, platforms, nplat, fields, nfld)
-bool	update;
+ts_PutData (comp, platforms, nplat, fields, nfld)
 char	*comp, **platforms, **fields;
 int	nplat, nfld;
 /*
  *  Plot the data.
  */
 {
-	int		x0, y0, x1, y1, plat, i, j, linewidth, dskip, npt = 0;
+	int		plat, i, j, linewidth, dskip, npt = 0;
 	int		numpts;
-	long		t;
-	float		fx, fy, badvalue, v;
+	long		t, tprev;
+	float		badvalue, v, vprev;
 	Display		*disp = XtDisplay (Graphics);
 	Drawable	d = GWFrame (Graphics);
 	PlatformId	pid;
@@ -550,13 +549,16 @@ int	nplat, nfld;
 	/*
 	 * Get the data.
 	 */
-		if (! (dc = ds_Fetch (pid, DCC_Scalar, &Begin, &FixPT,
+		if (! (dc = ds_Fetch (pid, DCC_Scalar, &Update_begin, &End, 
 			fieldlist, nfld, NULL, 0)))
 		{
 			msg_ELog (EF_PROBLEM, "No %s data available", 
 				platforms[plat]);
 			continue;
 		}
+
+		numpts = dc_GetNSample (dc);
+		badvalue = dc_GetBadval (dc);
 	/*
 	 * Now work through the data.
 	 */
@@ -564,58 +566,57 @@ int	nplat, nfld;
 		{
 			XSetForeground (disp, Gcontext, 
 				Colors[i * nplat + plat].pixel);
-			if (update)
+
+			if (Update)
 			{
-				fx = CONVERT (Save_x[plat * nfld + i],
-					TMinval, TMaxval);
-				fy = CONVERT (Save_y[plat * nfld + i],
-					Minval[i], Maxval[i]);
+				tprev = Save_t[plat * nfld + i];
+				vprev = Save_v[plat * nfld + i];
 			}
 			else
-			{
-				fx = CONVERT (Begin.zt_Sec, TMinval, 
-					TMaxval);
-				fy = CONVERT (dc_GetScalar (dc, 0, 
-					fieldlist[i]), Minval[i], 
-					Maxval[i]); 
-			}
-			x0 = XPIX (fx); 
-			y0 = YPIX (fy);
+				vprev = badvalue;
+
 			npt = 0;
+		/*
+		 * Set our user coords
+		 */
+			Ylo = Minval[i];
+			Yhi = Maxval[i];
 		/* 
 		 * Draw the data.
 		 */
-			numpts = dc_GetNSample (dc);
-			badvalue = dc_GetBadval (dc);
-			for (j = 1; j < numpts; j++)
+			for (j = 0; j < numpts; j++)
 			{
 			/*
-			 * Get the value of the current data point.
+			 * Get the value and time of the current data point.
 			 */
 				v = dc_GetScalar (dc, j, fieldlist[i]);
+
+				dc_GetTime (dc, j, &when);
+				t = TC_ZtToSys (&when);
 			/*
 			 * If its time to skip or the data is bad, continue.
 			 */
 				if (dskip && (npt++ % dskip) != 0)
 					continue;
-				if (v == badvalue)
-					continue;
 			/*
-			 * Save the data in case this is the last point.
+			 * Draw the segment if both endpoints are good
 			 */
-				dc_GetTime (dc, j, &when);
-				t = TC_ZtToSys (&when);
-				Save_x[plat * nfld + i] = t;
-				Save_y[plat * nfld + i] = v;
+				if (v != badvalue && vprev != badvalue)
+					XDrawLine (disp, d, Gcontext, 
+						XPIX (tprev - Begin.zt_Sec), 
+						YPIX (vprev), 
+						XPIX (t - Begin.zt_Sec), 
+						YPIX (v)); 
 			/*
-			 * Get the point to draw and draw them.
+			 * Set the prev points
 			 */
-				fx = CONVERT (t, TMinval, TMaxval);
-				fy = CONVERT (v, Minval[i], Maxval[i]); 
-				x1 = XPIX (fx); y1 = YPIX (fy);
-				XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
-				x0 = x1; y0 = y1;
+				tprev = t; vprev = v;
 			}
+		/*
+		 * Save the data from the last point.
+		 */
+			Save_t[plat * nfld + i] = t;
+			Save_v[plat * nfld + i] = v;
 		}
 	/*
 	 * Free the data chunk.
@@ -629,141 +630,204 @@ int	nplat, nfld;
 }
 
 
+
+
 static void
-ts_SlideData()
+ts_SlideData (prev_begin, prev_end)
+ZebTime	*prev_begin, *prev_end;
 /*
  * On an update slide the old data down to make room for the new data.
  */
 {
-	long	beginsec;
+	int	beginpix;
+	float	save_xlo = Xlo, save_xhi = Xhi;
 	Pixmap	temp;
 	Display	*disp = XtDisplay (Graphics);
 /*
+ * Go back to the coordinates of the previous plot
+ */
+	Xlo = FlipTime ? prev_end->zt_Sec - prev_begin->zt_Sec : 0.0;
+	Xhi = FlipTime ? 0.0 : prev_end->zt_Sec - prev_begin->zt_Sec;
+/*
  * Create temporary pixmap.
  */
-	temp = XCreatePixmap (disp, XtWindow (Graphics), GWWidth (Graphics),
-		GWHeight (Graphics), GWDepth (Graphics));
+	temp = XCreatePixmap (disp, XtWindow (Graphics), Pix_right - Pix_left,
+		Pix_bottom - Pix_top, GWDepth (Graphics));
+/*
+ * Copy the data.
+ */
+	XCopyArea (disp, GWFrame (Graphics), temp, Gcontext, Pix_left, 
+		Pix_top, Pix_right - Pix_left, Pix_bottom - Pix_top, 0, 0);
+/*
+ * Clear the area.
+ */
+	XSetForeground (disp, Gcontext, Black.pixel);
+	XFillRectangle (disp, GWFrame (Graphics), Gcontext, Pix_left + 1, 
+		Pix_top + 1, Pix_right - Pix_left - 1, 
+		Pix_bottom - Pix_top - 1);
+/*
+ * Find the position in the old plot of our current begin time
+ */
+	beginpix = XPIX (Begin.zt_Sec - prev_begin->zt_Sec);
 /*
  * Turn on clipping.
  */
 	XSetClipRectangles (disp, Gcontext, 0, 0, &Clip, 1, Unsorted);
 /*
- * Copy the data.
- */
-	XCopyArea (disp, GWFrame (Graphics), temp, Gcontext, Pix_left, 
-		Pix_top, Pix_right - Pix_left, Pix_bottom - Pix_top, 
-		Pix_left, Pix_top);
-/*
- * Clear the area.
- */
-	XSetForeground (disp, Gcontext, Black.pixel);
-	XFillRectangle (disp, GWFrame (Graphics), Gcontext, Pix_left, Pix_top, 
-		Pix_right - Pix_left, Pix_bottom - Pix_top);
-/*
- * Figure the new data position.
- */
-	beginsec = Begin.zt_Sec;	
-/*
  * Put the data back in its new position.
  */
 	if (! FlipTime)
-		XCopyArea (disp, temp, GWFrame (Graphics), Gcontext, Pix_left, 
-			Pix_top, Pix_right - Pix_left, Pix_bottom - Pix_top, 
-			2 * Pix_left - XPIX (CONVERT (beginsec, TMinval, 
-			TMaxval)), Pix_top);
+		XCopyArea (disp, temp, GWFrame (Graphics), Gcontext, 0, 0,
+			Pix_right - Pix_left, Pix_bottom - Pix_top, 
+			2 * Pix_left - beginpix, Pix_top);
 	else
-		XCopyArea (disp, temp, GWFrame (Graphics), Gcontext, Pix_left 
-			+ 1, Pix_top, Pix_right - Pix_left - 1, 
-			Pix_bottom - Pix_top, 
-			Pix_left + Pix_right - XPIX(CONVERT(beginsec, TMinval, 
-			TMaxval)), Pix_top);
+		XCopyArea (disp, temp, GWFrame (Graphics), Gcontext, 1, 0,
+			Pix_right - Pix_left, Pix_bottom - Pix_top, 
+			Pix_left + Pix_right - beginpix + 1, Pix_top);
 /*
  * Turn off clipping.
  */
 	XSetClipRectangles (disp, Gcontext, 0, 0, &Unclip, 1, Unsorted);
 	XFreePixmap (disp, temp);
+/*
+ * Return to the current time coordinates
+ */
+	Xlo = save_xlo;
+	Xhi = save_xhi;
 }
 
 
 
 static void
-ts_DrawLines (update, nstep)
-bool	update;
+ts_DrawLines (nstep)
 int	nstep;
 /* 
  * Draw the lines in the background of the plot.
  */
 {
 	Display	*disp = XtDisplay (Graphics);
-	Drawable	d = GWFrame (Graphics);
-	float	begin_x, tick, tickinc, ll;
-	long	llinc;
+	float	begin_x, tick, tickinc;
+	long	sec, secinc;
+	ZebTime	first;
+	int	i;
 	XPoint	pts[2];
-	
-	static 	ZebTime	lastline;
+	Drawable	d = GWFrame (Graphics);
 
 	XSetForeground (disp, Gcontext, BackColor.pixel);
 	XSetLineAttributes (disp, Gcontext, 1, LineOnOffDash, CapButt, 
 		JoinMiter);
+
 	if (nstep <= 1) 
 		nstep = 2;
-	tickinc = (Y1 - Y0) / (nstep - 1);
-	begin_x = CONVERT (Begin.zt_Sec, TMinval, TMaxval);
 /*
  * Horizontal lines.
  */
-	pts[0].x = XPIX (begin_x);
-	if (! FlipTime)
-		pts[1].x = Pix_right;
-	else
-		pts[1].x = Pix_left;
-	for (tick = Y0; tick < Y1; tick += tickinc)
+	pts[0].x = XPIX (Update_begin.zt_Sec - Begin.zt_Sec);
+	pts[1].x = XPIX (End.zt_Sec - Begin.zt_Sec);
+
+	tickinc = (Yhi - Ylo) / (nstep - 1);
+	for (tick = Ylo; tick < Yhi; tick += tickinc)
 	{
 		pts[0].y = pts[1].y = YPIX (tick);
 		XDrawLines (disp, d, Gcontext, pts, 2, CoordModeOrigin);
 	}
+/*
+ * Find a reasonable time tick interval
+ */
+	ts_TimeTick (&Begin, &End, &first, &secinc);
 /* 
  * Vertical lines.
  */
-	if (! update)
-		lastline = Begin; 
-	ll = CONVERT (lastline.zt_Sec, TMinval, TMaxval);
 	pts[0].y = Pix_bottom;
 	pts[1].y = Pix_top;
-	if (! FlipTime)
+
+	for (sec = first.zt_Sec; sec < End.zt_Sec; sec += secinc)
 	{
-		for (tick = begin_x; tick <= X1; tick += tickinc)
-			if ((tick >= (ll + tickinc - 0.00001)) &&
-				(ll + tickinc < X1))
-			{
-				ll += tickinc;
-				pts[0].x = pts[1].x = XPIX (ll);
-				XDrawLines (disp, d, Gcontext, pts, 2, 
-					CoordModeOrigin);
-				llinc = (long) UNCONVERT (tickinc, 0.0, 
-					TMaxval - TMinval);
-				lastline.zt_Sec += llinc;
-			}
+		if (sec < Update_begin.zt_Sec)
+			continue;
+
+		pts[0].x = pts[1].x = XPIX (sec - Begin.zt_Sec);
+		XDrawLines (disp, d, Gcontext, pts, 2, CoordModeOrigin);
 	}
-	else
-	{
-		for (tick = begin_x; tick >= X0; tick -= tickinc)
-			if ((tick <= (ll - tickinc + 0.00001)) &&
-				(ll - tickinc > X0))
-			{
-				ll -= tickinc;
-				pts[0].x = pts[1].x = XPIX (ll);
-				XDrawLines (disp, d, Gcontext, pts, 2, 
-					CoordModeOrigin);
-				llinc = (long) UNCONVERT (tickinc, 0.0, 
-					TMinval - TMaxval);
-				lastline.zt_Sec+= llinc;
-			}
-	}
+
 	XSetLineAttributes (disp, Gcontext, 1, LineSolid, CapButt, 
 		JoinMiter);
 }
 
+
+
+
+/*
+ * Array of good time tick increments and the minimum plot spans to which
+ * they apply
+ */
+static struct _goodtick
+{
+	int	inc, minspan;
+} Goodtick[] = 
+{
+	{ 1, 0 },		/* 1 s 	*/
+	{ 2, 6 },		/* 2 s for interval >= 6 s	*/
+	{ 5, 15 },		/* 5 s for >= 15 s	*/
+	{ 10, 30 },		/* 10 s for >= 30 s	*/
+	{ 15, 45 },		/* 15 s for >= 45 s	*/
+	{ 30, 90 },		/* 30 s for >= 90 s	*/
+	{ 60, 60*3 },		/* 1 m for >= 3 m	*/
+	{ 60*2, 60*6 },		/* 2 m for >= 6 m	*/
+	{ 60*5, 60*15 },	/* 5 m for >= 15 m	*/
+	{ 60*10, 60*30 },	/* 10 m for >= 30 m	*/
+	{ 60*15, 60*45 },	/* 15 m for >= 45 m	*/
+	{ 60*30, 60*90 },	/* 30 m for >= 90 m	*/
+	{ 60*60*1, 60*60*3 },	/* 1 h for >= 3 h	*/
+	{ 60*60*3, 60*60*12 },	/* 3 h for >= 12 h	*/
+	{ 60*60*6, 60*60*24 },	/* 6 h for >= 24 h	*/
+	{ 60*60*12, 60*60*48 },	/* 12 h for >= 48 h	*/
+	{ 60*60*24*1, 60*60*24*4 },	/* 1 d for >= 4 d	*/
+	{ 60*60*24*2, 60*60*24*8 },	/* 2 d for >= 8 d	*/
+	{ 0, 0 },		/* no more		*/
+};
+
+
+
+
+void
+ts_TimeTick (begin, end, first, step)
+ZebTime	*begin, *end, *first;
+long	*step;
+/*
+ * Find a good starting time and increment for time ticks.
+ *  Input:
+ *	begin:	starting time of plot
+ *	end:	end time of plot
+ *  Return:
+ *	first:	first tick time > begin that's on an even step boundary
+ *	step:	tick step
+ */
+{
+	long	span, diff;
+	short	i, nstep;
+	struct tm	*tm;
+/*
+ * Find the appropriate step in the table
+ */
+	span = end->zt_Sec - begin->zt_Sec;
+	for (i = 0; Goodtick[i].inc && (Goodtick[i].minspan <= span); i++)
+		*step = Goodtick[i].inc;
+/*
+ * Find a good starting time that's an even multiple of our step time
+ */
+	*first = *begin;
+
+	tm = gmtime (&(first->zt_Sec));
+	tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
+	first->zt_Sec = timegm (tm);
+
+	nstep = (begin->zt_Sec - first->zt_Sec) / *step;
+	first->zt_Sec += nstep * (*step);
+	if (first->zt_Sec < begin->zt_Sec)
+		first->zt_Sec += *step;
+}
+	
 
 
 
