@@ -1,6 +1,6 @@
 
 /*
- * $Id: xncdump.c,v 1.3 1996-08-13 21:37:02 granger Exp $
+ * $Id: xncdump.c,v 1.4 2001-12-20 21:38:55 burghart Exp $
  */
 
 #include <stdio.h>
@@ -45,7 +45,7 @@ char *filename = NULL;
 Boolean using_tmp = False;	/* Flag true when tmp file being used */
 static char tmp[256];   	/* Use global tmp name to remove 
 				 * before exiting */
-static char rcsid[]="$Id: xncdump.c,v 1.3 1996-08-13 21:37:02 granger Exp $";
+static char rcsid[]="$Id: xncdump.c,v 1.4 2001-12-20 21:38:55 burghart Exp $";
 
 static char *fallbacks[] = {
 "Xncdump*text.height:		400",
@@ -96,7 +96,8 @@ XtPointer calldata;
       XtSetArg(args[0], XtNstring, "Reading netCDF file...\n");
       XtSetArg(args[1], XtNtype, XawAsciiString);
       XtSetValues(text, args, 2);
-      tmpnam(tmp2);
+      strcpy(tmp2, "/tmp/ncdumpXXXXXX");
+      mkstemp(tmp2);
       sprintf(cmd,"ncdump%s %s > %s",(showdata)?"":" -h",fn,tmp2);
       IFD(fprintf(stderr,"Using shell command: %s\n",cmd);)
       if (system(cmd))   /* Make sure no errors from shell */

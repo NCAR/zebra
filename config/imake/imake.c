@@ -282,7 +282,7 @@ main(argc, argv)
 		tmpMakefile = Makefile;
 	else {
 		tmpMakefile = Strdup(tmpMakefile);
-		(void) mktemp(tmpMakefile);
+		(void) mkstemp(tmpMakefile);
 	}
 	AddMakeArg("-f");
 	AddMakeArg( tmpMakefile );

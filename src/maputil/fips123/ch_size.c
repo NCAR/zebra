@@ -197,6 +197,7 @@ long file_len;
 
 {
    /* LOCAL VARIABLES */
+   int  tmp_fd;
    FILE *tmp_fp;
    ldiv_t data_sect;
    long rem_data = 0;
@@ -224,7 +225,8 @@ long file_len;
    rewind(*fp);
 
    /* GENERATE A UNIQUE FILE NAME */
-   if (tmpnam(name) == NULL) return(0);
+   sprintf(name, "%s/ch123sizeXXXXXX", P_tmpdir);
+   if ((tmp_fd = mkstemp(name)) < 0) return(0);
   
 #if ! MVS 
    /* COPY NAME TO NEW NAME */
@@ -249,10 +251,10 @@ long file_len;
      
    /* OPEN NEW FILE */
 #if MVS
-   if (( tmp_fp = fopen(name,"wb+,recfm=*")) 
+   if (( tmp_fp = fdopen(tmp_fd,"wb+,recfm=*")) 
        == NULL) return(0);
 #else
-   if (( tmp_fp = fopen(name,"wb+")) == NULL) return(0);
+   if (( tmp_fp = fdopen(tmp_fd,"wb+")) == NULL) return(0);
 #endif
     
    /* DETERMINE NUMBER OF NEEDED FILE PARTITIONS */
