@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.26 1995-02-10 01:30:19 granger Exp $
+ * $Id: DataStore.h,v 3.27 1995-04-17 22:34:24 granger Exp $
  *
  * Public data store definitions.
  */
@@ -677,7 +677,7 @@ void *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
 /*
  * NSpace fixed dimension detail handling
  */
-int dc_NSFixedDimension FP((DataChunk *dc, dsDetail *details, int ndetail,
+int dc_NSFixedDimension FP((dsDetail *details, int ndetail,
 			    char *name, int *dindex));
 void dc_NSFixedDetails FP((char *list, dsDetail *details, int *ndetail));
 
