@@ -105,7 +105,7 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 */
 #ifdef AIXArchitecture
 # ifndef RegexpLibrary
-# define RegexpLibrary -PW 
+# define RegexpLibrary -lPW 
 # endif
 # endif /* AIXArchitecture */
 
