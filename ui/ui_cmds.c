@@ -329,7 +329,7 @@ char *dest, *sym;
  */
  	if ((Cs->cs_arg_table == 0 || ! usy_g_symbol (Cs->cs_arg_table,
 			sym, &type, &v)) &&
-			usy_g_symbol (Ui_variable_table, sym, &type, &v))
+			! usy_g_symbol (Ui_variable_table, sym, &type, &v))
 		strcpy (dest, sym);
 /*
  * If it is a string variable, we can just copy over the value, and we're
