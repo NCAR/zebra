@@ -1,3 +1,28 @@
+2000-12-05  Gary Granger  <granger@ale.atd.ucar.edu>
+
+	* Moved the gp ui require function to the library and use it in dm
+	  and dsDaemon, allowing more config files to be moved into the
+	  library and allowing configuration files to be more easily
+	  shared between among projects.
+
+	* Add a FieldSelect widget to the graphics process which can be
+	  popped up with the 'selectfield' ui command and from FieldMenu.
+	  Both FieldMenu and selectfield share a common spec string,
+	  passed in the FieldMenu parameter value or as the selectfield
+	  argument, which sets options like the field parameter to change
+	  or the field select command to use.
+
+	* Add the IconBar.sh script to the dm library.  It can be used by
+	  a project to generate the usual iconbar boilerplate to which can
+	  be added only the parts unique to a project.
+	
+	* Change the add-data-command approach for some of the window
+	  templates, where the add command pops up a widget which provides
+	  the options for adding a particular platform.  Components for
+	  the templates are taken from the -components.pd files.  The
+	  xygraph modules can now control more of the axes and side
+	  annotation parameters.
+	
 1999-11-23  Gary Granger  <granger@ale.atd.ucar.edu>
 
 	* Developments in the Archiver and ingest scheduler (is) programs
