@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.2 1992-02-07 21:04:47 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.3 1993-01-14 20:51:57 corbet Exp $")
 
 
 /*
@@ -458,7 +458,7 @@ struct cf_window *win;
 	msg.dmm_x = win->cfw_x;
 	msg.dmm_y = win->cfw_y;
 	msg.dmm_dx = win->cfw_dx;
-	msg.dmm_dy = win->cfw_dy;
+	msg.dmm_dy = win->cfw_dy - TBSpace;
 /*
  * Ship it out.  If this is a nongraphic window, we then quit.
  */

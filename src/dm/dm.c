@@ -33,7 +33,7 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.18 1993-01-11 21:54:39 pai Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.19 1993-01-14 20:51:57 corbet Exp $")
 
 
 /*
@@ -51,6 +51,7 @@ char ConfigDir[200];	/* Default directory for display configs */
 char ConfigPD[200];	/* Where to save plot descriptions	*/
 char ConfigPath[512];	/* Path to search for display configs */
 
+int TBSpace = 0;	/* How much to tweak for title bar space. */
 /*
  * Is sound enabled?
  */
@@ -136,6 +137,7 @@ char **argv;
 	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING, 200);
 	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 200);
 	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
+	usy_c_indirect (vtable, "tbspace", &TBSpace, SYMT_INT, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
 

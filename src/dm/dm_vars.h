@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.3 1992-07-21 20:29:33 pai Exp $
+ * $Id: dm_vars.h,v 2.4 1993-01-14 20:51:57 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -124,6 +124,12 @@ extern int SleepFor, SleepAfter;
 extern Display		*Dm_Display;		/* Our display		*/
 # endif
 
+/*
+ * The amount of space to subtract from the height of graphics windows --
+ * this is here to allow people to easily compensate for window manager
+ * obnoxiousness without having to rewrite configurations.
+ */
+extern int TBSpace;
 
 
 /*
