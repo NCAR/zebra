@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.30 1996-02-05 23:32:15 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.31 1996-04-16 00:21:55 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,15 +20,16 @@ XCOMM $Id: Imakefile,v 1.30 1996-02-05 23:32:15 granger Exp $
  * maintenance or updates for its software.
  */
 
-
+#ifdef UseFORTRAN
 LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS) $(FLIBS)
+#else
+LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS)
+#endif
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
-
 
 /* LIBRDSS = /rdss/ui/uilib.a /locallib/librdssutil.a */
 DEPLIBS = $(LIBZEBDS) $(LIBZEB) /* $(LIBRDSS) */
 
-/* CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a */
 CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
 
 #if UseOpenWindows && (OpenWindowsVersion < 3)
@@ -59,12 +60,12 @@ INCLUDES = $(PROJINCLUDES)
 # endif
 
 # ifdef FObjDir
-FOBJDIR = FObjDir
+FOBJDIR = FObjDir/
 # else
-FOBJDIR = .
+FOBJDIR = 
 # endif
 
-OBJS =  ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
+COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	AxisControl.o ColorTable.o ConstAltPlot.o Contour.o \
 	DataMenu.o derive.o DrawText.o EventQueue.o FieldMenu.o FillContour.o \
 	FrameCache.o GraphProc.o GridAccess.o Histogram.o Icons.o \
@@ -76,42 +77,40 @@ OBJS =  ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
 	XYObservation.o XYWind.o
 
-FOBJS = $(FOBJDIR)/rgrid.o $(FOBJDIR)/bints.o $(FOBJDIR)/cfit.o
-
-COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
-	PlotExec.o UserEvent.o Contour.o FillContour.o \
-	DrawText.o RasterPlot.o VectorGrid.o derive.o \
-	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
-	FrameCache.o MovieControl.o AltControl.o \
-	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
-	ConstAltPlot.o Utilities.o DataMenu.o $(ALLOCA) \
-	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
-	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
-	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
-	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o Histogram.o
+#ifdef UseFORTRAN
+FOBJS = $(FOBJDIR)rgrid.o $(FOBJDIR)bints.o $(FOBJDIR)cfit.o
+#else
+FOBJS = rgridf2c.o bintsf2c.o cfitf2c.o
+#endif
 
 OBJS =	$(COBJS) $(FOBJS)
 
-FSRCS = cfit.F mudras.f rgrid.F bints.f
+SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
+	AxisControl.c ColorTable.c ConstAltPlot.c Contour.c \
+	DataMenu.c derive.c DrawText.c EventQueue.c FieldMenu.c FillContour.c \
+	FrameCache.c GraphProc.c GridAccess.c Histogram.c Icons.c \
+	InsertWidget.c Label.c LayoutControl.c Lightning.c \
+	LimitWidgets.c LLEvent.c ModelWidget.c MovieControl.c Ov_Grid.c \
+	Overlay.c OverlayTimes.c PDMonitor.c PlotControl.c PlotExec.c \
+	PlotPrim.c PositionWidget.c Projection.c RasterPlot.c RBand.c \
+	Skewt.c TimeSeries.c Track.c UserEvent.c Utilities.c \
+	VectorGrid.c XSection.c XYCommon.c XYContour.c XYGraph.c \
+	XYObservation.c XYWind.c sfont_1.c
 
-SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
-	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
-	EventQueue.c FillContour.c FrameCache.c GraphProc.c \
-	GridAccess.c Icons.c InsertWidget.c LLEvent.c Label.c \
-	LayoutControl.c Lightning.c LimitWidgets.c MovieControl.c \
-	Overlay.c PlotControl.c PlotExec.c PlotPrim.c PositionWidget.c \
-	RBand.c RasterPlot.c Skewt.c TimeSeries.c Track.c UserEvent.c \
-	Utilities.c VectorGrid.c XSection.c XYCommon.c XYContour.c \
-	XYGraph.c XYObservation.c XYWind.c derive.c  sfont_1.c \
-	PDMonitor.c FieldMenu.c ActiveArea.c ModelWidget.c OverlayTimes.c \
-	alloca.c Projection.c Ov_Grid.c Histogram.c
+#ifdef UseFORTRAN
+FSRCS = cfit.F rgrid.F bints.f
+#else
+FSRCS = rgridf2c.c bintsf2c.c cfitf2c.c
+#endif
+
+ALLFSRCS = cfitf2c.c rgridf2c.c bintsf2c.c cfit.F rgrid.F bints.f
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \
 	PlotPrim.h XYCommon.h ContourP.h derive.h getpagesize.h \
-	gp_cmds.h rg_status.h rgrid.h
+	gp_cmds.h rg_status.h rgrid.h f2c.h
 
-DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
+DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
 
 CompleteProgramTarget(gp, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
@@ -122,11 +121,26 @@ InstallAppDefaults(Graphproc)
 
 TestProgramTarget(gtest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-CflowTarget(gp,GraphProc.o $(OBJS),)
+CflowTarget(gp,GraphProc.o $(COBJS),/**/)
 
 DependTarget()
 
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
+
+XCOMM Hardcoded dependencies to make sure we compile the correct source
+XCOMM files, C or FORTRAN, depending upon whether UseFORTRAN is defined.
+XCOMM These files are not included in the SRCS variable, which is used
+XCOMM by the general depend target.
+
+#ifdef UseFORTRAN
+bints.o: bints.f
+rgrid.o: rgrid.F rg_status.h rgrid.h
+cfit.o: cfit.F rgrid.h
+#else
+bintsf2c.o: bintsf2c.c f2c.h
+rgridf2c.o: rgridf2c.c f2c.h
+cfitf2c.o: cfitf2c.c f2c.h
+#endif
 
