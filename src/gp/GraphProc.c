@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.22 1991-02-14 17:16:03 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.23 1991-02-14 17:53:14 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -87,6 +87,13 @@ static void DMButton (), UiErrorReport (), UiPfHandler ();
 
 extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 extern void Ue_MotionEvent ();
+
+# ifdef __STDC__
+	static void NewTime (time *);
+# else
+	static void NewTime ();
+# endif
+
 
 /*
  * Routines called through the event queue mechanism.
@@ -223,6 +230,7 @@ finish_setup ()
 	ct_Init ();		/* Color tables		*/
 	Ue_Init ();		/* User event handling	*/
 	I_init ();		/* Icons		*/
+	lw_InitWidgets ();	/* Limit widgets	*/
 /*
  * Tell DM that we're here.
  */
@@ -253,6 +261,7 @@ finish_setup ()
  */
 	mc_DefMovieWidget ();		/* Movie control	*/
 	fc_InvalidateCache ();		/* Clear frame cache	*/
+	tl_ChangeHandler (NewTime);
 /*
  * Indirect variables.
  */
@@ -295,12 +304,6 @@ struct message *msg;
 			GPShutDown ();
 		msg_ELog (EF_PROBLEM, "Unknown MESSAGE proto type: %d",
 			tm->mh_type);
-		break;
-	 /*
-	  * Timer.
-	  */
-	    case MT_TIMER:
-		tm_message ((struct tm_time *) msg->m_data);
 		break;
 	 /*
 	  * Data store.
@@ -570,28 +573,6 @@ struct dm_msg *dmsg;
 
 
 
-
-tm_message (te)
-struct tm_time	*te;
-/*
- * Deal with a timer message
- */
-{
-	switch (te->tm_type)
-	{
-	/*
-	 * We deal with a time change here
-	 */
-	    case TRR_TCHANGE:
-	   	NewTime ((struct tm_tchange *) te);
-		break;
-	/*
-	 * Other messages can be handled by the timer lib event dispatcher
-	 */
-	    default:
-	    	tl_DispatchEvent (te);
-	}
-}
 
 
 
@@ -994,8 +975,9 @@ RealTimeMode ()
 
 
 
-NewTime (tch)
-struct tm_change	*tch;
+static void
+NewTime (t)
+time *t;
 /*
  * Deal with a change in ``current'' time
  */
