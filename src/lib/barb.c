@@ -46,15 +46,15 @@ int	shaftlen;   /* length in pixels to draw barb shaft */
 	XPoint	coord[5];
 	int	flaglen = 10;
 	double	pixeldx,pixeldy;
-	int	quad;
+	int	quadrant;
 	int	dxsign,dysign;
 	double flagangle;
 /*
  *  Draw the shaft of the barb.
  */
-	quad = (int)( angle / 1.570796327 )+1;
-	quad = quad % 4;
-	switch( quad )
+	quadrant = (int)( angle / 1.570796327 )+1;
+	quadrant = quadrant % 4;
+	switch( quadrant )
 	{
 	    case 0: /* quadrant 4 */
 		flagangle = 2*3.141592654 - angle;
