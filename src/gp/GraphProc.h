@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.7 1991-03-13 23:09:46 kris Exp $ */
+/* $Id: GraphProc.h,v 1.8 1991-04-10 17:42:59 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -42,6 +42,11 @@ extern int  FrameFileFlag;	/* True when FrameFile should be opened */
 extern int	PlotType;
 extern float	Xlo, Xhi, Ylo, Yhi;
 extern float	Alt;		/* CAP plot altitude			*/
+
+/*
+ *  Maximum number of frames in the frame cache.
+ */
+# define NCACHE 100
 
 /*
  * Macros defining the fractional portion of the widget to
