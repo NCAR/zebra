@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 2.8 1994-04-20 21:58:04 corbet Exp $ */
+/* $Id: gp_cmds.h,v 2.9 2000-04-10 20:54:02 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -47,4 +47,5 @@
 # define GPC_REQUIRE	26
 # define GPC_ENQUEUE	27
 # define GPC_IMGDUMP	28
+# define GPC_SHELL	29
 
