@@ -1,4 +1,4 @@
-/* $Id: ui_wList.c,v 1.1 1990-03-06 11:07:09 corbet Exp $ */
+/* $Id: ui_wList.c,v 1.2 1990-03-27 09:31:37 corbet Exp $ */
 /*
  * List-widget specific windowing code.
  */
@@ -600,6 +600,7 @@ struct ui_command *cmds;
 
 
 
+void
 uw_cmcb (xw, lw, item)
 Widget xw;
 struct list_widget *lw;
