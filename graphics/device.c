@@ -2,6 +2,7 @@
 /*
  * Handle device specifics.
  */
+# include <ctype.h>
 # include "graphics.h"
 # include "param.h"
 # include "device.h"
@@ -183,7 +184,7 @@ struct device D_tab[] =
 # ifdef DEV_X11
 	{
 		"X11",
-		4, { "x11", "X11-700", "X700", "X500" },
+		3, { "X11-700", "X700", "X500" },
 		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR,
 		256,			/* x11_open will modify...	*/
 		500, 500,		/* Our resolution for now */
@@ -622,15 +623,46 @@ char *type;
  *		NULL is returned.
  */
 {
-	int dev, alt;
+	int dev, alt, gd_strcmp ();
 	
 	for (dev = 0; dev < N_DEVICE; dev++)
 	{
-		if (! strcmp (type, D_tab[dev].gd_type))
+		if (! gd_strcmp (type, D_tab[dev].gd_type))
 			return (D_tab + dev);
 		for (alt = 0; alt < D_tab[dev].gd_nalt; alt++)
-			if (! strcmp (type, D_tab[dev].gd_alttype[alt]))
+			if (! gd_strcmp (type, D_tab[dev].gd_alttype[alt]))
 				return (D_tab + dev);
 	}
 	return ((struct device *) NULL);
+}
+
+
+
+
+int
+gd_strcmp (str1, str2)
+char	*str1, *str2;
+/*
+ * Perform a case-independent strcmp
+ */
+{
+	int	i = 0;
+	char	char1, char2;
+
+	while (TRUE)
+	{
+		char1 = str1[i];
+		char2 = str2[i];
+		char1 += (char1 >= 'A' && char1 <= 'Z') ? 'a' - 'A' : (char) 0;
+		char2 += (char2 >= 'A' && char2 <= 'Z') ? 'a' - 'A' : (char) 0;
+
+		if (char1 != char2)
+			return ((int) str2[i] - (int) str1[i]);	
+
+		if (char1 == (char) 0)
+			return (0);
+
+		i++;
+	}
+
 }
