@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.37 1998-01-29 22:30:04 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.38 1998-05-15 20:31:32 burghart Exp $")
 
 
 /*
@@ -293,8 +293,9 @@ static struct s_GRB_FList
 	{ 124, ANY, "uflx", "Momentum flux, u", "N m-2", 1.0, 0.0 },
 	/* Momentum flux, v component (N m-2) */
 	{ 125, ANY, "vflx", "Momentum flux, v", "N m-2", 1.0, 0.0 },
-	/* Geopotential (m**2/s)		*/
-	{ 129, ANY, "geopotential", "Geopotential", "m**2/s", 0.3048, 0.0 },
+	/* Geopotential (m**2/s) (scale from ft**2/s)	*/
+	{ 129, ANY, "geopotential", "Geopotential", "m**2/s", 0.09290304, 
+	  0.0 },
 	/* Temperature (K), scale to C 		*/
 	{ 130, ANY, "tdry", "Temperature", "deg C", 1.0, -273.15 },
 	/* u component of wind (m/s)		*/
