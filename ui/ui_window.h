@@ -1,4 +1,4 @@
-/* $Id: ui_window.h,v 1.2 1990-03-06 11:07:23 corbet Exp $ */
+/* $Id: ui_window.h,v 1.3 1990-04-20 14:23:25 corbet Exp $ */
 /*
  * Definitions for windowing code.
  */
@@ -11,6 +11,7 @@
 # define WT_FRAME	2
 # define WT_STACK	3
 # define WT_MENUBAR	4
+# define WT_APPL	5	/* Application-defined widget	*/
 
 
 /*
