@@ -106,14 +106,21 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #endif
 
 /*
- * Override the vendors DefaultCCOptions with CCOptions from config.h
+ * Override the vendor Default* symbols with symbols from config.h
  */
 #ifdef DefaultCCOptions
 #undef DefaultCCOptions
 #endif
 #define DefaultCCOptions CCOptions
 
+#ifdef DefaultCDebugFlags
+#undef DefaultCDebugFlags
+#endif
 #define DefaultCDebugFlags CDebugFlags
+
+#ifdef DefaultCplusplusDebugFlags
+#undef DefaultCplusplusDebugFlags
+#endif
 #define DefaultCplusplusDebugFlags CDebugFlags
 
 #if defined(SunArchitecture) && defined(SparcArchitecture)
