@@ -1,0 +1,7 @@
+colortable refcontour
+	xcolor MidnightBlue
+	xcolor blue
+	xcolor green
+	xcolor red
+	xcolor pink
+endtable

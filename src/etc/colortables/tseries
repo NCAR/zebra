@@ -1,0 +1,10 @@
+colortable tseries
+	xcolor red
+	xcolor green
+	xcolor orange
+	xcolor cyan
+	xcolor yellow
+	xcolor violet
+	xcolor white
+	xcolor magenta
+endtable

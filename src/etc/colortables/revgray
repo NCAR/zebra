@@ -1,0 +1,12 @@
+colortable revgray
+	xcolor white
+	xcolor gray90
+	xcolor gray80
+	xcolor gray70
+	xcolor gray60
+	xcolor gray50
+	xcolor gray40
+	xcolor gray30
+	xcolor gray20
+	xcolor gray10
+endtable

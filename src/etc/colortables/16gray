@@ -1,0 +1,18 @@
+colortable 16gray
+	xcolor gray6
+	xcolor gray12
+	xcolor gray19
+	xcolor gray25
+	xcolor gray31
+	xcolor gray38
+	xcolor gray44
+	xcolor gray50
+	xcolor gray56
+	xcolor gray62
+	xcolor gray69
+	xcolor gray75
+	xcolor gray81
+	xcolor gray88
+	xcolor gray94
+	xcolor white
+endtable

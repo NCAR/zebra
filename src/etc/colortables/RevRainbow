@@ -1,0 +1,9 @@
+colortable RevRainbow
+	xcolor Red
+	xcolor Orange
+	xcolor Yellow
+	xcolor Green
+	xcolor Blue
+	xcolor Purple
+	xcolor Violet
+endtable

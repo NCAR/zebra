@@ -1,0 +1,16 @@
+/*
+ * Imakefile for the ETC directory.
+ */
+
+TABLES = 16gray AllWhite Contour ContourMono Rainbow RevRainbow Skew-t \
+	SmallRainbow Winds cook16 cook32 fivegray fivegrey gcook16 \
+	hotcold newgray refcontour revgray scook smallrevgray tseries \
+	wild wild_new xygraph
+
+DISTFILES = Imakefile $(TABLES)
+
+all::
+
+InstallLibFile ($(TABLES),colortables,.)
+
+DistfilesTarget($(DISTFILES))

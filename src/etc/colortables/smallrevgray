@@ -1,0 +1,5 @@
+colortable smallrevgray
+	xcolor gray70
+	xcolor gray50
+	xcolor gray30
+endtable

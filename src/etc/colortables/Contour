@@ -1,0 +1,14 @@
+!
+! The file for defining display manager color tables.
+!
+colortable Contour
+	xcolor Orchid
+	xcolor MediumSlateBlue
+	xcolor CadetBlue
+	xcolor Green
+	xcolor Gray80
+	xcolor Goldenrod
+	xcolor Coral
+	xcolor Red
+	xcolor FireBrick
+endtable

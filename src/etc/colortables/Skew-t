@@ -1,0 +1,17 @@
+colortable Skew-t
+	xcolor Black
+	xcolor White
+	xcolor Gray60
+	xcolor Gray45
+	xcolor SteelBlue
+	xcolor Sienna
+	xcolor Cyan
+	xcolor Red
+	xcolor Magenta
+	xcolor MediumSlateBlue
+	xcolor Yellow
+	xcolor Green
+	xcolor Gold
+	xcolor DarkOrchid
+	xcolor PaleGreen
+endtable
