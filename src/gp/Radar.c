@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.11 2001-01-16 22:27:36 granger Exp $")
+RCSID ("$Id: Radar.c,v 2.12 2002-04-26 19:57:02 burghart Exp $")
 
 
 static char *ScanNames[] = 
@@ -348,11 +348,12 @@ R_ScanMode *scan;
 		*angle = loc.l_alt;
 	if (scan)
 	{
-		*scan = R_ANY;
+		*scan = R_SUR;
 		if ((text = dc_GetSampleAttr (dc, 0, "scan_type")))
 			*scan = r_ParseScanType (text);
 		if (*scan == R_ANY)
-			msg_ELog (EF_PROBLEM, "failed to get scan type");
+			msg_ELog (EF_PROBLEM, "unrecognized scan type '%s'",
+				  text);
 	}
 	dc_DestroyDC (dc);
 	return (1);
