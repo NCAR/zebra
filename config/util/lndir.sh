@@ -57,7 +57,9 @@ then
 	exit 1
 fi
 
-for file in `ls -af $DIRFROM`
+skipfiles='^.#|.*\.tc|~$|\.bak$|^core$|\.orig$|\.tar$|\.Z$|\.gz$|\.o$'
+
+for file in `ls -af $DIRFROM | egrep -v "$skipfiles"`
 do
     if [ ! -d $DIRFROM/$file ]
     then
