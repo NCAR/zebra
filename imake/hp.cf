@@ -17,6 +17,7 @@ XCOMM operating system:  OSName
 #endif
 #define LnCmd                  ln -s
 #define MvCmd                  mv -f
+#define StandardCppDefines     -P
 #define ExecableScripts        YES
 #define HasSockets             YES
 #define HasVFork               YES
