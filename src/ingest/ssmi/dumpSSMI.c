@@ -22,7 +22,7 @@
 
 # ifndef lint
 static char *rcsid = 
-	"$Id: dumpSSMI.c,v 1.2 1993-06-07 18:35:10 granger Exp $";
+	"$Id: dumpSSMI.c,v 1.3 1993-06-21 21:55:37 granger Exp $";
 # endif
 
 # include <time.h>
@@ -143,8 +143,8 @@ SSMI_Rec *rec;
  */
 {
 	int	i, t, clock;
-	char	*lo_types[5] = {"19V", "19H", "37V", "37H", "22V"};
-	char	*hi_types[2] = {"85V", "85H"};
+	static char *lo_types[5] = {"19V", "19H", "37V", "37H", "22V"};
+	static char *hi_types[2] = {"85V", "85H"};
 /*
  * Scan time
  */
