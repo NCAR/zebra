@@ -6,9 +6,7 @@
 #include "map.h"
 
 bool_t
-xdr_MapFlag(xdrs, objp)
-	register XDR *xdrs;
-	MapFlag *objp;
+xdr_MapFlag(register XDR *xdrs, MapFlag *objp)
 {
 
 	register long *buf;
@@ -19,9 +17,7 @@ xdr_MapFlag(xdrs, objp)
 }
 
 bool_t
-xdr_Polyline(xdrs, objp)
-	register XDR *xdrs;
-	Polyline *objp;
+xdr_Polyline(register XDR *xdrs, Polyline *objp)
 {
 
 	register long *buf;
@@ -42,9 +38,7 @@ xdr_Polyline(xdrs, objp)
 }
 
 bool_t
-xdr_Point(xdrs, objp)
-	register XDR *xdrs;
-	Point *objp;
+xdr_Point(register XDR *xdrs, Point *objp)
 {
 
 	register long *buf;
@@ -57,9 +51,7 @@ xdr_Point(xdrs, objp)
 }
 
 bool_t
-xdr_AltPoint(xdrs, objp)
-	register XDR *xdrs;
-	AltPoint *objp;
+xdr_AltPoint(register XDR *xdrs, AltPoint *objp)
 {
 
 	register long *buf;

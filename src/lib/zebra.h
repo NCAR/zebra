@@ -7,8 +7,13 @@
 #define	_ZEBRA_H_RPCGEN
 
 #include <rpc/rpc.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
- * $Id: zebra.h,v 2.1 1997-02-10 20:19:57 granger Exp $
+ * $Id: zebra.h,v 2.2 1997-07-10 22:04:24 granger Exp $
  *
  * XDR definitions and interface for basic zebra types and structures
  */
@@ -81,11 +86,27 @@ typedef enum AltUnitType AltUnitType;
 
 
 /* the xdr functions */
+
+#if defined(__STDC__) || defined(__cplusplus)
+extern  bool_t xdr_ZebraTime(XDR *, ZebraTime*);
+extern  bool_t xdr_ZebTime(XDR *, ZebTime*);
+extern  bool_t xdr_Location(XDR *, Location*);
+extern  bool_t xdr_ScaleInfo(XDR *, ScaleInfo*);
+extern  bool_t xdr_RGrid(XDR *, RGrid*);
+extern  bool_t xdr_AltUnitType(XDR *, AltUnitType*);
+
+#else /* K&R C */
 extern bool_t xdr_ZebraTime();
 extern bool_t xdr_ZebTime();
 extern bool_t xdr_Location();
 extern bool_t xdr_ScaleInfo();
 extern bool_t xdr_RGrid();
 extern bool_t xdr_AltUnitType();
+
+#endif /* K&R C */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_ZEBRA_H_RPCGEN */

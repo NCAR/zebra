@@ -1,4 +1,4 @@
-/*
+/* -*- C -*-
  * Imakefile for the zebra library.
  */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.24 1997-06-10 18:58:28 burghart Exp $ */
+/* $Id: Imakefile,v 1.25 1997-07-10 22:04:22 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -96,15 +96,8 @@ SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
 /*
  * rpcgen rules
  */
-$(RPCZEBRA): $(ZEBRA.x)
-	@for x in $(ZEBRA.x); do \
-	(set -x; rpcgen $(RPCGENFLAGS) $$x); done
-
-$(RPCMAP): $(MAP.x)
-	@for x in $(MAP.x); do \
-	(set -x; rpcgen $(RPCGENFLAGS) $$x); done
-
-depend:: $(RPCTARGETS)
+XDRTarget(zebra)
+XDRTarget(map)
 
 InstallLibrary (Zebra, $(LIBDIR))
 

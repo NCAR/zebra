@@ -5,7 +5,7 @@
 
 #include "zebra.h"
 /*
- * $Id: zebra_xdr.c,v 2.1 1997-02-10 20:19:58 granger Exp $
+ * $Id: zebra_xdr.c,v 2.2 1997-07-10 22:04:25 granger Exp $
  *
  * XDR definitions and interface for basic zebra types and structures
  */
@@ -16,9 +16,7 @@
  */
 
 bool_t
-xdr_ZebraTime(xdrs, objp)
-	register XDR *xdrs;
-	ZebraTime *objp;
+xdr_ZebraTime(register XDR *xdrs, ZebraTime *objp)
 {
 
 	register long *buf;
@@ -31,9 +29,7 @@ xdr_ZebraTime(xdrs, objp)
 }
 
 bool_t
-xdr_ZebTime(xdrs, objp)
-	register XDR *xdrs;
-	ZebTime *objp;
+xdr_ZebTime(register XDR *xdrs, ZebTime *objp)
 {
 
 	register long *buf;
@@ -47,9 +43,7 @@ xdr_ZebTime(xdrs, objp)
  */
 
 bool_t
-xdr_Location(xdrs, objp)
-	register XDR *xdrs;
-	Location *objp;
+xdr_Location(register XDR *xdrs, Location *objp)
 {
 
 	register long *buf;
@@ -67,9 +61,7 @@ xdr_Location(xdrs, objp)
  */
 
 bool_t
-xdr_ScaleInfo(xdrs, objp)
-	register XDR *xdrs;
-	ScaleInfo *objp;
+xdr_ScaleInfo(register XDR *xdrs, ScaleInfo *objp)
 {
 
 	register long *buf;
@@ -89,9 +81,7 @@ xdr_ScaleInfo(xdrs, objp)
 	/* Dimensions			*/
 
 bool_t
-xdr_RGrid(xdrs, objp)
-	register XDR *xdrs;
-	RGrid *objp;
+xdr_RGrid(register XDR *xdrs, RGrid *objp)
 {
 
 	register long *buf;
@@ -116,9 +106,7 @@ xdr_RGrid(xdrs, objp)
  */
 
 bool_t
-xdr_AltUnitType(xdrs, objp)
-	register XDR *xdrs;
-	AltUnitType *objp;
+xdr_AltUnitType(register XDR *xdrs, AltUnitType *objp)
 {
 
 	register long *buf;

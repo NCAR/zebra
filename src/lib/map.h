@@ -7,8 +7,13 @@
 #define	_MAP_H_RPCGEN
 
 #include <rpc/rpc.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
- * $Id: map.h,v 2.1 1997-02-10 20:19:55 granger Exp $
+ * $Id: map.h,v 2.2 1997-07-10 22:04:23 granger Exp $
  *
  * Definition of machine-independent binary map format.
  */
@@ -68,9 +73,23 @@ void MapClose (MapFile *mf);
 
 
 /* the xdr functions */
+
+#if defined(__STDC__) || defined(__cplusplus)
+extern  bool_t xdr_MapFlag(XDR *, MapFlag*);
+extern  bool_t xdr_Polyline(XDR *, Polyline*);
+extern  bool_t xdr_Point(XDR *, Point*);
+extern  bool_t xdr_AltPoint(XDR *, AltPoint*);
+
+#else /* K&R C */
 extern bool_t xdr_MapFlag();
 extern bool_t xdr_Polyline();
 extern bool_t xdr_Point();
 extern bool_t xdr_AltPoint();
+
+#endif /* K&R C */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_MAP_H_RPCGEN */
