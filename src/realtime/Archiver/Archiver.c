@@ -24,6 +24,7 @@
 
 
 # include <copyright.h>
+# include <unistd.h>
 # include <string.h>
 # include <stdio.h>
 # include <fcntl.h>
@@ -51,7 +52,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.30 1995-04-20 07:55:30 granger Exp $")
+RCSID ("$Id: Archiver.c,v 1.31 1995-05-04 05:54:50 granger Exp $")
 
 /*
  * Issues:
@@ -264,8 +265,10 @@ static void	Die FP ((void));
 static int	Handler FP ((Message *));
 static int	xevent FP ((int));
 static void	Sync FP ((void));
+#ifdef notdef
 static void	PollWhileSuspended FP((int msg_fd));
 static void	check_messages FP((int msg_fd));
+#endif
 
 /*-- Xt callbacks --*/
 static void	Finish FP ((void));
@@ -283,6 +286,7 @@ static void	WriteEOF FP ((void));
 static void	SpinOff FP ((void));
 static int	EjectEOD FP ((void));
 static void	MountEOD FP ((void));
+static int	netread FP ((int fd, char *dest, int len));
 
 /*-- Timer event handlers --*/
 static void	TimerSaveFiles FP ((ZebTime *zt));
@@ -306,6 +310,7 @@ static void	FinishFinishing FP((int error));
 /*---------------------------------------------------------------------*/
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -358,6 +363,7 @@ char **argv;
  */
 	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xevent);
 	msg_await ();
+	return (-9);
 }
 
 
@@ -480,7 +486,7 @@ Usage(prog, argc, argv)
 			"-output <dir>",DEF_OUTPUTDIR);
    fprintf(stderr,"   %-20s Optical disk mount name (%s)\n",
 			"-n <name>",DEF_MOUNTNAME);
-   fprintf(stderr,"   %-20s Minimum required disk size in kilobytes (%d)\n",
+   fprintf(stderr,"   %-20s Minimum required disk size in kilobytes (%li)\n",
 			"-k <kb>", DEF_MINDISK);
 
    fprintf(stderr,"\nDefault values are shown in parentheses.\n");
@@ -669,11 +675,6 @@ Finish ()
  * Finish things out.
  */
 {
-	char datafile[120];
-	ZebTime	zt;
-	int	year,month,day,hour,minute;
-	int	status = 0;
-
 	if (DeviceFD < 0)
 	{
 	    switch ( ArchiveMode )
@@ -737,7 +738,7 @@ ActionButton ()
 					 * cancels it */
 	Arg args[2];
 	ZebTime current, zt;
-	int year, month, day, hour, min, sec;
+	int year, month, day;
 	int status;
 
 /*
@@ -859,7 +860,7 @@ LoadFileList ()
 	 * Split apart the entry.
 	 */
 		if ((colon = strchr (pname, ':')) == 0 || 
-		  sscanf (colon + 1, "%d %d", &d.ds_yymmdd, &d.ds_hhmmss) != 2)
+		  sscanf(colon+1, "%li %li", &d.ds_yymmdd, &d.ds_hhmmss) != 2)
 		{
 			msg_ELog (EF_PROBLEM, "Bad %s line: %s",
 				  DUMPED_FILES, pname);
@@ -1375,8 +1376,10 @@ char *cmd;
 	static char fbuf[BLOCKSIZE];
 	int rstatus, nb, tnb = 0;
 	char toggle;
+#ifdef notdef
 	int msg_fd = msg_get_fd(); /* Keeping message fd here avoids 
 			  	    * repeated requests for it when polling */
+#endif
 # ifdef hpux
 	int fd = pfp->__fileL;	/* HP weirdness -- untested */
 # else
@@ -1416,6 +1419,7 @@ char *cmd;
 		 */
 		if (toggle)
 		{
+#ifdef notdef
 		   xevent (0);
 		   check_messages(msg_fd);
 		   if (Suspended)	 /* we must poll msg and X until
@@ -1423,6 +1427,16 @@ char *cmd;
 		   {
 			PollWhileSuspended(msg_fd);
 		   }
+#endif
+		   msg_ELog(EF_DEBUG,"polling for end of suspension in write");
+		   /*
+		    * Handle messages and X events until one of them changes
+		    * our suspended state.  The timeout can be large since
+		    * each event handled will cause msg_poll() to return and
+		    * the Suspended condition to be tested.
+		    */
+		   while (Suspended)
+			   msg_poll (300);
 		}
 	}
 /*
@@ -1530,6 +1544,7 @@ Message *msg;
 }
 
 
+#ifdef notdef
 /*
  * Poll for and then handle any messages from the message handler
  */
@@ -1547,13 +1562,14 @@ check_messages(fd)
 		msg_incoming(fd);
 	}
 }
+#endif
 
-
+#ifdef notdef
 /*
  * Poll message fd and X fd and handle any messages as long
- * as Suspended remains true.  Note the built-in 1 second delay
- * in the poll to reduce system cpu usage but maintain handling
- * of X events
+ * as Suspended remains true.  Hopefully the 1 second delay
+ * in the poll reduces system cpu usage but maintains pseudo-timely
+ * handling of X events.
  */
 static void
 PollWhileSuspended(fd)
@@ -1580,7 +1596,7 @@ PollWhileSuspended(fd)
 		xevent(0);
 	}
 }
-
+#endif
 
 
 static void
@@ -1641,7 +1657,7 @@ FILE *fp;
  * Write out a single file date.
  */
 {
-	fprintf (fp, "%s: %d %d\n", sym, v->us_v_date.ds_yymmdd,
+	fprintf (fp, "%s: %li %li\n", sym, v->us_v_date.ds_yymmdd,
 			v->us_v_date.ds_hhmmss);
 	return (TRUE);
 }
@@ -1649,10 +1665,11 @@ FILE *fp;
 
 
 
-int
+static int
 netread (fd, dest, len)
-int fd, len;
+int fd;
 char *dest;
+int len;
 /*
  * Read a full len from the link.
  */
