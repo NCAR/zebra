@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.2 1990-04-05 14:23:41 corbet Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.3 1990-04-06 10:40:23 corbet Exp $";
 /*
  * The tag structure
  */
@@ -192,6 +192,7 @@ char *ctag;
  */
 	ps_out_s (ptp, "grestore\n");
 	ptp->pt_winset = FALSE;
+	ptp->pt_pixsize = -1;
 /*
  * Do a page eject if we have filled all the windows
  */
