@@ -31,7 +31,7 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.10 1998-10-28 21:22:03 corbet Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.11 2000-11-08 23:49:50 granger Exp $")
 
 # ifdef MAP_PROJECTIONS
 static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
@@ -253,21 +253,31 @@ float *lat, *lon;
 	char *space;
 	char *c;
 	int param;
+	Location loc;
 /*
  * Figure out what projection they want.
  */
 	if (! pda_Search (Pd, "global", "projection", NULL, proj, SYMT_STRING))
 		strcpy (proj, "zebra");
 /*
- * Get the origin and plot limits
+ * Get the origin and plot limits.  Allow for the common location format
+ * first before reverting to the original unique forms -lat and -lon.
  */
-	ok = pda_ReqSearch (Pd, "global", "origin-lat", NULL, (char *) lat, 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "origin-lon", NULL, (char *) lon, 
-		SYMT_FLOAT);
+	ok = 1;
+	if (GetLocation ("origin", &PlotTime, &loc))
+	{
+	    *lat = loc.l_lat;
+	    *lon = loc.l_lon;
+	}
+	else
+	{
+	    ok &= pda_ReqSearch (Pd, "global", "origin-lat", NULL, 
+				(char *) lat, SYMT_FLOAT);
+	    ok &= pda_ReqSearch (Pd, "global", "origin-lon", NULL,
+				 (char *) lon, SYMT_FLOAT);
+	}
 	ok &= pda_ReqSearch (Pd, "global", "x-min", NULL, (char *) &Xlo,
 			SYMT_FLOAT);
-
 	ok &= pda_ReqSearch (Pd, "global", "x-max", NULL, (char *) &Xhi,
 			SYMT_FLOAT);
 	ok &= pda_ReqSearch (Pd, "global", "y-min", NULL, (char *) &Ylo,
