@@ -5,8 +5,6 @@
 # include <fcntl.h>
 # include <sys/types.h>
 # include <sys/file.h>
-
-
 /*
  * Kludge: static info kept when emulating async bio operations, to be
  * returned by bio_wait.
@@ -14,7 +12,11 @@
 static int Status, Len;
 
 # define BLOCK_SIZE 512
-
+/*
+ * lun type definitions
+ */
+# define LUN_LOCAL	1
+# define LUN_NETDISK	2
 
 int bio_open (file, len, alq)
 char *file;
@@ -28,12 +30,21 @@ int *len, *alq;
 /*
  * Copy the (fortran-compatible) string over.
  */
- 	strncpy (fname, file, *len);
+	strncpy (fname, file, *len);
 	fname[*len] = '\0';
+/*
+ * Check to see if the file is on another machine
+ */
+	if (strchr (fname, ':'))
+	{
+		if ((lun = cli_bio_open (fname)) < 0)
+			return (lun);
+		return (lun_assign (lun, LUN_NETDISK));
+	}
 /*
  * Make sure the file exists.
  */
- 	if (access (fname, F_OK))
+	if (access (fname, F_OK))
 		return (-1);
 /*
  * Open the file.
@@ -43,7 +54,7 @@ int *len, *alq;
 		perror (fname);
 		return (-2);
 	}
-	return (lun);
+	return (lun_assign (lun, LUN_LOCAL));
 }
 
 
@@ -64,9 +75,18 @@ int *len, *alq;
  	strncpy (fname, file, *len);
 	fname[*len] = '\0';
 /*
+ * On this machine?
+ */
+	if (strchr (fname, ':'))
+	{
+		if ((lun = cli_bio_view (fname)) < 0)
+			return (lun);
+		return (lun_assign (lun, LUN_NETDISK));
+	}
+/*
  * Make sure the file exists.
  */
- 	if (access (fname, F_OK))
+	if (access (fname, F_OK))
 		return (-1);
 /*
  * Open the file.
@@ -76,7 +96,7 @@ int *len, *alq;
 		perror (fname);
 		return (-2);
 	}
-	return (lun);
+	return (lun_assign (lun, LUN_LOCAL));
 }
 
 
@@ -98,6 +118,15 @@ int *len, *alloc, *extend;
  	strncpy (fname, file, *len);
 	fname[*len] = '\0';
 /*
+ * On this machine?
+ */
+	if (strchr (fname, ':'))
+	{	
+		if ((lun = cli_bio_create (fname, alloc, extend)) < 0)
+			return (lun);
+		return (lun_assign (lun, LUN_NETDISK));
+	}
+/*
  * Open the file.
  */
 	if ((lun = open (fname, O_CREAT | O_RDWR | O_TRUNC, 0777)) < 0)
@@ -105,7 +134,7 @@ int *len, *alloc, *extend;
 		perror (fname);
 		return (-2);
 	}
-	return (lun);
+	return (lun_assign (lun, LUN_LOCAL));
 }
 
 
@@ -127,6 +156,15 @@ int *len, *alloc, *extend;
  	strncpy (fname, file, *len);
 	fname[*len] = '\0';
 /*
+ * On this machine?
+ */
+	if (strchr (fname, ':'))
+	{
+		if ((lun = cli_bio_temp (fname, alloc, extend)) < 0)
+			return (lun);
+		return (lun_assign (lun, LUN_NETDISK));
+	}
+/*
  * Open the file.
  */
 	if ((lun = open (fname, O_CREAT | O_RDWR | O_TRUNC, 0777)) < 0)
@@ -139,7 +177,7 @@ int *len, *alloc, *extend;
  * when the fd is closed.
  */
  	unlink (fname);
-	return (lun);
+	return (lun_assign (lun, LUN_LOCAL));
 }
 
 
@@ -151,7 +189,11 @@ int lun;
  * Close this file.
  */
 {
-	close (lun);
+	if (lun_type (lun) == LUN_NETDISK)
+		cli_bio_close (lun_lookup (lun));
+	else
+		close (lun_lookup (lun));
+	lun_deassign (lun);
 }
 
 
@@ -166,13 +208,20 @@ char *buffer;
  * Perform a block read.
  */
 {
-	int nread;
+	int nread, fileid;
+/*
+ * Check to see if this is a file on another machine
+ */
+	if (lun_type (*lun) == LUN_NETDISK)
+		return (cli_bio_read(lun_lookup(*lun), block, buffer, nbytes));
+	else
+		fileid = lun_lookup (*lun);
 /*
  * If a block number was given, seek to it.
  */
 	if (*block)
 	{
-		if (lseek (*lun, (off_t) ((*block-1)*BLOCK_SIZE), L_SET) < 0)
+		if (lseek (fileid, (off_t) ((*block-1)*BLOCK_SIZE), L_SET) < 0)
 		{
 			perror ("File seek");
 			return (-1);
@@ -181,7 +230,7 @@ char *buffer;
 /*
  * Now do the read.
  */
-	nread = read (*lun, buffer, *nbytes);
+	nread = read (fileid, buffer, *nbytes);
 	Len = nread;
 	if (nread < *nbytes)
 	{
@@ -200,7 +249,10 @@ int *lun;
  * Fake an async wait.
  */
 {
-	return (Len);
+	if (lun_type (*lun) == LUN_NETDISK)
+		return (cli_bio_wait (lun_lookup (*lun)));
+	else
+		return (Len);
 }
 
 
@@ -213,13 +265,18 @@ char *buffer;
  * Perform a block write.
  */
 {
-	int nwrite;
+	int nwrite, fileid;
+
+	if (lun_type (*lun) == LUN_NETDISK)
+		return(cli_bio_write(lun_lookup(*lun), block, buffer, nbytes));
+	else
+		fileid = lun_lookup (*lun);
 /*
  * If a block number was given, seek to it.
  */
 	if (*block)
 	{
-		if (lseek (*lun, (off_t) ((*block-1)*BLOCK_SIZE), L_SET) < 0)
+		if (lseek (fileid, (off_t) ((*block-1)*BLOCK_SIZE), L_SET) < 0)
 		{
 			perror ("Write File seek");
 			return (-1);
@@ -228,7 +285,7 @@ char *buffer;
 /*
  * Now do the write.
  */
-	nwrite = write (*lun, buffer, *nbytes);
+	nwrite = write (fileid, buffer, *nbytes);
 	Len = nwrite;
 	if (nwrite < *nbytes)
 	{
@@ -248,4 +305,60 @@ char *dfn;
  * Do nothing, for the time being.
  */
 {
+}
+
+
+
+
+
+static int Lun_table[256][2];
+static int Initialized = 0;
+# define LUN_FREE	0
+
+lun_type (lun)
+int lun;
+{
+	return (Lun_table[lun - 1][0]);
+}
+
+
+
+
+
+lun_lookup (lun)
+int lun;
+{
+	return (Lun_table[lun - 1][1]);
+}
+
+
+
+
+
+lun_assign (lun, type)
+int lun, type;
+{
+	int	i;
+
+	if (!Initialized)
+		memset ((char *) Lun_table, (char) LUN_FREE, 512);
+	for (i=0; i<255; i++)
+		if (Lun_table[i][0] == LUN_FREE)
+		{
+			Lun_table[i][0] = type;
+			Lun_table[i][1] = lun;
+			return (i + 1);
+		}
+	perror ("Out of space in Lun_table!");
+	return (0);
+}
+
+
+
+
+
+lun_deassign (lun)
+int lun;
+{
+	Lun_table[lun - 1][0] = LUN_FREE;
 }
