@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 1.1 1990-06-04 17:20:56 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 1.2 1990-06-07 11:04:41 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
@@ -39,9 +39,13 @@ static stbl EventHandlers = 0;
 # ifdef __STDC__
 	static EventResponse *Ue_FindResponse (char *);
 	static void Ue_EDMReport (XEvent *, char *);
+	static void Ue_ELocal (XEvent *, char *);
+	static void Ue_EMenu (XEvent *, char *);
 # else
 	static EventResponse *Ue_FindResponse ();
 	static void Ue_EDMReport ();
+	static void Ue_ELocal ();
+	static void Ue_EMenu ();
 # endif
 
 
@@ -91,6 +95,18 @@ struct dm_ebchange *dmsg;
 			strcpy (resp->er_data, bind->dmm_adata);
 			break;
 
+		   case AC_CommandText:
+		   	resp->er_handler = Ue_ELocal;
+			strcpy (resp->er_data, bind->dmm_adata);
+			break;
+
+		   case AC_PopupMenu:
+			uw_IWRealize (bind->dmm_adata, Graphics);
+			/* Ue_FixTransl (bind->dmm_adata, "<Btn3Down>"); */
+		   	resp->er_handler = Ue_EMenu;
+			strcpy (resp->er_data, bind->dmm_adata);
+			break;
+
 		   default:
 		   	msg_log ("Unimplemented action: %d", bind->dmm_action);
 			break;
@@ -101,6 +117,35 @@ struct dm_ebchange *dmsg;
 		v.us_v_ptr = (char *) resp;
 		usy_s_symbol (EventHandlers, bind->dmm_code, SYMT_POINTER, &v);
 	}
+}
+
+
+
+
+
+
+Ue_FixTransl (menu, button)
+char *menu, *button;
+/*
+ * Fix up the translations for this button to call this menu.
+ */
+{
+	char trbuf[200];
+	XtTranslations ttable;
+/*
+ * Generate the translation string.
+ */
+	sprintf (trbuf, "%s:	XawPositionSimpleMenu(%s)MenuPopup(%s)",
+		button, menu, menu);
+/*
+ * Parse it, and add it to our graphics widget.
+ */
+	ttable = XtParseTranslationTable (trbuf);
+	XtOverrideTranslations (Graphics, ttable);
+/*
+ * Now we return and throw away the ttable memory.  There doesn't seem to be
+ * a way around it.
+ */
 }
 
 
@@ -150,6 +195,41 @@ char *data;
 
 
 
+static void
+Ue_ELocal (event, data)
+XEvent *event;
+char *data;
+/*
+ * Execute the "data" as a local command.
+ */
+{
+	struct dm_event dme;
+
+	ui_perform (data);
+}
+
+
+
+
+static void
+Ue_EMenu (event, data)
+XEvent *event;
+char *data;
+/*
+ * Pop up this menu.
+ */
+{
+/*	uw_IWPopup (data); */
+	Widget uw_IWWidget ();
+	Widget w = uw_IWWidget (data);
+
+	XtCallActionProc (w, "XawPositionSimpleMenu", event, &data, 1);
+	XtCallActionProc (w, "MenuPopup", event, &data, 1);
+}
+
+
+
+
 
 
 void 
@@ -187,6 +267,12 @@ Cardinal *nparam;
 }
 
 
+
+
+void Ue_el ()
+{
+	msg_log ("E/L event");
+}
 
 
 
