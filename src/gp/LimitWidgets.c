@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.10 1992-07-22 16:20:59 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.11 1992-11-02 22:05:41 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1310,6 +1310,20 @@ lw_LoadStatus ()
 }
 
 
+
+
+char *
+lw_Status ()
+/*
+ * Return the current status string.
+ */
+{
+	return (OvStatus);
+}
+
+
+
+
 void
 lw_TimeStatus (comp, plat, t)
 char	*comp, *plat;
@@ -1318,14 +1332,7 @@ ZebTime *t;
  * Add a status line.
  */
 {
-	char *cp = OvStatus + strlen (OvStatus);
 	char fld[40];
-	time uitime;
-
-/*
- * Convert from ZebTime to UI time.
- */
-	TC_ZtToUI (t, &uitime);
 /*
  * Retrieve all necessary data.
  */
@@ -1336,9 +1343,10 @@ ZebTime *t;
 /*
  * Put together the text.
  */
-	sprintf (cp, "%-15s%-11s%-12s%2d:%02d:%02d\n", comp, plat, fld,
-		uitime.ds_hhmmss/10000, (uitime.ds_hhmmss/100) % 100,
-		uitime.ds_hhmmss % 100);
+	sprintf (OvStatus + strlen (OvStatus), "%-14s %-10s %-10s ", comp, 
+		plat, fld);
+	TC_EncodeTime (t, TC_Full, OvStatus + strlen (OvStatus));
+	strcat (OvStatus, "\n");
 }
 
 
