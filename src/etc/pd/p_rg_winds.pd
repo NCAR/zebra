@@ -13,6 +13,5 @@ p_rg_winds
 	color:		red
 	icon-left-menu:		standard-cap-left-menu
 	icon-right-menu:	rg-winds-right
-	icon:		meso_winds
 	limit-proc:	adj_arrow_scale
 	require:	winds, simple-color
