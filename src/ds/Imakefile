@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.6 1993-04-28 23:00:57 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1993-05-04 21:42:11 granger Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -35,10 +35,10 @@ DSLIBSRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c \
  */
 DCOBJS = DataChunk.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
 	dc_MetData.o dc_RGrid.o dc_Scalar.o dc_Transp.o dc_Attr.o \
-	dc_Location.o
+	dc_Location.o dc_NSpace.o
 DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c \
-	dc_Location.c
+	dc_Location.c dc_NSpace.c
 
 /*
  * For NetXfr:
@@ -49,7 +49,7 @@ NXOBJS = NetXfr.o nx_BCast.o nx_PktGrabber.o nx_DirImage.o
 /*
  * For debugging
  */
-TESTSRCS = dstest.c dctest.c
+TESTSRCS = dstest.c dctest.c nstest.c
 
 APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
 
@@ -107,6 +107,9 @@ BuildIncludes(DataStore.h ds_fields.h DataChunk.h,.,.)
  * will be listed by makedepend
  */
 TestProgramTarget(dctest,dctest.o $(DCOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+TestProgramTarget(nstest,nstest.o $(DSLIBOBJS) $(DCOBJS),$(DEPLIBS),
+		  $(LIBS),$(SYSLIBS))
 
 TestProgramTarget(dstest,dstest.o $(DSLIBOBJS) $(DCOBJS),
 		  $(DEPLIBS),$(LIBS),$(SYSLIBS))

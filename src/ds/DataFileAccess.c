@@ -35,7 +35,7 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.8 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.9 1993-05-04 21:42:11 granger Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -131,15 +131,21 @@ void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
  *	Create an appropriate name for a new file in directory, starting
  *	at the given time.
  *
- * f_CreateFile (fname, dfile, dc, tag)
+ * f_CreateFile (fname, dfile, dc, tag, details, ndetail)
  * char *fname;
  * DataFile *dfile;
  * DataChunk *dc;
  * void **tag;
+ * dsDetail *details;
+ * int ndetail;
  *
  *	Cause the given file to exist, returning TRUE and a tag if
  *	successful.  DC describes the current data put request, which
  *	should describe the layout of the file.
+ *
+ *	12/4/92 gg Added the dsDetail parameters.  As these are at the end
+ *	of the parameter list, they do not need to be explicitly named in calls
+ *	to the file format's create method.  But they're there if you need 'em.
  *
  * f_PutSample (dfile, dc, sample, wc)
  * int dfile, sample;
@@ -152,6 +158,18 @@ void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
  *		wc_Insert	Insert before an existing sample.
  *		wc_OverWrite	Overwrite an existing sample.
  *	Returns true iff the data write was successful.
+ *
+ * f_PutBlock (dfile, dc, sample, nsample, wc)
+ * int dfile;
+ * DataChunk *dc;
+ * int sample;
+ * int nsample;
+ * WriteCode wc;
+ *
+ * 	Write a block of 'nsample' samples, beginning at 'sample'
+ *	in the data chunk, using write code 'wc', into the file
+ * 	'dfile'.  A block is a contiguous series of samples
+ *	to be written to the same file.
  *
  * f_PutData (dfile, dobj, begin, end)  This is no longer real
  * int *dfile;
@@ -207,6 +225,7 @@ struct DataFormat
 	int (*f_MakeFileName) ();	/* Make new file name		*/
 	int (*f_CreateFile) ();		/* Create a new file		*/
 	int (*f_PutSample) ();		/* Put data to a file		*/
+	int (*f_PutBlock) ();		/* Write a block to a file	*/
 	int (*f_GetObsSamples) ();	/* Get observation samples	*/
 	int (*f_GetFields) ();		/* Get fields			*/
 	char *(*f_GetAttrs) ();		/* Get attributes		*/
@@ -220,6 +239,7 @@ extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
 extern int dnc_SyncFile (), dnc_InqPlat (), dnc_GetData ();
 extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
 extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutSample ();
+extern int dnc_PutBlock ();
 extern int dnc_GetFields (), dnc_GetObsSamples ();
 extern DataChunk *dnc_Setup ();
 
@@ -272,6 +292,7 @@ struct DataFormat Formats[] =
 	dnc_MakeFileName,		/* Make file name		*/
 	dnc_CreateFile,			/* Create a new file		*/
 	dnc_PutSample,			/* Write to file		*/
+	dnc_PutBlock,			/* Write block to a file	*/
 	dnc_GetObsSamples,		/* Get observation samples	*/
 	dnc_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
@@ -291,6 +312,7 @@ struct DataFormat Formats[] =
 	bf_MakeFileName,		/* Make file name		*/
 	bf_CreateFile,			/* Create a new file		*/
 	bf_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
 	___,				/* Get observation samples	*/
 	bf_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
@@ -310,6 +332,7 @@ struct DataFormat Formats[] =
 	drf_MakeFileName,		/* Make file name		*/
 	drf_CreateFile,			/* Create a new file		*/
 	drf_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
@@ -329,6 +352,7 @@ struct DataFormat Formats[] =
 	drf_MakeFileName,		/* Make file name		*/
 	drf_CreateFile,			/* Create a new file		*/
 	drf_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
@@ -351,6 +375,7 @@ struct DataFormat Formats[] =
 	zn_MakeFileName,		/* Make file name		*/
 	zn_CreateFile,			/* Create a new file		*/
 	zn_PutSample,			/* Write to file		*/
+	___,				/* Write block to a file	*/
 	zn_GetObsSamples,		/* Get observation samples	*/
 	zn_Fields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
@@ -605,6 +630,7 @@ DataObject *dobj;
 
 # endif
 
+
 int
 dfa_PutSample (dfile, dc, sample, wc)
 int dfile, sample;
@@ -618,6 +644,37 @@ WriteCode wc;
 	ds_GetFileStruct (dfile, &dfe);
 
 	return ((*Formats[dfe.df_ftype].f_PutSample) (dfile, dc, sample,wc));
+}
+
+
+int
+dfa_PutBlock (dfile, dc, sample, nsample, wc)
+int dfile;
+DataChunk *dc;
+int sample, nsample;
+WriteCode wc;
+/*
+ * If the file's format has a f_PutBlock() method, call it.
+ * Otherwise call dfa_PutSample() for each sample in the block.
+ */
+{
+	int i, result;
+	DataFile dfe;
+
+	ds_GetFileStruct (dfile, &dfe);
+	if (Formats[dfe.df_ftype].f_PutBlock)
+		return ((*Formats[dfe.df_ftype].f_PutBlock)
+			(dfile, dc, sample, nsample, wc));
+/*
+ * otherwise loop through the samples in the block
+ */
+	result = TRUE;
+	for (i = sample; i < sample + nsample; ++i)
+		result &= dfa_PutSample(dfile, dc, i, wc);
+/*
+ * Return FALSE if any of the dfa_PutSample() calls failed
+ */
+	return((result)?TRUE:FALSE);
 }
 
 
@@ -683,10 +740,12 @@ TimeSpec which;
 
 
 bool
-dfa_CreateFile (df, dc, t)
+dfa_CreateFile (df, dc, t, details, ndetail)
 int df;
 DataChunk *dc;
 ZebTime *t;
+dsDetail *details;
+int ndetail;
 /*
  * Cause this file to exist, if at all possible.
  */
@@ -706,7 +765,8 @@ ZebTime *t;
  * our success.
  */
 	if (! (*Formats[dfe.df_ftype].f_CreateFile) (dfa_FilePath (&p, &dfe),
-							&dfe, dc, &tag))
+						     &dfe, dc, &tag,
+						     details, ndetail))
 		return (FALSE);
 	dfa_AddOpenFile (df, &dfe, TRUE, tag);
 	return (TRUE);

@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.4 1993-04-21 22:22:19 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.5 1993-05-04 21:42:11 granger Exp $")
 
 
 /*
@@ -346,3 +346,136 @@ void *block;
 	memcpy (ade->aa_Data, block, len);
 	dc_AddADE (dc, ade, class, code, alen, TRUE);
 }
+
+
+
+
+
+int
+dca_GetNAttrs(dc, class, code)
+DataChunk *dc;
+DataClass class;
+int code;
+/*
+ * Get number of attrs in a chunk
+ */
+{
+	AttrADE *ade;
+	char *cp;
+	int n = 0;
+/*
+ * Look for our block.
+ */
+	if (! (ade = (AttrADE *) dc_FindADE (dc, class, code, NULL)))
+		return (0);
+/* 
+ * Now loop over the whole attribute block, counting the number of
+ * null-terminations we find
+ */
+	cp = ade->aa_Data;
+	while ((cp - ade->aa_Data) < ade->aa_Used)
+	{
+		for (; *cp != '\0'; cp++)
+			;
+		n++;
+		cp++;
+	}
+	return(n);
+}
+
+
+
+
+char **
+dca_GetAttrList(dc, class, code, pattern, values, natts)
+DataChunk *dc;
+DataClass class;
+int code;
+char *pattern;
+char **values[];
+int *natts;
+/*
+ * Generate an array of keys and corresponding values for the attributes of
+ * this class and code.  Returns the pointer to the array of key strings.
+ * And on return, *values points to the array of attribute values and
+ * *natts holds the number of attributes.  The key and values arrays will
+ * be NULL-terminated.  If natts or values is NULL, no values will be
+ * returned.  If pattern is non-NULL, only the keys which match the
+ * pattern, and their values, will be returned.  The arrays and the strings
+ * are stored locally, and are only valid until the next call of this
+ * function.  To copy the data for longer use, you'd have to copy the keys
+ * array, the values array, and all of the strings pointed to by each
+ * element of both of those arrays.  If there is an error or no atts,
+ * returns NULL, and 0 in *natts.  *natts will always return >= zero.
+ */
+{
+	static char *local_data = NULL;
+	static char **local_keys = NULL;
+	static char **local_vals = NULL;
+	int num_atts, count;
+	AttrADE *ade;
+	char *re_comp (), *re_exec (), *cp, *value;
+
+	if (natts)
+		*natts = 0;
+/*
+ * Look for our block.
+ */
+	if (! (ade = (AttrADE *) dc_FindADE (dc, class, code, NULL)))
+		return (NULL);
+/* 
+ * If we have a pattern, compile it now.
+ */
+	if (pattern)
+		re_comp (pattern);
+/*
+ * Get some memory. Rather than realloc we free and malloc since we
+ * we don't need to copy the old stuff.
+ */
+	if (local_data) free(local_data);
+	if (local_keys) free(local_keys);
+	if (local_vals)	free(local_vals);
+
+	num_atts = dca_GetNAttrs(dc, class, code);
+	if (! num_atts)
+		return (NULL);
+	local_data = (char *)malloc(ade->aa_Used);
+	local_keys = (char **)malloc((num_atts+1) * sizeof(char *));
+	local_vals = (char **)malloc((num_atts+1) * sizeof(char *));
+	memcpy(local_data, ade->aa_Data, ade->aa_Used);
+/*
+ * Go through the local copy of the attributes, collecting keys and 
+ * values and converting '=' to '\0'
+ */
+	cp = local_data;
+	count = 0;
+	while ((cp - local_data) < ade->aa_Used)
+	{
+	/*
+	 * Find the associated value for this key.
+	 */
+		for (value = cp; *value != '='; value++)
+			;
+		*value++ = '\0';
+		if (! pattern || re_exec (cp))
+		{
+			local_keys[count] = cp;
+			local_vals[count] = value;
+			count++;
+		}
+	/*
+	 * Move on to the next one.
+	 */
+		for (cp = value; *cp; cp++)
+			;
+		cp++;
+	}
+	local_vals[count] = NULL;
+	local_keys[count] = NULL;
+	if (natts) *natts = count;
+	if (values) *values = local_vals;
+	if (! count)
+		return(NULL);
+	return (local_keys);
+}
+

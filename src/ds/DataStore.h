@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.8 1993-04-26 16:00:50 corbet Exp $
+ * $Id: DataStore.h,v 3.9 1993-05-04 21:42:11 granger Exp $
  *
  * Public data store definitions.
  */
@@ -25,7 +25,7 @@
  * maintenance or updates for its software.
  */
 
-# define MAXFIELD	75	/* Max fields in one data object	*/
+# define MAXFIELD	100	/* Max fields in one data object	*/
 
 /*
  * Possible data organizations.
@@ -101,16 +101,28 @@ typedef enum
 } UpdCode;	
 
 
-/*
+/*----------------------------------------------------------------
  * The "detail" mechanism for ds_Fetch.
  */
 typedef struct _dsDetail
 {
-	char	*dd_Name;		/* String identifier 	*/
-	SValue	dd_V;			/* Associated value	*/
+	char	*dd_Name;	/* String identifier 	*/
+	SValue	dd_V;		/* Associated value	*/
 } dsDetail;
 
-
+/*----------------------------------------------------------------
+ * Definitions of recognized detail identifiers.
+ * File-format-specific ids should indicate the format in the name, 
+ * e.g. NC for netCDF.
+ */
+/* 
+ * These identifiers, if found in a detail list, specify the type of the
+ * time_offset variable in netCDF files, either NC_FLOAT or NC_DOUBLE.
+ * The SValue of the detail is ignored.  The appearance of both in the
+ * same detail list is undefined.
+ */
+# define DD_NC_TIME_FLOAT	"dd_time_float" 
+# define DD_NC_TIME_DOUBLE	"dd_time_double"
 
 /*
  * DataChunks -- the new "data object" format.
@@ -142,8 +154,8 @@ typedef enum _DataClass
 	DCC_RGrid	= 7,
 	DCC_Image	= 8,
 	DCC_Location	= 9,
-
-	/* DCC_Text 	= 10, */
+	DCC_NSpace	= 10,
+	/* DCC_Text 	= 11, */
 } DataClass;
 
 /*
@@ -179,7 +191,10 @@ typedef struct _AuxDataEntry
 /*
  * Class-specific defines.
  */
-# define DC_MaxField	75	/* MetData -- max # of fields		*/
+# define DC_MaxField	MAXFIELD	/* MetData -- max # of fields	*/
+# define DC_MaxDimension	30	/* Maximum number of dimensions */
+# define DC_MaxDimName		32	/* Max name length, incl \0	*/
+
 
 /*
  * Definitions of basic routines dealing with data chunks.
@@ -198,6 +213,7 @@ char *		dc_GetGlobalAttr FP ((DataChunk *, char *));
 int		dc_ProcessAttrs FP ((DataChunk *, char *, int (*) ()));
 void		*dc_GetGlAttrBlock FP ((DataChunk *, int *));
 void		dc_SetGlAttrBlock FP ((DataChunk *, void *, int));
+int		dc_GetNGlobalAttrs FP ((DataChunk *));
 /*
  * Transparent class methods.
  */
@@ -215,7 +231,6 @@ void		dc_SetSampleAttr FP ((DataChunk *, int, char *, char *));
 char		*dc_GetSampleAttr FP ((DataChunk *, int, char *));
 void		*dc_GetSaAttrBlock FP ((DataChunk *, int, int *));
 void		dc_SetSaAttrBlock FP ((DataChunk *, int, void *, int));
-
 /*
  * Boundary class methods.
  */
@@ -235,6 +250,15 @@ void		dc_AddMData FP((DataChunk *, ZebTime *, FieldId, int, int,
 			int, DataPtr));
 DataPtr		dc_GetMData FP((DataChunk *, int, FieldId, int *));
 FieldId		*dc_GetFields FP((DataChunk *, int *));
+void		dc_SetFieldAttr FP ((DataChunk *, FieldId, char *, char *));
+char		*dc_GetFieldAttr FP ((DataChunk *, FieldId, char *));
+void		*dc_GetFiAttrBlock FP ((DataChunk *, FieldId, int *));
+void		dc_SetFiAttrBlock FP ((DataChunk *, FieldId, void *, int));
+int		dc_GetNFieldAttrs FP ((DataChunk *, FieldId));
+char		**dc_GetFieldAttrList FP ((DataChunk *, FieldId, char *,
+					   char **values[], int *));
+int		dc_ProcessFieldAttrs
+	            FP ((DataChunk *, FieldId, char *, int (*)()));
 /*
  * Scalar class.
  */
@@ -271,6 +295,75 @@ void		dc_ImgAddImage FP ((DataChunk *, int, FieldId, Location *,
 			RGrid *, ZebTime *, unsigned char *, int));
 unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
 			RGrid *, int *, ScaleInfo *));
+
+/*-------------------------------------------------------------------------
+ * The NSpace class
+ *-------------------------------------------------------------------------
+ * Numerical and Boolean parameters, except for the size of a dimension,
+ * will be ints.  Dimension sizes and lengths of data arrays will always be
+ * unsigned long.  The 'length' of a data array is the number of floating
+ * point elements.  This will be true for both definition and information
+ * retrieval.  For retrieval, strings will be returned as pointers to
+ * memory inside the datachunk.  The memory pointed to will be valid for
+ * the life of the datachunk, but it SHOULD NOT be freed or modified.  Any
+ * parameters being passed by reference to hold return values can be passed
+ * as NULL, in which case nothing will be returned for that parameter.
+ *
+ * Interface functions from the NSpace parent class, MetData, can also be
+ * useful, but only for retrieving information and data, and only once
+ * definition has been completed:
+ *
+ * dc_GetNField (dc) 	-- For getting the number of fields (aka variables).
+ * dc_GetFields (...)	-- For getting the fields and their field IDs.
+ * dc_GetMData (...)	-- For retrieving data from a dynamic field at a
+ *			   particular sample as an opaque block of bytes.
+ *			   There is no way to retrieve static field data
+ *			   outside of the NSpace interface.
+ * dc_SetBadval(...), 
+ * dc_GetBadval (...)	-- Bad values associated with fields (aka variables);
+ *			   the bad value can only be set once definition is
+ *			   complete.
+ *---------------------------------------------------------------------------*/
+/*
+ * NSpace Definition interface
+ */
+void dc_NSDefineField FP((DataChunk *dc, FieldId field, int ndims, 
+			  char **dimnames,
+			  unsigned long *dimsizes,
+			  int is_static));
+void dc_NSDefineDimension FP((DataChunk *dc, FieldId field, 
+			      unsigned long size));
+
+void dc_NSDefineVariable FP((DataChunk *dc, FieldId field, 
+			     int ndims, FieldId *dims,
+			     int is_static));
+void dc_NSDefineComplete FP((DataChunk *dc));
+int dc_NSDefineIsComplete FP((DataChunk *dc));
+/*
+ * NSpace Information retrieval
+ */
+int dc_NSGetAllDimensions FP((DataChunk *dc, char **names, FieldId *fields, 
+			      unsigned long *sizes));
+int dc_NSGetAllVariables FP((DataChunk *dc, FieldId *fields, int *ndims));
+int dc_NSGetField FP((DataChunk *dc, FieldId field, int *ndims, 
+		      char **names, unsigned long *sizes, int *is_static));
+int dc_NSGetDimension FP((DataChunk *dc, FieldId dimn, char **name,
+			  unsigned long *size));
+int dc_NSGetVariable FP((DataChunk *dc, FieldId field, int *ndims, 
+			  FieldId *dims, int *is_static));
+int dc_NSIsStatic FP((DataChunk *dc, FieldId field));
+/*
+ * NSpace Data addition
+ */
+void dc_NSAddSample FP((DataChunk *dc, ZebTime *when, int sample, 
+			FieldId field, float *values));
+void dc_NSAddStatic FP((DataChunk *dc, FieldId field, float *values));
+/*
+ * NSpace Data retrieval
+ */
+float *dc_NSGetSample FP((DataChunk *dc, int sample, FieldId field, 
+			  unsigned long *size));
+float *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
 
 
 /**************************************************************************
@@ -312,6 +405,7 @@ typedef struct s_DataSrcInfo
 	DataSrcType dsrc_Type;		/* Type of this data source	*/
 	int	dsrc_FFile;		/* First file ID		*/
 } DataSrcInfo;
+
 
 
 /*

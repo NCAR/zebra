@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.2 1992-06-09 19:28:05 corbet Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.3 1993-05-04 21:42:11 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -57,7 +57,7 @@ RawDCClass RawMethods =
  */
 extern RawDCClass TranspMethods, BoundaryMethods, MetDataMethods;
 extern RawDCClass ScalarMethods, IRGridMethods, RGridMethods;
-extern RawDCClass ImageMethods, LocationMethods;
+extern RawDCClass ImageMethods, LocationMethods, NSpaceMethods;
 
 static RawDCClass *ClassTable[] =
 {
@@ -71,6 +71,7 @@ static RawDCClass *ClassTable[] =
 	&RGridMethods,		/* DCC_RGRID		*/
 	&ImageMethods,		/* DCC_Image		*/
 	&LocationMethods,	/* DCC_Location		*/
+	&NSpaceMethods,		/* DCC_NSpace		*/
 };
 
 
@@ -87,8 +88,7 @@ DataClass class, superclass;
 	while (class != DCC_None)
 	{
 		if (class == superclass)
-
-return (TRUE);
+			return (TRUE);
 		class = ClassTable[class]->dcm_Parent;
 	}
 	return (FALSE);
@@ -611,4 +611,18 @@ int len;
  */
 {
 	dca_PutBlock (dc, DCC_Raw, ST_GLOBATTR, block, len);
+}
+
+
+
+
+int
+dc_GetNGlobalAttrs(dc)
+DataChunk *dc;
+/*
+ * Return the number of global 
+ * attributes in a datachunk.  
+ */
+{
+	return (dca_GetNAttrs (dc, DCC_Raw, ST_GLOBATTR));
 }

@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.3 1993-04-26 16:00:50 corbet Exp $"
+ * "$Id: dslib.h,v 3.4 1993-05-04 21:42:11 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -78,7 +78,7 @@ int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
 void	dfa_MakeFileName FP ((Platform *, ZebTime *, char *));
 GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
 void	dgl_ReturnList FP ((GetList *));
-bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *));
+bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
 void	dfa_NoteRevision FP ((Platform *, int));
 char	*dfa_GetAttr FP ((int, ZebTime *, int *));
 int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));

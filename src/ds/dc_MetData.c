@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.3 1992-10-27 18:34:53 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.4 1993-05-04 21:42:11 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -62,7 +62,8 @@ typedef struct _FieldTOC
 /*
  * Our class-specific AuxData structure types.
  */
-# define ST_FLDINFO	1000
+# define ST_FLDINFO		1000
+# define ST_FIELDATTR(x)	(2000+(x))
 
 
 /*
@@ -77,6 +78,7 @@ static void	dc_CopyData FP((DataChunk *, FldInfo *, int, int, int,
 static void	dc_DumpMD FP((DataChunk *));
 static void	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, ZebTime *,
 			int, int, int, DataPtr));
+static int	dc_PrintFiAttr FP((char *key, char *value));
 
 RawDCClass MetDataMethods =
 {
@@ -669,6 +671,131 @@ FieldId field;
 
 
 
+void
+dc_SetFieldAttr (dc, fid, key, value)
+DataChunk *dc;
+FieldId fid;
+char *key, *value;
+/*
+ * Store a field attribute into this data chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetFieldAttr"))
+		return;
+	dca_AddAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key, value);
+}
+
+
+
+
+char *
+dc_GetFieldAttr (dc, fid, key)
+DataChunk *dc;
+FieldId fid;
+char *key;
+/*
+ * Look up a field attribute.
+ */
+{
+	char *value;
+
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttr"))
+		return;
+	if (value = dca_GetAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key))
+		return(value);
+	return (dc_GetGlobalAttr (dc, key));
+}
+
+
+
+
+void *
+dc_GetFiAttrBlock (dc, fid, len)
+DataChunk *dc;
+FieldId fid;
+int *len;
+/*
+ * Get the per-field attributes out as an opaque chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFiAttrBlock"))
+		return;
+	return (dca_GetBlock (dc, DCC_MetData, ST_FIELDATTR(fid), len));
+}
+
+
+
+
+void
+dc_SetFiAttrBlock (dc, fid, block, len)
+DataChunk *dc;
+FieldId fid;
+void *block;
+int len;
+/*
+ * Store a per-field attribute block back.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetFiAttrBlock"))
+		return;
+	dca_PutBlock (dc, DCC_MetData, ST_FIELDATTR(fid), block, len);
+}
+
+
+
+
+int
+dc_ProcessFieldAttrs(dc, fid, pattern, func)
+DataChunk *dc;
+FieldId fid;
+char *pattern;
+int (*func) ();
+/*
+ * Pass all of the attributes of this fid to the function
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "ProcessFieldAttrs"))
+		return(0);
+	return (dca_ProcAttrs (dc, DCC_MetData, ST_FIELDATTR(fid),
+			       pattern, func));
+}
+
+
+
+
+int
+dc_GetNFieldAttrs(dc,fid)
+DataChunk *dc;
+FieldId fid;
+/*
+ * Return the number of field attributes in a datachunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetNFieldAttrs"))
+		return (0);
+	return(dca_GetNAttrs(dc, DCC_MetData, ST_FIELDATTR(fid)));
+}
+
+
+
+
+char **
+dc_GetFieldAttrList(dc, fid, pattern, values, natts)
+DataChunk *dc;
+FieldId fid;
+char *pattern;
+char **values[];
+int *natts;
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttrList"))
+		return (NULL);
+	return(dca_GetAttrList(dc, DCC_MetData, ST_FIELDATTR(fid),
+			       pattern, values, natts));
+}
+
+
+
+
 static void
 dc_DumpMD (dc)
 DataChunk *dc;
@@ -696,6 +823,34 @@ DataChunk *dc;
 		finfo->fi_NField, finfo->fi_Uniform ? "True" : "False",
 		finfo->fi_Size);
 	for (i = 0; i < finfo->fi_NField; i++)
+	{
 		printf (" %s", F_GetName (finfo->fi_Fields[i]));
+	}
 	printf ("\n");
+	printf ("Field Attributes:\n");
+	for (i = 0; i < finfo->fi_NField; i++)
+	{
+		if (dca_GetNAttrs(dc, DCC_MetData,
+				  ST_FIELDATTR(finfo->fi_Fields[i])) > 0)
+		{
+			printf ("\t%s:\t", F_GetName (finfo->fi_Fields[i]));
+			dca_ProcAttrs (dc, DCC_MetData, 
+				       ST_FIELDATTR(finfo->fi_Fields[i]), 
+				       NULL, dc_PrintFiAttr);
+			printf ("\n");
+		}
+	}
+}
+
+
+
+static int
+dc_PrintFiAttr (key, value)
+char *key, *value;
+/*
+ * Print out a field attribute
+ */
+{
+	printf (" %s=%s;", key, value);
+	return 0;
 }

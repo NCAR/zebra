@@ -146,7 +146,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.4 1993-05-04 18:54:08 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.2 1993-05-04 21:42:11 granger Exp $")
 #endif
 
 /*

@@ -20,14 +20,15 @@
  */
 
 
-#include "../include/defs.h"
-#include "../include/message.h"
+#include "defs.h"
+#include "message.h"
 #include "DataStore.h"
 #include "dsPrivate.h"
 # define NO_SHM
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.7 1993-05-04 17:06:14 corbet Exp $")
-
+#ifndef lint
+MAKE_RCSID ("$Id: Appl.c,v 3.8 1993-05-04 21:42:11 granger Exp $")
+#endif
 
 /*
  * Local stuff.
@@ -41,7 +42,8 @@ static int      ds_AttrCheck FP ((int, ZebTime *, char *));
 static int 	ds_FindDest FP ((DataChunk *, Platform *, int, int *,
 			WriteCode *, int));
 static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
-static int	ds_MakeNewFile FP ((DataChunk *, Platform *, int));
+static int	ds_MakeNewFile FP ((DataChunk *, Platform *, int sample, 
+				    dsDetail *details, int ndetail));
 static int	ds_RequestNewDF FP ((PlatformId, char *, ZebTime *));
 static int	ds_GetNDFResp FP ((struct message *,
 				struct dsp_R_CreateFile *));
@@ -58,6 +60,8 @@ static int	ds_AwaitDF FP ((Message *, int *));
 static void	ds_ZapCache FP ((DataFile *));
 static void	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int));
+static int	ds_FindBlock FP((int dfile, DataChunk *dc, Platform *p,
+				 int sample, WriteCode wc, int *nsample));
 
 /*
  * The application notification table.
@@ -816,7 +820,7 @@ dsDetail *details;
  */
 {
 	DataChunk *dc;
-	GetList *get, *gp;
+	GetList *get;
 /*
  * Make the get list describing where this data has to come from.
  */
@@ -944,7 +948,7 @@ int ndetail;
  * The storage interface to the data store.
  */
 {
-	int nsample, sample, dfile, nnew = 0, now = 0, olddf = -1, ndone = 0;
+	int nsample, sample, dfile, nnew = 0, now = 0, ndone = 0;
 	WriteCode wc;
 	Platform p;
 
@@ -968,7 +972,8 @@ int ndetail;
 	 */
 	 	if (wc == wc_NewFile)
 		{
-			if ((dfile = ds_MakeNewFile (dc, &p, sample)) < 0)
+			if ((dfile = ds_MakeNewFile (dc, &p, sample, 
+						     details, ndetail)) < 0)
 				break;	/* Bail completely */
 			wc = wc_Append; /* Now that the file is around */
 			new = TRUE;
@@ -1003,6 +1008,203 @@ int ndetail;
 	return (ndone == nsample);
 }
 
+
+
+
+bool
+ds_StoreBlocks (dc, newfile, details, ndetail)
+DataChunk *dc;
+bool newfile;
+dsDetail *details;
+int ndetail;
+/*
+ * Store samples in the largest blocks possible
+ */
+{
+	int nsample, sample;
+	int dfile;
+	int nnew, now;
+	int ndone = 0;
+	int block_size;
+	WriteCode wc;
+	Platform p;
+
+	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
+	nsample = dc_GetNSample (dc);
+	sample = 0;
+	msg_ELog(EF_INFO,
+	   "ds_StoreBlocks: noting all blocks of more than 500 samples...");
+	msg_ELog(EF_DEBUG,
+	   "StoreBlocks: debug, noting blocks of more than 10 samples...");
+	while (sample < nsample)
+	{
+		bool new = FALSE;
+		now = nnew = 0;
+	/*
+	 * Find a feasible location for the next sample of the data chunk
+	 */
+		if (! ds_FindDest (dc, &p, sample, &dfile, &wc,
+				   newfile && (sample == 0)))
+			continue;	/* Sigh */
+	/*
+	 * If a new file is called for, create it.
+	 */
+	 	if (wc == wc_NewFile)
+		{
+			if ((dfile = ds_MakeNewFile (dc, &p, sample,
+						     details, ndetail)) < 0)
+				break;	/* Bail completely */
+			wc = wc_Append; /* Now that the file is around */
+			new = TRUE;
+		}
+	/*
+	 * Find out how many samples can be written to this file
+	 * as a single block.  It's possible the answer is one.
+	 */
+		ds_FindBlock (dfile, dc, &p, sample, wc, &block_size);
+		if (block_size > 500)
+			msg_ELog(EF_INFO,
+				 "ds_Store() writing block of %i samples",
+				 block_size);
+		if (block_size > 10)
+			msg_ELog(EF_DEBUG,
+				 "ds_Store() writing block of %i samples",
+				 block_size);
+	/*
+	 * Now we write whatever block we found, or if we have just a
+	 * single sample, use dfa_PutSample()
+	 */
+		if (((block_size > 1) &&
+		     (dfa_PutBlock (dfile, dc, sample, block_size, wc))) ||
+		    ((block_size <= 1) &&
+		     (dfa_PutSample (dfile, dc, sample, wc))))
+		{
+		/*
+		 * Keep track of successful puts and notify daemon of them.
+		 */
+			ndone += block_size;
+			if (wc == wc_Overwrite)
+				now += block_size;
+			else
+				nnew += block_size;
+			sample += block_size;
+		/*
+		 * Fill in the daemon on what we have done.  The last sample
+		 * of the block is passed to Notify since its used to set
+		 * the new end time of the file.
+		 */
+			ds_NotifyDaemon (&p, dfile, dc, now, nnew, 
+					 sample - 1,
+					 (sample == nsample));
+		/*
+		 * If we created a new file above, then our platform
+		 * structure has changed and we need a new one
+		 */
+			if (new)
+				ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
+		}
+		else
+		{
+		/*
+		 * We just have to deal with our failures and carry on
+		 */
+			sample += block_size;
+		}
+
+	} /* while (sample < nsample) */
+
+	return (ndone == nsample);
+}
+
+
+
+
+
+static int
+ds_FindBlock(dfile, dc, plat, sample, wc, block_size)
+int dfile;
+DataChunk *dc;
+Platform *plat;
+int sample;
+WriteCode wc;
+int *block_size;
+/*
+ * Starts at 'sample' in data chunk 'dc', and finds out how many
+ * samples following constitute a block, suitable for storing
+ * with dfa_PutBlock() into 'dfile'.  
+ * Returns the number in 'block_size'.  Unless
+ * 'sample' is out of range, 'nsample' will always hold at least 1.
+ * At present, any write code other than wc_Append returns 1.
+ */
+{
+	int smp;
+	int nsample;
+	DataFile dfe, dfenext;
+	ZebTime when, past;
+	int dfnext;		/* file following dfile 	*/
+	ZebTime next;		/* time dfnext starts		*/
+	int avail;		/* samples available in the file*/
+/*
+ * Require the write code to be Append (to an existing or empty file):
+ */
+	if (wc != wc_Append)
+	{
+		*block_size = 1;
+		return;
+	}
+/*
+ * To be a block, times must be chronological (the order they'll
+ * be written to the file), and the samples cannot overwrite or
+ * overlap any existing data.
+ */
+	ds_LockPlatform (dc->dc_Platform);
+	ds_GetFileStruct (dfile, &dfe);
+	avail = plat->dp_maxsamp - dfe.df_nsample;
+/*
+ * The next file, chronologically, is backwards on the linked list
+ */
+	dfnext = dfe.df_BLink;
+	if (dfnext)
+	{
+		ds_GetFileStruct (dfnext, &dfenext);
+		next = dfenext.df_begin;
+	}
+/*
+ * So we'll first see how many samples we can get
+ *  a) in chronological order, and
+ *  b) which precede the start of dfnext (if there is one), and
+ *  c) which are on the same day, iff DPF_SPLIT set, and finally
+ *  d) will fit within the platform's maxsamples limit
+ * ...without exceding the number of samples in the data chunk
+ */
+	nsample = dc_GetNSample(dc);
+	dc_GetTime(dc, sample, &past);
+	smp = sample + 1;
+/*
+ * We know that at least one sample remains in the DC and that there is
+ * space in the file for at least that sample (ds_FindDest told us)
+ */
+	while ((smp < nsample) && (smp - sample < avail))
+	{
+		dc_GetTime(dc, smp, &when);
+		if (! TC_Less(past, when))
+			break;
+		if (dfnext && (! TC_Less(when, next)))
+			break;
+		if ((plat->dp_flags & DPF_SPLIT) &&
+		    (! ds_SameDay (&when, &past)))
+			break;
+		past = when;
+		smp++;
+	}
+/*
+ * Finished.  Record the number of samples we found and return;
+ * the size of the block will be at least one.
+ */
+	*block_size = smp - sample;
+	ds_UnlockPlatform (dc->dc_Platform);
+	return;
+}
 
 
 
@@ -1098,10 +1300,12 @@ ZebTime *t1, *t2;
 
 
 static int
-ds_MakeNewFile (dc, plat, sample)
+ds_MakeNewFile (dc, plat, sample, details, ndetail)
 DataChunk *dc;
 Platform *plat;
 int sample;
+dsDetail *details;	/* dsDetail's needed for dfa_CreateFile() */
+int ndetail;
 /*
  * Make a new file that will contain this DC and sample.
  */
@@ -1121,7 +1325,7 @@ int sample;
  * Have DFA get the file made for us.  They use the data object to know which
  * fields/platforms belong therein.  A bit kludgy, but it works.
  */
-	if (! dfa_CreateFile (newdf, dc, &when))
+	if (! dfa_CreateFile (newdf, dc, &when, details, ndetail))
 	{
 		ds_AbortNewDF (dc->dc_Platform, newdf);
 		return (-1);
@@ -1246,6 +1450,7 @@ DataChunk *dc;
 
 
 
+/* ARGSUSED */
 static int
 ds_AwaitAck (msg, junk)
 Message *msg;

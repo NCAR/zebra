@@ -27,7 +27,9 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.14 1993-04-02 16:14:15 corbet Exp $")
+#ifndef lint
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.15 1993-05-04 21:42:11 granger Exp $")
+#endif
 
 # include "netcdf.h"
 
@@ -68,11 +70,12 @@ typedef struct _nctag
 #define MAXPLAT	4096		/* How many different platforms we expect */
 				/* ~3000 platforms for STORM-FEST precip! */
 #define BASEDONE	-1	/* Flag to mark bases which are done	 */
-#define UNKNOWN	-2
+#define UNKNOWN		-2
+
 static int      SPMap[MAXPLAT] = {0};
 static bool     SPMapInited = FALSE;
-static NCTag *Tag;	/* for passing tag parameter to dnc_PutGlobalAttribute */
-
+static NCTag *Tag;	/* for passing tag parameter to dnc_PutAttribute */
+static int VarId;	/* ditto */
 /*
  * We also maintain a subplatform list for IRGrid platforms, which ends up in
  * the ir_subplats field of the data object eventually.
@@ -82,7 +85,7 @@ static PlatformId *SubPlats[MAXPLAT] = {0};
 /*
  * We use this buffer for field queries.
  */
-#define MAXFLDBUF 512
+#define MAXFLDBUF 	512
 static char     FldBuf[MAXFLDBUF];
 
 /*
@@ -102,6 +105,12 @@ static struct CO_Compat
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Location	},
+	{ OrgScalar,		DCC_NSpace	},
+#ifdef notdef
+	{ Org1dGrid,		DCC_NSpace	},
+	{ Org2dGrid,		DCC_NSpace	},
+	{ Org3dGrid,		DCC_NSpace	},
+#endif
 };
 # define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
 
@@ -123,20 +132,53 @@ static void     dnc_CFIRGridVars FP ((NCTag *, DataChunk *));
 static bool     dnc_OverheadField FP ((char *const));
 static int	dnc_OrgClassCompat FP ((DataOrganization, DataClass));
 static void	dnc_ConvTimes FP ((NCTag *, int, int, ZebTime *));
+static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
+				    int nfield, FieldId *fields));
 static int 	dnc_ReadScalar FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double));
 static int 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double));
 static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
+static int	dnc_ReadNSpace FP((DataChunk *dc, NCTag *tag, int begin,
+				int nsamp, FieldId *fids, int nfield, 
+				float badval));
+static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag, 
+			 ZebTime *t, int begin, int nsamp, FieldId *fids, 
+			 int nfield, float badval));
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, int, int));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
-static void	dnc_ApplyBadval FP ((NCTag *, int, double, float *, int));
+static void	dnc_ApplyBadval FP ((NCTag *, int varid, 
+				     DataChunk *dc, FieldId fid,
+				     double, float *, int));
 static double	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
 static void	dnc_DoWriteCoords FP ((NCTag *, DataChunk *, int, long *,
-			long *));
-static int	dnc_PutGlobalAttribute FP ((char *key, char *value));
+			long *, int *));
+static int	dnc_NSpaceVarPut FP ((NCTag *tag, DataChunk *dc, int varid, 
+				      FieldId fid, long *start, long *count, 
+				      int ndim, DataPtr data));
+static void	dnc_DefineVars FP ((NCTag *tag, DataChunk *dc, int ndim,
+				    int *dims));
+static void	dnc_DefineNSpaceDims FP ((NCTag *tag, DataChunk *dc));
+static int	dnc_DefineNSpaceVar FP ((NCTag *tag, DataChunk *dc,
+					 FieldId fid, int ndim, int *dims));
+static void	dnc_DefineLocVars FP ((NCTag *tag, int ndims, int *dims,
+				       int *vlat, int *vlon, int *valt));
+static void	dnc_PutGlobalAttributes FP ((NCTag *tag, DataChunk *dc));
+static int	dnc_PutAttribute FP ((char *key, char *value));
 static void	dnc_FillArray FP ((float *, int, double));
+static int	dnc_NewTimes FP ((NCTag *tag, DataChunk *dc, int sample, 
+				  int count, WriteCode wc, long *start));
+static char *	dnc_ValueToString FP ((void *value, nc_type type, int len));
+static char *	dnc_GetStringAtt FP ((int cdfid, int varid, char *att_name, 
+				      char *att_val, int len));
+int		dnc_PutBlock FP ((int dfile, DataChunk *dc, int sample,
+				  int nsample, WriteCode wc));
+/*
+ * New functions defined by TRS from ARM
+ */
+static int	dnc_ReadGlobalAtts FP ((DataChunk *, NCTag *));
+static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
 
 /*
  * The minimum size of a time list before it's worthwhile to do a binary
@@ -144,6 +186,16 @@ static void	dnc_FillArray FP ((float *, int, double));
  */
 #define MINTIME 10
 
+/*
+ * Global attribute names which are automatically stored with the file
+ */
+#define GATT_PLATFORM	"zeb_platform"	/* the platform name */
+#define GATT_HISTORY	"history"	/* creation info */
+/*
+ * Variable attributes retrieved for a field
+ */
+#define VATT_LONGNAME	"long_name"	/* description of variable */
+#define VATT_UNITS	"units"		/* units of variable	   */
 
 
 int
@@ -312,6 +364,8 @@ NCTag *tag;
 {
 	int ndim, nvar, natt, rdim, fld;
 	char *cp = FldBuf;
+	char longname[100];	/* anything bigger we'll just ignore */
+	char units[50];
 /*
  * Do an inquire to see how many vars there are.
  */
@@ -326,10 +380,19 @@ NCTag *tag;
 		int ndim, dims[MAX_VAR_DIMS], natt;
 		nc_type type;
 	/*
-	 * Look up the variable and remember it's FID.
+	 * Look up the variable and remember it's FID.  Try to get the
+	 * units and description for the variable as well and use these
+	 * when declaring the field.  If the field has already been 
+	 * declared, the original declaration wins out.
 	 */
 		ncvarinq (tag->nc_id, fld, cp, &type, &ndim, dims, &natt);
-		tag->nc_FMap[fld] = F_Lookup (cp);
+		sprintf (longname, cp);
+		sprintf (units, "unknown");
+		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_LONGNAME, 
+					longname, 100);
+		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_UNITS, 
+					units, 50);
+		tag->nc_FMap[fld] = F_DeclareField (cp, longname, units);
 	}
 	return (TRUE);
 }
@@ -638,7 +701,8 @@ NCTag *tag;
 		msg_ELog (EF_PROBLEM, "Bad time_offset var");
 		return (FALSE);
 	}
-	tag->nc_dTOffset = dims[0];
+	tag->nc_dTime = dims[0];
+	tag->nc_dTOffset = tag->nc_dTime;
 	tag->nc_timeIsFloat = (dtype == NC_FLOAT);
 /*
  * Pull in the time array, and we're done.
@@ -872,6 +936,12 @@ DataClass class;
 	   	dc_SetScalarFields (dc, nfield, fields);
 		break;
 	/*
+	 * NSpace must inquire about dimensions for each field
+	 */
+	   case DCC_NSpace:
+		dnc_NSpaceSetup (tag, dc, nfield, fields);
+		break;
+	/*
 	 * Locations are truly simple.
 	 */
 	   case DCC_Location:
@@ -884,10 +954,86 @@ DataClass class;
 		dc_DestroyDC (dc);
 		return (0);
 	}
+
+/*
+ * Read global and field attrbiutes.  Any attributes set in the DataChunk
+ * when data is retrieved will override any attributes set here
+ * (e.g. a change in the bad value due to a dsDetail)
+ */
+	dnc_ReadGlobalAtts(dc, tag);	/* read global attributes */
+
+	if (class != DCC_Location)	/* read field attributes */
+	{
+		dnc_ReadFieldAtts(dc, tag, fields, nfield);
+	}
+
 	return (dc);
 }
 
 
+
+static void
+dnc_NSpaceSetup (tag, dc, nfield, fields)
+NCTag *tag;
+DataChunk *dc;
+int nfield;
+FieldId *fields;
+/*
+ * Define the given empty NSpace datachunk with the given fields
+ * according to the dimensions of the variables in the netCDF file.
+ * Fields which do not have a time dimension (assumed to be the
+ * first dimension) will be defined static.  Fields which are not
+ * found in the file are not put in the datachunk (for now).
+ * At exit, the definition of the chunk is completed and closed.
+ */
+{
+	int i, j;
+	int varid;
+	int ndims, natts, nsdims;
+	nc_type vtype;
+	int dims[ MAX_VAR_DIMS ];
+	int is_static;
+	unsigned long sizes[ MAX_NC_DIMS ];
+	char dim_names[ MAX_NC_DIMS ][ MAX_NC_NAME ];
+	char *names[ MAX_NC_DIMS ];
+
+	for (i = 0; i < MAX_NC_DIMS; ++i)
+		names[i] = &(dim_names[i][0]);
+	/*
+	 * For each field, see if its varid is in the tag.  If not,
+	 * skip it.  Else inquire the varid and get its dimensions
+	 * and define the field with dc_NSDefineField()
+	 */
+	for (i = 0; i < nfield; ++i)
+	{
+		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
+			continue;
+		/*
+		 * Have a varid for the field.  Get the dimensions.  If
+		 * not static, then we skip the first dimension, time,
+		 * when defining the field for the NSpace chunk.
+		 */
+		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, dims, &natts);
+		is_static = ((ndims == 0) || (dims[0] != tag->nc_dTOffset));
+		nsdims = 0;
+		for (j = (is_static ? 0 : 1); j < ndims; ++j)
+		{
+			ncdiminq (tag->nc_id, dims[j], names[nsdims], 
+				  &(sizes[nsdims]));
+			++nsdims;
+		}
+		/*
+		 * Have all the dimensions.  Define the field.
+		 */
+		dc_NSDefineField (dc, fields[i], nsdims,
+				  names, sizes, is_static);
+	}
+	/*
+	 * All done.  Close it out.
+	 */
+	dc_NSDefineComplete (dc);
+	return;
+}
 
 
 
@@ -941,7 +1087,7 @@ int ndetail;
 	   	dnc_ReadScalar (dc, tag, tbegin, nsamp, fids, nfield, badval);
 		break;
 	/*
-	 * IRGridses.
+	 * IRGrids.
 	 */
 	   case DCC_IRGrid:
 	   	dnc_ReadIRGrid (dc, tag, tbegin, nsamp, fids, nfield, badval);
@@ -958,6 +1104,12 @@ int ndetail;
 	 */
 	   case DCC_Location:
 	   	dnc_ReadLocation (dc, tag, tbegin, nsamp);
+		break;
+	/*
+	 * NSpace.
+	 */
+	   case DCC_NSpace:
+		dnc_ReadNSpace (dc, tag, tbegin, nsamp, fids, nfield, badval);
 		break;
 
 	   default:
@@ -1048,7 +1200,8 @@ float badval;
 				dnc_NCError ("Scalar read");
 		}
 		else
-			dnc_ApplyBadval (tag, vfield, badval, temp, nsamp);
+			dnc_ApplyBadval (tag, vfield, dc, fids[field],
+					 badval, temp, nsamp);
 	/*
 	 * Add it to the data chunk.
 	 */
@@ -1073,6 +1226,158 @@ float badval;
 		dc_SetStaticLoc (dc, &tag->nc_sloc);
 	/* Whew! */
 	return (nsamp);
+}
+
+
+
+
+static int
+dnc_ReadNSpace (dc, tag, begin, nsamp, fids, nfield, badval)
+DataChunk *dc;
+NCTag *tag;
+int begin, nsamp;
+FieldId *fids;
+int nfield;
+float badval;
+/*
+ * Retrieve multi-dimensional fields from this file's particular
+ * organization and add the data to the NSpace datachunk.
+ */
+{
+	int i;
+	int sbegin = dc_GetNSample (dc);
+	ZebTime *t;
+
+	/*
+	 * Get the time array.
+	 */
+	t = (ZebTime *) malloc (nsamp * sizeof(ZebTime));
+	dnc_ConvTimes (tag, begin, nsamp, t);
+
+	/*
+	 * Split up task based on platform organization.
+	 */
+	switch (tag->nc_org)
+	{
+	   case OrgScalar:
+	        dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids,
+				      nfield, badval);
+		break;
+	   default:
+		return (0);
+	}
+	free (t);
+
+	/*
+	 * Do something about locations.
+	 */
+	if (ds_IsMobile (dc->dc_Platform))
+	{
+		Location *locs = (Location *) malloc (nsamp*sizeof (Location));
+		dnc_LoadLocation (tag, locs, begin, nsamp);
+		for (i = 0; i < nsamp; i++)
+			dc_SetLoc (dc, sbegin + i, locs + i);
+		free (locs);
+	}
+	else
+		dc_SetStaticLoc (dc, &tag->nc_sloc);
+
+	return (nsamp);
+}
+
+
+
+
+static void
+dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids, nfield, badval)
+DataChunk *dc;
+NCTag *tag;
+ZebTime *t;
+int begin, nsamp;
+FieldId *fids;
+int nfield;
+float badval;
+/*
+ * Retrieve multi-dimensional scalar data from this file and add it to
+ * the NSpace datachunk.
+ */
+{
+	long start[ MAX_VAR_DIMS ];
+	long count[ MAX_VAR_DIMS ];
+	unsigned long sizes[ DC_MaxDimension ];
+	float *temp;
+	unsigned long size, tempsize;
+	int field, i;
+	int varid;
+	int sbegin = dc_GetNSample (dc);
+	int dim, ndim, is_static;
+
+	/*
+	 * Each field will have different hyperslab coordinates, depending
+	 * on whether or not the field is static, and depending on the
+	 * field's dimensions.  So we'll loop through the fields and handle
+	 * each one entirely separately.
+	 */
+	temp = NULL;
+	tempsize = 0;
+	for (field = 0; field < nfield; ++field)
+	{
+		/*
+		 * Dynamic fields will need these coords for the 1st dimn
+		 */
+		start[0] = begin;
+		count[0] = nsamp;
+		/*
+		 * All other limits get the whole slab
+		 */
+		dc_NSGetField (dc, fids[field], &ndim, 
+			       NULL, sizes, &is_static);
+		size = (is_static) ? 1 : nsamp;
+		dim = (is_static) ? 0 : 1;
+		for (i = 0; i < ndim; ++i, ++dim)
+		{
+			start[dim] = 0;
+			count[dim] = sizes[i];
+			size *= sizes[i];
+		}
+
+		if (!temp)
+		{
+			temp = (float *) malloc (size * sizeof(float));
+			tempsize = size;
+		}
+		else if (size > tempsize)
+		{
+			temp = (float *) realloc (temp, size * sizeof(float));
+			tempsize = size;
+		}
+
+		if (((varid = dnc_GetFieldVar (tag, fids[field])) < 0) ||
+		    (ncvarget (tag->nc_id, varid, start, count, temp) < 0))
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "dnc_ReadNSpace, error on field %i", 
+				  fids[field]);
+			dnc_FillArray (temp, size, badval);
+		}
+		else
+			dnc_ApplyBadval (tag, varid, dc, fids[field],
+					 badval, temp, size);
+		/*
+		 * Add the data to the data chunk.
+		 */
+		if (is_static)
+			dc_NSAddStatic (dc, fids[field], temp);
+		else
+		{
+			for (i = 0; i < nsamp; ++i)
+			   dc_NSAddSample (dc, t+i, sbegin+i, 
+				fids[field], 
+				temp + ((unsigned long)(i * size) /
+					(unsigned long)nsamp) );
+		}
+	}
+	free (temp);
 }
 
 
@@ -1159,8 +1464,8 @@ float badval;
 		 * If we got data, swap our bad value flag for the netCDF one
 		 */
 			else
-				dnc_ApplyBadval (tag, vfield, badval, grid, 
-					count[1]);
+				dnc_ApplyBadval (tag, vfield, dc, fids[f],
+						 badval, grid, count[1]);
 		/*
 		 * Put the data into the chunk
 		 */
@@ -1271,8 +1576,9 @@ dsDetail *dets;
 		 * store the data away.
 		 */
 			else
-				dnc_ApplyBadval (tag, vfield, badval, dp,
-						count[1]*count[2]*count[3]);
+				dnc_ApplyBadval (tag, vfield, dc, fids[field],
+						 badval, dp,
+						 count[1]*count[2]*count[3]);
 		}
 		start[0]++;
 	}
@@ -1282,10 +1588,13 @@ dsDetail *dets;
 
 
 static void
-dnc_ApplyBadval (tag, vfield, badval, data, ndata)
+dnc_ApplyBadval (tag, vfield, dc, fid, badval, data, ndata)
 NCTag *tag;
-int vfield, ndata;
+int vfield;
+DataChunk *dc;
+FieldId fid;
 float badval, *data;
+int ndata;
 /*
  * Turn the bad value flag stored with the data, if any, into the user-
  * supplied one.
@@ -1294,12 +1603,14 @@ float badval, *data;
 	float ncbadval;
 	int i;
 
-	if (ncattget (tag->nc_id, vfield, "missing_value", &ncbadval) > 0 &&
+	if (ncattget (tag->nc_id, vfield, "missing_value", &ncbadval) >= 0 &&
 				    ncbadval != badval)
 	{
 		for (i = 0; i < ndata; i++)
 			if (data[i] == ncbadval)
 				data[i] = badval;
+		dc_SetFieldAttr (dc, fid, "missing_value",
+			 dnc_ValueToString ((void *)&badval, NC_FLOAT, 1));
 	}
 }
 
@@ -1454,7 +1765,7 @@ Location *pos;
 		return;
 	}
 /*
- * Write latitudes.
+ * Write altitudes.
  */
 	if ((var = ncvarid (tag->nc_id, "alt")) < 0)
 	{
@@ -1681,6 +1992,7 @@ TimeSpec which;
 
 
 
+/* ARGSUSED */
 dnc_MakeFileName (dir, platform, zt, dest)
 char *dir, *platform, *dest;
 ZebTime *zt;
@@ -1700,22 +2012,28 @@ ZebTime *zt;
 
 
 
-dnc_CreateFile (fname, df, dc, rtag)
+dnc_CreateFile (fname, df, dc, rtag, details, ndetail)
 char *fname;
 DataFile *df;
 DataChunk *dc;
 NCTag **rtag;
+dsDetail *details;
+int ndetail;
 /*
  * This is the hairy routine wherein we try to create properly data files for
  * all of the organizations we know.
  */
 {
 	NCTag *tag = ALLOC(NCTag);
-	int ndim, dims[6], vars[MAXFIELD], var, vbase, nfield;
+	int ndim, dims[6], vbase;
 	ZebTime t;
-	float badval;
-	FieldId *fids;
-	char *attr, history[128];
+	SValue sval;
+	int time_is_float = FALSE;
+	char full_time[50];
+	int year, month, day, hour, minute, second;
+#	define BT_LONGNAME "Base time in Epoch"
+#	define BT_UNITS	   "seconds since 1970-1-1 0:00:00 0:00"
+#	define OT_LONGNAME "Time offset from base_time"
 /*
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
@@ -1727,11 +2045,18 @@ NCTag **rtag;
 		return (FALSE);
 	}
 /*
+ * Check for details which we handle here
+ */
+	if (ds_GetDetail(DD_NC_TIME_FLOAT, details, ndetail, &sval))
+		time_is_float = TRUE;
+	if (ds_GetDetail(DD_NC_TIME_DOUBLE, details, ndetail, &sval))
+		time_is_float = FALSE;
+/*
  * Fill in some basic tag info.
  */
 	tag->nc_times = (double *) 0;
 	tag->nc_ntime = tag->nc_nrec = 0;
-	tag->nc_timeIsFloat = FALSE;
+	tag->nc_timeIsFloat = time_is_float;
 	tag->nc_org = ds_PlatformDataOrg (dc->dc_Platform);
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
@@ -1765,50 +2090,31 @@ NCTag **rtag;
  * to the microsecond.
  */
 	vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
-	tag->nc_vTime = ncvardef (tag->nc_id, "time_offset", NC_DOUBLE,
-					 1, &tag->nc_dTime);
+	tag->nc_vTime = ncvardef (tag->nc_id, "time_offset",
+				  (tag->nc_timeIsFloat) ? NC_FLOAT : NC_DOUBLE,
+				  1, &tag->nc_dTime);
 	dc_GetTime (dc, 0, &t);
 	tag->nc_base = t.zt_Sec;
-/*
- * Create the actual fields that we are storing here.  Add the bad
- * value flag for now and conventional long_name and units attributes.
- */
-	badval = dc_GetBadval (dc);
-	fids = dc_GetFields (dc, &nfield);
-	for (var = 0; var < nfield; var++)
-	{
-		vars[var] = ncvardef (tag->nc_id, F_GetName (fids[var]),
-				     NC_FLOAT, ndim, dims);
-		(void) ncattput (tag->nc_id, vars[var], "missing_value",
-				NC_FLOAT, 1, &badval);
-		attr = F_GetUnits(fids[var]);
-		(void) ncattput (tag->nc_id, vars[var], "units",
-				NC_CHAR, strlen(attr)+1, attr);
-		attr = F_GetDesc(fids[var]);
-		(void) ncattput (tag->nc_id, vars[var], "long_name",
-				NC_CHAR, strlen(attr)+1, attr);
-	}
-/*
- * Add global attributes from the data chunk and create the global
- * 'history' attribute.
- * Unfortunately, dc_ProcessAttrs does not provide for a 'tag' argument
- * to the function, so the tag must be passed via a global variable.
- */
-	Tag = tag;
-	(void)dc_ProcessAttrs(dc, NULL, dnc_PutGlobalAttribute);
-	attr = ds_PlatformName(dc->dc_Platform);
-	(void)ncattput(tag->nc_id, NC_GLOBAL, "platform", 
-		       NC_CHAR, strlen(attr)+1, attr);
-	{
-		struct timeval tv;
+	t.zt_MicroSec = 0;
+	TC_EncodeTime (&t, TC_Full, full_time);
+	strcat (full_time, " GMT");
+	ncattput (tag->nc_id, vbase, "string", NC_CHAR,
+		  strlen(full_time)+1, full_time);
+	ncattput (tag->nc_id, vbase, VATT_LONGNAME, NC_CHAR,
+		  strlen(BT_LONGNAME)+1, BT_LONGNAME);
+	ncattput (tag->nc_id, vbase, VATT_UNITS, NC_CHAR,
+		  strlen(BT_UNITS)+1, BT_UNITS);
+	TC_ZtSplit (&t, &year, &month, &day, &hour, &minute, &second, 0);
+	sprintf (full_time, 
+		 "seconds since %4i-%02i-%02i %02i:%02i:%02i 0:00",
+		 year+1900, month, day, hour, minute, second);
+	ncattput (tag->nc_id, tag->nc_vTime, VATT_UNITS, NC_CHAR,
+		  strlen(full_time)+1, full_time);
+	ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
+		  strlen(OT_LONGNAME)+1, OT_LONGNAME);
 
-		sprintf(history,"created by Zeb DataStore, ");
-		(void)gettimeofday(&tv, NULL);
-		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.14 $\n");
-		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
-			       NC_CHAR, strlen(history)+1, history);
-	}
+	dnc_DefineVars(tag, dc, ndim, dims);
+	dnc_PutGlobalAttributes(tag, dc);
 /*
  * Create the organization-specific variables.  Since some of these
  * need to be initialized here, this routine also takes us out of
@@ -1823,20 +2129,183 @@ NCTag **rtag;
 
 
 
-
-int
-dnc_PutGlobalAttribute(key, value)
-char *key;
-char *value;
+static void 
+dnc_DefineVars(tag, dc, ndim, dims)
+NCTag *tag;
+DataChunk *dc;
+int ndim;
+int *dims;
 /*
- * Add this datachunk attribute to the file's global attributes
+ * Create the actual fields that we are storing here, and while we're at
+ * it supply the field attributes from the data chunk.
+ */
+{
+	float badval;
+	FieldId *fids;
+	int nfield;
+	char *attr;
+	int var;
+	long varid;
+/*
+ * If the DC is NSpace, we have some dimensions to define first
+ */
+	if (dc->dc_Class == DCC_NSpace)
+		dnc_DefineNSpaceDims(tag, dc);
+
+	badval = dc_GetBadval (dc);
+	fids = dc_GetFields (dc, &nfield);
+	for (var = 0; var < nfield; var++)
+	{
+	/*
+	 * NSpace fields may have dimensions in addition to the base
+	 * dimensions, and static fields will have only their NSpace
+	 * dimensions.
+	 */
+		if (dc->dc_Class == DCC_NSpace)
+		{
+			varid = dnc_DefineNSpaceVar(tag, dc, fids[var],
+						    ndim, dims);
+		}
+		else
+		{
+			varid = ncvardef (tag->nc_id, F_GetName (fids[var]),
+					  NC_FLOAT, ndim, dims);
+		}
+	/* 
+	 * Add attributes that may be stored with this field first,
+	 * passing the tag and varid via global variables.  
+	 */
+		Tag = tag;
+		VarId = varid;
+		dc_ProcessFieldAttrs(dc, fids[var], NULL, dnc_PutAttribute);
+	/*
+	 * Then overwrite conventional attributes with values taken from the
+	 * field declaration.  We want to override any missing_value
+	 * attribute because we want to make sure it is stored as a float.
+	 */
+		(void) ncattput (tag->nc_id, varid, "missing_value",
+				NC_FLOAT, 1, &badval);
+		attr = F_GetUnits(fids[var]);
+		(void) ncattput (tag->nc_id, varid, "units",
+				NC_CHAR, strlen(attr)+1, attr);
+		attr = F_GetDesc(fids[var]);
+		(void) ncattput (tag->nc_id, varid, "long_name",
+				NC_CHAR, strlen(attr)+1, attr);
+#ifdef notdef
+		keys = dc_GetFieldAttrList(dc, fids[var], /*pattern*/NULL,
+					   &values, &natts);
+		for (i = 0; i < natts; ++i)
+			(void)ncattput (tag->nc_id, varid,
+					keys[i], NC_CHAR, 
+					strlen(values[i])+1, values[i]);
+#endif
+	}
+}
+
+
+
+static void
+dnc_DefineNSpaceDims(tag, dc)
+NCTag *tag;
+DataChunk *dc;
+{
+	char *names[ DC_MaxDimension ];
+	unsigned long sizes[ DC_MaxDimension ];
+	int i, ndim;
+
+	ndim = dc_NSGetAllDimensions (dc, names, /*fields*/NULL, sizes);
+
+	for (i = 0; i < ndim; ++i)
+	{
+		ncdimdef (tag->nc_id, names[i], sizes[i]);
+	}
+}
+
+
+
+static int
+dnc_DefineNSpaceVar(tag, dc, fid, ndim, dims)
+NCTag *tag;
+DataChunk *dc;
+FieldId fid;
+int ndim;
+int *dims;
+{
+	int alldims[ MAX_VAR_DIMS ];
+	int nalldim, nfdim;
+	int i;
+	char *names[ DC_MaxDimension ];
+/*
+ * Copy whatever dimensions we'll need from what we've been passed in dims[].
+ * In the case of static fields, we don't need any of them.
+ */
+	nalldim = 0;
+	if (! dc_NSIsStatic (dc, fid))
+	{
+		for (i = 0; i < ndim; ++i)
+			alldims[i] = dims[i];
+		nalldim = ndim;
+	}
+/*
+ * Add on the dimensions from the NSpace chunk for this field.
+ */
+	dc_NSGetField (dc, fid, &nfdim, names, /*sizes*/NULL, /*static*/NULL);
+	for (i = 0; i < nfdim; ++nalldim, ++i)
+	{
+		alldims[ nalldim ] = ncdimid (tag->nc_id, names[i]);
+	}
+
+	return (ncvardef (tag->nc_id, F_GetName (fid),
+			  NC_FLOAT, nalldim, alldims));
+}
+
+
+
+static void
+dnc_PutGlobalAttributes(tag, dc)
+NCTag *tag;
+DataChunk *dc;
+/*
+ * Add global attributes from the data chunk and create the global
+ * 'history' attribute.
  * Presently, this only happens when a file is created.  Any additional
  * datachunks' global attributes will not be written.  XXX What would the
  * behavior be if the same global attribute was given different values
  * in different datachunks?
+ * Unfortunately, dc_ProcessAttrs does not provide for a 'tag' argument
+ * to the function, so the tag must be passed via a global variable.
  */
 {
-	(void)ncattput(Tag->nc_id, NC_GLOBAL,
+	char *attr, history[256];
+	struct timeval tv;
+
+	Tag = tag;
+	VarId = NC_GLOBAL;
+	(void)dc_ProcessAttrs(dc, NULL, dnc_PutAttribute);
+	attr = ds_PlatformName(dc->dc_Platform);
+	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
+		       NC_CHAR, strlen(attr)+1, attr);
+
+	sprintf(history,"created by Zeb DataStore, ");
+	(void)gettimeofday(&tv, NULL);
+	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.15 $\n");
+	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
+		       NC_CHAR, strlen(history)+1, history);
+}
+
+
+
+
+static int
+dnc_PutAttribute(key, value)
+char *key;
+char *value;
+/*
+ * Add this datachunk attribute to the file's attributes for VarId
+ */
+{
+	(void)ncattput(Tag->nc_id, VarId,
 		       key, NC_CHAR, strlen(value)+1, value);
 	return(0);
 }
@@ -1859,7 +2328,7 @@ int *ndim, *dims;
 	switch (tag->nc_org)
 	{
 	/*
-	  Scalar files are easy -- we're done!
+	 * Scalar files are easy -- we're done!
 	 */
 	   case OrgScalar:
 		break;
@@ -1953,9 +2422,7 @@ DataChunk *dc;
  */
 	if (ds_IsMobile (dc->dc_Platform))
 		ndim = 1;
-	vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, ndim, &tdim);
-	vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, ndim, &tdim);
-	valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndim, &tdim);
+	dnc_DefineLocVars (tag, ndim, &tdim, &vlat, &vlon, &valt);
 /*
  * If we are static, initialize the location info now.
  */
@@ -1984,20 +2451,37 @@ DataChunk *dc;
 {
 	int vlat, vlon, valt, vx, vy, vz;
 	Location loc;
+#	define XYZ_UNITS	"km"
+#	define X_LONGNAME	"grid spacing in west->east direction"
+#	define Y_LONGNAME	"grid spacing in south->north direction"
+#	define Z_LONGNAME	"grid spacing along vertical, from ground up"
 
 	dc_RGGeometry (dc, 0, &loc, &tag->nc_rgrid);
 /*
  * Create variables for the origin and spacing information.
+ * Add a description and units for each variable defined.
  */
-	vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, 0, 0);
-	vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, 0, 0);
-	valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, 0, 0);
+	dnc_DefineLocVars (tag, 0, 0, &vlat, &vlon, &valt);
 	vx = ncvardef (tag->nc_id, "x_spacing", NC_FLOAT, 0, 0);
+	(void)ncattput(tag->nc_id, vx, VATT_LONGNAME,
+		       NC_CHAR, strlen(X_LONGNAME)+1, X_LONGNAME);
+	(void)ncattput(tag->nc_id, vx, VATT_UNITS, NC_CHAR, 
+		       strlen(XYZ_UNITS)+1, XYZ_UNITS);
 	if ((tag->nc_org == Org2dGrid) || (tag->nc_org == Org3dGrid))
 	{
 		vy = ncvardef(tag->nc_id, "y_spacing", NC_FLOAT, 0, 0);
+		(void)ncattput(tag->nc_id, vy, VATT_LONGNAME,
+			       NC_CHAR, strlen(Y_LONGNAME)+1, Y_LONGNAME);
+		(void)ncattput(tag->nc_id, vy, VATT_UNITS, NC_CHAR, 
+			       strlen(XYZ_UNITS)+1, XYZ_UNITS);
 		if (tag->nc_org == Org3dGrid)
+		{
 			vz = ncvardef(tag->nc_id, "z_spacing", NC_FLOAT, 0, 0);
+			(void)ncattput(tag->nc_id, vz, VATT_LONGNAME, NC_CHAR,
+				       strlen(Z_LONGNAME)+1, Z_LONGNAME);
+			(void)ncattput(tag->nc_id, vz, VATT_UNITS, NC_CHAR, 
+				       strlen(XYZ_UNITS)+1, XYZ_UNITS);
+		}
 	}
 /*
  * Now, out of definition mode and initialize all of those variables.
@@ -2039,9 +2523,7 @@ DataChunk *dc;
 	dims[0] = ncdimid (tag->nc_id, "platform");
 	dims[1] = ncdimid (tag->nc_id, "fldlen");
 	vplat = ncvardef (tag->nc_id, "platform", NC_CHAR, 2, dims);
-	vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, 1, dims);
-	vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, 1, dims);
-	valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, 1, dims);
+	dnc_DefineLocVars (tag, 1, dims, &vlat, &vlon, &valt);
 /*
  * Pull the actual platform info out of the dc.
  */
@@ -2099,6 +2581,54 @@ DataChunk *dc;
 
 
 
+static void
+dnc_DefineLocVars (tag, ndims, dims, vlat, vlon, valt)
+NCTag *tag;
+int ndims;
+int *dims;
+int *vlat, *vlon, *valt;
+/*
+ * Define the lat, lon, and alt variables with the given dimensions,
+ * adding the appropriate attributes as well.  Return the ids given to each.
+ */
+{
+#	define ALT_UNITS	"km"
+#	define ALT_LONGNAME	"altitude"
+#	define LAT_UNITS	"degrees"
+#	define LAT_LONGNAME	"north latitude"
+#	define LON_UNITS	"degrees"
+#	define LON_LONGNAME	"east longitude"
+	float lat_range[2];
+	float lon_range[2];
+
+	*vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, ndims, dims);
+	lat_range[0] = -90.0;
+	lat_range[1] = 90.0;
+	(void)ncattput(tag->nc_id, *vlat, VATT_LONGNAME,
+		       NC_CHAR, strlen(LAT_LONGNAME)+1, LAT_LONGNAME);
+	(void)ncattput(tag->nc_id, *vlat, VATT_UNITS, NC_CHAR, 
+		       strlen(LAT_UNITS)+1, LAT_UNITS);
+	(void)ncattput(tag->nc_id, *vlat, "valid_range", NC_FLOAT,
+		       2, lat_range);
+
+	*vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, ndims, dims);
+	lon_range[0] = -180.0;
+	lon_range[1] = 180.0;
+	(void)ncattput(tag->nc_id, *vlon, VATT_LONGNAME,
+		       NC_CHAR, strlen(LON_LONGNAME)+1, LON_LONGNAME);
+	(void)ncattput(tag->nc_id, *vlon, VATT_UNITS, NC_CHAR, 
+		       strlen(LON_UNITS)+1, LON_UNITS);
+	(void)ncattput(tag->nc_id, *vlon, "valid_range", NC_FLOAT,
+		       2, lon_range);
+
+	*valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndims, dims);
+	(void)ncattput(tag->nc_id, *valt, VATT_LONGNAME,
+		       NC_CHAR, strlen(ALT_LONGNAME)+1, ALT_LONGNAME);
+	(void)ncattput(tag->nc_id, *valt, VATT_UNITS, NC_CHAR, 
+		       strlen(ALT_UNITS)+1, ALT_UNITS);
+}
+
+
 
 
 static double
@@ -2127,8 +2657,8 @@ long *fsample;
  */
 {
 	int status;
-	long one = 1;
 	float ftime;
+	long one = 1;
 /*
  * It all depends on the write code.
  */
@@ -2142,7 +2672,7 @@ long *fsample;
 	   case wc_Append:
 		if (tag->nc_ntime)
 			tag->nc_times = (double *) realloc (tag->nc_times,
-				    (tag->nc_ntime + 1) * sizeof(double));
+				(tag->nc_ntime + 1) * sizeof(double));
 		else
 			tag->nc_times = (double *) malloc (sizeof(double));
 		tag->nc_times[tag->nc_ntime] = dnc_ZtToOffset (tag, t);
@@ -2186,8 +2716,6 @@ long *fsample;
 
 
 
-
-
 dnc_PutSample (dfile, dc, sample, wc)
 int dfile, sample;
 DataChunk *dc;
@@ -2197,7 +2725,8 @@ WriteCode wc;
  */
 {
 	NCTag *tag;
-	long start[4], count[4];
+	long start[ MAX_VAR_DIMS ], count[ MAX_VAR_DIMS ];
+	int ndim;
 	int vfield, field, nfield;
 	DataPtr data;
 	ZebTime zt;
@@ -2219,7 +2748,7 @@ WriteCode wc;
 /*
  * Work out coords and data stuff now.
  */
-	dnc_DoWriteCoords (tag, dc, sample, start, count);
+	dnc_DoWriteCoords (tag, dc, sample, start, count, &ndim);
 /*
  * Time for the humungo write to dump it all into the file.
  */
@@ -2235,11 +2764,21 @@ WriteCode wc;
 						 F_GetName (fids[field]));
 			continue;
 		}
-		data = dc_GetMData (dc, sample, fids[field], 0);
+		if ((dc->dc_Class == DCC_NSpace) &&
+		    (dc_NSIsStatic (dc, fids[field])))
+			data = dc_NSGetStatic (dc, fids[field], 0);
+		else
+			data = dc_GetMData (dc, sample, fids[field], 0);
 	/*
 	 * Write it to the file.
 	 */
-		if (ncvarput (tag->nc_id, vfield, start, count, data) < 0)
+		if (dc->dc_Class == DCC_NSpace)
+		{
+			if (dnc_NSpaceVarPut (tag, dc, vfield, fids[field],
+					      start, count, ndim, data) < 0)
+				dnc_NCError ("NSpace data write");
+		}
+		else if (ncvarput (tag->nc_id, vfield, start, count, data) < 0)
 			dnc_NCError ("Data write");
 	}
 /*
@@ -2260,14 +2799,278 @@ WriteCode wc;
 
 
 
+static int
+dnc_NSpaceVarPut (tag, dc, varid, fid, start, count, ndim, data)
+NCTag *tag;
+DataChunk *dc;
+int varid;
+FieldId fid;
+long *start, *count;
+int ndim;
+DataPtr data;
+{
+	int nsdim, is_static;
+	unsigned long sizes[ DC_MaxDimension ];
+	int i;
+
+	/*
+	 * Add NSpace dimensions onto the start and count arrays,
+	 * which are assumed to have enough space for them
+	 */
+	dc_NSGetField (dc, fid, &nsdim, 
+		       NULL, sizes, &is_static);
+	for (i = 0; i < nsdim; ++i)
+	{
+		start[ndim + i] = 0;
+		count[ndim + i] = sizes[i];
+	}
+	if (is_static)
+		return (ncvarput (tag->nc_id, varid, 
+				  &(start[ndim]), &(count[ndim]), data));
+	else
+		return (ncvarput (tag->nc_id, varid, 
+				  start, count, data));
+}
+
+
+
+static int
+dnc_NewTimes(tag, dc, sample, count, wc, start)
+NCTag *tag;
+DataChunk *dc;
+int sample, count;
+WriteCode wc;
+long *start;
+/*
+ * Write a block of sample times to the tag->nc_times array
+ * and to the file identified by tag->nc_id
+ * Returns the starting indices of the new samples in 'start'.
+ * Returns 0 if failure, non-zero if success.
+ * Note that at the moment only the append case is supported
+ * for block writes of times; overwrite is only supported if
+ * nsample == 1.
+ */
+{
+	int status;
+	float *ftime = NULL;
+	unsigned long i;
+	ZebTime t;
+	unsigned long nsample = (unsigned long)count;
+/*
+ * It all depends on the write code.
+ */
+	switch (wc)
+	{
+	   case wc_Append:
+		if (tag->nc_ntime)
+			tag->nc_times = (double *) realloc (tag->nc_times,
+			    (tag->nc_ntime + nsample) * sizeof(double));
+		else
+			tag->nc_times = (double *) malloc (nsample *
+							   sizeof(double));
+		for (i = 0; i < nsample; ++i)
+		{
+			dc_GetTime(dc, sample+i, &t);
+			tag->nc_times[tag->nc_ntime + i] = 
+				dnc_ZtToOffset (tag, &t);
+		}
+		*start = tag->nc_ntime;
+		tag->nc_ntime += nsample;
+		break;
+	/*
+	 * In the overwrite case we need to find the doomed sample and 
+	 * tweak the TOC accordingly, as long as we're only writing
+	 * one sample.
+	 */
+	   case wc_Overwrite:
+		if (nsample != 1)
+			return(FALSE);
+		dc_GetTime(dc, sample, &t);
+	   	*start = dnc_TimeIndex (tag, &t);
+		tag->nc_times[*start] = dnc_ZtToOffset (tag, &t);
+		break;
+	   default:
+		return(FALSE);
+	}
+/*
+ * Flush out the new TOC entries.
+ */
+	if (tag->nc_timeIsFloat)
+	{
+		ftime = (float *)malloc(nsample * sizeof(float));
+		for (i = 0; i < nsample; i++)
+			ftime[i] = (float)tag->nc_times[*start + i];
+		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
+				   &nsample, ftime);
+		free(ftime);
+	}
+	else
+		status = ncvarput (tag->nc_id, tag->nc_vTime, start,
+				   &nsample, tag->nc_times + *start);
+
+	if (status < 0)
+		dnc_NCError("New times write");
+
+	return (TRUE);
+}
+
+
+
+int
+dnc_PutBlock (dfile, dc, sample, nsample, wc)
+int dfile;
+DataChunk *dc;
+int sample;
+int nsample;
+WriteCode wc;
+/*
+ * Write a block of samples into this file
+ */
+{
+	NCTag *tag;
+	long start[ MAX_VAR_DIMS ], count[ MAX_VAR_DIMS ];
+	int vfield, field, nfield;
+	char *data;		/* A single array we malloc and keep around */
+	                        /* for holding blocks of data for each field*/
+	char *mdata;		/* A field's metdata at a particular sample */
+	unsigned long idata;	/* The number of bytes written into the data*/
+	                        /* array for a particular field.	    */
+	int mdatasize;		/* Size, in bytes, of a field's sample data */
+	unsigned long datasize;	/* Size, in bytes, of the data array.	    */
+	FieldId *fids;
+	long i;
+	Location *locns;
+	int ndim;
+/*
+ * Gotta open up the file before we do anything.
+ */
+	if (!dfa_OpenFile (dfile, TRUE, (void *) &tag))
+		return (0);
+/*
+ * Figure out where this sample is supposed to go.
+ */
+	start[0] = start[1] = start[2] = start[3] = 0;
+	count[0] = count[1] = count[2] = count[3] = (long)nsample;
+	if (! dnc_NewTimes (tag, dc, sample, (long)nsample, wc, start))
+		return (0);
+/*
+ * Work out coords and data stuff now.
+ */
+	dnc_DoWriteCoords (tag, dc, sample, start, count, &ndim);
+/*
+ * Time for the humungo write to dump it all into the file.
+ */
+	fids = dc_GetFields (dc, &nfield);
+/*
+ * XXX We happen to know that all of fields are created as type float
+ * in dnc_CreateFile().  We take advantage of this here.  However,
+ * according to a strict interpretation of DataChunks, we can't be
+ * sure of the size (i.e. type) of a field value without retrieving
+ * it from the data chunk.  The size of the field is available from
+ * the data chunk, but since this does not imply a variable type for
+ * storage with netCDF, we must use the float assumption.
+ *
+ * Theoretically we could allocate the data array once to the DataLen
+ * of the DC, but this might be some sort of violation.  And for 70
+ * fields, we actually only need 1/70 of the space in the DC.  For now
+ * we'll do the first alloc inside the loop.
+ */
+	datasize = 0;
+	data = NULL;
+	for (field = 0; field < nfield; field++)
+	{
+	/*
+	 * Find everything.  Store each sample for this field
+	 * into one contiguous data array.
+	 */
+		idata = 0;
+		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
+		{
+			msg_ELog (EF_PROBLEM, "(PUT) Can't find fld %s",
+						 F_GetName (fids[field]));
+			continue;
+		}
+
+		for (i = 0; i < nsample; ++i)
+		{
+			if ((dc->dc_Class != DCC_NSpace) ||
+			    (! dc_NSIsStatic (dc, fids[field])))
+			{
+				mdata = (char *)dc_GetMData (dc, sample + i,
+							     fids[field], 
+							     &mdatasize);
+			}
+			else
+			{
+				mdata = (char *)dc_NSGetStatic (dc, 
+								fids[field], 
+								&mdatasize);
+				mdatasize *= sizeof(float);
+			}
+
+			if (! data)
+			{
+				datasize = nsample * mdatasize;
+				data = (char *) malloc (datasize);
+			}
+			else if (idata + mdatasize > datasize)
+			{
+				datasize += (nsample - i) * mdatasize;
+				data = (char *) realloc (data, datasize);
+			}
+			memcpy (data + idata, mdata, mdatasize);
+			idata += mdatasize;
+		/*
+		 * If this was a static field, then we don't need 
+		 * to go through this for the rest of the samples.
+		 */
+			if ((dc->dc_Class == DCC_NSpace) &&
+			    (dc_NSIsStatic (dc, fids[field])))
+				break;
+		}
+	/*
+	 * Write it to the file.
+	 */
+		if (dc->dc_Class == DCC_NSpace)
+		{
+			if (dnc_NSpaceVarPut (tag, dc, vfield, 
+					      fids[field], start, 
+					      count, ndim, (DataPtr)data) < 0)
+				dnc_NCError ("NSpace data write");
+		}
+		else if (ncvarput (tag->nc_id, vfield, start, count, data) < 0)
+			dnc_NCError ("Data write");
+	}
+	free(data);
+/*
+ * For mobile platforms, we need to store the location info too.
+ */
+	if (ds_IsMobile (tag->nc_plat))
+	{
+		locns = (Location *)malloc(nsample * sizeof(Location));
+		for (i = 0; i < nsample; ++i)
+			dc_GetLoc (dc, sample + i, locns + i);
+		dnc_PutLocation (tag, start[0], count[0], locns);
+		free(locns);
+	}
+/*
+ * Synchronize.
+ */
+	ncsync (tag->nc_id);
+	return (1);
+}
+
+
+
 
 /* ARGSUSED */
 static void
-dnc_DoWriteCoords (tag, dc, sample, start, count)
+dnc_DoWriteCoords (tag, dc, sample, start, count, ndim)
 NCTag *tag;
 DataChunk *dc;
 int sample;
 long *start, *count;
+int *ndim;
 /*
  * Set up the coordinates to do the write for this data.
  */
@@ -2294,12 +3097,13 @@ long *start, *count;
 	 * In irregular grid land we just qualify by the number of platforms.
 	 */
 	   case OrgIRGrid:
-	   	count[1] = tag->nc_nPlat;
+	   	count[c++] = tag->nc_nPlat;
 		break;
 	/*
 	 * Everything else takes care of itself.
 	 */
 	}
+	*ndim = c;
 }
 
 
@@ -2313,26 +3117,27 @@ char *const fld;
  * See if this is an "overhead" field, as opposed to real data.
  */
 {
-	static char *OFields[] =
+	static char *OFields[] =	/* NOTE these are alphabetical */
 	{
+		"alt",
 		"base_time",
-		"time_offset",
-		"platform",
 		"lat",
 		"lon",
-		"alt",
+		"platform",
+		"time_offset",
 		"x_spacing",
 		"y_spacing",
 		"z_spacing",
 		0
 	};
-	int i;
+	int i, cmp;
 /*
- * See if this field is in our list.  This could really be smarter.
+ * See if this field is in our list.  Exit the loop as soon as the fld
+ * is lexically less than or equal to an overhead field.
  */
 	for (i = 0; OFields[i]; i++)
-		if (!strcmp (fld, OFields[i]))
-			return (TRUE);
+		if ((cmp = strcmp (fld, OFields[i])) <= 0)
+			return (!cmp);
 	return (FALSE);
 }
 
@@ -2399,6 +3204,200 @@ Location *locs;
 		times++;
 		*locs++ = (tag->nc_locs) ? tag->nc_locs[i] : tag->nc_sloc;
 	}
+	return (1);
+}
+
+
+
+
+static char *
+dnc_ValueToString (value, type, len)
+void *value;
+nc_type type;
+int len;
+/*
+ * Convert the netCDF value of nctype 'type' to a string.
+ * Returns the string, which is only valid until the next call.
+ */
+{
+#	define BUFSIZE 256
+	static char buf[BUFSIZE];
+	char hold[15];
+	int i;
+
+	if (type == NC_CHAR)
+		return((char *)value);
+	buf[0] = '\0';
+	for (i = 0; i < len; ++i)
+	{
+		switch(type)
+		{
+		   case NC_BYTE:
+			sprintf(hold,"%hu ",
+				(unsigned short)*(unsigned char *)value);
+			break;
+		   case NC_SHORT:
+			sprintf(hold,"%hi ",*(short int *)value);
+			break;
+		   case NC_LONG:
+			sprintf(hold,"%li ",*(long int *)value);
+			break;
+		   case NC_FLOAT:
+			sprintf(hold,"%f ",*(float *)value);
+			break;
+		   case NC_DOUBLE:
+			sprintf(hold,"%f ",*(double *)value);
+			break;
+		   default:
+			return("unknown");
+		}
+		if (strlen(buf) + strlen(hold) > BUFSIZE - 5)
+		{
+			strcat(buf, " ...");
+			return(buf);
+		}
+		else
+			strcat(buf, hold);
+		value += nctypelen(type);
+	}
+	return(buf);
+}
+
+
+
+
+
+
+static int
+dnc_ReadGlobalAtts(dc,tag)
+DataChunk *dc;
+NCTag *tag;
+/*
+ * This function reads the global attributes from the netcdf file
+ * and stuffs them into the datachunk.
+ */
+{
+	int nglatt, ndim, nvar, rdim, g, len;
+	char key[MAX_NC_NAME];
+	void *value;
+	nc_type gltype;
+/*
+ * First, do the inquiry...
+ */
+	ncinquire(tag->nc_id, &ndim, &nvar, &nglatt, &rdim);
+/* 
+ * Now, loop over the glatts, and pull out the info we want.
+ */
+	for (g = 0; g < nglatt; g++)
+	{
+	/* 
+	 * get key name, length, type, all that good stuff.
+	 */
+		ncattname(tag->nc_id, NC_GLOBAL, g, key);
+		ncattinq(tag->nc_id, NC_GLOBAL, key, &gltype, &len);
+	/*
+	 * now allocate space for the value, and get that too
+	 */
+		value = (void *) malloc (len*nctypelen(gltype));
+		ncattget(tag->nc_id, NC_GLOBAL, key, (void *) value);
+	/* 
+	 * now just stuff it into the data chunk.  The value is first
+	 * passed through dnc_ValueToString in case some non-char
+	 * attributes have been added to the file outside of Zeb.
+	 */
+		dc_SetGlobalAttr(dc,key,dnc_ValueToString(value, gltype, len));
+		free(value);
+	}
+	return(nglatt);
+}
+
+
+
+static char *
+dnc_GetStringAtt(cdfid, varid, att_name, att_val, len)
+int cdfid;
+int varid;
+char *att_name;
+char *att_val;
+int len;
+/*
+ * Retrieve named attribute from given varid, making sure value is of
+ * type NC_CHAR and not longer than len.  Returns att_val if 
+ * if successful, else returns NULL without changing att_val[].
+ */
+{
+	nc_type att_type;
+	int att_len;
+	int saveopts = ncopts;
+
+	ncopts = 0;
+	if ((ncattinq (cdfid, varid, att_name, &att_type, &att_len) >= 0) 
+	    && (att_len < len) && (att_type == NC_CHAR))
+	{
+		ncopts = saveopts;
+		ncattget (cdfid, varid, att_name, (void *)att_val);
+		return (att_val);
+	}
+	ncopts = saveopts;
+	return (NULL);
+
+}
+
+
+
+static void
+dnc_ReadFieldAtts(dc, tag, fids, nfield)
+DataChunk *dc;
+NCTag *tag;
+FieldId *fids;
+int nfield;
+/*
+ * This function reads the field attributes from the netcdf file
+ * for nfield fields and stuffs them into the datachunk.
+ */
+{
+	int natts, f,len, var, i;
+	int ndim, dim[MAX_VAR_DIMS];  /* useless but neccessary */
+	char key[MAX_NC_NAME];
+	void *value;
+	nc_type ftype;
+	
+	for (f = 0; f < nfield; f++) 
+	{
+	/* 
+	 * Before anything else we need the varid for this field
+	 */
+		if ((var = dnc_GetFieldVar(tag,fids[f])) < 0) 
+			continue;
+	/* 
+	 * How many variable attributes do we have?
+	 */
+		ncvarinq(tag->nc_id, var, NULL, &ftype,
+			 &ndim, &dim[0], &natts);
+	/* 
+	 * Now, loop over the variable attributes, and pull
+	 * out the info we want.
+	 */
+		for (i = 0; i < natts; i++)
+		{
+		/* 
+		 * get key name, length, type, all that good stuff
+		 */
+			ncattname(tag->nc_id, var, i, key);
+			ncattinq(tag->nc_id, var, key, &ftype, &len);
+		/* 
+		 * now allocate space for the value, and get that too 
+		 */
+			value = (void *) malloc (len*nctypelen(ftype));
+			ncattget(tag->nc_id, var, key, (void *) value);
+		/* 
+		 * now just stuff it into the data chunk
+		 */
+			dc_SetFieldAttr(dc,fids[f],key,
+					dnc_ValueToString(value, ftype, len));
+			free(value);
+		}
+	}  /* nfields */
 }
 
 
@@ -2418,3 +3417,4 @@ double	val;
 	for (i = 0; i < len; i++)
 		array[i] = val;
 }
+

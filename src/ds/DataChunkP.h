@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.4 1992-06-05 21:23:26 corbet Exp $ */
+/* $Id: DataChunkP.h,v 1.5 1993-05-04 21:42:11 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -62,3 +62,7 @@ int		dca_ProcAttrs FP ((DataChunk *, DataClass, int, char *,
 			int (*) ()));
 void *		dca_GetBlock FP ((DataChunk *, DataClass, int, int *));
 void		dca_PutBlock FP ((DataChunk *, DataClass, int, void *, int));
+char **		dca_GetAttrList FP ((DataChunk *, DataClass,
+				     int code, char *pattern,
+				     char **values[], int *natts));
+int		dca_GetNAttrs FP ((DataChunk *, DataClass, int));

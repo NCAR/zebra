@@ -22,19 +22,23 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.4 1993-02-22 21:15:46 granger Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.5 1993-05-04 21:42:11 granger Exp $")
 
 
 
 /*
  * The structure defining a field.
  */
-# define MaxFieldID	512
+# define MaxFieldID		512
+# define MaxFieldName		40
+# define MaxFieldLongName 	80
+# define MaxFieldUnits		20
+
 typedef struct _FieldDesc
 {
-	char	fd_CName[40];		/* Canonical name		*/
-	char	fd_LongName[80];	/* Full description		*/
-	char	fd_Units[20];		/* What units it's in ??	*/
+	char	fd_CName[MaxFieldName];		/* Canonical name	*/
+	char	fd_LongName[MaxFieldLongName];	/* Full description	*/
+	char	fd_Units[MaxFieldUnits];	/* What units it's in ??*/
 	/* more to follow */
 } FieldDesc;
 
@@ -76,6 +80,23 @@ char *name;
 
 
 
+FieldId
+F_Declared (name)
+char *name;
+/*
+ * Try to find this field.  Return BadField if not found rather than
+ * implicitly declaring it.
+ */
+{
+	SValue v;
+	int type;
+
+	if (! usy_g_symbol (FNameTable, name, &type, &v))
+		return (BadField);
+	else
+		return (v.us_v_int);
+}
+
 
 
 FieldId
@@ -103,9 +124,12 @@ char *name, *desc, *units;
 			return (BadField);
 		}
 	}
-	strcpy (FieldTable[ind].fd_CName, name);
-	strcpy (FieldTable[ind].fd_LongName, desc);
-	strcpy (FieldTable[ind].fd_Units, units);
+	strncpy (FieldTable[ind].fd_CName, name, MaxFieldName);
+	FieldTable[ind].fd_CName[MaxFieldName - 1] = '\0';
+	strncpy (FieldTable[ind].fd_LongName, desc, MaxFieldLongName);
+	FieldTable[ind].fd_LongName[MaxFieldLongName - 1] = '\0';
+	strncpy (FieldTable[ind].fd_Units, units, MaxFieldUnits);
+	FieldTable[ind].fd_Units[MaxFieldUnits - 1] = '\0';
 
 	v.us_v_int = ind;
 	usy_s_symbol (FNameTable, name, SYMT_INT, &v);
