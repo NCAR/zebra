@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.7 1994-02-02 19:33:56 burghart Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.8 1994-02-16 02:52:03 granger Exp $")
 
 # include "keywords.h"
 
@@ -57,7 +57,8 @@ int	GridX = 0, GridY = 0;
 float	KmResolution = 0.0;
 float	Minlon, Maxlon, Minlat, Maxlat;
 float	Latstep, Lonstep;
-int 	HaveLimits = FALSE;
+bool 	HaveLimits = FALSE;
+bool	CheckTimes = TRUE;
 
 /*
  * Image unpacking info.
@@ -84,7 +85,7 @@ float	OriginLat = -999.0;
 /*
  * Structure describing a file to ingest
  */
-# define MAXFILES 10
+# define MAXFILES 24
 struct _InFile
 {
 	char	*name;
@@ -112,6 +113,8 @@ static int	Dispatcher FP ((int, struct ui_command *));
 static void	UserLimits FP ((struct ui_command *));
 static void	AddFile FP ((struct ui_command *));
 static void	Ingest FP ((void));
+static void	RemoveOldFile FP ((int f));
+static void	RemoveFile FP ((int f));
 static void	TimeCheck FP ((ZebTime *));
 static void	swapfour FP ((int *, int));
 static void	FileLimits FP ((void));
@@ -167,6 +170,7 @@ char **argv;
 	usy_c_indirect (vtable, "gridX", &GridX, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gridY", &GridY, SYMT_INT, 0);
 	usy_c_indirect (vtable, "truncate", &Truncate, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "checkTimes", &CheckTimes, SYMT_BOOL, 0);
 /*
  * Get on with it
  */
@@ -202,7 +206,9 @@ struct ui_command	*cmds;
 	switch (UKEY (*cmds))
 	{
 	/*
-	 * Time to actually do things.
+	 * Time to actually do things.  Ingest() is responsible for
+	 * resetting the file list to zero in case we're told to 'go'
+	 * more than once.
 	 */
 	    case KW_GO:
 		Ingest ();
@@ -304,7 +310,7 @@ Ingest ()
  * Begin the ingest process
  */
 {
-	int	f, nfields = 0, ngood = 0;
+	int	f, i, nfields = 0, ngood = 0;
 	void	*grid;
 	Location	loc;
 	RGrid		rg;
@@ -312,6 +318,8 @@ Ingest ()
 	ScaleInfo	scale[MAXFILES];
 	DataChunk	*dc;
 	ZebTime		t;
+	char		buf[128];
+	bool		reset_gridsize;
 /*
  * Make sure we have lat/lon limits and a platform name
  */
@@ -337,6 +345,7 @@ Ingest ()
 
 		Latstep = (Maxlat - Minlat) / (GridY - 1);
 		Lonstep = (Maxlon - Minlon) / (GridX - 1);
+		reset_gridsize = FALSE;
 	}
 	else if (KmResolution != 0.0)
 	{
@@ -344,6 +353,11 @@ Ingest ()
 
 		GridX = (int)((Maxlon - Minlon) / Lonstep) + 1;
 		GridY = (int)((Maxlat - Minlat) / Latstep) + 1;
+	/*
+	 * Reset grid sizes to zero when finished, since they were zero
+	 * when we entered.
+	 */
+		reset_gridsize = TRUE;
 
 		Maxlon = Minlon + Lonstep * (GridX - 1);
 		Maxlat = Minlat + Latstep * (GridY - 1);
@@ -375,21 +389,29 @@ Ingest ()
 	rg.rg_nY = GridY;
 	rg.rg_nZ = 1;
 /*
- * Check data times in the files and leave only the latest one(s) for ingest
+ * Check data times in the files and leave only the latest one(s) for ingest.
  */
-	TimeCheck (&t);
+	if (CheckTimes)
+		TimeCheck (&t);
 /*
- * Build a field list
+ * Build a field list from all of the unique field names.
  */
-	nfields = Nfiles;
-
-	F_Init ();
-	for (f = 0; f < nfields; f++)
+	nfields = 0;
+	for (f = 0; f < Nfiles; f++)
 	{
-		fid[f] = F_DeclareField (Infile[f].field, "", "");
-
-		scale[f].s_Scale = 1.0;
-		scale[f].s_Offset = 0.0;
+		fid[nfields] = F_DeclareField (Infile[f].field, "", "");
+	/*
+	 * Don't add any fields which we already have
+	 */
+		for (i = 0; i < nfields; ++i)
+			if (fid[nfields] == fid[i])
+				break;
+		if (i >= nfields)
+		{
+			scale[nfields].s_Scale = 1.0;
+			scale[nfields].s_Offset = 0.0;
+			++nfields;
+		}
 	}
 /*
  * Get our platform
@@ -410,37 +432,90 @@ Ingest ()
  */
 	for (f = 0; f < Nfiles; f++)
 	{
+	/*
+	 * If we're not checking times, then we need to know the time
+	 * of this file.
+	 */
+		if (! CheckTimes)
+			GetFileTime (f, &t);
+		TC_EncodeTime (&t, TC_Full, buf);
+		msg_ELog (EF_INFO, "Reading %s, field %s, %s", 
+			  Infile[f].name, Infile[f].field, buf);
 		if ((grid = DoFile (f)) == NULL)
 			continue;
+	/*
+	 * If we already have a sample at this time, use it.  If we
+	 * checked the times above, then the sample will always be 0.
+	 */
+		for (i = 0; i < dc_GetNSample(dc); ++i)
+		{
+			ZebTime stime;
 
+			dc_GetTime (dc, i, &stime);
+			if (TC_Eq(stime,t))
+				break;
+		}
 		ngood++;
-		dc_ImgAddImage (dc, 0, fid[f], &loc, &rg, &t, grid, 
-			GridX * GridY);
+		dc_ImgAddImage (dc, i, F_Lookup(Infile[f].field), 
+				&loc, &rg, &t, grid, GridX * GridY);
 		free(grid); 		/* we're done with it */
+	/*
+	 * Free files as we finish with them.
+	 */
+		RemoveFile (f);
 	}
 /*
  * Write out the data chunk.  Finally.
  */
 	if (ngood > 0)
 	{
-		ds_Store (dc, 1, NULL, 0);
+		ds_Store (dc, TRUE, NULL, 0);
 		msg_ELog (EF_INFO, "Successfully ingested %d of %d images",
 			ngood, Nfiles);
 	}
 	else
 		msg_ELog (EF_INFO, "Exiting with nothing ingested");
 /*
- * Free the stuff we allocated
+ * Destroy the DataChunk, and reset our file list and possibly grid sizes
  */
 	dc_DestroyDC (dc);
-	for (f = 0; f < Nfiles; f++)
+	Nfiles = 0;
+	if (reset_gridsize)
 	{
-		free (Infile[f].name);
-		free (Infile[f].field);
+		GridX = 0;
+		GridY = 0;
 	}
 }
 	
 
+
+static void
+RemoveOldFile(f)
+int f;
+/*
+ * Remove files with older times from the list
+ */
+{
+	msg_ELog (EF_INFO, 
+		  "Not ingesting %s due to time mismatch",
+		  Infile[f].name);
+	RemoveFile (f);
+}
+
+
+
+static void
+RemoveFile(f)
+int f;
+{
+	free (Infile[f].name);
+	free (Infile[f].field);
+	if (Infile[f].stream)
+		fclose (Infile[f].stream);
+	Infile[f].name = NULL;
+	Infile[f].field = NULL;
+	Infile[f].stream = NULL;
+}
 
 
 
@@ -452,48 +527,49 @@ ZebTime *t;
  */
 {
 	ZebTime	ftime;
-	int	f, prev, ngood = 0;
+	int	f, prev, i;
+	int 	ngood;
 /*
  * Run through the file list, leaving only one(s) with the latest time
  */
 	t->zt_Sec = t->zt_MicroSec = 0;
 
+	ngood = 0;
 	for (f = 0; f < Nfiles; f++)
 	{
 		GetFileTime (f, &ftime);
 		if (ftime.zt_Sec < t->zt_Sec)
 		{
-		/*
-		 * Remove files with older times from the list
-		 */
-			msg_ELog (EF_INFO, 
-				"Not ingesting %s due to time mismatch",
-				Infile[f].name);
-
-			free (Infile[f].name);
-			free (Infile[f].field);
-			fclose (Infile[f].stream);
-
-			continue;
+			RemoveOldFile (f);
 		}
 		else if (ftime.zt_Sec > t->zt_Sec)
 		{
 		/*
-		 * Copy to the beginning of the list if we hit a later time
+		 * We have a new most recent time, so any files currently
+		 * considered good are good no longer; remove them.
+		 */
+			for (i = 0; i < ngood; ++i)
+				RemoveOldFile (i);
+		/*
+		 * Then copy our new most recent file to the front of the list.
+		 * The first time through the loop, nothing changes.
 		 */
 			Infile[0] = Infile[f];
-			ngood = 0;
+			ngood = 1;
 			*t = ftime;
 		}
-	/*
-	 * Increment the good count and clean out the file entry if we
-	 * have moved it
-	 */
-		if (f != ngood++)
+		else
 		{
-			free (Infile[f].name);
-			free (Infile[f].field);
+		/*
+		 * Last but not least, this file's time checks out with the
+		 * current time, so move it to end of the 'good' list.
+		 */
+			Infile[ngood++] = Infile[f];
 		}
+	/*
+	 * So either we're back to one good file, or this file's time equals
+	 * the current time and our number of good files increased by one
+	 */
 	}
 
 	Nfiles = ngood;
@@ -518,7 +594,6 @@ int	fentry;
 	float	dummy, fline, felem, lat, lon;
 	char	source[5], *c;
 
-	msg_ELog (EF_INFO, "Reading %s", Infile[fentry].name);
 /*
  * Read the 256 byte "area directory" header and the 512 byte
  * navigation codicil and swap bytes around in each one.  
