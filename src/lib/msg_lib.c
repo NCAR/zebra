@@ -27,7 +27,7 @@
 # include <sys/uio.h>
 # include "../include/defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.6 1992-08-06 15:32:57 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.7 1992-09-24 19:22:34 corbet Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -346,7 +346,10 @@ msg_await ()
 	 */
 		fds = Fd_list;
 		if ((nsel = select (Max_fd + 1, &fds, 0, 0, 0)) < 0)
+		{
+			printf ("Return code %d from msg select", errno);
 			return (-1);
+		}
 	/*
 	 * Now dispatch the events.
 	 */
