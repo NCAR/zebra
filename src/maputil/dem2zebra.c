@@ -27,7 +27,7 @@
 
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.6 2000-04-24 21:22:55 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.7 2002-03-22 18:22:08 burghart Exp $ */
 
 struct _Map
 {
@@ -403,23 +403,54 @@ ProcessFiles (char *fnames[], int nfiles)
 {
     int	f, lat_spacing, lon_spacing, ssec, nsec, wsec, esec;
     int	lat_start, lat_stop, lat, lon_start, lon_stop, lon;
-    long	start[3], count[3];
-    short	*alts;
-    FILE	*infile = 0;
+    long start[3], count[3];
+    char *uncompressCommand = 0;
+    short *alts;
+    FILE *infile = 0;
 /*
  * Loop through the input files
  */
     for (f = 0; f < nfiles; f++)
     {
 	if (infile)
-	    fclose (infile);
+	{
+	    if (uncompressCommand)
+		pclose (infile);
+	    else
+		fclose (infile);
+	}
 
 	printf ("%s\n", fnames[f]);
-
-	if (! (infile = fopen (fnames[f], "r")))
+    /*
+     * Simple filetype determination based on extension
+     */
+	if (! strcmp (fnames[f] + strlen (fnames[f]) - 4, ".bz2"))
+	    uncompressCommand = "bzcat";
+	else if (! strcmp (fnames[f] + strlen (fnames[f]) - 3, ".gz"))
+	    uncompressCommand = "zcat";
+	else
+	    uncompressCommand = 0;
+    /*
+     * Open the file directly if it's uncompressed, otherwise
+     * pipe it in via an uncompress command
+     */
+	if (uncompressCommand)
 	{
-	    fprintf (stderr, "Error %d opening '%s'\n", errno, fnames[f]);
-	    continue;
+	    char command[128];
+	    sprintf (command, "%s %s", uncompressCommand, fnames[f]);
+	    if (! (infile = popen (command, "r")))
+	    {
+		perror (command);
+		exit (1);
+	    }
+	}
+	else
+	{
+	    if (! (infile = fopen (fnames[f], "r")))
+	    {
+		fprintf (stderr, "Error %d opening '%s'\n", errno, fnames[f]);
+		exit (1);
+	    }
 	}
 
 	ReadHeader (infile, &lat_spacing, &lon_spacing, &ssec, &nsec, &wsec, 
@@ -430,7 +461,7 @@ ProcessFiles (char *fnames[], int nfiles)
 	    fprintf (stderr, 
 		     "lat_spacing or lon_spacing mismatch with file %s!\n",
 		     fnames[f]);
-	    exit (1);
+	    continue;
 	}
 
 	/*
