@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.31 1997-12-08 23:39:57 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.32 1998-02-26 14:48:34 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -286,14 +286,17 @@ XCOMM --- Deciding C compiler and options
 
 #ifdef SGIArchitecture
 # if !UseGcc
-#  define CCOptions -32 -mips2
+#  define CCOptions -n32
    /* 
-    * The "-woff 85" loader flag suppresses warnings about multiple 
-    * vendorShellClass symbols in IRIX Xaw and Xt libraries.  The "-woff 84"
-    * flag suppresses warnings about libraries not used to resolve any
-    * symbols.
+    * The "-woff 85" loader flag suppresses warnings about multiple
+    * vendorShellClass symbols in IRIX Xaw and Xt libraries.  The "-woff
+    * 84" flag suppresses warnings about libraries not used to resolve any
+    * symbols.  We also suppress warning 131 (Multiply defined weak
+    * symbol), since this * is a very common warning when using C++
+    * templates. 
     */
-#  define ExtraLoadOptions -Wl,-woff,85 -Wl,-woff,84 StaticLoadOption
+#  define ExtraLoadOptions -Wl,-woff,85 -Wl,-woff,84 \
+	-Wl,-woff,131 StaticLoadOption
 # else
    /*
     * There might need to be linker options on the gcc command line if
