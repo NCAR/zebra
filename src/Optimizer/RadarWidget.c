@@ -32,7 +32,7 @@
 # include "prototypes.h"
 # include "radar.h"
 
-RCSID ("$Id: RadarWidget.c,v 1.8 1997-04-29 03:51:15 granger Exp $")
+RCSID ("$Id: RadarWidget.c,v 1.9 1999-03-04 22:10:51 burghart Exp $")
 
 /*
  * Which radar are we dealing with?
@@ -388,6 +388,7 @@ Widget	parent;
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 3); n++;
+	XtSetArg (args[n], XtNresizable, True); n++;
 	form = XtCreateManagedWidget ("radarEnableForm", formWidgetClass, 
 		parent, args, n);
 /*
