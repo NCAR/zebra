@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.56 1997-05-14 19:42:56 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.57 1997-06-06 22:33:24 ishikawa Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -534,7 +534,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #  if SystemV || SystemV4
 #     define SystemLibraries /*LoaderLibPrefix -lgen $(MATHLIB) $(TERMCAPLIB)*/
 #  else
+#    ifdef OSF1Architecture
+#     define SystemLibraries -ldnet_stub
+#    else
 #     define SystemLibraries /*$(MATHLIB) $(TERMCAPLIB)*/
+#    endif /* OSF1-Alpha */
 #  endif
 #endif
 
@@ -792,6 +796,12 @@ XCOMM -----------------------------------------------------------------------
     DEPEND_OPTION = -xM1
 #endif
 #endif
+#ifdef AIXArchitecture
+#if ! UseGcc
+    DEPEND_OPTION = -M -P
+#endif
+#endif
+
         CC_DEPEND = $(CC) $(DEPEND_OPTION)
        CXX_DEPEND = $(CXX) $(DEPEND_OPTION)
            MDFILE = Makefile.dep	/* File to append dependencies to */
@@ -1012,7 +1022,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 /*
  * HP's f77 groks .F files, but somebody forgot to tell their make about it.
  */
-#if defined(HPArchitecture) || defined(SGIArchitecture)
+#if defined(HPArchitecture) || defined(SGIArchitecture) || defined(AIXArchitecture)
 .SUFFIXES:	.F
 
 .F.o:

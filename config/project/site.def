@@ -88,6 +88,16 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #endif
 #endif /* HPArchitecture */
 
+
+/* Assume there is no -lgen regexp library even though the AIX sets SystemV
+*/
+#ifdef AIXArchitecture
+# ifndef RegexpLibrary
+# define RegexpLibrary /**/
+# endif
+# endif /* AIXArchitecture */
+
+
 #ifndef CCOptions
 # if UseGcc
 #  define CCOptions OptimizedCDebugFlags
@@ -96,9 +106,17 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #  ifdef HPArchitecture
 #   define CCOptions -Aa  /* now that we handle it, we may as well use it */
 #  else
-#   define CCOptions /**/
-#  endif
-# endif
+#   ifdef OSF1Architecture
+#    define CCOptions -taso -non_shared
+#   else
+#    ifdef AIXArchitecture
+#     define CCOptions -U__STR__ -qlanglvl=ansi
+#    else  
+#     define CCOptions /**/
+#    endif /*AIX*/
+#   endif /* OSF1-Alpha */
+#  endif /* HP */
+# endif /* UseGcc */
 #endif
 
 #ifndef CDebugFlags
