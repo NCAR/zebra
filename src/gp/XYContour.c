@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.21 1994-04-15 21:26:49 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.22 1994-05-02 20:20:21 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -407,7 +407,7 @@ bool	update;
 
 	        if (strcmp (style, "line") == 0)
 	        {
-			CO_Init (colors, ncolors, ncolors/2, white, clip, 
+			CO_Init (colors, ncolors, ncolors/2, &white, clip, 
 				 TRUE, BADVAL);
 			Contour (Graphics, GWFrame (Graphics), datagrid,
 				 xgridres, ygridres, devX (&xleft), 
@@ -416,7 +416,7 @@ bool	update;
 	        }
 		else
 		{
-			FC_Init (colors, ncolors, ncolors/2, white, clip, 
+			FC_Init (colors, ncolors, ncolors/2, &white, clip, 
 				 TRUE, BADVAL);
 			FillContour (Graphics, GWFrame (Graphics), datagrid,
 				     xgridres, ygridres, devX (&xleft), 

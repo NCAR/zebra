@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.19 1994-04-20 15:39:07 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.20 1994-05-02 20:20:17 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -146,7 +146,9 @@ static int	Tracelen = 0;
  */
 static XColor	*Colors;
 static int	Ncolors;
-static XColor	White, Black, Ccolor;
+static XColor	White, Black, Ccolor, C_outrange;
+static int	Do_outrange;	/* do we want out-of-range contours? */
+
 
 /*
  * Match top annotation color to contour color?
@@ -358,7 +360,7 @@ bool	update;
 	bool	ok;
 	int	nplat;
 	char	platforms[120], *pnames[MAXPLAT], fldname[20], cname[20];
-	char	param[50];
+	char	param[50], outrange[40];
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
  * plots so we don't have plots with different endpoints overlaying each
@@ -420,6 +422,17 @@ bool	update;
 	if (Mono_color)
 		pda_Search (Pd, c, "ta-color-match", NULL, (char *)&AnnotMatch,
 			    SYMT_BOOL);
+/*
+ * Out of range color?
+ */
+	Do_outrange = TRUE;
+	strcpy (outrange, "black");
+	pda_Search (Pd, c, "out-of-range-color", NULL, outrange, SYMT_STRING);
+
+	if (! strcmp (outrange, "none"))
+		Do_outrange = FALSE;
+	else if (! ct_GetColorByName (outrange, &C_outrange))
+		ct_GetColorByName ("black", &C_outrange);
 /*
  * Give up if we didn't get all the required parameters
  */
@@ -685,7 +698,8 @@ int	nplat;
 		{
 			if (Fill_contour)
 			{
-				FC_Init (Colors, Ncolors, Ncolors / 2, Black, 
+				FC_Init (Colors, Ncolors, Ncolors / 2, 
+					 Do_outrange ? &C_outrange : NULL, 
 					 Clip, TRUE, BADVAL);
 				FillContour (Graphics, GWFrame (Graphics), 
 					     data + p * vdim, 2, vdim,
@@ -700,7 +714,8 @@ int	nplat;
 						     BADVAL);
 				else
 					CO_Init (Colors, Ncolors, Ncolors / 2,
-						 Black, Clip, TRUE, BADVAL);
+					    Do_outrange ? &C_outrange : NULL, 
+					    Clip, TRUE, BADVAL);
 
 				Contour (Graphics, GWFrame (Graphics), 
 					 data + p * vdim, 2, vdim, 
@@ -1293,8 +1308,8 @@ int	nplat;
  */
 	if (Fill_contour)
 	{
-		FC_Init (Colors, Ncolors, Ncolors / 2, Black, Clip, 
-			TRUE, BADVAL);
+		FC_Init (Colors, Ncolors, Ncolors / 2, 
+			 Do_outrange ? &C_outrange : NULL, Clip, TRUE, BADVAL);
 		FillContour (Graphics, GWFrame (Graphics), plane->data, 
 			     plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
 			     Pix_right, Pix_top, Contour_center, Contour_step);
@@ -1304,7 +1319,8 @@ int	nplat;
 		if (Mono_color)
 			CO_InitMono (Ccolor, Clip, TRUE, BADVAL);
 		else
-			CO_Init (Colors, Ncolors, Ncolors / 2, Black, Clip, 
+			CO_Init (Colors, Ncolors, Ncolors / 2, 
+				 Do_outrange ? &C_outrange : NULL, Clip, 
 				 TRUE, BADVAL);
 
 		Contour (Graphics, GWFrame (Graphics), plane->data, 
@@ -1489,10 +1505,8 @@ ZebTime	*times;
 	pda_Search (Pd, "global", "by-altitude", "xsect", (char *) &use_alt, 
 		SYMT_BOOL);
 
-	if (use_alt)
-		strcpy (Zfld, "alt");
-	else
-		strcpy (Zfld, "pres");
+	strcpy (Zfld, use_alt ? "alt" : "pres");
+	AltUnits = use_alt ? AU_kmMSL : AU_mb;
 /*
  * Set default vertical limits if no limits exist yet.
  */
@@ -1500,7 +1514,6 @@ ZebTime	*times;
 	{
 		P_bot = use_alt ? 0.0 : 1050.0;
 		P_hgt = use_alt ? 12.0 : -850.0;
-		AltUnits = use_alt ? AU_kmMSL : AU_mb;
 	}
 /*
  * Grid size

@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.39 1994-04-15 21:25:40 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.40 1994-05-02 20:20:07 burghart Exp $")
 
 
 /*
@@ -274,14 +274,15 @@ int *shifted;
  * the next call to CAP_Contour, and should not be modified.
  */
 {
-	static char	platform[40], fname[40], ctable[40];
+	static char	platform[40], fname[40], ctable[40], outrange[40];
 	char	ctcolor[40], param[50];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, linewidth;
+	int	do_outrange;
 	bool	labelflag, dolabels, ok, autoscale;
 	ZebTime	zt;
-	XColor	black;
+	XColor	c_outrange;
 	XRectangle	clip;
 	DataChunk	*dc;
 	int	len;
@@ -337,6 +338,18 @@ int *shifted;
 	}
 	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctable, 
 		SYMT_STRING);
+/*
+ * An out of range color is nice, sometimes.
+ */
+	do_outrange = TRUE;
+	strcpy (outrange, "black");
+	pda_Search (Pd, c, "out-of-range-color", platform, outrange,
+		    SYMT_STRING);
+
+	if (! strcmp (outrange, "none"))
+		do_outrange = FALSE;
+	else if (! ct_GetColorByName (outrange, &c_outrange))
+		ct_GetColorByName ("black", &c_outrange);
 /*
  * Labeling.
  */
@@ -425,19 +438,19 @@ int *shifted;
 /*
  * Draw the contours
  */
-	ct_GetColorByName ("black", &black);
-
 	switch (type)
 	{
 	    case FilledContour:
-		FC_Init (Colors, Ncolors, Ncolors / 2, black, clip, TRUE, 
+		FC_Init (Colors, Ncolors, Ncolors / 2, 
+			 do_outrange ? &c_outrange : NULL, clip, TRUE, 
 			 badvalue);
 		FillContour (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
 			     pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
 		break;
 	    case LineContour:
 		if(! Monocolor)
-			CO_Init (Colors, Ncolors, Ncolors / 2, black, clip, 
+			CO_Init (Colors, Ncolors, Ncolors / 2, 
+				 do_outrange ? &c_outrange : NULL, clip, 
 				 TRUE, badvalue);
 		else 
 			CO_InitMono (Ctclr, clip, TRUE, badvalue);
@@ -1232,9 +1245,10 @@ bool	update;
 /*
  * An out of range color is nice, sometimes.
  */
-	if (! pda_Search (Pd, c, "out-of-range-color", platform, outrange,
-			SYMT_STRING))
-		strcpy (outrange, "black");
+	strcpy (outrange, "black");
+	pda_Search (Pd, c, "out-of-range-color", platform, outrange,
+		    SYMT_STRING);
+
 	if (! ct_GetColorByName (outrange, &xoutr))
 		ct_GetColorByName ("black", &xoutr);
 /*

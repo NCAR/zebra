@@ -37,6 +37,11 @@ static XColor	*Colors, Color_outrange, Color_mono;
 static int	Monoflag;
 
 /*
+ * Do out-of-range contours?
+ */
+static int	Do_outrange;
+
+/*
  * Clipping rectangle
  */
 static XRectangle	Clip;
@@ -67,5 +72,3 @@ static float	Xinc, Yinc;
 #	define TRUE	1
 #	define FALSE	0
 # endif
-
-/* # define ABS(x)	((x) < 0 ? -(x) : (x))	/* Cheap absolute value */

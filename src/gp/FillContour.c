@@ -179,7 +179,12 @@ int	xdim, ydim;
 	 */
 		if ((Color_center + cndx) < 0 || 
 		    (Color_center + cndx) > Ncolor - 1)
+		{
+			if (! Do_outrange)
+				continue;
+			
 			foreground = Color_outrange.pixel;
+		}
 		else
 			foreground = Colors[Color_center + cndx].pixel;
 
@@ -202,7 +207,7 @@ int	xdim, ydim;
 void
 FC_Init (colors, count, center, c_outrange, clip, flagged, flagval)
 int	center, count, flagged;
-XColor	*colors, c_outrange;
+XColor	*colors, *c_outrange;
 XRectangle	clip;
 float	flagval;
 /*
@@ -211,7 +216,7 @@ float	flagval;
  * CENTER	center color index
  * COUNT	number of colors in range to use for contouring
  * C_OUTRANGE	color for contours which fall outside of the specified
- *		range of colors
+ *		range of colors (pass NULL to suppress out-of-range contours)
  * CLIP		XRectangle structure describing the rectangle to use
  *		for clipping the plot
  * FLAGGED	Boolean value telling whether the bad values in the data
@@ -228,7 +233,13 @@ float	flagval;
 /*
  * Color index for out-of-range contours
  */
-	Color_outrange = c_outrange;
+	if (c_outrange)
+	{
+		Do_outrange = TRUE;
+		Color_outrange = *c_outrange;
+	}
+	else
+		Do_outrange = FALSE;
 /*
  * Clip rectangle
  */

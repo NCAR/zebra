@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.6 1994-04-19 22:08:14 corbet Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.7 1994-05-02 20:20:10 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -222,7 +222,12 @@ int	dolabels, linewidth;
 			 (Color_center + cndx) < Ncolor)
 			Pix = Colors[Color_center + cndx].pixel;
 		else
+		{
+			if (! Do_outrange)
+				continue;
+			
 			Pix = Color_outrange.pixel;
+		}
 
 		XSetForeground (XtDisplay (W), Gcontext, Pix);
 	/*
@@ -279,7 +284,7 @@ int	dolabels, linewidth;
 void
 CO_Init (colors, count, center, c_outrange, clip, flagged, flagval)
 int	center, count, flagged;
-XColor	*colors, c_outrange;
+XColor	*colors, *c_outrange;
 XRectangle	clip;
 float	flagval;
 /*
@@ -288,7 +293,8 @@ float	flagval;
  * CENTER	center color index
  * COUNT	number of colors in range to use for contouring
  * C_OUTRANGE	color index for contours which fall outside of the specified
- *		range of colors
+ *		range of colors (pass NULL to suppress drawing
+ *		contours outside the range represented by the color map)
  * CLIP		XRectangle structure describing the rectangle to use
  *		for clipping the plot
  * FLAGGED	Boolean value telling whether the bad values in the data
@@ -306,7 +312,13 @@ float	flagval;
 /*
  * Color index for out-of-range contours
  */
-	Color_outrange = c_outrange;
+	if (c_outrange)
+	{
+		Do_outrange = TRUE;
+		Color_outrange = *c_outrange;
+	}
+	else
+		Do_outrange = FALSE;
 /*
  * Clip rectangle
  */
