@@ -1,7 +1,6 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.24 1994-11-19 00:34:59 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,14 +26,19 @@ static char *rcsid = "$Id: Icons.c,v 2.24 1994-11-19 00:34:59 burghart Exp $";
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
 # include <X11/extensions/shape.h>
-# include "defs.h"
 # include <ui_error.h>
-# include "pd.h"
-# include "message.h"
-# include "DataStore.h"
+
+# include <config.h>
+# include <defs.h>
+# include <pd.h>
+# include <message.h>
+# include <DataStore.h>
+# include <GraphicsW.h>
+
+RCSID("$Id: Icons.c,v 2.25 1995-04-17 22:08:06 granger Exp $")
+
 # include "GraphProc.h"
 # include "ActiveArea.h"
-# include "config.h"
 
 
 # ifdef notdef
