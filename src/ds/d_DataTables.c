@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.13 1994-04-27 08:24:15 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.14 1994-04-27 17:18:51 burghart Exp $")
 
 
 /*
@@ -693,9 +693,14 @@ const char *defname;	/* Defined name, doesn't include parent if a subplat */
 		 && (pc->dpc_rdir[0]))
 		/* InstanceSubdirClass */
 		sprintf (newdir, "%s/%s", pc->dpc_rdir, dirname);
-	else if ((parent == NULL) && (RemDataDir[0]))
+	else if (parent == NULL)
+	{
 		/* No parent for parent instance types */
-		sprintf (newdir, "%s/%s", RemDataDir, dirname);
+		if (RemDataDir[0])
+			sprintf (newdir, "%s/%s", RemDataDir, dirname);
+		else
+			newdir[0] = '\0';
+	}
 	else if (((InstanceDir)pc->dpc_instance == InstanceCopyParent)
 		 && (parent->dp_rdir[0]))
 		/* InstanceCopyParent */
