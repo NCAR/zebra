@@ -193,9 +193,17 @@ Message *msg;
 		printf ("\tPLock%s: id %d\n",
 			dt->dsp_type == dpt_PLock ? "" :"Granted",dp->dsp_pid);
 		break;
+	   case dpt_WriteLock:
+	   	dp = (struct dsp_PLock *) dt;
+		printf ("\tWriteLock: id %d\n", dp->dsp_pid);
+		break;
 	   case dpt_ReleasePLock:
 	   	dp = (struct dsp_PLock *) dt;
 		printf ("\tReleasePLock: id %d\n", dp->dsp_pid);
+		break;
+	   case dpt_ReleaseWLock:
+	   	dp = (struct dsp_PLock *) dt;
+		printf ("\tReleaseWLock: id %d\n", dp->dsp_pid);
 		break;
 	   case dpt_Hello:
 	   	printf ("\tHello\n");
