@@ -13,6 +13,8 @@
 #	undef FALSE
 # endif
 
+# include <rpc/rpc.h>
+
 # include "zebra_rpc.h"
 # include "defs.h"	/* so programs can include zebra.h first instead */
 
