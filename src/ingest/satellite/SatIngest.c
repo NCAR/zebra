@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.5 1993-07-26 19:45:35 burghart Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.6 1993-08-10 20:03:51 burghart Exp $")
 
 # include "keywords.h"
 
@@ -844,12 +844,14 @@ int	line, elem;
 		image_x = (int)((float)(elem - Minelem) / Xres + 0.5);
 		image_y = (int)((float)(line - Minline) / Yres + 0.5);
 	/*
-	 * Find the offset into the image
+	 * Find the offset into the image.  We add (Nbytes - 1) so that
+	 * we end up pointing to the last byte of multi-byte data, since
+	 * that's the MSB.
 	 */
-		pos = image_y * Linelen + Prefixlen + image_x * Nbytes;
+		pos = image_y * Linelen + Prefixlen + image_x * Nbytes + 
+			(Nbytes - 1);
 	/*
-	 * Return the byte.  For multi-byte data, this means we're just
-	 * returning the most significant byte (truncating).
+	 * Return the byte.
 	 */
 		return (Image[pos]);
 	}
