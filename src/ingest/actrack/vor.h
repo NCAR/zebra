@@ -11,22 +11,23 @@
 class VOR
 {
 public:
-    string name;
+    std::string name;
     double lat;		// degrees North
     double lon;		// degrees East
     double declination;	// compass degrees
 
-    typedef map<string,VOR*> map_type;
+    typedef std::map<std::string,VOR*> map_type;
 
     // static vector<VOR> list;
     static map_type lookup;
 
-    static VOR *find (string n);
+    static VOR *find (std::string n);
 
-    VOR::VOR (string name_, string lat_, string lon_, double dec);
+    VOR::VOR (std::string name_, std::string lat_, std::string lon_, 
+	      double dec);
 
     // Return non-zero on success
-    static int Convert (string name, double azimuth, double range,
+    static int Convert (std::string name, double azimuth, double range,
 			double *lat, double *lon);
 };
 

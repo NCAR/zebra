@@ -1,26 +1,26 @@
-
+#include <iostream>
 #include "vor.h"
 #include <defs.h>
 
-RCSID("$Id: vormain.cc,v 1.1 2000-12-13 23:01:47 granger Exp $")
+RCSID("$Id: vormain.cc,v 1.2 2003-05-19 20:26:40 burghart Exp $")
 
 static void usage()
 {
-    cerr << "vor <name> <azimuth> <range>" << endl;
-    cerr << "where" << endl;
-    cerr << "   azimuth is in magnetic compass degrees" << endl;
-    cerr << "   range is in kilometers" << endl;
-    cerr << "   name is the name of vor:" << endl;
+    std::cerr << "vor <name> <azimuth> <range>" << std::endl;
+    std::cerr << "where" << std::endl;
+    std::cerr << "   azimuth is in magnetic compass degrees" << std::endl;
+    std::cerr << "   range is in kilometers" << std::endl;
+    std::cerr << "   name is the name of vor:" << std::endl;
 
-    // ostream_iterator out (cerr, "\n");
+    // ostream_iterator out (std::cerr, "\n");
     // copy (VOR::lookup.begin(), VOR::lookup.end(), out);
 
     VOR::map_type::iterator i;
     for (i = VOR::lookup.begin(); i != VOR::lookup.end(); ++i)
     {
 	VOR *vor = i->second;
-	cerr << vor->name << " " << vor->lat << " " << vor->lon
-	     << " " << vor->declination << endl;
+	std::cerr << vor->name << " " << vor->lat << " " << vor->lon
+	     << " " << vor->declination << std::endl;
     }
     exit (1);
 }
@@ -38,24 +38,24 @@ main (int argc, char *argv[])
 	usage ();
     }
 
-    string name(argv[1]);
+    std::string name(argv[1]);
     double azimuth = strtod (argv[2], 0);
     double range = strtod (argv[3], 0);
     double lat, lon;
 
     if (! VOR::find (name))
     {
-	cerr << "vor name not found: " << name << endl;
+	std::cerr << "vor name not found: " << name << std::endl;
 	usage();
     }
     if (VOR::Convert (name, azimuth, range, &lat, &lon))
     {
-	cout << lat << " " << lon << endl;
+	std::cout << lat << " " << lon << std::endl;
 	result = 0;
     }
     else
     {
-	cerr << "vor coordinate translation failed." << endl;
+	std::cerr << "vor coordinate translation failed." << std::endl;
     }
     return result;
 }

@@ -13,7 +13,7 @@
 #include "vor.h"
 #include <defs.h>
 
-RCSID("$Id: vor.cc,v 1.2 2002-09-17 20:00:18 granger Exp $")
+RCSID("$Id: vor.cc,v 1.3 2003-05-19 20:26:40 burghart Exp $")
 
 
 VOR::map_type VOR::lookup;
@@ -31,13 +31,13 @@ static VOR GEN ("GEN", "44 25 25", "09 04 57", 0);
 static VOR CHI ("CHI", "45 04 14", "12 16 54", 0);
 
 
-VOR::VOR (string name_, string lat_, string lon_, double dec) :
+VOR::VOR (std::string name_, std::string lat_, std::string lon_, double dec) :
     name(name_),
     declination(dec)
 {
     // Compute lat and lon from strings with 'deg min sec'
-    istrstream slat(lat_.c_str());
-    istrstream slon(lon_.c_str());
+    std::istringstream slat(lat_.c_str());
+    std::istringstream slon(lon_.c_str());
 
     double deg, min, sec;
     slat >> deg >> min >> sec;
@@ -45,15 +45,15 @@ VOR::VOR (string name_, string lat_, string lon_, double dec) :
     slon >> deg >> min >> sec;
     lon = deg + (min/60.0) + (sec/3600.0);
     // XXX
-    lookup.insert (*(new pair<string,VOR *> (name, this)));
+    lookup.insert (*(new std::pair<std::string,VOR *> (name, this)));
 }
 
 
 VOR *
-VOR::find (string name)
+VOR::find (std::string name)
 {
-    string n(name);
-    for (string::iterator i = n.begin(); i != n.end(); ++i)
+    std::string n(name);
+    for (std::string::iterator i = n.begin(); i != n.end(); ++i)
     {
 	*i = toupper(*i);
     }
@@ -63,7 +63,7 @@ VOR::find (string name)
 
 // Return non-zero on success
 int
-VOR::Convert (string name, double azimuth, double range,
+VOR::Convert (std::string name, double azimuth, double range,
 	      double *lat, double *lon)
 {
     int success = 0;
@@ -91,7 +91,7 @@ extern "C" {
 
 int VOR_Convert (char *name, double a, double r, double *lat, double *lon)
 {
-    string n(name);
+    std::string n(name);
     return VOR::Convert (n, a, r, lat, lon);
 }
 
