@@ -65,7 +65,10 @@
 /*
  * If you have the netCDF package and want to use it, some software
  * (i.e. robot and suds) can take advantage of it.  Set this to Yes 
- * and edit NetCDF_DESTDIR with the appropriate path for your system.
+ * and edit NetCDF_DESTDIR with the name of the top level directory
+ * containing the lib/netcdf libraries and include/netcdf.h files,
+ * usually /usr/local.
+ *
  * Note that Zeb requires NetCDF, so edit these if you will be installing
  * Zeb.
  * 
