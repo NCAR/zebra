@@ -21,13 +21,13 @@
  */
 
 # include <unistd.h>
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.8 1993-05-27 20:12:30 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.9 1993-08-12 18:25:46 granger Exp $")
 
 
 /*
