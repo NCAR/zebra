@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.49 2001-04-20 08:26:28 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.50 2001-04-24 22:32:59 granger Exp $")
 
 /*
  * General definitions
@@ -188,7 +188,7 @@ void	xs_Raster FP ((char *, int));
 void	xs_Track FP ((char *, int));
 static void	xs_Contour FP ((char *, int)); 
 static void	xs_ZZContour FP ((char *, char **, int, char *));
-static void	xs_PlaneContour FP ((char *, char **, int, char *));
+static void	xs_PlaneContour FP ((char *, char **, int, char *, char *, char *));
 static void	xs_ZZVector FP ((char *, char **, int, char *, char *));
 static void	xs_PlaneVector FP ((char *, char **, int, char *, char *, char *));
 static void	xs_ZZFillIn FP ((ZZ_DPlane *));
@@ -467,6 +467,7 @@ zbool	update;
 	int	nplat;
 	char	platforms[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20];
+	char	ufldname[40], vfldname[40];
 	char	param[50], outrange[40], justname[40];
 	FieldId	fid;
 /*
@@ -492,8 +493,15 @@ zbool	update;
  * Field
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
-	fid = F_Lookup (fldname);
-	strcpy (justname, F_GetName (fid));
+	if (! strcmp (fldname, "normal"))  {
+		ok &= pda_ReqSearch (Pd, c, "u-field", NULL, ufldname, SYMT_STRING);
+		ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vfldname, SYMT_STRING);
+		strcpy (justname, "normal");
+	}
+	else  {
+		fid = F_Lookup (fldname);
+		strcpy (justname, F_GetName (fid));
+	}
 /*
  * Autoscale?
  */
@@ -574,7 +582,7 @@ zbool	update;
 	if (Zig_zag)
 		xs_ZZContour (c, pnames, nplat, fldname);
 	else
-		xs_PlaneContour (c, pnames, nplat, fldname);
+		xs_PlaneContour (c, pnames, nplat, fldname, ufldname, vfldname);
 /*
  * Draw the background and set up for side annotation (unless it's 
  * specifically disabled)
@@ -1332,22 +1340,29 @@ ZZ_DPlane	*plane;
 
 
 static void
-xs_PlaneContour (c, pnames, nplat, fldname)
-char	*c, **pnames, *fldname;
+xs_PlaneContour (c, pnames, nplat, fldname, ufldname, vfldname)
+char	*c, **pnames, *fldname, *ufldname, *vfldname;
 int	nplat;
 /*
  * Draw a contour of a planar cross-section
  */
 {
 	int	i;
-	DPlane	*plane;
+	DPlane	*plane, *uplane, *vplane;
 	ZebTime	dtime;
+/*
+ * Initialize
+ */
+	plane = 0;
+	uplane = 0;
+	vplane = 0;
 /*
  * Annotate
  */
 	An_TopAnnot ("Contour of ");
-	An_TopAnnotMatch (px_FldDesc (fldname), Ccolor.pixel,
-			  Mono_color ? c : 0, 0);
+	An_TopAnnotMatch (strcmp (fldname, "normal") ? 
+			  px_FldDesc(fldname) : "normal winds", 
+			  Ccolor.pixel, Mono_color ? c : 0, 0);
 	An_TopAnnot (" using: ");
 /*
  * Find the gridding method and grab the data
@@ -1371,11 +1386,18 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		plane = xs_Bilinear (pnames[0], fldname, &dtime);
+		if (! strcmp(fldname, "normal"))  {
+			uplane = xs_Bilinear (pnames[0], ufldname, &dtime);
+			vplane = xs_Bilinear (pnames[0], vfldname, &dtime);
+		}
+		else
+			plane = xs_Bilinear (pnames[0], fldname, &dtime);
 	/*
 	 * Add a line to the overlay times widget
 	 */
-		if (plane)
+		if (uplane && vplane)
+			ot_AddStatusLine (c, pnames[0], "(normal winds)", &dtime);
+		else if (plane)
 			ot_AddStatusLine (c, pnames[0], fldname, &dtime);
 	}
 	else
@@ -1385,7 +1407,12 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		plane = xs_HDWeighting (pnames, nplat, fldname, times);
+		if (! strcmp(fldname, "normal"))  {
+			uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
+			vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
+		}
+		else
+			plane = xs_HDWeighting (pnames, nplat, fldname, times);
 	/*
 	 * Annotate with the platforms
 	 */
@@ -1419,14 +1446,46 @@ int	nplat;
 		 * Add a line to the overlay times widget, too.
 		 */
 			if (times[i].zt_Sec != 0)
-				ot_AddStatusLine (c, pnames[i], fldname, 
+				if (uplane && vplane)
+					ot_AddStatusLine (c, pnames[i], 
+						"(normal winds)", times + i);
+				else
+					ot_AddStatusLine (c, pnames[i], fldname, 
 						  times + i);
 		}
 		An_TopAnnot (".  ");
 	}
 
-	if (! plane)
+	if (! plane && !(uplane && vplane) )
 		return;
+/*
+ * If we have horizontal vector components, project them onto the plane normal
+ * to the xsection and store in vplane->data. 
+ */
+	if (uplane && vplane)
+	{
+	    DPlane *tmp;
+	    double pangle = atan2 (Y1 - Y0, X1 - X0);
+
+	    /*
+	     * Project the horizontal wind speed onto the vertical plane.
+	     */
+	    for (i = 0; i < uplane->hdim * uplane->vdim; ++i)
+	    {
+		  float u = uplane->data[i];
+		  float v = vplane->data[i];
+		  if (u == BADVAL || v == BADVAL)
+		  {
+			vplane->data[i] = BADVAL;
+		  }
+		  else
+		  {
+			double theta = pangle - atan2(v, u);
+			vplane->data[i] = sqrt(u*u + v*v) * sin(theta);
+		  }
+		}
+	}
+
 /*
  * Autoscale now if necessary
  */
@@ -1436,8 +1495,12 @@ int	nplat;
 		FieldId fid = F_Lookup (fldname);
 		char *justname = F_GetName (fid);
 
-		GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
-			  &min, &max);
+		if (uplane && vplane)
+			GetRange (vplane->data, vplane->hdim * vplane->vdim, BADVAL, 
+			  	&min, &max);
+		else if (plane)
+			GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
+			  	&min, &max);
 		CalcCenterStep (min, max, Mono_color ? 8 : Ncolors, 
 				&Contour_center, &Contour_step);
 
@@ -1454,7 +1517,12 @@ int	nplat;
 	{
 		FC_Init (Colors, Ncolors, Ncolors / 2, 
 			 Do_outrange ? &C_outrange : NULL, Clip, TRUE, BADVAL);
-		FillContour (Graphics, GWFrame (Graphics), plane->data, 
+		if (uplane && vplane)
+			FillContour (Graphics, GWFrame (Graphics), vplane->data, 
+			     vplane->hdim, vplane->vdim, Pix_left, Pix_bottom, 
+			     Pix_right, Pix_top, Contour_center, Contour_step);
+		else if (plane)
+			FillContour (Graphics, GWFrame (Graphics), plane->data, 
 			     plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
 			     Pix_right, Pix_top, Contour_center, Contour_step);
 	}
@@ -1467,16 +1535,33 @@ int	nplat;
 				 Do_outrange ? &C_outrange : NULL, Clip, 
 				 TRUE, BADVAL);
 
-		Contour (Graphics, GWFrame (Graphics), plane->data, 
-			 plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
-			 Pix_right, Pix_top, Contour_center, Contour_step, 
-			 Do_labels, Line_width);
+		if (uplane && vplane)
+			Contour (Graphics, GWFrame (Graphics), vplane->data, 
+			     vplane->hdim, vplane->vdim, Pix_left, Pix_bottom, 
+			     Pix_right, Pix_top, Contour_center, Contour_step, 
+			     Do_labels, Line_width);
+		else if (plane)
+			Contour (Graphics, GWFrame (Graphics), plane->data, 
+			     plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
+			     Pix_right, Pix_top, Contour_center, Contour_step, 
+			     Do_labels, Line_width);
 	}
 /*
  * Clean up
  */
-	free (plane->data);
-	free (plane);
+	if (plane)  {
+		free (plane->data);
+		free (plane);
+	}
+	if (uplane)  {
+		free (uplane->data);
+		free (uplane);
+	}
+	if (vplane)  {
+		free (vplane->data);
+		free (vplane);
+	}
+
 	return;
 }
 
@@ -1494,7 +1579,8 @@ int	nplat;
 /*
  * Annotate
  */
-	sprintf (Scratch, "%s of (%s,%s) using: ", 
+	sprintf (Scratch, "%s%s of (%s,%s) using: ", 
+		 ProjectVectors ? "Projected " : "",
 		 Do_vectors ? "Vectors" : "Barbs", ufldname, vfldname);
 	An_TopAnnotMatch (Scratch, Ccolor.pixel, c, 0);
 /*
