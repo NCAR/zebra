@@ -175,7 +175,8 @@ int daynum, year, *month, *day;
 /*
  * Figure out what our month is.
  */
-	for (*month = 1; daynum > Month_days[*month]; (*month)++)
+	for (*month = 1; daynum > Month_days[*month] && *month <= 12; 
+		(*month)++)
 		daynum -= Month_days[*month];
 /*
  * Do leap year checking.  There is a small chance that we went too many
