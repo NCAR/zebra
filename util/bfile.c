@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.4 1990-05-11 13:36:55 corbet Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.5 1990-05-15 10:28:40 corbet Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -9,6 +9,10 @@ static char *rcsid = "$Id: bfile.c,v 1.4 1990-05-11 13:36:55 corbet Exp $";
 #   include "netdisk.h"
 # endif
 
+# ifdef UNIX
+/* hack to make rfa work */
+static long Offset = 0;
+# endif
 
 
 
@@ -144,6 +148,7 @@ char *buf;
 	else
 		fd = lun_lookup (fd);
 #   endif
+	Offset = tell (fd);
 	if (read (fd, &rlen, sizeof (int)) < sizeof (int))
 		return (-1);
 	if (rlen == 0)
@@ -181,6 +186,7 @@ char *buf;
 	else
 		fd = lun_lookup (fd);
 # endif
+	Offset = tell (fd);
 	write (fd, &rlen, sizeof (unsigned int));
 	if (rlen > 0)
 		write (fd, buf, len);
@@ -216,7 +222,7 @@ short rfa[3];
 	else
 		fd = lun_lookup (r);
 #   endif
-	*temp = tell (fd);
+	*temp = Offset;
 # endif
 }
 
