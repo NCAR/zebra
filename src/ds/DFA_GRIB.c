@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.35 1997-10-23 15:48:58 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.36 1997-10-27 15:23:35 burghart Exp $")
 
 
 /*
@@ -569,14 +569,10 @@ static GRB_TypeInfo GRB_Types[] =
 	 * 2: 10512 point (144x73) global longitude-latitude grid
 	 * (0,0) at 0E, 90N [C type indexing] matrix layout.  2.5
 	 * degree grid, prime meridian not duplicated.
-	 *
-	 * A bit of a kluge here, since we make the destination grid
-	 * 540 degrees wide to extend from -180 to 360 in longitude.
-	 * This avoids ugly "turn-the-plane-into-a-cylinder" code elsewhere.
 	 */
 	{ 2, 144, 73, NULL, NULL, 
-		  grb_RegularIndex, grb_RegularLatLon, 216, 73, 
-		  -90.0, -180.0, 2.5, 2.5, NULL, NULL, &Regular2 },
+		  grb_RegularIndex, grb_RegularLatLon, 144, 73, 
+		  -90.0, 0.0, 2.5, 2.5, NULL, NULL, &Regular2 },
 	/*
 	 * 27: 4225-point (65x65) N. Hemisphere polar stereographic grid
 	 * oriented 80W; pole at (32,32) [C type indexing].  381.0 km
@@ -2958,22 +2954,11 @@ GDSLatLon *gds;
 	latstep *= (gds->gd_scanmode & (1<<6)) ? 1 : -1;
 /*
  * Define the destination grid info.
- *
- * KLUGE: for full global grids we make the destination grid extend 540
- * degrees in longitude, from -180 to 360, duplicating half of the array.
- * The helps avoid clunky "turn-the-plane-into-a-cylinder" code elsewhere.
  */
 	grbinfo->gg_dlat = (latstep > 0) ? lat1 : lat2;
 	grbinfo->gg_dlatstep = fabs (latstep);
 
-	if (fabs (lonstep * nlon) >= 360.0)
-	{
-		grbinfo->gg_dlon = -180.0;
-		grbinfo->gg_dnx = fabs (540.0 / lonstep);
-	}
-	else
-		grbinfo->gg_dlon = (lonstep > 0) ? lon1 : lon2;
-
+	grbinfo->gg_dlon = (lonstep > 0) ? lon1 : lon2;
 	grbinfo->gg_dlonstep = fabs (lonstep);
 /*
  * Allocate and build our transform structure
