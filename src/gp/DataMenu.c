@@ -31,7 +31,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.12 1994-11-19 00:34:39 burghart Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.13 1995-04-17 21:21:52 granger Exp $")
 
 
 /*
@@ -213,7 +213,7 @@ SetupPlats ()
 	char platform[PlatformListLen];
 	char *plats[MaxPlatforms], adjust_str[40];
 	SValue v;
-	int type, nplat, nentry = 0, plat, adjust, dsadjust;
+	int type, nplat, nentry = 0, plat, adjust;
 	ZebTime t;
 /*
  * See which is our component and platform.

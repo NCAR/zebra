@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.6 1994-04-15 21:26:38 burghart Exp $";
+static char *rcsid = "$Id: VectorGrid.c,v 2.7 1995-04-17 21:17:12 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,6 +24,7 @@ static char *rcsid = "$Id: VectorGrid.c,v 2.6 1994-04-15 21:26:38 burghart Exp $
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
@@ -64,7 +65,7 @@ int	degrade, vector;
 	int		pa_left, pa_right, pa_bottom, pa_top, shaftlen;
 	unsigned int	dwidth, dheight, udummy;
 	Window		win;
-	float		xbottom, ybottom, xstep, ystep, u, v;
+	float		xstep, ystep, u, v;
 	float		unitlen;
 	XGCValues	gcvals;
 /*
