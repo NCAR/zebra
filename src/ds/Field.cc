@@ -31,7 +31,7 @@ extern "C"
 
 	
 
-RCSID("$Id: Field.cc,v 3.4 1999-03-01 02:03:32 burghart Exp $")
+RCSID("$Id: Field.cc,v 3.5 2002-09-14 07:48:53 granger Exp $")
 
 //
 // The predefined field types.  Shared via Field.h.
@@ -343,7 +343,7 @@ CachedString( const char* string )
 	maxstrings += 100;
 	char** newcache = new char*[maxstrings];
 	memcpy( newcache, stringcache, nstrings * sizeof (char*) );
-	delete( stringcache );
+	delete[] stringcache;
 	stringcache = newcache;
     }
 
