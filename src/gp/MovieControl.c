@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.19 1994-06-29 21:05:37 case Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.20 1994-10-18 00:03:16 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -833,9 +833,14 @@ ZebTime zt;
 	int	timestep = TUTable[TimeUnits].scale;
 /*
  * Fix up the time.
+ * 10/17/94 jc: I sure wish I knew *why* the time needs to be "fixed up".
+ *		Certainly, modulo arithmetic on this sort of quantity seems
+ *		a little weird.  I'm gonna zap it and see what breaks.
  */
+# ifdef notdef
 	zt.zt_Sec -= zt.zt_Sec % timestep;
 	zt.zt_Sec += timestep;
+# endif
 	zt.zt_MicroSec = 0;
 	return (zt);
 }
