@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.5 1992-07-22 14:55:35 granger Exp $
+ * $Id: class_ingest.c,v 2.6 1992-07-31 16:11:06 pai Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -29,7 +29,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.5 1992-07-22 14:55:35 granger Exp $")
+   "$Id: class_ingest.c,v 2.6 1992-07-31 16:11:06 pai Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -324,6 +324,98 @@ GetPlatformName (classfile, plat)
 		/* do nothing */;
 	else if (sscanf (site, "MOBILE %s", plat) == 1)
 		/* do nothing */;
+
+        /* This is where it gets REALLY ugly */
+
+        /* NWSI */
+        else if (strncmp (site, "Albuquerque, NM", 15) == 0)
+                strcpy (plat, "abq");
+        else if (strncmp (site, "Amarillo, TX", 12) == 0)
+                strcpy (plat, "ama");
+        else if (strncmp (site, "Dodge City, KS", 14) == 0)
+                strcpy (plat, "ddc");
+        else if (strncmp (site, "Denver, CO", 10) == 0)
+                strcpy (plat, "den");
+        else if (strncmp (site, "El Paso, TX", 11) == 0)
+                strcpy (plat, "elp");
+        else if (strncmp (site, "Longview, TX", 12) == 0)
+                strcpy (plat, "ggg");
+        else if (strncmp (site, "Grand Junction, CO", 18) == 0)
+                strcpy (plat, "gjt");
+        else if (strncmp (site, "Green Bay, WI", 13) == 0)
+                strcpy (plat, "grb");
+        else if (strncmp (site, "Huron, SD", 9) == 0)
+                strcpy (plat, "hon");
+        else if (strncmp (site, "North Platte, NE", 16) == 0)
+                strcpy (plat, "lbf");
+        else if (strncmp (site, "North Little Rock, AR", 21) == 0)
+                strcpy (plat, "lit");
+        else if (strncmp (site, "Lander, WY", 10) == 0)
+                strcpy (plat, "lno");
+        else if (strncmp (site, "Midland, TX", 11) == 0)
+                strcpy (plat, "maf");
+        else if (strncmp (site, "Omaha, NE", 9) == 0)
+                strcpy (plat, "oma");
+        else if (strncmp (site, "Norman, OK", 10) == 0)
+                strcpy (plat, "oun");
+        else if (strncmp (site, "Paducah, KY", 11) == 0)
+                strcpy (plat, "pah");
+        else if (strncmp (site, "Peoria, IL", 10) == 0)
+                strcpy (plat, "pia");
+        else if (strncmp (site, "Rapid City, SD", 14) == 0)
+                strcpy (plat, "rap");
+        else if (strncmp (site, "Stephenville, TX", 16) == 0)
+                strcpy (plat, "sep");
+        else if (strncmp (site, "St Cloud, MN", 12) == 0)
+                strcpy (plat, "stc");
+        else if (strncmp (site, "Topeka, KS", 10) == 0)
+                strcpy (plat, "top");
+        else if (strncmp (site, "Monett, MO", 10) == 0)
+                strcpy (plat, "umn");
+
+        /* NWSO */
+        else if (strncmp (site, "Bismarck, ND", 12) == 0)
+                strcpy (plat, "bis");
+        else if (strncmp (site, "Desert Rock, NV", 15) == 0)
+                strcpy (plat, "dra");
+        else if (strncmp (site, "Boise, ID", 9) == 0)
+                strcpy (plat, "boi");
+        else if (strncmp (site, "Ely, NV", 7) == 0)
+                strcpy (plat, "ely");
+        else if (strncmp (site, "Spokane, WA", 11) == 0)
+                strcpy (plat, "geg");
+        else if (strncmp (site, "Glasgow, MT", 11) == 0)
+                strcpy (plat, "ggw");
+        else if (strncmp (site, "Great Falls, MT", 15) == 0)
+                strcpy (plat, "gtf");
+        else if (strncmp (site, "Winslow, AZ", 11) == 0)
+                strcpy (plat, "inw");
+        else if (strncmp (site, "Salt Lake City, UT", 18) == 0)
+                strcpy (plat, "slc");
+        else if (strncmp (site, "Tucson, AZ", 10) == 0)
+                strcpy (plat, "tus");
+        else if (strncmp (site, "Winnemucca, NV", 14) == 0)
+                strcpy (plat, "wmc");
+
+        /* PICK */
+        else if (strncmp (site, "Kodiak, AK", 10) == 0)
+                strcpy (plat, "adq");
+        else if (strncmp (site, "Medford, OR", 11) == 0)
+                strcpy (plat, "mfr");
+        else if (strncmp (site, "San Diego, CA", 13) == 0)
+                strcpy (plat, "myf");
+        else if (strncmp (site, "Oakland, CA", 11) == 0)
+                strcpy (plat, "oak");
+        else if (strncmp (site, "Salem, OR", 9) == 0)
+                strcpy (plat, "sle");
+        else if (strncmp (site, "Quillayute, WA", 14) == 0)
+                strcpy (plat, "uil");
+        else if (strncmp (site, "Annette, AK", 11) == 0)
+                strcpy (plat, "ann");
+        else if (strncmp (site, "Yakutat, AK", 11) == 0)
+                strcpy (plat, "yak");
+
+        /* It's over!  If we haven't got it yet, just give up! */
 	else
 		strcpy (plat, site);
 /*
