@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.2 1992-07-03 18:31:05 granger Exp $
+/* $Id: ingest.c,v 1.3 1992-07-03 18:43:13 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -28,10 +28,6 @@
  * recognizes MH_SHUTDOWN calls.  This handler can be overridden by
  * defining your own protocol handlers with the message library functions.
  */
-
-#if !defined(saber) && !defined(lint)
-static char rcsid[] = "$Id: ingest.c,v 1.2 1992-07-03 18:31:05 granger Exp $";
-#endif
 
 #include "ingest.h"
 
