@@ -36,12 +36,12 @@ clean::
  */
 
 DISTFILES = DGUX.cf Imake.rules Imake.tmpl Imakefile Library.tmpl \
-            Makefile.ini Mips.cf README Server.tmpl apollo.cf \
+            Makefile.ini Makefile Mips.cf README Server.tmpl apollo.cf \
             att.cf bsd.cf ccimake.c convex.cf cray.cf generic.cf hp.cf ibm.cf \
             ibmLib.rules ibmLib.tmpl imake.c imake.man imakemdep.h luna.cf \
             macII.cf moto.cf noop.rules oldlib.rules pegasus.cf rtcchack.bac \
-            sgi.cf sgiLib.rules site.def sony.cf sun.cf sun4.1.cf \
-            sun5.1.cf sunLib.rules \
+            sgi.cf sgiLib.rules sgiLib.tmpl site.def sony.cf sun.cf \ 
+            sunLib.rules \
             sunLib.tmpl sv4Lib.rules sv4Lib.tmpl ultrix.cf x386.cf
 
 
