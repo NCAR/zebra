@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.67 1999-11-01 20:24:11 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.68 2000-04-10 22:12:00 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -353,7 +353,7 @@ extern void pw_InitPos FP ((void));
 extern void pw_PosStatus FP ((void));
 
 /* Radar accomodations */
-typedef enum { R_ANY = 0, R_SUR, R_RHI, R_PPI } R_ScanMode;
+typedef enum { R_ANY = 0, R_SUR, R_RHI, R_PPI, R_VER, R_IDL } R_ScanMode;
 
 char *r_ScanModeAtt (R_ScanMode i);
 char *r_ScanModeName (R_ScanMode i);

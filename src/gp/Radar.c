@@ -19,12 +19,12 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.9 1999-03-01 02:04:28 burghart Exp $")
+RCSID ("$Id: Radar.c,v 2.10 2000-04-10 22:12:02 burghart Exp $")
 
 
-static char *ScanNames[5] = 
+static char *ScanNames[] = 
 {
-	"Any", "sur", "rhi", "ppi", NULL
+	"Any", "sur", "rhi", "ppi", "ver", "idl", NULL
 };
 
 
@@ -270,6 +270,12 @@ char *text;
 	if (! strcmp (text, "ppi") ||
 	    ! strcmp (text, "PPI"))
 		return (R_PPI);
+	if (! strcmp (text, "ver") ||
+	    ! strcmp (text, "VER"))
+		return (R_VER);
+	if (! strcmp (text, "idl") ||
+	    ! strcmp (text, "IDL"))
+		return (R_IDL);
 	msg_ELog (EF_PROBLEM, "unknown radar scan mode '%s'", text);
 	return (R_ANY);
 }
