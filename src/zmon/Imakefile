@@ -1,0 +1,10 @@
+
+SRCS = zmon.c
+OBJS = zmon.o
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
+
+
+NormalProgramTarget(zmon, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+DependTarget ()
