@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.61 1997-11-21 20:36:34 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.62 1997-12-11 17:01:18 burghart Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -162,11 +162,15 @@ CompleteProgramTarget(GRIBdump,$(GDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))
  */
 FDScan.cc: FDScan.flex
 	flex -t -PFD FDScan.flex > FDScan.cc
+	$(CP) $@ $@.dist
 
 FDParse.tab.h: FDParse.tab.cc
+	$(CP) $@ $@.dist
+
 FDParse.tab.cc: FDParse.bison
 	bison -p FD -d --file-prefix=FDParse FDParse.bison
 	$(MV) FDParse.tab.c FDParse.tab.cc
+	$(CP) $@ $@.dist
 
 depend:: FDScan.cc FDParse.tab.cc
 
