@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.17 1996-01-23 20:10:22 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.18 1996-02-03 16:01:16 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -60,6 +60,7 @@ XCOMM -----------------------------------------------------------------------
 # endif /* ndef linux */
 #endif /* ndef HasHDF */
 #define HDFIncDir /usr/local/include/hdf
+#define HDFLibDir /usr/local/lib
 
 /*
  * Map projections are installed on all our machines, but only GCC and 
