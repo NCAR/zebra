@@ -19,11 +19,13 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
+
 # include <config.h>		/* For CFG_ parameters */
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.8 1995-01-19 18:53:19 granger Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.9 1995-02-10 01:09:04 granger Exp $")
 
 
 /*
@@ -64,7 +66,7 @@ F_Init ()
 
 FieldId
 F_Lookup (name)
-char *name;
+const char *name;
 /*
  * Turn this name into a field ID.
  */
@@ -72,7 +74,7 @@ char *name;
 	SValue v;
 	int type;
 
-	if (! usy_g_symbol (FNameTable, name, &type, &v))
+	if (! usy_g_symbol (FNameTable, (char *)name, &type, &v))
 		return (F_DeclareField (name, name, "unknown"));
 		/* return (BadField); */
 	return (v.us_v_int);
@@ -82,7 +84,7 @@ char *name;
 
 FieldId
 F_Declared (name)
-char *name;
+const char *name;
 /*
  * Try to find this field.  Return BadField if not found rather than
  * implicitly declaring it.
@@ -91,7 +93,7 @@ char *name;
 	SValue v;
 	int type;
 
-	if (! usy_g_symbol (FNameTable, name, &type, &v))
+	if (! usy_g_symbol (FNameTable, (char *)name, &type, &v))
 		return (BadField);
 	else
 		return (v.us_v_int);
@@ -101,20 +103,19 @@ char *name;
 
 FieldId
 F_DeclareField (name, desc, units)
-char *name, *desc, *units;
+const char *name, *desc, *units;
 /*
  * Define this field to the system.
  */
 {
 	int ind;
 	SValue v;
-	extern char *strcpy ();
 /*
  * Refuse to overwrite existing declarations.  I hope this is the right
  * thing to do, but it will definitely fix a problem seen with netcdf now,
  * where existing long descriptions get wiped out.
  */
-	if (usy_defined (FNameTable, name))
+	if (usy_defined (FNameTable, (char *)name))
 		return (F_Lookup (name));
 		/* ind = F_Lookup (name); */
 	else
@@ -137,7 +138,7 @@ char *name, *desc, *units;
 	FieldTable[ind].fd_Units[MaxFieldUnits - 1] = '\0';
 
 	v.us_v_int = ind;
-	usy_s_symbol (FNameTable, name, SYMT_INT, &v);
+	usy_s_symbol (FNameTable, (char *)name, SYMT_INT, &v);
 	return (ind);
 }
 
@@ -147,7 +148,7 @@ char *name, *desc, *units;
 
 FieldId
 F_Alias (name, alias)
-char *name, *alias;
+const char *name, *alias;
 /*
  * Cause "alias" to be equivalent to the existing field "name".
  * Fails and returns BadField if "name" does not exist.
@@ -159,7 +160,7 @@ char *name, *alias;
 	if ((index = F_Declared (name)) == BadField)
 		return (BadField);
 	v.us_v_int = index;
-	usy_s_symbol (FNameTable, alias, SYMT_INT, &v);
+	usy_s_symbol (FNameTable, (char *)alias, SYMT_INT, &v);
 	return (index);
 }
 
