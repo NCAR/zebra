@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.5 1991-11-21 22:29:45 kris Exp $ */
+/* $Id: defs.h,v 2.6 1991-12-05 17:35:25 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,6 +42,15 @@ typedef struct s_Location
 	float	l_alt;
 } Location;
 
+/*
+ * A macro to make function prototypes a little easier across both STDC and
+ * non-STDC implementations.
+ */
+# ifdef __STDC__
+#  define FP(stuff) stuff
+# else
+#  define FP(stuff) ()
+# endif
 
 /*
  * Functions.
