@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.5 1991-12-08 22:49:08 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.6 1992-02-07 21:03:48 corbet Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,7 +23,7 @@ CC=CCompiler
 CFLAGS=CCOptions IncludeDirs
 LIBS=ZebLibrary MiscLibs XLibraries
 
-OBJS= dm.o dm_pd.o dm_ui.o dm_color.o DialBox.o dm_pick.o
+OBJS= dm.o dm_pd.o dm_ui.o dm_color.o DialBox.o dm_pick.o dm_config.o
 
 all:	dm dm.lf
 
@@ -32,14 +32,15 @@ install:	dm dm.lf include
 	install -c -m 0444 dm.lf D_LIBDIR
 
 include:
-	install -c -m 0444 dm.h D_FCCINC
+	HInstall (dm.h)
+	/* install -c -m 0444 dm.h D_FCCINC */
 
 dm:	$(OBJS)
 	$(CC) $(CFLAGS) -o dm $(OBJS) $(LIBS)
 
 dm.o:	dm.h
 
-dm.lf:	dm.state
+dm.lf:	dm.state dm.widgets
 	uic < make-lf
 
 saber:	$(OBJS)

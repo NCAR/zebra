@@ -1,4 +1,0 @@
-! $Id: make-lf,v 1.3 1990-07-08 13:00:00 corbet Exp $
-read dm.state
-set ui$pager_mode false
-save dm.lf all

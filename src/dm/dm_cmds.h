@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.2 1991-12-03 21:09:39 corbet Exp $ */
+/* $Id: dm_cmds.h,v 2.3 1992-02-07 21:03:48 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -57,3 +57,9 @@
 # define DMC_SOUND	37
 # define DMC_SHELL	38
 # define DMC_RESTART	39
+/*
+ * Config editing and saving.
+ */
+# define DMC_CFGSAVE	40
+# define DMC_NEWCONFIG	41
+# define DMC_NEWWINDOW	42

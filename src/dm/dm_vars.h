@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.1 1991-09-12 01:30:31 corbet Exp $
+ * $Id: dm_vars.h,v 2.2 1992-02-07 21:03:48 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -99,6 +99,18 @@ extern stbl Current;
 extern char Cur_config[MAXNAME];
 
 /*
+ * Configuration directories.
+ */
+extern char ConfigDir[200];
+extern char ConfigPD[200];
+
+/*
+ * If we blast out too many new windows at once, things (i.e. listen queues)
+ * get overwhelmed.  So we do an occasional sleep.
+ */
+extern int SleepFor, SleepAfter;
+
+/*
  * The default window process.
  */
 # define DEFPROG "graphproc"
@@ -116,10 +128,7 @@ extern Display		*Dm_Display;		/* Our display		*/
 /*
  * Functions.
  */
-# ifdef __STDC__
-	struct cf_window *lookup_win (char *, int);
-	void PickWin (char *);
-# else
-	struct cf_window *lookup_win ();
-	void PickWin ();
-# endif
+struct cf_window *lookup_win FP ((char *, int));
+void PickWin FP ((char *));
+void SaveConfig FP ((char *));
+struct config *LookupConfig FP ((char *));

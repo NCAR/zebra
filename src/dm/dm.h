@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.2 1991-12-27 21:01:45 corbet Exp $ */
+/* $Id: dm.h,v 2.3 1992-02-07 21:03:48 corbet Exp $ */
 /*
  * Display manager stuff.
  */
@@ -86,7 +86,6 @@ struct dm_event
 	int dmm_type;			/* = DM_EVENT		*/
 	char dmm_data[MAXADATA];	/* The DM data		*/
 };
-
 
 /*
  * Requests for window bounds.

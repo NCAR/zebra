@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.13 1991-12-10 21:09:39 corbet Exp $
+! $Id: dm.state,v 1.14 1992-02-07 21:03:48 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -90,8 +90,26 @@ define state dm-initial
 	input 'restart' 39
 		next ust$final_string
 	endinput
+	input 'cfgsave' 40
+		next dm-opt-name
+	endinput
+	input 'newconfig' 41
+		next dm-newcfg-name
+	endinput
+	input 'newwindow' 42
+		next dm-newwin-name
+	endinput
 enddef
 
+
+define state dm-opt-name
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
 
 
 
@@ -490,6 +508,66 @@ enddef
 
 define state dm-shell-cmd
 	input expression
+		next ust$no_more
+	endinput
+enddef
+
+
+
+
+define state dm-newwin-name
+	input string
+		next dm-nw-pd
+	endinput
+enddef
+
+define state dm-nw-pd
+	input string
+		next dm-nw-params
+	endinput
+	input EOS
+		done
+	endinput
+	input 'nongraphic' 30
+		next ust$no_more
+	endinput
+	input 'buttonmap' 9
+		next dm-nw-bmap
+	endinput
+	input 'forcepd' 31
+		next dm-nw-params
+	endinput
+enddef
+
+define state dm-nw-params
+	input EOS
+		done
+	endinput
+	input 'buttonmap' 9
+		next dm-nw-bmap
+	endinput
+	input 'forcepd' 31
+		next dm-nw-params
+	endinput
+enddef
+
+define state dm-nw-bmap
+	input string
+		next dm-nw-params
+	endinput
+enddef
+
+define state dm-newcfg-name
+	input string
+		next dm-newcfg-copy
+	endinput
+enddef
+
+define state dm-newcfg-copy
+	input EOS
+		done
+	endinput
+	input string
 		next ust$no_more
 	endinput
 enddef

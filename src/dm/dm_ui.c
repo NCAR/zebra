@@ -1,7 +1,6 @@
 /* 
  * User interface related DM code.
  */
-static char *rcsid = "$Id: dm_ui.c,v 2.2 1991-12-07 18:02:23 kris Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -24,6 +23,7 @@ static char *rcsid = "$Id: dm_ui.c,v 2.2 1991-12-07 18:02:23 kris Exp $";
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
+MAKE_RCSID ("$Id: dm_ui.c,v 2.3 1992-02-07 21:03:48 corbet Exp $")
 
 
 
@@ -268,6 +268,7 @@ char *name;
 	else
 		map = ALLOC (ButtonMap);
 	map->db_nentry = 0;
+	strcpy (map->db_name, name);
 /*
  * Now parse the individual entries.
  */
