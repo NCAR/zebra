@@ -18,6 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <unistd.h>
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -31,7 +32,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.19 1995-04-17 21:52:37 granger Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.20 1995-06-29 23:32:31 granger Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -103,6 +104,7 @@ static int	fc_GetFreeFrame FP ((void));
 static int	fc_GetFreePixmap FP ((void));
 static int	fc_SetPFPairs FP ((char **, PF_Pair **));
 static int	fc_ComparePairs FP ((PF_Pair *, int, PF_Pair *, int));
+static void	fc_CheckDup FP ((int index));
 static void	fc_CleanFrame FP ((struct FrameCache *));
 static void     fc_GetFrameInfo FP ((char **, char *, int *, PF_Pair **,
 			float *));
@@ -157,16 +159,23 @@ fc_InvalidateCache ()
 		FreePixmaps[i] = FREE;
 /*
  *  Re-create the FrameFile and open it for read/writing.  Truncation would
- *  be more efficient -- someday.
+ *  be more efficient -- someday.  Someday came.
  */
 	if (FrameFile >= 0)
 	{
+#ifdef notdef
 		close (FrameFile);
 		if ((FrameFile = open (FileName, O_RDWR | O_CREAT |O_TRUNC, 
 			PMODE)) < 0)
 			msg_ELog (EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 		unlink (FileName);
+#endif
+		if (ftruncate (FrameFile, (off_t) 0) < 0)
+		{
+			msg_ELog (EF_PROBLEM, "Error %d truncating %s",
+				  errno, FileName);
+		}
 	}
 }
 
@@ -225,17 +234,17 @@ fc_CreateFrameFile ()
 	 */
 		sprintf (FileName, "%s/%s%dFrameFile", FrameFilePath, 
 			 msg_myname(), getpid ());
-		msg_ELog (EF_DEBUG, "FrameFile:  %s.", FileName);
+		msg_ELog (EF_DEBUG, "FrameFile: %s", FileName);
 	/*
 	 * Open it.
 	 */
 		if ((FrameFile = open (FileName, O_RDWR | O_CREAT | O_TRUNC, 
 			PMODE)) < 0)
-			msg_ELog (EF_PROBLEM, "Can't open %s (%d).", FileName, 
-				errno);
+			msg_ELog (EF_PROBLEM, "Can't open %s (error %d).",
+				  FileName, errno);
 	/*
-	 * Unlink so that if we die unexpectedly, the FrameFile will
-	 * go away.
+	 * Unlink so that if we die unexpectedly (or even expectedly), 
+	 * the FrameFile will go away.
 	 */
 		unlink (FileName);
 	}
@@ -348,6 +357,7 @@ float *alt;
 /*
  * Temp debug stuff
  */
+static void
 fc_CheckDup (index)
 int index;
 {
@@ -844,23 +854,23 @@ int frame;
  *  pixmaps if possible.
  */
 #ifdef SHM
-	if(GWFrameShared(Graphics, FCache[frame].fc_index))
+	if (GWFrameShared(Graphics, FCache[frame].fc_index))
 	{
-		if(write(FrameFile, GWGetFrameAddr(Graphics, 
-			FCache[frame].fc_index), framesize) != framesize)
+		if (write (FrameFile, GWGetFrameAddr(Graphics, 
+			    FCache[frame].fc_index), framesize) != framesize)
 		{
-			msg_ELog(EF_PROBLEM, "Can't write from pixmap (%d).",
-				errno);
+			msg_ELog(EF_PROBLEM, "Error (%d) writing pixmap to %s",
+				 errno, FileName);
 			return(FALSE);
 		}
 	}
 	else
 #endif
 	{
-		if(write(FrameFile, image->data , framesize) != framesize)
+		if (write (FrameFile, image->data, framesize) != framesize)
 		{
-			msg_ELog(EF_PROBLEM, "Can't write from image (%d).",
-				errno);
+			msg_ELog(EF_PROBLEM, "Error (%d) writing image to %s",
+				 errno, FileName);
 			XDestroyImage(image);
 			return(FALSE);
 		}
