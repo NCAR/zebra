@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.16 1996-01-12 01:13:12 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.17 1996-01-23 20:10:22 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -261,6 +261,10 @@ XCOMM --- Deciding FORTRAN library paths
 #ifdef LinuxArchitecture
 # define FortranCompiler g77
 # define FortranLibraries -lf2c
+#endif
+
+#ifdef LinuxArchitecture
+# define TermcapLibrary -lncurses
 #endif
 
 XCOMM --- Finished with Build.tmpl
