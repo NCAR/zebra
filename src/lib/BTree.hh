@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.14 1998-09-15 06:42:10 granger Exp $
+ * $Id: BTree.hh,v 1.15 1998-09-15 17:06:53 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -14,18 +14,6 @@
 // reference to each node, in its parent.
 
 class SerialStream;
-
-#if 0
-struct Node
-{
-	void *local;		// Memory cache
-	unsigned long addr;	// Persistent address
-
-	Node () : local(0), addr(0) { }
-
-	inline void translate (SerialStream &ss);
-};
-#endif
 
 
 /*
@@ -57,6 +45,27 @@ public:
 	typedef K key_type;
 	typedef T value_type;
 	typedef BTreeNode<K,T> node_type;
+
+	/*
+	 * Statistics we care about.
+	 */
+	class Stats
+	{
+	public:
+		unsigned long nNodes;
+		unsigned long nKeys;
+		unsigned long nLeaves;
+		void translate (SerialStream &ss);
+		void reset () { nNodes = nKeys = nLeaves = 0; }
+		Stats() { reset(); }
+		/*virtual*/ ostream &dump (ostream &out) const
+		{
+			out << "Nodes: " << nNodes
+			    << "; Keys: " << nKeys
+			    << "; Leaves: " << nLeaves;
+			return out;
+		}
+	};
 
 public:
 	static const int DEFAULT_ORDER = 128;
@@ -143,6 +152,11 @@ public:
 		return depth;
 	}
 
+	inline unsigned long numKeys ()
+	{
+		return stats.nKeys;
+	}
+
 	inline int elementFixed ()
 	{
 		return elem_size_fixed;
@@ -165,7 +179,20 @@ public:
 	//
 	virtual int setElementSize (int vs, int fixed = 0);
 
-	void Statistics (BTreeStats &);
+	// Actually traverses the tree collecting all kinds of statistics,
+	// so the time this method takes depends on tree size.
+	virtual void collectStats (BTreeStats &);
+
+	// Return the known and immediately available tree statistics.
+	virtual const BTree<K,T>::Stats &currentStats ()
+	{
+		return stats;
+	}
+
+	void currentStats (BTree<K,T>::Stats &s)
+	{
+		s = stats;
+	}
 
 	/// Print all the nodes of the tree to 'out', indented by depth
 	ostream &Print (ostream &out);
@@ -185,17 +212,6 @@ public:
 		err = 0;
 		return _err;
 	}
-
-	/*
-	 * Statistics we care about.
-	 */
-	class Stats
-	{
-	public:
-		unsigned long nNodes;
-		unsigned long nKeys;
-		void translate (SerialStream &ss);
-	};
 
 	/* ----- Public constructors and destructors ----- */
 
@@ -242,6 +258,7 @@ protected:
 	Node rootNode;			// Root factory address
 	int elem_size;			// sizes of elements, or a guess
 	int elem_size_fixed;		// non-zero for fixed element sizes
+	Stats stats;
 
 	// Transient state
 	BTreeNode<K,T> *root;
@@ -249,7 +266,6 @@ protected:
 	int err;
 
 	Shortcut<K,T> *current;		// Reference to current key
-	Stats stats;
 
 	// Change the root node when growing up or down (could be zero)
 	void setRoot (BTreeNode<K,T> *node);
@@ -281,8 +297,6 @@ protected:
 	/// Create a new node
 	virtual node_type *make (int depth);
 
-	/// Destroy this node
-	//virtual void prune (BTreeNode<K,T> *which);
 };
 
 

@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.8 1998-09-15 06:42:10 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.9 1998-09-15 17:06:53 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -90,6 +90,15 @@ protected:
 
 template <class K, class T>
 const unsigned long BTreeFile<K,T>::MAGIC = 0xbeeef11e;
+
+
+#ifdef notdef
+/*
+ * This gets us an un-numbered ICE!  Woo-hoo!
+ */
+template <class K, class T>
+template class BTreeFile<K,T>::Stats;
+#endif
 
 
 template <class K, class T>
@@ -380,27 +389,6 @@ BTreeFile<K,T>::make (int depth)
 
 
 
-#ifdef notdef
-/*
- * This is a hook through which we can catch nodes being pruned from the
- * tree.  For now we destroy() the node (which only releases the block file
- * allocation), then delete the object memory.  Both destroy() and the
- * deletion rely on the virtualness of the methods to get to the
- * BlockNode behavior.  When we get to node caching, we may want to
- * hang on to the memory while forgetting about the original node in
- * the block file.
- */
-template <class K, class T>
-void
-BTreeFile<K,T>::prune (BTreeNode<K,T> *which)
-{
-	which->destroy();
-	delete which;
-}
-#endif
-
-
-
 template <class K, class T>
 void
 BTreeFile<K,T>::enterWrite ()
@@ -447,13 +435,16 @@ template <class K, class T>
 void
 BTreeFile<K,T>::translate (SerialStream &ss)
 {
-	// Translate our superclass state
-	BTree::translate (ss);
+	// Translate our superclass state:
 	TranslateBlock::translate (ss);
+	BTree::translate (ss);
 
 	// Translate our own persistent state
 	ss << key_size << key_size_fixed;
 	ss << node_size << leaf_size;
+
+	// Don't bother preserving file stats
+	// fstats.translate (ss);
 }
 
 

@@ -50,24 +50,29 @@ int __getfpucw ()
 
 
 
-// Report statistics about the given tree
-template <class K, class T>
-Summarize (ostream &out, BTree<K,T> &t)
+// Use a template of tree type so we can get the correct stats type.
+template <class T>
+Summarize (ostream &out, T &t)
 {
-	BTreeStats s;
-	t.Statistics (s);
+	out << "Depth: " << t.Depth() << "; ";
+	typename T::Stats cs;
+	t.currentStats (cs);
+	cs.dump (out) << endl;
 
-	out << "             Depth: " << t.Depth() << endl;
+	BTreeStats s;
+	t.collectStats (s);
+
 	out << "Number of elements: " << s.numElements() << endl;
 	out << "   Number of nodes: " << s.numNodes() << endl;
 	out << "    Number of keys: " << s.numKeys() << endl;
+	out << " Avg keys per node: " << s.averageKeys() << endl;
+	out << " Max keys per node: " << s.maxKeys() << endl;
+	out << " Min keys per node: " << s.minKeys() << endl;
+#ifdef notdef
 	out << "   Total key slots: " << s.totalSlots() << endl;
 	out << "  Key slots unused: " << s.keysUnused() << endl;
 	out << " Elem slots unused: " 
 	    << (t.Order()*s.numLeaves() - s.numElements()) << endl;
-	out << " Avg keys per node: " << s.averageKeys() << endl;
-	out << " Max keys per node: " << s.maxKeys() << endl;
-	out << " Min keys per node: " << s.minKeys() << endl;
 	out << "  Memory allocated: " << s.memoryAlloc() << " bytes." << endl;
 	out << "       Memory used: " << s.memoryUsed() << " bytes." << endl;
 	out << "   Pct memory used: " << s.percentMemory() << "%" << endl;
@@ -76,6 +81,7 @@ Summarize (ostream &out, BTree<K,T> &t)
 	out << "Element buffer use: " 
 	    << s.percentElementMemory() << "%" << endl;
 	out << "Pct key slots used: " << s.percentSlots() << "%" << endl;
+#endif
 }
 
 //#define Summarize(a,b)
@@ -129,6 +135,7 @@ int main (int argc, char *argv[])
 	{
 		BlockFile bf("btree.bf");
 		test_tree tree(0, bf, o);
+		//test_tree tree(o);
 		cout << "BTreeFile address: " << tree.Address() << endl;
 		tree.Erase ();	// Start fresh
 		

@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.6 1998-09-15 06:42:10 granger Exp $
+ * $Id: BTreeFile.hh,v 1.7 1998-09-15 17:06:53 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -21,6 +21,33 @@ template <class K, class T> class BlockNode;
 template <class K, class T>
 class BTreeFile : virtual public BTree<K,T>, virtual public TranslateBlock
 {
+public:
+	/*
+	 * Statistics we care about.
+	 */
+	class FileStats
+	{
+	public:
+		int nodesRead;
+		int nodesWritten;
+		void translate (SerialStream &ss);
+		void reset () { nodesRead = nodesWritten = 0; }
+		FileStats() { reset(); }
+	};
+
+	class Stats : /*virtual*/ public BTree<K,T>::Stats
+	{
+	public:
+		FileStats file;
+		/*virtual*/ ostream &dump (ostream &out) const
+		{ 
+			BTree<K,T>::Stats::dump (out);
+			out << endl << "Nodes read: " << file.nodesRead 
+			    << "; Nodes written: " << file.nodesWritten;
+			return out;
+		}
+	};
+
 public:
 	/* ----------------
 	 * Note that the BTreeFile constructors accept element size and
@@ -88,22 +115,24 @@ public:
 	//
 	virtual int setElementSize (int vs, int fixed = 0);
 
+	virtual const BTree<K,T>::Stats & currentStats ()
+	{
+		static BTreeFile<K,T>::Stats s;
+		BTreeFile<K,T>::currentStats (s);
+		return s;
+	}
+
+	void currentStats (BTreeFile<K,T>::Stats &s)
+	{
+		BTree<K,T>::currentStats (s);
+		s.file = BTreeFile<K,T>::fstats;
+	}
+
 	long nodeSize (BlockNode<K,T> *node);
 
 	virtual void translate (SerialStream &ss);
 
 	static const unsigned long MAGIC;
-
-	/*
-	 * Statistics we care about.
-	 */
-	class Stats
-	{
-	public:
-		int nodesRead;
-		int nodesWritten;
-		void translate (SerialStream &ss);
-	};
 
 protected:
 
@@ -124,9 +153,6 @@ protected:
 	/// Create a new node
 	virtual BTreeNode<K,T> *make (int depth);
 
-	/// Destroy this node
-	//virtual void prune (BTreeNode<K,T> *which);
-
 	void Init (int order, long sz, int fix);
 	void release ();
 
@@ -142,7 +168,7 @@ protected:
 
 	Sender log;
 
-	Stats stats;
+	FileStats fstats;
 };
 
 
