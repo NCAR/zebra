@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: FreeList.cc,v 1.11 1998-06-05 19:25:10 granger Exp $");
+//RCSID ("$Id: FreeList.cc,v 1.12 1998-08-27 22:37:39 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -391,10 +391,10 @@ FreeList::encode (SerialBuffer &sbuf)
 	stats.nfree = nfree;
 	sbuf << stats;
 
-	bf->log->Debug ("Writing free list blocks:");
+	bf->log.Debug ("Writing free list blocks:");
 	for (int i = 0; i < nfree; ++i)
 	{
-		bf->log->Debug (Printf("   %d bytes @ %d",
+		bf->log.Debug (Printf("   %d bytes @ %d",
 				      blocks[i].length, blocks[i].offset));
 		sbuf << blocks[i];
 	}
