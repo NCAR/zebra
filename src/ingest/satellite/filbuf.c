@@ -2,7 +2,7 @@
 
 #if defined(sun)
     void filbuf_(long *, int *, unsigned char [], int *);
-#elif defined(aix)
+#elif defined(AIXV3) || defined (__osf__)
     void filbuf(long *, int *, unsigned char [], int *);
 #else
     void fortran FILBUF(long *, int *, unsigned char [], int *);
@@ -10,7 +10,7 @@
 
 #if defined(sun)
     void filbuf_(long *nbytes, int *value, unsigned char buf[], int *offset)
-#elif defined(aix)
+#elif defined(AIXV3) || defined (__osf__)
     void filbuf(long *nbytes, int *value, unsigned char buf[], int *offset)
 #else
     void fortran FILBUF(long *nbytes, int *value, unsigned char buf[], int *offset)

@@ -37,7 +37,10 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 # include "display.h"
- 
+
+# ifdef AIXV3
+# include <unistd.h>	/* For IBM/AIX Machines */
+# endif 
 
 /*
  * Define globals here. !!! check for compatibilty	
