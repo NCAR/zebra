@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.65 1997-05-13 11:24:16 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.66 1997-05-15 21:27:16 corbet Exp $")
 
 
 /*
@@ -1908,7 +1908,7 @@ CAP_RasterSideAnnot (comp, data, datalen, begin, space)
 char *comp, *data;
 int datalen, begin, space;
 {
-	char string[40], ctable[40], color[40];
+	char string[40], ctable[40], color[40], *spformat;
 	float center, step, val, used, scale, value, range, max;
 	int i, left, ncolors, limit, nsteps, y;
 	int bar_height;
@@ -1962,11 +1962,12 @@ int datalen, begin, space;
  */
 	space = bar_height * ncolors; 
 	step_height = (float) space / (float) nsteps;
+	spformat = (fabs (step) > .2) ? "%.1f" : "%.2f";
 	bpl = (int)((used - 1) / step_height) + 1;
 	for (i = 0; i <= nsteps; i += bpl)
 	{
 		val = center + (nsteps/2.0 - i) * step;
-		sprintf (string, "%.1f", val);
+		sprintf (string, spformat, val);
 
 		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
 #ifdef notdef
