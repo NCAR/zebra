@@ -4,7 +4,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: SerialStream.cc,v 1.2 1998-02-25 22:17:29 burghart Exp $")
+RCSID ("$Id: SerialStream.cc,v 1.3 1998-03-04 17:13:55 granger Exp $")
 
 #include "SerialStream.hh"
 #include "SerialBuffer.hh"
@@ -269,7 +269,7 @@ SerialCountStream::translate (char * &s)
 void
 SerialCountStream::opaque (void * /*data*/, long len)
 {
-	count += len;
+	Add (len);
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: SerialStream.hh,v 1.2 1997-12-14 23:50:15 granger Exp $
+ * $Id: SerialStream.hh,v 1.3 1998-03-04 17:13:56 granger Exp $
  *
  */
 #ifndef _SerialStream_hh_
@@ -116,6 +116,12 @@ public:
 	/* The buffer has changed, so our stream needs to be recreated */
 	void Relocate (void *buffer, long length);
 
+	/* Return our SerialBuffer */
+	SerialBuffer *serialBuffer ()
+	{
+		return sbuf;
+	}
+
 protected:
 
 	SerialBuffer *sbuf;
@@ -215,8 +221,9 @@ public:
     it rather than actually moving any bytes.  It overrides all of the
     serial stream methods to increment a counter instead.
 
-    This subclass adds two methods to the SerialStream interface:
-    Zero() resets the counter to zero, and Count() returns the count.
+    This subclass adds three methods to the SerialStream interface:
+    Zero() resets the counter to zero, Count() returns the count,
+    and Add() just adds the given length to the count.
     */
 class SerialCountStream : virtual public SerialStream
 {
@@ -232,6 +239,8 @@ public:
 	inline void Zero();
 
 	inline long Count();
+
+	inline void Add (long add);
 
 	/*
 	 * Now override the SerialStream methods for particular types.
@@ -283,6 +292,13 @@ inline void
 SerialCountStream::Zero()
 { 
 	count = 0;
+}
+
+
+inline void
+SerialCountStream::Add (long add)
+{ 
+	count += add;
 }
 
 
