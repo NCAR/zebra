@@ -1,7 +1,6 @@
 /*
  * Send sound files to the audio port.
  */
-static char *rcsid = "$Id: Sound.c,v 2.3 1994-11-17 03:42:13 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,12 +22,14 @@ static char *rcsid = "$Id: Sound.c,v 2.3 1994-11-17 03:42:13 granger Exp $";
 # include <unistd.h>
 # include <fcntl.h>
 # include <errno.h>
-# include "defs.h"
-# include "copyright.h"
-# include "../include/config.h"
-# include "../include/message.h"
-# include "../include/timer.h"
 
+# include <defs.h>
+# include <copyright.h>
+# include <config.h>
+# include <message.h>
+# include <timer.h>
+
+RCSID("$Id: Sound.c,v 2.4 1995-04-19 14:42:02 granger Exp $")
 
 int IMessage ();
 int Enabled = FALSE;
@@ -48,7 +49,13 @@ typedef struct
 } SavedSound;
 
 
+static int OpenDev FP ((void));
+static void SaveSound FP ((char *name, int fd));
+static void PlaySoundFile FP ((char *file));
+static int PlayLoadedSound FP ((char *sound));
 
+
+int
 main ()
 {
 /*
@@ -68,11 +75,12 @@ main ()
  * Wait for things.
  */
 	msg_await ();
+	return (0);
 }
 
 
 
-
+int
 IMessage (msg)
 struct message *msg;
 {
@@ -81,7 +89,7 @@ struct message *msg;
 		if (msg->m_len == 1)
 			Enabled = *msg->m_data;
 		else if (Enabled)
-			DoSound (msg->m_data);
+			PlaySoundFile (msg->m_data);
 	}
 	else if (msg->m_proto == MT_MESSAGE)
 	{
@@ -94,13 +102,13 @@ struct message *msg;
 
 
 
-
-DoSound (file)
+static void
+PlaySoundFile (file)
 char *file;
 {
 	char fname[120];
 	static char sbuf[2000];
-	int fd, dev, len;
+	int fd, len;
 /*
  * Make sure we have a device.
  */
@@ -109,7 +117,7 @@ char *file;
 /*
  * If the sound is already in our table, just blast it out.
  */
-	if (DoLoadedSound (file))
+	if (PlayLoadedSound (file))
 		return;
 /*
  * Open up the file.
@@ -133,8 +141,8 @@ char *file;
 
 
 
-
-DoLoadedSound (sound)
+static int
+PlayLoadedSound (sound)
 char *sound;
 /*
  * If this sound is already loaded, send it out without opening the file
@@ -154,13 +162,14 @@ char *sound;
  */
 	s = (SavedSound *) v.us_v_ptr;
 	write (SoundDev, s->ss_data, s->ss_len);
+	return (TRUE);
 }
 
 
 
 
 
-
+static void
 SaveSound (name, fd)
 char *name;
 int fd;
@@ -210,7 +219,7 @@ TimeOut ()
 
 
 
-
+static int
 OpenDev ()
 /*
  * Open up the sound device.
