@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.16 1991-02-12 21:17:42 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.17 1991-03-05 21:25:29 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -82,6 +82,11 @@ static Boolean	Table_built = FALSE;
  * Our plot type
  */
 static int	PlotType;
+
+/*
+ * The end of plot handler, if any.
+ */
+static void	(*EOPHandler) () = 0;
 
 /*
  * Forward declarations
@@ -225,6 +230,11 @@ char	*component;
  */
 /*	DisplayFrame = DrawFrame; */
 	GWDisplayFrame (Graphics, DisplayFrame);
+/*
+ * Call the end of plot handler, if there is one.
+ */
+	if (EOPHandler)
+		(*EOPHandler) ();
 /*
  * Put the cursor back.
  */
@@ -570,5 +580,29 @@ char *comp, *fld;
 	if (pda_Search (Pd, comp, "desc", fld, ret, SYMT_STRING))
 		return (ret);
 	return (fld);
+}
+
+
+
+
+
+
+px_SetEOPHandler (handler)
+void (*handler) ();
+/*
+ * Set a routine to be called after a plot has been done.  This stuff is
+ * kludge that should be replaced with a more general action mechanism.
+ */
+{
+	if (EOPHandler)
+		msg_ELog (EF_PROBLEM, "Overriding existing EOP handler");
+	EOPHandler = handler;
+}
+
+
+
+px_ClearEOPHandler ()
+{
+	EOPHandler = 0;
 }
                                                                                  
