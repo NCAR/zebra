@@ -1,8 +1,8 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 1.2 1990-04-18 16:06:51 corbet Exp $";
-char *Version = "$Revision: 1.2 $ $Date: 1990-04-18 16:06:51 $";
+static char *rcsid = "$Id: timer.c,v 1.3 1990-04-26 16:25:34 corbet Exp $";
+char *Version = "$Revision: 1.3 $ $Date: 1990-04-26 16:25:34 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -21,6 +21,7 @@ struct tq_entry
 	struct timeval tqe_when;	/* When this process wants it   */
 	int	tqe_param;		/* Proc-supplied param		*/
 	int	tqe_inc;		/* Alarm increment		*/
+	int	tqe_nalarm;		/* How many alarms have fired	*/
 	struct tq_entry *tqe_next;	/* Next in the chain		*/
 };
 
@@ -95,8 +96,8 @@ main ()
 	/*
 	 * React.
 	 */
-		if (nsel > 0 && FD_ISSET (mfd, &fds))
-			msg_incoming (mfd);
+		if (nsel > 0 && FD_ISSET (mfd, &fds) && msg_incoming (mfd))
+			exit (0);
 		RunQueue ();
 	}
 }
@@ -125,7 +126,7 @@ struct message *msg;
 	 */
 	   case MT_MESSAGE:
 	   	if (tm->mh_type == MH_SHUTDOWN)
-			shutdown ();
+			exit (1);
 		else if (tm->mh_type == MH_CLIENT)
 			client_event ((struct mh_client *) tm);
 		else
@@ -224,7 +225,12 @@ struct tm_req *tr;
 		break;
 
 	   case TR_CANCEL:
-		ZapRequests (who);
+		ZapRequests (who, TRUE, ((struct tm_cancel *) tr)->tm_param,
+				FALSE);
+		break;
+
+	   case TR_CANCELALL:
+		ZapRequests (who, TRUE, 0, TRUE);
 		break;
 
 	   case TR_ABSOLUTE:
@@ -255,7 +261,7 @@ struct mh_client *ce;
  * which point we go and delete all of there requests.
  */
 	if (ce->mh_evtype == MH_CE_DISCONNECT)
-		ZapRequests (ce->mh_client);
+		ZapRequests (ce->mh_client, FALSE, 0, TRUE);
 }
 
 
@@ -361,7 +367,7 @@ RunQueue ()
 	{
 		tq = Tq;
 		Tq = tq->tqe_next;
-		SendAlarm (tq);
+		SendAlarm (tq, ct);
 	}
 }
 
@@ -386,6 +392,7 @@ struct tm_rel_alarm_req *tr;
 	AddDelay (&tqe->tqe_when, tr->tr_delay);
 	tqe->tqe_param = tr->tr_param;
 	tqe->tqe_inc = tr->tr_inc;
+	tqe->tqe_nalarm = 0;
 /*
  * Add it to the queue.
  */
@@ -409,6 +416,7 @@ struct tm_abs_alarm_req *tr;
 	CvtFccToSys (&tr->tr_when, &tqe->tqe_when);
 	tqe->tqe_param = tr->tr_param;
 	tqe->tqe_inc = tr->tr_inc;
+	tqe->tqe_nalarm = 0;
 /*
  * Add it to the queue.
  */
@@ -490,6 +498,7 @@ struct timeval *ct;
 	if (tqe->tqe_inc)
 	{
 		AddDelay (&tqe->tqe_when, tqe->tqe_inc);
+		tqe->tqe_nalarm++;
 		Enqueue (tqe);
 	}
 /*
@@ -516,18 +525,23 @@ struct tq_entry *tqe;
 
 
 
-ZapRequests (who)
+ZapRequests (who, ack, param, all)
 char *who;
+int param;
+bool ack, all;
 /*
- * Delete all timer requests belonging to this process.
+ * Delete timer requests belonging to this process.
  */
 {
 	struct tq_entry *tp, *last;
 /*
  * Clean anything of the head of the queue first.
  */
-	while (Tq && ! strcmp (Tq->tqe_proc, who))
+	while (Tq && ! strcmp (Tq->tqe_proc, who) &&
+		(all || Tq->tqe_param == param))
 	{
+		if (ack)
+			SendCancelAck (Tq);
 		tp = Tq;
 		Tq = Tq->tqe_next;
 		Free_tqe (tp);
@@ -541,8 +555,11 @@ char *who;
 	tp = Tq->tqe_next;
 	while (tp)
 	{
-		if (! strcmp (tp->tqe_proc, who))
+		if (! strcmp (tp->tqe_proc, who) &&
+			(all || param == tp->tqe_param))
 		{
+			if (ack)
+				SendCancelAck (tp);
 			last->tqe_next = tp->tqe_next;
 			Free_tqe (tp);
 		}
@@ -552,6 +569,23 @@ char *who;
 	}
 }
 
+
+
+
+
+SendCancelAck (tqe)
+struct tq_entry *tqe;
+/*
+ * Send an ack to the process that this timer request has been cancelled.
+ */
+{
+	struct tm_alarm tr;
+
+	tr.tm_type = TRR_CANCELACK;
+	CvtSysToFcc (GetTime (), &tr.tm_time);
+	tr.tm_param = tqe->tqe_param;
+	msg_send (tqe->tqe_proc, MT_TIMER, FALSE, &tr, sizeof (tr));
+}
 
 
 
@@ -587,7 +621,8 @@ char *who;
 		cp += strlen (cp);
 		if (tqe->tqe_inc)
 		{
-			sprintf (cp, " incr %d", tqe->tqe_inc);
+			sprintf (cp, " incr %d N %d", tqe->tqe_inc,
+				tqe->tqe_nalarm);
 			cp += strlen (cp);
 		}
 		*cp++ = '\n';

@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 1.1 1990-04-18 16:03:31 corbet Exp $ */
+/* $Id: timer.h,v 1.2 1990-04-26 16:25:42 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -10,8 +10,9 @@
 # define TR_ABSOLUTE	2	/* Absolute alarm request	*/
 # define TR_RELATIVE	3	/* Relative alarm request	*/
 # define TR_SET		4	/* Set fake clock timer mode	*/
-# define TR_CANCEL	5	/* Cancel all alarm requests	*/
-# define TR_STATUS	6	/* Get back status		*/
+# define TR_CANCELALL	5	/* Cancel all alarm requests	*/
+# define TR_CANCEL	6	/* Cancel one request		*/
+# define TR_STATUS	7	/* Get back status		*/
 
 /*
  * Incremental times are stored as fractions of seconds -- INCFRAC to be
@@ -69,6 +70,7 @@ struct tm_rel_alarm_req
  * An alarm response.
  */
 # define TRR_ALARM	101
+# define TRR_CANCELACK	103	/* Alarm cancel acknowledge	*/
 struct tm_alarm
 {
 	int	tm_type;	/* == TRR_ALARM			*/
@@ -79,7 +81,7 @@ struct tm_alarm
 /*
  * The status response.
  */
-# define TRR_STATUS	100
+# define TRR_STATUS	102
 struct tm_status
 {
 	int	tm_type;	/* Answer type			*/
@@ -87,3 +89,32 @@ struct tm_status
 	char	tm_status[0];	/* Actual status -- as long as nec.	*/
 };
 
+
+/*
+ * A cancel request.
+ */
+struct tm_cancel
+{
+	int	tm_type;	/* == TR_CANCEL			*/
+	int	tm_param;	/* Param of req to cancel	*/
+};
+
+
+
+
+/*
+ * Definitions of timer library routines.
+ */
+# ifdef __STDC__
+	int tl_AddRelativeEvent (void (*func) (), void *, int, int);
+	int tl_AddAbsoluteEvent (void (*func) (), void *, time *, int);
+	void tl_DispatchEvent (struct tm_time *);
+	void tl_AllCancel (void);
+	void tl_Cancel (int);
+# else
+	int tl_AddRelativeEvent ();
+	int tl_AddAbsoluteEvent ();
+	void tl_DispatchEvent ();
+	void tl_AllCancel ();
+	void tl_Cancel ();
+# endif
