@@ -248,7 +248,7 @@ char *config_file;
  * Make sure we have a config.
  */
 # ifdef notdef
-	sprintf (config_file, "%s/LastData.config", LIBDIR);
+	sprintf (config_file, "%s/LastData.config", GetLibDir());
 # endif
 	cfile = fopen (config_file, "r");
 	if (cfile == NULL)

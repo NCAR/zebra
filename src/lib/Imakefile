@@ -28,9 +28,10 @@ WRITEVSRC=
 #endif
 
 /*
- * Graphics widget needs to know whether to try shared memory
+ * Graphics widget needs to know whether to try shared memory, and the
+ * ConfigVars routines need to the various default directory paths.
  */
-DEFINES = $(SHMDEFINES) 
+DEFINES = $(SHMDEFINES) $(DIRDEFINES)
 
 SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c cmd_proto.c ConfigVars.c \
 	convert.c GraphicsW.c ImageXfr.c LeftRightButtons.c msg_BCast.c \

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 3.4 1994-01-03 07:25:36 granger Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 3.5 1994-11-17 06:44:13 granger Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -179,10 +179,12 @@ void UglyDeath ()
  * Kludge to keep operations going when things die.
  */
 {
+	char bindir[256];
 	msg_ELog (EF_EMERGENCY, "NETXFR SEG FAULT RESTART\007");
 	close (msg_get_fd ());
 	ShutdownSeg ();
-	execl (strcat (BINDIR, "/NetXfr"), CFile, (char *) 0);
+	strcpy (bindir, GetBinDir ());
+	execl (strcat (bindir, "/NetXfr"), CFile, (char *) 0);
 	exit (99);
 }
 
@@ -202,7 +204,7 @@ char **argv;
  * Hook into the user interface.  Only go interactive if they didn't
  * give us a file on the command line.
  */
-	fixdir_t ("NETXFRLOADFILE", LIBDIR, "NetXfr.lf", loadfile, ".lf");
+	fixdir_t ("NETXFRLOADFILE", GetLibDir(), "NetXfr.lf", loadfile, ".lf");
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);
