@@ -30,7 +30,7 @@
 # include <message.h>
 # include "DrawText.h"
 
-RCSID("$Id: DrawText.c,v 2.11 1995-06-29 23:28:33 granger Exp $")
+RCSID("$Id: DrawText.c,v 2.12 1996-01-23 22:29:10 corbet Exp $")
 
 # ifndef __STDC__
 #  ifndef sgi
@@ -641,6 +641,23 @@ int	*actual;
 
 	if (index < 0)
 		return (FALSE);
+/*
+ * Watch out for an ELF X library bug under linux.
+ */
+# ifdef linux
+	{
+		char *cp = Fontnames[index] + strlen (Fontnames[index]) - 1;
+		if (*cp != '1')
+		{
+			msg_ELog (EF_PROBLEM, "Fontname BUG, got %s",
+					Fontnames[index]);
+			while (*cp != '1')
+				*cp-- = '\0';
+			msg_ELog (EF_PROBLEM, "Fixed to: %s",
+					Fontnames[index]);
+		}
+	}
+# endif
 /*
  * We got a usable font.  Load it and return TRUE
  */
