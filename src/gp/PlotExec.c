@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.17 1991-03-05 21:25:29 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.18 1991-03-28 18:25:49 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -103,7 +103,7 @@ static void	(*EOPHandler) () = 0;
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	void	px_FixPlotTime ();
 	static bool px_GetCoords (void);
-	static void px_GlobalPlot (void);
+	void px_GlobalPlot (void);
 # else
 	int	px_NameToNumber ();
 	void	px_Init (), px_AddComponent (), CAP_FContour ();
@@ -112,7 +112,7 @@ static void	(*EOPHandler) () = 0;
 	void	px_AdjustCoords ();
 	void	px_FixPlotTime ();
 	static bool px_GetCoords ();
-	static void px_GlobalPlot ();
+	void px_GlobalPlot ();
 # endif
 
 /*
@@ -247,7 +247,7 @@ char	*component;
 
 
 
-static void
+void
 px_GlobalPlot ()
 /*
  * Perform a global update.
