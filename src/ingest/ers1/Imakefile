@@ -1,0 +1,4 @@
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(FLIBS)
+OBJS = ers1.o bints.o
+
+NormalProgramTarget(ers1, $(OBJS), $(DEPLIBS), $(LIBS),$(SYSLIBS))
