@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.8 1990-12-14 10:31:34 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.9 1990-12-14 13:55:43 burghart Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -9,6 +9,7 @@ static char *rcsid = "$Id: Overlay.c,v 1.8 1990-12-14 10:31:34 corbet Exp $";
 # include "../include/pd.h"
 # include "../include/message.h"
 # include "../include/dm.h"
+# include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
@@ -136,7 +137,6 @@ bool update;
 	char platform[40], color[40];
 	float x0, y0, x1, y1;
 	int lwidth, px0, py0, px1, py1;
-	GC gcontext;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
 	Drawable d = GWFrame (Graphics);
@@ -163,24 +163,23 @@ bool update;
 /*
  * Graphics context stuff.
  */
-	gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
 	ct_GetColorByName (color, &xc);
-	XSetForeground (disp, gcontext, xc.pixel);
+	XSetForeground (disp, Gcontext, xc.pixel);
 	if (pda_Search (Pd, comp, "line-width", "overlay", (char *) &lwidth,
 			SYMT_INT))
-		XSetLineAttributes (disp, gcontext, lwidth, LineSolid,
+		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
 			CapButt, JoinMiter);
 /*
  * Just draw.
  */
-	XDrawLine (disp, d, gcontext, px0, py0, px1, py0);
-	XDrawLine (disp, d, gcontext, px1, py0, px1, py1);
-	XDrawLine (disp, d, gcontext, px1, py1, px0, py1);
-	XDrawLine (disp, d, gcontext, px0, py1, px0, py0);
+	XDrawLine (disp, d, Gcontext, px0, py0, px1, py0);
+	XDrawLine (disp, d, Gcontext, px1, py0, px1, py1);
+	XDrawLine (disp, d, Gcontext, px1, py1, px0, py1);
+	XDrawLine (disp, d, Gcontext, px0, py1, px0, py0);
 /*
- * Clean up and go home.
+ * Return to zero-width lines and we're done
  */
-	XFreeGC (disp, gcontext);
+	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 }
 
 
@@ -225,24 +224,23 @@ bool update;
 /*
  * Graphics context stuff.
  */
-	gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
 	ct_GetColorByName (color, &xc);
-	XSetForeground (disp, gcontext, xc.pixel);
+	XSetForeground (disp, Gcontext, xc.pixel);
 	if (pda_Search (Pd, comp, "line-width", "overlay", (char *) &lwidth,
 			SYMT_INT))
-		XSetLineAttributes (disp, gcontext, lwidth, LineSolid,
+		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
 			CapButt, JoinMiter);
 /*
  * Just draw.
  */
-	XDrawLine (disp, d, gcontext, px0, py0, px1, py0);
-	XDrawLine (disp, d, gcontext, px1, py0, px1, py1);
-	XDrawLine (disp, d, gcontext, px1, py1, px0, py1);
-	XDrawLine (disp, d, gcontext, px0, py1, px0, py0);
+	XDrawLine (disp, d, Gcontext, px0, py0, px1, py0);
+	XDrawLine (disp, d, Gcontext, px1, py0, px1, py1);
+	XDrawLine (disp, d, Gcontext, px1, py1, px0, py1);
+	XDrawLine (disp, d, Gcontext, px0, py1, px0, py0);
 /*
- * Clean up and go home.
+ * Return to zero-width lines and we're done
  */
-	XFreeGC (disp, gcontext);
+	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 }
 
 
@@ -315,7 +313,6 @@ bool update;
 {
 	char platform[40], color[40];
 	int lwidth, type, i;
-	GC gcontext;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
 	Drawable d = GWFrame (Graphics);
@@ -341,12 +338,11 @@ bool update;
 /*
  * Graphics context stuff.
  */
-	gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
 	ct_GetColorByName (color, &xc);
-	XSetForeground (disp, gcontext, xc.pixel);
+	XSetForeground (disp, Gcontext, xc.pixel);
 	if (pda_Search (Pd, comp, "line-width", "overlay", (char *) &lwidth,
 			SYMT_INT))
-		XSetLineAttributes (disp, gcontext, lwidth, LineSolid,
+		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
 			CapButt, JoinMiter);
 /*
  * Find the closest set of features.
@@ -373,24 +369,20 @@ bool update;
  */
 	for (; fp && fp->f_type != FMarker; fp = fp->f_next)
 	{
-		ov_DoFeature (fp, disp, d, gcontext, xc.pixel);
+		ov_DoFeature (fp);
 	}
 /*
- * Clean up and go home.
+ * Go back to zero-width lines and we're done
  */
-	XFreeGC (disp, gcontext);
+	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 }
 
 
 
 
 
-ov_DoFeature (fp, disp, d, gc, color)
+ov_DoFeature (fp)
 Feature *fp;
-Display *disp;
-Drawable d;
-GC gc;
-int color;
 /*
  * Draw a single feature onto the screen.
  */
@@ -411,8 +403,9 @@ int color;
 	 */
 	   case FText:
 		px = XPIX (x); py = YPIX (y);
-	   	DrawText (Graphics, d, color, px, py, fp->f_string, 0.0,
-			fp->f_size, JustifyCenter, JustifyCenter);
+	   	DrawText (Graphics, GWFrame (Graphics), Gcontext, px, py, 
+			fp->f_string, 0.0, fp->f_size, JustifyCenter, 
+			JustifyCenter);
 		break;
 	/*
 	 * Circles we do ourselves.
@@ -420,7 +413,8 @@ int color;
 	   case FCircle:
 		px = XPIX (x - fp->f_radius); py = YPIX (y + fp->f_radius);
 		width = XPIX (x + fp->f_radius) - px;
-	   	XDrawArc (disp, d, gc, px, py, width, width, 0, 360*64);
+	   	XDrawArc (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
+			px, py, width, width, 0, 360*64);
 		break;
 	}
 }
@@ -437,7 +431,6 @@ bool update;
 	char platform[40], color[40], fname[80];
 	float x0, y0, x1, y1;
 	int lwidth, px0, py0, px1, py1;
-	GC gcontext;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
 	Drawable d = GWFrame (Graphics);
@@ -455,12 +448,11 @@ bool update;
 /*
  * Graphics context stuff.
  */
-	gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
 	ct_GetColorByName (color, &xc);
-	XSetForeground (disp, gcontext, xc.pixel);
+	XSetForeground (disp, Gcontext, xc.pixel);
 	if (pda_Search (Pd, comp, "line-width", "map", (char *) &lwidth,
 			SYMT_INT))
-		XSetLineAttributes (disp, gcontext, lwidth, LineSolid,
+		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
 			CapButt, JoinMiter);
 /*
  * Open up the map file.
@@ -474,23 +466,21 @@ bool update;
 /*
  * Draw it.
  */
-	ov_DrawMap (mapfp, disp, d, gcontext);
+	ov_DrawMap (mapfp);
 /*
  * Clean up and go home.
  */
 	fclose (mapfp);
-	XFreeGC (disp, gcontext);
+
+	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 }
 
 
 
 
 
-ov_DrawMap (mapfp, disp, d, gcontext)
+ov_DrawMap (mapfp)
 FILE *mapfp;
-Display *disp;
-Drawable d;
-GC gcontext;
 /*
  * Draw this map file onto the screen.
  */
@@ -546,7 +536,8 @@ GC gcontext;
 	/*
 	 * Now draw them.
 	 */
-		XDrawLines (disp, d, gcontext, pts, npt, CoordModeOrigin);
+		XDrawLines (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
+			pts, npt, CoordModeOrigin);
 	/*
 	 * Eat a newline if need be.
 	 */
