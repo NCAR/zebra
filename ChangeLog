@@ -1,3 +1,101 @@
+Thu Nov 17 15:18:04 1994  Chris Burghart  (burghart@fuggles)
+
+	* Merge of ModelCD_branch.  See log messages below.
+
+============================================================================
+======== ModelCD_branch log ================================================
+============================================================================
+
+Fri Nov  4 08:58:56 1994  Chris Burghart  (burghart@fuggles)
+
+        Final ModelCD_branch changes before CD release!
+
+        * gp/AxisControl.c: Added a sanity check so that no more than
+          150 tics are drawn on a given axis.
+
+        * dm/dm_config.c: UpdateConfig() now backs up through ancestor windows
+          until it finds a child of root.  That window's x,y position 
+          (presumably absolute w.r.t. the screen) is used for the "official"
+          x,y.
+
+Fri Oct 21 10:58:51 1994  Chris Burghart  (burghart@fuggles)
+
+	These are my changes along the ModelCD_branch branch of Zeb as of 
+	the ModelCD_proof2 tag:
+
+	* Imake: tweaked the hp.cf for ranlib and SVR4 problems and added 
+	  "-ldl" to Solaris system libraries in sun.cf.
+
+	* EventLogger: Added an X event loop to wm() so that it now waits for 
+	  a ReparentNotify event from the X server before trying to re-popup 
+	  a window that's being moved from window manager control to display 
+	  manager control.  If we don't wait, timing of the ReparentNotify may 
+	  cause the window to be unmapped after we pop it up, never to be seen 
+	  again.
+
+	* ds library: The old ds_GetRgridParams() has now become the slightly 
+	  more generic ds_GetAlts().  Added ds_IsModelPlatform() and 
+	  ds_GetForecastTimes() functions.  DFA_GRIB.c got some minor syntax
+	  changes to make it more palatable to various compilers, and 
+	  grb_GetFields() now returns a boolean (as dnc_GetFields() does).
+
+	* dsmanage: The new gcc (2.6.0) doesn't like defaults declared in both 
+	  the method prototype in a class definition and in the method's 
+	  definition.  Default parameters are now only specified in the method 
+	  prototypes.
+
+	* etc/gplib:
+		contour: When contours are changed to filled-contour 
+			 representation, they are now moved to the bottom 
+			 of the component list.
+		winds: New menu winds-model-right.
+
+	* etc/helpfiles: Made current with model CD info.
+
+	* gp:
+		Icons.c: Improved handling of icon-age-limit for model data
+		PlotControl.c: Adjustment of PlotTime based on model validation
+				mode now takes place here.
+		DrawText.c & sfont_1.c: Fixed a problem with stroke fonts that 
+				was a result of the SGI cc compiler using 
+				unsigned chars by default.
+		FieldMenu.c: units are now displayed in the menu along with the
+				field names.
+		ModelWidget.c: Added catches so that we don't try to use the 
+				PD if we don't have one.
+		ConstAltPlot.c: Wind barbs can now be selected in place of
+				wind vectors.
+	* lib: The graphics widget now tries harder to use the default visual 
+		of the screen to which it's connected.  Failing that, it also 
+		deals better with the case where the default visual cannot be 
+		used.
+
+Thu Oct  6 09:32:05 1994  Gary Granger  (granger@kodiak)
+
+	* dsrescan: add -remote flag for resetting RDirConst flag in
+	  daemon before rescanning
+
+	* dsdwidget: fix bug with empty remote data sources
+
+	* dsmanage: handle overlapping files in index and duplicate
+	  entries between platforms when both moving and deleting files;
+	  exits on message handler shutdown
+
+Fri Sep 23 19:59:21 1994  Gary Granger  (granger@kodiak)
+
+	* dm commands: add cycle command to restart dm; initialize
+	  ConfigDir, ConfigPD, and ConfigPath to empty strings; add
+	  cfgconvert command to write an existing config as a single file;
+	  add storepd command to save a pd to a file under a new name
+
+	* gp: fix DataMenu and FieldMenu bugs; fix platform list lengths.
+	  strings for storing platform and field parameter values, which
+	  can be very long lists, are all allocated to the same big number
+
+============================================================================
+======== end of ModelCD_branch log ==========================================
+============================================================================
+
 
 Thu Nov  3 13:54:30 1994  Gary Granger  <granger@steam.atd.ucar.edu>
 
