@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.14 1993-04-28 23:00:57 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.15 1993-05-03 17:21:58 corbet Exp $")
 
 
 
@@ -303,7 +303,7 @@ struct ui_command *cmds;
 	 * Write out cache files.
 	 */
 	   case DK_CACHE:
-	   	WriteCache ();
+	   	WriteCache (cmds[1].uc_ctype == UTT_KW);
 		break;
 
 	   default:
@@ -423,7 +423,7 @@ struct message *msg;
 	{
 	   case MH_SHUTDOWN:
 		if (CacheOnExit)
-			WriteCache ();
+			WriteCache (FALSE);
 		ui_finish ();
 		exit (1);
 	/*
@@ -672,10 +672,10 @@ struct dsp_UpdateFile *request;
 		    	append = TRUE;
 	}
 	df->df_nsample += request->dsp_NSamples;
-	/* df->df_rev++; */
 	df->df_rev = dfa_GetRevision (plat, df);
 	plat->dp_NewSamps += request->dsp_NSamples;
 	plat->dp_OwSamps += request->dsp_NOverwrite;
+	plat->dp_flags |= DPF_DIRTY;
 /*
  * If this file is in the Tfile slot, now we move it over to the localdata
  * list.
@@ -769,6 +769,7 @@ int sub;
 		else
 			index = DFTable[last].df_FLink = df->df_FLink;
 		ZapDF (df);
+		p->dp_flags |= DPF_DIRTY;
 	}
 }
 

@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.9 1992-12-11 17:43:06 corbet Exp $
+! $Id: Daemon.state,v 2.10 1993-05-03 17:21:58 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -49,7 +49,7 @@ define state initial
 		next ust$final_int
 	endinput
 	input 'cache' 20
-		next ust$no_more
+		next cache-opt-dirty
 	endinput
 enddef
 
@@ -223,6 +223,18 @@ define state every-interval
 	endinput
 enddef
 
+
+!
+! After a cache command allow an optional "dirty" qualifier.
+!
+define state cache-opt-dirty
+	input EOS
+		done
+	endinput
+	input 'dirty' 0
+		next ust$no_more
+	endinput
+enddef
 
 
 set ui$initial_state "initial"

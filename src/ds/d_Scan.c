@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.2 1993-04-26 16:00:50 corbet Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.3 1993-05-03 17:21:58 corbet Exp $");
 
 
 /*
@@ -187,6 +187,7 @@ bool local, rescan;
  */
 	df->df_ftype = p->dp_ftype;
 	dt_AddToPlatform (p, df, local);
+	p->dp_flags |= DPF_DIRTY;
 /*
  * This is a rather ugly kludge.....if this becomes the most recent file
  * for this platform, send out a notification for it.
@@ -393,6 +394,7 @@ int chain;
 			msg_ELog (EF_DEBUG, "File %s disappeared",
 				DFTable[dfi].df_name);
 			dt_RemoveDFE (p, dfi);
+			p->dp_flags |= DPF_DIRTY;
 		}
 	}
 }
@@ -401,9 +403,11 @@ int chain;
 
 
 void
-WriteCache ()
+WriteCache (onlydirty)
+int onlydirty;
 /*
- * Dump out cache files for all local directores.
+ * Dump out cache files for all local directores.  (Only those with changes
+ * if "onlydirty" is set).
  */
 {
 	int plat, fd, df, version = DSProtocolVersion;
@@ -416,6 +420,11 @@ WriteCache ()
 	 * We don't dump subplatforms.
 	 */
 		if (p->dp_flags & DPF_SUBPLATFORM)
+			continue;
+	/*
+	 * Maybe they only want to write those which have changed.
+	 */
+	 	if (onlydirty && ! (p->dp_flags & DPF_DIRTY))
 			continue;
 	/*
 	 * Create the dump file.
@@ -435,6 +444,10 @@ WriteCache ()
 	 	for (df = LOCALDATA (*p); df; df = DFTable[df].df_FLink)
 			write (fd, DFTable + df, sizeof (DataFile));
 		close (fd);
+	/*
+	 * This platform is now clean.
+	 */
+	 	p->dp_flags &= ~DPF_DIRTY;
 	}
 }
 

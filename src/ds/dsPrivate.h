@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.9 1993-04-26 16:00:50 corbet Exp $
+ * $Id: dsPrivate.h,v 3.10 1993-05-03 17:21:58 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -36,6 +36,7 @@ typedef enum {
 } FileType;
 
 
+# ifdef notdef
 /*
  * The shared memory header.
  */
@@ -51,6 +52,7 @@ struct ds_ShmHeader
 };
 # define SHM_MAGIC	0x31293		/* Change for incompatible changes */
 
+# endif
 
 /*
  * The following structure is used to keep track of locks held on platforms
@@ -97,6 +99,7 @@ typedef struct ds_Platform
 # define DPF_SUBPLATFORM 0x010		/* This is a sub platform	*/
 # define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
 # define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
+# define DPF_DIRTY	0x0080		/* Cache needs updating		*/
 /*
  * Macro to return the right data list for a platform.
  */
