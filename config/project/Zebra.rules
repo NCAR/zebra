@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.11 1996-12-03 07:11:34 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.12 1997-02-18 22:19:12 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -121,6 +121,9 @@ XCOMM
  *
  * CvsIgnoreFile(file)
  *  -- Rule which adds a filename to an ignore file when not aleady present.
+ *
+ * DependTarget()
+ *  -- A redefined depend rule which uses the C compiler -M option.
  */
 
 /*
@@ -497,6 +500,69 @@ CvsIgnoreFile(program)							@@\
 
 #endif /* CccProgramTarget */
 
+
+/*
+ * Generating dependencies:  The ZebraMakeDepend() macro includes 
+ * the rules for appending the dependency rules in Makefile.dep to 
+ * Makefile.  There should be no more than one occurrence of this rule
+ * in an Imakefile.  The generic DependTarget() includes this rule
+ * automatically.  All other depend targets (e.g., CccDependTarget)
+ * expect either DependTarget() or ZebraMakeDepend() to have been
+ * invoked explicitly.  Multiple 'dependencies' targets can appear in
+ * a Makefile; each simply appends its rules to Makefile.dep.
+ */
+#define ZebraMakeDepend()						@@\
+									@@\
+depend:: $(MDFILE)							@@\
+	@echo Appending $(MDFILE) to Makefile ;\			@@\
+	$(RM) Makefile.tmp ;\						@@\
+	sed -e '/^# -- Compiler dependencies --/,$$d' Makefile \	@@\
+		> Makefile.tmp ; \					@@\
+	cat $(MDFILE) >> Makefile.tmp ;\				@@\
+	$(MV) Makefile.tmp Makefile					@@\
+									@@\
+clean::									@@\
+	$(RM) $(MDFILE) Makefile.tmp					@@\
+									@@\
+$(MDFILE): $(MDFILE_DEPENDS)						@@\
+	@echo Creating $(MDFILE); $(RM) $(MDFILE) ;\			@@\
+	echo '# -- Compiler dependencies --' > $(MDFILE) ; \		@@\
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(MDMAKE) dependencies		@@\
+
+
+/*
+ * The rule which actually generates dependency rules for set of source
+ * files using a particular compiler, then appends the rules to $(MDFILE).
+ */
+#define ZebraDependTarget(cc,src)					@@\
+									@@\
+dependencies::								@@\
+	cc $(ALLDEFINES) $(DEPEND_DEFINES) src >> $(MDFILE)		@@\
+
+/* ZebraDependTarget */
+
+/*
+ * Override the Imake dependency rule to use the zebra version
+ */
+#ifdef DependTarget
+#undef DependTarget
+#endif
+#define DependTarget() \
+ZebraMakeDepend() \
+ZebraDependTarget($(CC_DEPEND),$(SRCS))
+
+/*
+ * Target for C source files which does NOT include ZebraMakeDepend().
+ */
+#define CcDependTarget(sources)  ZebraDependTarget($(CC_DEPEND),sources)
+
+/*
+ * C++ dependency rule.  Any number of these can appear in the Imakefile.
+ * The dependencies of each will be appended to MDFILE.
+ */
+#define CccDependTarget(sources)  ZebraDependTarget($(CXX_DEPEND),sources)
+
+
 /*=======================================================================
  * Macros used by rules in this file 
  *=======================================================================*/
@@ -656,7 +722,7 @@ target::								@@\
 		if [ "$$executeit" != "no" ]; then \			@@\
 			ImakeSubCmdHelper -DTOPDIR=$$imaketop -DCURDIR=$$curdir$$i; \ @@\
 		fi; \							@@\
-		$(MAKE) $(MFLAGS) target; \				@@\
+		$(MAKE) MAKE=$(MAKE) $(MFLAGS) target; \		@@\
 		cd $$newtop; \						@@\
 	done
 
@@ -677,7 +743,7 @@ name::									@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
 		(cd $$i ; echo verb "in $(CURRENT_DIR)/$$i..."; \	@@\
-			$(MAKE) $(MFLAGS) flags subname); \		@@\
+			$(MAKE) MAKE=$(MAKE) $(MFLAGS) flags subname);\	@@\
 	done
 
 /* NamedTargetSubdirs */

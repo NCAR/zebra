@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.52 1997-01-20 19:26:36 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.53 1997-02-18 22:19:11 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -773,6 +773,22 @@ XCOMM -----------------------------------------------------------------------
                     $(PROJECTSRC)/site.def $(IRULESRC)/Imake.rules
 
 /*
+ * Dependency generation variables
+ */
+    DEPEND_OPTION = -M		/* compiler option to generate dependencies */
+#ifdef SolarisArchitecture
+#if ! UseGcc
+    DEPEND_OPTION = -xM1
+#endif
+#endif
+        CC_DEPEND = $(CC) $(DEPEND_OPTION)
+       CXX_DEPEND = $(CXX) $(DEPEND_OPTION)
+           MDFILE = Makefile.dep	/* File to append dependencies to */
+   MDFILE_DEPENDS = Imakefile $(ICONFIGFILES)
+           MDMAKE = CC_DEPEND='$(CC_DEPEND)' CXX_DEPEND='$(CXX_DEPEND)' \
+                    MDFILE='$(MDFILE)' DEPEND_OPTION='$(DEPEND_OPTION)'
+
+/*
  * Include directories
  */
        RDSSINCDIR = RDSSIncDir
@@ -989,9 +1005,14 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  * For GNU make's sake, which can go really overboard searching implicit
  * rules.
  */
-.PHONY: all install clean depend includes World Everything mf
+.PHONY: all install clean depend dependencies includes World Everything mf
 
 .PHONY: test distclean distfiles distmakefiles Makefile Makefiles
+
+XCOMM This variable is hardcoded to TOP/include in Imake.tmpl and inserted
+XCOMM into CXXFLAGS.  We don't need it, and it could cause confusion, 
+XCOMM so override it.
+CXXIDL_INCLUDES = 
 
 /*
  * Rules specific to the Zebra project.  Some of them override rules
