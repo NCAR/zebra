@@ -63,6 +63,7 @@
 # include <config.h>
 # include <message.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "Contour.h"

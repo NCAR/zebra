@@ -28,6 +28,7 @@
 # include <config.h>
 # include <message.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include "GraphProc.h"
 # include "Contour.h"
 # include "ContourP.h"
@@ -35,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.13 1995-08-03 20:59:37 corbet Exp $")
+RCSID("$Id: Contour.c,v 2.14 1995-08-07 23:04:55 granger Exp $")
 
 typedef short	cbool;
 
