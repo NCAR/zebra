@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.10 1997-05-12 22:25:22 ishikawa Exp $ */
+/* $Id: ui_param.h,v 1.11 1997-05-13 21:44:50 ishikawa Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -26,7 +26,7 @@
 #  endif
 # endif
 
-# ifdef aix
+# ifdef AIXV3 
 #  ifndef UNIX
 #   define UNIX
 #  endif

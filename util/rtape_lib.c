@@ -20,11 +20,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* JF: modified to make all rmtXXX calls into macros for speed */
 
 #ifndef lint
-static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.4 1997-05-12 22:39:56 ishikawa Exp $";
+static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.5 1997-05-13 21:40:41 ishikawa Exp $";
 #endif
 
 /*
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  1997/05/12  22:39:56  ishikawa
+ * IBM and DEC machines support added
+ *
  * Revision 1.3  1995/07/09  15:08:45  granger
  * define signal handler as void function to match signal() prototypes
  *
@@ -85,7 +88,7 @@ static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.4 19
  *	WRITE --- Return the number of the write side file descriptor
  */
 
-# ifndef aix
+# ifndef AIXV3 
 #define RMTIOCTL	1
 # endif
 

@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.11 1997-05-12 22:25:32 ishikawa Exp $ */
+/* $Id: ui_tty.c,v 1.12 1997-05-13 21:45:01 ishikawa Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -20,7 +20,7 @@
 # endif
 
 # ifdef SYSV
-# ifdef aix
+# ifdef AIXV3 
 # include <sys/select.h>
 # endif
 

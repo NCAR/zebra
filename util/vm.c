@@ -52,7 +52,7 @@ int size;
 	return (cp + 2);
 # else
 
-# if defined (__osf__) || defined (aix)
+# if defined (__osf__) || defined (AIXV3)
         return ( (char *) malloc (size));
 # else 
 	return (malloc (size));
