@@ -31,14 +31,14 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Image.c,v 1.3 1992-01-22 23:22:58 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Image.c,v 1.4 1992-04-14 22:22:48 kris Exp $")
 
 # define SUPERCLASS DCC_RGrid
 
 /*
  * Our class-specific AuxData structure types.
  */
-# define ST_SCALING	0x120491
+# define ST_SCALING	1
 
 
 
