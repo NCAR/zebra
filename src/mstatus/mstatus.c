@@ -1,7 +1,7 @@
 /*
  * Message server status grabber.
  */
-static char *rcsid = "$Id: mstatus.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
+static char *rcsid = "$Id: mstatus.c,v 2.2 1992-03-17 22:37:09 barrett Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,6 +20,7 @@ static char *rcsid = "$Id: mstatus.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include "../include/defs.h"
 # include "message.h"
 # include <copyright.h>
 
