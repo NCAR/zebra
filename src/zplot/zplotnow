@@ -12,9 +12,13 @@ fi
 # Separate zplotd options from our plot hours
 zplotdargs=""
 opthours=""
+justecho=0
+echo=""
 for opt in $* END; do
     case $opt in
     END) break ;;
+    -x) justecho=1 ; echo=echo
+	;;
     -*) zplotdargs="$zplotdargs $opt"
 	;;
     *)  opthours="$opthours $opt"
@@ -81,11 +85,9 @@ else
 fi
 
 # Any reason this can't be run in parallel?  Leaving serial for now...
-echo zplotd -period $plot1 $zplotdargs
-zplotd -period $plot1 $zplotdargs
+$echo zplotd -period $plot1 $zplotdargs
 
 # Run the second plot if the current hour is not also the plot hour.
 if [ $doplot2 -ne 0 ]; then
-    echo zplotd -period $plot2 $zplotdargs
-    zplotd -period $plot2 $zplotdargs
+    $echo zplotd -period $plot2 $zplotdargs
 fi
