@@ -405,19 +405,6 @@ int priority;
 		ov->ov_pmap = gp_make_pmap (wstn->ws_dev);
 	}
 /*
- * For devices with hardware clip windows and oplist storage, we throw
- * in a SETHCW op first thing so that the clip window is always right.
- */
- 	else if (wstn->ws_dev->gd_flags & GDF_HCW)
-	{
-		int coords[4];
-		coords[GOP_W_X0] = coords[GOP_W_Y0] = 0;
-		coords[GOP_W_X1] = wstn->ws_dev->gd_xres - 1;
-		coords[GOP_W_Y1] = wstn->ws_dev->gd_yres - 1;
-		gop_add_op (GOP_SETHCW, 0, coords, 4, ov, 0,
-			(float *) 0, FALSE);
-	}
-/*
  * Initialize the clip window to the whole display.
  */
 	G_set_coords ((overlay) ov, 0.0, 0.0, 1.0, 1.0);
@@ -459,6 +446,7 @@ float x0, y0, x1, y1;
  */
 {
 	struct overlay *ov = (struct overlay *) cov;
+	struct device *dev = ov->ov_ws->ws_dev;
 
 	if (x0 >= x1 || y0 >= y1)
 		return (GE_BAD_COORDS);
@@ -467,8 +455,24 @@ float x0, y0, x1, y1;
 	ov->ov_x1 = x1;
 	ov->ov_y1 = y1;
 	ov->ov_cx0 = ov->ov_cy0 = 0;
-	ov->ov_cx1 = ov->ov_ws->ws_dev->gd_xres - 1;
-	ov->ov_cy1 = ov->ov_ws->ws_dev->gd_yres - 1;
+	ov->ov_cx1 = dev->gd_xres - 1;
+	ov->ov_cy1 = dev->gd_yres - 1;
+/*
+ * For devices with hardware clip windows and oplist storage, we throw
+ * in a SETHCW op now so that the clip window is always right.
+ */
+ 	if ((dev->gd_flags & GDF_HCW) && !(ov->ov_flags & OVF_PIXMAP))
+	{
+		int	coords[4];
+
+		coords[GOP_W_X0] = 0;
+		coords[GOP_W_Y0] = 0;
+		coords[GOP_W_X1] = dev->gd_xres - 1;
+		coords[GOP_W_Y1] = dev->gd_yres - 1;
+		gop_add_op (GOP_SETHCW, 0, coords, 4, ov, 0, 
+			(float *) 0, FALSE);
+	}
+
 	return (GE_OK);
 }
 
@@ -787,8 +791,8 @@ char *cov;
 /*
  * Clear the hardware segment (if any)
  */
- 	if (wstn->ws_dev->gd_flags & GDF_SEGMENT)
-		(*wstn->ws_dev->gd_s_clear) (wstn->ws_tag, ov->ov_number);
+ 	if (dev->gd_flags & GDF_SEGMENT)
+		(*dev->gd_s_clear) (wstn->ws_tag, ov->ov_number);
 /*
  * Now mark the overlay as modified, and non-additively at that.
  */
