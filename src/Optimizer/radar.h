@@ -1,6 +1,6 @@
 /*
  * Radar information
- * $Id: radar.h,v 1.1 1991-06-16 17:12:09 burghart Exp $
+ * $Id: radar.h,v 1.2 1991-07-05 19:50:28 burghart Exp $
  */
 
 # ifndef RADAR_H
@@ -43,6 +43,8 @@ typedef struct
 {
 	char	name[RNAMELEN];		/* radar name			*/
 	bool	enabled;		/* radar enabled?		*/
+	char	*line_out;		/* name of outgoing line	*/
+	char	*phone;			/* phone # for sending scans	*/
 	rstatus	status;			/* current status		*/
 	s_type	scantype;		/* scan type			*/
 	float	lat, lon;		/* position			*/
