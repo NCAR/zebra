@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.16 1992-11-03 21:41:49 burghart Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.17 1992-12-16 21:45:27 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -141,10 +141,7 @@ bool update;
  * Fix up some graphics info.
  */
 	if (mono)
-	{
 		ct_GetColorByName (mtcolor, &xc);
-		FixForeground (xc.pixel);
-	}
 	d = GWFrame (Graphics);
 /*
  * How wide do they like their lines?
@@ -190,7 +187,9 @@ bool update;
 	/*
 	 * Color code if necessary.
 	 */
-	 	if (! mono)
+	 	if (mono)
+			FixForeground (xc.pixel);
+		else
 		{
 			index = (dc_GetScalar (dc, i, fields[0]) - base)/incr;
 			FixForeground ((index >= 0 && index < nc) ?
