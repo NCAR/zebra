@@ -1,7 +1,7 @@
 /*
  * The application notification module.
  */
-static char *rcsid = "$Id: d_Notify.c,v 1.1 1991-02-26 19:13:40 corbet Exp $";
+static char *rcsid = "$Id: d_Notify.c,v 1.2 1991-04-11 22:01:22 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -29,6 +29,9 @@ typedef struct s_NRequest
 static NRequest *Requests[MAXPLAT];
 
 static NRequest *NRFree = 0;	/* Free lookaside list		*/
+
+static char CopyProc[128];	/* Who's getting copies?	*/
+static bool Copies = FALSE;
 
 
 
@@ -89,19 +92,31 @@ struct dsp_NotifyRequest *req;
  */
 {
 	NRequest *nr = dap_GetNR ();
-
+/*
+ * Fix up our data structures.
+ */
 	strcpy (nr->nr_from, from);
 	nr->nr_param = req->dsp_param;
 	nr->nr_next = Requests[req->dsp_pid];
 	Requests[req->dsp_pid] = nr;
+/*
+ * If somebody is snarfing copies, we send it on.
+ */
+	if (Copies)
+	{
+		strcpy (((char *) req) + sizeof (*req), from);
+		msg_send (CopyProc, MT_DATASTORE, FALSE, req,
+			sizeof (*req) + strlen (from) + 1);
+	}
 }
 
 
 
 
 void
-dap_Cancel (proc)
+dap_Cancel (proc, dt)
 char *proc;
+struct dsp_Template *dt;
 /*
  * Cancel all requests by this proc.
  */
@@ -140,6 +155,15 @@ char *proc;
 			zap = last->nr_next;
 		}
 	}
+/*
+ * Notify the copy proc if there is one.
+ */
+	if (Copies /* && dt->dsp_type != MH_CLIENT */ )
+	{
+		strcpy (((char *) dt) + sizeof (dt), proc);
+		msg_send (CopyProc, MT_DATASTORE, FALSE, dt,
+			sizeof (*dt) + strlen (proc) + 1);
+	}
 }
 
 
@@ -177,4 +201,36 @@ time *t;
 		msg_send (notify->nr_from, MT_DATASTORE, FALSE, &msg,
 				sizeof (msg));
 	}
+}
+
+
+
+
+
+void
+dap_Copy (proc)
+char *proc;
+/*
+ * Set up to send copies to this proc.
+ */
+{
+	if (Copies)
+		msg_ELog (EF_PROBLEM, "Overriding existing copyproc %s",
+			CopyProc);
+	Copies = TRUE;
+	strcpy (CopyProc, proc);
+}
+
+
+
+
+
+
+int
+dap_IsInterest (pid)
+/*
+ * Return true iff some process has a notification request on this platform.
+ */
+{
+	return (Requests[pid] != 0);
 }
