@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.6 1992-07-23 20:36:24 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.7 1992-10-20 17:33:48 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -882,8 +882,8 @@ int	plot_ndx, nplots;
 		(Xhi - 1.0) * (float) (plot_ndx + 0.5) / (float) (nplots);
 	xscale = (Xhi - 1.0) / (W_scale * 2 * nplots);
 
-	yscale = xscale * 
-		(YPIX (1.0) - YPIX (0.0)) / (XPIX (1.0) - XPIX (0.0));
+	yscale = fabs (xscale * 
+		(YPIX (1.0) - YPIX (0.0)) / (XPIX (1.0) - XPIX (0.0)));
 /*
  * Plot the winds
  */
@@ -1194,8 +1194,8 @@ int	npts;
 
 
 static int
-sk_700mb (p, t, dp, npts, p_sfc, dp_sfc, temp700, dp700, ndx700, badvalue)
-float	*p, *t, *dp, p_sfc, dp_sfc, *temp700, *dp700, badvalue;
+sk_700mb (t, p, dp, npts, p_sfc, dp_sfc, temp700, dp700, ndx700, badvalue)
+float	*t, *p, *dp, p_sfc, dp_sfc, *temp700, *dp700, badvalue;
 int	npts, *ndx700;
 /*
  * Find the 700 mb temperature, the 700 mb dewpoint corresponding to the
