@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.10 1993-05-05 15:34:07 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.11 1993-05-13 20:23:14 corbet Exp $")
 #endif
 
 /*
@@ -1921,3 +1921,22 @@ int junk;
 	}
 	return (0);
 }
+
+
+
+
+
+void
+ds_MarkArchived (dfi)
+int dfi;
+/*
+ * Send a message to the daemon saying that this file has been archived.
+ */
+{
+	struct dsp_MarkArchived ma;
+
+	ma.dsp_type = dpt_MarkArchived;
+	ma.dsp_FileIndex = index;
+	ds_SendToDaemon (&ma, sizeof (ma));
+}
+	
