@@ -1,4 +1,5 @@
 /* 2/87 jc */
+/* $Id: ui_interrupt.c,v 1.2 1989-04-11 10:16:20 corbet Exp $ */
 /*
  * Interrupt handling.
  */
@@ -29,6 +30,10 @@ uii_init ()
 # ifdef SIGTSTP
 	int uii_tstp ();
 # endif
+# ifdef UNIX
+	void (*oldh)();
+	int uii_fault ();
+# endif
 /*
  * No interrupts in batch jobs.
  */
@@ -41,9 +46,15 @@ uii_init ()
 		Handlers[hndl] = EMPTYSLOT;
 /*
  * Now set up the real interrupt handler.
+ * (4/89 jc)	Also set up catches for seg fault and bus error signals,
+ *		so that we can clean up before dying.
  */
 # ifdef UNIX
 	signal (SIGINT, uii_cc_handler);
+	if ((oldh = signal (SIGBUS, uii_fault)) != SIG_DFL)
+		signal (SIGBUS, oldh);
+	if ((oldh = signal (SIGSEGV, uii_fault)) != SIG_DFL)
+		signal (SIGSEGV, oldh);
 # ifdef SIGTSTP
 	signal (SIGTSTP, uii_tstp);
 # endif
@@ -152,3 +163,25 @@ vfptr handler;
 		if (Handlers[hndl] == handler)
 			Handlers[hndl] = EMPTYSLOT;
 }
+
+
+
+
+# ifdef UNIX
+
+uii_fault (sig, code, scp, addr)
+int sig, code;
+struct sigcontext *scp;
+char *addr;
+/*
+ * Handle a seg/bus error.
+ */
+{
+	printf ("\n\r%s: code %d addr 0x%x!\n\r",
+		sig == SIGBUS ? "Bus error" : "Segmentation violation",
+		code, addr);
+	ui_finish ();	/* Restore tty	*/
+	abort ();
+}
+
+# endif
