@@ -29,7 +29,7 @@
 # include "ingest.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: profs_ingest.c,v 1.1 1992-09-11 06:39:42 granger Exp $")
+MAKE_RCSID ("$Id: profs_ingest.c,v 1.2 1992-12-22 21:11:40 granger Exp $")
 # endif
 
 # define DEG_TO_RAD(x)	((x)*0.017453293)
@@ -144,8 +144,9 @@ Stations ()
  * Do station-oriented initialization.
  */
 {
-	int	slist[100], sta, num;
-	char	id[4] = "xxx", garbage[2], sitename[40], pname[20];
+	int		slist[100], sta, num;
+	static char	id[4] = "xxx";
+	char 		garbage[2], sitename[40], pname[20];
 	Location	*loc;
 /*
  * Read the station info from the file
