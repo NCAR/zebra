@@ -1,3 +1,4 @@
+/* $Id: dm.h,v 1.2 1990-03-19 11:01:34 corbet Exp $ */
 /*
  * Display manager stuff.
  */

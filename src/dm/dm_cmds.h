@@ -1,3 +1,4 @@
+/* $Id: dm_cmds.h,v 1.2 1990-03-19 11:01:39 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */

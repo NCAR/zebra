@@ -1,3 +1,4 @@
+/* $Id: dm.c,v 1.2 1990-03-19 11:01:27 corbet Exp $ */
 /*
  * The MOCCA display manager.
  */
