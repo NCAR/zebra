@@ -33,11 +33,12 @@ extern "C"
 }
 # include <stdio.h>
 # include <stream.h>
+# include <stdlib.h>
 # include "dsmanage.h"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.3 1993-02-23 18:14:01 corbet Exp $";
 //
 // Externs.
 //
@@ -109,14 +110,17 @@ dsMainWindow::dsMainWindow (const dsDisplay &disp) :
 //
 // Do indexing.
 //
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Generate file index");	n++;
-	XtSetArg (args[n], XtNfromVert, above);			n++;
-	XtSetArg (args[n], XtNfromHoriz, left);			n++;
-	AddConstraints (args, &n);
-	left = XtCreateManagedWidget ("index", commandWidgetClass, dw_form,
-			args, n);
-	XtAddCallback (left, XtNcallback, DoIndex, 0);
+	if (getenv ("DSMANAGE_GURU"))
+	{
+		n = 0;
+		XtSetArg (args[n], XtNlabel, "Generate file index");	n++;
+		XtSetArg (args[n], XtNfromVert, above);			n++;
+		XtSetArg (args[n], XtNfromHoriz, left);			n++;
+		AddConstraints (args, &n);
+		left = XtCreateManagedWidget ("index", commandWidgetClass,
+				dw_form, args, n);
+		XtAddCallback (left, XtNcallback, DoIndex, 0);
+	}
 //
 // A quit button.
 //
