@@ -38,7 +38,7 @@ struct ui_command *cmds;
  * Get the rest of the info.
  */
 	ERRORCATCH
-		ui_subcommand ("dm-config", "Config>", in_config, cfg);
+		ui_subcommand ("dm-config", "Config>", in_config, (long) cfg);
 	ON_ERROR
 		relvm (cfg);
 		RESIGNAL;
@@ -84,6 +84,7 @@ struct ui_command *cmds;
 		win->cfw_bmap = Default_map;
 		win->cfw_nongraph = win->cfw_forcepd = FALSE;
 		win->cfw_pd = 0;
+		win->cfw_flags = 0;
 		strcpy (win->cfw_prog, cmds[6].uc_ctype == UTT_END ?
 			DEFPROG : UPTR (cmds[6]));
 		cmds += (cmds[6].uc_ctype == UTT_END) ? 5 : 6;
@@ -98,9 +99,22 @@ struct ui_command *cmds;
 	    * Now get the rest of the stuff for this window.
 	    */
 		cfg->c_nwin++;
-		ui_subcommand ("dm-window", "Window>", in_window, win);
+		ui_subcommand ("dm-window", "Window>", in_window, (long) win);
 		break;
-
+	/* 
+	 * Maybe it's a widget.
+	 */
+	   case DMC_WIDGET:
+		win = cfg->c_wins + cfg->c_nwin;
+		strcpy (win->cfw_name, UPTR (cmds[1]));
+		win->cfw_x = UINT (cmds[2]);
+		win->cfw_y = UINT (cmds[3]);
+		win->cfw_dx = UINT (cmds[4]);
+		win->cfw_dy = UINT (cmds[5]);
+		win->cfw_flags = CF_WIDGET;
+		cfg->c_nwin++;
+		break;
+	   
 	   case DMC_ENDCONFIG:
 	   	return (FALSE);
 
@@ -235,7 +249,7 @@ char *name;
 /*
  * Now parse the individual entries.
  */
-	ui_subcommand ("dm-in-map", "Map>", in_map, map);
+	ui_subcommand ("dm-in-map", "Map>", in_map, (long) map);
 /*
  * Define this map.
  */

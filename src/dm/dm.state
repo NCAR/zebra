@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.6 1990-09-11 09:38:50 corbet Exp $
+! $Id: dm.state,v 1.7 1990-09-17 10:24:19 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -88,6 +88,9 @@ define state dm-config
 	eoftext 'endconfig'
 	input 'window' 4
 		next dm-window-name
+	endinput
+	input 'widget' 36
+		next dm-widget-name
 	endinput
 	input 'endconfig' 5
 		next ust$no_more
@@ -410,3 +413,38 @@ define state dm-links
 		next dm-links
 	endinput
 enddef
+
+!
+! Widget parameters.
+!
+define state dm-widget-name
+	input string
+		lowercase
+		next dm-widget-x
+	endinput
+enddef
+
+define state dm-widget-x
+	input integer
+		next dm-widget-y
+	endinput
+enddef
+
+define state dm-widget-y
+	input integer
+		next dm-widget-dx
+	endinput
+enddef
+
+define state dm-widget-dx
+	input integer
+		next dm-widget-dy
+	endinput
+enddef
+
+define state dm-widget-dy
+	input integer
+		next ust$no_more
+	endinput
+enddef
+

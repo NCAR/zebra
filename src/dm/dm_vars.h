@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 1.4 1990-09-11 09:39:11 corbet Exp $
+ * $Id: dm_vars.h,v 1.5 1990-09-17 10:24:40 corbet Exp $
  */
 # include <X11/Xlib.h>
 # include "../include/defs.h"
@@ -43,10 +43,17 @@ struct cf_window
 	plot_description cfw_pd;	/* The actual PD		*/
 	ButtonMap *cfw_bmap;		/* The button map for this win	*/
 	short	cfw_linkpar;		/* PD link parameter		*/
+	short	cfw_flags;		/* Various flags		*/
 	bool	cfw_nongraph;		/* This is not a graphic window */
 	bool	cfw_forcepd;		/* Always force new PD		*/
 };
 
+/*
+ * The flag field values.
+ */
+# define CF_WIDGET	0x0001		/* This is a DM widget window	*/
+# define CF_NONGRAPH	0x0002		/* Non-graphic window		*/
+# define CF_FORCEPD	0x0004		/* Always force new PD 		*/
 
 # define MAXWIN		40
 struct config
