@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.44 1996-05-01 20:29:21 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.45 1996-05-02 15:16:46 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -134,7 +134,7 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 #ifndef DataDir
-#define DataDir /zeb/data
+#define DataDir BaseDir/data
 #endif
 
 #ifndef BinDir
@@ -817,13 +817,20 @@ CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
  * these symbols defined in their source should add $(DIRDEFINES) to the
  * DEFINES variable in their Imakefile.  Only the Zebra library should need
  * this; all other programs should use the ConfigVars routines from the
- * library.
+ * library.  If we're building RDSS, the compiled RDSSDIR should be the
+ * library directory, instead of the relative path TOP which is used if
+ * UseInstalledZebra is NO.  If we're not building RDSS, then we can use 
+ * whatever definition we were given.
  */
        DEFBASEDIR = BaseDir
         DEFBINDIR = BinDir
         DEFLIBDIR = LibDir
        DEFDATADIR = DataDir
+#if BuildRDSS
+       DEFRDSSDIR = $(LIBDIR)
+#else
        DEFRDSSDIR = RDSSDir
+#endif
        DIRDEFINES = '-DBASEDIR="$(DEFBASEDIR)"' '-DBINDIR="$(DEFBINDIR)"' \
                     '-DLIBDIR="$(DEFLIBDIR)"' '-DDATADIR="$(DEFDATADIR)"' \
                     '-DRDSSDIR="$(DEFRDSSDIR)"'
