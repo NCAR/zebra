@@ -18,13 +18,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdelete.c,v 2.10 1994-01-13 01:32:17 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
 # include "ui_expr.h"
 # include <copyright.h>
 # include "DataStore.h"
+
+RCSID("$Id: dsdelete.c,v 2.11 1995-04-25 20:51:36 granger Exp $")
 
 /*
  * The standard C test prevents conflicts with correctly-prototyped GNU C
@@ -58,6 +59,13 @@ char *prog;
 {
 	printf ("Usage: %s [-h] [-o] [-z] platform zap-time\n", prog);
 	printf ("%s", USAGE);
+}
+
+
+static int
+handler ()
+{
+	return (0);
 }
 
 
@@ -107,8 +115,17 @@ char **argv;
  */
 	usy_init ();
 	sprintf (cbuf, "DSDEL.%s.%i", getenv ("USER"), getpid());
-	msg_connect (0, cbuf);
-	ds_Initialize ();
+	if (! msg_connect (handler, cbuf))
+	{
+		printf ("%s: could not connect to message manager\n", 
+			argv[0]);
+		exit (9);
+	}
+	if (! ds_Initialize ())
+	{
+		printf ("%s: could not connect to data store\n");
+		exit (9);
+	}
 /*
  * Figure out the params, then do the dirty work.
  */
