@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.7 1995-09-11 15:39:14 granger Exp $
+# $Id: zstart.sh,v 1.8 1996-03-12 17:56:15 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -32,7 +32,7 @@
 # 
 # Add ZEB_TOPDIR/lib/resources directory for X application defaults.  Using
 # XFILESEARCHPATH puts these resources very near the bottom of the search 
-# heirarchy, so they're easily overridden.
+# hierarchy, so they're easily overridden.
 #
 	if ( $?XFILESEARCHPATH ) then
 		setenv XFILESEARCHPATH \
@@ -48,8 +48,23 @@
 	set dmonly=0
 	set dsonly=0
 	set execshell=0
+	set check=0
+	set name=""
 	while ($#argv)
 		switch ($argv[1])
+		    case -h*:
+echo "  -preserve	Keep session and datastore running after dm exits."
+echo "  -data*	Specify the data directory."
+echo "  -dm		Execute the display manager start-up only."
+echo "  -ds		Just begin a datastore session and nothing else."
+echo "  -shell	Start a shell with the correct runtime environment."
+echo "  -n|-check	Non-interactive.  Fail instead of asking questions."
+echo "		Do nothing if session is already running, else start"
+echo "		one and return zero."
+echo "  -session	Set a session name for the message manager."
+echo "  -help		Print a summary of the options."
+			exit 0
+			breaksw
 		    case -preserve:
 		    	setenv PRESERVE_ZEB yes
 			breaksw
@@ -64,7 +79,15 @@
 			set dsonly=1
 			breaksw
 		    case -shell:
-			set execshell=1;
+			set execshell=1
+			breaksw
+		    case -check:
+		    case -n:
+			set check=1
+			breaksw
+		    case -s*:
+			set name="-session $argv[2]"
+			shift
 			breaksw
 		    default:
 		    	set projdir=$argv[1]
@@ -80,6 +103,9 @@
 			set projdir=`pwd`
 		else if ( $?ZEB_PROJDIR ) then
 			set projdir="$ZEB_PROJDIR"
+		else if ( $check ) then
+			echo "Project directory unknown."
+			exit 1
 		else
 			echo -n "Please enter the project directory name: "
 			set projdir=$<
@@ -96,6 +122,9 @@ again:
 		set projdir=$ZEB_TOPDIR/$projdir
 	else if ( -d $ZEB_TOPDIR/project/$projdir ) then
 		set projdir=$ZEB_TOPDIR/project/$projdir
+	else if ( $check ) then
+		echo "Project directory $projdir cannot be found."
+		exit 1
 	else
 		echo "I can't find project directory" $projdir
 		echo -n "Try again: "
@@ -109,14 +138,32 @@ again:
 # or replace some settings.  If it does not set a data directory, zstart
 # will prompt the user for one.
 #
+	setenv HOST `uname -n`
 	cd $projdir
 	if (-f proj_env) source proj_env
-
+	if (! $?ZEB_PROJDIR) setenv ZEB_PROJDIR "$projdir"
+#
+# If another machine is hosting the datastore, start that session now
+#
+	if (! $?ZEB_ZSTART ) setenv ZEB_ZSTART $ZEB_TOPDIR/bin/zstart
+	if ( $?DS_DAEMON_HOST && ($HOST != $DS_DAEMON_HOST)) then
+	 rsh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n -s $DS_DAEMON_HOST $ZEB_PROJDIR
+	 if ( $status != 0 ) then
+		echo "Datastore session on host $DS_DAEMON_HOST failed."
+	 	exit 1
+	 endif
+	else
+	 unsetenv DS_DAEMON_HOST
+	endif
 #
 # Make pointers to all of our executables so that somebody can
 # override them (such as in proj_env or .zebra) if desired.
 #
-	if (! $?ZEB_MESSAGE) setenv ZEB_MESSAGE $ZEB_TOPDIR/bin/message
+	if (! $?ZEB_MESSAGE) then
+		set sessions=""
+		if (-f Sessions) set sessions="-file Sessions -internet"
+		setenv ZEB_MESSAGE "$ZEB_TOPDIR/bin/message $name $sessions"
+	endif
 	if (! $?ZEB_EVENTLOGGER) setenv ZEB_EVENTLOGGER \
 					 $ZEB_TOPDIR/bin/EventLogger
 	if (! $?ZEB_TIMER) setenv ZEB_TIMER $ZEB_TOPDIR/bin/timer
@@ -133,6 +180,10 @@ again:
 #
 ddir_again:
 	if ( ! $dmonly && ! $?DATA_DIR && ! $?DS_DAEMON_HOST ) then
+		if ( $check ) then
+			echo "Data directory unknown."
+			exit 1
+		endif
 		echo -n "Where is your data directory? "
 		set ddir=$<
 		if ( ! -d "$ddir" ) then
@@ -145,8 +196,12 @@ ddir_again:
 #
 # Set the color map to something that will hopefully make outlines
 # show up.  Test its exit status to see if we could connect to a display.
+# If this is only a datastore startup, then we don't need to tweak colors
+# and we don't need to connect to a display.  We may be starting up a
+# datastore session for a remote machine.
 #
-	setenv HOST `uname -n`
+   if (! $dsonly) then
+
 	tweakcolor red
 	if ( $status != 0 ) then
 		echo ' '
@@ -159,8 +214,11 @@ ddir_again:
 		exit 1
 	endif		
 
+   endif
+
 #
-# If the user told us only to do the dm startup, so be it
+# If the user told us to do only the dm startup for a supposedly
+# existing message manager session, so be it
 #
 	if ($dmonly) goto start_dm
 
@@ -171,7 +229,10 @@ ddir_again:
 # option to get the name of the user.
 #
 	set someone=`mstatus -u`
-	if ($status == 0) then
+	if ($status == 0 && $check) then
+	   echo "Zebra session is running."
+	   exit 0
+	else if ($status == 0) then
 	   echo "User $someone is already running Zebra.  Enter"
 restart_prompt:
 	   echo "  1) to stop the current Zebra session and start over, or"
@@ -248,10 +309,17 @@ restart_prompt:
 	if ( $dsonly ) exit 0
 	sleep 5
 
+#
+# If a display manager is already running, start the second one in
+# multiple mode.
+#
 start_dm:
+	set multiple=""
 	if ( ! $?DEFAULT_CONFIG ) setenv DEFAULT_CONFIG empty
 	if ( ! $?ZEB_DM_CONFIG ) setenv ZEB_DM_CONFIG dm.config
-	eval $ZEB_DM $ZEB_DM_CONFIG
+	mstatus | grep Displaymgr > /dev/null
+	if ( $status == 0) set multiple="-multiple"
+	eval $ZEB_DM $multiple $ZEB_DM_CONFIG
 #
 # Maybe we shut down.
 #
@@ -261,6 +329,12 @@ start_dm:
 # Fall through on -shell option
 #
 start_shell:
-	if ( ! $?ZEB_SHELL ) setenv ZEB_SHELL 'csh -f'
+	if ( ! $?ZEB_SHELL ) then
+		if ( $?SHELL ) then
+			setenv ZEB_SHELL "$SHELL"
+		else
+			setenv ZEB_SHELL 'csh -f'
+		endif
+	endif
 	set path=(. $path)
 	exec $ZEB_SHELL
