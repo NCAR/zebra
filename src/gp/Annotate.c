@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.11 1992-11-03 15:57:35 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.12 1992-12-16 18:06:32 erik Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -662,6 +662,7 @@ int datalen, begin, space;
         int     unitlen;
         char    title[80];
 	XColor	xc;
+	int	doKnot = 0;
 /*
  * Get annotation parameters.
  */
@@ -674,6 +675,7 @@ int datalen, begin, space;
 /*
  * Draw the string.
  */
+	doKnot = strcmp("knots", title ) == 0 ? 1 : 0;
         left = An_GetLeft ();
         sprintf( title, "barb flags in %s",string);
         XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
@@ -688,7 +690,7 @@ int datalen, begin, space;
         if ( space > 0.0 )
         {
             draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
-                left+1, begin + 9, 0.0, 100.0, unitlen);
+                left+1, begin + 9, 0.0, 100.0, unitlen, doKnot );
             DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left+unitlen+2, begin+9, " == 100", 0.0, scale,
                 JustifyLeft, JustifyBottom);
@@ -698,7 +700,7 @@ int datalen, begin, space;
         if ( space > 0.0 )
         {
             draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
-                left+1, begin + 9, 0.0, 50.0, unitlen);
+                left+1, begin + 9, 0.0, 50.0, unitlen, doKnot );
             DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left+unitlen+2, begin+9, " == 50", 0.0, scale,
                 JustifyLeft, JustifyBottom);
@@ -708,7 +710,7 @@ int datalen, begin, space;
         if ( space > 0.0 )
         {
             draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
-                left+1, begin + 9, 0.0, 10.0, unitlen);
+                left+1, begin + 9, 0.0, 10.0, unitlen, doKnot );
             DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left+unitlen+2, begin+9, " == 10", 0.0, scale,
                 JustifyLeft, JustifyBottom);
@@ -718,7 +720,7 @@ int datalen, begin, space;
         if ( space > 0.0 )
         {
             draw_barb (XtDisplay (Graphics), GWFrame (Graphics), AnGcontext,
-                left+1, begin + 9, 0.0, 5.0, unitlen);
+                left+1, begin + 9, 0.0, 5.0, unitlen, doKnot );
             DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left+unitlen+2, begin+9, " == 5", 0.0, scale,
                 JustifyLeft, JustifyBottom);
