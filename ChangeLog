@@ -1,3 +1,17 @@
+2002-01-18  Gary Granger  <granger@mead.atd.ucar.edu>
+
+	* Generalize file boundary time periods with 'splitseconds'
+	  platform attribute.
+
+2001-12-01  Gary Granger  <granger@ale.atd.ucar.edu>
+	
+	* Add tooltips to UI iconbar menus and graphics process icons
+	  using LiteClue widget.
+
+	* Allow UI RdssMenus to stay popped up with a click and release rather
+	  always requiring click and drag.  Click and drag still work though.
+	  Replace Athena SimpleMenu everywhere with RdssMenu.
+
 2001-06-19  Gary Granger  <granger@ale.atd.ucar.edu>
 
 	* Popup UI widgets near the X pointer where they will be more
