@@ -20,6 +20,7 @@
  */
 
 # include <copyright.h>
+# include <math.h>
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Command.h>
@@ -27,35 +28,46 @@
 # include <X11/StringDefs.h>
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/Cardinals.h>
+# include <GraphicsW.h>
 # include "defs.h"
 # include "../include/message.h"
 # include "../include/dm.h"
 # include "../include/timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.2 1991-11-22 20:44:31 kris Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.3 1992-04-02 21:47:11 burghart Exp $";
 
+# define PI		3.1415927
+# define DEG_TO_RAD(x)	(((x) * 0.017453293))
 
 /*
  * Our widgets.
  */
-Widget Top, Second, Shell, Form, Wm, DateLabel;
+Widget Top, Second, Shell, Form, Wm, DateLabel, Graphics;
 XtAppContext Appc;
 bool Visible = FALSE;
 bool Override = TRUE;
 
 bool DataSeen = FALSE;
 
+/*
+ * Default width and height for the graphical display
+ */
+# define WIDTH	320
+# define HEIGHT 100
+
 # ifdef __STDC__
 	static int	GetStatus (int, char *, int);
 	static void	MsgInput (XtPointer, int *, XtInputId *);
 	static void	MsgBCInput (XtPointer, int *, XtInputId *);
 	static void	Timeout (void);
+	static void	GrUpdate (RadarInfo *);
 # else
 	static int	GetStatus ();
 	static void	MsgInput ();
 	static void	MsgBCInput ();
 	static void	Timeout ();
+	static void	GrUpdate ();
 # endif
 
 
@@ -102,10 +114,10 @@ char **argv;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNlabel, "CP4 radar: --:--:--");	n++;
+	XtSetArg (args[n], XtNlabel, "Radar time: --:--:--");	n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	DateLabel = label = XtCreateManagedWidget ("datelabel", labelWidgetClass,
-			Form, args, n);
+	DateLabel = label = XtCreateManagedWidget ("datelabel", 
+			labelWidgetClass, Form, args, n);
 /*
  * The window manager button.
  */
@@ -119,11 +131,23 @@ char **argv;
  * The second line line label.
  */
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
-	XtSetArg (args[n], XtNfromVert, label);			n++;
-	XtSetArg (args[n], XtNlabel, "Radar offline");		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);	n++;
+	XtSetArg (args[n], XtNfromVert, label);	n++;
+	XtSetArg (args[n], XtNwidth, WIDTH);	n++;
+	XtSetArg (args[n], XtNlabel, "Radar offline");	n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
 	Second = XtCreateManagedWidget ("second", labelWidgetClass,
+			Form, args, n);
+/*
+ * The graphics portion
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, Second); n++;
+	XtSetArg (args[n], XtNwidth, WIDTH); n++;
+	XtSetArg (args[n], XtNheight, HEIGHT); n++;
+	XtSetArg (args[n], XtNframeCount, 2); n++;
+	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
 			Form, args, n);
 # ifdef notdef
 /*
@@ -279,6 +303,7 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_HELLO:
 	   	reply.dmm_type = DM_HELLO;
+	   	reply.dmm_win = 0;
 		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, 
 			sizeof (reply));
 		break;
@@ -384,21 +409,27 @@ char *data;
 	RadarInfo *info = (RadarInfo *) data;
 	char string[100];
 	Arg args[2];
+	int xcenter0, xcenter1, ycenter;
 	static char *modes[] = { "CAL", "PPI", "COP", "RHI",
 				 "??4", "??5", "??6", "??7", "SUR" };
-
-	sprintf (string, "CP4 radar: %2d:%02d:%02d",
+/*
+ * Update the text
+ */
+	sprintf (string, "Radar time: %2d:%02d:%02d",
 		info->ri_last.ds_hhmmss/10000,
 		(info->ri_last.ds_hhmmss/100) % 100,
 		info->ri_last.ds_hhmmss % 100);
 	XtSetArg (args[0], XtNlabel, string);
 	XtSetValues (DateLabel, args, 1);
 
-	sprintf (string, "Az: %5.1f, El: %5.1f, Fixed: %5.1f, Mode: %s",
-		info->ri_az, info->ri_el, info->ri_fixed, 
-		modes[info->ri_mode]);
+	sprintf (string, "Az:%-5.1f El:%-4.1f Fix:%-4.1f Mode:%s", info->ri_az,
+		info->ri_el, info->ri_fixed, modes[info->ri_mode]);
 	XtSetArg (args[0], XtNlabel, string);
 	XtSetValues (Second, args, 1);
+/*
+ * Update the graphics
+ */
+	GrUpdate (info);
 
 	DataSeen = TRUE;
 	sync ();
@@ -420,6 +451,120 @@ Timeout ()
 	{
 		XtSetArg (args[0], XtNlabel, "-- Radar offline --");
 		XtSetValues (Second, args, 1);
+
+		GrUpdate ((RadarInfo *) 0);
 	}
 	DataSeen = FALSE;
+}
+
+
+
+
+static void
+GrUpdate (info)
+RadarInfo *info;
+{
+	int	i, len, xcenter, ycenter, xend, yend;
+	XColor	black, red, dummy;
+	XGCValues	gcvals;
+	static GC	fg_gc, bg_gc;
+	static int	drawframe = 0;
+/*
+ * Quick bailout
+ */
+	if (! Visible)
+		return;
+/*
+ * Get graphics contexts if we haven't already
+ */
+	XSynchronize (XtDisplay (Graphics), True);
+	if (! fg_gc)
+	{
+		XAllocNamedColor (XtDisplay (Graphics), 
+			DefaultColormap (XtDisplay (Graphics), 0), "black",
+			&black, &dummy);
+		XAllocNamedColor (XtDisplay (Graphics), 
+			DefaultColormap (XtDisplay (Graphics), 0), "red",
+			&red, &dummy);
+
+		gcvals.foreground = black.pixel;
+		bg_gc = XCreateGC (XtDisplay (Graphics), GWFrame (Graphics), 
+			GCForeground, &gcvals);
+
+		gcvals.foreground = red.pixel;
+		gcvals.line_width = 2;
+		fg_gc = XCreateGC (XtDisplay (Graphics), GWFrame (Graphics), 
+			GCForeground | GCLineWidth, &gcvals);
+	}
+/*
+ * Alternate frames each time
+ */
+	drawframe = (drawframe == 0) ? 1 : 0;
+	GWDrawInFrame (Graphics, drawframe);
+	GWClearFrame (Graphics, drawframe);
+/*
+ * Azimuth background
+ */
+	len = GWWidth (Graphics) / 4 - 5;
+	xcenter = GWWidth (Graphics) / 4;
+	ycenter = GWHeight (Graphics) / 2;
+
+	for (i = 0; i < 360; i += 45)
+	{
+		xend = xcenter + (int)(len * cos (DEG_TO_RAD (i)));
+		yend = ycenter - (int)(len * sin (DEG_TO_RAD (i)));
+	
+		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+			bg_gc, xcenter, ycenter, xend, yend);
+	}
+
+	XDrawArc (XtDisplay (Graphics), GWFrame (Graphics), bg_gc, 
+		xcenter - len, ycenter - len, 2 * len, 2 * len, 0, 64 * 360);
+/*
+ * Azimuth line
+ */
+	if (info)
+	{
+		xend = xcenter + (int)(len * 
+				cos (0.5 * PI - DEG_TO_RAD (info->ri_az)) *
+				cos (DEG_TO_RAD (info->ri_el)));
+		yend = ycenter - (int)(len * 
+				sin (0.5 * PI - DEG_TO_RAD (info->ri_az)) *
+				cos (DEG_TO_RAD (info->ri_el)));
+		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), fg_gc, 
+			xcenter, ycenter, xend, yend);
+	}
+/*
+ * Elevation background
+ */
+	len = GWWidth (Graphics) / 2 - 5;
+	xcenter = GWWidth (Graphics) / 2;
+	ycenter = GWHeight (Graphics) - 5;
+
+	
+	for (i = 0; i <= 90; i += 30)
+	{
+		xend = xcenter + (int)(len * cos (DEG_TO_RAD (i)));
+		yend = ycenter - (int)(len * sin (DEG_TO_RAD (i)));
+	
+		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+			bg_gc, xcenter, ycenter, xend, yend);
+	}
+
+	XDrawArc (XtDisplay (Graphics), GWFrame (Graphics), bg_gc, 
+		xcenter - len, ycenter - len, 2 * len, 2 * len, 0, 64 * 90);
+/*
+ * Elevation line
+ */
+	if (info)
+	{
+		xend = xcenter + (int)(len * cos (DEG_TO_RAD (info->ri_el)));
+		yend = ycenter - (int)(len * sin (DEG_TO_RAD (info->ri_el)));
+		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), fg_gc, 
+			xcenter, ycenter, xend, yend);
+	}
+/*
+ * Display the frame we just drew
+ */
+	GWDisplayFrame (Graphics, drawframe);
 }
