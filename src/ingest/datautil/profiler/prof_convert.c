@@ -1,7 +1,7 @@
 /*
  * Convert a composite profiler data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: prof_convert.c,v 1.1 1992-10-27 15:52:29 kris Exp $";
+static char *rcsid = "$Id: prof_convert.c,v 1.2 1992-11-06 22:10:52 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -51,6 +51,7 @@ struct name_list
 {
 	float	nl_lat, nl_lon;
 	char 	*nl_name;
+	int	nl_first_time;
 } NameList[MAXNAMES];
 
 
@@ -74,7 +75,7 @@ static int	Dispatcher FP ((int, struct ui_command *));
 static void	Go FP ((void));
 static void	NewName FP ((struct ui_command *));
 static void	NewField FP ((struct ui_command *));
-static int	GetPlatformName FP ((double, double, char *));		
+static int	GetPlatformName FP ((double, double, char *, int *));		
 
 
 /*
@@ -195,6 +196,7 @@ Go ()
 	float		data[NX];
 	int	num_lo_fields, num_hi_fields;
 	ZebTime	zt;
+	int	first_time;
 /*
  * Open the input file.
  */
@@ -286,7 +288,7 @@ Go ()
 		loc.l_lon = lon;
 		loc.l_alt = alt;
 	
-		if (! GetPlatformName (lat, lon, platform))
+		if (! GetPlatformName (lat, lon, platform, &first_time))
 		{
 			msg_ELog (EF_PROBLEM, "Unknown platform at %f %f",
 				lat, lon);
@@ -515,11 +517,20 @@ Go ()
 		dc_RGAddGrid (dc_hi, 0, F_Lookup ("height"), &loc, &rginfo, 
 			&zt, data, 0);  
 	/*
-	 * Store the data chunk.
+	 * Store the data chunk (opening a new file the first time thru).
 	 */
-		msg_ELog (EF_INFO, "Storing data for platform '%s'.", platform);
-		ds_Store (dc_lo, FALSE, NULL, 0);
-		ds_Store (dc_hi, FALSE, NULL, 0);
+		if (first_time)
+		{
+			msg_ELog (EF_INFO, "(First)Storing data for platform '%s'.", platform);
+			ds_Store (dc_lo, TRUE, NULL, 0);
+			ds_Store (dc_hi, TRUE, NULL, 0);
+		}
+		else
+		{
+			msg_ELog (EF_INFO, "Storing data for platform '%s'.", platform);
+			ds_Store (dc_lo, FALSE, NULL, 0);
+			ds_Store (dc_hi, FALSE, NULL, 0);
+		}
 	/*
 	 * Free the data chunk.
 	 */
@@ -554,6 +565,7 @@ struct ui_command *cmds;
 	NameList[NumNames].nl_name = usy_string (UPTR (*cmds));
 	NameList[NumNames].nl_lat = UFLOAT (cmds[1]);
 	NameList[NumNames].nl_lon = UFLOAT (cmds[2]);
+	NameList[NumNames].nl_first_time = TRUE; 
 	NumNames++;
 }
 
@@ -596,9 +608,10 @@ Die ()
 
 
 static int
-GetPlatformName (lat, lon, name)
+GetPlatformName (lat, lon, name, first_time)
 float	lat, lon;
 char	*name;
+int	*first_time;
 /*
  * Find the platform name associated with these lat/lon values.
  */
@@ -618,6 +631,8 @@ char	*name;
 		    ((londiff < .1) && (londiff > -.1)))
 		{
 			strcpy (name, NameList[i].nl_name);
+			*first_time = NameList[i].nl_first_time;
+			NameList[i].nl_first_time = FALSE;
 			break;
 		}
 	}
