@@ -104,8 +104,7 @@ constant		<-- constant/variable angle steps
 512 150			<-- number of gates and gate spacing
 
 More radars can follow, with a blank line before the start of each.  The blank
-line shown before the first radar above is real; it is not just there as
-a result of the comments I added to the right.
+line shown before the first radar above is real.  Don't leave it out.
 
 The config line after the radar name is special.  Two forms are allowed:
 
