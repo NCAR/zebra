@@ -4,17 +4,17 @@
  * In this file you can override any of the default configuration
  * parameters.  All of the parameters are definition directives for
  * the C pre-processor, of the form:
- *
- * #define Symbol <definition>
- *
+
+#define Symbol <definition>
+
  * To set a symbol to True or Yes or On, use
- *
- * #define Symbol YES
- *  
+
+#define Symbol YES
+  
  * To turn a parameter off or disable an option, use
- *
- * #define Symbol NO
- *
+
+#define Symbol NO
+
  * Some symbols are not YES or NO but actually directory names or
  * commands.  If a Symbol is not defined in this file, it will be 
  * assigned a default definition in the Zeb template file, Zeb.tmpl, 
@@ -24,17 +24,19 @@
  * If you think it necessary to change some other parameters, such
  * as when porting to a new platform, look in the Zeb.tmpl file 
  * for all of the available parameters and their defaults.  Also
- * see Zeb-Imake.doc in this directory.
+ * see Zeb-Imake.doc in this directory.  When in doubt about a 
+ * parameter, try the default first and then adjust it if it doesn't
+ *  work.
  */
 
-/*///////////////////////////////////////////////////////////////////////*/
 /*============================== Don't change anything in this section ==*/
+/*///////////////////////////////////////////////////////////////////////*/
 
 # ifdef MAKING_MAKEFILE
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.3 1993-03-24 22:43:22 granger Exp $
+/**/# $Id: config.h-v4.0,v 1.4 1993-03-31 22:26:56 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -84,7 +86,6 @@
 # define BinDir		BaseDir/bin
 # define DataDir	/zeb/data
 # define RDSSDir	/rdss
-# define RDSSLibDir	/usr/local/lib
 # define RDSSIncDir	RDSSDir/include
 
 # else 		/* use the quoted versions for inclusion in source files */
@@ -213,7 +214,7 @@
  */
 # define	BuildDataUtilities		NO
 
-/*///// That's all of the defintions for which pieces to install.   //////*/
+/*///// That's all of the defintions for choosing pieces to install.//////*/
 /*///// Go the next section for other compile configuration options //////*/
 /*========================================================================*/
 
@@ -253,7 +254,7 @@
  * using Sun's cc compiler or GNU C, the static option will be used
  * automatically.  Otherwise the definition of the CCStaticOption symbol
  * will be used.  Define this symbol to the correct static option if it is
- * not the default of '-Bstatic'.
+ * not the default of '-Bstatic'.  
  */
 # define UseOpenWindows 	NO	
 # define OpenWindowsVersion 	2
@@ -318,7 +319,9 @@
  * of include files.  By default, your compiler should check the
  * standard include directories like /usr/include.  If the header files
  * for any package that Zeb requires are not in some standard location,
- * the correct directories need to be defined here.
+ * the correct directories need to be defined here.  Note that even if
+ * an include directory is in a compiler's default path, it may not be
+ * in makedepend's. If in doubt, try the defaults first.
  * The available symbols are:
  *
  *	XIncDir		-- Location of X header files.  By default,
@@ -327,22 +330,41 @@
  *			   be empty (i.e. rely on the compiler to search
  *			   the standard include directories).
  *	NetCDFIncDir    -- Location of netCDF header files.  The default
- *			   is '/usr/local/include'.
+ *			   is empty (use system's default include directories).
  *	RDSSIncDir	-- RDSS include files.  The default is RDSSDir/include.
  *			   If not defined above, RDSSDir is /rdss.
- *
- * During linking, the linker must be told where to find the libraries 
- * for the various packages which Zeb requires.  The locations of these
- * libraries can be defined in the following parameters:
- *
- * 	XLibDir		-- Location of X libraries.  Default: /usr/lib
- *	NetCDFLibDir    -- Location of the netCDF library.
- *	RDSSLibDir	-- RDSS Library directory.  Default: /usr/local/lib
- *
  */
 
-# define XIncDir /local/X11R5/include
-# define XLibDir /local/X11R5/lib
+/* # define XIncDir /local/X11R5/include */
+#define NetCDFIncDir /usr/local/include
+
+/*
+ * During linking, the linker must be told where to find the libraries 
+ * for the various packages which Zeb requires.  The locations of these
+ * libraries can be defined in the following parameters.  All of these
+ * default to empty, which assumes that the libraries will be found in the
+ * system's default library search path.
+ *
+ * 	XLibDir		-- Location of X libraries.
+ *	NetCDFLibDir    -- Location of the netCDF library.
+ *	RDSSLibDir	-- RDSS Library directory.
+ *
+ * To specify the whole command-line option for a library use the symbols
+ * XLibraries, NetCDFLibrary, RDSSLibrary.  For example, to use a 
+ * version of RDSS which has a different name, use 
+ *
+ * #define RDSSLibrary -L/usr/local/lib -lrdss2
+ *
+ * which on most UNIX systems is equivalent to
+ *
+ * #define RDSSLibrary /usr/local/lib/librdss2.a
+ *
+ * Note that defining one of the 'Library' symbols as above will completely
+ * circumvent the definition of the corresponding 'LibDir' symbol.  See the
+ * next section for more details and more of the available 'Library' symbols.
+ */
+
+/* # define XLibDir /local/X11R5/lib */
 
 /*
  * If you need to define the actual command-line option for specifying
@@ -355,9 +377,9 @@
  * For these 3 libraries, it is unlikely that the defaults will not be
  * sufficient:
  *
- *	XLibraries	-L<libdir> -lXaw -lXmu -lXt -lXext -lX11
- *	NetCDFLibrary	-L<libdir> -lnetcdf
- * 	RDSSLibrary	-L<libdir> -lrdss
+ *	XLibraries	-lXaw -lXmu -lXt -lXext -lX11
+ *	NetCDFLibrary	-lnetcdf
+ * 	RDSSLibrary	-lrdss
  *
  * The following 2 libraries will probably need to be explicitly
  * defined here, but ONLY if you need them for ingest modules.
@@ -373,7 +395,7 @@
  *
  */
 
-# define PamCfgLibrary -L/usr/local/lib -lunp
+/* # define PamCfgLibrary /usr/local/lib/libunp.a */
 
 /*
  * FORTRAN libraries tend to be very system-specific.  Define this
