@@ -37,7 +37,7 @@
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.7 1991-12-05 19:53:19 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.8 1991-12-07 18:00:40 kris Exp $")
 
 
 
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.7 1991-12-05 19:53:19 corbet Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.8 1991-12-07 18:00:40 kris Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -544,6 +544,7 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_HELLO:
 	   	reply.dmm_type = DM_HELLO;
+	   	reply.dmm_win = 0;
 		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, 
 			sizeof (reply));
 		break;
