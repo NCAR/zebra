@@ -1,0 +1,19 @@
+#!/bin/csh
+#
+# Shell script to run profs_ingest on a periodic basis for real-time ingest
+#
+
+set profsdir = "/data1/rapdmg/raps92/profs"
+set last_done = ""
+
+while (1)
+	set last_in_dir = `ls $profsdir | fgrep ".mesonet" | tail -1`
+
+	if ($last_in_dir != $last_done) then
+		profs_ingest $profsdir/$last_in_dir
+		set last_done = $last_in_dir
+	endif
+
+	sleep 10
+end
+		
