@@ -28,8 +28,11 @@
 #ifdef SVR4
 #   include <libgen.h>
 #endif
+# ifdef hpux
+# include <regex.h>
+# endif
 
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.6 1993-08-04 17:15:53 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.7 1993-10-21 18:43:22 corbet Exp $")
 
 
 /*
@@ -263,11 +266,12 @@ char *pattern;
  */
 {
 	AttrADE *ade;
-#ifdef SVR4
 	char *cp, *value;
+# ifdef hpux
+	regex_t reg;
 #else
-	char *re_comp (), *re_exec (), *cp, *value;
-#endif
+	char *re_comp (), *re_exec ();
+# endif
 /*
  * Look for our block.
  */
@@ -277,11 +281,17 @@ char *pattern;
  * If we have a pattern, compile it now.
  */
 	if (pattern)
+	{
 #ifdef SVR4
 		regcmp (pattern, (char*)0);
 #else
+# ifdef hpux
+	        regcomp (&reg, pattern, REG_EXTENDED);
+# else
 		re_comp (pattern);
+# endif
 #endif
+	}
 /*
  * Go through all of the attributes now.
  */
@@ -301,7 +311,11 @@ char *pattern;
 #ifdef SVR4
 		if (! pattern || !regex (pattern, cp))
 #else
+# ifdef hpux
+		if (! pattern || regexec (&reg, cp, 0, NULL, 0))
+# else
 		if (! pattern || re_exec (cp))
+# endif
 #endif
 			ret = (*func) (cp, value);
 		value[-1] = '=';
@@ -430,10 +444,15 @@ int *natts;
 	static char **local_vals = NULL;
 	int num_atts, count;
 	AttrADE *ade;
-#ifdef SVR4
 	char *cp, *value;
+#ifdef SVR4
+	/* nothing */
 #else
+# ifdef hpux
+	regex_t reg;
+# else
 	char *re_comp (), *re_exec (), *cp, *value;
+# endif
 #endif
 	if (natts)
 		*natts = 0;
@@ -449,7 +468,11 @@ int *natts;
 #ifdef SVR4
 		regcmp (pattern, (char*)0);
 #else
+# ifdef hpux
+	        regcomp (&reg, pattern, REG_EXTENDED);
+# else
 		re_comp (pattern);
+# endif
 #endif
 /*
  * Get some memory. Rather than realloc we free and malloc since we
@@ -483,7 +506,11 @@ int *natts;
 #ifdef SVR4
 		if (! pattern || !regex (pattern, cp))
 #else
+# ifdef hpux
+		if (! pattern || regexec (&reg, cp, 0, NULL, 0))
+# else
 		if (! pattern || re_exec (cp))
+# endif
 #endif
 		{
 			local_keys[count] = cp;
