@@ -1,6 +1,7 @@
 /*
  * Various user interface utilities.
  */
+# include <string.h>
 # include <ctype.h>
 
 
