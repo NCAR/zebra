@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.14 1995-04-17 21:07:11 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.15 1995-06-09 16:49:57 granger Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -225,7 +225,10 @@ int nstep;
 	 */
 		if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
 		{
-			msg_ELog (EF_PROBLEM, "alt_Step: bad platform '%s'",
+			/* There are too many reasons this can fail
+			 * in normal situations to flag it as a problem
+			 */
+			msg_ELog (EF_DEBUG, "alt_Step: bad platform '%s'",
 				  platform);
 			return;
 		}
