@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.19 1994-10-12 22:57:43 corbet Exp $
+! $Id: dm.widgets,v 1.20 1994-10-13 16:23:52 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -453,9 +453,21 @@ procedure sk-add-data platform string field string target string
 	endif
 !
 ! Find the name of the second component (i.e. what we assume is the real
-! data component) and tweak it.
+! data component).  Also check the overlay mode.
 !
 	local comp NthComp(target, 1)
+	local mode PDParam(target,comp,'overlay-mode')
+!
+! If they are not in overlay mode just bash it in directly.  (Direct test
+! on false since true is default)
+!
+	if (mode = 'false')
+		parameter #target #comp platform #platform
+		return
+	endif
+!
+! OK implement overlaying for them.
+!
 	if (nvalue (target, comp, 'platform') >= 3)
 		beep
 	else

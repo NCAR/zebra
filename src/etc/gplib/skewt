@@ -53,13 +53,20 @@ endprocedure
 
 
 !
-! Toggle between ft and km.
+! Various skewt params.
 !
-define widget feet-km intmenu 'feet/km'
-	title 'Altitude units'
+define widget skewt-right intmenu 'feet/km'
+	title 'Skew-t modes'
 	line
-	entry 'Feet' 'do-feet-proc true'
-	entry 'Kilometers' 'do-feet-proc false'
+	entry 'Times in top annotation' 'ToggleBoolean "annot-time"' \
+		(PDParam (icon_component, 'annot-time') <> 'false')
+	entry 'Overlay new soundings' 'ToggleBoolean "overlay-mode"' \
+	        (PDParam (icon_component, 'overlay-mode') <> 'false')
+	line
+	entry 'Altitude in feet' 'do-feet-proc true' \
+		(PDParam (icon_component, 'do-feet') = 'true')
+	entry 'Altitude in kilometers' 'do-feet-proc false' \
+		(PDParam (icon_component, 'do-feet') <> 'true')
 endmenu
 
 procedure do-feet-proc value string

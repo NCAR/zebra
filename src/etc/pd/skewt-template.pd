@@ -5,12 +5,15 @@ global
 	plot-mode:	history
 	plot-time:	now
 	plot-type:	skewt
+	require:	simple-color
 skewt
+	annot-time:	true
 	color-table:	Skew-t
 	icon:	sounding
 	icon-left-menu:		skewt-left
 	icon-middle-menu:	DataAvailable
-	icon-right-menu:	feet-km
+	icon-right-menu:	skewt-right
+	overlay-mode:		true
 	topannot-left-menu:	skewt-topannot
 	platform:	null
 	representation:	skewt
