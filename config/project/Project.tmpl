@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.35 1995-07-06 05:13:03 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.36 1995-07-06 10:25:28 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -816,7 +816,7 @@ XCOMM -----------------------------------------------------------------------
  */
             ZLIBS = $(LIBZEB) $(LIBRDSS)
           DFALIBS = $(LIBZEBDS) $(LIBNETCDF) $(LIBHDF)
-           DSLIBS = $(DFALIBS)		/* Until Appl.c split committed */
+           DSLIBS = $(LIBZEBDS)
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
