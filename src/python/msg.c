@@ -2,7 +2,7 @@
  * Zebra Python module which allows use of the messaging facility.
  */
 
-# include <Python.h>
+# include <python1.5/Python.h>
 # include <defs.h>
 # define MESSAGE_LIBRARY	/* just to get FD_MAP_SIZE */
 # include <message.h>
