@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 1.1 1991-02-07 22:55:13 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 1.2 1991-02-12 21:16:03 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -51,6 +51,8 @@ static int Ctlimit;
  */
 typedef enum {LineContour, FilledContour} contour_type;
 
+
+
 /*
  * Forwards.
  */
@@ -65,6 +67,21 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
 	void	CAP_Contour ();
 # endif
+
+
+
+
+void
+CAP_Init (t)
+time *t;
+/*
+ * CAP Plot initialization.
+ */
+{
+	lw_OvInit ("COMPONENT      PLATFORM   FIELD       TIME\n");
+}
+
+
 
 
 void
@@ -160,7 +177,7 @@ Boolean	update;
 	float	center, step, cval;
 	char	fname[20], string[10];
 	int	top, bottom, left, right, wheight, i;
-	bool	tacmatch;
+	int	tacmatch = 0;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
  */
@@ -240,6 +257,7 @@ float	*center, *step;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
 	int 	labelflag;
+	time	t;
 	Boolean	ok;
 	XColor	black;
 	XRectangle	clip;
@@ -306,7 +324,8 @@ float	*center, *step;
  */
 	alt = Alt;
 	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
-	rgrid = ga_GetGrid (&PlotTime, platform, fname, &xdim, &ydim, &x0, &y0,
+	t = PlotTime;
+	rgrid = ga_GetGrid (&t, platform, fname, &xdim, &ydim, &x0, &y0,
 			&x1, &y1, &alt);
 	if (Comp_index == 0)
 		Alt = alt;
@@ -361,6 +380,7 @@ float	*center, *step;
 /*
  * Free the data array
  */
+	lw_TimeStatus (c, &t);
 	free (grid);
 }
 
@@ -383,8 +403,9 @@ Boolean	update;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	int	top, bottom, left, right, xannot, yannot;
 	Boolean	ok;
-	bool	tacmatch;
+	int	tacmatch = 0;
 	XColor	color;
+	time 	t;
 /*
  * Get necessary parameters from the plot description
  */
@@ -418,7 +439,8 @@ Boolean	update;
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
-	rgrid = ga_GetGrid (&PlotTime, platform, uname, &xdim, &ydim, &x0, &y0,
+	t = PlotTime;
+	rgrid = ga_GetGrid (&t, platform, uname, &xdim, &ydim, &x0, &y0,
 			&x1, &y1, &alt);
 	if (Comp_index == 0)
 		Alt = alt;
@@ -431,7 +453,7 @@ Boolean	update;
 	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
 	free (rgrid);
 
-	rgrid = ga_GetGrid (&PlotTime, platform, vname, &xdim, &ydim, &x0, &y0,
+	rgrid = ga_GetGrid (&t, platform, vname, &xdim, &ydim, &x0, &y0,
 			&x1, &y1, &alt);
 	if (! rgrid)
 	{
@@ -492,7 +514,7 @@ Boolean	update;
 		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, color.pixel);
 	else
 		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, Tadefclr.pixel);
-
+	lw_TimeStatus (c, &t);
 }
 
 
@@ -516,6 +538,7 @@ Boolean	update;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	XRectangle	clip;
 	XColor	black;
+	time	t;
 /*
  * Get necessary parameters from the plot description
  */
@@ -532,7 +555,7 @@ Boolean	update;
 /*
  * Get annotation information from the plot description
  */
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
+	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale,SYMT_FLOAT))
 		Sascale = 0.02;
 	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
 		Ctlimit = 1;
@@ -553,7 +576,8 @@ Boolean	update;
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
-	grid = ga_GetGrid (&PlotTime, platform, name, &xdim, &ydim, &x0, &y0,
+	t = PlotTime;
+	grid = ga_GetGrid (&t, platform, name, &xdim, &ydim, &x0, &y0,
 			&x1, &y1, &alt);
 	if (Comp_index == 0)
 		Alt = alt;
@@ -596,6 +620,7 @@ Boolean	update;
  */
 	if (update)
 		return;
+	lw_TimeStatus (c, &t);
 /*
  * Top annotation
  */
@@ -647,4 +672,3 @@ Boolean	update;
 			JustifyLeft, JustifyCenter);
 	}
 }
-
