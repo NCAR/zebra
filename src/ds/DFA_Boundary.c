@@ -1,7 +1,7 @@
 /*
  * Deal with Boundary-format files.
  */
-static char *rcsid = "$Id: DFA_Boundary.c,v 1.2 1991-02-26 19:00:51 corbet Exp $";
+static char *rcsid = "$Id: DFA_Boundary.c,v 1.3 1991-04-03 00:48:22 corbet Exp $";
 
 # include <sys/types.h>
 # include <errno.h>
@@ -119,7 +119,8 @@ char **rtag;
  */
 	if ((tag->bt_fd = open (dfile->df_name, O_RDWR | O_CREAT, 0664)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno);
+		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
+			dfile->df_name);
 		free (tag);
 		return (FALSE);
 	}
