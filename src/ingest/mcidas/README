@@ -1,0 +1,33 @@
+
+Some info to be aware of for others who venture into this directory:
+
+There is no source code control because all of the files here are copied
+from maintained elsewhere.  The idea is to avoid changing these files
+as much as possible.  
+
+Three files each contain their own declarations for four symbols:
+
+nvxeas
+nvxini
+nvxopt
+nvxsae
+
+The files are:
+
+nvxgoes.f
+nvxps.f
+nvxrect.f
+
+Each of these three files contains different declarations for each of
+the symbols above.  Different ingest modules use declarations from a
+specific source file out of the three.  To ensure that the correct
+function is linked with the ingest module, the source file required by
+an ingest module is compiled and linked to the module within that
+module's source directory.  These three FORTRAN source files in this
+directory are NOT compiled NOR installed into the Zeb library for this
+reason.  The required source file of each ingest module is given as
+follows:
+
+NowradIngest 	requires the definitions in 	nvxrect.f
+satellite 	requires the definitions in 	nvxgoes.f
+
