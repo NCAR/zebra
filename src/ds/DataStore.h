@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.1 1992-05-27 17:24:03 corbet Exp $
+ * $Id: DataStore.h,v 3.2 1992-06-01 18:48:31 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -58,17 +58,6 @@ typedef struct _ScaleInfo
 	float	s_Offset;		/*   + s_Offset			*/
 } ScaleInfo;
 
-
-/*
- * Irregular grids look like this.
- */
-typedef struct _IRGrid
-{
-	int	ir_npoint;		/* Number of points in the grid	*/
-	Location *ir_loc;		/* Location array		*/
-	PlatformId *ir_subplats;	/* Subplatform array		*/
-} IRGrid;
-
 /*
  * Regular grids, on the other hand, have this sort of appearance.
  */
@@ -79,25 +68,6 @@ typedef struct _RGrid
 	float	rg_Zspacing;		/* Vertical spacing		*/
 	int	rg_nX, rg_nY, rg_nZ;	/* Dimensions			*/
 } RGrid;
-
-/*
- * Boundaries are organized around these.
- */
-typedef struct _BndDesc
-{
-	PlatformId	bd_pid;		/* Id for this boundary		*/
-	int		bd_begin;	/* Begin offset			*/
-	int		bd_npoint;	/* Number of points		*/
-} BndDesc;
-
-/*
- * For raster image datasets, we have this info.
- */
-typedef struct _RastImg
-{
-	RGrid 	*ri_rg;			/* Geometry info		*/
-	ScaleInfo *ri_scale;		/* Scaling information		*/
-} RastImg;
 
 
 /*
@@ -127,48 +97,6 @@ typedef enum
 	UpdInsert,		/* Inserted new data in middle	*/
 	UpdAppend,		/* New data at the end		*/
 } UpdCode;	
-
-/*
- * These and more are crammed into the data object via one of these unions:
- */
-typedef union _Dunion
-{
-	IRGrid	d_irgrid;
-	RGrid	d_rgrid;
-	/* int	*d_length; */
-	RastImg d_img;			/* Image description		*/
-	BndDesc	*d_bnd;			/* Boundary description		*/
-} Dunion;
-
-
-/*
- * The data object format.
- */
-typedef struct _DataObject
-{
-	PlatformId	do_id;		/* The platform represented here */
-	time		do_begin;	/* Begin time of the data	*/
-	time		do_end;		/* The end time.		*/
-	DataOrganization do_org;	/* Organization of the data	*/
-	int		do_npoint;	/* Number of samples here	*/
-	int		do_nbyte;	/* Data bytes per field		*/
-	Location	do_loc;		/* Location for fixed platforms	*/
-	Location	*do_aloc;	/* Location for mobile platforms */
-	time		*do_times;	/* Sample time array		*/
-	Dunion		do_desc;	/* Data description		*/
-	float		*do_data[MAXFIELD];/* The actual data		*/
-	int		do_nfield;	/* How many fields		*/
-	char		*do_fields[MAXFIELD];	/* The fields		*/
-	int		do_flags;	/* Flags			*/
-	float		do_badval;	/* Bad value flag		*/
-	char		*do_attr;	/* The table			*/
-} DataObject;
-
-# define DOF_FREEDATA		0x0001	/* Free data[0]			*/
-# define DOF_FREEALLDATA	0x0002	/* Free data for each field	*/
-# define DOF_FREEALOC		0x0004	/* Free location array		*/
-# define DOF_FREETIME		0x0008	/* Free times array		*/
-# define DOF_FREEATTR		0x0010	/* Free the attributes		*/
 
 
 /*
@@ -256,7 +184,6 @@ typedef struct _AuxDataEntry
  */
 bool		dc_IsSubClassOf FP((DataClass, DataClass));
 
-/* DataChunk 	*ConvertDObj FP((DataObject *)); */
 /*
  * Basic data chunk methods.
  */
