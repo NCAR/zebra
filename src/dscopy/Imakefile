@@ -15,12 +15,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1993-05-27 18:58:03 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1993-06-22 20:46:31 granger Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 
-SRCS  = convmud.c dscopy.c dump-fgp.c fix-gp.c gprotocdf.c mudtocdf.c \
-	mudutil.c readgp.c cdf_interpolate.c
+SRCS  = convmud.c dscopy.c gprotocdf.c mudtocdf.c \
+	mudutil.c cdf_interpolate.c /* dump-fgp.c fix-gp.c readgp.c */
 
 FSRCS = muddsk.f mudras.f
 
