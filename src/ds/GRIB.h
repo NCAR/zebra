@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.5 1997-05-30 15:13:33 burghart Exp $
+ * $Id: GRIB.h,v 3.6 1997-06-10 20:32:41 burghart Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -98,7 +98,7 @@ typedef struct s_GFgds
 	unsigned char	gd_resv1;	/* reserved - set to 0		*/
 	unsigned char	gd_resv2;	/* reserved - set to 0		*/
 	unsigned char	gd_resv3;	/* reserved - set to 0		*/
-	unsigned char	gd_buf[10];	/* for 42 byte gds		*/
+	unsigned char	gd_buf[200];	/* allow for a big gds		*/
 } GFgds, GDSLatLon;
 
 /*

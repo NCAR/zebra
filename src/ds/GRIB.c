@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.9 1997-06-10 19:01:15 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.10 1997-06-10 20:32:40 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -252,6 +252,20 @@ int ng;		/* number of this grid, for reference */
 	}
 	
 	gds_len = grb_ThreeByteInt (gds);
+
+	/*
+	 * Sanity check
+	 */
+	if (gds_len > sizeof (GFgds))
+	{
+		msg_ELog (EF_EMERGENCY, 
+			  "GDS len %d is bigger than my max of %d!", 
+			  gds_len, sizeof (GFgds));
+		msg_ELog (EF_EMERGENCY,
+			  "GDS size in GRIB.h needs to be increased!");
+		return (0);
+	}
+
 	/*
 	 * Read the rest of the GDS if they want, otherwise seek past it.
 	 */
