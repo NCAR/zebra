@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.49 2001-01-31 00:36:02 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.50 2001-02-01 02:03:57 granger Exp $")
 
 /*
  * Issues:
@@ -1149,6 +1149,32 @@ RequestWrite (int finish)
 }
 
 
+// Open the DeviceFd to a disk file in OutputDir, for disk archiving
+// methods.
+//
+static int
+OpenDiskFile ()
+{
+    ZebTime zt;
+    int year, month, day, hour, minute;
+    char datafile[256];
+
+    tl_Time(&zt);
+    TC_ZtSplit (&zt, &year, &month, &day, &hour, &minute, 0, 0);
+    sprintf( datafile, "%s/%d%02d%02d.%02d%02d.tar",
+	     OutputDir,year,month,day,hour,minute );
+    /* Ignore any errors, we just want to make sure it exists. */
+    mkdir (OutputDir, 0775);
+
+    if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
+    {
+	SetStatus ( TRUE, "Bad file open on disk" );
+	msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
+    }
+    return DeviceFD;
+}
+
+
 /*
  * Peform checks before and after a SaveFiles() call, such as
  * finishing a day's tape or a full tape.  The current time
@@ -1169,7 +1195,6 @@ DoTheWriteThing (int explicit_finish)
 	int delta;
 	ZebTime daystart;
 	ZebTime zt;	/* The current time, the time this write begins */
-	char datafile[120];
 	struct STATVFS buf;
 /*
  * Special check -- if this is the first dump of a new day, and not
@@ -1202,24 +1227,6 @@ DoTheWriteThing (int explicit_finish)
 		 * For optical disks, the ZeroZFree flag is ignored (?) 
 		 * Just write until the disk is full
 		 */
-		sprintf( datafile, "%s/%d%02d%02d.%02d%02d.tar",
-			 OutputDir,year,month,day,hour,minute );
-		/* Ignore any errors, we just want to make sure it exists. */
-		mkdir (OutputDir, 0775);
-		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
-		{
-		    SetStatus ( TRUE, "Bad file open on disk" );
-		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
-		    /*
-		     * If we're supposed to finish, then we do so despite the
-		     * error
-		     */
-		    if (explicit_finish)
-		    {
-			    FinishFinishing(TRUE);	// Does not return.
-		    }
-		    return;
-		}
 		break;
 	}
 
@@ -1274,7 +1281,6 @@ DoTheWriteThing (int explicit_finish)
 		 * Make sure there is room for more, else request
 		 * a new disk
 		 */
-		close ( DeviceFD );
 		status = STATVFS(DriveName,&buf);
 		if ( !status && buf.f_bavail < MinDisk )
 		{
@@ -1599,6 +1605,17 @@ RunTar (char *cmd)
 		SetStatus (TRUE, "Can't run tar");
 		return (FALSE);
 	}
+/* 
+ * Open a disk file if necessary.
+ */
+	if (ArchiveMode & AR_DISK)
+	{
+	    if (OpenDiskFile () < 0)
+	    {
+		pclose (pfp);
+		return FALSE;
+	    }
+	}
 /*
  * Set up our block buffer if not done yet.
  */
@@ -1661,6 +1678,13 @@ RunTar (char *cmd)
 			msg_ELog (EF_DEBUG, "polling for end of suspension");
 		while (Suspended)
 			msg_poll (300);
+	}
+/* 
+ * Close the disk file when finished.
+ */
+	if (ArchiveMode & AR_DISK)
+	{
+	    close ( DeviceFD );
 	}
 /*
  * If tar returned OK, so do we.
