@@ -1,7 +1,7 @@
 /* -*- C -*- */
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.16 1997-09-16 16:51:32 case Exp $
+/**/# $Id: Project.tmpl,v 1.17 1997-09-16 20:56:46 ishikawa Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -604,7 +604,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  
           DEFINES = -DUNIX -cckr 
 #else
+# ifdef AIXArchitecture
+          DEFINES = -DUNIX -Dunix
+# else
           DEFINES = -DUNIX
+# endif
 #endif
 
 #if defined (SGIArchitecture)
