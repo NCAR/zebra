@@ -9,7 +9,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.6 1993-08-06 21:01:57 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.7 1993-08-26 22:00:31 granger Exp $")
 
 extern int optind;
 
@@ -28,7 +28,8 @@ char *prog;
 	printf ("Usage: %s [-f] [-a] file ...\n", prog);
 	printf ("   -f\tDump free list\n");
 	printf ("   -h\tDump header only\n");
-	printf ("   -a\tDump everything else, including data\n");
+	printf ("   -a\tDump everything else, ");
+	printf ("including (scalar and fixed-scalar) data\n");
 }
 	
 
@@ -315,21 +316,17 @@ zn_Header *hdr;
 }
 
 
-
-
-static void
-DumpSample (fd, hdr, sample, rg)
+static void *
+ReadSample (fd, hdr, sample)
 int fd;
 zn_Header *hdr;
 zn_Sample *sample;
-RGrid *rg;
-/*
- * Given sample size and offset, read sample and dump its data
- */
 {
 	static char *buf = NULL;
 	static long buf_size = 0;
 
+	if (sample->znf_Offset <= 0 || sample->znf_Size <= 0)
+		return (NULL);
 	if (!buf)
 	{
 		buf_size = sample->znf_Size;
@@ -342,12 +339,84 @@ RGrid *rg;
 	}
 	lseek (fd, sample->znf_Offset, SEEK_SET);
 	read (fd, buf, sample->znf_Size);
-/*
- * Now have our data in buffer, dump it out based on organization
- * and format
- */
-	
+	return (buf);
 }
+
+
+
+static void
+PrintFloat (f)
+float f;
+{
+	char buf[30];
+	char *f_fmt = "%.6g";
+
+	/*
+	 * If more than one, just take 6 significant digits,
+	 * otherwise, round out to the 6th decimal place.
+	 * If negative, we reduce to 5 significant digits to
+	 * make room for the minus sign.
+	 */
+	if (f < 1.0 && f >= 0.0)
+		f = ((int)(f * 1e+6)) * 1e-6;
+	else if (f < 0.0 && f > -1.0)
+		f = ((int)(f * 1e+5)) * 1e-5;
+	if (f > -1.0)
+		sprintf (buf, "%.7g", f);
+	else
+		sprintf (buf, "%.6g", f);
+	if (!strchr (buf, '.') && (strlen(buf) <= 6))
+		strcat (buf, ".0");
+	printf ("%9s", buf);
+}		
+
+
+
+static void
+DumpSample (fd, hdr, sample, rg)
+int fd;
+zn_Header *hdr;
+zn_Sample *sample;
+RGrid *rg;
+/*
+ * Given first zn_Sample of a sample, read the field data and print it
+ */
+{
+	int fld;
+	void *buf;
+	char *blank_fmt = " - - - - ";
+
+	/*
+	 * For FixedScalar, all of the fields are read at once
+	 */
+	if (hdr->znh_Org == OrgFixedScalar)
+		buf = ReadSample (fd, hdr, sample);
+	else if (hdr->znh_Org != OrgScalar)
+		return;				/* no sense in continuing */
+	for (fld = 0; fld < hdr->znh_NField; ++fld)
+	{
+		if (fld % 8 == 0)
+			printf ("   ");
+		switch (hdr->znh_Org)
+		{
+		   case OrgFixedScalar:
+			PrintFloat ( ((float *)buf)[fld] );
+			break;
+		   case OrgScalar:
+			buf = ReadSample (fd, hdr, sample+fld);
+			if (buf)
+				PrintFloat ( *(float *)buf );
+			else
+				printf (blank_fmt);
+		}
+		if ((fld + 1) % 8 == 0)
+			printf ("\n");
+	}
+	if (fld % 8 != 0)
+		printf ("\n");
+}
+
+
 
 
 static void
