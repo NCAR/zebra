@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.26 1994-10-11 16:24:51 corbet Exp $
+ * $Id: dsPrivate.h,v 3.27 1995-02-10 01:21:03 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -23,6 +23,7 @@
  */
 
 # include <config.h>		/* CFG_ symbol definitions */
+# include <sys/types.h>		/* inode type for DataFile */
 
 /*
  * How many top level platforms do we allow?  Subplatforms are not included
@@ -128,7 +129,7 @@ typedef struct ds_PlatformInstance
 	int	*dp_subplats;		/* Indices to subplat instances	*/
 	int	dp_nsubplats;		/* Number of indices (not alloc)*/
 	unsigned short dp_flags;	/* Attribute flags -- see below	*/
-	unsigned short dp_Tfile;	/* Temp file under creation	*/
+	int	dp_Tfile;	/* Temp file under creation	*/
 	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
 	Lock	*dp_RLockQ;		/* Read locks held		*/
@@ -197,12 +198,15 @@ typedef struct ds_DataFile
 	ZebTime	df_begin;		/* When the data begins		*/
 	ZebTime	df_end;			/* When it ends			*/
 	long	df_rev;			/* Revision count		*/
-	unsigned short	df_FLink;	/* Data table forward link	*/
-	unsigned short	df_BLink;	/* Data table backward link	*/
+	ino_t	df_inode;		/* Inode number			*/
+	int	df_FLink;		/* Data table forward link	*/
+	int	df_BLink;		/* Data table backward link	*/
 	unsigned short df_nsample;	/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
+#ifdef DF_USE
 	short	df_use;			/* Structure use count		*/
-	short	df_index;		/* Data file index		*/
+#endif
+	int	df_index;		/* Data file index		*/
 	char	df_flags;		/* File flags			*/
 } DataFile;
 
@@ -293,7 +297,7 @@ enum dsp_Types
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x940424
+# define DSProtocolVersion	0x950130
 
 /*
  * Create a new data file.
