@@ -15,7 +15,7 @@
 # include "../include/timer.h"	/* Kluge */
 # include "../include/pd.h"	/* Kluge */
 # include "GraphProc.h"		/* Added for kluge */
-# include "/rdss/graphics/sfont_1.c"
+# include "sfont_1.c"
 
 Widget	KlugeShell = NULL;
 
