@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.76 2002-09-17 20:00:17 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.77 2002-10-21 21:47:30 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 
@@ -612,12 +612,15 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 /*
- * Linux needs the ndbm library; other operating
- * systems probably have ndbm in libc
+ * Linux needs to name a separate ndbm library; other operating
+ * systems probably have ndbm in libc.  On RedHat, the best bet
+ * is the Berkeley DB implementation, which means including
+ * ndbm.h from /usr/include/db1/ndbm.h (not gdbm/ndbm.h) and linking
+ * to libdb1.
  */
 #ifndef NDBMLibrary
 #  ifdef LinuxArchitecture
-#     define NDBMLibrary LoaderLibPrefix -lndbm
+#     define NDBMLibrary LoaderLibPrefix -ldb1
 #  else
 #     define NDBMLibrary /**/
 #  endif
