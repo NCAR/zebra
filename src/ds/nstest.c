@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.1 1993-05-04 21:32:00 granger Exp $
+ * $Id: nstest.c,v 1.1.1.1 1993-05-04 21:35:56 granger Exp $
  */
 
 #include <defs.h>
