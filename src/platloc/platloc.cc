@@ -34,9 +34,10 @@ main(int argc, char* argv[])
 {
     char* myname = argv[0];
     time_t requestTime = time(0);
+    int simpleOutput = 0;
 
     int c;
-    while ((c = getopt(argc, argv, "ht:")) >= 0)
+    while ((c = getopt(argc, argv, "hst:")) >= 0)
     {
 	char* endptr;
 	
@@ -45,6 +46,9 @@ main(int argc, char* argv[])
 	  case 'h':
 	    usage(myname);
 	    exit(0);
+	  case 's':
+	    simpleOutput = 1;
+	    break;
 	  case 't':
 	    //
 	    // Set a requested data time other than the default of "now"
@@ -107,7 +111,11 @@ main(int argc, char* argv[])
 
     Location loc;
     dc_GetLoc (dc, 0, &loc);
-    printf("%.4f/%.4f at %d\n", loc.l_lat, loc.l_lon, dtime.zt_Sec);
+    if (simpleOutput)
+	printf("%.4f\t%.4f\t%d\n", loc.l_lat, loc.l_lon, dtime.zt_Sec);
+    else
+	printf("lat/lon: %.4f/%.4f at %d\n", loc.l_lat, loc.l_lon, 
+	       dtime.zt_Sec);
 }
 
 
@@ -120,11 +128,12 @@ usage(const char* progname)
     printf("   -t <time>      specify the desired data time, in seconds\n");
     printf("                  since 1 January 1970, 00:00 UTC.  Default\n");
     printf("                  is the current time.\n");
+    printf("   -s             simple output (lat<tab>lon<tab>data time)\n");
     printf("If a position for the platform is available at or before the\n");
     printf("selected time, the latitude/longitude and actual data time are\n");
     printf("printed and a zero status code is returned.  The output looks\n");
     printf("like:\n\n");
-    printf("\t32.1234/-103.4567 at 1052174285\n\n");
+    printf("\tlat/lon: 32.1234/-103.4567 at 1052174285\n\n");
     printf("On error, a message will be printed to standard error,\n");
     printf("and a non-zero status code will be generated\n");
 }
