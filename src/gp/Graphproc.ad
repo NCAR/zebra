@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.4 1993-03-11 23:31:02 granger Exp $
+! $Id: Graphproc.ad,v 1.5 1993-03-13 08:56:59 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -106,7 +106,22 @@
 !
 *position*origintext.translations: #override 	\n\
 	<Key>Return:	new-origin()	 	\n\
-	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
+	Ctrl<Key>U:	beginning-of-line()kill-to-end-of-line()
+*position*origintext.accelerators:\
+ 	#override				\n\
+	<KeyPress>Return:	new-origin()	\n\
+	<Key>Delete:		delete-previous-character() \n\
+	<Key>BackSpace:		delete-previous-character() \n\
+	<KeyPress>Right:	forward-character()	\n\
+	<KeyPress>Left:		backward-character()	\n\
+	<KeyPress>Down:		change-unit()		\n\
+	Ctrl<Key>K:		change-unit()		\n\
+	Ctrl<Key>N:		change-unit()		\n\
+	<KeyPress>Up:		change-type()		\n\
+	Ctrl<Key>L:		change-type()		\n\
+	Ctrl<Key>D:		change-type()		\n\
+	Ctrl<Key>U:		beginning-of-line()kill-to-end-of-line() \n\
+	<KeyPress>:		insert-char()
 !
 ! Color widgets.
 !
