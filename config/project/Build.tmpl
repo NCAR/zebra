@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.9 1995-08-24 17:35:48 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.10 1995-08-28 21:51:04 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 #ifndef UseInstalledZebra
@@ -24,6 +24,10 @@ XCOMM -----------------------------------------------------------------------
  */
 #ifndef BuildXHelp
 # define BuildXHelp		NO
+#endif
+
+#ifndef UseGcc
+# define UseGcc YES
 #endif
 
 /*
@@ -43,13 +47,18 @@ XCOMM -----------------------------------------------------------------------
 #define HDFIncDir /usr/local/include/hdf
 
 /*
- * Include map projections on systems which have it installed
+ * Include map projections on systems which have it installed, but only
+ * when we're using a compiler which supports ANSI prototypes.
  */
 #ifndef MapProjections
 # ifdef SunArchitecture
-#  define MapProjections YES
-#  define ProjLibDir /usr/local/lib
-#  define ProjIncDir /usr/local/include
+#  if defined(SVR4) || defined(solaris) || UseGcc
+#   define MapProjections YES
+#   define ProjLibDir /usr/local/lib
+#   define ProjIncDir /usr/local/include
+#  else
+#   define MapProjections NO /* SunOS native cannot compile projects.h */
+#  endif
 # else
 #  define MapProjections NO
 # endif
@@ -127,10 +136,6 @@ XCOMM --- Deciding C compiler and options
 
 #ifndef CDebugFlags
 # define CDebugFlags -g
-#endif
-
-#ifndef UseGcc
-# define UseGcc YES
 #endif
 
 
