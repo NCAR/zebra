@@ -29,7 +29,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.33 1994-05-05 17:07:19 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.34 1994-06-10 21:56:00 burghart Exp $")
 #endif
 
 # include <netcdf.h>
@@ -123,8 +123,6 @@ typedef struct _nctag
  * assumption that all the files for a given platform are organized the same
  * way, which should be safe.
  */
-#define MAXPLAT	4096		/* How many different platforms we expect */
-				/* ~3000 platforms for STORM-FEST precip! */
 #define BASEDONE	-1	/* Flag to mark bases which are done	 */
 #define UNKNOWN		-2
 
@@ -2833,7 +2831,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.33 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.34 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }

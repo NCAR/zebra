@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.31 1994-05-31 19:54:09 burghart Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.32 1994-06-10 21:55:55 burghart Exp $")
 #endif
 
 /*
@@ -86,7 +86,6 @@ static void	ds_FreeWLock FP ((PlatformId));
 /*
  * The application notification table.
  */
-#define MAXPLAT 2048
 typedef void (*VFunc) ();
 VFunc ApplFuncs[MAXPLAT];
 VFunc CopyFunc = 0;

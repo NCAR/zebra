@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.14 1994-04-27 17:18:51 burghart Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.15 1994-06-10 21:56:04 burghart Exp $")
 
 
 /*
@@ -555,6 +555,7 @@ const char *name;	/* The name to be instantiated	*/
 {
 	PlatformInstance *new;
 	char iname[1024];
+	static int n_top_plats = 0;
 /*
  * Subplats must be given unique names for the symbol table by prefixing
  * the parent name.  If the parent name is also a subplatform, it will 
@@ -564,7 +565,21 @@ const char *name;	/* The name to be instantiated	*/
 	if (parent)
 		sprintf (iname, "%s/%s", pi_Name(parent), name);
 	else
+	{
+	/*
+	 * Keep a count of the number of platforms in the top level of the 
+	 * heirarchy since we have a limit on those
+	 */
+		if (++n_top_plats > MAXPLAT)
+		{
+			msg_ELog (EF_EMERGENCY, 
+			  "Max platform count of %d exceed at '%s'.  Exiting.",
+			  MAXPLAT, name);
+			exit (1);
+		}
+
 		strcpy (iname, name);
+	}
 /*
  * Of course, we can't very well agree to instantiate an abstract base class
  */

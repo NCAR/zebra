@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.22 1994-04-27 08:24:26 granger Exp $
+ * $Id: dsPrivate.h,v 3.23 1994-06-10 21:56:08 burghart Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -23,6 +23,12 @@
  */
 
 # include <config.h>		/* CFG_ symbol definitions */
+
+/*
+ * How many top level platforms do we allow?  Subplatforms are not included
+ * in this count.
+ */	
+# define MAXPLAT	CFG_MAX_PLATFORMS
 
 /*
  * The file types.  These are tied into the format table definition in
