@@ -57,7 +57,7 @@
 /*
  * Global stuff
  */
-static Widget Form, Htext, Stext;
+static Widget Form, Htext, Stext, ControlButton;
 
 /*
  * Histdate is the history date that appears in the window.  Maxdate is
@@ -70,6 +70,7 @@ static char Title[200];
 static int Tslot = -1;	/* Timeout slot		*/
 static int SkipMin = 5;
 static char TSString[10];
+static int ControlAll = TRUE;
 static int (*Tw_Callback) () = 0;
 
 
@@ -79,6 +80,7 @@ static void finish_arrow ();
 static void ChangeMonth (), ChangeDay (), ChangeYear (); 
 static void ChangeHour (), ChangeMin (), ChangeSec ();
 static void TimeSkip ();
+static void ChangeControl ();
 extern Widget LeftRightButtons ();
 
 
@@ -105,7 +107,7 @@ Widget	parent;
 XtAppContext appc;
 {
 	Arg args[10];
-	Widget form, title, f, left, dform, sform;
+	Widget form, title, f, left, dform, sform, cform;
 	Widget mbutton, dbutton, ybutton, hbutton, minbutton, sbutton;
 	Widget skipbutton;
 	Widget MonText, DayText, YearText, HMSText;
@@ -257,13 +259,13 @@ XtAppContext appc;
 	XtSetArg (args[0], XtNlabel, "Plot mode:");
 	XtSetArg (args[1], XtNfromHoriz, NULL);
 	XtSetArg (args[2], XtNfromVert, NULL);
-	XtSetArg (args[3], XtNborderWidth, 0);
+	XtSetArg (args[3], XtNborderWidth, 1);
 	left = XtCreateManagedWidget ("plotmode", labelWidgetClass, f, args,4);
 
 	XtSetArg (args[0], XtNlabel, "Real Time");
 	XtSetArg (args[1], XtNfromHoriz, left);
 	XtSetArg (args[2], XtNfromVert, NULL);
-	XtSetArg (args[3], XtNborderWidth, 0);
+	XtSetArg (args[3], XtNborderWidth, 1);
 	XtSetArg (args[4], XtNstate, True);
 	left = XtCreateManagedWidget ("rt", toggleWidgetClass, f, args, 5);
 	XtOverrideTranslations (left, ttable);
@@ -328,10 +330,59 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetValues (skipbutton, args, n);
 /*
+ * Control one/all windows selection.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, sform);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);		n++;
+	cform = XtCreateManagedWidget ("cform", formWidgetClass, form, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Control");	n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("control", labelWidgetClass, 
+		cform, args,n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, ControlAll ? "All" : "One");	n++;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNwidth, 30);		n++;
+	ControlButton = XtCreateManagedWidget ("contbutton", 
+		commandWidgetClass, cform, args,n);
+	XtAddCallback (ControlButton, XtNcallback, ChangeControl, NULL);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "window(s).");	n++;
+	XtSetArg (args[n], XtNfromHoriz, ControlButton);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("windows", labelWidgetClass, 
+		cform, args,n);
+/*
  * See what we get.
  */
 	set_dt ();
 	return (form);
+}
+
+
+static void
+ChangeControl ()
+/*
+ * Change window control between one window and all windows.
+ */
+{
+
+	Arg arg;
+
+	ControlAll = ! ControlAll;
+	XtSetArg (arg, XtNlabel, ControlAll ? "All" : "One");
+	XtSetValues (ControlButton, &arg, 1);
 }
 
 
@@ -350,7 +401,7 @@ XtPointer change, junk;
 	else
 		pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, min); 
 	set_dt ();
-	(*Tw_Callback) (History, &Histdate);
+	(*Tw_Callback) (History, &Histdate, ControlAll);
 }
 
 
@@ -426,7 +477,7 @@ int value;
  */
 {
 	if (value)
-		(*Tw_Callback) (mode, &Histdate);
+		(*Tw_Callback) (mode, &Histdate, ControlAll);
 }
 
 
