@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.45 1994-10-11 16:25:58 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.46 1994-10-13 19:29:22 corbet Exp $")
 
 
 /*
@@ -166,7 +166,7 @@ UItime *t;
 	pd_Retrieve (Pd, "global", "ta-scale", (char *) &annotscale, 
 		     SYMT_FLOAT);
 
-	sprintf (altlabel, "No altitude-label!");
+	sprintf (altlabel, " ");
 	pd_Retrieve (Pd, "global", "altitude-label", altlabel, SYMT_STRING);
 
 	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
