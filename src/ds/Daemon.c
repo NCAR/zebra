@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.24 1993-08-12 18:21:58 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.25 1993-08-17 22:47:52 burghart Exp $")
 
 
 
@@ -1466,17 +1466,13 @@ int expect;
 {
 	Lock *lp, *zap;
 	Platform *p = PTable + which;
-
-	msg_ELog (EF_DEBUG, "Write lock on %s released by %s",p->dp_name, who);
 /*
- * Do some checking first.
+ * Make sure there's a lock and that it's the owner doing the releasing.  
+ * (We get called rather indiscriminately when a client disconnect occurs, 
+ * so this test is necessary)
  */
 	if (! p->dp_WLockQ || strcmp (p->dp_WLockQ->l_Owner, who))
-	{
-		msg_ELog (EF_PROBLEM, "%s releasing non-held lock on %s",
-				who, p->dp_name);
 		return;
-	}
 /*
  * Pull the zapped entry off and put it on the free list.
  */
@@ -1484,6 +1480,8 @@ int expect;
 	p->dp_WLockQ = zap->l_Next;
 	zap->l_Next = FreeLocks;
 	FreeLocks = zap;
+
+	msg_ELog (EF_DEBUG, "Write lock on %s released by %s",p->dp_name, who);
 /*
  * If there is somebody else waiting for a lock, grant it.
  */
