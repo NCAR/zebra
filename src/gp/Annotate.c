@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.17 1993-10-15 16:31:06 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.18 1993-10-18 19:28:28 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -960,7 +960,6 @@ int datalen, begin, space;
 	float scale;
 	char *stuff[20];
 	XColor xc;
-	extern void I_AAButton ();	/* XXX */
 /*
  * Get annotation parameters.
  */
@@ -1010,8 +1009,8 @@ int datalen, begin, space;
 /*
  * Make the symbol active.
  */
-	aa_AddArea (left, begin, cheight, cheight, comp, stuff[2], 0,
-		    I_AAButton);
+	I_ActivateArea (left, begin, cheight, cheight, "annot", comp,
+			stuff[2], 0);
 /*
  * Draw any additional lines.
  */

@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.4 1993-10-14 20:21:46 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.5 1993-10-18 19:28:39 corbet Exp $")
 
 
 /*
@@ -90,17 +90,6 @@ InitFieldMenu ()
 	XtAddCallback (Menu, XtNpopupCallback, (XtCallbackProc) PopupCallback, 
 		(XtPointer) Menu);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
-# ifdef notdef
-/*
- * Real time mode.
- */
-	XtSetArg (args[0], XtNlabel, "Real time mode");
-	rt = XtCreateManagedWidget ("realtime", smeBSBObjectClass, Menu,
-		args, 1);
-	XtAddCallback (rt, XtNcallback, (XtCallbackProc) ToRealTime, 
-		(XtPointer) 0);
-	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
-# endif
 /*
  * Create all of the entries, but don't manage them now.
  */
@@ -171,10 +160,10 @@ XtPointer junk, junk1;
  * We're being popped up.  Set the entries accordingly.
  */
 {
-	int nentry, i;
+	int nentry, i, type;
 	Arg args[2];
 	char string[80], field[40];
-	UItime uitime;
+	SValue v;
 /*
  * Get the platforms set.
  */
@@ -214,7 +203,10 @@ XtPointer junk, junk1;
 /*
  * If they have additional junk to add, do it now.
  */
-	if (pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
+	usy_g_symbol (Vtable, "area_type", &type, &v);
+	sprintf (string, "%s-field-menu-extras", v.us_v_ptr);
+	if (pda_Search (Pd, IComp, string, Platform, Extras, SYMT_STRING) ||
+	    pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
 			SYMT_STRING))
 	{
 		NExtra = CommaParse (Extras, PExtras);

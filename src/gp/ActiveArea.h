@@ -20,9 +20,10 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: ActiveArea.h,v 2.1 1993-10-14 20:21:38 corbet Exp $ */
+/* $Id: ActiveArea.h,v 2.2 1993-10-18 19:28:25 corbet Exp $ */
 
-# define AA_PSIZE 80
+# define AA_PSIZE 60		/* Max parameter size		*/
+# define AA_TSIZE	12	/* Class size			*/
 
 typedef struct s_ActiveArea
 {
@@ -30,6 +31,7 @@ typedef struct s_ActiveArea
 	int aa_y;
 	int aa_width;		/* Size of the area	*/
 	int aa_height;
+	char aa_type[AA_TSIZE];	/* Type of this area		*/
 	char aa_comp[AA_PSIZE];	/* Relevant component		*/
 	char aa_plat[AA_PSIZE];	/* The platform of interest	*/
 	char aa_other[AA_PSIZE];/* Other info			*/
@@ -75,7 +77,7 @@ extern AAList *CurrentAreas;
 /*
  * Functions.
  */
-extern void aa_AddArea FP ((int, int, int, int, char *, char *, char *,
+extern void aa_AddArea FP ((int, int, int, int, char *, char *, char *, char *,
 			    void (*) ()));
 extern void aa_ResetAreas FP ((void));
 extern void aa_ReloadAreas FP ((AAList *));

@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.18 1993-10-15 16:31:23 corbet Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.19 1993-10-18 19:28:48 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -96,7 +96,7 @@ static struct 	IconList *I_GetWidget FP ((struct IconList **,
 static void 	I_MenuPopup FP ((Widget, XEvent *, String *, Cardinal *));
 static void	I_Clear FP ((struct IconList **, struct IconList **));
 void		I_ClearPosIcons FP (());
-void	I_AAButton FP ((ActiveArea *, XEvent *));
+static void	I_AAButton FP ((ActiveArea *, XEvent *));
 
 
 /*
@@ -212,13 +212,29 @@ int	x, y, fg;
  */
 	if (pda_Search (Pd, comp, "active-icon", platform, &active, SYMT_BOOL)
 	    && active)
-		aa_AddArea (x, y, w, h, comp, platform, 0, I_AAButton);
+		I_ActivateArea (x, y, w, h, "posicon", comp, platform, 0);
 }
 
 
 
 
 void
+I_ActivateArea (x, y, w, h, type, comp, plat, something)
+int x, y, w, h;
+char *type, *comp, *plat, *something;
+/*
+ * Create an active area under management of the icon module.  The SOMETHING
+ * parameter is reserved for future use (will be probably some sort of
+ * action type) and should be passed as zero for now.
+ */
+{
+	aa_AddArea (x, y, w, h, type, comp, plat, 0, I_AAButton);
+}
+
+
+
+
+static void
 I_AAButton (area, ev)
 ActiveArea *area;
 XEvent *ev;
@@ -234,7 +250,8 @@ XEvent *ev;
 /*
  * Look up a menu for this button.
  */
-	sprintf (pname, "posicon-%s-menu", bnames[ev->xbutton.button - 1]);
+	sprintf (pname, "%s-%s-menu", area->aa_type,
+		 bnames[ev->xbutton.button - 1]);
 	if (! pda_Search (Pd, area->aa_comp, pname, area->aa_plat, menu,
 			  SYMT_STRING))
 		return;
@@ -243,7 +260,9 @@ XEvent *ev;
  */
 	v.us_v_ptr = area->aa_comp;
 	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
-	v.us_v_int = TRUE;
+	v.us_v_ptr = area->aa_type;
+	usy_s_symbol (Vtable, "area_type", SYMT_STRING, &v);
+	v.us_v_int = ! strcmp (area->aa_type, "posicon"); /* back compat */
 	usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
 	v.us_v_ptr = area->aa_plat;
 	usy_s_symbol (Vtable, "icon_platform", SYMT_STRING, &v);
@@ -266,99 +285,6 @@ XEvent *ev;
  */
 	XtCallActionProc (Graphics, "PositionAndPopupRdssMenu", ev, &mp, 1);
 }
-
-
-
-# ifdef notdef /* ancient */
-void
-I_PositionIcon (comp, platform, zt, name, x, y, fg)
-char	*comp, *platform;
-ZebTime	zt;
-char	*name;
-int	x, y, fg;
-/*
- * Place a position icon named 'name' at the location (x,y), color fg.
- */
-{
-	union usy_value	v;
-	int		n, type, xh, yh, junk, xp = 0, yp = 0;
-	unsigned int	w, h, ujunk;
-	date		t;
-	char		mask[40];
-	Pixmap		pmap, maskpmap;
-	Display		*disp = XtDisplay (Graphics);
-	Window		root = RootWindow (disp, 0);
-	Arg		args[10];
-	struct IconList	*ilp;
-	XColor bg;
-	Widget parent;
-	bool doshape;
-/*
- * Get the pixmap and widget for this icon.
- */
-	pmap = I_GetPMap (name, &xh, &yh);
-	x -= xh;
-	y -= yh;
-	ilp = I_GetWidget (&AvailPos, &UsedPos);
-	ct_GetColorByName ("black", &bg);
-/*
- * Store the component name.
- */
-	strcpy (ilp->il_component, comp);
-/*
- * Get the dimensions of the pixmap.
- */
-	XGetGeometry (disp, pmap, &root, &junk, &junk, &w, &h, &ujunk, &ujunk);
-/*
- * Get menus.
- */
-	if (! pda_Search (Pd, comp, "posicon-left-menu", platform, 
-			ilp->il_menus[0], SYMT_STRING))
-		strcpy (ilp->il_menus[0], "");
-	if (! pda_Search (Pd, comp, "posicon-middle-menu", platform, 
-			ilp->il_menus[1], SYMT_STRING))
-		strcpy (ilp->il_menus[1], "");
-	if (! pda_Search (Pd, comp, "posicon-right-menu", platform, 
-			ilp->il_menus[2], SYMT_STRING))
-		strcpy (ilp->il_menus[2], "");
-/*
- * Store the data.
- */
-	ilp->il_data = ALLOC (struct IconData);
-	strcpy (ilp->il_data->id_platform, platform);
-	TC_ZtToUI (&zt, &t);
-	ilp->il_data->id_time = t;
-/*
- * Store all necessary values.
- */
-	n = 0;
-	XtSetArg (args[n], XtNbitmap, pmap);			n++;
-	XtSetArg (args[n], XtNx, x);				n++;
-	XtSetArg (args[n], XtNy, y);				n++;
-	XtSetArg (args[n], XtNforeground, fg);			n++;
-	XtSetArg (args[n], XtNshapeStyle, XmuShapeRectangle);	n++;
-	XtSetArg (args[n], XtNbackground, bg.pixel);		n++;
-	XtSetArg (args[n], XtNborderWidth, 0);			n++;
-	XtSetArg (args[n], XtNinternalHeight, 1);		n++;
-	XtSetArg (args[n], XtNinternalWidth, 1);		n++;
-	XtSetValues (ilp->il_icon, args, n);
-/*
- * Try to tweak the shape of this icon. 
- * The 1's correspond to the internal width/height, so far as I can tell.
- */
-/*	XShapeCombineMask (Disp, XtWindow (ilp->il_icon), ShapeBounding,
-			   0, 0, None, ShapeSet); */
-	if (pd_Retrieve (Pd, comp, "do-shape", &doshape, SYMT_BOOL) && doshape)
-	{
-		sprintf (mask, "%s-mask", name);
-		if (! (maskpmap = I_GetPMap (mask, &xh, &yh)))
-			maskpmap = pmap;
-		XShapeCombineMask (Disp, XtWindow (ilp->il_icon),
-				   ShapeBounding, 1, 1, maskpmap, ShapeSet);
-	}
-}
-
-# endif
 
 
 
@@ -711,6 +637,8 @@ Cardinal *cardjunk;
 	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
 	v.us_v_int = posicon;
 	usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
+	v.us_v_ptr = posicon ? "posicon" : "icon";
+	usy_s_symbol (Vtable, "area_type", SYMT_STRING, &v);
 	if (ilp->il_data != NULL)
 	{
 		v.us_v_ptr = ilp->il_data->id_platform;

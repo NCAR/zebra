@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.3 1993-10-14 20:22:20 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.4 1993-10-18 19:29:04 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -330,17 +330,19 @@ ActiveArea *which;
 	}
 	if (! AaPmap)
 	{
-		Pm_w = which->aa_width;
-		Pm_h = which->aa_height;
+		Pm_w = which->aa_width + 1;
+		Pm_h = which->aa_height + 1;
 		AaPmap = XCreatePixmap (Disp, XtWindow (Graphics), Pm_w,
 					Pm_h, GWDepth (Graphics));
 	}
 /*
  * Copy out the information under the highlight and draw the rectangle.
  */
-	XCopyArea (Disp, XtWindow (Graphics), AaPmap, Gcontext, which->aa_x,
-		   which->aa_y, which->aa_width, which->aa_height, 0, 0);
-	SetColor ("global", "active-icon-color", 0, "white");
+	XCopyArea (Disp, XtWindow (Graphics), AaPmap, Gcontext, which->aa_x -1,
+		   which->aa_y - 1, which->aa_width + 1, which->aa_height + 1,
+		   0, 0);
+	SetColor ("global", "active-area-color", 0, "red");
+	FixLWidth (2);
 	XDrawRectangle (Disp, XtWindow (Graphics), Gcontext, which->aa_x,
 			which->aa_y, which->aa_width - 1, which->aa_height -1);
 	Highlighted = which;
@@ -359,12 +361,24 @@ Ue_UnHighlight ()
 	if (Highlighted)
 	{
 		XCopyArea (Disp, AaPmap, XtWindow (Graphics), Gcontext,
-			   0, 0, Highlighted->aa_width, Highlighted->aa_height,
-			   Highlighted->aa_x, Highlighted->aa_y);
+			   0, 0, Highlighted->aa_width + 1,
+			   Highlighted->aa_height + 1,
+			   Highlighted->aa_x - 1, Highlighted->aa_y - 1);
 		Highlighted = 0;
 	}
 }
 
+
+
+
+void
+Ue_ResetHighlight ()
+/*
+ * Forget about any highlighting.
+ */
+{
+	Highlighted = 0;
+}
 
 
 

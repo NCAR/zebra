@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.28 1993-10-15 16:31:19 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.29 1993-10-18 19:28:43 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -195,6 +195,8 @@ extern void I_PositionIcon FP ((char *, char *, ZebTime *, char *, int,
 				int, int));
 extern void I_ClearPosIcon FP (());
 extern int ov_PositionIcon FP ((char *, int, int, int));
+extern void I_ActivateArea FP ((int, int, int, int, char *, char *, char *,
+				char *));
 
 /* User events */
 extern void Ue_Override FP ((void (*) (), void (*) (), void (*) ()));

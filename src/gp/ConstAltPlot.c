@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.34 1993-10-15 16:31:11 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.35 1993-10-18 19:28:34 corbet Exp $")
 
 
 /*
@@ -443,8 +443,8 @@ bool update;
 	char	quadrants[4][20], *quads[6], quadclr[30], string[10];
 	char	data[100], sticon[40];
 	char	*strchr ();
-	static const int offset_x[4] = { -15, -15, 15, 15 };
-	static const int offset_y[4] = { -10, 10, -10, 10 };
+	static const int offset_x[4] = { -15, 15, -15, 15 };
+	static const int offset_y[4] = { -10, -10, 10, 10 };
 	PlatformId pid, *platforms;
 	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
 	int linewidth, numquads = 0, shifted, npts, i, j, pix_x0, pix_y0;
@@ -517,10 +517,7 @@ bool update;
 	 */
 		for (i = 0; i < 4; i++)
 			if (quadrants[i][0] != '\0')
-			{
-				quads[numquads] = quadrants[i];
-				numquads++;
-			}
+				quads[numquads++] = quadrants[i];
 	}
 /*
  * Kludge of sorts...see if any of the quadrants is "station".  If so,
@@ -693,15 +690,18 @@ bool update;
 				strcat (data, quads[i]);
 				strcat (data, " ");
 			}
-			else strcat (data, "null ");
+			else if (i == 3 && stationname)
+				strcat (data, "station ");
+		        else
+				strcat (data, "none ");
 		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
 			strlen (data), 90, FALSE, FALSE);
 	}
 	else
 	{
 		sprintf (data, "%s %s %s %f %d %s %s %s %s", "10m/sec", 
-			cname, "null", unitlen, numquads, "null",
-			"null", "null", "null");
+			cname, "null", unitlen, numquads, "none",
+			"none", "none", "none");
 		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
 			strlen (data), 40, FALSE, FALSE);
 	}
@@ -1063,16 +1063,8 @@ int datalen, begin, space;
 {
 	char string[40], vcolor[40], qcolor[40], qname[4][40];
 	float unitlen, used, scale; 
-	int i, left, numquads, limit;
+	int i, left, numquads, limit, middle;
 	XColor vc, qc;
-	int	offset_x[4], offset_y[4];
-/*
- * Do this to satisfy cc.
- */
-	offset_x[0] = offset_y[0] = -15;
-	offset_x[1] = offset_y[2] = -15;
-	offset_y[1] = offset_x[2] = 15;
-	offset_x[3] = offset_y[3] = 15;
 /*
  * Get annotation parameters.
  */
@@ -1104,17 +1096,49 @@ int datalen, begin, space;
  * Put in the quadrant annotation.
  */
 	XSetForeground (XtDisplay (Graphics), Gcontext, qc.pixel);
+	middle = (left + GWWidth (Graphics))/2;
 	if (numquads > 0)
 	{
 		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
-			left + 25, begin + 10, left + 25, begin + 55);
+			middle, begin + 10, middle, begin + 55);
 		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
-			left, begin + 30, left + 55, begin + 30);
+			   left + 10, begin + 30, GWWidth (Graphics) - 10,
+			   begin + 30);
 	}
-	for (i = 0; i < numquads; i++)
+/*
+ * Put in the actual strings, and activate the areas.  For now I will keep
+ * using the ugly hardwired constants, but it would be nice to fix that
+ * eventually.
+ */
+	for (i = 0; i < 4 /* numquads */; i++)
+	{
+		char name[12];
+	/*
+	 * Figure out just where the annotation will go.
+	 */
+		int tx = (i & 0x1) ? middle + 5 : middle - 5;
+		int ty = (i < 2) ? begin + 27 : begin + 33;
+		int hjust = (i & 0x1) ? JustifyLeft : JustifyRight;
+		int vjust = (i < 2) ? JustifyBottom : JustifyTop;
+		int sx, sy, ex, ey;
+	/*
+	 * Fix up a field name.  Put in a bunch of blanks for empty quads
+	 * so that we get a big enough active area to hit.
+	 */
+		sprintf (name, "quad%d", i + 1);
+		if (! strcmp (qname[i], "null") || ! strcmp (qname[i], "none"))
+			strcpy (qname[i], "      ");
+	/*
+	 * Throw it onto the screen and activate it.  We really need a
+	 * "draw and activate text" routine to do this for us...
+	 */
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-			left + offset_x[i] + 15, begin + offset_y[i] + 25, 
-			qname[i], 0.0, scale, JustifyLeft, JustifyTop);
+			  tx, ty, qname[i], 0.0, scale, hjust, vjust);
+		DT_TextBox (Graphics, GWFrame (Graphics), tx, ty, qname[i],
+			    0.0, scale, hjust, vjust, &sx, &sy, &ex, &ey);
+		I_ActivateArea (sx - 2, ey + 1, ex - sx + 4, sy - ey + 2,
+				"annot", comp, name, 0);
+	}
 }
 
 

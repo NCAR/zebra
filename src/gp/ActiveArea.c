@@ -25,7 +25,7 @@
 # include "GraphProc.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: ActiveArea.c,v 2.1 1993-10-14 20:21:34 corbet Exp $")
+MAKE_RCSID ("$Id: ActiveArea.c,v 2.2 1993-10-18 19:28:22 corbet Exp $")
 
 /*
  * List creation parameters.
@@ -77,9 +77,9 @@ aa_CreateList ()
 
 
 void
-aa_AddArea (x, y, w, h, comp, plat, other, bdown)
+aa_AddArea (x, y, w, h, type, comp, plat, other, bdown)
 int x, y, w, h;
-char *comp, *plat, *other;
+char *type, *comp, *plat, *other;
 void (*bdown) ();
 /*
  * Add an area to the active list.
@@ -111,6 +111,7 @@ void (*bdown) ();
 	area->aa_y = y;
 	area->aa_width = w;
 	area->aa_height = h;
+	strcpy (area->aa_type, type);
 	strcpy (area->aa_comp, comp);
 	strcpy (area->aa_plat, plat);
 	strcpy (area->aa_other, other ? other : "");
