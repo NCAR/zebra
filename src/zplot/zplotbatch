@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.18 1999-11-25 18:41:11 granger Exp $
+# $Id: zplotbatch,v 1.19 2001-02-03 19:42:00 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -104,13 +104,20 @@ ZEB_DM="dm"
 ZEB_DM_CONFIG="-multiple -name $DM dm.config"
 export DEFAULT_CONFIG ZEB_DM_CONFIG ZEB_DM
 echo "-- Starting display manager:"
-zstart -dm -preserve $ZEB_PROJDIR >/dev/null 2>&1 &
+zstart -dm -preserve $ZEB_PROJDIR &
 dm=$!
-sleep 10
+sleep 2
 # Wait for dm to connect to datastore, then wait for dm to respond to
 # a query once daemon scan finally finishes
-if zquery -t 600 $DM > /dev/null 2>&1; then true ; else
+if zquery -t 5 $DM >/dev/null 2>&1 ||
+   zquery -t 15 $DM >/dev/null 2>&1 ||
+   zquery -t 60 $DM >/dev/null 2>&1 ||
+   zquery -t 300 $DM >/dev/null 2>&1 ; then true ; else
     echo "$DM display never connected."
+    mstatus
+    echo "Stopping $DM..."
+    zstop $DM
+    mstatus
     exit 1
 fi
 
