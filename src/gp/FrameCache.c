@@ -1,9 +1,10 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.6 1991-03-28 18:23:16 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.7 1991-04-08 20:55:29 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
+# include <fcntl.h>
 # include <ui.h>
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -92,10 +93,7 @@ fc_InvalidateCache ()
 	{
 		if(FrameFile >= 0)
 			close(FrameFile);
-		if((FrameFile = creat(FileName, PMODE)) < 0)
-			msg_ELog(EF_PROBLEM, "Can't create %s (%d).", FileName,
-				 errno);
-		if((FrameFile = open(FileName, 2)) < 0)
+		if((FrameFile = open(FileName, O_RDWR | O_CREAT, PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 	}
@@ -112,10 +110,7 @@ void fc_CreateFrameFile()
 		sprintf(FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
 			getpid());
 		msg_ELog(EF_DEBUG, "FrameFile:  %s.", FileName);
-		if((FrameFile = creat(FileName, PMODE)) < 0)
-			msg_ELog(EF_PROBLEM, "Can't create %s (%d).", FileName,
-				 errno);
-		if((FrameFile = open(FileName, 2)) < 0)
+		if((FrameFile = open(FileName, O_RDWR | O_CREAT, PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 	}
