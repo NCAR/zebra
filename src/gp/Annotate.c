@@ -1,7 +1,7 @@
 /*
  * Handle plot window annotation.
  */
-static char *rcsid = "$Id: Annotate.c,v 2.5 1992-05-27 16:38:41 kris Exp $";
+static char *rcsid = "$Id: Annotate.c,v 2.6 1992-06-24 21:58:52 pai Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -755,7 +755,7 @@ int datalen, begin, space;
 	int i, limit, left, ncolors, match, barHeight;
 	char string[40], ctable[40];
 	XColor xc, *colors;
-	float scale, center, step, cval, used;
+	float scale, center, step, cval, maxval, used;
 /*
  * Get top and side annotation plot description parameters.
  */
@@ -783,6 +783,9 @@ int datalen, begin, space;
 		barHeight = (float)space / (float)ncolors * ((float)limit - .5);
 	else
 		barHeight = (float) space / (float) ncolors;
+
+/* DEBUG */ maxval = center + (ncolors / 2) * step;
+
 	for (i = 0; i < ncolors; i += limit)
 	{
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
@@ -791,6 +794,9 @@ int datalen, begin, space;
 			GWFrame (Graphics), AnGcontext, left, 
 			(int) begin, 10, barHeight);
 		cval = center + (i - ncolors / 2) * step;
+	
+/* DEBUG */	cval = maxval - cval;	
+
 		sprintf (string, "%.1f", cval);
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
 			xc.pixel);
