@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.9 1992-05-27 16:44:23 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.10 1992-07-31 19:25:02 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -355,6 +355,8 @@ char *trigger;
 		return (seconds);
 	else if (trigger[0] == 'm' && trigger[1] == '\0')
 		return (seconds*60);
+	else if (trigger[0] == 'h' && trigger[1] == '\0')
+		return (seconds*60*60);
 	else
 		return (0);
 }
