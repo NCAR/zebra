@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.10 1990-09-17 10:23:09 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.11 1990-09-20 09:18:09 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -163,7 +163,8 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_ADD:
-	   	add (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]));
+	   	add (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]),
+			cmds[4].uc_ctype == UTT_END ? 0 : UINT (cmds[4]));
 		break;
 
 	   case DMC_HISTORY:
@@ -948,8 +949,9 @@ char *pdn, *comp;
 
 
 
-add (pdn, comp, dest)
+add (pdn, comp, dest, position)
 char *pdn, *comp, *dest;
+int position;
 /*
  * Add this component from this PD to DEST.
  */
@@ -978,7 +980,8 @@ char *pdn, *comp, *dest;
 /*
  * Add it to the destination.
  */
-	pd_Merge (dwin->cfw_pd, pdcomp);
+/*	pd_Merge (dwin->cfw_pd, pdcomp); */
+	pd_AddComponent (dwin->cfw_pd, pdcomp, position);
 	send_pd (dwin);
 }
 

@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.7 1990-09-17 10:24:19 corbet Exp $
+! $Id: dm.state,v 1.8 1990-09-20 09:18:28 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -271,10 +271,24 @@ enddef
 
 define state dm-add-comp
 	input string
-		next ust$final_string
+		next dm-add-dest
 	endinput
 enddef
 
+define state dm-add-dest
+	input string
+		next dm-add-opt-position
+	endinput
+enddef
+
+define state dm-add-opt-position
+	input EOS
+		done
+	endinput
+	input integer
+		next ust$no_more
+	endinput
+enddef
 
 
 define state dm-history-target
