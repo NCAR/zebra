@@ -1,117 +1,11 @@
 /*
- * $Id: BTree.hh,v 1.7 1998-03-04 17:08:01 granger Exp $
+ * $Id: BTree.hh,v 1.8 1998-03-16 20:56:41 granger Exp $
  *
  * Public BTree class interface.
  */
 
 #ifndef _BTree_hh_
 #define _BTree_hh_
-
-#ifndef _BTreeStats_
-#define _BTreeStats_
-/*
- * Class to accumulate btree statistics for all of its nodes.
- */
-struct BTreeStats
-{
-	BTreeStats () :
-		nkeys(0),
-		keysopen(0),
-		nodeused(0),
-		nodealloc(0),
-		elemused(0),
-		elemalloc(0),
-		nbranch(0),
-		nleaves(0),
-		nelements(0),
-		minkeys(0),
-		maxkeys(0)
-	{ }
-
-	long nkeys;		// Number of keys in use
-	long keysopen;		// Number of key slots unused
-	long nodeused;		// Bytes used by nodes
-	long nodealloc;		// Bytes allocated by nodes
-	long elemused;		// Bytes used in element buffers
-	long elemalloc;		// Bytes allocated for element buffers
-	long nbranch;		// Number of branch nodes
-	long nleaves;		// Number of leaves
-	long nelements;		// Number of elements stored in leaves
-	long minkeys;		// Minimum keys in any node besides root
-	long maxkeys;		// Maximum keys in any node
-
-	// Public methods to derive common statistics
-
-	inline long memoryAlloc ()		// total space allocated
-	{
-		return elemalloc + nodealloc;
-	}
-	inline long memoryUsed ()		// total space used
-	{
-		return elemused + nodeused;
-	}
-	inline long numNodes ()
-	{
-		return nbranch + nleaves;
-	}
-	inline long numLeaves ()
-	{
-		return nleaves;
-	}
-	inline long totalSlots ()		// total number of key slots
-	{
-		return nkeys + keysopen;
-	}
-	inline float averageKeys ()
-	{
-		return (float)nkeys / numNodes();
-	}
-	inline long maxKeys ()
-	{
-		return maxkeys;
-	}
-	inline long minKeys ()
-	{
-		return minkeys;
-	}
-	inline long keysUnused ()
-	{
-		return keysopen;
-	}
-	inline long numKeys ()
-	{
-		return nkeys;
-	}
-	inline long elementsFree ()
-	{
-		return elemalloc - elemused;
-	}
-	inline long numElements ()
-	{
-		return nelements;
-	}
-	// memory usage as a percent of all allocated memory
-	inline float percentMemory ()
-	{
-		return (float)memoryUsed() / (float)memoryAlloc() * 100.0;
-	}
-	// node memory usage as a percent of memory allocated by nodes
-	inline float percentNodeMemory ()
-	{
-		return (float)nodeused / (float)nodealloc * 100.0;
-	}
-	// element buffer usage as a percent of all element buffer space
-	inline float percentElementMemory ()
-	{
-		return (float)elemused / (float)elemalloc * 100.0;
-	}
-	inline float percentSlots ()
-	{
-		return (float)numKeys() / totalSlots() * 100.0;
-	}
-};
-#endif /* _BTreeStats_ */
-
 
 #include "Factory.hh"
 
@@ -120,6 +14,7 @@ struct BTreeStats
  */
 template <class K, class T> class BTreeNode;
 template <class K, class T> struct Shortcut;
+class BTreeStats;
 
 /// BTree database access class
 
@@ -130,7 +25,7 @@ template <class K, class T> struct Shortcut;
  * copy semantics.  The tree expects to keep a private
  * copy of each inserted key.  The value type needs
  * to support the serial-streamable << operator.  It is
- * encoded and/or decoded within the tree into private
+ * encoded and/or decoded within the tree into a private
  * buffer.
  */
 
@@ -238,7 +133,7 @@ public:
 		return sizes;
 	};
 
-	BTreeStats Statistics ();
+	void Statistics (BTreeStats &);
 
 	/// Print all the nodes of the tree to 'out', indented by depth
 	ostream &Print (ostream &out);
@@ -262,33 +157,19 @@ public:
 	/* ----- Public constructors and destructors ----- */
 
 	/// Create a simple empty BTree
-	BTree (int order = DEFAULT_ORDER, long sz = 0, int fix = 0);
-
-	/// Create an empty, persistent BTree on the given BlockFile
-	//BTree (BlockFile &bf, int order = DEFAULT_ORDER);
-
-	/// Restore a BTree from a BlockFile at the given address
-	//BTree (BlockFile &bf, BlkOffset offset);
+	BTree (int order = DEFAULT_ORDER, long sz = sizeof(T), int fix = 0);
 
 	virtual ~BTree ();
 
-	void translate (SerialStream &ss);
-
-	// Return the fixed sizes of our nodes
-	//long leafSize ();
-	//long nodeSize ();
-
 protected:
-
-	NodeFactory<K,T> *factory;	// Reference to our node factory
 
 	// Persistent state
 	int depth;
 	int order;
-	Node rootNode;
+	Node rootNode;			// Root factory address
 	int fixed;			// non-zero for fixed element sizes
-	long sizes;			// sizes of elements, zero if unknown
-	long bufSize;			// Set at construction
+	long sizes;			// sizes of elements, or a guess
+	//long bufSize;			// Set at construction
 
 	// Transient state
 	BTreeNode<K,T> *root;
@@ -297,12 +178,41 @@ protected:
 
 	Shortcut<K,T> *current;		// Reference to current key
 
+	// Change the root node when growing up or down (could be zero)
+	void setRoot (BTreeNode<K,T> *node);
+
+	/* ---------------- The pseudo factory interface ---------------- */
+	/*
+	 * Pseudo because we do not use a separate factory object, so I
+	 * suppose thses follow the Factory Method pattern.  However,
+	 * the methods isolate not just the kind of nodes we need to create,
+	 * but also the kind of behavioural extensions different 
+	 * factory implementations may need.  I.e., a persistent factory
+	 * needs some notification of read and write sync needs, and changes
+	 * in the root node.
+	 */
+
+	NodeFactory<K,T> *factory;	// Reference to our node factory
+
+	virtual void enterWrite () {}
+	virtual void enterRead () {}
+	virtual void leave () {}
+
+	// Right now the only way we change is if our root node changes
+	virtual void mark () {}
+
+#ifdef notdef
+	// Done with this btree
+	virtual void release ();
+	virtual void writeLock ();
+	virtual void readLock ();
+	virtual void unlock ();
+#endif
+
+#ifdef notdef
 	/* ---------------- Nodes call into the tree here ---------------- */
 
 	friend BTreeNode<K,T>;
-
-	// Change the root node when growing up or down (could be zero)
-	virtual void setRoot (BTreeNode<K,T> *node);
 
 	// Get a reference to a node
 	virtual node_type *get (Node &, int depth);
@@ -312,9 +222,21 @@ protected:
 
 	/// Delete a node.
 	virtual void destroy (node_type *node);
-
+#endif
 };
 
+
+	/// Create an empty, persistent BTree on the given BlockFile
+	//BTree (BlockFile &bf, int order = DEFAULT_ORDER);
+
+	/// Restore a BTree from a BlockFile at the given address
+	//BTree (BlockFile &bf, BlkOffset offset);
+
+	//void translate (SerialStream &ss);
+
+	// Return the fixed sizes of our nodes
+	//long leafSize ();
+	//long nodeSize ();
 
 #ifdef notdef
 	/// Return estimated element size in bytes

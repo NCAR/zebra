@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.10 1997-12-30 08:11:57 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.11 1998-03-16 20:56:39 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
@@ -28,8 +28,7 @@ RCSID ("$Id: BTree.cc,v 1.10 1997-12-30 08:11:57 granger Exp $")
 // const int BTree::DEFAULT_ORDER = 128;
 
 template <class K, class T>
-BTree<K,T>::BTree (int _order, long sz = 0, int fix = 0) :
-	factory(new HeapFactory<K,T>()), 
+BTree<K,T>::BTree (int _order, long sz, int fix) :
 	// persistent
 	depth(-1),
 	order (_order), 
@@ -40,18 +39,11 @@ BTree<K,T>::BTree (int _order, long sz = 0, int fix = 0) :
 	root(0), 
 	check(0),
 	err(0),
-	current (new Shortcut<K,T>)
+	current (new Shortcut<K,T>),
+	factory(new HeapFactory<K,T>())
 {
 	if (order < 3)
 		order = DEFAULT_ORDER;
-	//factory = new HeapFactory<K,T>();
-
-	// Set our best guess for initial serial buffer size
-	bufSize = sizes * order;
-	if (! bufSize)
-	{
-		bufSize = order << 2;
-	}
 }
 
 
@@ -102,12 +94,12 @@ template <class K, class T>
 void
 BTree<K,T>::Erase ()
 {
-	factory->writeLock ();
+	enterWrite ();
 	current->clear ();
 	if (! Empty())
 		root->destroy ();
 	setRoot (0);
-	factory->unlock ();
+	leave ();
 }
 
 
@@ -116,30 +108,29 @@ template <class K, class T>
 int 
 BTree<K,T>::Insert (const K &key, const T &value)
 {
-	factory->writeLock ();
+	enterWrite ();
 	current->clear ();
-	// Bootstrap the root node if necessary.  Every node must
-	// have at least one key in it.
-	if (Empty())
+	// Bootstrap the root node if necessary.
+	int bootstrap = Empty();
+	if (bootstrap)
 	{
 		root = factory->make (*this, /*depth*/ 0);
 		setRoot (root);
-		current->set (root, key, 0);
-		if (! current->insert (value))
-		{
-			factory->destroy (root);
-			setRoot (0);
-			current->clear();
-			return 0;
-		}
-		return 1;
 	}
-
 	// Find the location and insert
 	root->find (key, current);
 	int r = current->insert (value);
+	if (bootstrap && !r)
+	{
+		// Enforce legal root of at least one key
+		root->destroy ();
+		setRoot (0);
+		current->clear();
+	}
+	if (current->RootChanged ()) 
+		setRoot (current->getRoot());
 	if (check) err += Check ();
-	factory->unlock ();
+	leave ();
 	return r;
 }
 
@@ -148,12 +139,12 @@ BTree<K,T>::Insert (const K &key, const T &value)
 template <class K, class T>
 int BTree<K,T>::Find (const K &key, T *value)
 {
-	factory->readLock ();
+	enterRead ();
 	current->clear();
 	int found = 0;
 	if (! Empty() && root->find (key, current))
 		found = current->value (value);
-	factory->unlock ();
+	leave ();
 	return found;
 }
 
@@ -162,9 +153,9 @@ int BTree<K,T>::Find (const K &key, T *value)
 template <class K, class T>
 int BTree<K,T>::Value (T *value)
 {
-	factory->readLock ();
+	enterRead ();
 	int found = current->value (value);
-	factory->unlock ();
+	leave ();
 	return found;
 }
 
@@ -177,11 +168,11 @@ int BTree<K,T>::Value (T *value)
 template <class K, class T>
 int BTree<K,T>::Remove (const K &key)
 {
-	factory->writeLock ();
+	enterWrite ();
 	int done = 0;
 	if (Find (key))
 		done = Remove();
-	factory->unlock ();
+	leave ();
 	return done;
 }
 
@@ -190,10 +181,12 @@ int BTree<K,T>::Remove (const K &key)
 template <class K, class T>
 int BTree<K,T>::Remove ()
 {
-	factory->writeLock ();
+	enterWrite ();
 	int r = current->remove();
+	if (current->RootChanged ()) 
+		setRoot (current->getRoot());
 	if (check) err += Check ();
-	factory->unlock ();
+	leave ();
 	return (r);
 }
 
@@ -201,17 +194,15 @@ int BTree<K,T>::Remove ()
 
 
 template <class K, class T>
-BTreeStats
-BTree<K,T>::Statistics ()
+void
+BTree<K,T>::Statistics (BTreeStats &collect)
 {
-	BTreeStats collect;
-	factory->readLock ();
+	enterRead ();
 	if (! Empty())
 	{
 		root->stats (collect);
 	}
-	factory->unlock ();
-	return (collect);
+	leave ();
 }
 
 
@@ -220,7 +211,7 @@ template <class K, class T>
 int
 BTree<K,T>::Check ()
 {
-	factory->readLock ();
+	enterRead ();
 	int e = 0;
 	if (! Empty())
 	{
@@ -234,7 +225,7 @@ BTree<K,T>::Check ()
 		}
 		//cout << endl;
 	}
-	factory->unlock ();
+	leave ();
 	return (e);
 }
 
@@ -243,7 +234,7 @@ BTree<K,T>::Check ()
 template <class K, class T>
 int BTree<K,T>::Next (int n, K *key /* = 0*/, T *value /* = 0*/)
 {
-	factory->readLock ();
+	enterRead ();
 	// If we have a valid current shortcut, use it to find the next key
 	// the specified steps away.
 	if (current->valid() && n != 0)
@@ -251,7 +242,7 @@ int BTree<K,T>::Next (int n, K *key /* = 0*/, T *value /* = 0*/)
 		(current->leaf)->step (current, n);
 	}
 	int done = current->value (value, key);
-	factory->unlock ();
+	leave ();
 	return done;
 }
 
@@ -276,12 +267,12 @@ int BTree<K,T>::Current (K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::First (K *key /* = 0*/, T *value /* = 0*/)
 {
-	factory->readLock ();
+	enterRead ();
 	current->clear ();
 	int done = 0;
 	if (! Empty() && root->findLeft (current))
 		done = current->value (value, key);
-	factory->unlock ();
+	leave ();
 	return (done);
 }
 
@@ -290,12 +281,12 @@ int BTree<K,T>::First (K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::Last (K *key /* = 0*/, T *value /* = 0*/)
 {
-	factory->readLock ();
+	enterRead ();
 	current->clear ();
 	int done = 0;
 	if (! Empty() && root->findRight (current))
 		done = current->value (value, key);
-	factory->unlock ();
+	leave ();
 	return (done);
 }
 
@@ -315,12 +306,15 @@ BTree<K,T>::setRoot (BTreeNode<K,T> *node)
 	}
 	else
 	{
-		rootNode = node->thisNode;
+		rootNode = node->Address();
 		depth = node->Depth();
 	}
+	mark ();
 }
 
 
+
+#ifdef notdef
 template <class K, class T>
 BTreeNode<K,T> *
 BTree<K,T>::get (Node &node, int depth)
@@ -343,6 +337,7 @@ BTree<K,T>::destroy (BTreeNode<K,T> *node)
 {
 	factory->destroy (node);
 }
+#endif
 
 
 /*================================================================
@@ -350,7 +345,8 @@ BTree<K,T>::destroy (BTreeNode<K,T> *node)
  *================================================================*/
 
 template <class K, class T>
-BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
+BTreeNode<K,T>::BTreeNode (NodeFactory<K,T> &f, BTree<K,T> &t, int d) : 
+	factory(f), tree(t), depth(d)
 {
 	int maxkeys = tree.Order();
 	children = 0;
@@ -365,61 +361,25 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 	else	// we're a leaf which needs an element offset table
 	{
 		table = new Element[maxkeys+1];
-		table[0].offset = 0; // Offset for first element insertion
-		sbuf = new SerialBuffer (tree.bufSize, 0);
-	}
-}
-
-
-
-template <class K, class T>
-void
-BTreeNode<K,T>::translate (SerialStream &ss)
-{
-	ss << nkeys;
-	for (int i = 0; i < nkeys; ++i)
-	{
-		ss << keys[i];
-		if (depth > 0)
+		// Set offset for first element insertion
+		table[0].offset = 0;
+		// Create the element buffer with our best guess for size
+		long bufSize = tree.elementSize() * tree.Order();
+		if (! bufSize)
 		{
-			ss << children[i];
+			bufSize = tree.Order() << 2;
 		}
-		else
+		else if (! tree.elementFixed())
 		{
-			ss << table[i];
+			// Add a splash factor
+			bufSize += bufSize / 2;
 		}
+		sbuf = new SerialBuffer (bufSize, 0);
 	}
-	if (depth == 0)
-	{
-		// Translate the contents of our serial buffer
-		ss << table[nkeys];
-		sbuf->Need (table[nkeys].offset);
-		ss->opaque (sbuf->getBuffer (), table[nkeys].offset);
-	}
+	thisNode.local = this;
+	thisNode.addr = 0;
 }
 
-
-
-template <class K, class T>
-long
-BTreeNode<K,T>::blockSize (SerialBuffer &sbuf)
-{
-	int keysize = serialCount (sbuf, keys[0]);
-	long s = serialCount (sbuf, nkeys);	// nkeys
-	int maxkeys = tree.MaxKeys();
-	s += maxkeys * keysize;			// keys
-	if (depth == 0)
-	{
-		// Element table
-		s += maxkeys * serialCount (table[0]);
-	}
-	else
-	{
-		// Children array
-		s += tree.Order() * serialCount (children[0]);
-	}
-	return (s);
-}
 
 
 
@@ -444,16 +404,16 @@ BTreeNode<K,T>::destroy ()
 {
 	if (depth == 0)
 	{
-		tree.factory->destroy (this);
+		factory.destroy (this);
 		return;
 	}
 
 	for (int i = 0; i < nkeys; ++i)
 	{
-		down(children[i])->destroy ();
+		follow(children[i])->destroy ();
 	}
 
-	tree.factory->destroy (this);
+	factory.destroy (this);
 }
 
 
@@ -465,16 +425,6 @@ BTree<K,T>::Print (ostream &out)
 	if (! Empty())
 		root->print (out);
 	return (out);
-}
-
-
-
-template <class K, class T>
-void
-BTree<K,T>::translate (SerialStream &ss)
-{
-	// Translate our persistent state
-	ss << depth << order << rootNode;
 }
 
 
