@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.2 1991-11-20 23:10:31 corbet Exp $ */
+/* $Id: defs.h,v 2.3 1991-11-20 23:25:44 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -58,7 +58,7 @@ typedef struct s_Location
 			int *, int *);
 	void 	RL_Decode (unsigned char *, unsigned char *const, int);
 	int	CommaParse (char *, char **);
-	void	SetupConfigVars (void);
+	void	SetupConfigVariables (void);
 # else
 	char *malloc ();
 	char *realloc ();
@@ -70,7 +70,7 @@ typedef struct s_Location
 	void	RL_Encode ();
 	void 	RL_Decode ();
 	int	CommaParse ();
-	void	SetupConfigVars ();
+	void	SetupConfigVariables ();
 # endif
 
 
