@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.13 1992-11-10 18:38:21 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.14 1993-03-24 23:04:16 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -274,6 +274,7 @@ bool	update;
 	    switch (xyOrg)
 	    {
 		case OrgScalar:
+		case OrgFixedScalar:
 			xyClass = DCC_Scalar;
 			break;
 		case Org1dGrid:
@@ -308,7 +309,7 @@ bool	update;
 		msg_ELog ( EF_DEBUG, "%s Data request times begin %s end = %s",
 			c, stime1, stime2 );
 		dc = NULL;
-		if ( dmode == DATA_SNAPSHOT )
+		if ( dmode == DATA_SNAPSHOT && !update)
 		{
 		    dc = ds_FetchObs (pid, xyClass,&eTimeReq, fids, fcount, NULL, 
 			0);
