@@ -1,7 +1,7 @@
 /*
  * Handle plot window annotation.
  */
-static char *rcsid = "$Id: Annotate.c,v 2.4 1992-01-03 00:28:44 barrett Exp $";
+static char *rcsid = "$Id: Annotate.c,v 2.5 1992-05-27 16:38:41 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -95,7 +95,6 @@ int nc;
  * Reset the annotation position
  */
 {
-	int	height = GWHeight (Graphics);
 /*
  * Get the line spacing for the top annotation
  */
@@ -114,7 +113,10 @@ int nc;
  */
 	Ncomps = nc;
 	SA_position  = (1.0 - F_Y1) * USABLE_HEIGHT;
-	SA_space = ((F_Y1 - F_Y0) * USABLE_HEIGHT)/ (float) Ncomps;
+	if (Ncomps > 0)
+		SA_space = ((F_Y1 - F_Y0) * USABLE_HEIGHT)/ (float) Ncomps;
+	else
+		SA_space = ((F_Y1 - F_Y0) * USABLE_HEIGHT);
 	SA_first = TRUE;
 }
 
@@ -299,9 +301,6 @@ int y, x1, x2;
  * Draw the divider line.
  */
 {
-	char color[40];
-	XColor xc;
-
 	ResetGC ();
 	SetColor ("global", "divider-color", "sa", "gray50");
 	XDrawLine (Disp, GWFrame (Graphics), Gcontext, x1, y, x2, y);
@@ -593,7 +592,7 @@ int datalen, begin, space;
         float scale, used;
         int     unitlen;
         char    title[80];
-        XColor xc;
+	XColor	xc;
 /*
  * Get annotation parameters.
  */

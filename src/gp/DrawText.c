@@ -3,7 +3,7 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.3 1992-03-17 23:04:36 barrett Exp $";
+static char *rcsid = "$Id: DrawText.c,v 2.4 1992-05-27 16:41:02 kris Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -103,7 +103,7 @@ float	rot, scale;
  *	The text string has been drawn into the Drawable
  */
 {
-	int			cheight, width, hoffset, voffset, i;
+	int			cheight, width, hoffset, voffset;
 	XtWidgetGeometry	geom;
 	int			actual;
 /*
@@ -395,8 +395,7 @@ int	*sx, *sy, *ex, *ey;
  *	ex, ey	is the ending point
  */
 {
-	int	cheight, desc;
-	char	*cp;
+	int	cheight;
 	float	xoffset, yoffset, pixscale;
 	float	width, height;
 	float	fsx, fsy;
