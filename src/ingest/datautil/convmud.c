@@ -32,12 +32,14 @@ int argc;
 char **argv;
 {
 	Location origin;
+	ZebTime zt;
 	time t;
 	CoordInfo xi, yi, zi;
 	int nfld;
 	char *cdfname;
-	int i, btime, level, nx, ny, toff = 0;
+	int i, btime, level, nx, ny, toff;
 	float *grid, lat, lon, zero = 0, alt;
+	long start;
 /*
  * Quick arg check
  */
@@ -62,6 +64,7 @@ char **argv;
  */
 	if (! MudOpen (argv[1], &t, &origin, &xi, &yi, &zi, &nfld))
 		exit (1);
+	TC_SysToZt (TC_FccToSys(&t), &zt);
 
 	printf ("MUDRAS date: %d %d\n", t.ds_yymmdd, t.ds_hhmmss);
 	cdfname = argv[2];
@@ -108,16 +111,23 @@ char **argv;
 /*
  * Create the netcdf file.
  */
+	toff = 0;
  	if (getenv ("TIME_OFFSET"))
-		toff = atoi (getenv ("TIME_OFFSET"));
-	MakeCDF (cdfname, &t, xi.ci_NStep, yi.ci_NStep, zi.ci_NStep);
+	{
+		toff = (int)(atof (getenv ("TIME_OFFSET")) * 60);
+		printf ("Adding time offset of %d minutes to times\n",toff);
+	}
+	else
+		printf("Warning: TIME_OFFSET not set, assuming UTC\n");
+	zt.zt_Sec += toff * 60;
+	MakeCDF (cdfname, &zt, xi.ci_NStep, yi.ci_NStep, zi.ci_NStep);
 /*
  * Fix up the times and put them in.
  */
-	btime = TC_FccToSys (&t) + toff*3600;
+	btime = TC_ZtToSys (&zt);
 	ncvarput1 (Nfile, VBTime, 0, &btime);
-	i = 0;
-	ncvarput1 (Nfile, VTOff, &i, &zero);
+	start = 0;
+	ncvarput1 (Nfile, VTOff, &start, &zero);
 /*
  * Figure out our origin.
  */
@@ -172,9 +182,9 @@ char **argv;
 
 
 
-MakeCDF (name, t, nx, ny, nz)
+MakeCDF (name, zt, nx, ny, nz)
 char *name;
-time *t;
+ZebTime *zt;
 int nx, ny, nz;
 /*
  * Make a cdf file by this name.
@@ -184,10 +194,13 @@ int nx, ny, nz;
 	int dims[4];
 	float bv = BADVAL;
 	char fname[200];
+	int year, mon, day, hour, min, sec;
 /*
  * Make the file itself.
  */
-	sprintf (fname, "%s%06d.%06d.cdf", name, t->ds_yymmdd, t->ds_hhmmss);
+	TC_ZtSplit (zt, &year, &mon, &day, &hour, &min, &sec, 0);
+	sprintf (fname, "%s%02d%02d%02d.%02d%02d%02d.cdf", 
+		 name, year, mon, day, hour, min, sec);
 	Nfile = nccreate (fname, NC_CLOBBER);
 /*
  * Make some dimensions.
@@ -246,7 +259,7 @@ float *grid;
  * Move this data.
  */
 {
-	int start[4], count[4];
+	long start[4], count[4];
 	float bf = BADVAL;
 /*
  * Pull the data from the mudras file.
