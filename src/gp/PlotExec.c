@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.7 1992-01-02 16:58:29 barrett Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.8 1992-02-19 23:53:53 barrett Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -117,6 +117,7 @@ name_to_num Rt_table[] =
 # if C_PT_XYGRAPH
 	{"simple",		RT_SIMPLE	},
 	{"wind",		RT_WIND	},
+	{"contour",		RT_CONTOUR	},
 # endif
 	{"lightning",		RT_LIGHTNING	},
 	{NULL,			0		}
@@ -187,6 +188,7 @@ static void	(*EOPHandler) () = 0;
 # if C_PT_XYGRAPH
 	extern void	xy_Graph();
 	extern void	xy_Wind();
+	extern void	xy_Contour();
 # endif
 
 /*
@@ -666,6 +668,7 @@ px_Init ()
 # if C_PT_XYGRAPH
 	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = xy_Graph;	
 	Plot_routines[PT_XYGRAPH][RT_WIND] = xy_Wind;	
+	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = xy_Contour;	
 # endif
 /*
  * Done
