@@ -4,9 +4,7 @@
  */
 # include <setjmp.h>
 # include "ui_param.h"
-# include "ui_globals.h"
 # include "ui_symbol.h"
-# include "ui_token.h"
 
 # ifdef UNIX
 # ifndef SYSV
@@ -14,7 +12,7 @@
 # endif /* SYSV */
 # endif /* UNIX */
 
-static char *rcsid = "$Id: ui_error.c,v 1.4 1990-06-09 13:22:11 corbet Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.5 1990-12-18 15:35:16 corbet Exp $";
 /*
  * Stack stuff.
  */
