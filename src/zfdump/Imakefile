@@ -1,0 +1,21 @@
+/* -*- C -*-
+ * Imakefile for zfdump
+ */
+
+MFVERSION="$Id: Imakefile,v 1.1 2001-01-18 17:11:29 granger Exp $"
+
+DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA) 
+LIBS = $(DSLIBS) $(ZLIBS) 
+SYSLIBS=$(LIBREGEXP) $(LIBMATH)
+
+SRCS = zfdump.c
+OBJS = zfdump.o
+
+DISTFILES = Imakefile $(SRCS)
+
+CccProgramTarget (zfdump,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+DependTarget()
+LintTarget()
+
+DistfilesTarget($(DISTFILES))

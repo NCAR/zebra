@@ -1,0 +1,20 @@
+/* -*- C -*-
+ * Imakefile for GRIBdump
+ */
+
+MFVERSION="$Id: Imakefile,v 3.1 2001-01-18 17:11:25 granger Exp $"
+
+DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA) 
+LIBS = $(DSLIBS) $(ZLIBS) 
+SYSLIBS = $(LIBMATH)
+
+SRCS = GRIBdump.c
+OBJS = GRIBdump.o
+
+DISTFILES = Imakefile $(SRCS)
+
+CccProgramTarget (GRIBdump,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+DependTarget()
+LintTarget()
+DistfilesTarget($(DISTFILES))

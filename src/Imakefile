@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.29 2001-01-17 23:54:59 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.30 2001-01-18 17:11:24 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -53,6 +53,7 @@ PYTHON = python
  * alphabetical but really doesn't matter.
  */
 SUBDIRS = $(LIBS) dm dsdelete dsdump dsnotice dsprint \
+	rfdump zfdump GRIBdump \
 	dsdwidget dsmanage dsrescan $(ETC) EventLogger fccclock \
 	gettime pdmon $(GP) $(INGEST) ListMaker $(MAPUTIL) msg msg_ping \
 	mstatus mtap $(OPTIMIZER_DIR) pdcheck prt_Notify \
@@ -60,10 +61,12 @@ SUBDIRS = $(LIBS) dm dsdelete dsdump dsnotice dsprint \
 	tweakcolor $(XHELP) xmgrpipe zstop zmon zquery zrun zstart
 
 DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget dsmanage \
-	dsrescan $(REALTIME)
+	dsrescan $(REALTIME) rfdump zfdump GRIBdump
+
 
 DSCLIENTS = $(DSUTILS) $(GP) $(INGEST) $(OPTIMIZER_DIR) xmgrpipe \
-	dm 
+	dm rfdump zfdump GRIBdump
+
 
 MSGUTILS = $(ZLIB) msg msg_ping mstatus mtap zstop zmon zquery zrun
 
@@ -75,6 +78,7 @@ XCOMM built, so that we don't forget it somewhere down the road.
 
 DISTFILES = Imakefile
 DISTSUBDIRS = lib ds dm dsdelete dsdump dsnotice dsprint \
+	rfdump zfdump GRIBdump \
 	dsdwidget dsmanage dsrescan etc EventLogger fccclock \
 	gettime pdmon gp ingest ListMaker maputil msg msg_ping \
 	mstatus mtap Optimizer pdcheck prt_Notify \
