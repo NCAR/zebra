@@ -49,7 +49,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.58 2000-10-18 20:34:17 granger Exp $")
+RCSID ("$Id: Utilities.c,v 2.59 2000-11-16 22:54:38 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -408,7 +408,8 @@ const char	*comp, *platform;
 ZebTime	*t;
 /*
  * If this component has an age limit, enforce it.  Return FALSE if the
- * given time is too old, relative to the plot time.
+ * given time is too old, relative to the plot time, or if the check is
+ * disabled by an explicit age-limit of zero.
  */
 {
 	char	limit[100];
@@ -423,8 +424,7 @@ ZebTime	*t;
  */
 	if (! (seconds = pc_TimeTrigger (limit)))
 	{
-		msg_ELog (EF_PROBLEM, "Funky age limit: '%s'", limit);
-		return (TRUE);
+		return (FALSE);
 	}
 /*
  * Now see how close we are.
@@ -911,8 +911,6 @@ MakePixel (int entry, Visual *vis)
  * green, and blue bits separately.
  */
 {
-    int i;
-    
     if (vis->class == DirectColor || vis->class == TrueColor) 
     {
         Pixel red, green, blue, red1, green1, blue1;
@@ -944,9 +942,6 @@ char *name2;
 FieldId *field1;
 FieldId *field2;
 {
-	int i;
-	int f1 = 0, f2 = 0;
-
 	*field1 = F_Lookup (name1);
 	*field2 = F_Lookup (name2);
 	if (ds_IsDerivable (pid, *field1, fids, nfid) &&
@@ -1010,20 +1005,24 @@ WindInfo *wi;
 	}
 
 	if (! found &&
-	    pda_Search (Pd, comp, "x-field", p, uname, SYMT_STRING) &&
-	    pda_Search (Pd, comp, "y-field", p, vname, SYMT_STRING))
-	{
-		found = FindWindComps (plat, nfield, fields, uname, vname,
-				       &wi->wi_uwind, &wi->wi_vwind);
-	}
-
-	if (! found &&
 	    pda_Search (Pd, comp, "wspd-field", p, wspd, SYMT_STRING) &&
 	    pda_Search (Pd, comp, "wdir-field", p, wdir, SYMT_STRING))
 	{
 		wi->wi_polar = 1;
 		found = FindWindComps (plat, nfield, fields, wspd, wdir,
 				       &wi->wi_wspd, &wi->wi_wdir);
+	}
+
+	/*
+	 * Leave this to last since these are valid parms in a xywind plot
+	 * but not used for wind field names.
+	 */
+	if (! found &&
+	    pda_Search (Pd, comp, "x-field", p, uname, SYMT_STRING) &&
+	    pda_Search (Pd, comp, "y-field", p, vname, SYMT_STRING))
+	{
+		found = FindWindComps (plat, nfield, fields, uname, vname,
+				       &wi->wi_uwind, &wi->wi_vwind);
 	}
 
 	if (! found)
