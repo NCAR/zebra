@@ -29,7 +29,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.43 1996-08-21 22:44:24 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.44 1996-08-30 18:58:43 granger Exp $")
 
 /*
  * Platform search lists
@@ -60,7 +60,7 @@ static void	ds_SendSearch FP((char *regexp, int sort, int subs,
 				  int sendplats));
 static int	ds_AwaitDF FP ((Message *, int *));
 static int	ds_GreetDaemon FP ((void));
-static int	ds_CheckProtocol FP ((Message *, int));
+static int	ds_CheckProtocol FP ((Message *, int *));
 
 /*
  * The application notification table.
@@ -1290,19 +1290,23 @@ ds_GreetDaemon ()
  */
 {
 	struct dsp_Template dt;
+	int error;
 
 	dt.dsp_type = dpt_Hello;
 	ds_SendToDaemon (&dt, sizeof (dt));
-	return (msg_Search (MT_DATASTORE, ds_CheckProtocol, 0));
+	error = 0;
+	if (msg_Search (MT_DATASTORE, ds_CheckProtocol, &error) || error)
+		error = 1;
+	return (error);
 }
 
 
 
 /* ARGSUSED */
 static int
-ds_CheckProtocol (msg, junk)
+ds_CheckProtocol (msg, error)
 Message *msg;
-int junk;
+int *error;
 /*
  * Get the protocol version packet back and check the number.
  */
@@ -1314,8 +1318,9 @@ int junk;
 	if (dpv->dsp_version != DSProtocolVersion)
 	{
 		msg_ELog (EF_PROBLEM, "DS Protocol version mismatch %x vs %x",
-			DSProtocolVersion, dpv->dsp_version);
+			  DSProtocolVersion, dpv->dsp_version);
 		msg_ELog (EF_PROBLEM, "This program should be relinked");
+		*error = 1;
 	}
 	return (0);
 }
