@@ -1,10 +1,6 @@
 /*
- * Imakefile for the ETC directory.
+ * Imakefile for the etc/helpfiles directory.
  */
-
-HELPFILES = \
-	xhelp.hlp zeb.hlp \
-	fest_stations.hlp fest_soundings.hlp fest_codes.hlp fest_profilers.hlp
 
 /*
  * These files are for backwards compatibility with xhelp topics and can
@@ -70,14 +66,9 @@ GIFFILES = \
 	widgets.gif xsect-icon.gif xy-contour-limits.gif z-icon.gif \
 	zoombox.gif zzxs-apply.gif zzxs-clear.gif zzxs-sel.gif
 
-DISTFILES = Imakefile $(HELPFILES) $(HTMLFILES) $(GIFFILES)
+DISTFILES = Imakefile $(HTMLFILES) $(GIFFILES)
 
 all::
-
-/*
- * Install the old xhelp files.
- */
-InstallLibFile ($(HELPFILES),help,.)
 
 /*
  * Install the HTML and GIF files.
