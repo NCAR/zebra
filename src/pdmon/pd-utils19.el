@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.4 1993-09-10 19:22:29 burghart Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.5 1993-10-22 18:01:36 burghart Exp $"
  "The RCS id")
 
 ;
@@ -293,18 +293,6 @@ track, if the ARROW parameter is TRUE")
 
 	("arrow-scale"		nil		nil	pd::ck-float
 	 "The scale factor used to determine the length of the arrows.")
-
-	("auto-scale-x-min"	nil		nil	nil
-	  "X min as determined by autoscale code -- not for human use")
-
-	("auto-scale-x-max"	nil		nil	nil
-	  "X min as determined by autoscale code -- not for human use")
-
-	("auto-scale-y-min"	nil		nil	nil
-	  "X min as determined by autoscale code -- not for human use")
-
-	("auto-scale-y-max"	nil		nil	nil
-	  "X min as determined by autoscale code -- not for human use")
 
 	("axis-color"		"tseries"	nil	nil
 	 "The color to use in drawing time series axes.")
@@ -653,57 +641,6 @@ lat-lon is TRUE; kilometers otherwise.")
 ))
 
 
-
-
-;
-; Look up a rule.
-;
-(defun pd::find-rule (param &optional nonly) "Look up a rule with this param"
-    (pd::rec-find-rule param pd::ParamRules nonly)
-)
-
-(defun pd::rec-find-rule (param rules nonly) "Really look for the rule."
-    (cond
-    	((null rules) nil)
-	((and (string-match (concat (pd::r-param (car rules)) "$") param)
-	      (or nonly (null (pd::r-ptype (car rules)))
-	      	  (string-equal (pd::r-ptype (car rules)) pd::plot-type))
-	      (or nonly (null (pd::r-rep (car rules)))
-	          (string-equal pd::component "global") ; XXX
-	          (string-equal (pd::r-rep (car rules))
-		  	(pd::retrieve pd::component "representation"))))
-	    (car rules))
-	(t (pd::rec-find-rule param (cdr rules) nonly))
-    )
-)
-
-
-(defun pd::find-rule2 (param) "Another implementation"
-    (let ((rule pd::ParamRules) (ret nil))
-    	(while (and rule (not ret))
-	    (if (pd::rule-match param (car rule))
-		(setq ret (car rule))
-		(setq rule (cdr rule))
-	    )
-	)
-	ret
-    )
-)
-
-
-
-(defun pd::rule-match (param rule) "Does this param match this rule?"
-    (and (string-match (concat (pd::r-param rule) "$") param)
-	(or (null (pd::r-ptype rule))
-	     (string-equal (pd::r-ptype rule) pd::plot-type))
-	(or (null (pd::r-rep rule))
-	     (string-equal pd::component "global") ; XXX
-	     (string-equal (pd::r-rep rule)
-		(pd::retrieve pd::component "representation"))))
-)
-
-
-
 ;;
 ;; Attempt to deal with rules through property lists.
 ;;
@@ -725,16 +662,14 @@ lat-lon is TRUE; kilometers otherwise.")
 ; Look up a rule via the property list.
 ;
 (defun pd::prop-find-rule (param)
-    (cond
-    	((get (intern param) 'rule))	; Found it
-	((string-match "-" param)
-	    (pd::prop-find-rule (substring param (+ (match-beginning 0) 1))))
-	(t nil)
-    )
+  (cond
+   ((string-match "private" param) nil) ; No rules for private params
+   ((get (intern param) 'rule))	; Found it
+   ((string-match "-" param)
+    (pd::prop-find-rule (substring param (+ (match-beginning 0) 1))))
+   (t nil)
+  )
 )
-
-
-
 
 
 
