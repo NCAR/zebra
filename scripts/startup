@@ -14,12 +14,6 @@ if (! $?ZEBRA_MASTER || ! $?ZEBRA_PROJDIR) then
 endif
 
 #
-# Subset the RHIs presented to Zebra in real-time 
-# (this environment variable is tested in ds.config)
-#
-setenv ZEBRA_SUBSET_RHI
-
-#
 # Make a good guess for XAPPLRESDIR
 #
 set zstart = `which zstart`
@@ -30,7 +24,7 @@ setenv XAPPLRESDIR $libdir/resources
 # Fire up Zebra with the datastore running on ZEBRA_MASTER 
 # and the display on the local machine 
 #
-zstart -n -dshost $ZEBRA_MASTER -dsonly $ZEBRA_PROJDIR
+zstart -n -realtime -dshost $ZEBRA_MASTER -dsonly $ZEBRA_PROJDIR
 if ($status != 0) exit $status
 $execdir/newdisplay &
 

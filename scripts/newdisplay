@@ -28,7 +28,7 @@ LastData -g 240x200-0+175 $ZEBRA_PROJDIR/LastData.conf &
 # Run a zebra display and wait for it to terminate
 #
 xterm -name Zebra -title Zebra -iconic -e \
-    zstart $dshost -dm -preserve $ZEBRA_PROJDIR
+    zstart -realtime $dshost -dm -preserve $ZEBRA_PROJDIR
 
 # 
 # Get rid of the LastData and EventLogger, then quit
