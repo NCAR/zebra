@@ -19,13 +19,13 @@
  * maintenance or updates for its software.
  */
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include <copyright.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: dsdump.c,v 3.5 1992-11-18 18:33:30 granger Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.6 1992-11-18 23:38:35 granger Exp $")
 
 
 msg_handler ()

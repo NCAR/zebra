@@ -27,15 +27,15 @@
 # include <dirent.h>
 # include <errno.h>
 # include <copyright.h>
-# include "../include/config.h"
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/timer.h"
+# include "config.h"
+# include "defs.h"
+# include "message.h"
+# include "timer.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.6 1992-11-10 04:15:33 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.7 1992-11-18 23:39:40 granger Exp $")
 
 
 

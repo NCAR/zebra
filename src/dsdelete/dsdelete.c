@@ -18,19 +18,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdelete.c,v 2.2 1991-11-22 20:49:03 kris Exp $";
+static char *rcsid = "$Id: dsdelete.c,v 2.3 1992-11-18 23:42:21 granger Exp $";
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include <copyright.h>
 # include "DataStore.h"
 
-
-# ifdef __STDC__
-extern char *getenv (char *);
-# else
-extern char *gentenv();
-# endif
+extern char *getenv FP((char *));
 
 main (argc, argv)
 int argc;
