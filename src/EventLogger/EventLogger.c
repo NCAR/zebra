@@ -47,7 +47,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 1.3 1990-08-20 20:43:05 corbet Exp $\n";
+static char *Initmsg = "$Id: EventLogger.c,v 1.4 1991-04-11 20:42:39 corbet Exp $\n";
 
 /*
  * Our widgets.
@@ -106,6 +106,8 @@ char **argv;
  */
 	Log_file = fopen ("/fcc/etc/LogFile", "w");
 # endif
+	if (getenv ("EVENT_MASK"))
+		Emask = atoi (getenv ("EVENT_MASK"));
 /*
  * Get set up with the toolkit.
  */
@@ -298,6 +300,10 @@ int index, junk;
 	XtSetArg (args[0], XtNleftBitmap,
 			EMap[index].em_flag & Emask ? Check : None);
 	XtSetValues (EMap[index].em_w, args, 1);
+/*
+ * Broadcast the new mask.
+ */
+	SendEMask ();
 }
 
 
@@ -359,13 +365,30 @@ struct message *msg;
 		struct msg_elog *el = (struct msg_elog *) msg->m_data;
 		int i;
 		char code = '?';
-
-		if (Emask & el->el_flag || Emask == 0)
+	/*
+	 * If somebody's tweaking the event mask, we'll ignore it.
+	 */
+	 	if (Emask & EF_SETMASK)
+			return (0);
+	/*
+	 * If this is in our mask, we log it.
+	 */
+		else if (Emask & el->el_flag || Emask == 0)
 		{
 			for (i = 0; EMap[i].em_flag; i++)
 				if (EMap[i].em_flag & el->el_flag)
 					code = EMap[i].em_code;
 			do_log (code, msg->m_from, el->el_text);
+		}
+	/*
+	 * Otherwise assume that somebody is out of sync with the
+	 * event mask, and we send it out to the world.
+	 */
+		else
+		{
+			static int nsend = 0;
+			if ((nsend++ % 15) == 0)
+				SendEMask ();
 		}
 		return (0);
 	}
@@ -392,7 +415,7 @@ struct message *msg;
 			do_log ('C', client->mh_client, mb);
 		break;
 	   case MH_SHUTDOWN:
-	   	printf ("MESSAGE SERVER SHUTDOWN!\n");
+		exit (0);
 		break;
 	   default:
 	   	sprintf (mb, "Strange message type: %d %d", msg->m_proto,
@@ -581,4 +604,19 @@ wm ()
  */
 	if (Visible)
 		XtPopup (Shell, XtGrabNone);
+}
+
+
+
+
+
+SendEMask ()
+/*
+ * Broadcast the event mask to the world.
+ */
+{
+	int flag;
+
+	flag = Emask | EF_SETMASK;
+	msg_send ("Everybody", MT_ELOG, TRUE, &flag, sizeof (flag));
 }
