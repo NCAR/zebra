@@ -1,4 +1,5 @@
 /* 12/88 jc */
+/* $Id: dev_x11.c,v 1.2 1989-04-11 16:11:58 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -347,6 +348,11 @@ float *r, *g, *b;
 	XColor *xc = (XColor *) getvm (ncolor * sizeof (XColor));
 	int col;
 /*
+ * Ignore this stuff for mono displays.
+ */
+ 	if (tag->x_mono)
+		return (GE_DEVICE_UNABLE);
+/*
  * Reformat the colors for X.
  */
  	for (col = 0; col < ncolor; col++)
@@ -362,6 +368,7 @@ float *r, *g, *b;
  */
  	XStoreColors (tag->x_display, tag->x_cmap, xc, ncolor);
 	relvm (xc);
+	return (GE_OK);
 }
 
 
