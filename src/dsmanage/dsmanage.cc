@@ -43,7 +43,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.9 1995-12-05 20:25:16 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.10 1996-11-19 07:12:02 granger Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -72,7 +72,6 @@ static void ScanFiles (int);
 int main (int argc, char **argv)
 {
 	msg_connect (MsgHandler, "dsmanager");	// Hook into msg system
-	usy_init ();				// User interface symbols
 	DSSetup ();				// Get data store going
 	DisplaySetup (&argc, argv);		// Get display going
 	DisplayAddInput (msg_get_fd(), (void (*)())msg_incoming);

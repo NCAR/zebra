@@ -47,7 +47,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.10 1996-01-04 01:28:40 granger Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.11 1996-11-19 07:12:01 granger Exp $")
 
 
 //
@@ -150,7 +150,6 @@ main (int argc, char **argv)
 //
 // We need a platform index to store the info.
 //
-	usy_init ();
 	PlatformIndex index;
 	PIndex = &index;
 	IName = argv[parser.optind + 1];

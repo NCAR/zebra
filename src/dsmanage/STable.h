@@ -1,5 +1,5 @@
 //
-// C++ interface to UI symbol tables.
+// C++ interface to zebra library symbol tables.
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -18,6 +18,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+extern "C" {
+# include <zl_symbol.h>
+}
 
 typedef int STTraverseProc (const char *, int, const SValue *, long);
 
