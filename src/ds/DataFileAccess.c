@@ -5,7 +5,7 @@
  * of the data store be format-independent.  We push most of the real work
  * down to the format-specific stuff.
  */
-static char *rcsid = "$Id: DataFileAccess.c,v 1.3 1991-02-26 19:07:05 corbet Exp $";
+static char *rcsid = "$Id: DataFileAccess.c,v 1.4 1991-04-11 22:00:28 corbet Exp $";
 
 
 # include "../include/defs.h"
@@ -115,6 +115,14 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.3 1991-02-26 19:07:05 corbet Exp
  * int begin, end;
  *
  *	Put samples BEGIN through END (inclusive) from DOBJ into DFILE.
+ *
+ * f_GetObsSamples (dfile, times, locs, max)
+ * int dfile, max;
+ * time *times;
+ * Location *locs;
+ *
+ *	Return information on each of the samples in this observation;
+ *	return value is the number actually returned.
  */
 
 struct DataFormat
@@ -135,6 +143,7 @@ struct DataFormat
 	int (*f_MakeFileName) ();	/* Make new file name		*/
 	int (*f_CreateFile) ();		/* Create a new file		*/
 	int (*f_PutData) ();		/* Put data to a file		*/
+	int (*f_GetObsSamples) ();	/* Get observation samples	*/
 };
 
 
@@ -150,10 +159,14 @@ extern int bf_QueryTime (), bf_MakeFileName (), bf_CreateFile ();
 extern int bf_PutData (), bf_OpenFile (), bf_CloseFile (), bf_SyncFile ();
 extern int bf_Setup (), bf_GetData (), bf_DataTimes ();
 
+extern int drf_OpenFile (), drf_CloseFile (), drf_QueryTime (), drf_PutData ();
+extern int drf_MakeFileName (), drf_CreateFile (), drf_Sync (), drf_Setup ();
+extern int drf_GetData (), drf_DataTimes (), drf_GetObsSamples ();
 # define ___ 0
 
 /*
- * And here is the format table.
+ * And here is the format table.  Indexing into this table is done through
+ * the FileType enum in dsPrivate.h.
  */
 struct DataFormat Formats[] =
 {
@@ -175,6 +188,7 @@ struct DataFormat Formats[] =
 	dnc_MakeFileName,		/* Make file name		*/
 	dnc_CreateFile,			/* Create a new file		*/
 	dnc_PutData,			/* Write to file		*/
+	___,				/* Get observation samples	*/
     },
     {
 	"Boundary",	".bf",
@@ -191,7 +205,26 @@ struct DataFormat Formats[] =
 	bf_MakeFileName,		/* Make file name		*/
 	bf_CreateFile,			/* Create a new file		*/
 	bf_PutData,			/* Write to file		*/
+	___,				/* Get observation samples	*/
+    },
+    {
+    	"Raster",	".rf",
+	drf_QueryTime,			/* Query times			*/
+	drf_Setup,			/* setup			*/
+	drf_OpenFile,			/* Open				*/
+	drf_CloseFile,			/* Close			*/
+	drf_Sync,			/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	drf_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	___,				/* Get RGrid info		*/
+	drf_DataTimes,			/* Get data times		*/
+	drf_MakeFileName,		/* Make file name		*/
+	drf_CreateFile,			/* Create a new file		*/
+	drf_PutData,			/* Write to file		*/
+	drf_GetObsSamples,		/* Get observation samples	*/
     }
+
 };
 
 
@@ -265,6 +298,23 @@ char *dest;
 				plat->dp_name, t, dest);
 }
 
+
+
+
+
+int
+dfa_GetObsSamples (dfile, times, locs, max)
+int dfile, max;
+time *times;
+Location *locs;
+/*
+ * Return sample info from this observation.
+ */
+{
+	FileType ft = DFTable[dfile].df_ftype;
+	return (Formats[ft].f_GetObsSamples ?
+		((*Formats[ft].f_GetObsSamples)(dfile, times, locs, max)) : 0);
+}
 
 
 
