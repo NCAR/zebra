@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.5 1991-11-20 23:21:09 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 2.6 1991-12-03 21:09:39 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -60,11 +60,13 @@ static bool Restart = TRUE;
 	int dm_shutdown (void);
 	static bool ResolveLinks (struct config *, struct ui_command *);
 	int SEChange (char *, int, int, int, SValue *, int, SValue *);
+	static void ForceRestart (char *);
 # else
 	static void do_wbounds ();
 	int dm_shutdown ();
 	static bool ResolveLinks ();
 	int SEChange ();
+	static void ForceRestart ();
 # endif
 
 
@@ -256,6 +258,10 @@ struct ui_command *cmds;
 			system (UPTR (cmds[1]));
 		break;
 
+	   case DMC_RESTART:
+	   	ForceRestart (UPTR (cmds[1]));
+		break;
+
 	   default:
 	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
 	}
@@ -335,6 +341,24 @@ struct message *msg;
 
 
 
+
+
+
+static void
+ForceRestart (window)
+char *window;
+/*
+ * Force this window to quit and restart.
+ */
+{
+	struct dm_msg dmsg;
+/*
+ * Send a DIE message to the affected process.  The auto restart mechanism
+ * should take care of the rest.
+ */
+	dmsg.dmm_type = DM_DIE;
+	msg_send (window, MT_DISPLAYMGR, FALSE, &dmsg, sizeof (dmsg));
+}
 
 
 
