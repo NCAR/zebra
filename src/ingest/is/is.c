@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.1 1991-10-09 20:28:04 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.2 1991-10-11 15:27:54 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -32,6 +32,7 @@ static char    *rcsid = "$Id: is.c,v 1.1 1991-10-09 20:28:04 martin Exp $";
 #include <ui.h>
 #include <ui_error.h>
 #include <dirent.h>
+#include <X11/Intrinsic.h>
 
 #include "is_vars.h"
 #include "is_cmds.h"
@@ -58,6 +59,7 @@ main(argc, argv)
 
 	char            loadfile[100];
 	stbl            vtable;
+	Widget          top;
 
 	/*
 	 * Hook into the message handler.
@@ -88,6 +90,12 @@ main(argc, argv)
 	 * vtable = usy_g_stbl("ui$variable_table");
 	 */
 	tty_watch(msg_get_fd(), (void (*) ()) msg_incoming);
+
+	/*
+	 * force into window mode, since mode window followed by popup
+	 * doesn't seem to work from a command file
+	 */
+	uw_ForceWindowMode((char *) 0, &top, (XtAppContext *) 0);
 
 	/*
 	 * If a file appears on the command line, open it.
@@ -849,12 +857,12 @@ for IS_STYPE only:
 				 * under certain conditions
 				 */
 				if (cfg->restart)
-				  if(cfg->n_restarts++ < MAX_RESTARTS)
-					cfg_go(cfg);
-				else {
-					msg_ELog(EF_PROBLEM,
-						 "%s has exceeded restart limit of %d",
-						 cfg->name, MAX_RESTARTS);
+					if (cfg->n_restarts++ < MAX_RESTARTS)
+						cfg_go(cfg);
+					else {
+						msg_ELog(EF_PROBLEM,
+							 "%s has exceeded restart limit of %d",
+						   cfg->name, MAX_RESTARTS);
 					}
 				break;
 
@@ -866,7 +874,7 @@ for IS_STYPE only:
 	}			/** for (this_proc = cfg->proc;...) **/
 
 
-	return(TRUE); 
+	return (TRUE);
 }
 
 void
