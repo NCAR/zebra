@@ -27,11 +27,10 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.2 1996-05-01 15:18:13 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.3 1996-11-19 07:13:15 granger Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
-static char *PlatDirectory FP ((PlatformId pid));
 static char *PlatFileName FP ((PlatformId pid, ZebTime *when));
 
 
@@ -39,7 +38,7 @@ void
 usage (prog)
 char *prog;
 {
-   fprintf(stderr,"Usage: %s -h\n", prog);
+   fprintf(stderr,"Usage: %s -help\n", prog);
    fprintf(stderr,"   Print this usage message\n");
    fprintf(stderr,"Usage: %s [-all] [regexp ...]\n", prog);
    fprintf(stderr,"   Print notifications for all platforms or only those\n");
@@ -80,19 +79,17 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	PlatformId plat;
 	PlatformId *plist;
 	int all = FALSE;
-	int fileonly = FALSE;
-	int remote = FALSE;
 	char pname[50];
-	char *filename;
 	char **platname = NULL;
 	int i, j, p, nplat, total;
+	int len;
 /*
  * Check args.
  */
-	if ((argc < 2) || (!strcmp (argv[1], "-h")))
+	len = strlen(argv[1]);
+	if ((argc < 2) || ((len > 1) && (!strncmp (argv[1], "-help", len))))
 	{
 		usage (argv[0]);
 		exit (0);
@@ -100,7 +97,6 @@ char **argv;
 /*
  * Get initialized.
  */
-	usy_init ();
 	sprintf (pname, "Notice-%d", getpid ());
 	if (! msg_connect (handler, pname))
 	{
@@ -120,9 +116,10 @@ char **argv;
 		platname = (char **)malloc((argc - 1)*sizeof(char *));
 	for (i = 1; i < argc; ++i)
 	{
-		if ((argv[i][0] != '-') || (strlen(argv[i]) < (unsigned)2))
+		len = strlen(argv[i]);
+		if ((argv[i][0] != '-') || (len < 2))
 			platname[p++] = argv[i];
-		else if (!strncmp(argv[i], "-all", strlen(argv[i])))
+		else if (!strncmp(argv[i], "-all", len))
 			all = TRUE;
 		else
 		{
@@ -184,36 +181,6 @@ char **argv;
 
 
 
-static void
-ReceiveNotify (pid, param, when, nsample, ucode)
-PlatformId pid;
-int param;
-ZebTime *when;
-int nsample;
-UpdCode ucode;
-{
-	char tbuf[64];
-	char *platname;
-	char *platdir;
-	char *filename;
-	/*
-	 * Print lines of the form:
-	 *
-	 * <platform> <filename> <datadir> <time> <nsamples> <ucode>
-	 */
-	TC_EncodeTime (when, TC_Full, tbuf);
-	platname = ds_PlatformName (pid);
-	platdir = PlatDirectory (pid);
-	filename = PlatFileName (pid, when);
-	printf ("%s %s %s %i %s\n", 
-		platname ? platname : "NULL", 
-		filename ? filename : "NULL",
-		/*platdir ? platdir : "NULL",*/
-		tbuf, nsample, (ucode == UpdOverwrite) ? "owr" :
-		((ucode == UpdInsert) ? "ins" : "app"));
-	fflush (stdout);
-}
-
 
 
 static char *
@@ -246,6 +213,39 @@ PlatformId pid;
         else
                 return (NULL);
 }               
+
+
+
+
+static void
+ReceiveNotify (pid, param, when, nsample, ucode)
+PlatformId pid;
+int param;
+ZebTime *when;
+int nsample;
+UpdCode ucode;
+{
+	char tbuf[64];
+	char *platname;
+	/*char *platdir;*/
+	char *filename;
+	/*
+	 * Print lines of the form:
+	 *
+	 * <platform> <filename> <datadir> <time> <nsamples> <ucode>
+	 */
+	TC_EncodeTime (when, TC_Full, tbuf);
+	platname = ds_PlatformName (pid);
+	/*platdir = PlatDirectory (pid);*/
+	filename = PlatFileName (pid, when);
+	printf ("%s %s %s %i %s\n", 
+		platname ? platname : "NULL", 
+		filename ? filename : "NULL",
+		/*platdir ? platdir : "NULL",*/
+		tbuf, nsample, (ucode == UpdOverwrite) ? "owr" :
+		((ucode == UpdInsert) ? "ins" : "app"));
+	fflush (stdout);
+}
 
 
 
