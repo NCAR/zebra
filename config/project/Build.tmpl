@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.22 1996-05-01 20:29:16 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.23 1996-08-22 20:18:44 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -306,10 +306,20 @@ XCOMM --- Deciding FORTRAN library paths
       /usr/lang/SC1.0.1/libm.a
 #   endif
 #  endif /* FortMajorVersion */
-# else /* Solaris, C2 and C3.0. */
+# else /* Solaris: C2, C3, and C4. */
 #  ifndef FortMajorVersion
-#   define FortMajorVersion 3	/* default to C3.0.1 */
+#   define FortMajorVersion 4	/* default to C4.0 */
 #  endif
+#  if FortMajorVersion > 3
+/* The latest SC4.0 installation on stout and steam */
+#   ifndef AutoBinary
+#    define FortranLibraries -L/opt/SUNWspro/SC4.0/lib -lF77 -lV77 -lM77 -lsunmath
+#   else
+#    define FortranLibraries /opt/SUNWspro/SC4.0/lib/libF77.a \
+      /opt/SUNWspro/SC4.0/lib/libV77.a /opt/SUNWspro/SC4.0/lib/libM77.a \
+      /opt/SUNWspro/SC4.0/lib/libsunmath.a
+#   endif
+#  else
 #  if FortMajorVersion > 2
 /* -lsunmath doesn't get linked into /opt/SUNWspro/lib
  * so it really does have to point explicitly at SC3.0...
@@ -329,7 +339,8 @@ XCOMM --- Deciding FORTRAN library paths
 #   endif
 #  else
 #   define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77
-#  endif /* FortMajorVersion */
+#  endif /* FortMajorVersion > 2 */
+#  endif /* FortMajorVersion > 3 */
 # endif /* SolarisArchitecture */
 #endif /* SunArchitecture */
 
