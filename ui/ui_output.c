@@ -13,11 +13,19 @@
 static bool Out_tty = FALSE;
 static int  Out_lun;
 static bool Initialized = FALSE;
+
+# ifdef MAXLINE
+# undef MAXLINE
+# endif
 # define MAXLINE 1000
 static char Obuf[MAXLINE];
 
 static bool Pager_mode = TRUE;		/* Are we in pager mode? */
 static int Page_size = 21;		/* How many lines to a screen page */
+
+
+int uio_print (), uio_nfprint (), uio_ErrorOut (), uio_EHook ();
+
 
 
 
@@ -43,25 +51,25 @@ int lun;
 	usy_c_indirect (Ui_variable_table, "ui$nlines", &Nlines, SYMT_INT, 0);
 	Page_size = tty_nlines () - 3;
 	Nlines = 0;
+/*
+ * Hook in to the printf world.
+ */
+	ui_OutputRoutine (uio_print, uio_nfprint);
+	ui_ErrorOutputRoutine (uio_ErrorOut);
+	ui_ErrorHook (uio_EHook);
 }
 
 
 
 
 
-ui_printf (fmt, ARGS)
-char *fmt;
-int ARGS;
+uio_print (buf)
+char *buf;
 /*
- * Perform a printf() through the user interface I/O.
+ * The normal output routine.
  */
 {
-	char buf[1000];
 	int nadd;
-/*
- * Encode the output.
- */
- 	sprintrmt (buf, fmt, SPRINTARGS);
 /*
  * Now figure out how to put it out.
  */
@@ -86,19 +94,13 @@ int ARGS;
 
 
 
-ui_nf_printf (fmt, ARGS)
-char *fmt;
-int ARGS;
+uio_nfprint (buf)
+char *buf;
 /*
  * Perform a printf() through the user interface I/O.  This version does not
  * flush the data out to the screen.
  */
 {
-	char buf[200];
-/*
- * Encode the output.
- */
- 	sprintrmt (buf, fmt, SPRINTARGS);
 /*
  * Now figure out how to put it out.
  */
@@ -208,4 +210,29 @@ uio_stall ()
 	else
 		Nlines = 0;
 	Bol = TRUE;
+}
+
+
+
+
+
+uio_ErrorOut (line)
+char *line;
+/*
+ * Output an error message through the normal, interactive UI routine.
+ */
+{
+	ut_put_msg (line, FALSE);
+}
+
+
+
+
+uio_EHook ()
+/*
+ * The standard error processing hook.
+ */
+{
+	ut_out_lines ();
+	ut_drain_ta ();
 }

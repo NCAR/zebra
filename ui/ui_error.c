@@ -14,7 +14,7 @@
 # endif /* SYSV */
 # endif /* UNIX */
 
-static char *rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_error.c,v 1.3 1989-03-16 15:44:36 corbet Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.4 1990-06-09 13:22:11 corbet Exp $";
 /*
  * Stack stuff.
  */
@@ -47,8 +47,8 @@ ui_errinit ()
 /*
  * Just create indirect variables.
  */
- 	usy_c_indirect (Ui_variable_table, "ui$errorbell", &Errorbell, 
-			SYMT_BOOL, 0);
+ 	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "ui$errorbell",
+		&Errorbell, SYMT_BOOL, 0);
 }
 
 
@@ -67,11 +67,9 @@ int ARGS;
 /*
  * Write out the message.
  */
-	ut_out_lines ();
 	sprintrmt (buf, fmt, SPRINTARGS);
 	sprintf (buf1, Errorbell ? "*** %s\007" : "*** %s", buf);
-	ut_put_msg (buf1, FALSE);
-	ut_drain_ta ();
+	ui_ErrOut (buf1);
 /*
  * Return to the command interpreter.
  * (10/11/85 jc)	If there is an alternate jbuf on the stack, we will
@@ -109,7 +107,7 @@ int ARGS;
 /*
  * Get the command line echoed out.
  */
- 	ut_out_lines ();
+ 	/* ut_out_lines (); */
 	col += 7;	/* For extra garbage from ut_out_lines */
 /*
  * Write out the message.
@@ -140,8 +138,7 @@ int ARGS;
 		*bp++ = '\007';
 		*bp++ = '\0';
 	}
-	ut_put_msg (buf1, FALSE);
-	ut_drain_ta ();
+	ui_ErrOut (buf1);
 /*
  * Return to the top entry in the error jump stack, if called for.
  */
@@ -168,8 +165,7 @@ int ARGS;
  */
 	sprintrmt (buf, fmt, SPRINTARGS);
 	sprintf (buf1, Errorbell ? "*** %s\007" : "*** %s", buf);
-	ut_put_msg (buf1, FALSE);
-	ut_drain_ta ();
+	ui_ErrOut (buf1);
 }
 
 
@@ -189,7 +185,7 @@ int ARGS;
 	{
 		sprintrmt (buf, fmt, SPRINTARGS);
 		sprintf (buf1, "--> %s", buf);
-		ut_put_msg (buf1, FALSE);
+		ui_WarnOut (buf1);
 	}
 /*
  * Jump through the error stack.
@@ -214,7 +210,7 @@ int ARGS;
 
 	sprintrmt (buf, fmt, SPRINTARGS);
 	sprintf (buf1, "*** WARNING: %s", buf);
-	ut_put_msg (buf1, FALSE);
+	ui_WarnOut (buf1);
 }
 
 
