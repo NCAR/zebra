@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.22 1994-12-11 16:23:51 corbet Exp $
+XCOMM $Id: config.h.dist,v 1.23 1995-01-19 18:52:39 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -629,6 +629,14 @@ XCOMM -----------------------------------------------------------------------
 #define CFG_PLATNAME_LEN	100
 
 /*
+ * Set fields table limits to accept longer ARM names and descriptions
+ */
+# define CFG_FIELD_MAX_ID	512
+# define CFG_FIELD_NAME_LEN	40
+# define CFG_FIELD_LONG_LEN	256
+# define CFG_FIELD_UNITS_LEN	40
+
+/*
  * If defined, DC field attributes will override the fields table when 
  * writing field attributes to a file.
  */
@@ -725,6 +733,22 @@ XCOMM -----------------------------------------------------------------------
 #endif
 #ifndef CFG_MSGEVENT_LEN
 #define CFG_MSGEVENT_LEN 200	/* Length of extended logger event messages  */
+#endif
+#ifndef CFG_FIELD_NAME_LEN
+#define CFG_FIELD_NAME_LEN 40	/* Length of field names		     */
+#endif
+#ifndef CFG_FIELD_LONG_LEN
+#define CFG_FIELD_LONG_LEN 80	/* Length of field description (long name)   */
+#endif
+#ifndef CFG_FIELD_UNITS_LEN
+#define CFG_FIELD_UNITS_LEN 20	/* Length of field units string		     */
+#endif
+
+/*
+ * Maximum number of fields (field IDs) in the fields table
+ */
+#ifndef CFG_FIELD_MAX_ID
+#define CFG_FIELD_MAX_ID	512
 #endif
 
 /*
