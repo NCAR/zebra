@@ -29,7 +29,7 @@
 # include <timer.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.15 1995-06-29 22:33:44 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.16 1996-11-19 07:09:30 granger Exp $")
 
 
 /*
@@ -39,6 +39,15 @@ static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
 static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
 			     int names, int files, int obs));
 static void PrintInfo FP((int index, DataFileInfo *dfi));
+static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, int files));
+
+/*
+ * Options for displaying files
+ */
+#define NOFILES 0
+#define SHOWFILES 1
+#define ONLYFILES 2
+#define FULLFILES 3
 
 
 static int
@@ -61,6 +70,8 @@ char *prog;
 	printf("\t-x\tExclude data files from listing\n");
 	printf("\t-n\tList platform names only\n");
 	printf("\t-z\tList only the most recent observation\n");
+	printf("\t-f\tList filenames only\n");
+	printf("\t-g\tList filenames with their full pathnames\n");
 	printf("\t-p '<number> [days|minutes|hours]'\n");
 	printf("\t\tList data within a certain period of the current time,\n");
 	printf("\t\twhere units can be abbreviated and defaults to days.\n");
@@ -72,6 +83,8 @@ char *prog;
 	printf("\t%s radars -e base\n", prog);
 	printf("\tShow the last two days worth of data for all platforms:\n");
 	printf("\t%s -p '2 days'\n", prog);
+	printf("\tTar the last 6 hours of GOES data\n");
+	printf("\ttar cf goes.tar `%s -f -p '6 hours' goes`\n", prog);
 }
 
 
@@ -125,12 +138,13 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	int i, nplat, opt;
+	int i, nplat, total, opt;
 	PlatformInfo pi;
 	PlatformId *platforms;
 	PlatformId pid;
 	char *pattern;
-	bool sort, subs, tier, exact, first, files, names, obs;
+	bool sort, subs, tier, exact, first, names, obs;
+	int files;
 	char name[20];
 	int matches;
 	long period = 0;	/* Length of time to show data for */
@@ -147,7 +161,6 @@ char **argv;
 
 	sprintf (name, "DSDump-%d", getpid());
 	msg_connect (msg_handler, name);
-	usy_init ();
 	if (! ds_Initialize ())
 	{
 		printf("%s: could not connect to DataStore daemon\n",argv[0]);
@@ -160,8 +173,7 @@ char **argv;
 /*
  * How many platforms?
  */
-	nplat = ds_GetNPlat ();
-	printf ("%d platforms, total.\n", nplat);
+	nplat = total = ds_GetNPlat ();
 	matches = 0;
 	platforms = NULL;
 /*
@@ -171,7 +183,7 @@ char **argv;
 	subs = FALSE;
 	tier = FALSE;
 	exact = FALSE;
-	files = TRUE;
+	files = SHOWFILES;
 	names = FALSE;
 	obs = FALSE;		/* only show most recent file */
 /*
@@ -203,13 +215,19 @@ char **argv;
 				exact = TRUE;
 				break;
 			   case 'x':
-				files = FALSE;
+				files = NOFILES;
 				break;
 			   case 'n':
 				names = TRUE;
 				break;
 			   case 'z':
 				obs = TRUE;
+				break;
+			   case 'f':
+				files = ONLYFILES;
+				break;
+			   case 'g':
+				files = FULLFILES;
 				break;
 			   case 'p':
 				period = GetPeriod (argv[++opt]);
@@ -267,8 +285,13 @@ char **argv;
 /*
  * Done.
  */
-	printf ((matches == 1) ? "\n1 match found.\n" :	((matches) ?
-		 "\n%d matches found.\n" : "\nNo matches found.\n"), matches);
+	if (files <= SHOWFILES)
+	{
+		printf ("%d platforms, total.\n", total);
+		printf ((matches == 1) ? "\n1 match found.\n" :	
+			((matches) ? "\n%d matches found.\n" :
+			 "\nNo matches found.\n"), matches);
+	}
 	exit (0);
 	return (0);
 }
@@ -280,9 +303,9 @@ DumpPlatform (pid, pi, since, names, files, obs)
 PlatformId pid;
 PlatformInfo *pi;
 ZebTime *since;		/* Time since which to dump files */
-bool names;		/* list names only when true */
-bool files;		/* list files if true */
-bool obs;		/* list only most recent file */
+int names;		/* list names only when true */
+int files;		/* list files if true */
+int obs;		/* list only most recent file */
 {
 	int i, index;
 	DataSrcInfo dsi;
@@ -291,17 +314,20 @@ bool obs;		/* list only most recent file */
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
-	if (!names && files)
-		ui_printf ("\n");
+	if (!names && (files == SHOWFILES))
+		printf ("\n");
 	
 	if ((pi->pl_SubPlatform) && (name = strrchr(pi->pl_Name, '/')))
 		++name;
 	else
 		name = pi->pl_Name;
-	ui_printf ("Platform %s, %d data sources", name, pi->pl_NDataSrc);
-	if (pi->pl_Mobile)
-		ui_printf (" (MOBILE)");
-	ui_printf ("\n");
+	if (files <= SHOWFILES)
+	{
+		printf ("Platform %s, %d data sources", name, pi->pl_NDataSrc);
+		if (pi->pl_Mobile)
+			printf (" (MOBILE)");
+		printf ("\n");
+	}
 
 	if (!names)
 	{
@@ -313,18 +339,24 @@ bool obs;		/* list only most recent file */
 		for (i = 0; i < pi->pl_NDataSrc; i++)
 		{
 			ds_GetDataSource (pid, i, &dsi);
-			ui_printf (" Data source '%s', in %s, type %d\n", 
-				   dsi.dsrc_Name, dsi.dsrc_Where, 
-				   dsi.dsrc_Type);
-			if (! files)
-				continue;
+			if (files <= SHOWFILES)
+			{
+				printf (" Data source '%s', in %s, type %d\n", 
+					dsi.dsrc_Name, dsi.dsrc_Where, 
+					dsi.dsrc_Type);
+				if (! files)
+					continue;
+			}
 			for (index = dsi.dsrc_FFile; index > 0; 
 			     index = dfi.dfi_Next)
 			{
 				ds_GetFileInfo (index, &dfi);
 				if (TC_Less(dfi.dfi_End, *since))
 					break;
-				PrintInfo (index, &dfi);
+				if (files >= ONLYFILES)
+					PrintFilePath (&dsi, &dfi, files);
+				else
+					PrintInfo (index, &dfi);
 				if (obs)
 					break;
 			}
@@ -351,7 +383,7 @@ PlatformInfo *pi;
 	subplats = ds_LookupSubplatforms (pid, &n);
 	if (!subplats)
 		return;
-	ui_printf (" Subplatforms:\n");
+	printf (" Subplatforms:\n");
 	buf[0] = '\0';
 	buflen = 0;
 	for (i = 0; i < n; ++i)
@@ -365,7 +397,7 @@ PlatformInfo *pi;
 			name = spi.pl_Name;
 		if (buflen && (buflen + strlen(name) + 3 >= (unsigned)78))
 		{
-			ui_printf (" %s\n", buf);
+			printf (" %s\n", buf);
 			buf[0] = '\0';
 			buflen = 0;
 		}
@@ -373,7 +405,7 @@ PlatformInfo *pi;
 		buflen += strlen(name) + 3;
 	}
 	if (buflen)
-		ui_printf (" %s\n", buf);
+		printf (" %s\n", buf);
 	free (subplats);
 }
 
@@ -397,8 +429,25 @@ DataFileInfo *dfi;
 /*
  * Now print.
  */
-	ui_printf ("  %c %4d  %s  %s > %s [%hu]\n",
+	printf ("  %c %4d  %s  %s > %s [%hu]\n",
 		dfi->dfi_Archived ? 'A' : 'N',
 		index, dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
 }		
+
+
+
+static void
+PrintFilePath (dsi, dfi, files)
+DataSrcInfo *dsi;
+DataFileInfo *dfi;
+int files;
+/*
+ * Print just the pathname of this file on one line.
+ */
+{
+	if (files == ONLYFILES)
+		printf ("%s\n", dfi->dfi_Name);
+	else if (files == FULLFILES)
+		printf ("%s/%s\n", dsi->dsrc_Where, dfi->dfi_Name);
+}
 
