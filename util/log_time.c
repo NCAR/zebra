@@ -17,7 +17,7 @@ log_gmt (msg)
 char *msg;
 {
 	char tstr[40];
-	long t = time ((time_t *) 0);
+	time_t t = time ((time_t *) 0);
 	char *atime = asctime(gmtime(&t));
 
 	strcpy (tstr, atime);		/* get a local copy of time */
@@ -34,7 +34,7 @@ char *msg;
 char *gmt_str ()
 {
 	static char tstr[40];
-	long t = time ((time_t *) 0);
+	time_t t = time ((time_t *) 0);
 	char *atime = asctime(gmtime(&t));
 
 	strcpy (tstr, atime);			/* get a local copy of time */

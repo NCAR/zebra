@@ -347,7 +347,7 @@ int *date;
 # endif
 
 # ifdef UNIX
-	long clk = time ((long) 0);
+	time_t clk = time ((long) 0);
 	struct tm *t = gmtime (&clk);
 	*date = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
 	return (1);
@@ -684,7 +684,7 @@ int *date, *rtime;
 		sscanf (stime, "%d/%d/%d %d:%d:%d", &m, &d, &y, &h, &min, &s);
 # endif
 # ifdef UNIX
-	long clk = time ((long) 0);
+	time_t clk = time ((long) 0);
 	struct tm *t = gmtime (&clk);
 	*date = t->tm_year*10000 + (t->tm_mon+1)*100 + t->tm_mday;
 	*rtime = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
