@@ -1,7 +1,6 @@
 /*
  * Network reading.
  */
-static char *rcsid = "$Id: netread.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,6 +20,9 @@ static char *rcsid = "$Id: netread.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
  */
 
 # include <errno.h>
+# include "defs.h"
+
+RCSID("$Id: netread.c,v 2.2 1995-04-15 00:30:54 granger Exp $")
 
 
 int
