@@ -1,7 +1,7 @@
 /*
  * Radar scan optimizer main driver
  *
- * $Id: Optimizer.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
+ * $Id: Optimizer.c,v 1.2 1991-07-05 18:47:38 burghart Exp $
  */
 # include <X11/Intrinsic.h>
 # include <unistd.h>
@@ -17,7 +17,7 @@
 /*
  * Declare global variables here
  */
-Radar	Rad[20];
+Radar	Rad[MAXRAD];
 int	Nradars = 0;
 char	ConfigName[30];
 float	Hres = 0.5, Vres = 0.5;
@@ -285,7 +285,7 @@ opt_LoadConfig ()
  */
 {
 	int	status;
-	char	fname[50], string[20];
+	char	fname[50], string[30], line[30], phone[30];
 	FILE	*cfile;
 	Radar	r;
 /*
@@ -316,6 +316,28 @@ opt_LoadConfig ()
 			continue;
 
 		r.name[strlen (r.name) - 1] = '\0';
+	/*
+	 * Outgoing line and phone number for sending scan info
+	 */
+		fgets (string, sizeof (string), cfile);
+		sscanf (string, "%s%s", line, phone);
+
+		if (line[0] != '-')
+		{
+			line[strlen (line) - 1] = '\0';	/* remove \n */
+			r.line_out = (char *) 
+				malloc ((1 + strlen (line)) * sizeof (char));
+			strcpy (r.line_out, line);
+
+			r.phone = (char *) 
+				malloc ((1 + strlen (phone)) * sizeof (char));
+			strcpy (r.phone, phone);
+		}
+		else
+		{
+			r.line_out = NULL;
+			r.phone = NULL;
+		}
 	/*
 	 * Lat and lon
 	 */
@@ -357,6 +379,12 @@ opt_LoadConfig ()
 		r.fix_hits = FALSE;
 		r.fix_step = FALSE;
 		r.min_range = 5.0;
+	/*
+	 * Make sure we don't get too many radars
+	 */
+		if (Nradars >= MAXRAD)
+			ui_error ("Too many radars!  %d is the maximum.",
+				MAXRAD);
 	/*
 	 * We have everything.  Save the radar and increment the count.
 	 */
