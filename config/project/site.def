@@ -70,6 +70,14 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 /* ----------------------------------------------------------------------- */
 
 #ifdef AfterVendorCF
+/*
+ * Remove default -O2 optimization from Linux compiles, since optimization
+ * does weird things to large raster displays of terrain data.  Why?
+ * Nobody knows...
+ */
+#ifdef LinuxArchitecture
+# define OptimizedCDebugFlags    -march=i486
+#endif
 
 /* 
  * Map the config.h symbols into the equivalent Imake.tmpl definitions.
