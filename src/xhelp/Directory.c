@@ -163,13 +163,13 @@ char *old_path,*new_path;
 {
 	register char *p;
 	char path[MAXPATHLEN + 2];
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	if (getcwd(path,(size_t)(MAXPATHLEN+1)) == NULL) return(NULL);
 #else
 	if (getwd(path) == NULL) return(NULL);
 #endif
 	if (chdir(old_path) != 0) return(NULL);
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	if (getcwd(new_path,(size_t)(MAXPATHLEN+1)) == NULL) return(NULL);
 #else
 	if (getwd(new_path) == NULL) return(NULL);
