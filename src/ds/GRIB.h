@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.8 1997-08-22 14:19:53 burghart Exp $
+ * $Id: GRIB.h,v 3.9 1997-10-23 22:21:51 burghart Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -91,7 +91,7 @@ typedef struct s_GDSLatLon
 	unsigned char	gd_lon2[3];	/* longitude of last grid point	*/
 	unsigned char	gd_di[2];	/* longitudinal increment	*/
 	unsigned char	gd_dj[2];	/* latitudinal increment	*/
-	unsigned char	gd_scnmd;	/* scanning mode flags		*/
+	unsigned char	gd_scanmode;	/* scanning mode flags		*/
 	unsigned char	gd_resv[4];	/* reserved - set to 0		*/
 } GDSLatLon;
 
