@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.57 1999-03-01 02:04:48 burghart Exp $")
+RCSID ("$Id: message.c,v 2.58 1999-06-16 16:54:47 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -2094,6 +2094,15 @@ Message *msg;
 	 */
 	   case MH_LISTGROUP:
 		listgroup (fd, msg);
+		break;
+	/*
+	 * Remote message manager did not find our recipient
+	 */
+	   case MH_NOTFOUND:
+	   	Fd_map[fd]->c_pid = ((struct mh_pid *) tm)->mh_pid;
+		send_log (EF_PROBLEM, "msg to %s was rejected by %s: %s",
+			  ((struct mh_ident*) tm)->mh_name,  msg->m_from,
+			  "recipient not found");
 		break;
 
 	   default:
