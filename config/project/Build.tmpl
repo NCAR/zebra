@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.2 1995-05-04 06:32:23 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.3 1995-05-04 19:26:50 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 # define UseInstalledZeb	YES
@@ -60,6 +60,7 @@ XCOMM -----------------------------------------------------------------------
 
 #endif /* SunArchitecture */
 
+# define	BuildClassIngest 	NO /* needs libsuds.a from RDSS tree */
 # define	BuildPamIngest			NO
 # define	BuildRealtimeDataStoreTools	YES
 # define	BuildDataManager		NO
