@@ -22,7 +22,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.42 1995-06-09 17:01:59 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.43 1995-06-12 14:30:22 granger Exp $")
 
 /* 
  * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
@@ -50,8 +50,6 @@ RCSID("$Id: Overlay.c,v 2.42 1995-06-09 17:01:59 granger Exp $")
 # include "PixelCoord.h"
 # include "DrawText.h"
 # include "gp_cmds.h"
-
-RCSID("$Id: Overlay.c,v 2.42 1995-06-09 17:01:59 granger Exp $")
 
 /*
  * Stuff for locations and other things needing icons.
