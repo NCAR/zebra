@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.80 2003-08-06 21:48:33 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.81 2003-08-06 22:58:18 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -1142,8 +1142,7 @@ NCTag *tag;
  * of syncing the number of times already in the tag with the number now
  * recorded in the file.
  */
-	if (! dnc_DecipherTime (tag->nc_id, &tag->nc_vTime, &tag->nc_dTime
-,
+	if (! dnc_DecipherTime (tag->nc_id, &tag->nc_vTime, &tag->nc_dTime,
 				&ntime, &tag->nc_timeType, &base))
 	{
 		dnc_NCError ("could not decipher time variables");
@@ -3186,7 +3185,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.80 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.81 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
