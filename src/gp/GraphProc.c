@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.40 1994-04-15 21:25:50 burghart Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.41 1994-04-20 21:57:56 corbet Exp $")
 
 /*
  * Default resources.
@@ -150,7 +150,7 @@ void eq_reconfig (), eq_sync ();
 static void NewTime FP ((ZebTime *));
 static int AnswerQuery FP ((char *));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
-
+static void Enqueue FP ((EQpriority, char *));
 
 
 GPShutDown ()
@@ -723,6 +723,16 @@ struct ui_command *cmds;
 	 */
 	   case GPC_REQUIRE:
 		Require (UPTR (cmds[1]));
+		break;
+
+	    case GPC_ENQUEUE:
+		Enqueue ((EQpriority) UKEY (cmds[1]), UPTR (cmds[2]));
+		break;
+	/*
+	 * Images.
+	 */
+	    case GPC_IMGDUMP:
+		ImageDump (UKEY (cmds[1]), UPTR (cmds[2]));
 		break;
 	/*
 	 * "Should never happen"
@@ -1745,4 +1755,17 @@ SValue *argv, *retv;
 	}
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = ret;
+}
+
+
+
+static void
+Enqueue (pri, cmd)
+EQpriority pri;
+char *cmd;
+/*
+ * Enqueue this command at the given priority.
+ */
+{
+	Eq_AddEvent (pri, ui_perform, cmd, strlen (cmd) + 1, Augment);
 }

@@ -39,18 +39,9 @@ typedef enum {
 } EQoverride;
 
 
-# ifdef __STDC__
-void Eq_AddEvent (EQpriority pri, void (*proc) (), void *data, int len,
-	EQoverride override);
-void Eq_ZapProc (EQpriority pri, void (*proc) ());
-void Eq_HoldProcess (void);
-void Eq_ReleaseHold (void);
-void Eq_BreakHold (void);
-# else
-void Eq_AddEvent ();
-void Eq_ZapProc ();
-void Eq_HoldProcess ();
-void Eq_ReleaseHold ();
-void Eq_BreakHold ();
-
-# endif
+void Eq_AddEvent FP ((EQpriority pri, void (*proc) (), void *data, int len,
+	EQoverride override));
+void Eq_ZapProc FP ((EQpriority pri, void (*proc) ()));
+void Eq_HoldProcess FP ((void));
+void Eq_ReleaseHold FP ((void));
+void Eq_BreakHold FP ((void));

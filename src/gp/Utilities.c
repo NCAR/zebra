@@ -28,7 +28,18 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.19 1994-04-19 22:08:23 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.20 1994-04-20 21:58:02 corbet Exp $")
+
+/*
+ * Rules for image dumping.  Indexed by keyword number in GraphProc.state
+ */
+static char *ImgRules[] =
+{
+	"cat",					/* xwd */
+	"xwdtopnm -quiet | ppmtogif -quiet",	/* gif */
+	"xwd2ps -I",				/* pscolor */
+	"xwd2ps -I -m",				/* psmono */
+};
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -629,3 +640,29 @@ double x;
 }
 
 # endif
+
+
+
+
+void
+ImageDump (format, file)
+int format;
+char *file;
+/*
+ * Dump out an image of our screen.
+ */
+{
+	char cmd[200], efile[120];
+	date uid;
+/*
+ * Work up the file name.
+ */
+	TC_ZtToUI (&PlotTime, &uid);
+	sprintf (efile, file, uid.ds_yymmdd, uid.ds_hhmmss);
+/*
+ * Do it.
+ */
+	sprintf (cmd, "xwd -id 0x%x | %s > %s", XtWindow (Graphics),
+			ImgRules[format], efile);
+	system (cmd);
+}
