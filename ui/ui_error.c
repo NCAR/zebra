@@ -20,7 +20,7 @@
 # endif /* UNIX */
 
 
-static char *rcsid = "$Id: ui_error.c,v 1.9 1994-11-10 17:32:55 case Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.10 1994-11-10 17:42:15 case Exp $";
 /*
  * Stack stuff.
  */
@@ -507,6 +507,7 @@ va_dcl
         va_list args;
         int status;
         char *fmt;
+	char buf[200];
 
         va_start (args);
         status = va_arg (args, int);
