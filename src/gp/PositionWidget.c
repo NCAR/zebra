@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.11 1993-03-13 08:18:17 granger Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.12 1993-11-15 22:34:55 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -266,7 +266,7 @@ pw_PosStatus ()
 
 
 
-void
+static void
 pw_PosDisplay ()
 /*
  * Create the position text line and display it in the widget.
