@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.63 2002-05-11 16:40:08 vanandel Exp $")
+RCSID ("$Id: message.c,v 2.64 2002-10-05 04:15:42 granger Exp $")
 
 /*
  * Symbol tables.
@@ -423,15 +423,24 @@ char **argv;
  */
 	if (! host && ! (host = getenv ("HOST")))
 	{
+	    if (gethostname (Hostname, sizeof(Hostname)-1) < 0)
+	    {
 		printf ("Who the hell are we?\n");
 		exit (1);
+	    }
+	    Hostname[sizeof(Hostname)-1] = '\0';
+	    host = Hostname;
 	}
-	if (strlen(host) >= sizeof(Hostname))
+	else if (strlen(host) >= sizeof(Hostname))
 	{
 		fprintf (stderr, "HOST name '%s' is too long?!?!\n", host);
 		exit (1);
 	}
-	strcpy (Hostname, host);
+	else
+	{
+	    strcpy (Hostname, host);
+	}
+
 /*
  * Get our inet port.  Do so even if we are not opening a listening
  * socket, since we may want to connect outbound.
