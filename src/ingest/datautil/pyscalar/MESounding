@@ -1,0 +1,184 @@
+#!/usr/local/bin/python
+#
+# MESounding platform file
+#
+
+import sys
+import ScalarIngest
+import time
+import string
+import wder
+
+
+#
+# The usual field list.
+#
+Fields = { "lat":	("North latitude", "degrees", -1, 0),
+	   "lon":	("East longitude", "degrees", -1, 0),
+	   "alt":	("Altitude", "m", 2, 99999),
+	   "pres":	("Pressure", "mb", 0, 99999),
+	   "tdry":	("Temperature", "C", 3, 999.9),
+	   "dp":	("Dewpoint temperature", "C", -1, 0),
+	   "wdir":	("Wind direction", "degrees", 7, 999),
+	   "wspd":	("Wind speed", "m/s", 8, 999.9),
+	   "rh":	("Relative humidity", "%", 4, 999.9),
+	   "ozone":	("Ozone partial pressure", "hpa", 6, 99.9)
+	   }
+
+
+#
+# Plow through the first part of the file header, and try to find the begin
+# date therein.
+#
+def GetBegin (infile):
+    #
+    # The first line contains the length of the header.
+    #
+    line = infile.readline ()[:-1]
+    sline = string.split (line)
+    if len (sline) != 2:
+	print "Funky begin line: " + line
+	return 0
+    try:
+	nline = string.atoi (sline[0])
+    except:
+	print "Funky begin line: " + line
+	return 0
+    print "%d header lines" % nline
+    #
+    # Now we read through the entire header, hoping to find our
+    # begin date in the process.
+    #
+    year = -1
+    while nline > 0:
+	sline = string.split (infile.readline ()[:-1])
+	if year < 0 and len (sline) >= 3:
+	    try:
+		year = string.atoi (sline[0])
+		month = string.atoi (sline[1])
+		day = string.atoi (sline[2])
+	    except ValueError:
+		pass
+	    if year < 1990 or year > 2020:
+		year = -1
+	nline = nline - 1
+    #
+    # Let's see if we got anything, and gripe if it didn't work out.
+    #
+    if year < 0:
+	print "Could not find begin date line!"
+	return 0
+    print "Timezone is %d" % time.timezone
+    return time.mktime (year, month, day, 0, 0, 0, 0, 0, 0) - time.timezone
+
+#
+# Skip through the header to the first data line.  The simple length test
+# is dangerous, but should do.
+#
+def FirstDataLine (infile):
+    sline = string.split (infile.readline ()[:-1])
+    while len (sline) > 0:
+	try:
+	    if len (sline) == 9:
+		pres = string.atof (sline[0])
+		if pres < 1100 and pres > 900:
+		    return sline
+	except:
+	    pass
+	sline = string.split (infile.readline ()[:-1])
+
+
+
+#
+# Actual processing starts here.
+#
+
+if len (sys.argv) != 3:
+    print "Usage: MESounding platform file"
+    sys.exit (1)
+
+#
+# Open the file, and try to extract the begin date from it (while
+# skipping the bulk of the header).
+#
+infile = open (sys.argv[2], "r")
+begint = GetBegin (infile)
+if begint == 0:
+    print "No begin time, can not ingest this sounding.  Bummer."
+    sys.exit (1)
+#
+# Read another line, which should contain (along
+# with a bunch of other stuff) the rest of the begin time.
+#
+sline = string.split (infile.readline ()[:-1])
+try:
+    print "%d levels in this file." % string.atoi (sline[0])
+except ValueError:
+    print "Bad #levels line!"
+    sys.exit (1)
+#
+# OK, extract the begin time and add it to what we have already.
+#
+try:
+    hours = string.atof (sline[1])
+except ValueError:
+    print "Bad hours field: " + sline[1]
+    sys.exit (1)
+begint = begint + hours*3600
+
+#
+# We also need the station latitude and longitude -- also to be found
+# in this line.
+#
+try:
+    lat = string.atof (sline[3])
+    lon = string.atof (sline[2])
+except ValueError:
+    print "Bad lat/lon: " + string.join (sline[2:3])
+    sys.exit (1)
+print "Station is at %f %f" % (lat, lon)
+
+#
+# Everything else is to be skipped.  Get the first data line.
+#
+sline = FirstDataLine (infile)
+nline = 0
+#
+# Set up the data arrays.
+#
+times = [ ]
+data = { }
+for field in Fields.keys ():
+    data[field] = [ ]
+#
+# Let's crank.
+#
+while len (sline) > 1:
+    #
+    # Extract everything, then figure the rest by hand.
+    #
+    try:
+	ScalarIngest.DecodeVars (sline, Fields, data)
+    except:
+	print "Bummer, SI error on line " + string.join (sline)
+    times.append (begint + string.atof (sline[1]))
+    data['lat'].append (lat)
+    data['lon'].append (lon)
+    data['dp'].append (wder.TempHumToDp (data['tdry'][-1], data['rh'][-1]))
+    #
+    # Get another line.
+    #
+    sline = string.split (infile.readline ()[:-1])
+    nline = nline + 1
+#
+# OK, we've cranked.  See how many lines we really got.
+#
+print "Actually got %d levels" % nline
+
+#
+# Now store and we're done.
+#
+ScalarIngest.Init (times[0], "/dt2/fastex/" + sys.argv[1], sys.argv[1], Fields)
+ScalarIngest.Store (times, data)
+ScalarIngest.Done ()
+infile.close ()

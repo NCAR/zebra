@@ -39,7 +39,7 @@ def MakeTime (ftime):
     minutes = (tsecs/60) % 60
     seconds = tsecs % 60
     t = time.mktime (Year, Month, Day, hours, minutes, seconds, 0, 0, 0)
-    t = t + time.timezone
+    t = t - time.timezone
     #
     # If we have rolled over a day, adjust.
     #

@@ -121,7 +121,7 @@ def MakeTime (day, hour):
     t = time.mktime ((1900 + iev (day[0:2]), iev (day[2:4]), iev (day[4:6]),
 			iev (hour[0:2]), iev (hour[2:4]), iev (hour[4:6]),
 			0, 0, 0))
-    return t + iev (hour[6:8]) + time.timezone
+    return t + iev (hour[6:8]) - time.timezone
 
 #
 # Here is one of the monumental kludges of the century.  Compress the times
