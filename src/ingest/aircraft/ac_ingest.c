@@ -18,14 +18,14 @@
 OurAc	AircraftList[MAXOURS];
 int	NumAc = 0;
 
-static int	Dispatcher (), ResetFd (), ProcessData ();
+static int	Dispatcher (), ResetFd (), ProcessData (), CheckValues ();
 static int	SeemsBad (), RawAlign (), AlignPacket ();
 static int	SetBaudRate (), ReadChars (), IsOurs ();
 static int	GetRawPacket (); 
 int		DoData ();
 static void	Go (), SetupIndirect (), Dial (), StoreData(); 
 static void	CvtData (), CvtToLatLon ();
-static void	AddTrans (), ChangeTrans (), DelTrans ();
+static int	AddTrans (), ChangeTrans (), DelTrans ();
 static void	GetOurAircraft ();
 
 MsgDispatcher (msg)
@@ -35,6 +35,7 @@ struct message	*msg;
  */
 {
 	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
+	char sendstr[3];
 
 	switch (msg->m_proto)
 	{
@@ -45,21 +46,35 @@ struct message	*msg;
 		case MT_ACINGEST:
 			switch (msg->m_data[0])
 			{
-				case 'a':
-					AddTrans (msg->m_data + 2);
-					break;
-				case 'c':
-					ChangeTrans (msg->m_data + 2);
-					break;
-				case 'd':
-					DelTrans (msg->m_data + 2);
-					break;
-				default:
-					msg_ELog (EF_PROBLEM, 
-					"Unknown transponder command.");
-					break;
+			  case 'a':
+		    	    if (AddTrans (msg->m_data + 2))
+				sendstr[0] = 'a';
+			    else sendstr[0] = 'n';
+			    sendstr[1] = '\0';
+			    msg_send (msg->m_from, MT_ACINGEST, FALSE,
+				sendstr, sizeof (sendstr));
+			    break;
+			  case 'c':
+			    if (ChangeTrans (msg->m_data + 2))
+				sendstr[0] = 'c';
+			    else sendstr[0] = 'm';
+			    sendstr[1] = '\0';
+			    msg_send (msg->m_from, MT_ACINGEST, FALSE,
+				sendstr, sizeof (sendstr));
+		  	    break;
+			  case 'd':
+			    if (DelTrans (msg->m_data + 2))
+				sendstr[0] = 'd';
+			    else sendstr[0] = 'o';
+			    sendstr[1] = '\0';
+			    msg_send (msg->m_from, MT_ACINGEST, FALSE,
+				sendstr, sizeof (sendstr));
+			    break;
+			  default:
+			    msg_ELog (EF_PROBLEM, 
+				"Unknown transponder command.");
+			    break;
 			}
-			print_list ();
 			break;
 		default:
 			msg_ELog (EF_DEBUG, "What's this %d?", msg->m_proto);
@@ -75,15 +90,29 @@ Die ()
  */
 {
 	FILE	*fptr;
-	int	i;
+	int	i, n_written;
+	char	endcmd[2];
 
 	msg_ELog (EF_DEBUG, "Dying...");
+/*
+ * Write out the transponder codes we're using.
+ */
 	fptr = fopen ("transfile", "w");
 	for (i = 0; i < NumAc; i++)
 		fprintf (fptr, "%s %s\n", AircraftList[i].platform,
 			AircraftList[i].transponder);
 	fclose (fptr);
+/*
+ * Send the kill command to the black box.
+ */
 	write (Fd, Kill, 1);
+/*
+ * Hang up the modem.
+ */
+	endcmd[0] = 0x0d;
+	n_written = write (Fd, "at h0", 5);
+  	n_written = write (Fd, endcmd, 1);
+	sleep (10);
 	close (Fd);
 	ui_finish ();
 	exit (0);
@@ -144,13 +173,13 @@ GetOurAircraft ()
 	NumAc = (int) num / 2;
 	for (i = 0; i < NumAc; i++)
 	{
-		strcpy (AircraftList[i].platform, aircraft[i]);
-		strcpy (AircraftList[i].transponder,aircraft[i+1]);
+		strcpy (AircraftList[i].platform, aircraft[2*i]);
+		strcpy (AircraftList[i].transponder,aircraft[2*i+1]);
 	}
 }
 
 
-static void
+static int
 AddTrans (data)
 char	*data;
 /*
@@ -166,21 +195,22 @@ char	*data;
 	if (num != 2)
 	{
 		msg_ELog (EF_PROBLEM, "Bad data to add %s.", data);
-		return;
+		return (FALSE);
 	}
 	for (i = 0; i < NumAc; i++)
 		if (strcmp (AircraftList[i].platform, temp[0]) == 0)
 		{
 			msg_ELog (EF_DEBUG, "Platform already added.");
-			return;
+			return (FALSE);
 		}
 	strcpy (AircraftList[NumAc].platform, temp[0]);
 	strcpy (AircraftList[NumAc].transponder, temp[1]);
 	NumAc++;
+	return (TRUE);
 }
 
 
-static void
+static int
 ChangeTrans (data)
 char	*data;
 /*
@@ -195,7 +225,7 @@ char	*data;
 	if (num != 2)
 	{
 		msg_ELog (EF_PROBLEM, "Bad data to change %s.", data);
-		return;
+		return (FALSE);
 	}
 	for (i = 0; i < NumAc; i++)
 	{
@@ -206,12 +236,16 @@ char	*data;
 		}
 	}
 	if (i >= NumAc)
+	{
 		msg_ELog (EF_PROBLEM, "Can't find platform %s to change.",
-		temp[0]);
+			temp[0]);
+		return (FALSE);
+	}
+	return (TRUE);
 }
 
 
-static void
+static int
 DelTrans (data)
 char	*data;
 /*
@@ -226,7 +260,7 @@ char	*data;
 	if (num != 2)
 	{
 		msg_ELog (EF_PROBLEM, "Bad data to delete %s.", data);
-		return;
+		return (FALSE);
 	}
 	for (i = 0; i < NumAc; i++)
 	{
@@ -238,8 +272,11 @@ char	*data;
 		}
 	}
 	if (itsat < 0)
+	{
 		msg_ELog (EF_PROBLEM, "Can't find platform %s to delete.",
 			temp[0]);
+		return (FALSE);
+	}
 	else
 	{
 		for (i = itsat; i < NumAc - 1; i++)
@@ -251,6 +288,7 @@ char	*data;
 		}
 		NumAc--;
 	}
+	return (TRUE);
 }
 
 
@@ -271,6 +309,12 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "azimuth_res", &AzimuthRes, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "radar_lat", &RadarLat, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "radar_lon", &RadarLon, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "alt_min", &AltMin, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "alt_max", &AltMax, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "lat_min", &LatMin, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "lat_max", &LatMax, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "lon_min", &LonMin, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "lon_max", &LonMax, SYMT_FLOAT, 0);
 }
 
 
@@ -358,7 +402,6 @@ Dial ()
 		case '0':
 		case '1':
 		case '5':
-			msg_ELog (EF_INFO, "Connected.");
 			break;
 		case '3':
 			msg_ELog (EF_PROBLEM, "No carrier detected.");
@@ -386,23 +429,27 @@ Dial ()
 			Die ();
 			break;
 	}
-/*
- * Send commands to the black box. Not doing this right now.  The box
- * doesn't seem to need it.
- */
-/*
+	sleep(10);
   	n_written = write (Fd, Command, 1);
-  	sleep(5);
+	msg_ELog (EF_DEBUG, "wrote command %d", n_written);
+  	sleep(10);
 	
   	n_written = write (Fd, Kill, 1);
-  	sleep(3);
+	msg_ELog (EF_DEBUG, "wrote kill %d", n_written);
+  	n_written = write (Fd, endcmd, 1);
+	msg_ELog (EF_DEBUG, "wrote endcmd %d", n_written);
+  	sleep(10);
 
   	n_written = write (Fd, Startup, strlen (Startup));
-  	n_written = write (Fd, endcmd, 2);
-  	sleep(2);
+	msg_ELog (EF_DEBUG, "wrote startup %d", n_written);
+  	n_written = write (Fd, endcmd, 1);
+	msg_ELog (EF_DEBUG, "wrote endcmd %d", n_written);
+  	sleep(10);
 
   	n_written = write (Fd, SendAll, 1);
-*/
+	msg_ELog (EF_DEBUG, "wrote sendall %d", n_written);
+
+	msg_ELog (EF_INFO, "Connected.");
 }
 
 
@@ -413,6 +460,7 @@ Go ()
  */
 {
 	GetOurAircraft ();
+	print_list ();
 	msg_add_fd (Fd, DoData);
 	msg_await ();
 }
@@ -505,7 +553,29 @@ Ac_Data	aircraft;
 	Dobj.do_aloc->l_alt = aircraft.altitude; 
 	Dobj.do_aloc->l_lat = aircraft.latitude; 
 	Dobj.do_aloc->l_lon = aircraft.longitude; 
-	ds_PutData (&Dobj, FALSE);
+	if (CheckValues (aircraft))
+		ds_PutData (&Dobj, FALSE);
+	else
+	{
+		msg_ELog (EF_INFO, "alt %f %f lat %f %f lon %f %f", 
+			AltMin, AltMax, LatMin, LatMax, LonMin, LonMax);
+		msg_ELog (EF_INFO, "Discarding a track point (%f %f %f).",
+		aircraft.altitude, aircraft.latitude, aircraft.longitude);
+	}
+}
+
+
+static int
+CheckValues (a)
+Ac_Data	a;
+{
+	if ((a.altitude < AltMin) || (a.altitude > AltMax))
+		return (FALSE);
+	if ((a.latitude < LatMin) || (a.latitude > LatMax))
+		return (FALSE);
+	if ((a.longitude < LonMin) || (a.longitude > LonMax))
+		return (FALSE);
+	return (TRUE);
 }
 
 
@@ -846,10 +916,10 @@ int	baud;
  */
 {
 	int	i, j, newfd;
+/*  
   
 	msg_ELog (EF_DEBUG, "Resetting %s fd %d baud %d.", name, fd, baud);
 	close (fd);
-  
 	if (*name == 0) newfd = -1;
 	else if (strcmp(name, "fake") == 0) 
 	{
@@ -875,6 +945,7 @@ int	baud;
 		return (newfd);
 	}
 	else return (FALSE);
+*/
 }
 
 
@@ -928,7 +999,7 @@ print_list ()
 	int	i;
 
 	for (i = 0; i < NumAc; i++)
-		msg_ELog (EF_DEBUG, "[%d] %s %s", i, AircraftList[i].platform,
+		msg_ELog (EF_INFO, "[%d] %s %s", i, AircraftList[i].platform,
 			AircraftList[i].transponder);
-	msg_ELog (EF_DEBUG, "End of AircraftList (%d)", NumAc);
+	msg_ELog (EF_INFO, "End of AircraftList (%d)", NumAc);
 }
