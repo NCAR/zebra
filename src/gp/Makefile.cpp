@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.12 1992-04-28 14:26:51 kris Exp $ */
+/* $Id: Makefile.cpp,v 1.13 1992-06-02 20:09:55 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,9 +27,9 @@
 # endif
 
 CC=CCompiler
-CFLAGS=CCOptions IncludeDirs $(SHMFLAG)
+CFLAGS=CCOptions -I/zeb/ds.new IncludeDirs $(SHMFLAG)
 FFLAGS=FortOptions
-LIBS=ZebLibrary CDFLibrary FortranLibs MiscLibs XLibraries
+LIBS= /zeb/ds.new/libnewds.a ZebLibrary CDFLibrary FortranLibs MiscLibs XLibraries
 
 # if OPENWIN
 OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
@@ -58,7 +58,18 @@ all:	gp
 saber:	$(OBJS)
 	# setopt ansi
 	# load $(CFLAGS) GraphProc.o
+	# load -G rgrid.o cfit.o
+	# load -G /locallib/librdss.a
 	# load $(CFLAGS) $(OBJS) -Bstatic $(LIBS) "/usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a"
+	# link
+
+saber_src:
+	# setopt ansi
+	# load $(CFLAGS) *.c
+	# unload dctest.c sfont_1.c malloc.c
+	# load -G rgrid.o cfit.o
+	# load -G /locallib/librdss.a
+	# load $(CFLAGS) -Bstatic $(LIBS) "/usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a"
 	# link
 
 install:	gp graphproc.lf include
