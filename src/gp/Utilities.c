@@ -48,7 +48,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.55 1998-11-20 16:08:58 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.56 1998-12-10 00:36:29 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1366,7 +1366,7 @@ ParseFieldList (char *string, char **substrings)
 	      case ',':
 		if (bracketlevel == 0)
 		{
-		    string[i++] = '\0';
+		    string[i] = '\0';
 		    foundcomma = 1;
 		}
 		break;
@@ -1375,16 +1375,16 @@ ParseFieldList (char *string, char **substrings)
 	     */
 	      case '[':
 		bracketlevel++;
-		i++;
 		break;
 	    /*
 	     * Close bracket.  Decrement the bracket level.
 	     */
 	      case ']':
 		bracketlevel--;
-		i++;
 		break;
 	    }
+
+	    i++;
 	}
     }
 
