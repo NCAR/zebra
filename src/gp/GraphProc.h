@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.7 1991-11-22 20:55:42 kris Exp $ */
+/* $Id: GraphProc.h,v 2.8 1991-12-18 23:02:55 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -106,6 +106,10 @@ extern int DrawFrame;			/* Frame to draw in		*/
 /*
  * Routines of interest.
  */
+extern int SetLWidth FP((char *, char *, char *, int));
+extern void FixLWidth FP((int));
+extern void FixForeground FP((long));
+
 # ifdef __STDC__
 extern void tr_InitAcWidget ();
 extern void pc_CancelPlot (void);
