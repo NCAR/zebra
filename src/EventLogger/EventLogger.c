@@ -37,7 +37,7 @@
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.10 1992-01-27 20:06:23 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.11 1992-04-08 17:14:15 corbet Exp $")
 
 
 
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.10 1992-01-27 20:06:23 corbet Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.11 1992-04-08 17:14:15 corbet Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -319,8 +319,10 @@ Widget left;
 /*
  * The menu that goes with it.
  */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Debugging");	n++;
 	ProcMenu = XtCreatePopupShell ("Processes", simpleMenuWidgetClass,
-		Top, NULL, ZERO);
+		Top, args, n);
 /*
  * The actual entries will be created as the connect notifications arrive.
  */
