@@ -1,11 +1,64 @@
-Wed May 11 17:45:05 1994  Gary Granger  (granger@kodiak)
+Mon May 23 20:50:35 1994  Gary Granger  (granger@steam)
 
-	* ds: Platform class and instance hierarchies added.  Primitive
-	  debugging options.  More stats in query responses.
+	* --- Branch_LANTEX changes ---
+
+	* TimeSeries.c: fixed a bug in axis tic labels which I introduced
+	  in the Solaris port
+
+	* lib: add msg_myname() function to msg_lib.c, use this to set
+	  c$msgname in SetupConfigVariables(); used by gp to send its 
+	  boundary to another window
+
+	* config.h.dist: removed /*/ constructs, inserted default defn
+	  for XCOMM, use UNQUOTED_DIRDEFS instead of MAKING_MAKEFILE
+
+	* Ingest state files: changed /rdss/ui/ui_commands to #ui$defs_file
+
+	* dm: SaveConfig() uses DM_GEOMETRY to query clients for geometry
+	  info (retrieved from top-level-shell resources: location is WM
+	  parent window location, size is the size of the shell window 
+	  itself); tested under olwm and vtwm.  Re-arranged message types
+	  in dm protocol since there was some overlap.
+
+	* dm: fixed bug in KillProcess which would accidentally remove
+	  windows from a configuration; added 'reuse' and 'rename' options
+	  to dm newwindow command: rename generates unique window names 
+	  automatically
+
+	* gp: fixed station plots to correlate with side annotation
+	  quadrant active areas
+
+	* message.c: MTAP case moved *above* MT_PING so that pings which
+	  fall through don't fall into MT_TAP.  Accept both MT_PING and
+	  MT_CPING for pings to the message handler, since the handler
+	  checks for its own name anyway.
+
+	* zmon.c and msg_ping.c: Send MT_CPING in all cases, regardless of
+	  whether pinging a message client or the handler itself.  Zmon
+	  now accepts redundant host and process names in the config file.
+
+	* '/' in platform names removed to get cache file names.
+
+	* Archiver: tar command line now limited to what fits into the
+	  command line buffer; dumpdate method improved
+
+	* ConfigVars.c: tries Basedir/project/ZEB_PROJECT first, and if no
+	  access tries Basedir/ZEB_PROJECT, and finally resorts to "." if
+	  necessary.  If ZEB_PROJECT begins with a '/', accept the value
+	  as an absolute path to the project directory.
+
+	* icons: use $(INSTALL) to overwrite read-only installed files
+
+Thu May 19 19:59:00 1994  Gary Granger  (granger@kodiak)
 
 	* dm: Define plot descriptions with dm commands.  Configs saved
 	  as a single file, complete with plot descriptions.  Includes new
 	  'showpd' command.
+
+Wed May 11 17:45:05 1994  Gary Granger  (granger@kodiak)
+
+	* ds: Platform class and instance hierarchies added.  Primitive
+	  debugging options.  More stats in query responses.
 
 Mon May  9 16:42:08 1994  Jonathan Corbet  (corbet@ale)
 
