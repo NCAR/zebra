@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.24 1996-04-19 21:15:14 burghart Exp $")
+RCSID ("$Id: Skewt.c,v 2.25 1996-05-03 22:05:09 granger Exp $")
 
 /*
  * General definitions
@@ -114,9 +114,9 @@ static bool	Do_vectors;
 void		sk_Skewt FP ((char *, int)); 
 static void	sk_Background FP (()); 
 static void	sk_Lift FP ((int, float*, float*, float*, double)); 
-static void	sk_Thermo FP ((char *, char *, XColor, int));
-static void	sk_Winds FP ((char *, char *, XColor, int, int, int, int, 
-			      int));
+static void	sk_Thermo FP ((char *, char *, ZebTime *, XColor, int));
+static void	sk_Winds FP ((char *, char *, ZebTime *, XColor, int,
+			      int, int, int, int));
 static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
 static void	sk_DrawText FP ((char *, double, double, double, XColor, 
 				 double, int, int)); 
@@ -136,11 +136,13 @@ bool	update;
  */
 {
 	bool		ok;
-	int		plat, nplat, nwplat;
+	int		plat, nplat, nwplat, noffset;
 	char		ctname[24], tadefcolor[32], style[16];
 	char		platforms[PlatformListLen];
 	char		windplats[PlatformListLen];
+	char		offsets[PlatformListLen];
 	char		*pnames[MaxPlatforms], *wpnames[MaxPlatforms];
+	char		*poffsets[MaxPlatforms];
 	XColor		color;
 	int		skip;
 /*
@@ -174,6 +176,15 @@ bool	update;
 		}
 		else
 			nwplat = nplat;
+	}
+/*
+ * Look for time offsets for each overlay.  If no time offsets or too few,
+ * the rest are assumed to be zero.
+ */
+	noffset = 0;
+	if (pda_Search (Pd, c, "time-offset", NULL, offsets, SYMT_STRING))
+	{
+		noffset = CommaParse (offsets, poffsets);
 	}
 /*
  * Look for data limits; set them to defaults if necessary
@@ -254,6 +265,12 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
+		ZebTime when = PlotTime;
+	/*
+	 * Handle a possible time offset.
+	 */
+		if (noffset > plat)
+			when.zt_Sec -= pc_TimeTrigger (poffsets[plat]);
 	/*
 	 * Determine the color for this platform
 	 */
@@ -266,10 +283,10 @@ bool	update;
 	/*
 	 * Do the thermo bit, then the winds
 	 */
-		sk_Thermo (c, pnames[plat], color, update);
+		sk_Thermo (c, pnames[plat], &when, color, update);
 		sk_Winds (c, (nwplat > 0) ? wpnames[plat] : pnames[plat],
-			  color, plat, nplat, (bool)(nwplat > 0), update, 
-			  skip);
+			  &when, color, plat, nplat, (bool)(nwplat > 0), 
+			  update, skip);
 	}
 /*
  * Add a period to the top annotation
@@ -731,8 +748,9 @@ ENDCATCH
 
 
 static void
-sk_Thermo (c, pname, color, update)
+sk_Thermo (c, pname, when, color, update)
 char	*c, *pname;
+ZebTime *when;
 XColor	color;
 bool    update;
 /*
@@ -762,7 +780,7 @@ bool    update;
 		return;
 	}
 	
-	ptime = PlotTime;
+	ptime = *when;
 	if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
 	{
 		char	tstring[20];
@@ -825,18 +843,18 @@ bool    update;
 		pda_Search (Pd, c, "top-annot-active", "skewt",
 				(char *) &active, SYMT_BOOL);
 		An_DoTopAnnot (pname, tacolor, active ? c : 0, pname);
-	}
-/*
- * See if they want to hear about the time.
- */
-	if (! pda_Search (Pd, c, "annot-time", "skewt", (char *) &antime,
-			SYMT_BOOL) || antime)
-	{
-		char atime[40];
-		TC_EncodeTime (&ptime, TC_Full, atime + 2);
-		atime[0] = ' '; atime[1] = '(';
-		strcat (atime, ")");
-		An_TopAnnot (atime, tacolor);
+	/*
+	 * See if they want to hear about the time too.
+	 */
+		if (! pda_Search (Pd, c, "annot-time", "skewt", 
+				  (char *) &antime, SYMT_BOOL) || antime)
+		{
+			char atime[40];
+			TC_EncodeTime (&ptime, TC_Full, atime + 2);
+			atime[0] = ' '; atime[1] = '(';
+			strcat (atime, ")");
+			An_TopAnnot (atime, tacolor);
+		}
 	}
 /*
  * Find the number of points in the observation, and stash it away
@@ -943,9 +961,10 @@ bool    update;
 
 
 static void
-sk_Winds (c, pname, color, plot_ndx, nplots, annot, update, skip)
+sk_Winds (c, pname, when, color, plot_ndx, nplots, annot, update, skip)
 char	*c, *pname;
 XColor	color;
+ZebTime	*when;
 int	plot_ndx, nplots;
 bool	annot, update;
 int	skip;
@@ -990,7 +1009,7 @@ int	skip;
 		return;
 	}
 	
-	ptime = PlotTime;
+	ptime = *when;
 	if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
 	{
 		char	tstring[20];
