@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.7 1991-12-20 17:48:56 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.8 1992-03-18 21:13:08 corbet Exp $"
 
 # include "../include/config.h"
 
@@ -18,9 +18,11 @@ SRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c GetList.c \
 
 /* DCOBJS, DCSRCS =  data chunk modules */
 DCOBJS = ConvertDObj.o DataChunk.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
-	dc_MetData.o dc_RGrid.o dc_Scalar.o dc_Transp.o dc_Attr.o
+	dc_MetData.o dc_RGrid.o dc_Scalar.o dc_Transp.o dc_Attr.o \
+	dc_Location.o
 DCSRCS = ConvertDObj.c DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
-	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c
+	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c \
+	dc_Location.c
 
 
 all::	dsDaemon dsDaemon.lf $(OBJS) $(DCOBJS) dsdump dsdelete prt_Notify \
@@ -113,6 +115,9 @@ saber_dct:
 	#load $(CFLAGS) dctest.c $(DCSRCS)
 	#load -Bstatic $(LIBS) /locallib/gcc-gnulib
 
+saber_arc: saber_lib
+	#setopt ansi
+	#load $(CFLAGS) Archiver.c $(XLIBS)
 
 clean:
 	rm -f *~ dsDaemon LastData dsdump dsdwidget dsdelete NetXfr 
