@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.24 1995-04-20 07:49:34 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.25 1995-04-25 16:24:34 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -286,7 +286,9 @@ usage ()
 	fprintf (stderr, " -nofork    %s",
 		 "Do not fork into the background; useful under debuggers\n");
 	fprintf (stderr, " -file      %s",
-		 "Add the session entries in <file> to the address table\n");
+		 "Add the session entries in <file> to the address table,\n");
+	fprintf (stderr, "            %s",
+	 "where entry lines contain: <session name> <host address> <port>\n");
 	fprintf (stderr, " -session   Use <name> as our session identity\n");
 	fprintf (stderr, " name@host:port\n");
 	fprintf (stderr, "            Use address <host>:<port> for ");
@@ -1036,7 +1038,7 @@ struct message *msgp;
  * within send_msg and DelayWrite.  Use log() instead.  To see messages at
  * this level, turn on debugging.
  *
- * If we add our hostname to msgp->m_from before sending it, restore it
+ * If we add our hostname to msgp->m_from before sending, restore m_from
  * before returning.
  */
 {
@@ -1352,13 +1354,11 @@ fd_set *fds;
 					  "host %s: @ left in net msg: %s->%s",
 					  Hostname, msg->m_from, msg->m_to);
 			}
-			Fd_map[fd]->c_nsend++;
-			Fd_map[fd]->c_bnsend += msg->m_len;
 			dispatch (fd, msg);
+			free (msg->m_data);
 		}
 	}
 }
-
 
 
 
@@ -1390,14 +1390,14 @@ int fd;
 			if (nb > 0)
 				send_log (EF_PROBLEM, 
 					  "Short message (%d) from %s", nb,
-					  Fd_map[fd]->c_name);
+					  cp->c_name);
 			deadconn (fd);
 			return (0);
 		}
 		if (msg->m_len > 50000)
 		{
 			send_log (EF_PROBLEM, "CORRUPT msg, len %d from %s", 
-				  msg->m_len, msg->m_from);
+				  msg->m_len, cp->c_name);
 			return (0);
 		}
 	/*
@@ -1406,6 +1406,13 @@ int fd;
 		msg->m_data = malloc (msg->m_len);
 		cp->c_inprog = TRUE;
 		cp->c_nread = 0;
+	/*
+	 * Clients do not fill in the 'from' field; fix it
+	 * now since we make assumptions that it's valid later on.
+	 * Inet hosts must have sent a correct 'from' field to us.
+	 */
+		if (! cp->c_inet)
+			strcpy (msg->m_from, cp->c_name);
 	}
 /*
  * Pull in the message text.
@@ -1415,6 +1422,8 @@ int fd;
 	if (cp->c_nread >= msg->m_len)
 	{
 		cp->c_inprog = FALSE;
+		cp->c_nsend++;
+		cp->c_bnsend += msg->m_len;
 		return (msg);
 	}
 	S_NDRead++;
@@ -1432,7 +1441,7 @@ char *addr;
  * Remove the "@host" from the destination, if we're that host.
  */
 {
-	char *at, *strrchr ();
+	char *at;
 
 	at = strrchr (addr, '@');
 	if (at && ! strcmp (at + 1, Hostname))
@@ -1742,11 +1751,9 @@ struct message *msg;
 	   case MT_PING:
 	   case MT_CPING:
 	   	if (! strcmp (msg->m_to, MSG_MGR_NAME))
-		{
 			AnswerPing (fd, msg);
-			break;
-		}
-		route (fd, msg);
+		else
+			route (fd, msg);
 		break;
 	/*
 	 * Check for elog messages sent to us to update our mask
@@ -1768,7 +1775,6 @@ struct message *msg;
 		route (fd, msg);
 		break;
 	}
-	free (msg->m_data);
 }
 
 
@@ -2017,8 +2023,8 @@ struct message *msg;
  * Deal with an internet greeting.
  */
 {
+	char *at;
 	struct connection *conp = Fd_map[fd];
-	char *strrchr (), *at;
 /*
  * See to it that we agree with the remote machine as to their name.
  */
@@ -2039,11 +2045,14 @@ struct message *msg;
  */
 {
 	struct connection *conp;
+
+#ifdef notdef /* should have been done in ReadMessage */
 /*
  * Copy in the REAL sender of the message.
  */
 	if (! Fd_map[fd]->c_inet)
 	 	strcpy (msg->m_from, Fd_map[fd]->c_name);
+#endif
 /*
  * Hand off copies to any eavesdroppers.
  */
@@ -2321,7 +2330,7 @@ struct message *msg;
 	union usy_value v;
 	int type, i;
 	struct group *grp;
-	char *at, *strrchr ();
+	char *at;
 	struct connection *remote;
 /*
  * See if we're dealing with a remote group here.
@@ -2433,7 +2442,7 @@ struct connection *conp;
 	struct group *grp;
 	int i, type;
 	union usy_value v;
-	char *at, *strrchr ();
+	char *at;
 	Connection *netcon;
 /*
  * If this thing has an @ in it, what we really want to do is to ship it
@@ -2604,7 +2613,7 @@ va_dcl
 	va_list args;
 	char *fmt;
 /*
- * No sense do compiling a message if we won't be printint it
+ * No sense in compiling a message if we won't be printing it
  */
 	if (! (flags & (EF_PROBLEM | EF_EMERGENCY)) && (! Debug))
 		return;
@@ -2615,8 +2624,7 @@ va_dcl
 	fmt = va_arg (args, char *);
 	vsprintf (mbuf, fmt, args);
 	va_end (args);
-		fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname,
-			 mbuf);
+	fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname, mbuf);
 }
 
 
