@@ -47,7 +47,7 @@
 static void CallXHelp ();
 static bool UseXHelp = TRUE;
 
-MAKE_RCSID ("$Id: dm.c,v 2.56 1994-11-20 23:26:57 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.57 1994-11-23 16:29:49 burghart Exp $")
 
 
 /*
@@ -155,6 +155,7 @@ char *argv[];
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
 	cp_SetupCmdProto ();
+	ds_Initialize ();
 /*
  * Create our symbol tables.
  */
@@ -1667,17 +1668,8 @@ struct ui_command *cmds;
 	DataChunk *dc;
 	FieldId fid;
 	ZebTime when;
-	static int init_done = FALSE;
 	float dlat, dlon, mlat, mlon;
-/*
- * If need be, initialize the data store.  We do this here because 99% of the
- * invocations of dm will never need it.
- */
-	if (! init_done)
-	{
-		init_done = TRUE;
-		ds_Initialize ();
-	}
+
 	fid = F_Lookup ("trans");
 /*
  * Pull out basic info.
