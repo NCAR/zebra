@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.28 1993-03-15 20:15:18 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.29 1993-03-18 07:29:56 granger Exp $")
 
 
 /*
@@ -1120,6 +1120,11 @@ struct ui_command *cmds;
  */
 	TC_UIToZt (&UDATE (cmds[1]), &when);
 	SetTimeMode (all ? 0 : dwin->cfw_name, TRUE, &when);
+/*
+ * If this is a global change, update the time widget as well.
+ */
+	if (all)
+		tw_SetTime (&when);
 }
 
 
@@ -1155,6 +1160,11 @@ struct ui_command *cmds;
  * Tweak the mode.
  */
 	SetTimeMode (all ? 0 : dwin->cfw_name, FALSE, 0);
+/*
+ * It is debatable whether the time widget should be made to reflect the
+ * real-time system time, as it is when setting a history.  For now we
+ * assume the user will want to keep the history time to go back to later.
+ */
 }
 
 
@@ -1170,10 +1180,15 @@ int control_all;
 	char winname[40];
 /*
  * See what window(s) to deal with.
- * (shouldn't we be checking that we picked a real window here??)
  */
 	if (! control_all)
 		PickWin (winname);
+	if (! strcmp (winname, DM_PICKWIN_NONE))
+	{
+		msg_ELog (EF_PROBLEM,
+			  "Invalid window chosen for time widget. Ignoring.");
+		return (0);
+	}
 /*
  * Now do it.
  */
