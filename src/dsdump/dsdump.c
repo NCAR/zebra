@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.30 2000-11-28 18:53:06 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.31 2001-10-25 18:30:25 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -253,6 +253,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 	break;
 
     default:
+	break;
     }
     return 0;
 }
