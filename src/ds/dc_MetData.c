@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.28 2002-10-06 07:45:59 granger Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.29 2002-11-14 05:49:55 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -1369,6 +1369,8 @@ int *len;
 	FieldTOC *ft;
 	int findex = -1;
 	int f;
+	int fsize;
+	int foffset;
 	DataPtr data;
 /*
  * The usual sanity checking.
@@ -1391,6 +1393,7 @@ int *len;
 	{
 		if (len) len[f] = 0;
 		fdata[f] = NULL;
+		fsize = 0;
 		if ((fields[f] == BadField) ||
 		    (findex = dc_GetIndex (finfo, fields[f])) < 0)
 			continue;
@@ -1399,18 +1402,16 @@ int *len;
 		 */
 		if (finfo->fi_Uniform)
 		{
-			if (len) len[f] = finfo->fi_Size;
-			fdata[f] = (void *)((char *) data + 
-					    findex*finfo->fi_Size);
+			fsize = finfo->fi_Size;
+			foffset = findex*finfo->fi_Size;
 		}
 		else if (finfo->fi_FixedFields)
 		{
 			/*
 			 * For fixed fields, the index is in the offset table
 			 */
-			if (len) len[f] = finfo->fi_Sizes[findex];
-			fdata[f] = (void *)((char *) data + 
-					    finfo->fi_Offset[findex]);
+			fsize = finfo->fi_Sizes[findex];
+			foffset = finfo->fi_Offset[findex];
 		}
 		else
 		{
@@ -1421,11 +1422,18 @@ int *len;
 			ft = (FieldTOC *) data;
 			if (ft[findex].ft_Len > 0)
 			{
-				if (len) *len = ft[findex].ft_Len;
-				fdata[f] = (void *)((char *) data + 
-						    ft[findex].ft_Offset);
+				fsize = ft[findex].ft_Len;
+				foffset = ft[findex].ft_Offset;
 			}
 		}
+		if (len) len[f] = fsize;
+		/*
+		 * Fields with a zero size are left with null pointers.
+		 * This catches static fields, which are not stored in the
+		 * data samples.
+		 */
+		if (fsize > 0)
+			fdata[f] = (void *)((char *) data + foffset);
 	}
 	return (fdata);
 }
@@ -1464,6 +1472,12 @@ int *stride;
  * If our field layout is not uniform, no sense trying the rest.
  */
 	if (! finfo->fi_FixedFields && ! finfo->fi_Uniform)
+		return (0);
+/*
+ * Check for 'index order'.  This should be as accurate as actually looping
+ * through all the samples and checking them explicitly, but much faster.
+ */
+	if (! dc_ContiguousSamples (dc))
 		return (0);
 /*
  * Determine what our sample stride should be.

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.51 2002-01-19 06:50:02 granger Exp $
+ * $Id: DataStore.h,v 3.52 2002-11-14 05:49:55 granger Exp $
  *
  * Public data store definitions.
  */
@@ -524,6 +524,7 @@ char 		**dc_GetSampleAttrKeys FP ((DataChunk *dc, int sample,
 					    int *natts));
 AltUnitType	dc_GetLocAltUnits FP ((DataChunk *dc));
 void		dc_SetLocAltUnits FP ((DataChunk *dc, AltUnitType units));
+zbool		dc_ContiguousSamples (DataChunk *dc);
 /*
  * Transparent class sub-sample abstractions
  */

@@ -1,4 +1,5 @@
-/* $Id: DataChunkP.h,v 1.17 1998-12-17 17:17:49 burghart Exp $ */
+/* -*- mode: c++; c-basic-offset: 8; -*- */
+/* $Id: DataChunkP.h,v 1.18 2002-11-14 05:49:55 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -107,6 +108,7 @@ typedef struct _AuxTrans
 	unsigned short at_HintUseAvgs;	/* use average sample size as needed */
 	unsigned short at_SampOverhead;	/* sample size overhead of subclasses*/
 	unsigned short at_SampDataSize;	/* hint for size of data in a sample */
+	unsigned short at_InOrder;	/* true if samples are contiguous */
 	long at_NextOffset;		/* Next offset into buffered raw data,
 					   equals dc_DataLen if no buffer */
 	AltUnitType at_LocAltUnits;	/* Altitude units for Locations */

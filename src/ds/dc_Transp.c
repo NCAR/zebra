@@ -27,7 +27,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Transp.c,v 1.26 1999-03-01 02:03:43 burghart Exp $")
+RCSID ("$Id: dc_Transp.c,v 1.27 2002-11-14 05:49:55 granger Exp $")
 
 /*
  * TODO:
@@ -1309,16 +1309,28 @@ DataChunk *dc;
 
 
 
+zbool
+dc_ContiguousSamples (DataChunk *dc)
+{
+	AuxTrans *tp;
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "ContiguousSamples"))
+		return FALSE;
+	tp = ATP(dc);
+	return (tp->at_InOrder != 0) ? TRUE : FALSE;
+}
+
+
+
 void
 dc_SortSamples (dc)
 DataChunk *dc;
 /*
- * Re-order the samples in this datachunk so that they are in 
- * chronological order.
+ * Re-order the samples in this datachunk so that they are in chronological
+ * order.  Since the samples were not necessarily added in chronological
+ * order, this rearranges their indices and puts them out of 'index order'.
  *
  * All we need to do is sort the at_Samples array and make sure the
- * platform list, if any, is kept up to date.
- */
+ * platform list, if any, is kept up to date.  */
 {
 	AuxTrans *tp;
 	PlatformId *list;
@@ -1341,6 +1353,8 @@ DataChunk *dc;
  */
 	if (tp->at_NSample <= 1)
 		return ;
+	/* The samples will no longer be in index order.  */
+	tp->at_InOrder = 0;
 /*
  * If there is no platform list, then just sort the at_Samples array
  */
@@ -1818,6 +1832,12 @@ DataChunk *dc;
 	tp->at_HintUseAvgs = 1;		/* Always default to trying averages */
 	tp->at_SampOverhead = 0;
 	tp->at_SampDataSize = 0;
+	/*
+	 * Samples will always be in 'index order' in memory, that is, 
+	 * allocated consecutively in the raw datachunk, until and unless
+	 * the samples are sorted or otherwise rearranged.
+	 */
+	tp->at_InOrder = 1;
 	tp->at_NextOffset = dc->dc_DataLen;	/* where our data will start */
 	tp->at_LocAltUnits = CFG_ALTITUDE_UNITS; /* default to km MSL */
 	tp->at_SLoc.l_lat = 0.0;
