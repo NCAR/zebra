@@ -1,5 +1,5 @@
 /*
- * $Id: twidget.h,v 2.1 1995-04-15 00:30:33 granger Exp $
+ * $Id: twidget.h,v 2.2 1995-04-27 14:54:49 granger Exp $
  *
  * Separate include file for the time widget, since it is not required
  * by most programs which link with the Zebra library.
@@ -37,8 +37,10 @@ typedef struct s_HotTime {
 	char ht_label[HT_LABEL_LEN];
 } HotTime;
 
+#define MAX_WINDOWS 20
 
 void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
+void	tw_SetWindowNames FP ((int nwin, char **names));
 void	tw_AddHelpCallback FP ((void (*callback) ()));
 void	tw_AddPopupCallback FP ((void (*callback) ()));
 void	tw_SetTime FP ((ZebTime *init_or_null)); /* null ==> use system time */

@@ -44,12 +44,13 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.14 1995-04-15 00:32:08 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.15 1995-04-27 14:54:47 granger Exp $")
 
 
 # define LABELWIDTH	60
 
 # define TW_NAME	"time"
+# define ALL_WINDOWS "All Windows"
 
 /*
  * Date/time button action codes.
@@ -74,14 +75,18 @@ static void (*HT_AddCallback)(/* ZebTime *zt, char *label */) = NULL;
 static void (*HT_DeleteCallback)(/* ZebTime *zt */) = NULL;
 
 #define HT_MenuName "hot-times-menu"
+#define HT_ForgetMenuName "forget-times-menu"
 static Widget HT_Menu = NULL;
+static Widget HT_ForgetMenu = NULL;
 static Widget HT_Text = NULL;
+
+static Widget TW_WindowMenu = NULL;
 
 /*
  * Global stuff
  */
 static Widget Htext = NULL;
-static Widget Stext = NULL, ControlButton = NULL;
+static Widget Stext = NULL;
 static Widget RTToggle = NULL, HistoryToggle = NULL;
 
 /*
@@ -97,9 +102,10 @@ static char Title[200];
 static int Tslot = -1;	/* Timeout slot		*/
 static int SkipMin = 5;
 static char TSString[10];
-static int ControlAll = TRUE;
+static char *ControlWindow = NULL;
 
-static int (*Tw_Callback) (/* enum pmode, ZebTime *, int control_all */) = 0;
+static int (*Tw_Callback) (/* enum pmode, ZebTime *, 
+			      int control_all, char *control_window */) = 0;
 static void (*Tw_HelpCallback) (/* void */) = 0;
 static void (*Tw_PopupCallback) (/* void */) = 0;
 
@@ -111,7 +117,6 @@ static void finish_arrow (), datebutton ();
 static void ChangeMonth (), ChangeDay (), ChangeYear (); 
 static void ChangeHour (), ChangeMin ();
 static void TimeSkip ();
-static void ChangeControl ();
 static void CallForHelp ();
 static void QuitCallback ();
 static void do_adjust FP ((int which));
@@ -119,11 +124,16 @@ static void set_dt FP ((void));
 extern Widget LeftRightButtons ();
 
 static void tw_HTAddCurrent FP ((Widget w, XtPointer client, XtPointer call));
-static void tw_HTDeleteCurrent FP ((Widget w, XtPointer client, XtPointer ));
 static void tw_HTEntryCallback FP ((Widget w, XtPointer client, XtPointer ));
+static void tw_HTDeleteCallback FP ((Widget w, XtPointer client, 
+				     XtPointer call));
 static void tw_HTSyncEntries FP ((Widget menu, int entry));
 static void tw_HTLabel FP ((char *label));
-static Widget tw_HTCreateMenu FP ((Widget parent, char *menuname));
+static Widget tw_HTCreateMenu FP ((Widget parent, char *title,
+				   char *menuname, void (*callback)()));
+static Widget tw_CreateWindowMenu FP ((Widget parent, char *title,
+				       char *name, Widget button));
+static void tw_WindowCallback FP ((Widget w, XtPointer client, XtPointer));
 
 
 
@@ -297,15 +307,17 @@ XtAppContext appc;
 					 form, args, n);
 /*
  * --------------------------------------------------------------------
- * On the next row put the most-used buttons in a button bar:
+ * On the next row put the most-used buttons in two button bars:
  * real-time mode, history mode, history times menu, help, and dismiss.
+ * The real-time and history buttons are in a radio group so put them
+ * in their own separate box.
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, title);		n++;
 	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
-	button_bar = XtCreateManagedWidget ("buttonbar", formWidgetClass, 
+	button_bar = XtCreateManagedWidget ("radiobar", formWidgetClass, 
 					    form, args, n);
 /*
  * Real time mode button is the leftmost
@@ -337,24 +349,35 @@ XtAppContext appc;
 	XtOverrideTranslations (left, ttable);
 	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) History);
 /*
+ * Now the button bar for the other buttons, right of the radio bar.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, button_bar);	n++;
+	XtSetArg (args[n], XtNfromVert, title);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	button_bar = XtCreateManagedWidget ("buttonbar", formWidgetClass, 
+					    form, args, n);
+	left = NULL;
+/*
  * Menu button for the history times menu
  */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Deja Vu");	++n;
+	XtSetArg (args[n], XtNlabel, "Select Time");	++n;
 	XtSetArg (args[n], XtNfromHoriz, left);		++n;
 	XtSetArg (args[n], XtNfromVert, NULL);		++n;
 	XtSetArg (args[n], XtNborderWidth, 1);		++n;
 	XtSetArg (args[n], XtNmenuName, HT_MenuName);	++n;
 	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
-	menubutton = XtCreateManagedWidget ("menubutton", 
-					    menuButtonWidgetClass,  
+	menubutton = XtCreateManagedWidget ("timemenu", menuButtonWidgetClass, 
 					    button_bar, args, n);
-	HT_Menu = tw_HTCreateMenu (menubutton, HT_MenuName);
+	HT_Menu = tw_HTCreateMenu (menubutton, "Select History Time", 
+				   HT_MenuName, tw_HTEntryCallback);
 /*
  * Add a history time
  */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Remember");	n++;
+	XtSetArg (args[n], XtNlabel, "Remember"); n++;
 	XtSetArg (args[n], XtNfromHoriz, menubutton);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNborderWidth, 1);		++n;
@@ -366,14 +389,18 @@ XtAppContext appc;
  * Delete a history time
  */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Forget");		n++;
-	XtSetArg (args[n], XtNfromHoriz, left);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNlabel, "Forget");		++n;
+	XtSetArg (args[n], XtNfromHoriz, left);		++n;
+	XtSetArg (args[n], XtNfromVert, NULL);		++n;
 	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	left = XtCreateManagedWidget ("forget", commandWidgetClass, 
-				      button_bar, args,n);
-	XtAddCallback (left, XtNcallback, (XtCallbackProc) tw_HTDeleteCurrent,
-		       (XtPointer) 0);
+	XtSetArg (args[n], XtNmenuName, HT_ForgetMenuName); ++n;
+	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
+	menubutton = XtCreateManagedWidget ("forgetbutton", 
+					    menuButtonWidgetClass,  
+					    button_bar, args, n);
+	HT_ForgetMenu = tw_HTCreateMenu (menubutton, "Forget History Time", 
+				 HT_ForgetMenuName, tw_HTDeleteCallback);
+	left = menubutton;
 /*
  * Help button
  */
@@ -514,7 +541,8 @@ XtAppContext appc;
 				       dateform, args, n);
 /*
  * ----------------------------------------------------------------
- * Control one/all windows selection in lower left corner.
+ * Control one/all windows selection in lower left corner.  Uses a menu
+ * of the window names in the current configuration.  
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
@@ -525,7 +553,7 @@ XtAppContext appc;
 				       form, args, n);
 
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Windows:");	n++;
+	XtSetArg (args[n], XtNlabel, "Control:");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
@@ -533,13 +561,18 @@ XtAppContext appc;
 		cform, args,n);
 
 	n = 0;
-	XtSetArg (args[n], XtNlabel, ControlAll ? "All" : "One");	n++;
-	XtSetArg (args[n], XtNfromHoriz, left);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNwidth, 30);		n++;
-	ControlButton = XtCreateManagedWidget ("contbutton", 
-		commandWidgetClass, cform, args,n);
-	XtAddCallback (ControlButton, XtNcallback, ChangeControl, NULL);
+	XtSetArg (args[n], XtNlabel, ALL_WINDOWS);	++n;
+	XtSetArg (args[n], XtNfromHoriz, left);		++n;
+	XtSetArg (args[n], XtNfromVert, NULL);		++n;
+	XtSetArg (args[n], XtNwidth, 140);		++n;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+	XtSetArg (args[n], XtNmenuName, "window-menu"); ++n;
+	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
+	menubutton = XtCreateManagedWidget ("window-button", 
+					    menuButtonWidgetClass,  
+					    cform, args, n);
+	TW_WindowMenu = tw_CreateWindowMenu (menubutton, 
+		     "Select Window to Control", "window-menu", menubutton);
 /*
  * ----------------------------------------------------------------
  * Time skipping stuff in lower right corner.
@@ -548,7 +581,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, cform);	n++;
 	XtSetArg (args[n], XtNfromVert, dateform);	n++;
-	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	XtSetArg (args[n], XtNdefaultDistance, 2);	n++;
 	sform = XtCreateManagedWidget ("sform", formWidgetClass, form, 
 				       args, n);
 
@@ -627,21 +660,6 @@ QuitCallback ()
 
 
 static void
-ChangeControl ()
-/*
- * Change window control between one window and all windows.
- */
-{
-
-	Arg arg;
-
-	ControlAll = ! ControlAll;
-	XtSetArg (arg, XtNlabel, ControlAll ? "All" : "One");
-	XtSetValues (ControlButton, &arg, 1);
-}
-
-
-static void
 TimeSkip (w, change, junk)
 Widget w;
 XtPointer change, junk;
@@ -653,8 +671,10 @@ XtPointer change, junk;
 	TC_SysToZt (((int) change == 1) ? systime + SkipMin*60 :
 			systime - SkipMin*60, &Histdate);
 	set_dt ();
-	(*Tw_Callback) (History, &Histdate, ControlAll);
+	(*Tw_Callback) (History, &Histdate, (ControlWindow == NULL),
+			ControlWindow);
 }
+
 
 
 static void
@@ -666,6 +686,7 @@ XtPointer change, junk;
 		datebutton (MONTHUP);
 	else datebutton (MONTHDOWN);
 }
+
 
 
 static void
@@ -756,7 +777,8 @@ XtPointer calldata;
 	else
 		tw_HTLabel ("History Mode");
 	if (Tw_Callback)
-		(*Tw_Callback) (mode, &Histdate, ControlAll);
+		(*Tw_Callback) (mode, &Histdate, (ControlWindow == NULL),
+				ControlWindow);
 }
 
 
@@ -1014,6 +1036,7 @@ char *label;
 	 * Sync the menu labels and call the add callback
 	 */
 	tw_HTSyncEntries (HT_Menu, insert);
+	tw_HTSyncEntries (HT_ForgetMenu, insert);
 	if (HT_AddCallback)
 		(*HT_AddCallback) (&HTimes[insert].ht_zt, 
 				   HTimes[insert].ht_label);
@@ -1048,6 +1071,7 @@ ZebTime *zt;
 		 * Sync the menu labels and call the delete callback
 		 */
 		tw_HTSyncEntries (HT_Menu, -1);
+		tw_HTSyncEntries (HT_ForgetMenu, -1);
 		if (HT_DeleteCallback)
 			(*HT_DeleteCallback) (zt);
 	}
@@ -1093,28 +1117,6 @@ XtPointer call;
 
 /* ARGSUSED */
 static void
-tw_HTDeleteCurrent (w, client, call)
-Widget w;
-XtPointer client;
-XtPointer call;
-/*
- * Delete the current time from the hot list.
- */
-{
-	Arg args[5];
-	Cardinal narg;
-
-	narg = 0;
-	XtSetArg (args[narg], XtNstring, "");  ++narg;
-	XtSetValues (HT_Text, args, narg);
-	tw_DeleteHotTime (&Histdate);
-}
-
-
-
-
-/* ARGSUSED */
-static void
 tw_HTEntryCallback (w, client, call)
 Widget w;
 XtPointer client;
@@ -1132,7 +1134,26 @@ XtPointer call;
 	tw_SetTime (&ht->ht_zt);
 	tw_HTLabel (ht->ht_label);
 	if (Tw_Callback)
-		(*Tw_Callback) (History, &ht->ht_zt, ControlAll);
+		(*Tw_Callback) (History, &ht->ht_zt, (ControlWindow == NULL),
+				ControlWindow);
+}
+
+
+
+/* ARGSUSED */
+static void
+tw_HTDeleteCallback (w, client, call)
+Widget w;
+XtPointer client;
+XtPointer call;
+/*
+ * A hot list entry forget callback.  
+ */
+{
+	int which = (int) client;
+	HotTime *ht = HTimes + which;
+
+	tw_DeleteHotTime (&ht->ht_zt);
 }
 
 
@@ -1174,11 +1195,11 @@ int entry;
 	XtSetArg (args[narg], XtNchildren, &wlist);		++narg;
 	XtGetValues (menu, args, narg);
 	/*
-	 * The first five entries are the label, line, add, delete, and line.
+	 * The first two entries are the label and line.
 	 * We just act as if they don't exist.
 	 */
-	wlist += 5;
-	nchildren -= 5;
+	wlist += 2;
+	nchildren -= 2;
 	/*
 	 * For each of the times in the list, give the entry widget
 	 * the correct label and make sure it is managed.
@@ -1207,9 +1228,11 @@ int entry;
 
 
 static Widget
-tw_HTCreateMenu (parent, name)
+tw_HTCreateMenu (parent, title, name, callback)
 Widget parent;
+char *title;
 char *name;
+void (*callback)();
 /*
  * Create a menu for hot times and return the widget
  */
@@ -1221,29 +1244,11 @@ char *name;
 	int i;
 
 	narg = 0;
-	XtSetArg (args[narg], XtNlabel, "History Times");	++narg;
+	XtSetArg (args[narg], XtNlabel, title);	++narg;
 	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
 				   parent, args, narg);
 /*
  * First line object
- */
-	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
-/*
- * Add and delete commands
- */
-	narg = 1;
-	XtSetArg (args[0], XtNlabel, "Add Current Time");
-	entry = XtCreateManagedWidget ("addentry", smeBSBObjectClass, menu,
-				       args, narg);
-	XtAddCallback (entry, XtNcallback, (XtCallbackProc) tw_HTAddCurrent, 
-		       (XtPointer) 0);
-	XtSetArg (args[0], XtNlabel, "Delete Current Time");
-	entry = XtCreateManagedWidget ("delentry", smeBSBObjectClass, menu,
-				       args, narg);
-	XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
-		       tw_HTDeleteCurrent, (XtPointer) 0);
-/*
- * Last line object
  */
 	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
 /*
@@ -1256,7 +1261,135 @@ char *name;
 		entry = XtCreateWidget ("HTentry", smeBSBObjectClass,
 					menu, args, narg);
 		XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
-			       tw_HTEntryCallback, (XtPointer) i);
+			       callback, (XtPointer) i);
 	}
 	return (menu);
+}
+
+
+
+
+static Widget
+tw_CreateWindowMenu (parent, title, name, button)
+Widget parent;
+char *title;
+char *name;
+Widget button;		/* the menu button passed to the callbacks */
+/*
+ * Create a menu of window names and return the widget
+ */
+{
+	Arg args[10];
+	Cardinal narg;
+	Widget entry;
+	Widget menu;
+	int i;
+
+	narg = 0;
+	XtSetArg (args[narg], XtNlabel, title);	++narg;
+	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
+				   parent, args, narg);
+/*
+ * Line between title and first entry.
+ */
+	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
+/*
+ * The obligatory 'All' target, managed here, now, and forever after.
+ */
+	narg = 0;
+	XtSetArg (args[narg], XtNlabel, ALL_WINDOWS);	narg++;
+	entry = XtCreateManagedWidget ("all", smeBSBObjectClass,
+				       menu, args, narg);
+	XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
+		       tw_WindowCallback, (XtPointer) button);
+/*
+ * Create entries for the other window names, but don't manage them now.
+ */
+	narg = 0;
+	XtSetArg (args[narg], XtNlabel, "[none]");	narg++;
+	for (i = 0; i < MAX_WINDOWS; i++)
+	{
+		entry = XtCreateWidget ("wname", smeBSBObjectClass,
+					menu, args, narg);
+		XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
+			       tw_WindowCallback, (XtPointer) button);
+	}
+	return (menu);
+}
+
+
+
+/* ARGSUSED */
+static void
+tw_WindowCallback (w, client, call)
+Widget w;
+XtPointer client;
+XtPointer call;
+/*
+ * Change the name of the window we're controlling.
+ */
+{
+	Arg arg;
+	Widget button = (Widget) client;
+	char *label;
+
+	XtSetArg (arg, XtNlabel, &label);
+	XtGetValues (w, &arg, (Cardinal) 1);
+	if (strcmp (label, ALL_WINDOWS) == 0)
+		ControlWindow = NULL;
+	else
+		ControlWindow = label;
+	XtSetArg (arg, XtNlabel, label);
+	XtSetValues (button, &arg, (Cardinal) 1);
+}
+
+
+
+void
+tw_SetWindowNames (nwin, names)
+int nwin;
+char **names;
+/*
+ * Set the window menu (if it exists) to this list of names.
+ */
+{
+	Arg args[10];
+	Cardinal narg;
+	Cardinal nchildren;
+	WidgetList wlist;
+	Widget menu;
+	int i;
+
+	menu = TW_WindowMenu;
+	if (! menu)
+		return;
+	narg = 0;
+	XtSetArg (args[narg], XtNnumChildren, &nchildren);  	++narg;
+	XtSetArg (args[narg], XtNchildren, &wlist);		++narg;
+	XtGetValues (menu, args, narg);
+	/*
+	 * The first three entries are the label, line, and "All".
+	 * We just act as if they don't exist.  "All" is managed when
+	 * created and never changes.
+	 */
+	wlist += 3;
+	nchildren -= 3;
+	/*
+	 * For each of the names in the list, give the entry widget
+	 * the correct label and make sure it is managed.
+	 */
+	for (i = 0; (i < nwin) && (i < nchildren); ++i)
+	{
+		Widget w = wlist[i];
+		XtSetArg (args[0], XtNlabel, names[i]);
+		XtSetValues (w, args, (Cardinal)1);
+	}
+	if (i)
+		XtManageChildren (wlist, (Cardinal) i);
+	/*
+	 * If an entry beyond the active ones is still managed, then one
+	 * or more children need to be unmanaged.
+	 */
+	if ((i < nchildren) && XtIsManaged (wlist[i]))
+		XtUnmanageChildren (wlist + i, nchildren - i);
 }
