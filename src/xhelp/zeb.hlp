@@ -883,91 +883,63 @@ freely distributed software.  See the copyright notices in
 the xwd2ps man(1) page in the directory doc/man in the
 distribution.  
 documentationA Guide to Zeb Documentation
-3180
+2324
 
 / A GUIDE TO ZEB DOCUMENTATION /
 
 The Zeb documentation is contained in the "doc" directory
-under Zeb top directory.  For the STORM-FEST CDROM
+under top Zeb directory.  For the STORM-FEST CDROM
 distribution, if the CD is mounted on /cd, the document
-directory will be /cd/doc.  There are some notable
-documents specific to the CD distribution.
+directory will be /cd/doc.  This directory contains some
+notable documents specific to the CD distribution.  All
+significant documentation can be conveniently printed from
+the sub-menus under the Icon Bar <Help> menu.  Select the
+menu entry corresponding to the documentation which you
+wish to get in hardcopy form.  The document will be sent to
+the default printer (or the printer named by the PRINTER
+environemnt variable).  The destination printer must have
+PostScript capability.
 
 The "Running Zeb" document can be found in the PostScript
-file <>.  This document covers the installation of Zeb from
-the CD and provides a simple overview and several examples
-of the basic operation of Zeb.
+file "CD/doc/zeb/zeb.startup.doc.ps".  This document
+provides an overview and several examples of the basic
+operation of Zeb and its use with the StormFEST CD data. 
+The "doc/zeb" directory also contains a general user's
+manual.  This document is not necessarily required for
+using the CD, and in fact it contains no CD-specific
+information.  It is just a general introduction to Zeb
+which may cover more issues, if only in less detail, than
+"Running Zeb".
 
 The "data" directory under the "doc" directory (in the
-above example it would be /cd/doc/data) contains text
+above example it would be /cd/doc/data) contains PostScript
 files about the platforms and data supplied on the
 STORM-FEST compact discs.
 
 File name:              Platforms covered:
 
-aster.doc               aster
-cp4.doc                 cp4
-goes.doc                goes_us, goes_fest
-nowrad.doc              nowrad, nowrad_f
-N2UW-Storm1.doc         storm1
-N312D-Storm2.doc        storm2
-WP3D-P3.doc             p3
-C131-Storm4.doc         storm4
-profilers.doc           All platforms beginning with prof_
-surface.doc             surface_5min, surface_hourly,
-soundings.doc           All platforms whose names are four
+Cp4.ps                  cp4
+Satellite.ps            goes_us, goes_fest
+Nowrad.ps               nowrad, nowrad_f
+Storm1_N2UW.ps          storm1
+Storm2_N312D.ps         storm2
+P3.ps                   p3
+Storm4_C131.ps          storm4
+Profilers.ps            All platforms beginning with prof_
+Surface.ps              surface_5min, surface_hourly,
+Sounding.ps             All platforms whose names are four
 			characters begining with an s.
 fest_sites_hourly	Listing of the hourly surface
 			stations, their Zeb IDs, cities,
 			states, and coordinates.
+aster/			directory of ASTER documentation
 
 The "fest_sites_hourly" listing can also be viewed through
 the Zeb Help facility by choosing the "Surface Stations
 Listing" entry from the <Help> menu on the Icon Bar.  For
 information on the structure of the CD data directories,
-see the file "DataStructure.doc" in the "data/doc"
+see the file "FileStructure.ps" in the "data/doc"
 directory.
-
-Below is a listing of all of the general Zeb documents and
-the topics each covers.  All of these files use the
-PostScript language, and so they must be printed with a
-PostScript printer.
-
-configuration.ps  The Zeb Configuration Manual.  Describes
-                  how to customize the Zeb system using
-                  configuration files.
-
-config-index.ps   The index for the configuration manual.
-
-gp.ps             The Zeb Graphics Process Data Structures
-                  and Internals.  Describes the internal
-                  workings of the Zeb graphics process from
-                  a programming point of view.
-
-gp-index.ps       The index for the graphics process manual.
-
-install.ps        The Zeb Installation Manual.  Describes
-                  how to install the Zeb system.
-
-install.ascii     An ascii version of some portions of the
-                  installation manual.
-
-interface.ps      The Zeb Data Integration and Display
-                  System Interface Specifications and
-                  Internals.  Describes many of the modules
-                  of Zeb and how to utilize them from a
-                  programming point of view.
-
-tutorial.ps       The Zeb Tutorial.  Step by step guide
-                  through some of the most commonly used
-                  functions of Zeb.
-
-user.ps           The Zeb User's Manual.  Describes how
-                  to start up, basic operations, and
-                  shutting down.  **Takes a long time to
-                  print!**
-        
-user-index.ps     The index for the user's manual.
 
 
 icons        Using the Icons in a Graphics Window
