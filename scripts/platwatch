@@ -1,0 +1,73 @@
+#!/bin/csh
+# Zebra platform directory watcher.  Any files which change in the
+# directory while this script is running will be dsrescan-ned.
+#
+# Copy and rename (or link) this script so that its extension is 
+# the name of the platform to be watched.  E.g., if you're watching 
+# the "p3" platform, you should be executing a copy this script 
+# named "platwatch.p3".
+#
+
+if ($#argv != 2) then
+    echo "Usage: $0 <dir> <frequency>"
+    exit(1)
+endif
+
+set dir = $1
+set sleep = $2
+
+#
+# Set the platform based on the extension on the script's name
+#
+set plat = $0:e
+if ($plat == "") then
+    echo "This script *must* have an extension matching the"
+    echo "platform to be watched."
+    exit 1
+endif
+
+#
+# Make sure dsrescan is in our path
+#
+which dsrescan >& /dev/null
+if ($status) then
+    echo "Can't find dsrescan in the path\!"
+    exit 1
+endif
+
+echo "${0}: Looking for updated files for platform $plat"
+echo "in $dir every $sleep seconds."
+
+#
+# we only want one of me; kill any others
+#
+onintr -	# ignore the INT signal we're about to send out...
+killall -s INT $0:t
+onintr finish	# pay attention to signals again
+
+#
+# Create a file that we use with 'find' to test for newly modified files.
+#
+set testfile = /tmp/$0:t_$$
+cat > $testfile <<EOF
+This file is used by $0:t, and exists only to have a 
+modification time.  Do not delete it unless the associated 
+$0:t process is dead.
+EOF
+
+#
+# Go to the requested directory and keep watch for modified files,
+# running dsrescan when we find them.
+#
+cd $dir
+while (1)
+    foreach file (`find . -newer $testfile -print`)
+	dsrescan -file $file $plat >& /dev/null
+    end
+    touch $testfile
+    sleep $sleep
+end
+
+finish:
+
+rm -f $testfile
