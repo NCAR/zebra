@@ -14,10 +14,11 @@
 #include <time.h>	// Need time() to seed srand()
 #include <string>
 
-#include "SerialZTime.hh"
 #include "Logger.hh"
-#include "BTreeFile.cc"
-#include "BTreeStats.hh"
+#include "BTreeFile.hh"
+#include "SerialZTime.hh"
+//#include "BTreeFile.cc"
+//#include "BTreeStats.hh"
 
 typedef BTreeFile<ZTime,ZTime> TimeFileTree;
 typedef BTreeFile<string,string> StringFileTree;
@@ -718,7 +719,7 @@ int main (int argc, char *argv[])
 	BlockFile bf("shartree.bf", 0, BlockFile::BF_CREATE);
 	BlockFile ebf("excltree.bf", 0, 
 		      BlockFile::BF_CREATE | BlockFile::BF_EXCLUSIVE);
-	for (int o = 5; (o == 5) || (o < N / 10); o *= 10)
+	for (int o = 32; o <= 256; o *= 4)
 	{
 		{
 			// Try memory trees first.
