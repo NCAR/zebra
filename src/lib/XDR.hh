@@ -1,5 +1,5 @@
 /*
- * $Id: XDR.hh,v 1.3 1997-11-24 10:20:20 granger Exp $
+ * $Id: XDR.hh,v 1.4 1997-11-24 10:38:56 granger Exp $
  *
  * C++ interface to the xdr layer.
  */
@@ -74,20 +74,6 @@ public:
 		return (Length ((XDRTranslator)xdr_##T , &tp)); \
 	}
 
-#ifdef notdef
-	static unsigned long Length (T *tp) \
-	{ \
-		return (Length (xdr_##T , tp)); \
-	};
-
-	static unsigned long Length (char & tp)
-	{
-		return (Length (xdr_char , &tp));
-	};
-
-	// XDR_LENGTH(char);
-#endif
-
 	XDR_LENGTH(char);
 	XDR_LENGTH(u_char);
 	XDR_LENGTH(int);
@@ -155,11 +141,6 @@ public:
 	XDRStream &operator<< (T &tp) { translate (tp); return (*this); } \
 	XDRStream &operator>> (T &tp) { translate (tp); return (*this); } \
 
-#ifdef notdef
-	XDRStream &operator<< (T *tp) { translate (tp); return (*this); } \
-	XDRStream &operator>> (T *tp) { translate (tp); return (*this); }
-#endif
-
 	XDR_METHOD(char);
 	XDR_METHOD(u_char);
 	XDR_METHOD(int);
@@ -196,20 +177,6 @@ XDRStream &operator>> (XDRStream &xdr, T &tp) \
 	xdr.translate ((void *)&tp, XP); \
 	return (xdr); \
 }
-
-#ifdef notdef
-XDRStream &operator<< (XDRStream *xdr, T &tp) \
-{ \
-	xdr->translate ((void *)&tp, XP); \
-	return (*xdr); \
-} \
-XDRStream &operator>> (XDRStream *xdr, T &tp) \
-{ \
-	xdr->translate ((void *)&tp, XP); \
-	return (*xdr); \
-} \
-
-#endif
 
 // Simpler macro which creates the standard xdr procedure name given
 // the type name.
