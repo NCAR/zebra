@@ -1,0 +1,11 @@
+How to test netxfr?
+-------------------
+
+Write a program which forks into source and sink, then forks and execs
+message manager sessions for each which connect through localhost loopback.
+
+Do netxfr broadcasts only go to a specific port?  
+
+We'll need two config files?
+
+

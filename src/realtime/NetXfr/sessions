@@ -1,0 +1,19 @@
+# Message manager session port map
+#
+# Name		Host		Port	Broadcast
+# ----		----		----
+
+source		localhost	3350
+sink		localhost	3351
+source_send	localhost	3352
+sink_receive	localhost	3353
+
+# Describe network data paths
+#
+
+# Source --> sends or broadcasts platforms --> to Sink
+#
+source sends all [to] sink
+acingest sends n.* to datastore
+rasterizer broadcasts(port=3345,burst=20) class Radar to datastore
+
