@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.23 1993-02-24 08:24:15 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.24 1993-03-05 16:11:05 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -265,6 +265,7 @@ char	*component;
  */
 	if (! px_GetCoords ())
 		return;
+	SetClip (TRUE);		/* Disable clipping for starters	*/
 /*
  * Global or update plot?
  */
