@@ -112,7 +112,8 @@
 #  if (UseXWindows)
 #       define XToolkitLibs -lXaw -lXmu -lXt -lXext 
 #  elif (UseOpenWin && !OldOpenWin)
-#       define XToolkitLibs -lXaw -lXmu -lXt -lXext
+	/* libXmu must be statically linked else symbols will be missed */
+#       define XToolkitLibs -lXaw $(OPENWINHOME)/lib/libXmu.a -lXt -lXext
 #  else
 	define XToolkitLibs      /* Nothing */
 #  endif
