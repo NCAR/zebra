@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.48 1997-04-28 04:50:46 granger Exp $
+XCOMM $Id: config.h.dist,v 1.49 1997-05-21 21:16:17 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -767,6 +767,7 @@ XCOMM -----------------------------------------------------------------------
 # define C_PT_XYGRAPH	YES		/* XY-Graph plots		*/
 # define C_PT_XYWIND	YES		/* XY-Graph wind plots		*/
 # define C_PT_HISTOGRAM	YES		/* Histograms			*/
+# define C_PT_THETAPLOT	YES		/* Theta plots			*/
 
 /*
  * --- CAP subplots ---
