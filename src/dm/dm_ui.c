@@ -28,7 +28,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.12 1995-04-18 22:18:52 granger Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.13 1995-05-24 00:14:33 granger Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -256,7 +256,7 @@ struct ui_command *cmds;
 {
 	raw_plot_description rpd;
 	plot_description pd;
-	char *pdname = NULL;
+	char *pdname;
 	char name[512];
 /*
  * Enter the dm-description state and wait for parameter and component
@@ -287,6 +287,7 @@ struct ui_command *cmds;
 /*
  * Work on assigning a name to this plot description
  */
+	pdname = NULL;
 	if (cmds[0].uc_ctype != UTT_END)
 	{
 		pdname = UPTR(cmds[0]);

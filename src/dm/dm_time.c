@@ -14,7 +14,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.2 1995-04-27 15:11:10 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.3 1995-05-24 00:14:32 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
@@ -182,7 +182,7 @@ struct ui_command *cmds;
  */
 {
 	bool all = (cmds->uc_ctype == UTT_KW);
-	struct cf_window *dwin;
+	struct cf_window *dwin = NULL;
 	ZebTime when;
 /*
  * If necessary, look up the window.
@@ -232,7 +232,7 @@ struct ui_command *cmds;
  */
 {
 	bool all = (cmds->uc_ctype == UTT_KW);
-	struct cf_window *dwin;
+	struct cf_window *dwin = NULL;
 /*
  * If necessary, look up the window.
  */

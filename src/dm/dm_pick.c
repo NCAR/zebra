@@ -26,7 +26,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-RCSID("$Id: dm_pick.c,v 2.11 1995-04-18 22:18:46 granger Exp $")
+RCSID("$Id: dm_pick.c,v 2.12 1995-05-24 00:14:29 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -53,7 +53,8 @@ char *winname;
 	int status, done = False;
 	Cursor cursor;
 	XEvent event;
-	Window win, root = RootWindow (Dm_Display, 0);	/* xxx */
+	Window win = None;
+	Window root = RootWindow (Dm_Display, 0);	/* xxx */
 	struct wpick wp;
 /*
  * Make the special cursor.
