@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.21 1995-02-24 22:25:25 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.22 1995-03-20 17:42:31 burghart Exp $")
 
 
 
@@ -931,9 +931,12 @@ bool transpose;
 	DataChunk 	*rdc;
 	float 		badflag;
 	float 		olat, olon;
-	float		*nsdata, *grid;
+	float		*fdata, *grid;
+	void		*nsdata;
+	short		*sdata;
 	RGrid		rg;
 	ZebTime		when;
+	DC_ElemType	type;
 	int		i, j;
 
 	rdc = dc_CreateDC (DCC_RGrid);
@@ -957,7 +960,28 @@ bool transpose;
 	rg.rg_nZ = 1;
 
 	grid = (float *) malloc (nlats * nlons * sizeof (float));
-	nsdata = (float *) dc_NSGetSample (dc, 0, fid, NULL);
+
+	nsdata = (void *) dc_NSGetSample (dc, 0, fid, NULL);
+
+	switch (type = dc_Type (dc, fid))
+	{
+	    case DCT_Float:
+		fdata = nsdata;
+		break;
+	    case DCT_ShortInt:
+		sdata = (short *) nsdata;
+		fdata = (float *) malloc (nlats * nlons * sizeof (float));
+		for (i = 0; i < nlats * nlons; i++)
+			fdata[i] = (float) sdata[i];
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "ga_NSRGrid cannot handle '%s' data",
+			  dc_TypeName (type));
+
+		fdata = (float *) malloc (nlats * nlons * sizeof (float));
+		for (i = 0; i < nlats * nlons; i++)
+			fdata[i] = badflag;
+	}
 /*
  * Apply limits
  */
@@ -975,12 +999,15 @@ bool transpose;
  * order.
  */
 	if (transpose)
-		memcpy ((char *) grid, (char *) nsdata, 
+		memcpy ((char *) grid, (char *) fdata, 
 			nlats * nlons * sizeof (float));
 	else
 		for (j = 0; j < nlats; j++)
 			for (i = 0; i < nlons; i++)
-				grid[nlons * j + i] = nsdata[nlats * i + j];
+				grid[nlons * j + i] = fdata[nlats * i + j];
+
+	if (fdata != nsdata)
+		free (fdata);
 /*
  * Finally, put the grid and time into the new data chunk
  */		
