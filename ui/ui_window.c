@@ -47,7 +47,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.8 1990-03-02 18:31:34 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.9 1990-03-06 10:10:15 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -259,7 +259,13 @@ struct frame_widget *uw_make_frame ();
 void uw_lselect ();
 struct gen_widget *uw_list_def (), *uw_cm_def (), *uw_mb_def ();
 
-
+# ifdef __STDC__
+struct map_table *uw_LoadMap (int lun, int nmap);
+char *uw_LoadString (int lun);
+# else
+struct map_table *uw_LoadMap ();
+char *uw_LoadString ();
+# endif
 
 
 
@@ -1662,6 +1668,9 @@ union usy_value *v;
 		   case WT_CMENU:
 		   	uw_s_cmenu (lun, (struct list_widget *) child);
 			break;
+		   case WT_MENUBAR:
+		   	uw_SaveMenubar (lun, (struct menubar_widget *) child);
+			break;
 		   default:
 		   	ui_warning("Unknown widget type %d\n", child->gw_type);
 		}
@@ -1699,15 +1708,15 @@ struct list_widget *lw;
  * If there is a map table, we must save it as well.
  */
 	if (lw->lw_nmap)
-		uw_s_map (lun, lw);
+		uw_s_map (lun, lw->lw_nmap, lw->lw_map);
 }
 
 
 
 
-uw_s_map (lun, lw)
-int lun;
-struct list_widget *lw;
+uw_s_map (lun, nmap, map)
+int lun, nmap;
+struct map_table *map;
 /*
  * Save the map table to the file.
  */
@@ -1716,15 +1725,15 @@ struct list_widget *lw;
 /*
  * First, just write the entire table to the file.
  */
-	bfput (lun, lw->lw_map, lw->lw_nmap*sizeof (struct map_table));
+	bfput (lun, map, nmap*sizeof (struct map_table));
 /*
  * Since strings are allocated separately, we must go through and save them
  * separately.
  */
-	for (i = 0; i < lw->lw_nmap; i++)
-		if (lw->lw_map[i].mt_type == SYMT_STRING)
-			bfput (lun, lw->lw_map[i].mt_v.us_v_ptr,
-				strlen (lw->lw_map[i].mt_v.us_v_ptr) + 1);
+	for (i = 0; i < nmap; i++)
+		if (map[i].mt_type == SYMT_STRING)
+			bfput (lun, map[i].mt_v.us_v_ptr,
+				strlen (map[i].mt_v.us_v_ptr) + 1);
 }
 
 
@@ -1756,7 +1765,7 @@ struct list_widget *lw;
  * If there is a map table, we must save it as well.
  */
 	if (lw->lw_nmap)
-		uw_s_map (lun, lw);
+		uw_s_map (lun, lw->lw_nmap, lw->lw_map);
 }
 
 
@@ -1773,6 +1782,7 @@ int lun, init;
 	char name[MAXTITLE], title[MAXTITLE];
 	struct frame_widget *frame = 0;
 	struct gen_widget *gw, *uw_l_list (), *uw_l_cmenu ();
+	struct gen_widget *uw_LoadMenubar ();
 /*
  * Go through all the widgets in the file.
  */
@@ -1817,6 +1827,13 @@ int lun, init;
 			uw_add_child (frame, gw);
 			break;
 		/*
+		 * Menubars
+		 */
+		   case WT_MENUBAR:
+		   	gw = uw_LoadMenubar (lun);
+			uw_add_child (frame, gw);
+			break;
+		/*
 		 * ???
 		 */
 		   default:
@@ -1844,6 +1861,7 @@ int lun;
 	struct list_widget *lw;
 	char ctmp[500];
 	void ui_perform (), uw_ldestroy ();
+	struct map_table *uw_LoadMap ();
 /*
  * Allocate a new list widget structure, and read the old one from the file.
  */
@@ -1876,7 +1894,7 @@ int lun;
  * If there is a map table, we must get it as well.
  */
 	if (lw->lw_nmap)
-		uw_l_map (lun, lw);
+		lw->lw_map = uw_LoadMap (lun, lw->lw_nmap);
 	return ((struct gen_widget *) lw);
 }
 
@@ -1884,31 +1902,29 @@ int lun;
 
 
 
-uw_l_map (lun, lw)
-int lun;
-struct list_widget *lw;
+struct map_table *
+uw_LoadMap (lun, nmap)
+int lun, nmap;
 /*
  * load the map table from the file.
  */
 {
 	int i;
 	char ctmp[200];
+	struct map_table *map;
 /*
  * First, just read the entire table to the file.
  */
-	lw->lw_map = (struct map_table *)
-			getvm (lw->lw_nmap * sizeof (struct map_table));
-	bfget (lun, lw->lw_map, lw->lw_nmap*sizeof (struct map_table));
+	map = (struct map_table *)
+			getvm (nmap * sizeof (struct map_table));
+	bfget (lun, map, nmap*sizeof (struct map_table));
 /*
  * Since strings are allocated separately, we must go through and load them
  * separately.
  */
-	for (i = 0; i < lw->lw_nmap; i++)
-		if (lw->lw_map[i].mt_type == SYMT_STRING)
-		{
-			bfget (lun, ctmp, 200);
-			lw->lw_map[i].mt_v.us_v_ptr = usy_pstring (ctmp);
-		}
+	for (i = 0; i < nmap; i++)
+		if (map[i].mt_type == SYMT_STRING)
+			map[i].mt_v.us_v_ptr = uw_LoadString (lun);
 }
 
 
@@ -1968,7 +1984,7 @@ int lun;
  * If there is a map table, we must read it as well.
  */
 	if (lw->lw_nmap)
-		uw_l_map (lun, lw);
+		lw->lw_map = uw_LoadMap (lun, lw->lw_nmap);
 	return ((struct gen_widget *) lw);
 }
 
@@ -2123,7 +2139,7 @@ struct ui_command *cmds;
 /*
  * Initialize the menu structure, and add it to the list.
  */
- 	menu->mbm_nentries = 0;
+ 	menu->mbm_nmap = menu->mbm_nentries = 0;
 	menu->mbm_next = 0;
 	strcpy (menu->mbm_name, UPTR (cmds[1]));
 	if (mb->mw_nmenus++ == 0)
@@ -2226,6 +2242,7 @@ struct ui_command *cmds;
 
 
 
+void
 uw_mbcreate (mw, parent)
 struct menubar_widget *mw;
 Widget parent;
@@ -2432,7 +2449,246 @@ bool all;
 }
 
 
-uw_mbdestroy () {}
+
+
+void uw_mbdestroy (gw, realized)
+struct gen_widget *gw;
+bool realized;
+/*
+ * Destroy a menubar widget.
+ */
+{
+	struct menubar_widget *mw = (struct menubar_widget *) gw;
+
+/*
+ * Get rid of each individual pulldown.
+ */
+	while (mw->mw_menus)
+	{
+		struct mb_menu *zap = mw->mw_menus;
+		mw->mw_menus = zap->mbm_next;
+		uw_MenuDestroy (zap, realized);
+	}
+/*
+ * Clean up here.
+ */
+	if (realized)
+		XtDestroyWidget (mw->mw_w);
+	relvm (mw);
+}
+
+
+
+uw_MenuDestroy (doomed, realized)
+struct mb_menu *doomed;
+bool realized;
+/*
+ * Get rid of one pulldown menu.
+ */
+{
+	int i;
+/*
+ * Get rid of the widgets themselves, if necessary.
+ */
+	if (realized)
+	{
+		for (i = 0; i < doomed->mbm_nentries; i++)
+			XtDestroyWidget (doomed->mbm_ewidget[i]);
+		XtDestroyWidget (doomed->mbm_pulldown);
+		XtDestroyWidget (doomed->mbm_button);
+	}
+/*
+ * Zap the per-entry strings.
+ */
+	for (i = 0; i < doomed->mbm_nentries; i++)
+	{
+		if (doomed->mbm_etext[i])
+		{
+			usy_rel_string (doomed->mbm_etext[i]);
+			usy_rel_string (doomed->mbm_eact[i]);
+		}
+		if (doomed->mbm_eexpr[i])
+			usy_rel_string (doomed->mbm_eexpr[i]);
+	}
+/*
+ * If there is a selector, get rid of it.
+ */
+	if (doomed->mbm_oom)
+		usy_rel_string (doomed->mbm_selector);
+	if (doomed->mbm_nmap)
+		relvm (doomed->mbm_map);
+/*
+ * I think that's all.
+ */
+ 	relvm (doomed);
+}
+		
+
+
+uw_SaveMenubar (lun, mw)
+int lun;
+struct menubar_widget *mw;
+/*
+ * Save a menubar widget.
+ */
+{
+	int i;
+	struct mb_menu *mb;
+/*
+ * The only thing of real interest in the menubar widget is the number
+ * of pulldowns it contains.
+ */
+ 	bfput (lun, &mw->mw_nmenus, sizeof (int));
+/*
+ * Save all of the pulldowns separately.
+ */
+	mb = mw->mw_menus;
+	for (i = 0; i < mw->mw_nmenus; i++)
+	{
+		uw_SavePulldown (lun, mb);
+		mb = mb->mbm_next;
+	}
+}
+
+
+
+
+uw_SavePulldown (lun, mb)
+int lun;
+struct mb_menu *mb;
+/*
+ * Save a single pulldown menu to the file.
+ */
+{
+	int i;
+/*
+ * Start by saving the whole damn structure.
+ */
+	bfput (lun, mb, sizeof (struct mb_menu));
+/*
+ * Now save the additional stuff for each entry.
+ */
+	for (i = 0; i < mb->mbm_nentries; i++)
+	{
+		if (mb->mbm_etext[i])
+		{
+			bfput (lun, mb->mbm_etext[i],
+				strlen (mb->mbm_etext[i]) + 1);
+			bfput (lun, mb->mbm_eact[i],
+				strlen (mb->mbm_eact[i]) + 1);
+		}
+		if (mb->mbm_eexpr[i])
+			bfput (lun, mb->mbm_eexpr[i],
+				strlen (mb->mbm_eexpr[i]) + 1);
+	}
+/*
+ * Save the selector and map table, if there is one.
+ */
+	if (mb->mbm_oom)
+		bfput (lun, mb->mbm_selector, strlen (mb->mbm_selector) + 1);
+ 	if (mb->mbm_nmap)
+		uw_s_map (lun, mb->mbm_nmap, mb->mbm_map);
+}
+
+
+
+
+
+struct gen_widget *
+uw_LoadMenubar (lun)
+int lun;
+/*
+ * Load a menubar widget from this file.
+ */
+{
+	struct menubar_widget *mw = NEW (struct menubar_widget);
+	struct mb_menu *pull, *uw_LoadPulldown (), *end;
+	int i;
+/*
+ * Initialize the fields in the menubar structure.
+ */
+	mw->mw_type = WT_MENUBAR;
+	mw->mw_create = uw_mbcreate;
+	mw->mw_destroy = uw_mbdestroy;
+	mw->mw_popup = 0;
+	bfget (lun, &mw->mw_nmenus, sizeof (int));
+/*
+ * Now we just pull in the menus themselves.
+ */
+	for (i = 0; i < mw->mw_nmenus; i++)
+	{
+		pull = uw_LoadPulldown (lun);
+		if (i == 0)
+			mw->mw_menus = pull;
+		else
+			end->mbm_next = pull;
+		end = pull;
+		end->mbm_next = 0;
+	}
+/*
+ * Done.
+ */
+ 	return ((struct gen_widget *) mw);
+}
+
+
+
+
+struct mb_menu *
+uw_LoadPulldown (lun)
+int lun;
+/*
+ * Load one pulldown menu from this file.
+ */
+{
+	struct mb_menu *new = NEW (struct mb_menu);
+	int i;
+/*
+ * Load the structure itself from the file.
+ */
+	bfget (lun, new, sizeof (struct mb_menu));
+/*
+ * Get each of the entries.
+ */
+	for (i = 0; i < new->mbm_nentries; i++)
+	{
+		if (new->mbm_etext[i])
+		{
+			new->mbm_etext[i] = uw_LoadString (lun);
+			new->mbm_eact[i] = uw_LoadString (lun);
+		}
+		if (new->mbm_eexpr[i])
+			new->mbm_eexpr[i] = uw_LoadString (lun);
+		new->mbm_eval[i] = FALSE;
+	}
+/*
+ * Selector and map table, if necessary.
+ */
+	if (new->mbm_oom)
+		new->mbm_selector = uw_LoadString (lun);
+	if (new->mbm_nmap)
+		new->mbm_map = uw_LoadMap (lun, new->mbm_nmap);
+	return (new);
+}
+
+
+
+
+
+char *
+uw_LoadString (lun)
+int lun;
+/*
+ * Load a character string, which is expected to be the next record
+ * in this file.
+ */
+{
+	char ctmp[500];
+
+	bfget (lun, ctmp, 500);
+	return (usy_pstring (ctmp));
+}
+
+
 
 # endif /* XSUPPORT */
-
