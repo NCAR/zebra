@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.24 2002-06-10 22:03:04 granger Exp $
+# $Id: zplotbatch,v 1.25 2002-07-08 19:41:07 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -17,7 +17,7 @@ echo=
 #
 xvfb="Xvfb -pn -ac"
 
-convert="convert"
+convert="convert -colors 128 +profile '*'"
 #font="-font helvetica -pointsize 12"
 font="-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*'"
 
