@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.36 1995-09-20 20:45:10 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.37 1995-09-21 16:26:54 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1078,7 +1078,6 @@ ZebTime		*dtime;
 			}
 		}
 	}
-<<<<<<< Utilities.c
 
 	return (1);
 }
@@ -1134,10 +1133,6 @@ float *latspacing, *lonspacing;
 	*latspacing = lat1 - origin.l_lat;
 	*lonspacing = lon1 - origin.l_lon;
 	return (TRUE);
-||||||| 2.32.2.1
-
-	return (1);
-=======
 	
 	return (1);
 }
@@ -1229,5 +1224,4 @@ float           *azim;
 	}
 	
 	return (1);
->>>>>>> /tmp/T4a10010
 }

@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.48 1995-09-20 20:44:51 burghart Exp $")
+RCSID("$Id: Overlay.c,v 2.49 1995-09-21 16:25:32 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -86,14 +86,9 @@ typedef enum
 # define LATDEG_TO_KM(lat) (DEG_TO_KM (lat))
 # define KM_TO_LATDEG(ykm) (KM_TO_DEG (ykm))
 # define KM_TO_LONDEG(xkm,olat) (KM_TO_DEG((xkm)/cos(DEG_TO_RAD(olat))))
-<<<<<<< Overlay.c
-||||||| 2.43.2.1
-# define TOLERANCE  (0.0001)
-=======
 # define TOLERANCE  (0.0001)
 # define NM_TO_KM	(1.609344 * 6080.0 / 5280.0)
 # define KM_TO_NM	(0.62137119 * 5280.0 / 6080.0)
->>>>>>> /tmp/T4a09958
 
 
 typedef enum { FText, FCircle, FMarker } FeatureType;
