@@ -1,4 +1,4 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
 # Sit and wait for notifications on platforms, generate images, and
 # optionally ftp them to a remote host.

@@ -1,7 +1,7 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
 # FTP images to a remote host
-# $Id: ftpplots,v 1.7 1999-10-15 19:09:28 granger Exp $
+# $Id: ftpplots,v 1.8 2002-05-25 00:19:13 burghart Exp $
 
 $site="$ENV{'PLOT_FTP_HOST'}";
 $dir="$ENV{'PLOT_FTP_DIR'}";

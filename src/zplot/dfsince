@@ -1,6 +1,6 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
-# $Id: dfsince,v 1.5 1999-10-08 20:38:40 granger Exp $
+# $Id: dfsince,v 1.6 2002-05-25 00:19:13 burghart Exp $
 #
 # Collect all the datafiles files more recent than a persistent timestamp.
 # Assumes zebra is already running.

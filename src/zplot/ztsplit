@@ -1,6 +1,6 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
-# $Id: ztsplit,v 1.6 2001-06-28 22:41:30 granger Exp $
+# $Id: ztsplit,v 1.7 2002-05-25 00:19:13 burghart Exp $
 #
 # Split zebra times into yy mm dd hour min sec
 #

@@ -1,9 +1,9 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
 # Given a list of png files on the command line, "sign" each one with
 # a data disclaimer in the lower right corner.
 #
-# $Id: disclaim,v 1.3 1999-11-06 01:18:49 granger Exp $
+# $Id: disclaim,v 1.4 2002-05-25 00:19:13 burghart Exp $
 
 use lib "/usr/local/lib/GD-1.22/lib";
 use GD;

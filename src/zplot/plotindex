@@ -1,6 +1,6 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
-# $Id: plotindex,v 1.1 1999-10-21 20:07:10 granger Exp $
+# $Id: plotindex,v 1.2 2002-05-25 00:19:13 burghart Exp $
 #
 # Create an index.html file from a directory of plot images, so that
 # we can control the format and ensure the full file name appears

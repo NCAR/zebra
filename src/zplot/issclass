@@ -1,6 +1,6 @@
-#! /usr/local/bin/perl5
+#! /usr/bin/env perl
 #
-# $Id: issclass,v 1.2 1997-12-23 09:22:12 granger Exp $
+# $Id: issclass,v 1.3 2002-05-25 00:19:13 burghart Exp $
 #
 # Convert recent iss class files to ascii and ftp
 #
