@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.7 1991-09-12 01:49:34 corbet Exp $
+ * $Id: pd.h,v 1.8 1992-10-10 04:43:27 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -42,48 +42,27 @@ typedef void *plot_description;
 /*
  * The PD routines.
  */
-# ifdef __STDC__
-	plot_description pd_Load (raw_plot_description *raw);
-	raw_plot_description *pd_Unload (plot_description pd);
-	void pd_RPDRelease (raw_plot_description *raw);
-	void pd_Merge (plot_description dest, plot_description src);
-	bool pd_Retrieve (plot_description pd, char *comp, char *param,
-		char *target, int type);
-	char **pd_CompList (plot_description pd);
-	void pd_Release (plot_description pd);
-	plot_description pda_GetPD (char *name);
-	void pda_StorePD (plot_description pd, char *name);
-	bool pda_Search (plot_description pd, char *comp, char *param,
-		char *qual, char *dest, int type);
-	bool pda_ReqSearch (plot_description pd, char *comp, char *param,
-		char *qual, char *dest, int type);
-	plot_description pd_CopyPD (plot_description pd);
-	void pd_Store (plot_description pd, char *comp, char *param,
-		char *value, int type);
-	void pd_RemoveParam (plot_description pd, char *comp, char *param);
-	int pd_RemoveComp (plot_description pd, char *name);
-	plot_description pd_ReadComponent (plot_description, char *, char *);
-	void pd_AddComponent (plot_description, plot_description, int);
-	void pd_MoveComponent (plot_description, char *, int);
-	bool pd_CompExists (plot_description, char *);
-# else
-	plot_description pd_Load ();
-	raw_plot_description *pd_Unload ();
-	void pd_RPDRelease ();
-	void pd_Merge ();
-	bool pd_Retrieve ();
-	char **pd_CompList ();
-	void pd_Release ();
-	plot_description pda_GetPD ();
-	void pda_StorePD ();
-	bool pda_Search ();
-	bool pda_ReqSearch ();
-	plot_description pd_CopyPD ();
-	void pd_Store ();
-	void pd_RemoveParam ();
-	int pd_RemoveComp ();
-	plot_description pd_ReadComponent ();
-	void pd_AddComponent ();
-	void pd_MoveComponent ();
-	bool pd_CompExists ();
-# endif
+plot_description pd_Load FP((raw_plot_description *raw));
+raw_plot_description *pd_Unload FP((plot_description pd));
+void pd_RPDRelease FP((raw_plot_description *raw));
+void pd_Merge FP((plot_description dest, plot_description src));
+bool pd_Retrieve FP((plot_description pd, char *comp, char *param,
+	char *target, int type));
+char **pd_CompList FP((plot_description pd));
+void pd_Release FP((plot_description pd));
+plot_description pda_GetPD FP((char *name));
+void pda_StorePD FP((plot_description pd, char *name));
+bool pda_Search FP((plot_description pd, char *comp, char *param,
+	char *qual, char *dest, int type));
+bool pda_ReqSearch FP((plot_description pd, char *comp, char *param,
+	char *qual, char *dest, int type));
+plot_description pd_CopyPD FP((plot_description pd));
+void pd_Store FP((plot_description pd, char *comp, char *param,
+	char *value, int type));
+void pd_RemoveParam FP((plot_description pd, char *comp, char *param));
+int pd_RemoveComp FP((plot_description pd, char *name));
+plot_description pd_ReadComponent FP((plot_description, char *, char *));
+void pd_AddComponent FP((plot_description, plot_description, int));
+void pd_MoveComponent FP((plot_description, char *, int));
+bool pd_CompExists FP((plot_description, char *));
+
