@@ -47,7 +47,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.5 1990-03-02 17:02:02 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.6 1990-03-02 17:13:13 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -2124,6 +2124,7 @@ struct ui_command *cmds;
  * Initialize the menu structure, and add it to the list.
  */
  	menu->mbm_nentries = 0;
+	menu->mbm_next = 0;
 	strcpy (menu->mbm_name, UPTR (cmds[1]));
 	if (mb->mw_nmenus++ == 0)
 		mb->mw_menus = menu;
