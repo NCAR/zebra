@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.29 1995-10-24 21:59:31 corbet Exp $ 
+XCOMM $Id: Imakefile,v 1.30 1996-02-05 23:32:15 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -21,7 +21,7 @@ XCOMM $Id: Imakefile,v 1.29 1995-10-24 21:59:31 corbet Exp $
  */
 
 
-LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS) $(LIBPROJ)
+LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 
