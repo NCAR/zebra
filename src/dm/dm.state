@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.2 1990-03-19 11:01:36 corbet Exp $
+! $Id: dm.state,v 1.3 1990-07-08 12:59:55 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -6,7 +6,7 @@
 define state dm-initial
 	eoftext 'exit'
 	ctable ui$command_table
-	@ /home/corbet/ui/ui_commands.
+	@ /rdss/ui/ui_commands.
 	input 'config' 1
 		next ust$final_string
 	endinput
@@ -27,6 +27,36 @@ define state dm-initial
 	endinput
 	input 'beep' 14
 		next ust$no_more
+	endinput
+	input 'pdload' 15
+		next dm-pd-file
+	endinput
+	input 'pddir' 16
+		next ust$final_unmunged_string
+	endinput
+	input 'parameter' 17
+		next dm-param-pd
+	endinput
+	input 'remove' 18	! remove win|pd component
+		next dm-rem-pd
+	endinput
+	input 'add' 19		! add pd comp win
+		next dm-add-pd
+	endinput
+	input 'history' 20	! history all|window time
+		next dm-history-target
+	endinput
+	input 'realtime' 21	! realtime all|window
+		next dm-rt-window
+	endinput
+	input 'colortable' 22
+		next ust$final_string
+	endinput
+	input 'dial' 29
+		next dm-dial-number
+	endinput
+	input 'time' 32
+		next ust$final_date
 	endinput
 enddef
 
@@ -127,29 +157,203 @@ define state dm-window
 	input 'buttonmap' 9
 		next ust$final_unmunged_string
 	endinput
+	input 'nongraphic' 30
+		next ust$no_more
+	endinput
+	input 'forcepd' 31
+		next ust$no_more
+	endinput
 enddef
 
 
 
 !
-! buttonmap name
-!	left command
-!	right command 
-!	middle command
-! endmap
-  
+! Button map definition.
+! 
 define state dm-in-map
 	eoftext 'endmap'
 	input 'endmap' 10
 		next ust$no_more
 	endinput
-	input 'left' 0
+	input 'ignore' 27
+		next ust$no_more
+	endinput
+	input 'dm' 25
+		next dm-key-name
+	endinput
+	input 'local' 26
+		next dm-key-name
+	endinput
+	input 'menu' 28
+		next dm-key-name
+	endinput
+enddef
+
+
+define state dm-key-name
+	input string
 		next ust$final_unmunged_string
 	endinput
-	input 'middle' 1
+enddef
+
+
+
+define state dm-pd-file
+	input string
 		next ust$final_unmunged_string
 	endinput
-	input 'right' 2
+enddef
+
+
+
+
+!
+! PARAMETER
+!
+define state dm-param-pd
+	input string
+		next dm-param-comp
+	endinput
+enddef
+
+define state dm-param-comp
+	input string
+		next dm-param-param
+	endinput
+enddef
+
+define state dm-param-param
+	input string
 		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+!
+! Remove
+!
+define state dm-rem-pd
+	input string
+		next ust$final_string
+	endinput
+enddef
+
+!
+! Add
+!
+define state dm-add-pd
+	input string
+		next dm-add-comp
+	endinput
+enddef
+
+define state dm-add-comp
+	input string
+		next ust$final_string
+	endinput
+enddef
+
+
+
+define state dm-history-target
+	input expression
+		next dm-history-time
+	endinput
+	input 'all' 0
+		next dm-history-time
+	endinput
+enddef
+
+
+define state dm-history-time
+	input date
+		next ust$no_more
+	endinput
+enddef
+
+define state dm-rt-window
+	input expression
+		next ust$no_more
+	endinput
+	input 'all' 0
+		next ust$no_more
+	endinput
+enddef
+
+
+
+!
+! parse the interior of a color table.
+!
+define state dm-ct-initial
+	input 'entry' 0
+		ignore
+		next dm-ct-red
+	endinput
+	input real
+		next dm-ct-green
+	endinput
+	input 'xcolor' 24
+		next ust$final_unmunged_string
+	endinput
+	input 'endtable' 23
+		next ust$no_more
+	endinput
+enddef
+
+define state dm-ct-red
+	input real
+		next dm-ct-green
+	endinput
+enddef
+
+define state dm-ct-green
+	input real
+		next ust$final_real
+	endinput
+enddef
+
+
+
+!
+! dial # [broadcast] process parameter [incr]
+!
+define state dm-dial-number
+	input integer
+		next dm-dial-process-grp
+	endinput
+enddef
+
+
+define state dm-dial-process-grp
+	input 'broadcast' 1
+		next dm-dial-process
+	endinput
+	input string
+		next dm-dial-parameter
+	endinput
+enddef
+
+
+define state dm-dial-process
+	input string
+		next dm-dial-parameter
+	endinput
+enddef
+
+
+define state dm-dial-parameter
+	input string
+		next dm-dial-opt-scale
+	endinput
+enddef
+
+
+define state dm-dial-opt-scale
+	input integer
+		next ust$no_more
+	endinput
+	input eos
+		done
 	endinput
 enddef
