@@ -87,14 +87,17 @@ mode, click on the <b>Real Time</b> button.</p>
 <img src=time-widget-skip.gif> <p>
 
 While the system is in history mode, the history time can be 'skipped'
-either forward or backward a preset number of minutes.  This is done by
-entering the desired number of minutes in the text window within the
-"Skipping" section of the Time Widget.  Enter the desired skip interval,
-then click on either the left or right arrow to move backward or forward
-that number of minutes in time.  If the scope of control is all windows,
-every window will be set to the new history time as the time is incremented
-or decremented.  Otherwise only the time of the currently selected window
-will change.</p>
+either forward or backward a preset amount of time.  This is done by
+entering the desired time interval in the "Skipping" section of the Time
+Widget.  First, choose the units for the time interval from the units menu,
+either seconds, minutes, hours, or days.  Next, enter the desired skip
+interval in the text window left of the units menu.  Finally, click on
+either the left or right arrow to move backward or forward in time by the
+specified interval.  Once the time interval has been set, the left and
+right arrow buttons can be pressed as often as needed.  If the scope of
+control is all windows, every window will be set to the new history time as
+the time is incremented or decremented.  Otherwise, only the time of the
+currently selected window will change.</p>
 
 <h3> Customizing the Menu of Times </h3>
 <img src=time-widget-hot.gif>
@@ -112,18 +115,30 @@ src=time-widget-hotlabel.gif> To actually add the time to the menu, hit the
 entering a time and then pressing <b>Set Time</b>.  The time label will change
 to the description associated with the selected time, and the selected time
 becomes the current history time.  The windows currently under control will
-change to the selected time.</p>
+change to history mode at the selected time.</p>
 
 <p>At the furthest right, the <b>Forget</b> button pops down the menu of
 times and will delete whichever time is selected.  The current time and the
 last description appearing in the time label will not change, so
 accidentally deleting a time can often be undone by pressing
-<b>Remember</b> again.</p>
+<b>Remember</b> immediately following the delete.</p>
 
 <p>Some project configurations save the customized times into a file so
 that the menu persists between different sessions of Zebra.  For those
 configurations that do not save the times, the menu will be empty at the
 start of each new session.</p>
+
+<h3> Visited Times </h3>
+
+<p> As different times are selected and visited, the time widget
+automatically includes the five most recently visited times in the times
+menu.  Each of these five times is numbered on the times menu in order from
+most recently to least recently visited.  The history time last visited is
+always included in the times menu with a number '1' to the left of the
+label, while the least recently visited will show a number '5'.  Whenever a
+visited time is added automatically where there was no menu entry
+previously, the time label is left blank.  The visited times can be removed
+(forgotten) from the times menu just like the customized entries. </p>
 
 <h3> Quitting</h3>
 
@@ -155,4 +170,4 @@ return the graphics window to real time mode.<p>
 <a href=time.html><img src=la.gif></a>
 <a href=overlay-time.html><img src=ra.gif> Next: Getting get data times</a><p>
 <i>Return to <a href=index.html> Zeb Help Index</i></a>
-<h6>$Id: historytime.html,v 1.3 1995-07-10 14:22:16 granger Exp $</h6>
+<h6>$Id: historytime.html,v 1.4 1995-09-07 21:37:11 granger Exp $</h6>
