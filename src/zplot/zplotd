@@ -183,7 +183,7 @@ while (<DS>)
 
 	# If not in our list of plots, ignore it
 	if (defined $Plots{$platform} &&
-	    ($Observations{$platform} || ! Pending{$platform}))
+	    ($Observations{$platform} || ! $Pending{$platform}))
 	{
 	    $Pending{$platform} = 1;
 
