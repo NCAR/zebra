@@ -7,6 +7,7 @@
 # include "../include/message.h"
 # include "GraphProc.h"
 # include "DrawText.h"
+# include "PixelCoord.h"
 # include "GC.h"
 
 /*
