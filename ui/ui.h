@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.6 1998-02-26 21:18:19 burghart Exp $ */
+/* $Id: ui.h,v 1.7 1998-02-27 17:01:10 burghart Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -81,6 +81,11 @@ struct ui_command
 	void uw_mk_list (char *, char *, int, char **, void (*)(), char *);
 	void uw_popup (char *);
 	void uw_popdown (char *);
+	void ui_error (char *fmt, ...);
+	void ui_cl_error (bool jump, int col, char *fmt, ...);
+	void ui_ns_error (char *fmt, ...);
+	void ui_bailout (char *fmt, ...);
+	void ui_warning (char *fmt, ...);
 # else
 	void ui_init ();
 	void ui_setup ();
@@ -118,6 +123,11 @@ struct ui_command
 	void uw_mk_list ();
 	void uw_popup ();
 	void uw_popdown ();
+	void ui_error ();
+	void ui_cl_error ();
+	void ui_ns_error ();
+	void ui_bailout ();
+	void ui_warning ();
 # endif
 
 /*

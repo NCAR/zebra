@@ -17,9 +17,8 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.11 1998-02-26 21:18:40 burghart Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.12 1998-02-27 17:01:11 burghart Exp $";
 
-void ui_error ();
 char *zapcase ();
 
 
@@ -192,11 +191,10 @@ struct ui_command *cmds;
  * Our error reporting routine.  The idea is to easily deal with errors that
  * are fatal when dealing with file input, but not for interactive.
  */
- 	void ui_error (), ui_ns_error ();
 # ifdef notdef /* 5/29/87 cb The CRAY doesn't like this */
 	void (*errfun) () = ut_src_int () ? ui_ns_error : ui_error;
 # endif
-	void (*errfun) ();
+	void (*errfun) (char *fmt, ...);
 
 	if (ut_src_int ())
 		errfun = ui_ns_error;
