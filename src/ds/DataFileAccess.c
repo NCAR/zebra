@@ -5,7 +5,7 @@
  * of the data store be format-independent.  We push most of the real work
  * down to the format-specific stuff.
  */
-static char *rcsid = "$Id: DataFileAccess.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: DataFileAccess.c,v 1.3 1991-02-26 19:07:05 corbet Exp $";
 
 
 # include "../include/defs.h"
@@ -23,16 +23,18 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.2 1991-01-16 22:06:46 corbet Exp
 /*
  * The DFA format-driver routines:
  *
- * f_QueryTime (file, begin, end)
+ * f_QueryTime (file, begin, end, nsample)
  * char *file;
  * time *begin, *end;
+ * int *nsample
  *
  *	Given the file name, return the begin and end times of the data
  *	found therein.  For a given format, it is acceptible to calculate
  *	these times from the file name, if it is certain that (1) the time
  *	period covered by the file is not greater than what is returned, 
  *	and (2) if the time period is less, no other file will cover the
- *	missing period.  Returns TRUE on success.
+ *	missing period.  NSAMPLE should be set to the number of data
+ *	samples found in this file.  Returns TRUE on success.
  *
  * f_Setup (dlist)
  * GetList *dlist;
@@ -41,8 +43,9 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.2 1991-01-16 22:06:46 corbet Exp
  *	in particular, sets the sample count for each entry.  Should cache
  *	info wherever necessary to make the actual grab go faster.
  *
- * f_OpenFile (dp, tag)
+ * f_OpenFile (dp, write, tag)
  * DataFile *dp;
+ * bool write;
  * void **tag;
  *
  *	Open the given file, returning TRUE if success.  The TAG value is
@@ -89,6 +92,29 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.2 1991-01-16 22:06:46 corbet Exp
  *
  * 	Return a list of times for which data is available.
  *
+ * f_MakeFileName (directory, platform, time, dest)
+ * char *directory, *platform;
+ * time *time;
+ * char *dest;
+ *
+ *	Create an appropriate name for a new file in directory, starting
+ *	at the given time.
+ *
+ * f_CreateFile (dfile, dobj, tag)
+ * DataFile *dfile;
+ * DataObject *dobj;
+ * void **tag;
+ *
+ *	Cause the given file to exist, returning TRUE and a tag if
+ *	successful.  DOBJ describes the current data put request, which
+ *	should describe the layout of the file.
+ *
+ * f_PutData (dfile, dobj, begin, end)
+ * int *dfile;
+ * DataObject *dobj;
+ * int begin, end;
+ *
+ *	Put samples BEGIN through END (inclusive) from DOBJ into DFILE.
  */
 
 struct DataFormat
@@ -106,6 +132,9 @@ struct DataFormat
 	int (*f_GetIRGLoc) ();		/* Get irgrid locations		*/
 	int (*f_InqRGrid) ();		/* Get RGrid info		*/
 	int (*f_DataTimes) ();		/* Get data times		*/
+	int (*f_MakeFileName) ();	/* Make new file name		*/
+	int (*f_CreateFile) ();		/* Create a new file		*/
+	int (*f_PutData) ();		/* Put data to a file		*/
 };
 
 
@@ -115,6 +144,12 @@ struct DataFormat
 extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
 extern int dnc_SyncFile (), dnc_Setup (), dnc_InqPlat (), dnc_GetData ();
 extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
+extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutData ();
+
+extern int bf_QueryTime (), bf_MakeFileName (), bf_CreateFile ();
+extern int bf_PutData (), bf_OpenFile (), bf_CloseFile (), bf_SyncFile ();
+extern int bf_Setup (), bf_GetData (), bf_DataTimes ();
+
 # define ___ 0
 
 /*
@@ -137,6 +172,25 @@ struct DataFormat Formats[] =
 	dnc_GetIRGLoc,			/* Get IRGrid locations		*/
 	dnc_GetRGrid,			/* Get RGrid info		*/
 	dnc_DataTimes,			/* Get data times		*/
+	dnc_MakeFileName,		/* Make file name		*/
+	dnc_CreateFile,			/* Create a new file		*/
+	dnc_PutData,			/* Write to file		*/
+    },
+    {
+	"Boundary",	".bf",
+	bf_QueryTime,			/* Query times			*/
+	bf_Setup,			/* setup			*/
+	bf_OpenFile,			/* Open				*/
+	bf_CloseFile,			/* Close			*/
+	bf_SyncFile,			/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	bf_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	___,				/* Get RGrid info		*/
+	bf_DataTimes,			/* Get data times		*/
+	bf_MakeFileName,		/* Make file name		*/
+	bf_CreateFile,			/* Create a new file		*/
+	bf_PutData,			/* Write to file		*/
     }
 };
 
@@ -156,6 +210,7 @@ typedef struct _OpenFile
 	int	of_format;		/* Format type			*/
 	struct _OpenFile *of_next;	/* Next in chain		*/
 	int	of_rev;			/* Revision count		*/
+	int	of_write;		/* File open for write access	*/
 } OpenFile;
 
 static OpenFile *OpenFiles = 0;		/* Open file list head		*/
@@ -197,16 +252,34 @@ char *name;
 
 
 
+void
+dfa_MakeFileName (plat, t, dest)
+Platform *plat;
+time *t;
+char *dest;
+/*
+ * Create a new file name for this platform, and this time.
+ */
+{
+	(*Formats[plat->dp_ftype].f_MakeFileName) (plat->dp_dir,
+				plat->dp_name, t, dest);
+}
+
+
+
+
+
 int
-dfa_QueryDate (type, name, begin, end)
+dfa_QueryDate (type, name, begin, end, nsample)
 int type;
 char *name;
 time *begin, *end;
+int *nsample;
 /*
  * Query the dates on this file.
  */
 {
-	return ((*Formats[type].f_QueryTime) (name, begin, end));
+	return ((*Formats[type].f_QueryTime) (name, begin, end, nsample));
 }
 
 
@@ -258,6 +331,20 @@ GetList *gl;
 		}
 }
 
+
+
+
+
+void
+dfa_PutData (dfile, dobj, begin, end)
+int dfile, begin, end;
+DataObject *dobj;
+/*
+ * Add data to this file.
+ */
+{
+	(*Formats[DFTable[dfile].df_ftype].f_PutData) (dfile, dobj, begin,end);
+}
 
 
 
@@ -320,6 +407,30 @@ TimeSpec which;
 
 
 
+bool
+dfa_CreateFile (df, dobj)
+int df;
+DataObject *dobj;
+/*
+ * Cause this file to exist, if at all possible.
+ */
+{
+	char *tag;
+	DataFile *dfp = DFTable + df;
+/*
+ * Make sure that it isn't somehow open now.
+ */
+	dfa_ForceClose (df);
+/*
+ * Try to open up the file.  If successful, do our accounting and return
+ * our success.
+ */
+	if (! (*Formats[dfp->df_ftype].f_CreateFile) (dfp, dobj, &tag))
+		return (FALSE);
+	dfa_AddOpenFile (df, TRUE, tag);
+	return (TRUE);
+}
+
 
 
 /*********
@@ -331,8 +442,9 @@ TimeSpec which;
 
 
 void
-dfa_AddOpenFile (dfindex, tag)
+dfa_AddOpenFile (dfindex, write, tag)
 int dfindex;
+int write;
 void *tag;
 /* 
  * Add an open file to the list.
@@ -348,6 +460,7 @@ void *tag;
 	ofp->of_tag = tag;
 	ofp->of_next = OpenFiles;
 	ofp->of_rev = DFTable[dfindex].df_rev;
+	ofp->of_write = write;
 	OpenFiles = ofp;
 /*
  * If we have exceeded the maximum number of open files, we have to close
@@ -472,9 +585,26 @@ int dfindex;
 
 
 
-int
-dfa_OpenFile (dfindex, tag)
+
+void
+dfa_NoteRevision (dfindex)
 int dfindex;
+/*
+ * Note that a revision has been signalled on this file.
+ */
+{
+	OpenFile *ofp = dfa_FileIsOpen (dfindex);
+
+	if (ofp)
+		ofp->of_rev++;
+}
+
+
+
+int
+dfa_OpenFile (dfindex, write, tag)
+int dfindex;
+int write;
 void **tag;
 /*
  * See to it that this file is open.  On success, the return value is TRUE,
@@ -487,21 +617,34 @@ void **tag;
 
 	dsm_ShmLock ();
 /*
- * If the file is open, check the revision and return the tag.
+ * If the file is open, check the revision and access and return the tag.
  */
 	if (ofp = dfa_FileIsOpen (dfindex, tag))
 	{
 		*tag = ofp->of_tag;
-		if (dp->df_rev != ofp->of_rev)
-			retv = (*Formats[dp->df_ftype].f_SyncFile) (*tag);
+		if (write && ! ofp->of_write)
+			dfa_CloseFile (ofp);
+		else
+		{
+			if (dp->df_rev != ofp->of_rev)
+			{
+				msg_ELog (EF_DEBUG, "Out of rev file %s",
+					dp->df_name);
+				retv = (*Formats[dp->df_ftype].f_SyncFile)
+						(*tag);
+				ofp->of_rev = dp->df_rev;
+			}
+			dsm_ShmUnlock ();
+			return (retv);
+		}
 	}
 /*
  * Nope, open it now.
  */
-	else if (! (*Formats[dp->df_ftype].f_OpenFile) (dp->df_name, tag))
+	if (! (*Formats[dp->df_ftype].f_OpenFile) (dp->df_name, write, tag))
 		retv = FALSE;
 	else 	/* success */
-		dfa_AddOpenFile (dfindex, *tag);
+		dfa_AddOpenFile (dfindex, write, *tag);
 
 	dsm_ShmUnlock ();
 	return (retv);
