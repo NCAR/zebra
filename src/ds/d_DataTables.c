@@ -1,7 +1,7 @@
 /*
  * Maintenance of the data tables.
  */
-static char *rcsid = "$Id: d_DataTables.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: d_DataTables.c,v 1.3 1991-02-26 19:10:25 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -113,10 +113,11 @@ char *name;
 	strcpy (new->dp_name, name);
 	strcpy (new->dp_class, "");
 	sprintf (new->dp_dir, "%s/%s", DefDataDir, name);
-	new->dp_flags = 0;
+	new->dp_Tfile = new->dp_flags = 0;
 	new->dp_org = OrgUnknown;
 	new->dp_ftype = FTUnknown;
 	new->dp_keep = DefaultKeep;
+	new->dp_maxsamp = 60;
 	new->dp_LocalData = new->dp_RemoteData = 0;
 	return (new);
 }
