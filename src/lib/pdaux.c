@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.16 1999-03-01 02:04:45 burghart Exp $ */
+/* $Id: pdaux.c,v 1.17 2000-12-01 23:30:07 granger Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -177,6 +177,13 @@ int type;
  */
 	if (!found && (defpd = pda_GetPD ("defaults")) && qparam)
 		found = pd_Retrieve (defpd, "defaults", qparam, dest, type);
+/*
+ * Look for the parameter in a component of the defaults table
+ * by the same name as the qualifier, before checking for the unqualified
+ * name in the defaults component as a last resort.
+ */
+	if (!found && defpd && qual)
+		found = pd_Retrieve (defpd, qual, param, dest, type);
 	if (!found && defpd)
 		found = pd_Retrieve (defpd, "defaults", param, dest, type);
 /*
