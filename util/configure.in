@@ -1,0 +1,28 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT(rdssutil)
+AM_INIT_AUTOMAKE(rdssutil, 20020709beta, rdp-support@atd.ucar.edu)
+AC_CONFIG_SRCDIR([batch.c])
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_CPP
+AC_PROG_RANLIB
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys/file.h sys/ioctl.h sys/socket.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_OFF_T
+AC_STRUCT_TM
+
+# Checks for library functions.
+AC_FUNC_ERROR_AT_LINE
+AC_FUNC_FORK
+AC_FUNC_MALLOC
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS([gethostbyname gethostname inet_ntoa memset pow socket sqrt strchr strcspn strrchr])
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
