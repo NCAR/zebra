@@ -5,6 +5,11 @@
 # include <fcntl.h>
 # include <sys/types.h>
 # include <sys/file.h>
+
+# ifdef NETACCESS
+#   include "netdisk.h"
+# endif
+
 /*
  * Kludge: static info kept when emulating async bio operations, to be
  * returned by bio_wait.
@@ -12,11 +17,6 @@
 static int Status, Len;
 
 # define BLOCK_SIZE 512
-/*
- * lun type definitions
- */
-# define LUN_LOCAL	1
-# define LUN_NETDISK	2
 
 int bio_open (file, len, alq)
 char *file;
@@ -32,6 +32,7 @@ int *len, *alq;
  */
 	strncpy (fname, file, *len);
 	fname[*len] = '\0';
+# ifdef NETACCESS
 /*
  * Check to see if the file is on another machine
  */
@@ -39,8 +40,9 @@ int *len, *alq;
 	{
 		if ((lun = cli_bio_open (fname)) < 0)
 			return (lun);
-		return (lun_assign (lun, LUN_NETDISK));
+		return (lun_assign (lun, LUN_NTDSK_BIO));
 	}
+# endif
 /*
  * Make sure the file exists.
  */
@@ -54,7 +56,11 @@ int *len, *alq;
 		perror (fname);
 		return (-2);
 	}
+# ifdef NETACCESS
 	return (lun_assign (lun, LUN_LOCAL));
+# else
+	return (lun);
+# endif
 }
 
 
@@ -74,6 +80,8 @@ int *len, *alq;
  */
  	strncpy (fname, file, *len);
 	fname[*len] = '\0';
+
+# ifdef NETACCESS
 /*
  * On this machine?
  */
@@ -81,8 +89,9 @@ int *len, *alq;
 	{
 		if ((lun = cli_bio_view (fname)) < 0)
 			return (lun);
-		return (lun_assign (lun, LUN_NETDISK));
+		return (lun_assign (lun, LUN_NTDSK_BIO));
 	}
+# endif
 /*
  * Make sure the file exists.
  */
@@ -96,7 +105,11 @@ int *len, *alq;
 		perror (fname);
 		return (-2);
 	}
+# ifdef NETACCESS
 	return (lun_assign (lun, LUN_LOCAL));
+# else
+	return (lun);
+# endif
 }
 
 
@@ -117,6 +130,8 @@ int *len, *alloc, *extend;
  */
  	strncpy (fname, file, *len);
 	fname[*len] = '\0';
+
+# ifdef NETACCESS
 /*
  * On this machine?
  */
@@ -124,8 +139,9 @@ int *len, *alloc, *extend;
 	{	
 		if ((lun = cli_bio_create (fname, alloc, extend)) < 0)
 			return (lun);
-		return (lun_assign (lun, LUN_NETDISK));
+		return (lun_assign (lun, LUN_NTDSK_BIO));
 	}
+# endif
 /*
  * Open the file.
  */
@@ -134,7 +150,11 @@ int *len, *alloc, *extend;
 		perror (fname);
 		return (-2);
 	}
+# ifdef NETACCESS
 	return (lun_assign (lun, LUN_LOCAL));
+# else
+	return (lun);
+# endif
 }
 
 
@@ -155,6 +175,8 @@ int *len, *alloc, *extend;
  */
  	strncpy (fname, file, *len);
 	fname[*len] = '\0';
+
+# ifdef NETACCESS
 /*
  * On this machine?
  */
@@ -162,8 +184,9 @@ int *len, *alloc, *extend;
 	{
 		if ((lun = cli_bio_temp (fname, alloc, extend)) < 0)
 			return (lun);
-		return (lun_assign (lun, LUN_NETDISK));
+		return (lun_assign (lun, LUN_NTDSK_BIO));
 	}
+# endif
 /*
  * Open the file.
  */
@@ -177,23 +200,31 @@ int *len, *alloc, *extend;
  * when the fd is closed.
  */
  	unlink (fname);
+# ifdef NETACCESS
 	return (lun_assign (lun, LUN_LOCAL));
+# else
+	return (lun);
+# endif
 }
 
 
 
 
 bio_close (lun)
-int lun;
+int *lun;
 /*
  * Close this file.
  */
 {
-	if (lun_type (lun) == LUN_NETDISK)
-		cli_bio_close (lun_lookup (lun));
+# ifdef NETACCESS
+	if (lun_type (*lun) == LUN_NTDSK_BIO)
+		cli_bio_close (lun_lookup (*lun));
 	else
-		close (lun_lookup (lun));
-	lun_deassign (lun);
+		close (lun_lookup (*lun));
+	lun_deassign (*lun);
+# else
+	close (*lun);
+# endif
 }
 
 
@@ -208,14 +239,17 @@ char *buffer;
  * Perform a block read.
  */
 {
-	int nread, fileid;
+	int nread, fileid = *lun;
+
+# ifdef NETACCESS
 /*
  * Check to see if this is a file on another machine
  */
-	if (lun_type (*lun) == LUN_NETDISK)
+	if (lun_type (*lun) == LUN_NTDSK_BIO)
 		return (cli_bio_read(lun_lookup(*lun), block, buffer, nbytes));
 	else
 		fileid = lun_lookup (*lun);
+# endif
 /*
  * If a block number was given, seek to it.
  */
@@ -249,10 +283,11 @@ int *lun;
  * Fake an async wait.
  */
 {
-	if (lun_type (*lun) == LUN_NETDISK)
+# ifdef NETACCESS
+	if (lun_type (*lun) == LUN_NTDSK_BIO)
 		return (cli_bio_wait (lun_lookup (*lun)));
-	else
-		return (Len);
+# endif
+	return (Len);
 }
 
 
@@ -265,12 +300,14 @@ char *buffer;
  * Perform a block write.
  */
 {
-	int nwrite, fileid;
+	int nwrite, fileid = *lun;
 
-	if (lun_type (*lun) == LUN_NETDISK)
+# ifdef NETACCESS
+	if (lun_type (*lun) == LUN_NTDSK_BIO)
 		return(cli_bio_write(lun_lookup(*lun), block, buffer, nbytes));
 	else
 		fileid = lun_lookup (*lun);
+# endif
 /*
  * If a block number was given, seek to it.
  */
@@ -305,60 +342,4 @@ char *dfn;
  * Do nothing, for the time being.
  */
 {
-}
-
-
-
-
-
-static int Lun_table[256][2];
-static int Initialized = 0;
-# define LUN_FREE	0
-
-lun_type (lun)
-int lun;
-{
-	return (Lun_table[lun - 1][0]);
-}
-
-
-
-
-
-lun_lookup (lun)
-int lun;
-{
-	return (Lun_table[lun - 1][1]);
-}
-
-
-
-
-
-lun_assign (lun, type)
-int lun, type;
-{
-	int	i;
-
-	if (!Initialized)
-		memset ((char *) Lun_table, (char) LUN_FREE, 512);
-	for (i=0; i<255; i++)
-		if (Lun_table[i][0] == LUN_FREE)
-		{
-			Lun_table[i][0] = type;
-			Lun_table[i][1] = lun;
-			return (i + 1);
-		}
-	perror ("Out of space in Lun_table!");
-	return (0);
-}
-
-
-
-
-
-lun_deassign (lun)
-int lun;
-{
-	Lun_table[lun - 1][0] = LUN_FREE;
 }
