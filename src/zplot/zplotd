@@ -33,10 +33,10 @@ $project=".";
 	  "iss2/rass915",	"iss2 rass",
 	  "iss2/surface_met",	"iss2 surfmet surfwind surfrad",
 
-	  "iss3/class", 	"iss3 class",
-	  "iss3/prof915h",	"iss3 prof915l",
-	  "iss3/rass915",	"iss3 rass",
-	  "iss3/surface_met",	"iss3 surfmet surfwind surfrad"
+	  "iss4/class", 	"iss4 class",
+	  "iss4/prof915h",	"iss4 prof915l",
+	  "iss4/rass915",	"iss4 rass",
+	  "iss4/surface_met",	"iss4 surfmet surfwind surfrad"
 	  );
 
 @Queue = ();
@@ -61,6 +61,13 @@ while ($pattern = shift @ARGV)
     if ($pattern eq "-notice")
     {
 	$notice = 1;
+	next;
+    }
+    if ($pattern eq "-time")
+    {
+	$fixtime = 1;
+	$fixbegin = shift @ARGV;
+	$fixend = shift @ARGV;
 	next;
     }
     if ($pattern =~ /^-d(\d*)/)
@@ -95,7 +102,7 @@ print STDERR "Queueing: \n   ",
 
 # If we weren't told to get input elsewhere, then
 # just clear the queue and we're done
-if ($first && ! $since && ! $notice)
+if ($first && ! $since && ! $notice && ! $fixtime)
 {
     &clear;
     exit 0;
@@ -154,6 +161,15 @@ elsif ($notice)
     print "Opening $zbin/dsnotice -dir $targets ...\n";
     open (DS, "$zbin/dsnotice -dir $targets 2>&1 |") || 
 	die "dsnotice: $!";
+}
+elsif ($fixtime)
+{
+    # Get a list of platforms to plot with data within the given time
+    # period.
+    $targets = join(' -e ',keys(%Plots));
+    print "Running $zbin/dsdump -l -p $fixbegin -p $fixend -e $targets...\n";
+    open (DS, "$zbin/dsdump -l -p $fixbegin -p $fixend $targets |") ||
+	die "dsdump: $!";
 }
 else
 {
@@ -271,6 +287,7 @@ sub clear
     foreach $entry (@Queue)
     {
 	($platform, $time, $config, @window) = split(/\s+/,$entry);
+	if ($fixtime) { $time = $fixend; }
 	$plot = "$time $config " . join(" ",@window);
 	print "$plot\n";
 	print PLOG "$plot\n";
@@ -323,15 +340,23 @@ sub clear
 
     close PLOG;
     $cmd = "elm -s \"zplotd $status, log $plog\" " .
-	" granger <$plog >/dev/null";
+	" granger >/dev/null";
     print "$cmd\n";
-    if ($debug < $D_NoEmail && system($cmd))
+    if ($debug < $D_NoEmail && ! open (MAIL, "| cat - $plog | $cmd"))
     {
 	print "*** Mail failed! ***\n";
     }
-    else
+    elsif ($debug < $D_NoEmail)
     {
-	print "--- Done. ---\n";
+	print MAIL "Images:\n";
+	$images =~ s/^\s+//;
+	foreach $i (split(/\s+/,$images))
+	{
+	    print MAIL "file:$i\n";
+	}
+	print MAIL "\n";
+	close MAIL;
+	print "--- Mail sent. ---\n";
     }
     @Queue = ();
     %Pending = ();
