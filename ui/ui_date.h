@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_date.h,v 1.1 1989-02-08 13:28:14 corbet Exp $ */
+/* $Id: ui_date.h,v 1.2 1990-09-11 16:12:51 corbet Exp $ */
 /*
  * Date stuff.
  */
@@ -8,7 +8,11 @@
 /*
  * Options for ud_format_date ()
  */
-char * ud_format_date ();
+# ifdef __STDC__
+	char *ud_format_date (char *, struct date_st *, int);
+# else
+	char * ud_format_date ();
+# endif
 # define UDF_FULL	0	/* Format the date in its entirety. 	*/
 
 /*
