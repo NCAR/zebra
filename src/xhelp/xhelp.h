@@ -108,7 +108,7 @@
  **    Mark Newsome                                                          **
  **    January 1991, September 1991                                          **
  **
- **    $Id: xhelp.h,v 1.3 1993-03-13 00:59:12 granger Exp $
+ **    $Id: xhelp.h,v 1.4 1993-11-30 23:36:07 granger Exp $
  ******************************************************************************/
 
 #include <stdio.h>
@@ -211,7 +211,8 @@ int XhGetHelpStatusProperty(w)
    Widget w;
 {
    Atom actual_type;
-   int  actual_format, nitems, leftover;
+   int  actual_format;
+   unsigned long nitems, leftover;
    int  *retdata = NULL ;
 
    if (XGetWindowProperty(XtDisplay(w),

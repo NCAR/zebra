@@ -96,7 +96,7 @@ extern char *path, *xhelpPath;
 #define COPYRIGHT_MSG  "(C) 1991, Mark Newsome\nAuburn University"
 
 static char rcsid[] =
-	"$Id: xhelp.c,v 1.3 1993-03-13 00:59:56 granger Exp $";
+	"$Id: xhelp.c,v 1.4 1993-11-30 23:35:56 granger Exp $";
 
 static String indexButtonStr, searchButtonStr;
 
@@ -973,7 +973,9 @@ static void WriteHelp(filename)
 static void GetAppHelpData()
 /*------------------------*/
 {
-    int         type, format, nitems, left;
+    Atom          type;
+    int		  format;
+    unsigned long nitems, left;
     unsigned char *retdata, *i, *j;
 
    /*** Hooks to allow apps to call us ***/

@@ -115,7 +115,7 @@ char **argv;
  */
 	tl_RelativeReq (TimeOut, 0, 60*INCFRAC, 60*INCFRAC);
 	XtRealizeWidget (Top);
-	XtAppAddInput (Appc, msg_get_fd (), XtInputReadMask, MsgInput, 0);
+	XtAppAddInput (Appc, msg_get_fd (), (XtPointer)XtInputReadMask, MsgInput, 0);
 	XtAppMainLoop (Appc);
 }
 
@@ -186,7 +186,7 @@ CreateWidget ()
 	XtSetArg (args[n], XtNfromHoriz, button);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);			n++;
 	die = XtCreateManagedWidget ("die", commandWidgetClass, Form, args, n);
-	XtAddCallback (die, XtNcallback, Die, 0);
+	XtAddCallback (die, XtNcallback, (XtCallbackProc) Die, (XtPointer) 0);
 /*
  * A menu for the menubutton.
  */
@@ -325,7 +325,8 @@ ZebTime *now;
 	XtSetArg (args[n], XtNlabel, name);	n++;
 	MEntries[NPlat] = XtCreateManagedWidget (name, smeBSBObjectClass,
 		Menu, args, n);
-	XtAddCallback (MEntries[NPlat], XtNcallback, TogglePlat, NPlat);
+	XtAddCallback (MEntries[NPlat], XtNcallback, 
+		       (XtCallbackProc)TogglePlat, (XtPointer)NPlat);
 /*
  * Also create a label.
  */
