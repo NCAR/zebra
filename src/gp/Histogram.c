@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.4 1996-11-19 07:21:09 granger Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.5 1998-02-26 19:53:53 granger Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -400,7 +400,7 @@ bool *bvbin, *anncounts, *autoscale, *zanchor;
 		strcpy (s, "hotcold");
 	if (! ct_LoadTable (s, ctable, ncolor))
 	{
-		msg_ELog ("Unknown color table: %s", s);
+		msg_ELog (EF_PROBLEM, "Unknown color table: %s", s);
 		ct_LoadTable ("hotcold", ctable, ncolor); /* Hope...*/
 	}
 /*

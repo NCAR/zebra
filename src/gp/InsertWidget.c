@@ -45,7 +45,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.12 1997-02-21 23:33:17 granger Exp $")
+RCSID("$Id: InsertWidget.c,v 1.13 1998-02-26 19:53:56 granger Exp $")
 
 # ifndef PI
 # define PI		3.141592654
@@ -840,8 +840,9 @@ Insert ()
 					IType[NumPlatforms] = LOCATION;
 					break;
 				default:
-					msg_ELog ("Bad data organization %d", 
-						org);
+					msg_ELog (EF_PROBLEM,
+						  "Bad data organization %d", 
+						  org);
 					continue;
 			}
 		/*
@@ -1065,8 +1066,9 @@ YesInsertLine ()
 			    else if (strstr (IconPlatform, IPlatform[Entry]) 
 				== NULL)
 			    {
-				msg_ELog ("Linked with bad platform %s.",
-					IconPlatform);
+				msg_ELog (EF_PROBLEM, 
+					  "Linked with bad platform %s.",
+					  IconPlatform);
 				SetHelp ("Linked with bad platform.");
 				Step--;
 				return;

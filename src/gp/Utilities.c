@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.51 1998-01-30 16:42:11 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.52 1998-02-26 19:53:58 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -801,7 +801,7 @@ char *file;
     sprintf (xwdname, "/tmp/zebra_%s.xwd", wname);
     if (! (xwdfile = fopen (xwdname, "w+")))
     {
-	msg_ELog ("Unable to open xwd file %s\n", xwdname);
+	msg_ELog (EF_PROBLEM, "Unable to open xwd file %s\n", xwdname);
 	return;
     }
 /*
