@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdelete.c,v 2.9 1993-11-30 23:32:55 granger Exp $";
+static char *rcsid = "$Id: dsdelete.c,v 2.10 1994-01-13 01:32:17 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -68,7 +68,7 @@ char **argv;
 	PlatformId plat;
 	int type;
 	SValue v;
-	char cbuf[100];
+	char cbuf[128];
 	ZebTime zaptime, now;
 	bool obs = FALSE, last_obs = FALSE;
  	struct parse_tree *pt;
@@ -106,7 +106,8 @@ char **argv;
  * Get initialized.
  */
 	usy_init ();
-	msg_connect (0, getenv ("USER"));
+	sprintf (cbuf, "DSDEL.%s.%i", getenv ("USER"), getpid());
+	msg_connect (0, cbuf);
 	ds_Initialize ();
 /*
  * Figure out the params, then do the dirty work.
