@@ -33,7 +33,9 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Ov_Grid.c,v 2.5 1995-10-31 04:07:14 granger Exp $")
+RCSID ("$Id: Ov_Grid.c,v 2.6 1996-03-12 17:41:32 granger Exp $")
+
+# define BETWEEN(x,a,b)    ((((x)-(a))*((x)-(b))) <= 0)
 
 /*
  * Some macros.  I'm not sure they are all used here.
@@ -63,14 +65,12 @@ static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
 			double, double, double, double));
 static void 	ov_LLSolidGrid FP ((int, int, int, int, double, double,
 				    double, double));
+static int	ov_DoSegAndLabel FP ((double, double, double, double, int, int,
+				      int, int, char *, double));
 static void	ov_TicGrid FP ((int, int, int, int, double, double,
 			double, double, int, double, double));
 static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
 				double, double, int));
-# ifdef notdef
-static void	ov_LLCurve FP ((float, float, float, float, int, int,
-			int *, int *));
-# endif
 
 /*
  * A couple of useful number crunchers.
@@ -341,83 +341,6 @@ float aint;
 
 
 
-static void
-ov_LLCurve (lat1, lon1, lat2, lon2, nseg, ypmax, fx, fy)
-float lat1, lat2, lon1, lon2;
-int nseg, ypmax, *fx, *fy;
-/*
- * Draw a curved lat/lon line.
- */
-{
-# ifdef MAP_PROJECTIONS
-	float latinc, loninc;
-	XPoint points[MAXSEG];
-	float xk, yk;
-	int seg, npt = 0, first = TRUE;
-/*
- * Figure segments and increments.
- */
-	if (nseg > MAXSEG)
-		nseg = MAXSEG;
-	latinc = (lat2 - lat1)/(nseg - 1);
-	loninc = (lon2 - lon1)/(nseg - 1); /* works cuz of maxlon correction */
-/*
- * Calculate some end points.
- */
-# ifdef notdef
-	prj_Project (lat1, lon1, &xk, &yk);
-	points[0].x = XPIX (xk);
-	points[0].y = YPIX (yk);
-# endif
-	for (seg = 0; seg < nseg; seg++)
-	{
-		int prjok = prj_Project (lat1, lon1, &xk, &yk);
-	/*
-	 * Clip things on the bottom, even though regular clipping will be
-	 * in effect.  One reason to do this is to remember where we drew
-	 * the first real point.
-	 */
-		if (! prjok || YPIX (yk) > ypmax)
-		{
-			if (npt > 1)
-				XDrawLines (Disp, GWFrame (Graphics), Gcontext,
-						points, npt, CoordModeOrigin);
-			npt = 0;
-		}
-	/*
-	 * OK we are drawing this one.  Remember the first point if
-	 * applicable.
-	 */
-		else 
-		{
-			if (first)
-			{
-				*fx = XPIX (xk);
-				*fy = YPIX (yk);
-				first = FALSE;
-			}
-			points[npt].x = XPIX (xk);
-			points[npt++].y = YPIX (yk);
-		}
-	/*
-	 * Move on.
-	 */
-		lat1 += latinc;
-		if ((lon1 += loninc) > 180.0)
-			lon1 -= 360.0;
-	}
-/*
- * Draw and we're done.
- */
-	SetClip (FALSE);
-	XDrawLines (Disp, GWFrame (Graphics), Gcontext, points, npt,
-			CoordModeOrigin);
-	SetClip (TRUE);
-# endif /* MAP_PROJECTIONS */
-}
-
-
-
 
 static void
 ov_CGFixLL (minlat, minlon, maxlat, maxlon, blat, blon, xs, ys)
@@ -605,6 +528,320 @@ float aint;
 
 
 
+static void
+ov_LLSolidGrid (left, right, top, bottom, xs, ys, theight, aint)
+int left, right, top, bottom;
+float xs, ys, theight;
+float aint;
+/*
+ * Draw a solid-line lat/lon cartesian grid.
+ */
+{
+	float	ctr_lat, ctr_lon, prevlat, prevlon, lat, lon;
+	float	startlat, startlon, latstep, lonstep;
+	int	dir, npts, did_draw, did_label, ideg, imin;
+	char	string[24], *label;
+/*
+ * Find the lat/lon of the center of the display area
+ */
+	prj_Reverse (YUSER ((top + bottom)/2),  XUSER ((left + right)/2),
+		     &ctr_lat, &ctr_lon);
+/*
+ * Change our spacings from minutes into degrees
+ */
+	xs /= 60.0;
+	ys /= 60.0;
+/*
+ * Make clipping work for us, and tell DrawText to blank out under our labels
+ */
+	SetClip (FALSE);
+	dt_SetBlankLabel (TRUE);
+/*
+ * Move north from the center, drawing lines of latitude, until we hit one
+ * that doesn't intersect the display area, or until we hit 90 degrees N.
+ * Then repeat the same, moving south.
+ */
+	for (dir = 0; dir < 2; dir++)
+	{
+		if (dir == 0)	/* north */
+		{
+			startlat = ys * ceil (ctr_lat / ys);
+			latstep = ys;
+		}			
+		else		/* south */
+		{
+			startlat = ys * floor (ctr_lat / ys);
+			latstep = -ys;
+		}
+
+		for (lat = startlat; lat >= -90.0 && lat <= 90.0; 
+		     lat += latstep)
+		{
+			ideg = (int) lat;
+			imin = (int)(fabs (lat - ideg) * 60.0);
+			
+			if (imin)
+				sprintf (string, " %d %d' ", ideg, imin);
+			else
+				sprintf (string, " %d ", ideg);
+		/*
+		 * Run through the range of longitudes, stepping by
+		 * half the distance between our longitude lines.
+		 */
+			did_draw = FALSE;
+			did_label = FALSE;
+
+			for (lon = ctr_lon - 180.0; 
+			     lon <= ctr_lon + 180.0; 
+			     lon += 0.5 * xs)
+			{
+				label = did_label ? NULL : string;
+				npts = ov_DoSegAndLabel (lat, lon, lat, 
+							 lon + 0.5 * xs, 
+							 left, right,
+							 top, bottom, label,
+							 theight);
+				did_draw |= npts;
+				did_label |= (npts == 2);
+			}
+		/*
+		 * Break out if no portion of this latitude line showed up
+		 * on the plot
+		 */
+			if (! did_draw)
+			{
+				msg_ELog (EF_DEBUG, 
+					  "Stopping lat lines @ %.1f", lat);
+				break;
+			}
+		}
+	}
+/*
+ * Now do the same for longitude lines, going east from the center, and
+ * then west.
+ */
+	for (dir = 0; dir < 2; dir++)
+	{
+		if (dir == 0)	/* east */
+		{
+			startlon = xs * ceil (ctr_lon / xs);
+			lonstep = xs;
+		}			
+		else		/* west */
+		{
+			startlon = xs * floor (ctr_lon / xs);
+			lonstep = -xs;
+		}
+
+		for (lon = startlon; 
+		     lon <= startlon + 180.0 && lon >= startlon - 180.0; 
+		     lon += lonstep)
+		{
+			ideg = (int) lon;
+			imin = (int)(fabs (lon - ideg) * 60.0);
+
+			if (ideg < -180)
+				ideg += 360;
+			else if (ideg > 180)
+				ideg -= 360;
+			
+			if (imin)
+				sprintf (string, " %d %d' ", ideg, imin);
+			else
+				sprintf (string, " %d ", ideg);
+		/*
+		 * Run through the range of latitudes, stepping by
+		 * half the distance between our latitude lines.
+		 */
+			did_draw = FALSE;
+			did_label = FALSE;
+
+			for (lat = -90.0; lat < 90.0; lat += 0.5 * ys)
+			{
+				label = did_label ? NULL : string;
+				npts = ov_DoSegAndLabel (lat, lon, 
+							 lat + 0.5 * ys,
+							 lon, left, right, 
+							 top, bottom, label,
+							 theight);
+				did_draw |= npts;
+				did_label |= (npts == 2);
+			}
+			
+		/*
+		 * Break out if no portion of this longitude line showed up
+		 * on the plot
+		 */
+			if (! did_draw)
+			{
+				msg_ELog (EF_DEBUG, 
+					  "Stopping lon lines @ %.1f", lon);
+				break;
+			}
+		}
+	}
+/*
+ * And unclip again
+ */
+	SetClip (TRUE);
+}
+
+
+
+static int
+ov_DoSegAndLabel (lat0, lon0, lat1, lon1, left, right, top, bottom, label,
+		  theight)
+double	lat0, lon0, lat1, lon1;
+int	left, right, top, bottom;
+char	*label;
+double	theight;
+/*
+ * Draw whatever portion of the given segment intersects our drawing
+ * area.  Return 0 if neither endpoint lies within the drawing area,
+ * 1 if one of the points is in the drawing area, and 2 if both points
+ * lie within the area.  If the given label is non-null and both points are
+ * in the drawing area, the label will be drawn.
+ */
+{
+	int	px0, px1, py0, py1, ninside;
+	float	x0, y0, x1, y1;
+/*
+ * Project the lat/lon pairs.  If either one fails to yield a good point, 
+ * drop this segment.
+ */
+	if (! prj_Project (lat0, lon0, &x0, &y0) ||
+	    ! prj_Project (lat1, lon1, &x1, &y1))
+		return (0);
+/*
+ * Get coordinates in pixel space and draw the segment
+ */
+	px0 = IXPIX (x0);
+	px1 = IXPIX (x1);
+	py0 = IYPIX (y0);
+	py1 = IYPIX (y1);
+
+	XDrawLine (Disp, GWFrame (Graphics), Gcontext, px0, py0, px1, py1);
+/*
+ * Are there 0, 1, or 2 points inside the plot region?
+ */
+	ninside = (BETWEEN (px0, left, right) && BETWEEN (py0, bottom, top)) + 
+		(BETWEEN (px1, left, right) && BETWEEN (py1, bottom, top));
+/*
+ * If both points are inside the plot region and we were given a label, print 
+ * it.
+ */
+	if (ninside == 2 && label)
+	{
+		int j;
+		double textrot;
+	/*
+	 * Find the text rotation and twiddle it if necessary.  If we
+	 * twiddle it, we also have to switch whether we justify to the left
+	 * or right.
+	 */
+		textrot = RAD_TO_DEG (atan2 ((double)(py0 - py1), 
+					     (double)(px1 - px0)));
+
+		if (textrot > 90.0 || textrot < -90.0)
+		{
+			textrot += 180.0;
+			j = JustifyLeft;
+		}
+		else
+			j = JustifyRight;
+	/*
+	 * Unclip, draw the text, and turn clipping on again.
+	 */
+		SetClip (TRUE);
+		DT_StrokeText (Graphics, GWFrame (Graphics), Gcontext, 
+			       px1, py1, label, textrot, theight, j,
+			       JustifyCenter);
+		SetClip (FALSE);
+	}
+
+	return (ninside);
+}
+
+
+
+# ifdef notdef /* Old ov_LLSolidGrid() */
+
+
+static void
+ov_LLCurve (lat1, lon1, lat2, lon2, nseg, ypmax, fx, fy)
+float lat1, lat2, lon1, lon2;
+int nseg, ypmax, *fx, *fy;
+/*
+ * Draw a curved lat/lon line.
+ */
+{
+# ifdef MAP_PROJECTIONS
+	float latinc, loninc;
+	XPoint points[MAXSEG];
+	float xk, yk;
+	int seg, npt = 0, first = TRUE;
+/*
+ * Figure segments and increments.
+ */
+	if (nseg > MAXSEG)
+		nseg = MAXSEG;
+	latinc = (lat2 - lat1)/(nseg - 1);
+	loninc = (lon2 - lon1)/(nseg - 1); /* works cuz of maxlon correction */
+/*
+ * Calculate some end points.
+ */
+# ifdef notdef
+	prj_Project (lat1, lon1, &xk, &yk);
+	points[0].x = XPIX (xk);
+	points[0].y = YPIX (yk);
+# endif
+	for (seg = 0; seg < nseg; seg++)
+	{
+		int prjok = prj_Project (lat1, lon1, &xk, &yk);
+	/*
+	 * Clip things on the bottom, even though regular clipping will be
+	 * in effect.  One reason to do this is to remember where we drew
+	 * the first real point.
+	 */
+		if (! prjok || YPIX (yk) > ypmax)
+		{
+			if (npt > 1)
+				XDrawLines (Disp, GWFrame (Graphics), Gcontext,
+						points, npt, CoordModeOrigin);
+			npt = 0;
+		}
+	/*
+	 * OK we are drawing this one.  Remember the first point if
+	 * applicable.
+	 */
+		else 
+		{
+			if (first)
+			{
+				*fx = XPIX (xk);
+				*fy = YPIX (yk);
+				first = FALSE;
+			}
+			points[npt].x = XPIX (xk);
+			points[npt++].y = YPIX (yk);
+		}
+	/*
+	 * Move on.
+	 */
+		lat1 += latinc;
+		if ((lon1 += loninc) > 180.0)
+			lon1 -= 360.0;
+	}
+/*
+ * Draw and we're done.
+ */
+	SetClip (FALSE);
+	XDrawLines (Disp, GWFrame (Graphics), Gcontext, points, npt,
+			CoordModeOrigin);
+	SetClip (TRUE);
+# endif /* MAP_PROJECTIONS */
+}
+
 
 static void
 ov_LLSolidGrid (left, right, top, bottom, xs, ys, theight, aint)
@@ -740,7 +977,7 @@ float aint;
 		}
 	}
 }
-
+# endif /* Old ov_LLSolidGrid() */
 
 
 

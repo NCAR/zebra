@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.38 1995-09-27 16:13:13 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.39 1996-03-12 17:41:33 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -347,10 +347,11 @@ pc_SetUpTriggers ()
 /*
  * Find the global trigger first.
  */
-	if (! pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
-		msg_ELog (EF_INFO, "No global trigger specified!");
-	else
+	if (pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
 		pc_DoTrigger (trigger, "global", 0);
+	else
+		/* it's not THAT important that we have a global trigger */
+		msg_ELog (EF_DEBUG, "No global trigger specified!");
 /*
  * Now go through and find the minor updates for each component.  Ignore 
  * components which have no trigger or which are disabled.

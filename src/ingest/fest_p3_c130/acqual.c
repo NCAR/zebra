@@ -1,5 +1,5 @@
 /*
- * $Id: acqual.c,v 1.5 1994-02-02 20:06:00 burghart Exp $
+ * $Id: acqual.c,v 1.6 1996-03-12 17:42:45 granger Exp $
  *
  * A quickly-written (hopefully) program to test aircraft netCDF files.  Tries to
  * verify several criteria:
@@ -43,18 +43,23 @@ typedef struct s_param_t {
 } param_t;
 
 /*
- * Parameters are currently set for STORM-FEST region, i.e. NW Quartisphere, US
+ * Parameters are currently set for ACE-1 region.
  */
 param_t Parameters[] = 
 {
-	{ "lat",   25.0,  80.0, 0.05, YES },
-	{ "lon", -110.0, -40.0, 0.05, YES },
-	{ "alt",    0.0,  20.0, 0.10,  NO }
+	/* name, minimum, maximum, delta, check_zero */
+	{ "lat",   -80.0,  -10.0, 0.05, YES },
+	{ "Lat",   -80.0,  -10.0, 0.05, YES },
+	{ "LAT",   -80.0,  -10.0, 0.05, YES },
+	{ "lon", 110.0, 170.0, 0.05, YES }, 
+	{ "Lon", 110.0, 170.0, 0.05, YES },
+	{ "LON", 110.0, 170.0, 0.05, YES },
+	{ "alt",    0.0,  20000.0, 100,  NO },
+	{ "Alt",    0.0,  20000.0, 100,  NO },
+	{ "ALT",    0.0,  20000.0, 100,  NO }
 };
 
 #define NUMBER(arr)	((unsigned long)(sizeof(arr)/sizeof(arr[0])))
-
-#define AttBadValue	"bad_value_flag"
 
 void GetBadValue();
 void VerifyTimes();
@@ -121,16 +126,19 @@ main(argc, argv)
 		printf("------------------------------------ %s\n",argv[i]);
 		cdfid = ncopen(argv[i], NC_NOWRITE);
 		
+#ifdef notdef
 		/* 
 		 * Set up our bad value handling 
 		 */
 		GetBadValue(cdfid);
+#endif
 
 		/*
 		 * Now check time offsets
 		 */
 		VerifyTimes(cdfid);
 		
+		ncopts = 0;
 		for (fld = 0; fld < NUMBER(Parameters); ++fld)
 		{
 			VerifyFloatVariable(cdfid, 
@@ -148,15 +156,20 @@ main(argc, argv)
 }
 
 
+static char *AttBadValue[] = {
+	"bad_value_flag", "missing_value", "MissingValue"
+};
+
 
 void
-GetBadValue(cdfid)
+GetBadValue(cdfid, varid)
 	int cdfid;
+	int varid;
 {
 	nc_type att_type;
 	int att_len;
 	char *att_val;
-	int opts;
+	int opts, i;
 
 	UseBadValue = 0;
 	/* 
@@ -164,21 +177,34 @@ GetBadValue(cdfid)
 	 */
 	opts = ncopts;
 	ncopts = 0;
-	if (ncattinq(cdfid, NC_GLOBAL, AttBadValue, &att_type, &att_len) < 0)
+	for (i = 0; i < 3; ++i)
+	{
+		if (ncattinq(cdfid, varid, AttBadValue[i],
+			     &att_type, &att_len) >= 0)
+			break;
+	}
+	if (i >= 3)
+	{
 		printf("%s attribute not found, not checking for bad values\n",
-			AttBadValue);
-	else if (att_type != NC_CHAR)
-		printf("%s attribute is not of type NC_CHAR, ignoring...\n",
-		       AttBadValue);
-	else
+		       "bad value");
+	}
+	else if (att_type != NC_CHAR && att_type != NC_FLOAT)
+		printf("%s attribute is not float or char, ignoring...\n",
+			"bad value");
+	else if (att_type == NC_CHAR)
 	{
 		att_val = (char *)malloc(att_len); /* expects \0 */
 		ncopts = opts;
-		ncattget(cdfid, NC_GLOBAL, AttBadValue, att_val);
+		ncattget(cdfid, varid, AttBadValue[i], att_val);
 		UseBadValue = 1;
 		BadValue = (float)atof(att_val);
-		printf("Using %s = %f\n", AttBadValue, BadValue);
+		printf("Using %s = %f\n", AttBadValue[i], BadValue);
 		free(att_val);
+	}
+	else /* att_type == NC_FLOAT */
+	{
+		ncattget(cdfid, varid, AttBadValue[i], &BadValue);
+		UseBadValue = 1;
 	}
 	ncopts = opts;
 }
@@ -299,8 +325,11 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 	       min, var_name, max, delta);
 #endif
 
-	var_id = ncvarid(cdfid, var_name);
-
+	if ((var_id = ncvarid(cdfid, var_name)) < 0)
+	{
+		printf ("%s: variable not found\n", var_name);
+		return;
+	}
 	ncvarinq(cdfid, var_id, (char *)0, &var_type, &var_ndims, 
 		 var_dims, &var_natts);
 
@@ -328,7 +357,7 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 	start = 0;
 	vals = (float *)malloc(sizeof(float) * count);
 	ncvarget(cdfid, var_id, &start, &count, vals);
-
+	GetBadValue (cdfid, var_id);
 	/*
 	 * Now we can loop through values and test tolerances
 	 */

@@ -42,8 +42,10 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.11 1995-09-23 02:33:07 granger Exp $")
+RCSID("$Id: PlotPrim.c,v 1.12 1996-03-12 17:41:35 granger Exp $")
 
+
+static int PP_LineWidth = 0;
 
 
 void
@@ -87,6 +89,27 @@ pp_UnClip ()
 {
 	XSetClipMask (Disp, Gcontext, None);
 }	
+
+
+
+int
+pp_SetLWidth (comp, param, qual, def)
+char *comp, *param, *qual;
+int def;
+/*
+ * Set the line width in Gcontext;
+ */
+{
+	int lwidth;
+
+	if (! pda_Search (Pd, comp, param, qual, (char *) &lwidth, SYMT_INT))
+		lwidth = def;
+	/* FixLWidth (lwidth); */
+	PP_LineWidth = lwidth;
+	return (lwidth);
+}
+
+
 
 
 void
@@ -149,7 +172,8 @@ Pixel		color_ndx;
 		line_style = LineSolid;
 	}
 
-	XSetLineAttributes (Disp, Gcontext, 0, line_style, CapButt, JoinMiter);
+	XSetLineAttributes (Disp, Gcontext, PP_LineWidth, line_style, 
+			    CapButt, JoinMiter);
 	if (line_style != LineSolid)
 		XSetDashes (Disp, Gcontext, 0, dash, 2);
 /*
@@ -158,11 +182,11 @@ Pixel		color_ndx;
 	XDrawLines (Disp, GWFrame (Graphics), Gcontext, pts, npts, 
 		    CoordModeOrigin);
 /*
- * Make the GC use LineSolid again
+ * Make the GC use LineSolid and default width again
  */
-	if (line_style != LineSolid)
-		XSetLineAttributes (Disp, Gcontext, 0, LineSolid, CapButt, 
-				    JoinMiter);
+	if (line_style != LineSolid || PP_LineWidth != 0)
+		XSetLineAttributes (Disp, Gcontext, 0, LineSolid, 
+				    CapButt, JoinMiter);
 /*
  * Free the allocated points
  */

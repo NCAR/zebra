@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.5 1996-01-02 20:48:31 corbet Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.6 1996-03-12 17:41:37 granger Exp $")
 
 # ifdef MAP_PROJECTIONS
 static char *projopt[2] = { "@(#)$GP: Map projections NOT compiled $",
@@ -61,7 +61,7 @@ static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
  * our current projection scheme.
  */
 static PJ *OurPJ = 0;
-static float Lat0;	/* Latitude offset */
+static float VOffset;	/* N-S offset in m */
 static int PKey;	/* The "key" value we return */
 char Pname[80];		/* Name of the projection	*/
 
@@ -82,6 +82,7 @@ struct ProjMap
  */
 static void prj_Conic FP ((struct ProjMap *, int *, char **));
 static void prj_Polar FP ((struct ProjMap *, int *, char **));
+static void prj_Stere FP ((struct ProjMap *, int *, char **));
 static void prj_PStere FP ((struct ProjMap *, int *, char **));
 
 /*
@@ -99,7 +100,7 @@ static struct ProjMap PMap [] =
 	{ "lcpolar",	"lcc",		"Lambert conformal polar", prj_Polar },
 	{ "moll",	"moll",		"Mollweide", 0 },
 	{ "ortho",	"ortho",	"Orthographic", 0 },
-	{ "stere",	"stere",	"Stereographic", 0 },
+	{ "stere",	"stere",	"Stereographic", prj_Stere },
 	{ "stpolar",	"stere",	"Polar stereographic", prj_PStere },
 };
 # define N_PROJECTION (sizeof (PMap)/sizeof (struct ProjMap))
@@ -148,7 +149,7 @@ prj_Setup ()
  * Stash the lat/lon into the old system, we sometimes need it even
  * with a fancy projection.
  */
-	cvt_Origin (lat, lon);
+	cvt_Origin (O_Lat, O_Lon);
 # ifdef MAP_PROJECTIONS
 /*
  * Lookup the desired projection, and make a key out of it.  This key
@@ -156,7 +157,7 @@ prj_Setup ()
  * always change when we need it to.
  */
 	pm = prj_Lookup (proj);
-	key = (int) (lat + lon) + (int) pm;
+	key = (int) (O_Lat + O_Lon) + (int) pm;
 	strcpy (Pname, pm ? pm->pm_LongName : "Zebra");
 /*
  * If we have an old PJ structure, and a new projection is in the works,
@@ -178,8 +179,8 @@ prj_Setup ()
 	}
 	else
 		PKey = 0;
-	msg_ELog (EF_DEBUG, "Projection: %s, Key %d, lat0 %.2f", Pname,
-			PKey, Lat0);
+	msg_ELog (EF_DEBUG, "Projection: %s, Key %d, VOffset %.2f", Pname,
+			PKey, VOffset);
 # endif
 	return (TRUE);
 }
@@ -242,6 +243,7 @@ float *lat, *lon;
 		SYMT_FLOAT);
 	ok &= pda_ReqSearch (Pd, "global", "x-min", NULL, (char *) &Xlo,
 			SYMT_FLOAT);
+
 	ok &= pda_ReqSearch (Pd, "global", "x-max", NULL, (char *) &Xhi,
 			SYMT_FLOAT);
 	ok &= pda_ReqSearch (Pd, "global", "y-min", NULL, (char *) &Ylo,
@@ -352,7 +354,7 @@ double lat, lon;
 	origin.u = lon*DEG_TO_RAD;
 	origin.v = lat*DEG_TO_RAD;
 	origin = pj_fwd (origin, OurPJ);
-	Lat0 = origin.v;
+	VOffset = origin.v;
 	return (TRUE);
 }
 
@@ -379,7 +381,7 @@ float *x, *y;
 		if (result.u == HUGE_VAL)
 			return (FALSE);
 		*x = result.u/1000.0;
-		*y = (result.v - Lat0)/1000.0;
+		*y = (result.v - VOffset)/1000.0;
 	}
 	else
 # endif		
@@ -405,7 +407,7 @@ float *lat, *lon;
 	if (OurPJ)
 	{
 		xy.u = x*1000.0;
-		xy.v = y*1000.0 + Lat0;
+		xy.v = y*1000.0 + VOffset;
 		result = pj_inv (xy, OurPJ);
 		if (result.u == HUGE_VAL)
 			return (FALSE);
@@ -430,7 +432,7 @@ prj_ProjKey ()
  */
 {
 # ifdef MAP_PROJECTIONS
-	return (OurPJ ? (PKey + Lat0) : Lat0);
+	return (OurPJ ? (PKey + VOffset) : VOffset);
 # else
 	return (0);
 # endif
@@ -488,7 +490,7 @@ char **params;
  * Some projections can use a "+south" to do better in the southern
  * hemisphere.  And it doesn't hurt to have it for the rest.
  */
-	if (Lat0 < 0)
+	if (O_Lat < 0)
 		params[(*np)++] = "+south";
 }
 
@@ -502,10 +504,32 @@ char **params;
  * A limiting form of conic that sets things up for polar projections.
  */
 {
-	int south = Lat0 < 0;
+	int south = O_Lat < 0;
 	params[(*np)++] = south ? "+lat_1=-90" : "+lat_1=90";
 	params[(*np)++] = south ? "+lat_2=-90" : "+lat_2=90";
 	if (south)
+		params[(*np)++] = "+south";
+}
+
+
+
+static void
+prj_Stere (pm, np, params)
+struct ProjMap *pm;
+int *np;
+char **params;
+/*
+ * Make a stereographic projection centered on our origin
+ */
+{
+	static char slat[32];
+/*
+ * Stereographic requires that we set lat_0.  Let's hope nobody else does.
+ */
+	sprintf (slat, "+lat_0=%.4f", O_Lat);
+	params[(*np)++] = slat;
+
+	if (O_Lat < 0)
 		params[(*np)++] = "+south";
 }
 
@@ -521,16 +545,16 @@ char **params;
  */
 {
 	static char slat[32];
+	int	south = (O_Lat < 0);
 /*
- * Stereographic requires that we set Lat0.  Let's hope nobody else does.
+ * Polar means lat_0 = +/-90
  */
-	sprintf (slat, "+lat_0=%.4f", Lat0);
+	sprintf (slat, "+lat_0=%.4f", south ? -90 : 90);
 	params[(*np)++] = slat;
+
+	if (south)
+		params[(*np)++] = "+south";
 }
 
 
 # endif
-
-
-
-

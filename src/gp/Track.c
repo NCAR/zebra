@@ -9,7 +9,7 @@
  * or used in any form or by any means -- graphic, electronic, or mechanical,
  * including photocopying, recording, taping, or information storage and
  * retrieval systems -- without permission of the copyright owner.
- * 
+* 
  * This software and any accompanying written materials are provided "as is"
  * without warranty of any kind.  UCAR expressly disclaims all warranties of
  * any kind, either express or implied, including but not limited to the
@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.39 1995-09-23 02:38:53 granger Exp $")
+RCSID ("$Id: Track.c,v 2.40 1996-03-12 17:41:39 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -58,7 +58,7 @@ static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
 		int *, float *, float *, XColor *, float *, float *, bool *));
 static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
 		int *, char *, XColor *, char *));
-static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
+static bool tr_CTSetup FP((char *, int *, char **, PlatformId *, int *, int *,
 		char *, bool *, char *, bool *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
 		char *, double, double, double, char *, int));
@@ -67,10 +67,16 @@ static void tr_DoTimeAnnot FP((Drawable, int, int, char *, char *, double,
 		XColor, ZebTime, double rot, int justify));
 static float tr_FigureRot FP ((double, double, double, double, int *));
 static int tr_LocateAnnot FP ((DataChunk *dc, int sample,
-			       ZebTime *a_time, int *x, int *y, 
-			       float *rot, int *justify));
+			       ZebTime *a_time, int interval_sec, 
+			       int *x, int *y, float *rot, int *justify));
 static int tr_GetParam FP ((char *comp, char *param, char *qual, 
 			    char *target, int type));
+static DataChunk *tr_DoNSpace FP ((PlatformId pid, FieldId *fields, 
+				   int numfields, dsDetail *details, 
+				   int ndetail));
+static DataChunk *tr_TrajNSpace FP ((PlatformId pid, FieldId *fields, 
+				     int numfields, dsDetail *details, 
+				     int ndetail));
 
 
 static float
@@ -99,13 +105,13 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[PlatformListLen];
+	char *pnames[MaxPlatforms];
 	char ccfield[30], positionicon[40], param[40];
 	char mtcolor[20], ctable[30], a_color[30];
-	char a_type[30];
-	int period, nc, lwidth, pid, index;
-	int dskip = 0, i, a_int, numfields = 0, afield;
-	int x0, y0, x1, y1, x00 = -1, y00 = -1;
+	char a_type[30], annot[PlatformListLen];
+	int period, nc, lwidth, index, nplats, p;
+	int dskip = 0, i, a_int, numfields, afield;
+	int x0, y0, x1, y1, x00, y00;
 	float fx0, fy0;
 	int samp0;		/* sample at which (x0 =,y0) last set  */
 	long vectime;	/* the time, multiple of the arrow interval */
@@ -125,305 +131,364 @@ bool update;
 	WindInfo wi;
 	char ctime[64];
 	dsDetail details[5];
-	int ndetail = 0;
+	PlatformId pids[MaxPlatforms];
+	int ndetail;
 /*
  * Pull in our parameters.
  */
-	if (! tr_CTSetup (comp, platform, &pid, &period, &dskip, mtcolor,
-			  &mono, ccfield, &showposition, &positionarrow,
-			  positionicon))
+	if (! tr_CTSetup (comp, &nplats, pnames, pids, &period, &dskip, 
+			  mtcolor, &mono, ccfield, &showposition, 
+			  &positionarrow, positionicon))
 		return;
-#ifdef notdef
-	if (update)
-		period = period/4;
-#endif
 /*
- * Color code field.
+ * Multiple platforms are possible
  */
-	if (! mono)
-		mono = ! tr_CCSetup (comp, platform, ccfield, ctable, &colors,
-				     &nc, &base, &incr, &outrange, &center,
-				     &step, &autoscale);
-/*
- * Put together the field list.
- */
-	if (! mono)
-		fields[numfields++] = F_Lookup (ccfield);
-/*
- * Read arrow parameters if necessary.
- */
-	arrow = FALSE;
-	tr_GetParam (comp, "arrow", platform, (char *) &arrow, SYMT_BOOL);
-	if (arrow)
+	for (p = 0; p < nplats; p++)
 	{
-		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
-			&a_invert, &a_int, a_color, &a_clr, a_type);
+	/*
+	 * Color code field.
+	 */
+		if (! mono)
+		{
+			mono = ! tr_CCSetup (comp, pnames[p], ccfield, 
+					     ctable, &colors, &nc, &base, 
+					     &incr, &outrange, &center, &step, 
+					     &autoscale);
+
+			if (! mono && autoscale && (nplats > 1))
+			{
+			    msg_ELog (EF_PROBLEM, 
+			        "Can't autoscale tracks w/multiple platforms");
+			    continue;
+			}
+		}
+		
+				
+	/*
+	 * Start the field list.
+	 */
+		numfields = 0;
+		if (! mono)
+			fields[numfields++] = F_Lookup (ccfield);
+	/*
+	 * Read arrow parameters if necessary.
+	 */
+		arrow = FALSE;
+		tr_GetParam (comp, "arrow", pnames[p], (char *) &arrow, 
+			     SYMT_BOOL);
+		if (arrow)
+		{
+			tr_GetArrowParams (comp, pnames[p], &a_scale, 
+					   &a_lwidth, &a_invert, &a_int, 
+					   a_color, &a_clr, a_type);
 # ifdef notdef
-		fields[numfields] = F_Lookup (a_xfield);
-		fields[numfields + 1] = F_Lookup (a_yfield);
+			fields[numfields] = F_Lookup (a_xfield);
+			fields[numfields + 1] = F_Lookup (a_yfield);
 # endif
-		FindWindsFields (comp, pid, &PlotTime, fields+numfields, &wi);
-		afield = numfields;
-		numfields += 2;
-	} 
-/*
- * Check for a particular bad value to use for this platform.  Useful for
- * platforms with bad locations since locations don't get processed by
- * file access routines like regular fields.
- */
-	if (pda_Search (Pd, comp, "bad-value", platform, (char *)&badvalue,
-			SYMT_FLOAT))
-	{
-		details[ndetail].dd_V.us_v_float = badvalue;
-		details[ndetail++].dd_Name = DD_FETCH_BADVAL;
-	}
-/*
- * Figure the begin time and fetch data.  If updating, only fetch and
- * plot data since the last plot of this track; otherwise, fetch the
- * period or the whole observation depending upon the mode.
- */
-	if (update && pda_Search ( Pd, comp, "data-end-time", NULL, 
-				  (char*) &begin, SYMT_DATE))
-	{
+			FindWindsFields (comp, pids[p], &PlotTime, 
+					 fields+numfields, &wi);
+			afield = numfields;
+			numfields += 2;
+		} 
+	/*
+	 * Check for a particular bad value to use for this platform.
+	 * Useful for platforms with bad locations since locations don't
+	 * get processed by file access routines like regular fields. 
+	 */
+		ndetail = 0;
+		if (pda_Search (Pd, comp, "bad-value", pnames[p], 
+				(char *)&badvalue, SYMT_FLOAT))
+		{
+			details[ndetail].dd_V.us_v_float = badvalue;
+			details[ndetail++].dd_Name = DD_FETCH_BADVAL;
+		}
+	/*
+	 * Figure the begin time and fetch data.  If updating, only fetch and
+	 * plot data since the last plot of this track; otherwise, fetch the
+	 * period or the whole observation depending upon the mode.
+	 */
+		if (update && pda_Search (Pd, comp, "data-end-time", NULL, 
+					  (char*) &begin, SYMT_DATE))
+		{
 		/*
 		 * Update: get data since last plot regardless of
 		 * obesrvation or period mode.  If we don't know when
 		 * we last plotted data, skip this and fetch a full
 		 * swath of data.
 		 */
-		msg_ELog (EF_DEBUG, "update in %s mode from %d to %d",
-			  (period) ? "period" : "obs",
-			  begin.zt_Sec, PlotTime.zt_Sec);
-		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
-		       &begin, &PlotTime, fields, numfields, details, ndetail);
-	}
+			msg_ELog (EF_DEBUG, "update in %s mode from %d to %d",
+				  (period) ? "period" : "obs",
+				  begin.zt_Sec, PlotTime.zt_Sec);
+			dc = ds_Fetch (pids[p], 
+				       numfields ? DCC_Scalar : DCC_Location,
+				       &begin, &PlotTime, fields, numfields, 
+				       details, ndetail);
+		}
+	/*
+	 * If this platform delivers NSpace data, then do what we can
+	 * to get it in DCC_Scalar or DCC_Location form
+	 */
+		else if (ds_PlatformDataOrg (pids[p]) == OrgNSpace)
+			dc = tr_DoNSpace (pids[p], fields, numfields, details, 
+					  ndetail);
 	/*
 	 * Barring updates we fetch data based on period or observation
 	 */
-	else if (period)	/* time-period type plot */
-	{
-		begin = PlotTime;
-		begin.zt_Sec -= period;
-		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
-		       &begin, &PlotTime, fields, numfields, details, ndetail);
-	}
-	else			/* observation type plot */
-	{
+		else if (period) /* time-period type plot */
+		{
+			begin = PlotTime;
+			begin.zt_Sec -= period;
+			dc = ds_Fetch (pids[p], 
+				       numfields ? DCC_Scalar : DCC_Location,
+				       &begin, &PlotTime, fields, numfields,
+				       details, ndetail);
+		}
+		else		/* observation type plot */
+		{
 		/* get whole observation */
-		if (!ds_GetObsTimes(pid, &PlotTime, &begin, 1, NULL))
-		{
-			dc = NULL;
-		}
-		else
-		{
-			msg_ELog (EF_DEBUG, "global, FetchObs for %d", 
-				  begin.zt_Sec);
-			dc = ds_FetchObs(pid,
-				 numfields ? DCC_Scalar : DCC_Location,
-				 &begin, fields, numfields, details, ndetail);
-		}
-        }
-/*
- * Well, if we can't get any data, there is no point in going any further
- * with this whole thing.
- */
-	if (! dc)
-	{
-		msg_ELog (EF_INFO, "No %s data available", platform);
-		return;
-	}
-/*
- * Set the badval here anyway, in case bad values are not supported (ARM)
- * but we still got a value to use from the pd.  If bad value fetching
- * is supported, then this doesn't hurt anything.
- */
-	if (ndetail)
-		dc_SetBadval (dc, badvalue);
-/*
- * Remember the begin time in case we don't plot any points here because
- * of data skips.
- */
-	zt = begin;
-	nsamp = dc_GetNSample (dc);
-	msg_ELog (EF_DEBUG, "track %s: %d points to plot in %s mode", 
-		  comp, nsamp, 
-		  update ? "update" : (period ? "period" : "obs"));
-/*
- * Do some initial looking over the data.
- */
-	shifted = ApplySpatialOffset (dc, comp, &PlotTime);
-	nsamp = dc_GetNSample (dc);
-	badvalue = tr_GetBadval (dc);
-/*
- * If they want autoscaling figure out how it goes now.
- */
-	if (autoscale && ! mono)
-	{
-		FindCenterStep (dc, fields[0], nc, &center, &step);
-		sprintf (param, "%s-center", ccfield);
-		pd_Store (Pd, comp, param, (char *) &center, SYMT_FLOAT);
-		sprintf (param, "%s-step", ccfield);
-		pd_Store (Pd, comp, param, (char *) &step, SYMT_FLOAT);
-	}
-/*
- * Fix up the parameters to make coding a little easier.
- */
-	if ((nc & 0x1) == 0)
-		nc--;
-	base = center - (nc/2)*step - step/2;
-	incr = step;
-/*
- * Fix up some graphics info.
- */
-	if (mono)
-		ct_GetColorByName (mtcolor, &xc);
-	d = GWFrame (Graphics);
-/*
- * How wide do they like their lines?
- */
-	lwidth = SetLWidth (comp, "line-width", platform, 0);
-	unitlen = GWHeight (Graphics) * a_scale;
-/*
- * Now work through the data.
- */
-	vectime = 0;
-	npt = 0;
-	samp0 = -1;
-	for (i = 0; i < nsamp; i++)
-	{
-		float u, v;		/* vector component values	     */
-		long timenow;		/* time of the current sample	     */
-		float fx, fy;	 /* x,y Cartesian coords of lat/lon location */
-		Location loc;	 	/* lat/lon locn extracted from sample*/
-	/*
-	 * Do skipping if requested.
-	 */
-		if ((dskip) && ((npt++ % dskip) != 0))
-			continue;
-	/*
-	 * Locate this point.  Skip it if either coordinate == badvalue.
-	 */
-		dc_GetLoc (dc, i, &loc);
-		dc_GetTime (dc, i, &zt);
-		if ((loc.l_lat == badvalue) || (loc.l_lon == badvalue))
-			continue;
-		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
-		x1 = XPIX (fx); y1 = YPIX (fy);
-	/*
-	 * Draw arrows if necessary.  Get the time of the sample, and see
-	 * if its time for an arrow: either the time falls on a multiple of
-	 * the interval, or the interval of time has passed since the last
-	 * vector was drawn.
-	 */
-		if (arrow)
-		{
-			timenow = TC_ZtToSys (&zt);
-			if(((timenow % a_int) == 0) || 
-					((vectime + a_int) < timenow))
+			if (!ds_GetObsTimes(pids[p], &PlotTime, &begin, 1,
+					    NULL))
 			{
-				u = dc_GetScalar (dc, i, fields[afield]);
-				v = dc_GetScalar(dc, i, fields[afield+1]);
-				GetWindData (&wi, &u, &v, badvalue);
-				if (u != badvalue && v != badvalue) {
-					vectime = timenow - timenow % a_int;
-					FixForeground (a_clr.pixel);
-					FixLWidth (a_lwidth);
-					draw_vector (Disp, d, Gcontext, 
-							x1, y1, u, v, unitlen);
-					FixLWidth (lwidth);
-				}
+				dc = NULL;
 			}
-		}
-	/*
-	 * Draw the line, if (x0,y0) valid, color coding if requested.
-	 * Don't draw the line if it doesn't intersect the plot region.
-	 */
-		if (samp0 >= 0 && Intersects (fx0, fy0, fx, fy))
-		{
-			if (mono)
-				FixForeground (xc.pixel);
 			else
 			{
-				index = (dc_GetScalar (dc, i, fields[0]) - 
-					 base)/incr;
-				FixForeground ((index >= 0 && index < nc) ?
-					       colors[index].pixel : 
-					       outrange.pixel);
+				msg_ELog (EF_DEBUG, "global, FetchObs for %d", 
+					  begin.zt_Sec);
+				dc = ds_FetchObs (pids[p],
+					 numfields ? DCC_Scalar : DCC_Location,
+					 &begin, fields, numfields, details, 
+					 ndetail);
 			}
-			XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
 		}
-		x00 = x0; x0 = x1; y00 = y0; y0 = y1;
-		fx0 = fx; fy0 = fy;
-		samp0 = i;
-	}
-	/* remember the last point plotted */
-	TC_EncodeTime (&zt, TC_Full, ctime);
-	msg_ELog (EF_DEBUG, "storing data-end-time: %s", ctime);
-	pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
-/*
- * If this isn't an update, indicate which end of the track is the front.
- */
-	if ((! update) && showposition && (samp0 >= 0))
-	{
-		if (positionarrow)
+	/*
+	 * Well, if we can't get any data, there is no point in going any
+	 * further with this whole thing. 
+	 */
+		if (! dc)
 		{
-			double theta;
-
-			if (x00 < 0 && y00 < 0)
-			{
-				x00 = 0;
-				y00 = y0 - 1;
-			}
-
-			theta = ATAN2 ((double)(y00 - y0), (double)(x00 - x0));
-
-			XDrawLine (Disp, d, Gcontext, x0, y0, 
-				   x0 + 15 * cos (theta - 0.26),
-				   y0 + 15 * sin (theta - 0.26));
-			XDrawLine (Disp, d, Gcontext, x0, y0,
-				   x0 + 15 * cos (theta + 0.26),
-				   y0 + 15 * sin (theta + 0.26));
+			msg_ELog (EF_INFO, "No %s data available", pnames[p]);
+			return;
 		}
+	/*
+	 * Set the badval here anyway, in case bad values are not supported
+	 * (ARM) but we still got a value to use from the pd.  If bad value
+	 * fetching is supported, then this doesn't hurt anything. 
+	 */
+		if (ndetail)
+			dc_SetBadval (dc, badvalue);
+	/*
+	 * Remember the begin time in case we don't plot any points here
+	 * because of data skips. 
+	 */
+		zt = begin;
+		nsamp = dc_GetNSample (dc);
+		msg_ELog (EF_DEBUG, "track %s: %d points to plot in %s mode", 
+			  comp, nsamp, 
+			  update ? "update" : (period ? "period" : "obs"));
+	/*
+	 * Do some initial looking over the data.
+	 */
+		shifted = ApplySpatialOffset (dc, comp, &PlotTime);
+		nsamp = dc_GetNSample (dc);
+		badvalue = tr_GetBadval (dc);
+	/*
+	 * If they want autoscaling figure out how it goes now.
+	 */
+		if (autoscale && ! mono)
+		{
+			FindCenterStep (dc, fields[0], nc, &center, &step);
+			sprintf (param, "%s-center", ccfield);
+			pd_Store (Pd, comp, param, (char *) &center, 
+				  SYMT_FLOAT);
+			sprintf (param, "%s-step", ccfield);
+			pd_Store (Pd, comp, param, (char *) &step, SYMT_FLOAT);
+		}
+	/*
+	 * Fix up the parameters to make coding a little easier.
+	 */
+		if ((nc & 0x1) == 0)
+			nc--;
+		base = center - (nc/2)*step - step/2;
+		incr = step;
+	/*
+	 * Fix up some graphics info.
+	 */
+		if (mono)
+			ct_GetColorByName (mtcolor, &xc);
+		d = GWFrame (Graphics);
+	/*
+	 * How wide do they like their lines?
+	 */
+		lwidth = SetLWidth (comp, "line-width", pnames[p], 0);
+		unitlen = GWHeight (Graphics) * a_scale;
+	/*
+	 * Now work through the data.
+	 */
+		vectime = 0;
+		npt = 0;
+		x00 = y00 = -1;
+		samp0 = -1;
+		for (i = 0; i < nsamp; i++)
+		{
+			float u, v; /* vector component values	     */
+			long timenow; /* time of the current sample	     */
+			float fx, fy; /* x,y Cartesian coords of lat/lon */
+			Location loc; /* lat/lon locn extracted from sample*/
+		/*
+		 * Do skipping if requested.
+		 */
+			if ((dskip) && ((npt++ % dskip) != 0))
+				continue;
+		/*
+		 * Locate this point.  Skip it if either coordinate ==
+		 * badvalue. 
+		 */
+			dc_GetLoc (dc, i, &loc);
+			dc_GetTime (dc, i, &zt);
+			if ((loc.l_lat == badvalue) || (loc.l_lon == badvalue))
+				continue;
+			prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
+			x1 = XPIX (fx); y1 = YPIX (fy);
+		/*
+		 * Draw arrows if necessary.  Get the time of the sample,
+		 * and see if its time for an arrow: either the time falls
+		 * on a multiple of the interval, or the interval of time
+		 * has passed since the last vector was drawn. 
+		 */
+			if (arrow)
+			{
+				timenow = TC_ZtToSys (&zt);
+				if(((timenow % a_int) == 0) || 
+				   ((vectime + a_int) < timenow))
+				{
+					u = dc_GetScalar (dc, i, 
+							  fields[afield]);
+					v = dc_GetScalar(dc, i, 
+							 fields[afield+1]);
+					GetWindData (&wi, &u, &v, badvalue);
+					if (u != badvalue && v != badvalue) 
+					{
+						vectime = timenow - 
+							timenow % a_int;
+						FixForeground (a_clr.pixel);
+						FixLWidth (a_lwidth);
+						draw_vector (Disp, d, Gcontext,
+							     x1, y1, u, v, 
+							     unitlen);
+						FixLWidth (lwidth);
+					}
+				}
+			}
+		/*
+		 * Draw the line, if (x0,y0) valid, color coding if requested.
+		 * Don't draw the line if it doesn't intersect the plot region.
+		 */
+			if (samp0 >= 0 && Intersects (fx0, fy0, fx, fy))
+			{
+				if (mono)
+					FixForeground (xc.pixel);
+				else
+				{
+				    index = (dc_GetScalar (dc, i, fields[0]) - 
+					     base)/incr;
+				    FixForeground ((index >= 0 && index < nc) ?
+						   colors[index].pixel : 
+						   outrange.pixel);
+				}
+				XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
+			}
+			x00 = x0; x0 = x1; y00 = y0; y0 = y1;
+			fx0 = fx; fy0 = fy;
+			samp0 = i;
+		}
+	/* remember the last point plotted */
+		TC_EncodeTime (&zt, TC_Full, ctime);
+		msg_ELog (EF_DEBUG, "storing data-end-time: %s", ctime);
+		pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
+	/*
+	 * If this isn't an update, indicate which end of the track is the
+	 * front. 
+	 */
+		if ((! update) && showposition && (samp0 >= 0))
+		{
+			if (positionarrow)
+			{
+				double theta;
+
+				if (x00 < 0 && y00 < 0)
+				{
+					x00 = 0;
+					y00 = y0 - 1;
+				}
+
+				theta = ATAN2 ((double)(y00 - y0), 
+					       (double)(x00 - x0));
+
+				XDrawLine (Disp, d, Gcontext, x0, y0, 
+					   x0 + 15 * cos (theta - 0.26),
+					   y0 + 15 * sin (theta - 0.26));
+				XDrawLine (Disp, d, Gcontext, x0, y0,
+					   x0 + 15 * cos (theta + 0.26),
+					   y0 + 15 * sin (theta + 0.26));
+			}
 		/*
 		 * I_PositionIcon disregards clipping, so check the location.
 		 */
-		else if (fx0 >= Xlo && fx0 <= Xhi && fy0 >= Ylo && fy0 <= Yhi)
-		{
-			I_PositionIcon (comp, platform, &zt, positionicon, 
-					x0, y0, mono ? xc.pixel : 
-					(index >= 0 && index < nc) ? 
-					colors[index].pixel : outrange.pixel);
+			else if (fx0 >= Xlo && fx0 <= Xhi && fy0 >= Ylo && 
+				 fy0 <= Yhi)
+			{
+				I_PositionIcon (comp, pnames[p], &zt, 
+						positionicon, 
+						x0, y0, mono ? xc.pixel : 
+						(index >= 0 && index < nc) ? 
+						colors[index].pixel : 
+						outrange.pixel);
+			}
 		}
-	}
-/*
- * See about annotating the track with times.  It shouldn't hurt updates
- * since we'll only be plotting new times.
- */
-	if (/*(! update) && */ pda_Search (Pd, comp, "annot-time", "track", 
-		(char *) &annot_time, SYMT_BOOL))
-	{
-		if (annot_time)
-			tr_AnnotTime (comp, platform, dc, d);
-	}
-	ResetGC ();
-/*
- * Put in the status line before we lose the data object, then get rid of it.
- * (Only do it if this isn't an update.  It won't get printed anyway, and
- * it's likely to overflow the overlay widget's text space.)
- */
-	if (! update)
-	{
-		dc_GetTime (dc, nsamp - 1, &zt);
-		ot_AddStatusLine (comp, platform, mono ? "" : ccfield, &zt);
-	}
-	dc_DestroyDC (dc);
+	/*
+	 * See about annotating the track with times.  It shouldn't hurt
+	 * updates since we'll only be plotting new times. 
+	 */
+		if (/*(! update) && */ 
+		    pda_Search (Pd, comp, "annot-time", "track", 
+				(char *) &annot_time, SYMT_BOOL))
+		{
+			if (annot_time)
+				tr_AnnotTime (comp, pnames[p], dc, d);
+		}
+		ResetGC ();
+	/*
+	 * Put in the status line before we lose the data object, then get
+	 * rid of it.  (Only do it if this isn't an update.  It won't get
+	 * printed anyway, and it's likely to overflow the overlay widget's
+	 * text space.) 
+	 */
+		if (! update)
+		{
+			dc_GetTime (dc, nsamp - 1, &zt);
+			ot_AddStatusLine (comp, pnames[p], 
+					  mono ? "" : ccfield, &zt);
+		}
+		dc_DestroyDC (dc);
+	} /* end of platform loop */
 /*
  * Annotate if necessary.
  */
+	annot[0] = '\0';
+	
+	for (p = 0; p < nplats; p++)
+	{
+		if (p > 0)
+			strcat (annot, " ");
+		strcat (annot, pnames[p]);
+	}
+		
 	if (! update)
-		tr_AnnotTrack (comp, platform, mono ? NULL : ccfield, arrow,
-			a_type, mtcolor, ctable, center, step, unitlen,
-			mono ? mtcolor : a_color, shifted);
+		tr_AnnotTrack (comp, annot, mono ? NULL : ccfield, arrow, 
+			       a_type, mtcolor, ctable, center, step, unitlen, 
+			       mono ? mtcolor : a_color, shifted);
+	
 }
 
 
@@ -526,7 +591,8 @@ Drawable	d;
 		 * Figure out where the annotation is supposed to go, and
 		 * do the annotation if possible.
 		 */
-			if (tr_LocateAnnot (dc, i, &t, &x, &y, &rot, &justify))
+			if (tr_LocateAnnot (dc, i, &t, interval_sec, &x, &y, 
+					    &rot, &justify))
 				tr_DoTimeAnnot (d, x, y, icon, label, 
 						label_scale, x_color, t, 
 						rot, justify);
@@ -712,15 +778,16 @@ bool shifted;
 	}
 	else
 	{
-		sprintf (datastr, "%s %s %f %f", ccfield, ctable,center, step);
+		sprintf (datastr, "%s %s %f %f", ccfield, ctable, center, 
+			 step);
 		An_AddAnnotProc (An_ColorBar, comp, datastr,
-			strlen (datastr), 75, TRUE, FALSE);
+				 strlen (datastr), 75, TRUE, FALSE);
 		if (arrow)
 		{
 			sprintf (datastr, "%s %li %f %f %f", "10m/sec", 
-				taclr.pixel, 10.0, 0.0, unitlen);
+				 taclr.pixel, 10.0, 0.0, unitlen);
 			An_AddAnnotProc (An_ColorVector, comp, datastr,
-				strlen (datastr), 25, FALSE, FALSE);
+					 strlen (datastr), 25, FALSE, FALSE);
 		}
 	}
 }
@@ -728,9 +795,9 @@ bool shifted;
 
 
 static void
-tr_GetLocations (dc, sample, loc0, samp0, loc1, samp1)
+tr_GetLocations (dc, sample, interval_sec, loc0, samp0, loc1, samp1)
 DataChunk *dc;
-int sample;
+int sample, interval_sec;
 Location *loc0;
 int *samp0;
 Location *loc1;
@@ -752,7 +819,7 @@ int *samp1;
 	ZebTime t0, t1, t;
 	int i;
 	int nsample;
-#	define TIMEWINDOW 120	/* a couple minutes leeway */
+	int timewindow = interval_sec / 2;	/* our leeway time */
 
 	badval = tr_GetBadval (dc);
 	dc_GetTime (dc, sample, &t);
@@ -777,7 +844,7 @@ int *samp1;
 	 */
 	if (*samp0 < 0)
 		return;
-	if (t.zt_Sec - t0.zt_Sec > TIMEWINDOW)
+	if (t.zt_Sec - t0.zt_Sec > timewindow)
 	{
 		*samp0 = -1;
 		return;
@@ -806,7 +873,7 @@ int *samp1;
 	/*
 	 * Verify that the second sample is not too far into the future.
 	 */
-	if (*samp0 >= 0 && (t1.zt_Sec - t.zt_Sec > TIMEWINDOW))
+	if (*samp0 >= 0 && (t1.zt_Sec - t.zt_Sec > timewindow))
 		*samp0 = -1;
 }
 
@@ -814,10 +881,11 @@ int *samp1;
 
 
 static int
-tr_LocateAnnot (dc, sample, a_time, x, y, rot, justify)
+tr_LocateAnnot (dc, sample, a_time, interval_sec, x, y, rot, justify)
 DataChunk *dc;
 int sample;		/* Current sample about where annot needs plotting */
 ZebTime *a_time;	/* Time desired for annotation */
+int interval_sec;	/* Time interval between annotations */
 int *x, *y;		/* Pixel location to put annotation */
 float *rot;		/* Rotation angle to use for annotation */
 int *justify;		/* Justification to use for annotation */
@@ -834,7 +902,8 @@ int *justify;		/* Justification to use for annotation */
 /*
  * Try to find valid locations surrounding this particular sample
  */
-	tr_GetLocations (dc, sample, &loc0, &samp0, &loc1, &samp1);
+	tr_GetLocations (dc, sample, interval_sec, &loc0, &samp0, &loc1, 
+			 &samp1);
 /*
  * If both locations valid, get the times for each and interpolate between
  * them to find a location for the desired annotation time.
@@ -899,35 +968,52 @@ int *justify;		/* Justification to use for annotation */
 
 
 static bool
-tr_CTSetup (comp, platform, pid, period, dskip, mtcolor, mono, ccfield,
+tr_CTSetup (comp, nplats, pnames, pids, period, dskip, mtcolor, mono, ccfield,
 	showposition, positionarrow, positionicon)
-char *comp, *platform, *mtcolor, *ccfield, *positionicon;
-PlatformId *pid;
-int *period, *dskip;
+char *comp, **pnames, *mtcolor, *ccfield, *positionicon;
+PlatformId *pids;
+int *nplats, *period, *dskip;
 bool *mono, *showposition, *positionarrow;
 /*
  * Do the basic setup to plot aircraft tracks.
  */
 {
+	static char platform[PlatformListLen];
+	int p;
 	char tmp[80];
 /*
  * Get our platform first, since that's what is of interest to us.
  */
 	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
 		return (FALSE);
-	if ((*pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "Unknown platform '%s'", platform);
-		return (FALSE);
-	}
+
+	*nplats = CommaParse (platform, pnames);
 /*
- * Make sure that we'll get the right sort of stuff.
+ * Look up all the platforms
  */
-	if (! ds_IsMobile (*pid))
+	for (p = 0; p < *nplats; p++)
 	{
-		msg_ELog (EF_PROBLEM, "Track attempted on static platform %s",
-			platform);
-		return (FALSE);
+	/*
+	 * Get the id
+	 */
+		if ((pids[p] = ds_LookupPlatform (pnames[p])) == BadPlatform)
+		{
+			msg_ELog (EF_PROBLEM, "Unknown platform '%s'", 
+				  pnames[p]);
+			return (FALSE);
+		}
+#ifdef notdef
+	/*
+	 * Make sure that we'll get the right sort of stuff.
+	 */
+		if (! ds_IsMobile (pids[p]))
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "Track attempted on static platform %s",
+				  pnames[p]);
+			return (FALSE);
+		}
+#endif
 	}
 /*
  * Pull out other parameters of interest.
@@ -977,7 +1063,15 @@ bool *mono, *showposition, *positionarrow;
 		{
 			; /* hunky-dory */
 		}
+	/*
+	 * If we need an icon to show, get it from position-icon if it
+	 * exists, else default to plain old icon.  The thinking is that
+	 * the icon parameter often makes a dandy and convenient default for 
+	 * position-icon, without so much redundancy in plot descriptions.
+	 */
 		else if (! tr_GetParam (comp, "position-icon", platform, 
+					positionicon, SYMT_STRING) &&
+			 ! tr_GetParam (comp, "icon", platform, 
 					positionicon, SYMT_STRING))
 		{
 			*showposition = FALSE;
@@ -1136,5 +1230,154 @@ int type;
 		pda_Search (Pd, comp, param, "track", target, type));
 }
 
+
+
+static DataChunk *
+tr_DoNSpace (pid, fields, numfields, details, ndetail)
+PlatformId	pid;
+int		numfields;
+FieldId		*fields;
+dsDetail	*details;
+int		ndetail;
+/*
+ * Get data from an NSpace platform, and return it in the form of a
+ * DCC_Location data chunk (if numfields == 0) or a DCC_Scalar data
+ * chunk (if numfields > 0).
+ */
+{
+/*
+ * Only one NSpace handler at this point
+ */
+	if (1)
+		return (tr_TrajNSpace (pid, fields, numfields, details, 
+				       ndetail));
+}
+
+
+
+
+static DataChunk *
+tr_TrajNSpace (pid, fields, numfields, details, ndetail)
+PlatformId	pid;
+int		numfields;
+FieldId		*fields;
+dsDetail	*details;
+int		ndetail;
+/*
+ * This is a *very* crude NSpace handler for 1D trajectory data from
+ * ACE1.
+ */
+{
+	int	n_ourfields, ndims, fld, samp, ntimes;
+	char	*dnames[DC_MaxDimension];
+	float	*lat, *lon, *pres, *foffsets, *data;
+	unsigned long	dsizes[DC_MaxDimension];
+	Location	loc;
+	DataChunk	*dc_ns, *dc;
+	DataClass	class;
+	ZebTime		dtime, samptime, *times;
+	FieldId		*ourfields, latfld, lonfld, presfld, fofld;
+/*
+ * Find the closest time for which we have data
+ */
+	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &dtime))
+	{
+		char tstring[32];
+		TC_EncodeTime (&PlotTime, TC_Full, tstring);
+		msg_ELog (EF_PROBLEM, "tr_DoNSpace: no data for '%s' at %s", 
+			  ds_PlatformName (pid), tstring);
+		return (NULL);
+	}
+/*
+ * Build our field list
+ */
+	n_ourfields = numfields + 4;
+	ourfields = (FieldId *) malloc (n_ourfields * sizeof (FieldId));
+	memcpy ((void *) ourfields, (void *) fields, 
+		numfields * sizeof (FieldId));
+	latfld = ourfields[numfields] = F_Lookup ("f_lat");
+	lonfld = ourfields[numfields+1] = F_Lookup ("f_lon");
+	presfld = ourfields[numfields+2] = F_Lookup ("f_pres");
+	fofld = ourfields[numfields+3] = F_Lookup ("forecast_offset");
+/*
+ * Get the data, which we assume comes back in 1D arrays...
+ */
+	dc_ns = ds_Fetch (pid, DCC_NSpace, &dtime, &dtime, ourfields, 
+			  n_ourfields, details, ndetail);
+/*
+ * Make sure we got 1D data and that the dimension is the
+ * forecast_offset NSpace coordinate variable.  If it's right, get
+ * the dimension size (i.e., the length of the data arrays).
+ */
+	dc_NSGetField (dc_ns, ourfields[0], &ndims, dnames, dsizes, NULL);
+	if (ndims != 1 || F_Declared (dnames[0]) != fofld)
+	{
+		msg_ELog (EF_PROBLEM, "tr_TrajNSpace: Dimension problem");
+		dc_DestroyDC (dc_ns);
+		free (ourfields);
+		return (NULL);
+	}
+/*
+ * Build an array of times by adding our forecast offset times
+ * to the sample time from the NSpace data chunk (the initial time
+ * for the trajectory)
+ */
+	ntimes = dsizes[0];	
+	times = (ZebTime *) malloc (ntimes * sizeof (ZebTime));
+	foffsets = (float *) dc_NSGetSample (dc_ns, 0, fofld, NULL);
+
+	for (samp = 0; samp < ntimes; samp++)
+	{
+		times[samp] = dtime;
+		times[samp].zt_Sec += (int)(foffsets[samp]) * 3600;
+	}
+/*
+ * Create the desired class of data chunk: DCC_Location if
+ * numfields == 0 or DCC_Scalar if numfields > 0.
+ */
+	class = (numfields == 0) ? DCC_Location : DCC_Scalar;
+	
+	dc = dc_CreateDC (class);
+	dc->dc_Platform = pid;
+	dc_SetLocAltUnits (dc, AU_mb);
+	if (class == DCC_Scalar)
+	{
+		dc_SetupUniformFields (dc, ntimes, numfields, fields, 
+				       sizeof (float));
+		dc_SetBadval (dc, dc_GetBadval (dc_ns));
+	}
+/*
+ * Move in the user-requested fields
+ */
+	for (fld = 0; fld < numfields; fld++)
+	{
+		data = (float *) dc_NSGetSample (dc_ns, 0, fields[fld], NULL);
+		dc_AddMultScalar (dc, times, 0, ntimes, fields[fld], 
+				  (void *) data);
+	}
+/*
+ * And the locations...
+ */
+	lat = (float *) dc_NSGetSample (dc_ns, 0, latfld, NULL);
+	lon = (float *) dc_NSGetSample (dc_ns, 0, lonfld, NULL);
+	pres = (float *) dc_NSGetSample (dc_ns, 0, presfld, NULL);
+
+	for (samp = 0; samp < ntimes; samp++)
+	{
+		loc.l_lat = lat[samp];
+		loc.l_lon = lon[samp];
+		loc.l_alt = pres[samp];
+
+		if (class == DCC_Location)
+			dc_LocAdd (dc, times + samp, &loc);
+		else
+			dc_SetLoc (dc, samp, &loc);
+	}
+
+	dc_DestroyDC (dc_ns);
+	free (ourfields);
+
+	return (dc);
+}    
 
 # endif /* C_CAP_TRACKS */

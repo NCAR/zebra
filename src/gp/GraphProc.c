@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.60 1996-02-05 16:50:08 burghart Exp $")
+RCSID ("$Id: GraphProc.c,v 2.61 1996-03-12 17:41:29 granger Exp $")
 
 /*
  * Default resources.
@@ -151,6 +151,7 @@ static int dmgr_message ();
 static void gp_sync FP ((void));
 static void ChangeState FP ((enum wstate new));
 static void ChangeParam FP ((struct dm_parchange *dmp));
+static int PropParam FP ((char *comp, char *param, char *value));
 static void ChangeDefaults FP ((struct dm_pdchange *dmp));
 static void ClearPD FP ((void));
 static void HistoryMode FP ((ZebTime *when));
@@ -1227,27 +1228,10 @@ struct dm_parchange *dmp;
  * Change one parameter in our plot description.
  */
 {
-	char	*par;
 /*
- * Make sure this makes sense.
+ * Propagate the new parameter.
  */
-	if (! Pd)
-	{
-		msg_ELog (EF_PROBLEM, "Param change (%s/%s/%s) with no PD",
-			dmp->dmm_comp, dmp->dmm_param, dmp->dmm_value);
-		return;
-	}
-/*
- * Store the new parameter.
- */
-	pd_Store (Pd, dmp->dmm_comp, dmp->dmm_param, dmp->dmm_value, 
-		SYMT_STRING);
-/*
- * Now reset things.
- */
-	par = dmp->dmm_param;
-	Eq_AddEvent (PDisplay, pc_ParamChange, par, 1 + strlen(par), Augment);
-	pdm_ScheduleUpdate ();
+	PropParam (dmp->dmm_comp, dmp->dmm_param, dmp->dmm_value);
 }
 
 
@@ -1261,30 +1245,51 @@ char *comp, *param, *value;
  */
 {
 /*
- * Sanity check.
+ * Try to propagate the change.  If successful,
+ * we'll also eventually want to ship the PD back to DM.
+ */
+	if (PropParam (comp, param, value))
+		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
+}
+
+
+
+static int
+PropParam (comp, param, value)
+char *comp;
+char *param;
+char *value;
+{
+	bool disable = FALSE;
+/*
+ * Make sure this makes sense.
  */
 	if (! Pd)
 	{
 		msg_ELog (EF_PROBLEM, "Param change (%s/%s/%s) with no PD",
-			comp, param, value);
-		return;
+			  comp, param, value);
+		return (0);
 	}
 /*
  * Do the change.
  */
 	pd_Store (Pd, comp, param, value, SYMT_STRING);
 /*
- * Now reset things.
+ * Now reset things, but only if this component isn't disabled.  If it is
+ * disabled, then re-enabling it will force a replot regardless of which
+ * parameter changed.  And that's as it should be.  If the parameter was
+ * 'disable' then the plot always updates.
  */
-	Eq_AddEvent (PDisplay, pc_ParamChange, param, strlen (param) + 1,
-			Augment);
-/*
- * We'll also eventually want to ship the PD back to DM.
- */
-	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
+	if (! strcmp (param, "disable") ||
+	    ! pda_Search (Pd, comp, "disable", comp, (char *) &disable, 
+			  SYMT_BOOL) || ! disable)
+	{
+		Eq_AddEvent (PDisplay, pc_ParamChange, param, 
+			     strlen (param) + 1, Augment);
+	}
 	pdm_ScheduleUpdate ();
+	return (1);
 }
-
 
 
 

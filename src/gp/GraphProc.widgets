@@ -4,7 +4,7 @@
 ! Most widgets have now been moved out of here, finding their home instead
 ! in the library directory and brought in through the require mechanism.
 !
-! $Id: GraphProc.widgets,v 1.20 1995-09-28 11:58:31 granger Exp $
+! $Id: GraphProc.widgets,v 1.21 1996-03-12 17:41:31 granger Exp $
 !
 set ui$initial_state 'initial'
 
@@ -690,7 +690,7 @@ define widget imagecrank form 'Image cranker'
 !	newline
 
 	label l5 'File:'
-	blank file 'image-%d-%d.gif' width 200
+	blank file 'image-%06d-%06d.gif' width 200
 
 	label l4 'Format: '
 	pulldown format 'gif' menu ic-format

@@ -1,6 +1,6 @@
 /*
  * Definitions for plot primitives stuff
- * $Id: PlotPrim.h,v 2.2 1995-06-29 23:29:38 granger Exp $
+ * $Id: PlotPrim.h,v 2.3 1996-03-12 17:41:36 granger Exp $
  */
 /*
  *		Copyright (C) 1993 by UCAR
@@ -41,4 +41,5 @@ void pp_HLStoRGB FP ((float *r, float *g, float *b,
 		      double h, double l, double s));
 void pp_RGBtoHLS FP ((double r, double g, double b, /* range [0,1] */
 		      float *h, float *l, float *s));
+int pp_SetLWidth FP ((char *comp, char *param, char *qual, int def));
 

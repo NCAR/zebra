@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.9 1995-10-30 17:21:18 burghart Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.10 1996-03-12 17:44:04 granger Exp $")
 
 # include "keywords.h"
 
@@ -174,7 +174,6 @@ extern int	nvxini_ FP ((int *ifunc, int *nav_codicil));
 
 
 
-
 int
 main (argc, argv)
 int argc;
@@ -185,11 +184,12 @@ char **argv;
 {
 	SValue	v;
 	stbl	vtable;
-	char	loadfile[200];
+	char	loadfile[200], ourname[40];
 /*
  * Connect to the message handler
  */
-	if (! msg_connect (MDispatcher, "GMSIngest"))
+	sprintf (ourname, "GMSIngest_%x", getpid ());
+	if (! msg_connect (MDispatcher, ourname))
 	{
 		fprintf (stderr, "could not connect to message manager\n");
 		exit (9);
@@ -441,12 +441,21 @@ Ingest ()
 	F_Init ();
 	for (f = 0; f < nfields; f++)
 	{
-		fid[f] = F_DeclareField (Infile[f].field, "", "");
+		fid[f] = F_Lookup (Infile[f].field);
 	/*
 	 * Throw together the IR calibration.
 	 */
-		scale[f].s_Scale = 1.0;
-		scale[f].s_Offset = GMS_table[255];
+		if (! strcmp (Infile[f].field, "ir"))
+		{
+			scale[f].s_Scale = 1.0;
+			scale[f].s_Offset = GMS_table[255];
+		}
+		else
+		{
+			scale[f].s_Scale = 1.0;
+			scale[f].s_Offset = 0.0;
+		}
+
 		for (i = 0; i < 255; i++)
 		{
 			int ival = GMS_table[i] - scale[f].s_Offset;
@@ -574,9 +583,10 @@ int	fentry;
  */
 {
 	int	header[64], nav_cod[128];
-	unsigned char	*grid;
-	int	i, j, line, elem, status, stuff[128], one = 1;
+	unsigned char	*grid, ival;
+	int	i, j, line, elem, status, stuff[4096], one = 1;
 	int	imagelen, ngot;
+	int	fld_is_ir = ! strcmp (Infile[fentry].field, "ir");
 	float	dummy, fline, felem, lat, lon;
 	char	source[5], *c;
 
@@ -645,6 +655,10 @@ int	fentry;
 			*c = tolower (*c);
 	}
 	msg_ELog (EF_DEBUG, "Source is '%s'", source);
+/*
+ * *Huge* calibration entry for ACE-1 GMS images.  Skip it.
+ */
+	fread ((void *) stuff, 4, 1792, Infile[fentry].stream);
 /*
  * 512 byte extra header for "aaa" areas (we ignore it for now)
  */
@@ -724,7 +738,13 @@ int	fentry;
 		 * Assign this grid point
 		 */
 			if (status == 0)
-				grid[GridX * j + i] = imageval (line, elem);
+			{
+				ival = imageval (line, elem);
+				if (fld_is_ir)
+					ival = IRLookupTable[ival];
+
+				grid[GridX * j + i] = ival;
+			}
 			else
 				grid[GridX * j + i] = 0;
 		}
@@ -916,7 +936,7 @@ int	line, elem;
 		switch (Nbytes)
 		{
 		    case 1:
-			return (IRLookupTable[Image[pos]]);
+			return (Image[pos]);
 			break;
 		    default:
 			msg_ELog (EF_EMERGENCY, 

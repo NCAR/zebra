@@ -43,7 +43,7 @@
 # include "DrawText.h"
 # include "ui_date.h"
 
-RCSID ("$Id: XYGraph.c,v 1.33 1995-06-29 23:30:09 granger Exp $")
+RCSID ("$Id: XYGraph.c,v 1.34 1996-03-12 17:41:41 granger Exp $")
 
 /*
  * Prototypes
@@ -303,6 +303,7 @@ bool	update;
 	    /*
 	     * Draw the data
 	     */
+		pp_SetLWidth (c, "line-width", pnames[plat], 0);
 		if (doLine)
 			pp_Pline (xdata[plat], ydata[plat], npts[plat], 
 				  L_solid, lcolor[plat]);

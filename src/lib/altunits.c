@@ -24,7 +24,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-RCSID("$Id: altunits.c,v 2.7 1995-06-12 22:52:46 granger Exp $")
+RCSID("$Id: altunits.c,v 2.8 1996-03-12 17:44:39 granger Exp $")
 
 /*
  * 
@@ -170,8 +170,8 @@ AltUnitType	*atype;
  */
 	for (i = 0; i < Ntypes; i++)
 	{
-		if (! strcmp (name, Unames[i].shortname) || 
-		    ! strcmp (name, Unames[i].longname))
+		if (! strcasecmp (name, Unames[i].shortname) || 
+		    ! strcasecmp (name, Unames[i].longname))
 		{
 			*atype = (AltUnitType) i;
 			return (TRUE);
@@ -184,7 +184,7 @@ AltUnitType	*atype;
 	{
 		for (a = 0; *Unames[i].aliases[a]; a++)
 		{
-			if (! strcmp (name, Unames[i].aliases[a]))
+			if (! strcasecmp (name, Unames[i].aliases[a]))
 			{
 				*atype = (AltUnitType) i;
 				return (TRUE);

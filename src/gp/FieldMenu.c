@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.14 1995-06-29 23:28:42 granger Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.15 1996-03-12 17:41:27 granger Exp $")
 
 
 /*
@@ -124,8 +124,8 @@ XtPointer xwhich, junk;
 /*
  * See which field name we should use.
  */
-	fname = (which < NField) ? F_GetName (Fields[which]) :
-		PExtras[which - NField];
+	fname = (which < (NManaged - NExtra)) ? F_GetName (Fields[which]) :
+		PExtras[which + NExtra - NManaged];
 /*
  * Here we just put together the command and go.  Start by searching for
  * a command to execute.
@@ -176,9 +176,21 @@ XtPointer junk, junk1;
 		      (const char *)Star_bits, Star_width, Star_height);
 	pd_Retrieve (Pd, IComp, "field", field, SYMT_STRING);
 /*
+ * If they have additional junk to add, find out about it now.
+ */
+	NExtra = 0;
+	usy_g_symbol (Vtable, "area_type", &type, &v);
+	sprintf (string, "%s-field-menu-extras", v.us_v_ptr);
+	if (pda_Search (Pd, IComp, string, Platform, Extras, SYMT_STRING) ||
+	    pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
+			SYMT_STRING))
+	{
+		NExtra = CommaParse (Extras, PExtras);
+	}
+/*
  * Go through and make the labels for each one.
  */
-	for (i = 0; i < nentry; i++)
+	for (i = 0; (i < nentry) && (i < MAXENTRY - NExtra); i++)
 	{
 		char *name = F_GetName (Fields[i]);
 		char *units = F_GetUnits (Fields[i]);
@@ -204,43 +216,36 @@ XtPointer junk, junk1;
 			NManaged++;
 		}
 	}
+	nentry = i; 	/* in case we were cut off by MAXENTRY */
 /*
- * If they have additional junk to add, do it now.
+ * Add the extra entires
  */
-	usy_g_symbol (Vtable, "area_type", &type, &v);
-	sprintf (string, "%s-field-menu-extras", v.us_v_ptr);
-	if (pda_Search (Pd, IComp, string, Platform, Extras, SYMT_STRING) ||
-	    pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
-			SYMT_STRING))
+	for (i = 0; i < NExtra; i++)
 	{
-		NExtra = CommaParse (Extras, PExtras);
-		for (i = 0; i < NExtra; i++)
-		{
-			char *bar = strchr (PExtras[i], '|');
+		char *bar = strchr (PExtras[i], '|');
 		/*
 		 * Set up the entry text.
 		 */
-			if (bar)
-			{
-				*bar++ = '\0';
-				sprintf (string, "%s (%s)", bar, PExtras[i]);
-			}
-			else
-				strcpy (string, PExtras[i]);
-			XtSetArg (args[0], XtNlabel, string);
-			XtSetArg (args[1], XtNleftBitmap, None);
-			XtSetValues (Entries[i + nentry], args, 2);
+		if (bar)
+		{
+			*bar++ = '\0';
+			sprintf (string, "%s (%s)", bar, PExtras[i]);
+		}
+		else
+			strcpy (string, PExtras[i]);
+		XtSetArg (args[0], XtNlabel, string);
+		XtSetArg (args[1], XtNleftBitmap, None);
+		XtSetValues (Entries[i + nentry], args, 2);
 		/*
 		 * If this one isn't managed yet, make it so now.
 		 */
-			if ((i + nentry) >= NManaged)
-			{
-				XtManageChild (Entries[i + nentry]);
-				NManaged++;
-			}
+		if ((i + nentry) >= NManaged)
+		{
+			XtManageChild (Entries[i + nentry]);
+			NManaged++;
 		}
-		nentry += NExtra;
 	}
+	nentry += NExtra;
 /*
  * Clean out extras if need be.
  */

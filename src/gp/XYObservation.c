@@ -43,7 +43,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.18 1995-06-29 23:30:13 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.19 1996-03-12 17:41:42 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -453,6 +453,7 @@ bool	update;
 			    xpos[1] = xdata[plat][obsStart];
 			    ypos[0] = ybottom;
 			    ypos[1] = ytop;
+			    pp_SetLWidth (c, "axis-z-line-width", NULL, 0);
 			    pp_Pline (xpos, ypos, 2, L_dashed, taColor);
 
 			    pp_UnClip ();
@@ -476,6 +477,7 @@ bool	update;
 		 */
 			lc_SetBaseUserCoord (&zleft, &zright, &ybottom, &ytop);
 			pp_Clip (&zleft, &ybottom, &zright, &ytop, FALSE);
+			pp_SetLWidth (c, "line-width", pnames[plat], 0);
 
 			if (doLine)
 				pp_Pline (zdata[plat] + obsStart,
