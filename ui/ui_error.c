@@ -4,7 +4,7 @@
  */
 # include "ui_param.h"
 
-# ifdef __STDC__
+# if __STDC__
 # include <stdarg.h>
 # else
 # include <varargs.h>
@@ -20,7 +20,7 @@
 # endif /* UNIX */
 
 
-static char *rcsid = "$Id: ui_error.c,v 1.10 1994-11-10 17:42:15 case Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.11 1995-05-20 06:46:27 granger Exp $";
 /*
  * Stack stuff.
  */
