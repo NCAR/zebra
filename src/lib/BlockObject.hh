@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.8 1998-06-02 23:23:18 granger Exp $
+/* $Id: BlockObject.hh,v 1.9 1998-06-05 19:35:25 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -189,7 +189,21 @@ public:
 		// cout << "RefBlock constructor" << endl;
 	}
 
-	// Override the needsRead and updateRev methods
+	// Override methods to use our own revision count, and to detect
+	// changes between our reference revision and our current revision.
+
+	/*
+	 * Increment our revision number the first time we are marked.
+	 */
+	virtual void mark (int _marked = 1)
+	{
+		if (_marked && clean())
+		{
+			++block.revision;
+			blockChanged ();
+		}
+		SyncBlock::mark (_marked);
+	}
 
 	/*
 	 * We need to re-read our block if the reference to us has
@@ -199,19 +213,20 @@ public:
 	virtual int needsRead ()
 	{
 		changed |= (block.revision < ref->revision);
+		// Copy the current reference before reading 
+		// in case the location or length on disk has changed
 		if (changed)
 			block = *ref;
 		return (changed);
 	}
 
-#ifdef notdef
 	/*
-	 * After reading the block from disk, our block info 
-	 * should have already been synced with our reference.  
+	 * Update our revision with the one in our reference.
 	 */
 	virtual void updateRev ()
-	{ }
-#endif
+	{
+		// block.revision = ref->revision;
+	}
 
 	/*
 	 * Lastly, when we've changed we need to pass on the change to

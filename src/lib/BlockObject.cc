@@ -6,7 +6,7 @@
 //#include <defs.h>
 //#undef bool
 //
-//RCSID("$Id: BlockObject.cc,v 1.7 1998-06-02 23:23:17 granger Exp $")
+//RCSID("$Id: BlockObject.cc,v 1.8 1998-06-05 19:35:24 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -112,11 +112,10 @@ SyncBlock::writeSync (int force)
 		// cout << Format("SyncBlock: writing block (%u,%u,%u)\n") %
 		//	block.offset % block.length % block.revision;
 		write ();
+		updateRev ();
+		changed = 0;
+		mark (0);
 	}
-	updateRev ();
-	blockChanged ();
-	changed = 0;
-	mark (0);
 }
 
 
@@ -124,7 +123,7 @@ SyncBlock::writeSync (int force)
 void
 SyncBlock::readSync ()
 {
-	if (needsRead ())
+	if (clean() && needsRead ())
 	{
 		// cout << Format("SyncBlock: reading block (%u,%u,%u)\n") %
 		//	block.offset % block.length % block.revision;
@@ -150,7 +149,7 @@ SyncBlock::needsRead ()
 	//     been newly attached to an existing block and not read yet.
 	//  2) We have a block and a revision, but we're out of rev.
 
-	if (block.offset > 0 && clean() && block.revision < bf->Revision())
+	if (block.offset > 0 && block.revision < bf->Revision())
 	{
 		changed = changed ||
 		   bf->Changed (block.revision, block.offset, block.length);
