@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.11 1993-05-10 17:08:40 barrett Exp $");
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.12 1993-05-25 07:33:14 granger Exp $");
 
 
 /*
@@ -616,10 +616,11 @@ WriteCode wc;
 	zn_PutBlock (tag, hdr->znh_OffSample + zn_SASize (hdr, fsample),
 			samp, zn_SASize (hdr, 1));
 /*
- * If there are sample attributes, save them.
+ * If there are sample attributes, save them; otherwise erase any existing
+ * ones (ablock == NULL)
  */
-	if (ablock = dc_GetSaAttrBlock (dc, sample, &alen))
-		zn_PutAttrs (tag, fsample, ablock, alen);
+	ablock = dc_GetSaAttrBlock (dc, sample, &alen);
+	zn_PutAttrs (tag, fsample, ablock, alen);
 /*
  * Done.
  */
@@ -639,11 +640,17 @@ znTag *tag;
 int sample, alen;
 void *ablock;
 /*
- * Dump this attribute block out to the file.
+ * Dump this attribute block out to the file.  If ABLOCK is NULL, erase
+ * any existing attribute block.
  */
 {
 	zn_Header *hdr = &tag->zt_Hdr;
 	zn_Sample *zs;
+/*
+ * If no attribute block and no attribute array, we're outta here
+ */
+	if ((hdr->znh_OffAttr < 0) && (ablock == NULL))
+		return;
 /*
  * The real key here is whether there is already an attribute array in
  * this file or not.  If not, we need to make one.
@@ -665,9 +672,17 @@ void *ablock;
 /*
  * Allocate the new space and fill it in.
  */
-	zs->znf_Size = alen;
-	zs->znf_Offset = zn_GetSpace (tag, alen);
-	zn_PutBlock (tag, zs->znf_Offset, ablock, alen);
+	if (ablock)
+	{
+		zs->znf_Size = alen;
+		zs->znf_Offset = zn_GetSpace (tag, alen);
+		zn_PutBlock (tag, zs->znf_Offset, ablock, alen);
+	}
+	else
+	{
+		zs->znf_Size = 0;
+		zs->znf_Offset = 0;
+	}
 /*
  * Sync out this attribute entry.
  */
