@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.13 1998-09-21 23:21:27 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.14 1998-09-22 14:28:44 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -86,7 +86,6 @@ protected:
 	BTreeFile<K,T>& filetree;
 	unsigned long lru;
 
-	//BlockNode<K,T> *findLRU (Node **parent);
 	BlockNode<K,T> *findLRU (BlockNode<K,T> *lrunode, Node *parent, 
 				 Node **lruparent, int *n);
 
@@ -191,10 +190,14 @@ BTreeFile<K,T>::Reopen ()
 	BlkOffset addr = Address();
 	string path(bf->Path());
 
-	// Release what we have, and start over with our own file
+	// Release the resources we have, but re-open the blockfile
+	// only if it was actually ours to close 
 	release ();
-	bf = new BlockFile (path.c_str(), MAGIC, BlockFile::BF_EXCLUSIVE);
-	our_bf = 1;
+	if (our_bf)
+	{
+		bf = new BlockFile (path.c_str(), MAGIC, 
+				    BlockFile::BF_EXCLUSIVE);
+	}
 	attach (Block(), *bf);
 	Init (order, elementSize(), elementFixed());
 	Open (addr);
@@ -349,60 +352,16 @@ BTreeFile<K,T>::release ()
 	}
 	writeSync (1);
 	root = 0;
-	bf->Close ();
 	if (our_bf)
+	{
+		bf->Close ();
 		delete bf;
-	bf = 0;
+		bf = 0;
+	}
 	ncache = 0;
 	maxcache = 20;
 }
 
-
-
-#ifdef notdef
-/*
- * Recursive breadth-first search for lru node.
- */
-template <class K, class T>
-BlockNode<K,T> * 
-BlockNode<K,T>::findLRU (Node **parent)
-{
-	// If we're a leaf, then we're done.
-	if (depth == 0)
-	{
-		return this;
-	}
-
-	BlockNode<K,T> *child = 0, *minlru = 0;
-	int k = 0;
-	for (int i = 0; i < nkeys; ++i)
-	{
-		child = (BlockNode<K,T> *)children[i].local;
-		if (child)
-		{
-			cout << " - Child " << (void*)child 
-			     << " in memory, lru:" << child->lru;
-			cout << endl;
-		}
-		if (child && (!minlru || child->lru < minlru->lru))
-		{
-			minlru = child;
-			k = i;
-		}
-	}
-	/*
-	 * We have no children in memory, so return ourself.
-	 */
-	if (! minlru)
-		return this;
-	
-	// Now that we've found it, keep track of the parent's
-	// Node reference so it can be updated.
-	*parent = &(children[k]);
-	cout << "Looking for least LRU in " << (void *)minlru << endl;
-	return (minlru->findLRU (parent));
-}
-#endif
 
 
 

@@ -6,6 +6,7 @@
 #include <fstream.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <vector>
 #include <function.h>
 #include <algorithm>
@@ -29,8 +30,8 @@ typedef BTree<long,long> LongTree;
 /*
  * Choose the default tree type.
  */
-//typedef long test_key;
-typedef string test_key;
+typedef long test_key;
+//typedef string test_key;
 //typedef ZTime test_key;
 
 typedef BTreeFile<test_key,test_key> default_tree;
@@ -185,6 +186,21 @@ T_Members (test_tree &tree, vector<key_type> &keys)
 
 
 int
+T_Reopen (test_tree &tree)
+{
+	cout << " re-opening tree..." << endl;
+	tree.Reopen();
+	if (tree.Error())
+	{
+		cout << "***** Error on Reopen." << endl;
+		return (1);
+	}
+	return (0);
+}
+
+
+
+int
 T_Compare (test_tree &tree, vector<key_type> &keys, 
 	   vector<value_type> &values)
 {
@@ -243,8 +259,8 @@ T_Insert (test_tree &tree, vector<key_type> &keys, vector<key_type> &values)
 
 	Summarize (cout, tree);
 
-	cout << " ...re-opening tree" << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 
 	// Verify membership
 	cout << " ...testing membership" << endl;
@@ -514,8 +530,8 @@ TestTree (test_tree &tree, int N)
 	Summarize(cout, tree);
 	err += T_Traversal (tree);
 
-	cout << "Reopening..." << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 	err += T_Traversal (tree);
 
 	// Ordered removal
@@ -542,7 +558,8 @@ TestTree (test_tree &tree, int N)
 	tree.Erase ();
 
 	cout << "Reopening after Erase()..." << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 
 	if (! tree.Empty())
 	{
@@ -566,16 +583,16 @@ TestTree (test_tree &tree, int N)
 	err += tree.Check ();
 	Summarize(cout, tree);
 
-	cout << "Reopening..." << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 	if (Debug) tree.Print(cout);
 
 	cout << "Removal of half of keys..." << endl;
 	err += T_PartialRemoval (tree, N/2);
 	if (Debug) tree.Print(cout);
 
-	cout << "Reopening..." << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 	if (Debug) tree.Print(cout);
 
 	cout << "Random removal..." << endl;
@@ -590,8 +607,8 @@ TestTree (test_tree &tree, int N)
 	err += tree.Check ();
 	Summarize(cout, tree);
 
-	cout << "Reopening..." << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 
 	// Test traversal
 	err += T_Traversal (tree);
@@ -604,8 +621,8 @@ TestTree (test_tree &tree, int N)
 	err += tree.Check ();
 	Summarize(cout, tree);
 
-	cout << "Reopening..." << endl;
-	tree.Reopen();
+	if (T_Reopen (tree))
+		return (err+1);
 
 	// Random removal
 	cout << "Random removal... " << endl;
@@ -618,14 +635,14 @@ TestTree (test_tree &tree, int N)
 		srand (time(0)+(i << (2*i)));
 		random_shuffle (keys.begin(), keys.end());
 
-		cout << "Reopening..." << endl;
-		tree.Reopen();
+		if (T_Reopen (tree))
+			return (err+1);
 		cout << "Random insertions... " << i+1 << endl;
 		err += T_Insert (tree, keys, keys);
 		err += tree.Check ();
 		Summarize(cout, tree);
-		cout << "Reopening..." << endl;
-		tree.Reopen();
+		if (T_Reopen (tree))
+			return (err+1);
 		cout << "Partial removal and re-insertion..." << endl;
 		err += T_PartialRemoval (tree, N/2);
 		err += tree.Check ();
@@ -698,22 +715,44 @@ int main (int argc, char *argv[])
 	// using a given N.
 	if (argc <= 1)
 		N = 5000;
-	BlockFile bf("fulltree.bf", 0, BlockFile::BF_CREATE);
+	BlockFile bf("shartree.bf", 0, BlockFile::BF_CREATE);
+	BlockFile ebf("excltree.bf", 0, 
+		      BlockFile::BF_CREATE | BlockFile::BF_EXCLUSIVE);
 	for (int o = 5; (o == 5) || (o < N / 10); o *= 10)
 	{
-		// Try memory trees first.
-		LongTree ltree(o);
-		err += TestTree (ltree, "long", N);
-		StringTree stree(o);
-		err += TestTree (stree, "string", N);
-		TimeTree ttree(o);
-		err += TestTree (ttree, "time", N);
-
-		// Now the file trees.
-		LongFileTree lftree(0, bf, o);
-		err += TestTree (lftree, "long file", N);
-		StringFileTree sftree(0, bf, o);
-		err += TestTree (sftree, "string file", N);
+		{
+			// Try memory trees first.
+			LongTree ltree(o);
+			err += TestTree (ltree, "long", N);
+			StringTree stree(o);
+			stree.setElementSize (12);
+			err += TestTree (stree, "string", N);
+			TimeTree ttree(o);
+			err += TestTree (ttree, "time", N);
+		}
+		{
+			// Now the file trees with our shared blockfile
+			LongFileTree lftree(0, bf, o);
+			err += TestTree (lftree, "long file", N);
+			StringFileTree sftree(0, bf, o);
+			sftree.setElementSize (12);
+			sftree.setKeySize (12);
+			err += TestTree (sftree, "string file", N);
+		}
+		{
+			// Now file trees with default access
+			LongFileTree lftree(0, ebf, o);
+			err += TestTree (lftree, "long excl file", N);
+			StringFileTree sftree(0, ebf, o);
+			sftree.setElementSize (12);
+			sftree.setKeySize (12);
+			err += TestTree (sftree, "string excl file", N);
+		}
+		// Throw in a default file to exercise actually
+		// closing and opening the blockfile on reopen()
+		unlink ("btree.bf");
+	        TimeFileTree tftree (o);
+		err += TestTree (tftree, "time default file", N);
 	}
 	
 	if (err) cout << "***** ";
