@@ -9,8 +9,12 @@
 #include <function.h>
 #include <algorithm>
 
+#define RANDOM 0
+
+#if RANDOM
 #include <MLCG.h>	// GNU c++ lib
 #include <RndInt.h>
+#endif
 
 #include "BlockFileP.hh"
 #include "ZTime.hh"
@@ -21,6 +25,27 @@ typedef BTree<ZTime,long> TimeTree;
 
 typedef long test_key;
 typedef BTree<test_key,test_key> test_tree;
+
+
+#ifdef notdef
+class RandomInteger
+{
+	RandomInteger(_seed = time()) :
+		seed (_seed)
+	{ }
+		
+	int operator() ()
+	{
+		
+
+	}
+
+private:
+	long seed;
+};
+#endif
+
+
 
 int TestTree (test_tree &tree, int N);
 
@@ -57,7 +82,7 @@ int main (int argc, char *argv[])
 		err += TestTree (tree, N);
 	}
 	
-#ifdef notdef
+#if notdef
 	BigTest (N, order);
 #endif
 	exit (err);
@@ -65,7 +90,7 @@ int main (int argc, char *argv[])
 
 
 
-#ifdef notdef
+#if notdef
 int 
 BigTest (int N = 10, int order = 3) 
 {
@@ -412,9 +437,12 @@ T_RandomRemoval (test_tree &tree)
 	}
 	//cout << endl;
 
+#if RANDOM
 	MLCG rng(time(0));
 	RandomInteger rnd(&rng);
 	random_shuffle (keys.begin(), keys.end(), rnd);
+#endif
+	random_shuffle (keys.begin(), keys.end());
 	return (T_Removal (tree, keys));
 }
 
@@ -533,9 +561,10 @@ TestTree (test_tree &tree, int N)
 
 	int err = 0;
 	vector<test_key> keys(N);
+#if RANDOM
 	MLCG rng(time(0));
 	RandomInteger rnd(&rng);
-
+#endif
 	generate (keys.begin(), keys.end(), Counter(1));
 
 	// Insert the sequential keys and values and test.
@@ -595,7 +624,7 @@ TestTree (test_tree &tree, int N)
 	// Random overwrites, new values
 	cout << "Random overwrites... " << endl;
 	vector<test_key> values = keys;
-	random_shuffle (keys.begin(), keys.end(), rnd);
+	random_shuffle (keys.begin(), keys.end());
 	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 
@@ -608,7 +637,7 @@ TestTree (test_tree &tree, int N)
 	for (int i = 0; i < 3; ++i)
 	{
 		srand (time(0));
-		random_shuffle (keys.begin(), keys.end(), rnd);
+		random_shuffle (keys.begin(), keys.end());
 
 		cout << "Random insertions... " << i+1 << endl;
 		err += T_Insert (tree, keys, keys);

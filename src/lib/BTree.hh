@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.2 1997-11-24 18:13:32 granger Exp $
+ * $Id: BTree.hh,v 1.3 1997-12-17 03:49:20 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -10,13 +10,37 @@
 // #include <stddef.h>
 // #include <defs.h>
 
-// #include "BlockStore.hh"
-// #include "btree.h"
+#include "BlockFile.hh"
+#include "Serialize.hh"
+
+// Reference to a node by some remote address and size, else by a pointer
+// to a cached copy in local memory.  In an entire tree, there is only one
+// reference to each node, in its parent.  So that reference might also
+// need to contain the size of the node in the factory address space.
+
+struct Node
+{
+	void *local;		// Memory cache
+	unsigned long addr;	// Persistent address
+
+	Node () : local(0), addr(0) 
+	{ }
+
+	void translate (SerialStream &ss)
+	{
+		ss << addr;
+	}
+};
+
+
+SERIAL_STREAMABLE (Node);
 
 /*
  * Opaque forward references.
  */
 template <class K, class T> class BTreeNode;
+template <class K, class T> class NodeFactory;
+template <class K, class T> class HeapFactory;
 template <class K, class T> struct Shortcut;
 
 /// BTree database access class
@@ -77,11 +101,10 @@ public:
 
 	int Remove ();
 
-	/** 
-	 Return the key preceding or succeeding the given key.  If key is
-	 null, use the key most recently accessed by an insert, find, or
-	 remove (the "current key").  Return 0 if no next or prev key,
-	 or if key is 0 and no current key has been set. 
+	/** Return the key preceding or succeeding the current key.  If key
+	    is null, advance the current key but do not return that key.  If
+	    value is non-zero, return the value of the new key.  Return 0 if
+	    no next or prev key, or if no current key has been set.
 	 */
 	int Next (K *key = 0, T *value = 0)
 	{
@@ -111,17 +134,22 @@ public:
 	/* 
 	 * Return info about this tree.
 	 */
-
-	int Empty ()
+	inline int Empty ()
 	{
-		return (root == 0);
+		return (depth == -1);
 	}
 
-	int Order ();
+	inline int Order ()
+	{
+		return (order);
+	}
 
-	int Depth ();
+	inline int Depth ()
+	{
+		return depth;
+	}
 
-	int MaxKeys ()
+	inline int MaxKeys ()
 	{ 
 		return (Order() - 1);
 	};
@@ -147,40 +175,44 @@ public:
 
 	/* ----- Public constructors and destructors ----- */
 
-	/// Create a simple empty BTree
-
+	/// Create a simple empty BTree in memory
 	BTree (int order = DEFAULT_ORDER);
+
+	/// Create an empty, persistent BTree on the given BlockFile
+	//BTree (BlockFile &bf, int order = DEFAULT_ORDER);
+
+	/// Restore a BTree from a BlockFile at the given address
+	//BTree (BlockFile &bf, BlkOffset offset);
 
 	~BTree ();
 
+	void translate (SerialStream &ss);
+
+	// Return the fixed sizes of our nodes
+	//long leafSize ();
+	//long nodeSize ();
+
 protected:
 
+	NodeFactory<K,T> *factory;	// Reference to our node factory
+
+	// Persistent state
+	int depth;
 	int order;
+	Node rootNode;
+	BTreeNode<K,T> *root;
+
+	// Transient state
 	int check;
 	int err;
 
-	BTreeNode<K,T> *root;
-	Shortcut<K,T> *current;	// Reference to current key
-	// BTreeFactory *factory;	// Reference to our node factory
+	Shortcut<K,T> *current;		// Reference to current key
 
 	friend BTreeNode<K,T>;
 
 	// Change the root node when growing up or down (could be zero)
 	void setRoot (BTreeNode<K,T> *node);
-
 };
-
-
-#ifdef notdef
-	/// Create a new btree from scratch on the given BlockStore
-	BTree (BlockStore &buf, int key_size, 
-	       KeyType key_type = KEY_UNKNOWN, int order = DEFAULT_ORDER);
-
-	/**
-	  Open an existing b-tree whose base structure is at offset 'base'
-	  of the given block store. */
-	BTree (BlockStore &buf, BlkOffset base);
-#endif
 
 
 #ifdef notdef

@@ -11,88 +11,13 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.3 1997-12-09 05:42:08 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.4 1997-12-17 03:49:18 granger Exp $")
 
 #include "Logger.hh"
 #include "BTree.hh"
 #include "BTreeP.hh"
 
 // XDR_ADDTYPE (tree_base);
-
-
-/*
- * Interface to objects which will create, store, and manage nodes
- * for us.
- */
-template <class K, class T>
-class BTreeFactory
-{
-	typedef BTreeNode<K,T> node_type;
-	typedef node_type *address_type;
-
-	/// Retrieve an existing node
-
-	node_type *
-	get (Child &addr, int depth);
-
-	/// Create a new node
-
-	node_type *
-	make (Child &addr, int depth);
-	{
-		node_type *node = new node_type (tree, depth);
-		addr.local = node;
-		access (node);
-		return (node);
-	}
-
-	/// Delete a node.  Can also be done with delete operator.
-
-	void delete (address_type &addr);
-
-	/// Destructor for the factory, which deletes nodes in memory
-	
-	virtual ~BTreeFactory ();
-
-	BTreeFactory (BTree &t)
-	{
-		tree = t;
-	}
-
-protected:
-	BTree &tree;		// The tree we serve
-
-}
-
-
-inline BTreeNode *
-BTreeFactory::get (address_type &addr, int depth, BTreeBranch *parent)
-{
-	addr = new BTreeNode (&tree, depth, parent);
-	return (addr);
-}
-
-
-inline BTreeNode *
-BTreeFactory::make (address_type &addr, int depth, BTreeBranch *parent)
-{
-	addr = new BTreeNode (&tree, depth, parent);
-
-	return (node);
-
-
-}	
-
-inline void
-BTreeFactory::delete (address_type &addr)
-{
-
-}
-
-	/// Destructor for the factory, which deletes nodes in memory
-	
-	virtual ~BTreeFactory ();
-#endif
 
 
 
@@ -103,24 +28,61 @@ BTreeFactory::delete (address_type &addr)
 // const int BTree::DEFAULT_ORDER = 128;
 
 template <class K, class T>
-BTree<K,T>::BTree (int _order)
+BTree<K,T>::BTree (int _order) :
+	factory(new HeapFactory<K,T>()), 
+	// persistent
+	depth(-1),
+	order (_order), 
+	rootNode (),
+	// transient
+	root(0), 
+	check(0),
+	err(0),
+	current (new Shortcut<K,T>)
 {
-	order = _order;
 	if (order < 3)
 		order = DEFAULT_ORDER;
-	root = 0;
-	check = 0;
-	err = 0;
-	current = new Shortcut<K,T>;
-	current->clear();
+	//factory = new HeapFactory<K,T>();
 }
+
+
+#ifdef notdef
+template <class K, class T>
+BTree<K,T>::BTree (BlockFile &bf, int _order) :
+	factory (new BlockFactory (bf, *this)),
+	// persistent
+	depth(-1),
+	order (_order), 
+	root(), 
+	// transient
+	check(0),
+	err(0),
+	current (new Shortcut<K,T>)
+{ }
+
+
+
+template <class K, class T>
+BTree<K,T>::BTree (BlockFile &bf, BlkOffset offset) :
+	factory (new BlockFactory (bf, offset, *this)),
+	// persistent
+	depth(-1),
+	order (_order), 
+	root(), 
+	// transient
+	check(0),
+	err(0),
+	current (new Shortcut<K,T>)
+{ }
+#endif
 
 
 
 template <class K, class T>
 BTree<K,T>::~BTree ()
 {
-	Erase ();
+	factory->release (*this);
+	delete factory;
 	if (current)
 		delete current;
 }
@@ -131,10 +93,12 @@ template <class K, class T>
 void
 BTree<K,T>::Erase ()
 {
+	factory->writeLock ();
 	current->clear ();
-	if (root)
+	if (! Empty())
 		root->destroy ();
-	root = 0;
+	setRoot (0);
+	factory->unlock ();
 }
 
 
@@ -143,17 +107,19 @@ template <class K, class T>
 int 
 BTree<K,T>::Insert (const K &key, const T &value)
 {
+	factory->writeLock ();
 	current->clear ();
 	// Bootstrap the root node if necessary.  Every node must
 	// have at least one key in it.
-	if (! root)
+	if (Empty())
 	{
-		root = new BTreeNode<K,T> (*this, /*depth*/ 0);
+		root = factory->make (*this, /*depth*/ 0);
+		setRoot (root);
 		current->set (root, key, 0);
 		if (! current->insert (value))
 		{
-			delete root;
-			root = 0;
+			factory->destroy (root);
+			setRoot (0);
 			current->clear();
 			return 0;
 		}
@@ -164,6 +130,7 @@ BTree<K,T>::Insert (const K &key, const T &value)
 	root->find (key, current);
 	int r = current->insert (value);
 	if (check) err += Check ();
+	factory->unlock ();
 	return r;
 }
 
@@ -172,13 +139,13 @@ BTree<K,T>::Insert (const K &key, const T &value)
 template <class K, class T>
 int BTree<K,T>::Find (const K &key, T *value)
 {
+	factory->readLock ();
 	current->clear();
-	if (! root)
-		return (0);
-	if (root->find (key, current))
-		return (current->value (value));
-	else
-		return (0);
+	int found = 0;
+	if (! Empty() && root->find (key, current))
+		found = current->value (value);
+	factory->unlock ();
+	return found;
 }
 
 
@@ -186,7 +153,10 @@ int BTree<K,T>::Find (const K &key, T *value)
 template <class K, class T>
 int BTree<K,T>::Value (T *value)
 {
-	return (current->value (value));
+	factory->readLock ();
+	int found = current->value (value);
+	factory->unlock ();
+	return found;
 }
 
 
@@ -198,9 +168,12 @@ int BTree<K,T>::Value (T *value)
 template <class K, class T>
 int BTree<K,T>::Remove (const K &key)
 {
-	if (! Find (key))
-		return (0);
-	return (Remove ());
+	factory->writeLock ();
+	int done = 0;
+	if (Find (key))
+		done = Remove();
+	factory->unlock ();
+	return done;
 }
 
 
@@ -208,18 +181,11 @@ int BTree<K,T>::Remove (const K &key)
 template <class K, class T>
 int BTree<K,T>::Remove ()
 {
+	factory->writeLock ();
 	int r = current->remove();
 	if (check) err += Check ();
+	factory->unlock ();
 	return (r);
-}
-
-
-
-template <class K, class T>
-void
-BTree<K,T>::setRoot (BTreeNode<K,T> *node)
-{
-	root = node;
 }
 
 
@@ -228,8 +194,9 @@ template <class K, class T>
 int
 BTree<K,T>::Check ()
 {
+	factory->readLock ();
 	int e = 0;
-	if (root)
+	if (! Empty())
 	{
 		//cout << "Checking....";
 		e = root->check ();
@@ -241,6 +208,7 @@ BTree<K,T>::Check ()
 		}
 		//cout << endl;
 	}
+	factory->unlock ();
 	return (e);
 }
 
@@ -249,13 +217,16 @@ BTree<K,T>::Check ()
 template <class K, class T>
 int BTree<K,T>::Next (int n, K *key /* = 0*/, T *value /* = 0*/)
 {
+	factory->readLock ();
 	// If we have a valid current shortcut, use it to find the next key
 	// the specified steps away.
-	if (current->valid())
+	if (current->valid() && n != 0)
 	{
 		(current->leaf)->step (current, n);
 	}
-	return (current->value (value, key));
+	int done = current->value (value, key);
+	factory->unlock ();
+	return done;
 }
 
 
@@ -271,7 +242,7 @@ int BTree<K,T>::Prev (int n, K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::Current (K *key /* = 0*/, T *value /* = 0*/)
 {
-	return (current->value (value, key));
+	return (Next (0, key, value));
 }
 
 
@@ -279,12 +250,13 @@ int BTree<K,T>::Current (K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::First (K *key /* = 0*/, T *value /* = 0*/)
 {
+	factory->readLock ();
 	current->clear ();
-	if (! root)
-		return 0;
-	if (root->findLeft (current))
-		return (current->value (value, key));
-	return (0);
+	int done = 0;
+	if (! Empty() && root->findLeft (current))
+		done = current->value (value, key);
+	factory->unlock ();
+	return (done);
 }
 
 
@@ -292,12 +264,34 @@ int BTree<K,T>::First (K *key /* = 0*/, T *value /* = 0*/)
 template <class K, class T>
 int BTree<K,T>::Last (K *key /* = 0*/, T *value /* = 0*/)
 {
+	factory->readLock ();
 	current->clear ();
-	if (! root)
-		return 0;
-	if (root->findRight (current))
-		return (current->value (value, key));
-	return (0);
+	int done = 0;
+	if (! Empty() && root->findRight (current))
+		done = current->value (value, key);
+	factory->unlock ();
+	return (done);
+}
+
+
+
+/* ---------------- Protected methods ---------------- */
+
+template <class K, class T>
+void
+BTree<K,T>::setRoot (BTreeNode<K,T> *node)
+{
+	root = node;
+	if (! node)
+	{
+		rootNode.addr = 0;
+		depth = -1;	// Empty again
+	}
+	else
+	{
+		rootNode = node->thisNode;
+		depth = node->Depth();
+	}
 }
 
 
@@ -320,7 +314,7 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 	nkeys = 0;
 	if (depth > 0)	// we're an internal node which only has children
 	{
-		children = new Child[tree.Order()];
+		children = new Node[tree.Order()];
 	}
 	else	// we're a leaf which needs an element offset table
 	{
@@ -328,6 +322,59 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 		table[nkeys].offset = 0; // Offset for first element insertion
 		sbuf = new SerialBuffer;
 	}
+}
+
+
+
+template <class K, class T>
+void
+BTreeNode<K,T>::translate (SerialStream &ss)
+{
+	ss << nkeys;
+	ss << tag;
+	for (int i = 0; i < nkeys; ++i)
+	{
+		ss << keys[i];
+		if (depth > 0)
+		{
+			ss << children[i];
+		}
+		else
+		{
+			ss << table[i];
+		}
+	}
+	if (depth == 0)
+	{
+		// Translate the contents of our serial buffer
+		ss << table[nkeys];
+		sbuf->Need (table[nkeys].offset);
+		ss->opaque (sbuf->getBuffer (), table[nkeys].offset);
+	}
+}
+
+
+
+template <class K, class T>
+long
+BTreeNode<K,T>::blockSize (SerialBuffer &sbuf)
+{
+	int keysize = serialCount (sbuf, tag);
+	long s = serialCount (sbuf, nkeys);	// nkeys
+	s += keysize;				// tag
+	int maxkeys = tree.MaxKeys();
+	s += maxkeys * keysize;			// keys
+	if (depth == 0)
+	{
+		// Element table
+		s += maxkeys * serialCount (table[0]);
+	}
+	else
+	{
+		// Children array
+		s += tree.Order() * serialCount (children[0]);
+	}
+	return (s);
 }
 
 
@@ -353,235 +400,58 @@ BTreeNode<K,T>::destroy ()
 {
 	if (depth == 0)
 	{
-		delete this;
+		tree.factory->destroy (this);
 		return;
 	}
 
 	for (int i = 0; i <= nkeys; ++i)
 	{
-		children[i]->destroy ();
+		down(children[i])->destroy ();
 	}
 
-	delete this;
+	tree.factory->destroy (this);
 }
 
 
 
 #ifdef notdef
-/*
- * Create a new b-tree on the given BlockStore
- */
-BTree::BTree (BlockStore &buf, int key_size, KeyType key_type = KEY_UNKNOWN,
-	      int order = DEFAULT_ORDER)
-{
-	BTree();
-	this->key_size = key_size;
-	base->key_type = key_type;
-	base->order = order;
-	store = &buf;
-	root = new BTreeLeaf (this);
-	base->root = root->Block();
-}
-
-
-
-/* 
- * Open an existing b-tree whose base structure is at offset 'base'
- */
-BTree::BTree (BlockStore &buf, BlkOffset addr)
-{
-	/* initialize everything and allocate a base structure */
-	BTree();
-
-	/* read the base */
-	XDRSream *xdr = buf.decodeStream (addr);
-	xdr >> base;
-
-	/* restore the root */
-	root = getNode (base->root, base->depth);
-}
-
-
-/* ----------------
- * Simple access which hides the tree_base structure from public view.
- */
-
-KeyType
-BTree::keyType ()
-{ 
-	return (base->key_type);
-}
-
-// Return estimated element size in bytes
-int
-BTree::ElementSize ()
-{ 
-	return (base->elem_size);
-}
-
-/* Set info.  The storage object and tree order cannot be changed.
- * The element size is used as a default length when inserting
- * a key and value, and it is used to estimate the space required
- * for a block of N elements for a leaf.
- */
-void
-BTree::SetElementSize (int size)
-{ 
-	base->elem_size = size;
-}
-#endif
-
 template <class K, class T>
 int
 BTree<K,T>::Order ()
 {
 	return (order);
 }
+#endif
 
 
-
+#ifdef notdef
 template <class K, class T>
 int
 BTree<K,T>::Depth ()
 { 
 	return (root ? root->Depth() : 0);
 }
-
+#endif
 
 
 template <class K, class T>
 ostream &
 BTree<K,T>::Print (ostream &out)
 {
-	if (root)
+	if (! Empty())
 		root->print (out);
 	return (out);
 }
 
-#ifdef notdef
-/* ---------------- 
- * Retrieve nodes from the block store.  These are BTree instance methods
- * because the request for a new node may be filled either by allocating
- * a new node or by replacing an existing node on the cache linked list.
- */
 
-/*
- * Restore an existing btree node from the block store.
- */
-BTreeNode *
-BTree::getNode (BlkOffset addr, int depth, BTreeBranch *parent = 0)
+
+template <class K, class T>
+void
+BTree<K,T>::translate (SerialStream &ss)
 {
-	BTreeNode *node;
-
-	/* Check whether we've reached our limit... */
-
-	node = new BTreeNode (this, addr, depth, parent);
-
-	return (node);
+	// Translate our persistent state
+	ss << depth << order << rootNode;
 }
 
 
 
-/*
- * Actually create a whole new node for the b-tree, allocating it
- * space in the block store.
- */
-BTreeNode *
-BTree::newNode (int depth, BTreeBranch *parent = 0)
-{
-	BTreeNode *node = new BTreeNode (this, depth, parent);
-
-	return (node);
-}
-
-
-
-/* ================================================================ */
-
-
-int
-BTree::Find (const Key *key, void *value = NULL, int *length = 0)
-{
-	// Recursively search the tree for this key, beginning with the root 
-
-	int i = root->find (key, value, length);
-
-	// Store the current node and key shortcut here, somehow
-
-	return (i >= 0);
-}
-
-
-
-
-int
-BTree::Insert (const Key *key, void *value = NULL, int length = 0)
-{
-	// Call insert on the root node and let it take it from there
-
-	int i = root->insert (key, value, length);
-
-	// Store shortcut to current node here
-
-	return (i >= 0);
-}
-#endif
-
-/* ================================================================ */
-
-#ifdef notdef
-InsertKey (TreeNode *parent, TreeNode *node, Key *key, recptr loc)
-/*
- * Insert the given key with the given location into the node.
- * First look for the leaf node which should contain this key,
- * then insert using overflow, possibly resulting in the split
- * of the root node.  If parent is NULL, the given node is a root
- * node.
- */
-{
-	TreeNode *leaf;
-
-	leaf = FindLeaf (node, key);
-	/*
-	 * Simple case: node is not full, so insert the new key
-	 */
-	if (leaf->nkeys < TREE_ORDER
-
-}
-
-
-NodeInsert (TreeNode *node, int slot, Key *key, recptr loc)
-/*
- * Given that there is room in this node for another key, insert
- * the key and its associated pointer in the slot.
- */
-{
-	int i;
-
-	/*
-	 * Open up a hole for the key and pointer.
-	 */
-	for (i = node->nkeys+1; i > slot ; --i)
-	{
-		node->ptr[i] = node->ptr[i-1];
-		memcpy (KeyN (node, i), KeyN (node, i-1), node->key_size);
-	}
-	node->ptr[slot] = loc;
-	memcpy (KeyN(node, slot), key);
-}
-
-
-
-/*
- * Keys are "numbered" from 1 to Nkeys, which is actually array
- * indices 0..(Nkeys-1)
- */
-inline Key *
-KeyN (TreeNode *node, int i)
-{
-	return ((Key *)((char *)node->keys + ((i-1)*(node->key_size))));
-}
-
-
-
-#endif
