@@ -25,7 +25,6 @@
 # include <stdio.h>
 # include <stream.h>
 # include <stdlib.h>
-# include "MaybeCString.h"
 
 extern "C" 
 {
@@ -43,7 +42,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.9 1997-06-05 15:47:37 granger Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.10 1998-03-02 20:23:12 burghart Exp $";
 //
 // Externs.
 //

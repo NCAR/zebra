@@ -30,7 +30,6 @@
 # include <stdio.h>
 # include <stream.h>
 # include <unistd.h>
-# include "MaybeCString.h"
 # include "dsmanage.h"
 
 
@@ -57,7 +56,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.14 1997-06-05 15:47:33 granger Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.15 1998-03-02 20:23:11 burghart Exp $")
 
 class LoadSelect;
 

@@ -26,8 +26,6 @@
 # include "container.h"
 # include "DataDir.h"
 
-# include "MaybeCString.h"
-
 extern "C" 
 {
 #	include <X11/Intrinsic.h>
@@ -42,7 +40,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.7 1995-12-05 20:25:15 corbet Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.8 1998-03-02 20:23:16 burghart Exp $";
 //
 // Forwards.
 //

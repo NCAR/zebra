@@ -31,7 +31,6 @@
 # include <stream.h>
 # include <unistd.h>
 # include <fcntl.h>
-# include "MaybeCString.h"
 extern "C"
 {
 #	include <X11/Intrinsic.h>
@@ -47,7 +46,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.14 1997-06-05 15:47:26 granger Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.15 1998-03-02 20:23:08 burghart Exp $")
 
 //
 // Import from main.

@@ -31,7 +31,7 @@ public:
 	void add (const C&);		// Add an element to the container
 	inline ncontained() const { return nelem; }	// How many?
 	C& nth (const int which) const { return *(stuff[which]); }
-	C *index (const int);	// Get by index
+	C *index (const int) const;	// Get by index
 	void zap (int);		// Zap the nth element
 	int pos (int index) const
 		{
