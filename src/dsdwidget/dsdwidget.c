@@ -33,14 +33,13 @@
 # include <X11/Xaw/List.h>
 # include <X11/Shell.h>
 
-# include <ui_param.h>
-# include <ui_date.h>
 # include <defs.h>
+# include <zl_symbol.h>
 # include <message.h>
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.24 1996-08-13 21:44:08 granger Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.25 1996-11-19 07:10:35 granger Exp $")
 
 
 # define MAXPLAT	1024
@@ -196,7 +195,6 @@ char	**argv;
  * in the name since it is very possible someone will want to run different
  * displays for different sets of platforms.
  */
-	usy_init ();
 	sprintf (name, "dsdwidget-%d", (int) getpid());
 	if (! msg_connect (MsgHandler, name))
 	{
