@@ -1,10 +1,10 @@
 # include <stdio.h>
 # include <errno.h>
+# include <rpc/rpc.h>
 # include "raw.h"
 # include "portable.h"
 # include "sunrise_head.h"
 # include "cvrt.h"
-# include "xdr.h"
 
 /*
  * Cuz adradInput needs them...

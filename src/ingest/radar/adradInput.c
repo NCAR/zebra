@@ -29,7 +29,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: adradInput.c,v 2.7 1999-03-11 17:37:20 burghart Exp $")
+RCSID("$Id: adradInput.c,v 2.8 1999-03-11 18:29:58 burghart Exp $")
 
 /*
  * Adrad includes for xdr, etc.
@@ -463,7 +463,7 @@ int accessvolhead( xdrptr, volptr, version )
 	int			version;
 {
 	register int	i,j;
-	register int	ret = TRUE;
+	register int	ret = 1;
 	char		*tmp;
 	unsigned short	us_tmp;
 	int		size;
@@ -554,7 +554,7 @@ int accessvolhead( xdrptr, volptr, version )
 	 *  The return value is still TRUE if there was no error in reading
 	 *	in the data
 	 */
-	if( ret != TRUE )
+	if( ! ret )
 		return( ERROR );
 	return( OK );
 }
