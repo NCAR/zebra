@@ -1,7 +1,7 @@
 /*
  * This is the main program for the data store daemon.
  */
-static char *rcsid = "$Id: Daemon.c,v 1.3 1991-02-26 19:03:58 corbet Exp $";
+static char *rcsid = "$Id: Daemon.c,v 1.4 1991-04-11 21:58:06 corbet Exp $";
 
 # include <sys/types.h>
 # include <dirent.h>
@@ -348,7 +348,6 @@ struct message *msg;
 	switch (tm->mh_type)
 	{
 	   case MH_SHUTDOWN:
-	   	ui_printf ("Message handler shutdown -- I quit!\n");
 		ui_finish ();
 		exit (1);
 	/*
@@ -358,7 +357,7 @@ struct message *msg;
 	   case MH_CLIENT:
 		client = (struct mh_client *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
-			dap_Cancel (client->mh_client);
+			dap_Cancel (client->mh_client, tm);
 		break;
 
 	   default:
@@ -413,7 +412,11 @@ struct dsp_Template *dt;
 		break;
 
 	   case dpt_CancelNotify:
-	   	dap_Cancel (from);
+	   	dap_Cancel (from, dt);
+		break;
+
+	   case dpt_CopyNotifyReq:
+	   	dap_Copy (from);
 		break;
 	/*
 	 * Chaos.
