@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.54 1997-02-21 17:14:17 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.55 1997-04-29 03:49:22 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -629,10 +629,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifndef BuildIngest
 #define BuildIngest NO
 #endif
-#ifdef BuildOptimizer		/* Force to be NO for now */
-#undef BuildOptimizer
-#endif
+#ifndef BuildOptimizer
 #define BuildOptimizer NO
+#endif
 #ifndef BuildDataManager
 #define BuildDataManager NO	/* since it requires C++ */
 #endif
