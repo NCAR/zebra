@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.42 1996-08-20 19:59:50 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.43 1996-08-21 22:20:16 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -258,6 +258,7 @@ static void ce_join FP ((struct connection *conp, char *group));
 static void ce_disconnect FP ((struct connection *conp));
 static void broadcast FP ((struct message *msg, struct connection *conp));
 static void route FP ((int fd, struct message *msg));
+static void reject FP ((int fd, struct message *msg, void *data, int len));
 static void identify FP ((int fd, struct message *msg));
 static void join FP ((int fd, struct message *msg));
 static void listgroup FP ((int fd, struct message *msg));
@@ -938,6 +939,7 @@ Connection *conp;
 	msg.m_flags = 0;
 	msg.m_len = sizeof (struct mh_greeting);
 	msg.m_data = (char *) &greet;
+	msg.m_seq = EMask;
 	greet.mh_type = MH_GREETING;
 	strcpy (greet.mh_version, MSG_PROTO_VERSION);
 	send_msg (conp, &msg);
@@ -2138,10 +2140,46 @@ struct message *msg;
  * Look up the recipient.
  */
 	if ((conp = FindRecipient (msg->m_to)))
+	{
 		send_msg (conp, msg);
+	}
+/*
+ * It's about time we handled the destination unknown case.
+ */
+	else
+	{
+		struct mh_ident mh;
+		mh.mh_type = MH_NOTFOUND;
+		strcpy (mh.mh_name, msg->m_to);
+		reject (fd, msg, &mh, sizeof (mh));
+		send_log (EF_DEBUG, "rejecting msg %s -> %s: %s",
+			  msg->m_from, msg->m_to, "destination unknown");
+	}
 }
 
 
+
+static void
+reject (fd, msg, data, len)
+int fd;
+struct message *msg;
+void *data;
+int len;
+/*
+ * Rebound a message back to the sender.
+ */
+{
+	struct message rej;
+
+	strcpy (rej.m_to, msg->m_from);
+	strcpy (rej.m_from, MSG_MGR_NAME);
+	rej.m_proto = MT_MESSAGE;
+	rej.m_flags = 0;
+	rej.m_seq = msg->m_seq;
+	rej.m_data = (char *) data;
+	rej.m_len = len;
+	send_msg (Fd_map[fd], &rej);
+}
 
 
 
@@ -2810,8 +2848,9 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
  * Session genesis time
  */
 	sprintf (text, "session began: %s", (char *) ctime(&S_genesis));
-	msg.m_len = len + strlen (text) - 1;
-	text[strlen(text) - 1] = '\0';	/* remove \n from ctime */
+	sprintf (text+strlen(text)-1, "; proto version '%s'", 
+		 MSG_PROTO_VERSION);
+	msg.m_len = len + strlen (text);
 	send_msg (conp, &msg);
 /*
  * Throughput stats
