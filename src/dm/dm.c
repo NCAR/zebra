@@ -32,7 +32,7 @@
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.15 1992-07-13 16:30:38 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.16 1992-08-18 16:11:07 corbet Exp $")
 
 
 /*
@@ -100,6 +100,7 @@ char **argv;
 	ui_init (loadfile, TRUE, FALSE);
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
+	cp_SetupCmdProto ();
 /*
  * Create our symbol tables.
  */
