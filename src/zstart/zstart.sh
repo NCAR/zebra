@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zeb startup script.
 #
-# $Id: zstart.sh,v 1.1 1994-11-28 23:34:42 corbet Exp $
+# $Id: zstart.sh,v 1.2 1994-12-05 23:51:35 sobol Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -151,7 +151,7 @@ restart_prompt:
 # Now try to start clean, whether deliberately killing an existing Zeb
 # or just cleaning a leftover socket file
 #
-	zebstop
+	zstop
 	sleep 1
 	if ( ! $?ZEB_SOCKET ) then
 		rm -f /tmp/fcc.socket
