@@ -1,0 +1,101 @@
+/*
+ * $Id: Zeb.rules,v 1.1 1992-05-11 17:16:27 granger Exp $
+ *
+ * Rules specific to the Zeb project, including some which override
+ * definitions in Imake.rules
+ */
+
+/*
+ * Target which creates a .lf file from uisrc, installs it and
+ * cleans it as well
+ */
+#define UILoadFileTarget(loadfile,uisrc) 			@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExec(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc							@@\
+	$(RM) loadfile						@@\
+	echo read uisrc \; \					@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIC)				@@\
+								@@\
+clean::								@@\
+	$(RM) loadfile
+
+/*
+ * For creating .lf files from a .state file, specifying
+ * the initial state, and then reading a second ui file.
+ * The state argument can be quoted if need be: ex. 'init-state'
+ */
+#define UILoadFileTarget_2(loadfile,state,istate,uisrc)		@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExec(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc							@@\
+	$(RM) loadfile						@@\
+	echo read state \; \					@@\
+	     set ui$$$initial_state istate \; \			@@\
+	     read uisrc \; \					@@\
+	     set ui$$$pager_mode false \; \			@@\
+	     save loadfile all | $(UIC)				@@\
+								@@\
+clean::								@@\
+	$(RM) loadfile
+
+/*
+ * Adds a list of object files to a library on an install target
+ */
+#define InstallObjectsIntoLibrary(library,objects)		@@\
+								@@\
+install:: library						@@\
+								@@\
+library:: objects						@@\
+	$(ARADD) $@ objects					@@\
+	$(RANLIB) $@
+
+/*
+ * Same as ComplexProgramTarget, but the program will not
+ * be installed, nor it will be an 'all' dependency
+ */
+#define TestProgramTarget(program)				@@\
+								@@\
+program: $(OBJS) $(DEPLIBS)					@@\
+	RemoveTargetProgram($@)					@@\
+	$(CC) -o $@ $(OBJS) $(LDOPTIONS) $(LOCAL_LIBRARIES) \   @@\
+	   $(LDLIBS) $(EXTRA_LOAD_FLAGS)			@@\
+								@@\
+SaberProgramTarget(program,$(SRCS),$(OBJS),$(LOCAL_LIBRARIES),/**/) @@\
+								@@\
+clean::								@@\
+	$(RM) program
+
+
+
+/* This rule overrides the one defined in Imake.rules!!!
+ * --------------------------------------------------------------------
+ * SaberProgramTarget - generate rules to make Saber-C read in sources and
+ * objects.
+ */
+#ifndef SaberProgramTarget
+#if HasSaberC
+#define SaberProgramTarget(program,srclist,objlist,locallibs,syslibs)	@@\
+Concat(saber_,program):: srclist					@@\
+	# setopt ansi							@@\
+	# load $(ALLDEFINES) srclist locallibs $(SYS_LIBRARIES) $(EXTRA_LIBRARIES) syslibs @@\
+	# link								@@\
+									@@\
+Concat(osaber_,program):: objlist					@@\
+	# setopt ansi							@@\
+	# load $(ALLDEFINES) objlist locallibs $(SYS_LIBRARIES) $(EXTRA_LIBRARIES) syslibs @@\
+	# link
+
+#else
+#define SaberProgramTarget(program,srclist,objlist,locallibs,syslibs) /**/
+#endif
+#endif
+
+
