@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.5 1993-03-15 20:15:18 corbet Exp $
+! $Id: dm.widgets,v 1.6 1993-11-05 23:44:30 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -281,4 +281,164 @@ procedure ZW_Zap
 	local victim getftext(ui$form,'victim');
 	kill #victim
 	popdown #ui$form
+endprocedure
+
+
+
+!
+! Standardized "put" routines.
+!
+
+!
+! Put a fully-modified component out to a window.
+!
+procedure sendout comp string target string
+!
+! Get the target window if unspecified
+!
+	if (target = "pick")
+		set target_win "none"
+		pickwin target_win
+		if (target_win = "none")	! They picked root or something
+			beep
+			return
+		endif
+	else
+		set target_win target
+	endif
+!
+! Figure out the proper positioning for this component.
+!
+	local rep pd_param(comp, comp, 'representation', 'string')
+	if (rep = 'raster' or rep = 'filled-contour')
+		local position '1'
+	else
+		local position '0'
+	endif
+!
+! Now do it.
+!
+	sound chord
+	add #comp #comp #target_win #position
+endprocedure
+
+
+procedure putc1 comp string param string value string
+!
+! Just mung in the parameter and ship it out.
+!
+	parameter #comp #comp #param #value
+	sendout #comp 'pick'
+endprocedure
+
+
+procedure putc2 comp string p1 string v1 string p2 string v2 string
+!
+! Just mung in the parameter and ship it out.
+!
+	parameter #comp #comp #p1 #v1
+	parameter #comp #comp #p2 #v2
+	sendout #comp 'pick'
+endprocedure
+
+
+procedure putc3 comp string p1 string v1 string p2 string v2 string p3 string v3 string
+!
+! Just mung in the parameter and ship it out.
+!
+	parameter #comp #comp #p1 #v1
+	parameter #comp #comp #p2 #v2
+	parameter #comp #comp #p3 #v3
+	sendout #comp 'pick'
+endprocedure
+
+
+
+
+!
+! Try to figure out what to do with a scalar field.
+!
+procedure PutScalar platform string field string
+!
+! Start by finding a window.
+!
+	set target_win "none"
+	pickwin target_win
+	if (target_win = "none")	! They picked root or something
+		beep
+		return
+	endif
+!
+! Now figure out what sort of window this is.
+! If it's a CAP plot, send it out as a track (for now)
+!
+	local ptype pd_param(target_win, 'global', 'plot-type', 'string')
+	if (ptype = 'CAP')
+!		putc2 p_track 'platform' #platform 'field' #field
+		parameter p_track p_track platform #platform
+		parameter p_track p_track field #field
+		sendout p_track #target_win
+		return
+	endif
+!
+! If it's NOT an xygraph, we don't know what to do.
+!
+	if (ptype <> 'xygraph')
+		message 'I can not cope with rep "#"' ptype
+		beep
+		return
+	endif
+!
+! OK.  Next step is to figure out if there is already a component out there
+! which is displaying this field.
+!
+	local comps pd_complist(target_win)
+	local found false
+	local leftaxis true
+	local ntrace 0
+	foreach comp #comps
+		local leftaxis (not leftaxis)
+		if (comp <> 'global' and not found)
+			local flds pd_param(target_win,comp,'y-field','string')
+			if (flds = field)
+				local ourcomp comp
+				local found true
+			endif
+		endif
+		local ntrace (ntrace + nvalue(target_win, comp, 'platform'))
+	endfor
+!
+! If we found it, just add this info to it.
+!
+	if (found)
+		parameter #target_win global plot-hold true
+		local plats pd_param(target_win, ourcomp, 'platform', 'string')
+		local plats quote(concat3(plats, ',', platform))
+		parameter #target_win #ourcomp platform #plats
+		local clrs pd_param(target_win,ourcomp,'field-color','string')
+		local fcolor NthColor('xygraph', ntrace - 1)
+		local clrs quote(concat3(clrs, ',', fcolor))
+		parameter #target_win #ourcomp field-color #clrs
+		parameter #target_win global plot-hold false
+!
+! Otherwise we need to add a new component.
+	else
+		parameter p_xytrace p_xytrace platform #platform
+		parameter p_xytrace p_xytrace y-field #field
+		if (leftaxis)
+			parameter p_xytrace p_xytrace axis-left true
+			parameter p_xytrace p_xytrace axis-right false
+		else
+			parameter p_xytrace p_xytrace axis-left false
+			parameter p_xytrace p_xytrace axis-right true
+		endif
+		if (ntrace > 1)
+			parameter p_xytrace p_xytrace axis-l-grid-intensity 0
+		else
+			parameter p_xytrace p_xytrace axis-l-grid-intensity 0.7
+		endif
+		local fcolor NthColor('xygraph', ntrace - 1)
+		parameter p_xytrace p_xytrace 'field-color' #fcolor
+		add p_xytrace p_xytrace #target_win
+	endif
 endprocedure
