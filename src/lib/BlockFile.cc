@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.16 1998-09-21 23:21:28 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.17 1998-09-23 16:59:40 burghart Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -39,7 +39,7 @@ inline bool BlockFile::seek (BlkOffset offset)
 	int s = fseek (fp, offset, SEEK_SET);
 	if (s != 0)
 	{
-		this->errno = ::errno;
+		this->errnum = errno;
 		this->status = ERROR;
 		log.System (Format("seek to %lu") % offset);
 	}
@@ -58,7 +58,7 @@ void BlockFile::init ()
 {
 	fp = 0;
 	status = NOT_OPEN;
-	errno = 0;
+	errnum = 0;
 	path = 0;
 	lock = 0;
 	writelock = 0;
@@ -148,7 +148,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	// or the file entry does not already exist.
 	struct stat st;
 	create = (flags_ & BF_CREATE) || 
-		(stat (path, &st) < 0 && ::errno == ENOENT);
+		(stat (path, &st) < 0 && errno == ENOENT);
 
 	if (create)
 		WriteLock ();
@@ -159,7 +159,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	fp = fopen (path, create ? "w+" : "r+");
 	if (! fp)
 	{
-		this->errno = ::errno;
+		this->errnum = errno;
 		log.System (Format("opening %s") % path);
 		Unlock ();
 		::free (this->path);
@@ -425,7 +425,7 @@ BlockFile::DumpHeader (ostream& out)
 	Block *b;
 	out << (header->dirty() ? "*Dirty*" : "Clean") << endl;
 	out << "File: " << path << endl;
-	out << "Status(" << status << "), Errno(" << this->errno << ")\n";
+	out << "Status(" << status << "), Errno(" << this->errnum << ")\n";
 	out << setiosflags(ios::showbase);
 	out << "Block magic = " << hex << h->bf_magic << endl;
 	out << "App magic   = " << hex << h->app_magic << endl;
@@ -650,7 +650,7 @@ BlockFile::write (BlkOffset block, const void *buf, BlkSize len)
 	stats.bytes_writ += len;
 	if (! seek (block) || fwrite ((char *)buf, (size_t)len, 1, fp) != 1)
 	{
-		this->errno = ::errno;
+		this->errnum = errno;
 		this->status = WRITE_FAILED;
 		log.System (Format("write len %lu at %lu") % len % block);
 	}
@@ -675,7 +675,7 @@ BlockFile::read (void *buf, BlkOffset block, BlkSize size)
 	stats.bytes_read += size;
 	if (! seek(block) || fread((char *)buf, (size_t)size, 1, fp) != 1)
 	{
-		this->errno = ::errno;
+		this->errnum = errno;
 		this->status = READ_FAILED;
 		log.System (Format("read len %lu at %lu") % size % block);
 	}

@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.14 1998-09-21 23:21:28 granger Exp $
+ * $Id: BlockFile.hh,v 1.15 1998-09-23 16:59:43 burghart Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -182,7 +182,7 @@ protected:
 	friend AuxBlock;
 	friend BlockFileHeader;
 
-	int errno;	// Error result from last operation (or construction)
+	int errnum;	// Error result from last operation (or construction)
 	int status;	// Current status number
 	FILE *fp;	// File pointer of open file (NULL if not open)
 	char *path;	// Path name of current file
@@ -222,7 +222,7 @@ BlockFile::Status ()
 inline int
 BlockFile::Errno ()
 { 
-	return (this->errno);
+	return (this->errnum);
 }
 
 
