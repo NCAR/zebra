@@ -36,113 +36,10 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
+# include "GRIB.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.19 1995-02-10 00:49:09 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.20 1995-04-17 22:33:03 granger Exp $")
 
-/*
- * The GRIB product definition section (PDS)
- */
-typedef struct s_GFpds
-{
-	unsigned char	len;		/* length of PDS		*/
-	unsigned char	len1;		/* 2nd byte of length		*/
-	unsigned char	len2;		/* 3rd byte of length		*/
-	unsigned char	pt_version;	/* Param. Table version number	*/
-	unsigned char	center_id;	/* ID of source center		*/
-	unsigned char	process_id;	/* ID of generating process	*/
-	unsigned char	grid_id;	/* grid type ID			*/
-	unsigned char	section_flags;	/* do we have a GDS and/or BMS?	*/
-	unsigned char	field_id;	/* parameter and units indicator */
-	unsigned char	level_id;	/* level type indicator		*/
-	unsigned char	level_val;	/* level value			*/
-	unsigned char	level_val1;	/* level value (2nd byte)	*/
-	unsigned char	year;		/* year % 100			*/
-	unsigned char	month;
-	unsigned char	day;
-	unsigned char	hour;
-	unsigned char	minute;
-	unsigned char	time_unit;	/* time unit ID			*/
-	unsigned char	p1;
-	unsigned char	p2;
-	unsigned char	range_id;	/* time range indicator		*/
-	unsigned char	num_in_avg;	/* num. of points used if averaging */
-	unsigned char	num_in_avg1;	/* 2nd byte			*/
-	unsigned char	avg_missing;	/* num. missing when averaging	*/
-	unsigned char	century;	/* century (20 until 1 Jan 2001)*/
-	unsigned char	reserved0;
-	/* 
-	 * We can use short for ds_factor; it falls on an even byte boundary
-	 */
-	short		ds_factor;	/* decimal scale factor		*/
-	unsigned char	reserved1;	/* any length of reserved data	*/
-} GFpds;
-/*
- * The GRIB grid description section (GDS)
- * This is currently only set up for Latitude/Longitude Grids.
- */
-typedef struct s_GFgds
-{
-	unsigned char	len;		/* length of GDS		*/
-	unsigned char	len1;		/* 2nd byte of length		*/
-	unsigned char	len2;		/* 3rd byte of length		*/
-	unsigned char	nm_bytes;	/* Number of unused bytes	*/
-	unsigned char	g_zero;		/* Always set to 0 ECMWF Ed. 0	*/
-	unsigned char	data_type;	/* Data representation type	*/
-	unsigned char	gd_ni;		/* Number of longitude points 	*/
-	unsigned char	gd_ni1;		/* 2nd byte for ni		*/
-	unsigned char	gd_nj;		/* Number of latitude points   */
-	unsigned char	gd_nj1;		/* 2nd byte for nj		*/
-	unsigned char	gd_1lat;	/* latitude of 1st grid point	*/
-	unsigned char	gd_1lat1;	/* 2nd byte for lat.		*/
-	unsigned char	gd_1lat2;	/* 3rd byte for lat.		*/
-	unsigned char	gd_1lon;	/* longitude of 1st grid point	*/
-	unsigned char	gd_1lon1;	/* 2nd byte for lon.		*/
-	unsigned char	gd_1lon2;	/* 3rd byte for lon.		*/
-	unsigned char	gd_res;		/* resolution and component flags */
-	unsigned char	gd_2lat;	/* latitude of last grid point	*/
-	unsigned char	gd_2lat1;	/* 2nd byte for lat.		*/
-	unsigned char	gd_2lat2;	/* 3rd byte for lat.		*/
-	unsigned char	gd_2lon;	/* longitude of last grid point	*/
-	unsigned char	gd_2lon1;	/* 2nd byte for lon.		*/
-	unsigned char	gd_2lon2;	/* 3rd byte for lon.		*/
-	unsigned char	gd_di;		/* longitudinal increment	*/
-	unsigned char	gd_di1;		/* 2nd byte for di		*/
-	unsigned char	gd_dj;		/* latitudinal increment	*/
-	unsigned char	gd_dj1;		/* 2nd byte for dj		*/
-	unsigned char	gd_scnmd;	/* scanning mode flags		*/
-	unsigned char	gd_resv;	/* reserved - set to 0		*/
-	unsigned char	gd_resv1;	/* reserved - set to 0		*/
-	unsigned char	gd_resv2;	/* reserved - set to 0		*/
-	unsigned char	gd_resv3;	/* reserved - set to 0		*/
-	unsigned char	gd_buf[10];	/* for 42 byte gds		*/
-} GFgds;
-
-/*
- * Flag bits for section_flags
- */
-# define GDS_FLAG	(1<<7)
-# define BMS_FLAG	(1<<6)
-
-/*
- * Binary Data Section header
- */
-typedef struct s_BDShdr
-{
-	char		bds_len;	/* length of BDS		*/
-	char		bds_len1;	/* 2nd byte of length		*/
-	char		bds_len2;	/* 3rd byte of length		*/
-	unsigned char	flag_ubits;	/* Flag & number of unused bits	*/
-	/* 
-	 * We can use short for bs_factor; it falls on an even byte boundary
-	 */
-	short		bs_factor;	/* binary scale factor		*/
-	char		ref_top;	/* sign & characteristic bits	*/
-					/* of reference value		*/
-	char		ref_mant;	/* mantissa of reference value	*/
-	char		ref_mant1;	/* 2nd byte of mantissa		*/
-	char		ref_mant2;	/* 3rd byte of mantissa		*/
-	unsigned char	n_bits;		/* bits per datum		*/
-} BDShdr;
 
 /*
  * GRIB record descriptor
@@ -170,6 +67,147 @@ typedef struct s_GFTag
 	GRIBdesc	*gt_grib;	/* Descriptors for each grid	*/
 } GFTag;
 
+/*
+ * Model ID's
+ */
+#define ANY -1
+#define MM5 95
+
+
+/*
+ * Field list.  We only include here the fields for which we have
+ * established names.  Other fields just become "gribX" where X is 
+ * the GRIB field number.  Parameter id's are actually specific to
+ * the model, so some fields include a specific model id.  These
+ * must precede any fields which use a generic id.
+ */
+static struct s_GRB_FList 
+{
+	int	fnum;
+	int	process_id;
+	char	*fname;
+	char 	*fdesc;
+	char	*funits;
+	float	scale, offset;
+} GRB_FList[] = 
+{
+	/* Pressure (Pa), scale to mb */
+	{ 1, ANY, "pres", "Pressure", "mb", 100.0, 0.0 },
+	/* Pressure reduced to MSL (Pa), scale to mb */
+	{ 2, ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
+	/* Station pressure (Pa), scale to mb */
+	{ 4, MM5, "stn_pres", "Station pressure", "mb", 100.0, 0.0 },
+	/* Ground elevation (m) */
+	{ 5, MM5, "topography", "Ground elevation", "m above MSL", 1.0, 0.0 },
+	/* Geopotential height (m) */
+	{ 7, ANY, "gpalt", "Geopotential height", "m", 1.0, 0.0 },
+	/* Geometric height (m) */
+	{ 8, ANY, "height", "Geometric height", "m", 1.0, 0.0 },
+	/* Temperature (K), scale to C */
+	{ 11, ANY, "tdry", "Temperature", "deg C", 1.0, -273.15 },
+	/* Virtual temperature (K) */
+	{ 12, ANY, "vt", "Virtual temperature", "K", 1.0, 0.0 },
+	/* Potential temperature (K) */
+	{ 13, ANY, "pt", "Potential temperature", "K", 1.0, 0.0 },
+	/* Dew point temperature (K) */
+	{ 17, ANY, "dp", "Dew point temperature", "K", 1.0, -273.15 },
+	/* Wind direction (deg. true) */
+	{ 31, ANY, "wdir", "Wind direction", "deg", 1.0, 0.0 },
+	/* Wind speed (m/s) */
+	{ 32, ANY, "wspd", "Wind speed", "m/s", 1.0, 0.0 },
+	/* u component of wind (m/s) */
+	{ 33, ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
+	/* v component of wind (m/s) */
+	{ 34, ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
+	/* Montgomery stream function */
+	{ 37, ANY, "monty_stream", "Montgomery stream function", 
+		  "m**2/s**2", 1.0, 0.0 },
+	/* pressure vertical velocity (Pa/s) */
+	{ 39, ANY, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 0.0 },
+	/* geometric vertical velocity (m/s) */
+	{ 40, ANY, "w_wind", "geometric vertical velocity", "m/s", 1.0, 0.0 },
+	/* Absolute vorticity (1/s) */
+	{ 41, ANY, "vort", "Absolute vorticity", "1/s", 1.0, 0.0 },
+	/* Absolute divergence (1/s) */
+	{ 42, ANY, "dvrg", "Absolute divergence", "1/s", 1.0, 0.0 },
+	/* Specific humidity */
+	{ 51, ANY, "sph", "Specific humidity", "kg/kg", 1.0, 0.0 },
+	/* Relative humidity (%) */
+	{ 52, ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	/* Humidity mixing ratio (kg/kg), scale to g/kg */
+	{ 53, ANY, "mr", "Humidity mixing ratio", "g/kg", 0.001, 0.0 },
+	/* Total precipitation (kg/m**2)	*/
+	{ 61, ANY, "precip", "Total precipitation", "kg/m**2", 1.0, 0.0 },
+	/* Large-scale precipitation */
+	{ 62, ANY, "ls_precip", "Large-scale precipitation", 
+		  "kg/m**2", 1.0, 0.0 },
+	/* Convective precipitation (kg/m**2)	*/
+	{ 63, ANY, "conv_precip", "Convective precipitation", 
+		  "kg/m**2", 1.0, 0.0 },
+	/* Soil temperature (scale to C) */
+	{ 85, ANY, "soil_temp", "Soil temperature", "deg C", 1.0, -273.15 },
+/*
+ * ECMWF fields
+ */
+	/* Geopotential (m**2/s)		*/
+	{ 129, ANY, "geopotential", "Geopotential", "m**2/s", 0.3048, 0.0 },
+	/* Temperature (K), scale to C 		*/
+	{ 130, ANY, "tdry", "Temperature", "deg C", 1.0, -273.15 },
+	/* u component of wind (m/s)		*/
+	{ 131, ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
+	/* v component of wind (m/s)		*/
+	{ 132, ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
+	/* Surface pressure (Pa), scale to mb	*/
+	{ 134, ANY, "sfc_pres", "Surface pressure", "Pa", 100.0, 0.0 },
+	/* pressure vertical velocity (Pa/s)	*/
+	{ 135, ANY, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 0.0 },
+	/* Surface temperature (K), scale to C	*/
+	{ 139, ANY, "sfc_temp", "Surface temperature", "deg C", 1.0, -273.15 },
+/*
+ * MM5 fields
+ */
+	/* 144 Cloud water specific humidity (kg/kg) */
+	{ 144, MM5, "cloud_sph", "Cloud water specific humidity", 
+		  "kg/kg", 1.0, 0.0 },
+	/* 145 Rain water specific humidity (kg/kg) */
+	{ 145, MM5, "rain_sph", "Rain water specific humidity", 
+		  "kg/kg", 1.0, 0.0 },
+	/* 146 Snow specific humidity (kg/kg) */
+	{ 146, MM5, "snow_sph", "Snow specific humidity", "kg/kg", 1.0, 0.0 },
+	/* 147 Ice specific humidity (kg/kg) */
+	{ 147, MM5, "ice_sph", "Ice specific humidity", "kg/kg", 1.0, 0.0 },
+/*
+ * ECMWF fields (cont)
+ */
+	/* Pressure reduced to MSL (Pa), scale to mb */
+	{ 151, ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
+	/* Relative humidity (%) */
+	{ 157, ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	/* Condenstation pressure (Pa) scale to mb */
+	{ 159, ANY, "condp", "Condenstation pressure", "mb", 100.0, 0.0 },
+	/* u component of wind at 10m (m/s)	*/
+	{ 165, ANY, "u_wind_10m", "u component of wind at 10m", 
+		  "m/s", 1.0, 0.0 },
+	/* v component of wind at 10m (m/s)	*/
+	{ 166, ANY, "v_wind_10m", "v component of wind at 10m", 
+		  "m/s", 1.0, 0.0 },
+	/* temperature at 2m (K), scale to C	*/
+	{ 167, ANY, "temp_2m", "temperature at 2m", "deg C", 1.0, -273.15 },
+	/* dewpoint at 2m (K), scale to C	*/
+	{ 168, ANY, "dp_2m", "dewpoint at 2m", "deg C", 1.0, -273.15 },
+	/* land/sea (0/1)			*/
+	{ 172, ANY, "land/sea", "land/sea (0/1)", "none", 1.0, 0.0 },
+/*
+ * More MM5 fields
+ */
+	/* 176 */
+	{ 176, MM5, "mm5_176", "mm5_176", "unknown", 1.0, 0.0 },
+	/* 177 */
+	{ 177, MM5, "mm5_177", "mm5_177", "unknown", 1.0, 0.0 },
+};
+
+static int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
+	
 
 /*
  * For each GRIB type we understand, we keep the following concerning the 
@@ -196,6 +234,8 @@ typedef struct s_GFTag
  *	gg_dsi, gg_dsj:		(dnx x dny) floating point arrays of equivalent
  *				*source* array indices for destination grid
  *				points
+ *	gg_transform:		pointer to an auxiliary structure used by
+ *				types of projections
  */
 typedef struct s_GRB_TypeInfo
 {
@@ -208,177 +248,197 @@ typedef struct s_GRB_TypeInfo
 	float	gg_dlat, gg_dlon;
 	float	gg_dlatstep, gg_dlonstep;
 	float	*gg_dsi, *gg_dsj;
+	void	*gg_transform;
 } GRB_TypeInfo;
 
-/*
- * One reasonable spherical radius for the earth, in km
- */
-const double	R_Earth = 6367.47;
 
 /*
- * Degree to radian converter and vice versa
+ * Regular lat/lon grids only need the degree spacing in each direction.
  */
-# define DEG_TO_RAD(x)	((x) * 0.017453292)
-# define RAD_TO_DEG(x)	((x) * 57.29577951)
-
-/*
- * Local prototypes
- */
-static GFTag	*grb_Open FP ((char *));
-static int	grb_ScanFile FP ((GFTag *));
-static int	grb_TimeIndex FP ((GFTag *, ZebTime *, int));
-static void	grb_DestroyTag FP ((GFTag *));
-static int	grb_TwoByteInt FP ((char *));
-static int	grb_ThreeByteInt FP ((char *));
-static int	grb_ThreeByteSignInt FP ((char *));
-static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
-				   int, int, FieldId, int, float *));
-static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
-static int	grb_Offset FP ((GFpds *));
-static bool	grb_UsableLevel FP ((GFpds *, int));
-static float	grb_ZLevel FP ((GFpds *, AltUnitType *));
-static void	grb_105Index FP ((double, double, float *, float *));
-static void	grb_105LatLon FP ((double, double, float *, float *));
-static void	grb_36Index FP ((double, double, float *, float *));
-static void	grb_36LatLon FP ((double, double, float *, float *));
-static void	grb_27Index FP ((double, double, float *, float *));
-static void	grb_27LatLon FP ((double, double, float *, float *));
-static void	grb_2Index FP ((double, double, float *, float *));
-static void	grb_2LatLon FP ((double, double, float *, float *));
-static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
-static void	grb_ResetWind FP ((void));
-static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
-				    GRB_TypeInfo *));
-static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
-static void	grb_InitGInfo FP ((GRB_TypeInfo	*));
-static GRB_TypeInfo	*grb_GridTypeInfo FP ((GFpds *, GFgds *));
-static GRB_TypeInfo	*grb_Build255GInfo FP ((GFgds *));
-
-/*
- * Field list.  We only include here the fields for which we have
- * established names.  Other fields just become "gribX" where X is 
- * the GRIB field number.
- */
-struct s_GRB_FList 
+typedef struct s_Regular
 {
-	int	fnum;
-	char	*fname;
-	char	*funits;
-	float	scale, offset;
-} GRB_FList[] = 
-{
-	/* Pressure (Pa), scale to mb */
-	{ 1, "pres", "mb", 100.0, 0.0 },
-	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 2, "cpres0", "mb", 100.0, 0.0 },
-	/* Geopotential height (m) */
-	{ 7, "gpalt", "m", 1.0, 0.0 },
-	/* Geometric height (m) */
-	{ 8, "height", "m", 1.0, 0.0 },
-	/* Temperature (K), scale to C */
-	{ 11, "tdry", "deg C", 1.0, -273.15 },
-	/* Virtual temperature (K) */
-	{ 12, "vt", "K", 1.0, 0.0 },
-	/* Potential temperature (K) */
-	{ 13, "pt", "K", 1.0, 0.0 },
-	/* Dew point temperature (K) */
-	{ 17, "dp", "K", 1.0, -273.15 },
-	/* Wind direction (deg. true) */
-	{ 31, "wdir", "deg", 1.0, 0.0 },
-	/* Wind speed (m/s) */
-	{ 32, "wspd", "m/s", 1.0, 0.0 },
-	/* u component of wind (m/s) */
-	{ 33, "u_wind", "m/s", 1.0, 0.0 },
-	/* v component of wind (m/s) */
-	{ 34, "v_wind", "m/s", 1.0, 0.0 },
-	/* pressure vertical velocity (Pa/s) */
-	{ 39, "pres_w", "Pa/s", 1.0, 0.0 },
-	/* geometric vertical velocity (m/s) */
-	{ 40, "w_wind", "m/s", 1.0, 0.0 },
-	/* Absolute vorticity ( /s) */
-	{ 41, "vort", "1/s", 1.0, 0.0 },
-	/* Absolute divergence ( /s) */
-	{ 42, "dvrg", "1/s", 1.0, 0.0 },
-	/* Relative humidity (%) */
-	{ 52, "rh", "%", 1.0, 0.0 },
-	/* Humidity mixing ratio (kg/kg), scale to g/kg */
-	{ 53, "mr", "g/kg", 0.001, 0.0 },
-	/* Total precipitation (kg/m**2)	*/
-	{ 61, "precip", "kg/m**2", 1.0, 0.0 },
-	/* Convective precipitation (kg/m**2)	*/
-	{ 63, "conv_precip", "kg/m**2", 1.0, 0.0 },
+	float	lat_spacing;
+	float	lon_spacing;
+} Regular;
+
+static Regular Regular2 = 
 /*
- * ECMWF fields
+ * 2.5 degree spacing in both directions
  */
-	/* Geopotential (m**2/s)		*/
-	{ 129, "geopotential", "m**2/s", 0.3048, 0.0 },
-	/* Temperature (K), scale to C 		*/
-	{ 130, "tdry", "deg C", 1.0, -273.15 },
-	/* u component of wind (m/s)		*/
-	{ 131, "u_wind", "m/s", 1.0, 0.0 },
-	/* v component of wind (m/s)		*/
-	{ 132, "v_wind", "m/s", 1.0, 0.0 },
-	/* Surface pressure (Pa), scale to mb	*/
-	{ 134, "sfc_pres", "Pa", 100.0, 0.0 },
-	/* pressure vertical velocity (Pa/s)	*/
-	{ 135, "pres_w", "Pa/s", 1.0, 0.0 },
-	/* Surface temperature (K), scale to C	*/
-	{ 139, "sfc_temp", "deg C", 1.0, -273.15 },
-	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 151, "cpres0", "mb", 100.0, 0.0 },
-	/* Relative humidity (%) */
-	{ 157, "rh", "%", 1.0, 0.0 },
-	/* u component of wind at 10m (m/s)	*/
-	{ 165, "u_wind_10m", "m/s", 1.0, 0.0 },
-	/* v component of wind at 10m (m/s)	*/
-	{ 166, "v_wind_10m", "m/s", 1.0, 0.0 },
-	/* temperature at 2m (K), scale to C	*/
-	{ 167, "temp_2m", "deg C", 1.0, -273.15 },
-	/* dewpoint at 2m (K), scale to C	*/
-	{ 168, "dp_2m", "deg C", 1.0, -273.15 },
-	/* land/sea (0/1)			*/
-	{ 172, "land/sea", "", 1.0, 0.0 },
+{
+	/* lat_spacing */	2.5,
+	/* lon_spacing */	2.5
 };
 
-int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
-	
 
+/*
+ * Polar stereographic grids use this structure to pass transformation
+ * parameters to the transformation functions.
+ */
+typedef struct s_PolarStereo
+{
+	float	phi1;	  /* latitude of center of projection (radians) */
+	float	lambda0;  /* longitude of center of projection (radians) */
+	float	scale;	  /* grid spacing (km) at latitude of true scale */
+	float	ipole;	  /* i grid index of north pole (C indexing) */
+	float	jpole;	  /* j grid index of north pole (C indexing) */
+/*
+ * Applying the formulas to the north pole (phi = pi/2, lambda = 0)
+ * yields the following x and y.
+ */
+	float	xpole;
+	float	ypole;
+} PolarStereo;
+
+
+static PolarStereo Transform27 =
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 27 [4225-point (65x65) N. Hemisphere polar stereographic 
+ * grid oriented 80W].  For type 27, the pole is at grid location (33,33), 
+ * in Fortran terms, or (32,32) here in the C world.
+ */
+{
+	/* phi1 */ 	1.047197551,	/* 60.0 deg. north */
+	/* lambda0 */ 	-1.396263402,	/* 80.0 deg. west */
+	/* scale */	381,
+	/* ipole */	32,
+	/* jpole */	32,
+	/* xpole */	0.0,
+	/* ypole */	3412.31689
+};
+
+static PolarStereo Transform36 =
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
+ * grid oriented 105W].  For type 36, the pole is at grid location (19,42), 
+ * in Fortran terms, or (18,41) here in the C world.
+ */
+{
+	/* phi1 */	1.047197551,	/* 60.0 deg. north */
+	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
+	/* scale */	190.5,
+	/* ipole */	18,
+	/* jpole */	41,
+	/* xpole */	0.0,
+	/* ypole */	3412.31689
+};
+
+static PolarStereo Transform87 =
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 87 [5022 point (81x62) N. Hemisphere polar stereographic 
+ * grid oriented at 40N, 105W].  Pole at grid location (30.91, 111.53),
+ * where the origin of the grid is (0,0).
+ */
+{
+	/* phi1 */	0.6981317,	/* 40.0 deg. north */
+	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
+	/* scale */	60.0,		/* 60 km at 40N	   */
+	/* ipole */	30.91,
+	/* jpole */	111.53,
+	/* xpole */	0.0,
+	/* ypole */	5938.4
+};
+
+static PolarStereo Transform105 =
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 105 [6889-point (83x83) N. hemisphere polar stereographic
+ * grid oriented 105W].  For type 105, the pole is at grid location 
+ * (40.5, 88.5), in Fortran terms, or (39.5, 87.5) here in the C world.
+ */
+{
+	/* phi1 */	1.047197551,	/* 60.0 deg. north */
+	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
+	/* scale */	90.75464,	/* ~90 km at 60 N */
+	/* ipole */	39.5,
+	/* jpole */	87.5,
+	/* xpole */	0.0,
+	/* ypole */	3412.31689
+};
+
+static PolarStereo Transform150 =
+/*
+ * GRIB grid type 150 for MM5: (73x73) N. hemisphere polar stereographic
+ * grid oriented 105W].  60 km true spacing at 40 N, 7.573 km spacing at 
+ * 60 N.
+ */
+{
+	/* phi1 */	DEG_TO_RAD(60.0),	/* 60.0 deg. north */
+	/* lambda0 */	DEG_TO_RAD(-105.0),	/* 105.0 deg. west */
+	/* scale */	7.573,			/* km at 60 N */
+	/* ipole */	-61.43,
+	/* jpole */	825.36,
+	/* xpole */	0.0,
+	/* ypole */	3412.31689
+};
+
+static void	grb_PolarStereoIndex FP ((GRB_TypeInfo *gg, 
+		  double lat, double lon, float *ifloat, float *jfloat));
+static void	grb_PolarStereoLatLon FP ((GRB_TypeInfo *gg, 
+		  double idouble, double jdouble, float *lat, float *lon));
+static void	grb_RegularIndex FP ((GRB_TypeInfo *gg, 
+		  double lat, double lon, float *ifloat, float *jfloat));
+static void	grb_RegularLatLon FP ((GRB_TypeInfo *gg, 
+		  double idouble, double jdouble, float *lat, float *lon));
 
 /*
  * Info for GRIB grid types we know how to unpack.
  */
-GRB_TypeInfo GRB_Types[] =
+static GRB_TypeInfo GRB_Types[] =
 {
 	/*
 	 * 2: 10512 point (144x73) global longitude-latitude grid
 	 * (0,0) at 0E, 90N [C type indexing] matrix layout.  2.5
 	 * degree grid, prime meridian not duplicated.
 	 */
-	{ 2, 144, 73, NULL, NULL, grb_2Index, grb_2LatLon, 144, 73, 
-		  -90.0, 0.0, 2.5, 2.5, NULL, NULL },
+	{ 2, 144, 73, NULL, NULL, 
+		  grb_RegularIndex, grb_RegularLatLon, 144, 73, 
+		  -90.0, 0.0, 2.5, 2.5, NULL, NULL, &Regular2 },
 	/*
 	 * 27: 4225-point (65x65) N. Hemisphere polar stereographic grid
 	 * oriented 80W; pole at (32,32) [C type indexing].  381.0 km
 	 * spacing at 60N.
 	 */
-	{ 27, 65, 65, NULL, NULL, grb_27Index, grb_27LatLon, 19, 11, 
-		  20.0, -130.0, 4.0, 4.0, NULL, NULL },
+	{ 27, 65, 65, NULL, NULL, 
+		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 19, 11, 
+		  20.0, -130.0, 4.0, 4.0, NULL, NULL, &Transform27 },
 	/*
 	 * 36: 1558-point (41x38) N. Hemisphere polar stereographic grid
 	 * oriented 105W; pole at (18,41) [C type indexing].  The TDL grid
 	 * (N. America) is used to archive LFM and NGM data.  190.5 km
 	 * spacing at 60N.
 	 */
-	{ 36, 41, 38, NULL, NULL, grb_36Index, grb_36LatLon, 36, 21, 
-		  20.0, -130.0, 2.0, 2.0, NULL, NULL },
+	{ 36, 41, 38, NULL, NULL, 
+		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 36, 21, 
+		  20.0, -130.0, 2.0, 2.0, NULL, NULL, &Transform36 },
+	/*
+	 * 87: 5022 point (81x62) N. Hemisphere polar stereographic grid
+	 * oriented at 105W.  Pole at (30.91, 111.53) [C indexing].
+	 * Used for RUC. 60 km at 40N.  68.153 km at 60N.
+	 */
+	{ 87, 81, 62, NULL, NULL, 
+		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 60, 24,
+		  20.0, -130.0, 1.0, 1.0, NULL, NULL, &Transform87 },
 	/*
 	 * 105: 6889-point (83x83) N. Hemisphere polar stereographic grid
 	 * oriented 105W; pole at (39.5,87.5) [C type indexing].  (U.S. area
 	 * subset of NGM Super C grid, used by ETA model).  90.75464 km
 	 * spacing at 60N.
 	 */
-	{ 105, 83, 83, NULL, NULL, grb_105Index, grb_105LatLon, 71, 41, 
-		  20.0, -130.0, 1.0, 1.0, NULL, NULL },
+	{ 105, 83, 83, NULL, NULL, 
+		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 71, 41, 
+		  20.0, -130.0, 1.0, 1.0, NULL, NULL, &Transform105 },
+	/*
+	 * 148, 149, 150: The assumption at the moment is that these are
+	 * the same projections as 87, but with increasing (geometrically
+	 * by factor 3) resolution.  The grid parameters change accordingly.
+	 */
+	{ 150, 73, 73, NULL, NULL, 
+		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 73, 73, 
+		  34.0, -101.0, 0.1, 0.1, NULL, NULL, &Transform150 },
 };
 
 int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
@@ -399,6 +459,39 @@ int	WindsCount = 0;
 int	U_gridnum[MAXLEVELS], V_gridnum[MAXLEVELS];
 float	*U_data[MAXLEVELS], *V_data[MAXLEVELS];
 
+
+/*
+ * Local prototypes
+ */
+static GFTag	*grb_Open FP ((char *));
+static int	grb_ScanFile FP ((GFTag *));
+static int	grb_TimeIndex FP ((GFTag *, ZebTime *, int));
+static void	grb_DestroyTag FP ((GFTag *));
+static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
+				   int, int, FieldId, int, float *));
+static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
+#ifdef notdef
+static void	grb_105Index FP ((double, double, float *, float *));
+static void	grb_105LatLon FP ((double, double, float *, float *));
+static void	grb_87Index FP ((double, double, float *, float *));
+static void	grb_87LatLon FP ((double, double, float *, float *));
+static void	grb_36Index FP ((double, double, float *, float *));
+static void	grb_36LatLon FP ((double, double, float *, float *));
+static void	grb_27Index FP ((double, double, float *, float *));
+static void	grb_27LatLon FP ((double, double, float *, float *));
+static void	grb_2Index FP ((struct GRB_TypeInfo *, double, double, 
+				float *, float *));
+static void	grb_2LatLon FP ((struct GRB_TypeInfo *, double, double, 
+				 float *, float *));
+#endif
+static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
+static void	grb_ResetWind FP ((void));
+static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
+				    GRB_TypeInfo *));
+static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
+static void	grb_InitGInfo FP ((GRB_TypeInfo *));
+static GRB_TypeInfo *grb_GridTypeInfo FP ((GFpds *, GFgds *));
+static GRB_TypeInfo *grb_Build255GInfo FP ((GFgds *));
 
 
 
@@ -468,7 +561,7 @@ int	*nsample;
  * Get the first eight bytes ("GRIB" + [octets 5-8 of IS (Edition > 0) ||
  * octets 1-4 of PDS (Edition 0)]) and determine our GRIB edition.
  */
-	if ((read (fd, buf, 8) != 8))
+	if ((grb_FindRecord (fd, buf) <= 0) || (read (fd, buf+4, 4) != 4))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "grb_QueryTime: Can't get first IS from '%s'", file);
@@ -492,8 +585,7 @@ int	*nsample;
 /*
  * Extract the time from the PDS
  */
-	TC_ZtAssemble (begin, pds.year, pds.month, pds.day, pds.hour, 
-		       pds.minute, 0, 0);
+	grb_ReferenceTime (&pds, begin);
 	*end = *begin;
 	*nsample = 1;
 
@@ -994,7 +1086,7 @@ GRB_TypeInfo	*ginfo;
 		for (i = 0; i < dnx; i++)
 		{
 			lon = ginfo->gg_dlon + i * ginfo->gg_dlonstep;
-			(*ginfo->gg_ndx_module)(lat, lon, si++, sj++);
+			(*ginfo->gg_ndx_module)(ginfo, lat, lon, si++, sj++);
 		}
 	}
 /*
@@ -1021,15 +1113,16 @@ GRB_TypeInfo	*ginfo;
 		 * find the new grid indices if we take a small step east.
 		 * The angle approximation is then just arctan (dj / di).
 		 */
-			(*ginfo->gg_ll_module)((double) i, (double) j, 
+			(*ginfo->gg_ll_module)(ginfo, (double) i, (double) j, 
 					       &lat, &lon);
-			(*ginfo->gg_ndx_module)(lat, lon + 0.05, &newi, &newj);
-
+			(*ginfo->gg_ndx_module)(ginfo, lat, lon + 0.05,
+						&newi, &newj);
 			*latang++ = atan2 (newj - j, newi - i);
 		/*
 		 * Calculate a similar angle for a line of longitude.
 		 */
-			(*ginfo->gg_ndx_module)(lat + 0.05, lon, &newi, &newj);
+			(*ginfo->gg_ndx_module)(ginfo, lat + 0.05, lon, 
+						&newi, &newj);
 			*lonang++ = atan2 (newj - j, newi - i);
 		}
 	}
@@ -1513,34 +1606,23 @@ GFTag	*tag;
  */
 {
 	int	fd = tag->gt_fd;
-	int	len, pds_len, gds_len, bms_len, bds_len;
-	int	status, ng, ncopy, grib_start, ednum, bds_pos;
+	int	len, pds_len, bms_len, bds_len;
+	int	status, ng, ncopy, ednum, bds_pos;
 	char	buf[64];
 	GFpds	*pds;
 	GFgds	*gds = 0;
 /*
  * Rewind the file first
  */
-	grib_start = lseek (fd, 0, SEEK_SET);
+	lseek (fd, 0, SEEK_SET);
 /*
  * Each grid starts with an Indicator Section.  Loop through grids
  * looking for an IS.  In Edition 1 and beyond, the IS is 8 bytes long,
  * but it's 4 bytes long in Edition 0.
  * An added complication is that sometimes records are separated by 20 blanks.
- * Read 4 bytes and if we find "GRIB" then read another 4 so that we
- * can tell what type of file this is.
  */
-	while ((status = read (fd, buf, 4)) == 4)
+	while ((status = grb_FindRecord (fd, buf)) > 0)
 	{
-	/*
-	 * Keep reading until we hit "GRIB", which is the beginning
-	 * of a GRIB record.
-	 */
-		if (strncmp (buf, "GRIB", 4) != 0)
-		{
-			grib_start = tell (fd);
-			continue;
-		}
 	/*
 	 * Read the next 4 bytes and determine the GRIB edition.  In Edition 1
 	 * and beyond, these are the the last 4 bytes of the IS.  For Edition
@@ -1598,30 +1680,12 @@ GFTag	*tag;
 		if (pds->section_flags & GDS_FLAG)
 		{
 		/*
-		 * Allocate space for a GDS and read the first four bytes.
+		 * Allocate space for a GDS and read it
 		 */
 			gds = (GFgds *) calloc (1, sizeof (GFgds));
 
-			if (read (fd, gds, 4)  < 4)
-			{
-				msg_ELog (EF_INFO, 
-					  "Missing GDS at grid %d", ng + 1);
-				status = 0;	/* Treat it like an EOF */
+			if ((status = grb_ReadGDS (fd, gds, ng+1)) <= 0)
 				break;
-			}
-
-			gds_len = grb_ThreeByteInt ((char *) gds);
-		/*
-		 * Read the rest of the GDS.
-		 */
-			if (read (fd, ((char *)gds) + 4, gds_len - 4) != 
-			    gds_len - 4)
-			{
-				msg_ELog (EF_INFO, 
-					  "Short GDS at grid %d", ng + 1);
-				status = 0;	/* Treat it like an EOF */
-				break;
-			}
 		}
 	/*
 	 * If there's a Bit Map Section, bypass it.
@@ -1685,11 +1749,9 @@ GFTag	*tag;
 		tag->gt_grib[ng-1].gd_pds = pds;
 		tag->gt_grib[ng-1].gd_gds = gds;
 	/*
-	 * Extract the time from the PDS
+	 * Extract the reference time from the PDS
 	 */
-		TC_ZtAssemble (&(tag->gt_grib[ng-1].gd_time), pds->year, 
-			       pds->month, pds->day, pds->hour, pds->minute,
-			       0, 0);
+		grb_ReferenceTime (pds, &(tag->gt_grib[ng-1].gd_time));
 	/*
 	 * Save the position of the Binary Data Section relative to the 
 	 * start of the file, and its length.
@@ -1714,82 +1776,18 @@ GFTag	*tag;
 				  buf, ng);
 			return (FALSE);
 		}
-	/*
-	 * Keep the position of the start of the next GRIB record
-	 */
-		grib_start = lseek (fd, 0, SEEK_CUR);
 	}
 /*
  * Complain if we exited on anything other than an EOF
  */
 	if (status < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d reading GRIB file", errno);
+		msg_ELog (EF_PROBLEM, "Error %d reading GRIB file at grid %d", 
+			  errno, ng);
 		return (FALSE);
 	}
 	else
 		return (TRUE);
-}
-
-
-
-
-static int
-grb_TwoByteInt (buf)
-char	*buf;
-/*
- * Extract the first two bytes of buf into an int and return it.
- */
-{
-	int	i = 0;
-	char	*cptr = (char *) &i;
-
-	memcpy (cptr + 2, buf, 2);
-	return (i);
-}
-
-
-
-
-static int
-grb_ThreeByteInt (buf)
-char	*buf;
-/*
- * Extract the first three bytes of buf into an int and return it.
- */
-{
-	int	i = 0;
-	char	*cptr = (char *) &i;
-
-	memcpy (cptr + 1, buf, 3);
-	return (i);
-}
-
-
-
-static int
-grb_ThreeByteSignInt (buf)
-char	*buf;
-/*
- * Extract the first three bytes of buf into an int and return it.
- */
-{
-	int	i = 0, sign;
-	char	*cptr = (char *) &i;
-/*
- * Upper bit is the sign.
- */
-	sign = (buf[0] & 0x80) ? -1 : 1;
-/*
- * Extract the three bytes into an int and lose the top bit.
- */
-	memcpy (cptr + 1, buf, 3);
-	i &= 0x7fffff;
-/*
- * Multiply in the sign.
- */
-	i *= sign;
-	return (i);
 }
 
 
@@ -2118,11 +2116,14 @@ ScaleInfo	*sc;
 	FieldId	fid;
 /*
  * Search through the field table first, to see if we've associated a
- * "real" name with the field
+ * "real" name with the field.  Fields associated with the particular model
+ * take precedence.
  */
 	for (i = 0; i < GRB_FList_len; i++)
 	{
-		if (pds->field_id == GRB_FList[i].fnum)
+		if ((GRB_FList[i].process_id == ANY ||
+		     GRB_FList[i].process_id == pds->process_id) &&
+		    pds->field_id == GRB_FList[i].fnum)
 		{
 		/*
 		 * If the Data store doesn't know about this field yet, 
@@ -2131,7 +2132,7 @@ ScaleInfo	*sc;
 			fid = F_Declared (GRB_FList[i].fname);
 			if (fid == BadField)
 				fid = F_DeclareField (GRB_FList[i].fname,
-						      GRB_FList[i].fname,
+						      GRB_FList[i].fdesc,
 						      GRB_FList[i].funits);
 				
 			scale = GRB_FList[i].scale;
@@ -2167,152 +2168,31 @@ ScaleInfo	*sc;
 
 
 
-static int
-grb_Offset (pds)
-GFpds	*pds;
-/*
- * Return the forecast time (offset), in seconds, from the given PDS.
- */
-{
-	int	multiplier;
-/*
- * Get the multiplier for our forecast time units
- */
-	switch (pds->time_unit)
-	{
-	    case 0:
-		multiplier = 60;	/* minute */
-		break;
-	    case 1:
-		multiplier = 3600;	/* hour */
-		break;
-	    case 2:
-		multiplier = 86400;	/* day */
-		break;
-	    case 254:
-		multiplier = 1;		/* second */
-		break;
-	    default:
-		msg_ELog (EF_EMERGENCY, 
-			  "GRIB forecast time units too big!  Using zero.");
-		return (0);
-	}
-/*
- * Figure out the valid time based on the time range indicator
- */
-	switch (pds->range_id)
-	{
-	    case 0:
-	    case 2:
-	    case 3:
-		return (multiplier * pds->p1);
-	    case 1:
-		return (0);
-	/*
-	 * The accumulation (4) and difference (5) types are considered valid
-	 * at the reference time + p2
-	 */
-	    case 4:
-	    case 5:
-		return (multiplier * pds->p2);
-	    default:
-		msg_ELog (EF_PROBLEM, 
-			  "grb_Offset: Can't handle time range ID %d!",
-			  pds->range_id);
-		return (0);
-	}
-}
-
-
-
-
-static bool
-grb_UsableLevel (pds, sfc_only)
-GFpds	*pds;
-bool	sfc_only;
-/*
- * Return whether this GRIB grid is "usable".  If sfc_only is true, only
- * surface data are usable.  Otherwise, the data must have an associated single
- * vertical level (i.e., a specific isobaric level or height, as opposed to
- * earth surface, cloud base, tropopause, etc.) to be considered usable.
-*/
-{
-	int	l_id = pds->level_id;
-
-	if (sfc_only)
-		return (l_id == 1 || l_id == 102);
-	else
-		return (l_id == 100 || l_id == 103);
-}
-
-
-
-
-static float
-grb_ZLevel (pds, units)
-GFpds	*pds;
-AltUnitType	*units;
-/*
- * Return the vertical level from the given PDS.  If 'units' is non-NULL,
- * return the units type.
- */
-{
-	int	l_id = pds->level_id;
-
-	switch (l_id)
-	{
-	    case 1:	/* Surface data (0 meters AGL) */
-		if (units)
-			*units = AU_mAGL;
-		return (0.0);
-	    case 100:	/* isobaric level (millibars) */
-		if (units)
-			*units = AU_mb;
-		break;
-	    case 102:	/* 0 meters MSL */
-		if (units)
-			*units = AU_mMSL;
-		return (0.0);
-	    case 103:	/* fixed height (meters MSL) */
-		if (units)
-			*units = AU_mMSL;
-		break;
-	    default:
-		msg_ELog (EF_PROBLEM, "Can't deal with GRIB level type %d!",
-			  l_id);
-		return (-1.0);
-	}
-
-	return ((float) grb_TwoByteInt (&(pds->level_val)));
-}
-
-
-
-
 static void
-grb_2Index (lat, lon, ifloat, jfloat)
+grb_RegularIndex (gg, lat, lon, ifloat, jfloat)
+GRB_TypeInfo *gg;
 double	lat, lon;
 float	*ifloat, *jfloat;
 /*
- * Return the (floating point) array indices for a GRIB 2 type grid, given a
- * latitude and longitude.  
+ * Return the (floating point) array indices for a GRIB regularly-spaced
+ * lat/lon grid, given the latitude and longitude of the point.
  */
 {
-/*
- * Simple 2.5 degree grid.
- */
+	Regular *reg = (Regular *) gg->gg_transform;
+
 	if (lon < 0.0)
 		lon += 360.0;
 	
-	*ifloat = lon / 2.5;
-	*jfloat = (lat + 90.0) / 2.5;
+	*ifloat = lon / reg->lon_spacing;
+	*jfloat = (lat + 90.0) / reg->lat_spacing;
 }
 
 
 
 
 static void
-grb_2LatLon (idouble, jdouble, lat, lon)
+grb_RegularLatLon (gg, idouble, jdouble, lat, lon)
+GRB_TypeInfo *gg;
 double	idouble, jdouble;
 float	*lat, *lon;
 /*
@@ -2329,7 +2209,7 @@ float	*lat, *lon;
 
 
 
-
+#ifdef notdef
 static void
 grb_27Index (lat, lon, ifloat, jfloat)
 double	lat, lon;
@@ -2666,6 +2546,96 @@ float	*lat, *lon;
  * Now convert to degrees and we're done
  */
 	*lat = RAD_TO_DEG (psi);
+	*lon = RAD_TO_DEG (lambda);
+}
+#endif /* notdef */
+
+
+
+
+
+static void
+grb_PolarStereoIndex (gg, lat, lon, ifloat, jfloat)
+GRB_TypeInfo *gg;
+double	lat, lon;
+float	*ifloat, *jfloat;
+/*
+ * Return the (floating point) array indices for a GRIB polar stereographic
+ * grid, given a latitude and longitude, and some parameters particular to
+ * the grid type.  The formulas used here come from Section 21
+ * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
+ * Professional Paper 1395.  Parameter names, members of the PolarStereo
+ * structure, have been chosen to correspond to those used in the book, and
+ * equation numbers from the book are referenced in the comments.  k0, the
+ * central scale factor, is taken as 1. 
+ */
+{
+	PolarStereo *ps = (PolarStereo *) gg->gg_transform;
+	float	x, y, k, phi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
+/*
+ * Formula 21-4
+ */
+	k = 2 / (1 + sin (ps->phi1) * sin (phi) + 
+		 cos (ps->phi1) * cos (phi) * cos (lambda - ps->lambda0));
+/*
+ * Formulas 21-2 and 21-3
+ */
+	x = R_Earth * k * cos (phi) * sin (lambda - ps->lambda0);
+	y = R_Earth * k * (cos (ps->phi1) * sin (phi) - 
+		 sin (ps->phi1) * cos (phi) * cos (lambda - ps->lambda0));
+/*
+ * Now turn x and y into grid coordinates based on the north pole, which is
+ * the only reference point for which we have grid coordinates.
+ */
+	*ifloat = ps->ipole + (x - ps->xpole) / ps->scale;
+	*jfloat = ps->jpole + (y - ps->ypole) / ps->scale;
+}
+
+
+
+
+static void
+grb_PolarStereoLatLon (gg, idouble, jdouble, lat, lon)
+GRB_TypeInfo *gg;
+double	idouble, jdouble;
+float	*lat, *lon;
+/*
+ * Turn the (double precision) indices of a GRIB polar stereographic grid
+ * into a latitude and longitude.  The formulas used here come from Section
+ * 21 (Stereographic Projection) of "Map Projections--A Working Manual",
+ * USGS Professional Paper 1395.  Parameter names, members of the
+ * PolarStereo structure, have been chosen to correspond to the variable
+ * names in the book, and equation numbers from the book are referenced in
+ * the comments. 
+ */
+{
+	PolarStereo *ps = (PolarStereo *) gg->gg_transform;
+	float	x, y, rho, c, phi, lambda;
+/*
+ * First turn our indices into x and y in km.
+ */
+	x = (ps->scale * (idouble - ps->ipole)) + ps->xpole;
+	y = (ps->scale * (jdouble - ps->jpole)) + ps->ypole;
+/*
+ * Formulas 20-18 and 21-15
+ */
+	rho = hypot (x, y);
+	c = 2 * atan ((double)(rho / (2 * R_Earth)));
+/*
+ * Formula 20-15
+ */
+	lambda = ps->lambda0 + atan (x * sin (c) / 
+				     (rho * cos (ps->phi1) * 
+				      cos (c) - y * sin (ps->phi1) * sin (c)));
+/*
+ * Formula 20-14
+ */
+	phi = asin (cos (c) * sin (ps->phi1) + 
+		    (y * sin (c) * cos (ps->phi1) / rho));
+/*
+ * Now convert to degrees and we're done
+ */
+	*lat = RAD_TO_DEG (phi);
 	*lon = RAD_TO_DEG (lambda);
 }
 

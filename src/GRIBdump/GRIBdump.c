@@ -24,58 +24,15 @@
 # include <string.h>
 # include <errno.h>
 # include <fcntl.h>
+# include <math.h>
 
 # include <copyright.h>
 # include <defs.h>
+# include <message.h>
+# include "GRIB.h"
 
-/*
- * The GRIB product definition section (PDS)
- */
-typedef struct s_GFpds
-{
-	unsigned char	len;		/* length of PDS		*/
-	unsigned char	len1;		/* 2nd byte of length		*/
-	unsigned char	len2;		/* 3rd byte of length		*/
-	unsigned char	pt_version;	/* Param. Table version number	*/
-	unsigned char	center_id;	/* ID of source center		*/
-	unsigned char	process_id;	/* ID of generating process	*/
-	unsigned char	grid_id;	/* grid type ID			*/
-	unsigned char	section_flags;	/* do we have a GDS and/or BMS?	*/
-	unsigned char	field_id;	/* parameter and units indicator */
-	unsigned char	level_id;	/* level type indicator		*/
-	unsigned char	level_val;	/* level value			*/
-	unsigned char	level_val1;	/* level value (2nd byte)	*/
-	unsigned char	year;		/* year % 100			*/
-	unsigned char	month;
-	unsigned char	day;
-	unsigned char	hour;
-	unsigned char	minute;
-	unsigned char	time_unit;	/* time unit ID			*/
-	unsigned char	p1;
-	unsigned char	p2;
-	unsigned char	range_id;	/* time range indicator		*/
-	unsigned char	num_in_avg;	/* num. of points used if averaging */
-	unsigned char	num_in_avg1;	/* 2nd byte			*/
-	unsigned char	avg_missing;	/* num. missing when averaging	*/
-	unsigned char	century;	/* century (20 until 1 Jan 2001)*/
-	unsigned char	reserved0;
-	/* 
-	 * We can use short for ds_factor; it falls on an even byte boundary
-	 */
-	short		ds_factor;	/* decimal scale factor		*/
-	unsigned char	reserved1;	/* any length of reserved data	*/
-} GFpds;
-
-/*
- * Prototypes
- */
-static int	ThreeByteInt FP ((char *));
-static int	TwoByteInt FP ((char *));
-static bool	NormalLevel FP ((GFpds *));
-static float	ZLevel FP ((GFpds *, AltUnitType *));
-static int	Offset FP ((GFpds *));
-
-
+static void ShowGDS FP ((GFgds *gds_in));
+static int DumpFile FP ((char *file));
 
 
 int
@@ -83,50 +40,76 @@ main (argc, argv)
 int	argc;
 char	**argv;
 {
-	int	fd;
-	int	is_len, grib_len, pds_len;
-	int	status, ng = 0, ncopy, buflen = 0;
-	char	is[8], *trailer, *buf = 0;
-	GFpds	pds;
-	AltUnitType	altunits;
+	int	i;
+	int	err;
 /*
  * Arg check
  */
-	if (argc != 2)
+	if (argc < 2)
 	{
-		fprintf (stderr, "Usage: %s <grib_file>\n", argv[0]);
+		fprintf (stderr, "Usage: %s <file> [<file> ...]\n", argv[0]);
 		exit (1);
 	}
+
+	err = 0;
+	for (i = 1; i < argc; ++i)
+		err += DumpFile (argv[i]);
+	return (err);
+}
+
+
+
+static int
+DumpFile (file)
+char *file;
+{
+	static  char *buf = 0;
+	static	int buflen = 0;
+	int	fd;
+	int	is_len, grib_len, pds_len;
+	int	status, ng = 0, ncopy;
+	char	is[8], *trailer;
+	GFpds	pds;
+	GFgds	*gds = 0;
+	AltUnitType	altunits;
+	ZebTime zt;
 /*
  * Try to open the file
  */
-	if ((fd = open (argv[1], O_RDONLY)) < 0)
+	if ((fd = open (file, O_RDONLY)) < 0)
 	{
-		fprintf (stderr, "Error %d opening '%s'", errno, argv[1]);
-		exit (1);
+		fprintf (stderr, "Error %d opening '%s'", errno, file);
+		return (1);
 	}
 /*
  * Each grid starts with an Indicator Section.  Loop through grids
- * until we fail to get one of these.
+ * until we fail to get one of these, a read fails, or we reach eof.
  */
 	is_len = 8;	/* Fixed length of the Indicator Section */
-
-	while ((status = read (fd, is, is_len)) == is_len)
+	while (1)
 	{
 	/*
 	 * Make sure we have the "GRIB" tag at the beginning
 	 */
-		if (strncmp (is, "GRIB", 4))
+		if ((status = grb_FindRecord (fd, is)) < 0)
 		{
-			fprintf (stderr, "Got '%4s' instead of 'GRIB'!", 
-				  is);
+			fprintf (stderr, "%s: Could not locate 'GRIB' seq\n", 
+				 file);
+			return (1);
+		}
+		else if (status == 0)
+			break;
+		if (read (fd, is + 4, 4) != 4)
+		{
+			fprintf (stderr, "%s: Indicator Section incomplete!\n",
+				 file);
 			exit (1);
 		}
 	/*
 	 * Get the length of this GRIB 'message' (one grid), make sure we
 	 * have space for it.
 	 */
-		grib_len = ThreeByteInt (is + 4);
+		grib_len = grb_ThreeByteInt (is + 4);
 		if (grib_len > buflen)
 		{
 			buflen = grib_len;
@@ -144,7 +127,8 @@ char	**argv;
 		if (status < (grib_len - is_len))
 		{
 			fprintf (stderr, 
-				  "GRIB file ends with incomplete record");
+				 "%s: GRIB file ends with incomplete record",
+				 file);
 			status = 0;	/* Treat it like an EOF */
 			break;
 		}
@@ -154,18 +138,30 @@ char	**argv;
 	 * 28 bytes of the PDS, so we don't copy any more than that.  We
 	 * accomodate illegal smaller ones though, by padding with zeros.
 	 */
-		pds_len = ThreeByteInt (buf + is_len);
+		pds_len = grb_ThreeByteInt (buf + is_len);
 		ncopy = (pds_len < sizeof (GFpds)) ? pds_len : sizeof (GFpds);
 		memcpy (&pds, buf + is_len, ncopy);
 	/*
-	 * Print the grid number and time
+	 * If we have a Grid Description Section, print it first and just once
 	 */
+		if (!gds && (pds.section_flags & GDS_FLAG))
+		{
+			gds = (GFgds *) (buf + is_len + pds_len);
+			ShowGDS (gds);
+		}
+	/*
+	 * Print the grid number and reference time
+	 */
+		grb_ReferenceTime (&pds, &zt);
+		printf ("%3d %-20s", ng++, TC_AscTime (&zt, TC_Full));
+#ifdef notdef
 		printf ("%3d %02d%02d%02d %02d%02d%02d", ng++, pds.year,
 			pds.month, pds.day, pds.hour, pds.minute, 0);
+#endif
 	/*
 	 * Grid ID
 	 */
-		printf ("  Id: %3d", pds.grid_id);
+		printf ("Id: %3d", pds.grid_id);
 	/*
 	 * Field
 	 */
@@ -173,16 +169,17 @@ char	**argv;
 	/*
 	 * Offset
 	 */
-		printf ("  Offset: %6ds", Offset (&pds));
+		printf ("  Offset: %6ds", grb_Offset (&pds));
 	/*
 	 * Level
 	 */
-		if (! NormalLevel (&pds))
+		if (! grb_NormalLevel (&pds))
 			printf ("  Z: (level type %d)", pds.level_id);
 		else
-			printf ("  Z: %.0f %s", ZLevel (&pds, &altunits), 
-				au_UnitsName (altunits));
-
+		{
+			float z = grb_ZLevel (&pds, &altunits);
+			printf ("  Z: %s", au_AltLabel ((double)z, altunits));
+		}
 		printf ("\n");
 	/*
 	 * Sanity check.  Make sure the last 4 bytes of the GRIB record are 
@@ -191,8 +188,9 @@ char	**argv;
 		trailer = buf + grib_len - 4;
 		if (strncmp (trailer, "7777", 4))
 		{
-			fprintf (stderr, "Bad GRIB trailer '%4s'", trailer);
-			exit (1);
+			fprintf (stderr, "%s: Bad GRIB trailer '%4s'", 
+				 file, trailer);
+			return (1);
 		}
 	}
 /*
@@ -201,148 +199,174 @@ char	**argv;
 	if (status < 0)
 	{
 		fprintf (stderr, "Error %d reading GRIB file", errno);
-		exit (1);
+		return (1);
 	}
 
-	exit (0);
+	return (0);
 }
 
 
 
-
-static int
-ThreeByteInt (buf)
-char	*buf;
-/*
- * Extract the first three bytes of buf into an int and return it.
- */
+static void
+PS_LLToXY (phi1, lambda0, phi, lambda, x, y)
+float phi1, lambda0;
+float phi, lambda;
+float *x, *y;
 {
-	int	i = 0;
-	char	*cptr = (char *) &i;
-
-	memcpy (cptr + 1, buf, 3);
-	return (i);
+	float k;
+/*
+ * Formula 21-4
+ */
+	k = 2 / (1 + sin (phi1) * sin (phi) + 
+		 cos (phi1) * cos (phi) * cos (lambda - lambda0));
+/*
+ * Formulas 21-2 and 21-3
+ */
+	*x = R_Earth * k * cos (phi) * sin (lambda - lambda0);
+	*y = R_Earth * k * (cos (phi1) * sin (phi) - 
+		 sin (phi1) * cos (phi) * cos (lambda - lambda0));
 }
 
 
-
-
-static int
-TwoByteInt (buf)
-char	*buf;
-/*
- * Extract the first three bytes of buf into an int and return it.
- */
+static void
+PS_XYToLL (phi1, lambda0, x, y, lat, lon)
+float phi1, lambda0;
+float x, y;
+float *lat, *lon;
 {
-	int	i = 0;
-	char	*cptr = (char *) &i;
-
-	memcpy (cptr + 2, buf, 2);
-	return (i);
+	double rho, c;
+	double phi, lambda;
+/*
+ * Formulas 20-18 and 21-15
+ */
+	rho = hypot (x, y);
+	c = 2 * atan ((double)(rho / (2 * R_Earth)));
+/*
+ * Formula 20-15
+ */
+	lambda = lambda0 + atan (x * sin (c) / 
+				     (rho * cos (phi1) * 
+				      cos (c) - y * sin (phi1) * sin (c)));
+/*
+ * Formula 20-14
+ */
+	phi = asin (cos (c) * sin (phi1) + (y * sin (c) * cos (phi1) / rho));
+/*
+ * Now convert to degrees and we're done
+ */
+	*lat = RAD_TO_DEG (phi);
+	*lon = RAD_TO_DEG (lambda);
 }
 
 
-
-
-static int
-Offset (pds)
-GFpds	*pds;
+static void
+ShowGDS (gds_in)
+GFgds *gds_in;
 /*
- * Return the forecast time (offset), in seconds, from the given PDS.
+ * Summarize this GDS to stdout
  */
 {
-	int	multiplier;
-/*
- * Get the multiplier for our forecast time units
- */
-	switch (pds->time_unit)
-	{
-	    case 0:
-		multiplier = 60;	/* minute */
-		break;
-	    case 1:
-		multiplier = 3600;	/* hour */
-		break;
-	    case 2:
-		multiplier = 86400;	/* day */
-		break;
-	    case 254:
-		multiplier = 1;		/* second */
-		break;
-	    default:
-		fprintf (stderr, "Forecast time units too big!  Using zero.");
-		return (0);
-	}
-/*
- * Figure out the valid time based on the time range indicator
- */
-	switch (pds->range_id)
-	{
-	    case 0:
-	    case 2:
-	    case 3:
-		return (multiplier * pds->p1);
-	    case 1:
-		return (0);
+	GDSPolarStereo *gds;
+	int Nx, Ny;
+	float lov;
+	float la1, lo1;
+	float dx, dy;
+	float phi1, lambda0, phi, lambda;
+	float x0, y0, xpole, ypole, x, y;
+	float ipole, jpole;
+	float i, j;
+	float lat, lon;
+
+	printf ("-----\nGrid Description Section\n");
+	printf ("Data Representation Type: %s\n", grb_GDSRepName (gds_in));
 	/*
-	 * The accumulation (4) and difference (5) types are considered valid
-	 * at the reference time + p2
+	 * Only care about polar stereographic
 	 */
-	    case 4:
-	    case 5:
-		return (multiplier * pds->p2);
-	    default:
-		fprintf (stderr, "Can't handle time range ID %d!", 
-			 pds->range_id);
-		return (0);
-	}
+	if (gds_in->data_type != 5)
+		return;
+
+	gds = (GDSPolarStereo *) gds_in;
+	Nx = grb_TwoByteInt (gds->gd_nx);
+	Ny = grb_TwoByteInt (gds->gd_ny);
+	printf ("Nx = %4i   Ny = %4i\n", Nx, Ny);
+	la1 = grb_ThreeByteSignInt (gds->gd_la1) / 1000.0;
+	lo1 = grb_ThreeByteSignInt (gds->gd_lo1) / 1000.0;
+	printf ("grid(0,0) at (lon,lat) = (%.3f,%.3f)\n", lo1, la1);
+	printf ("Resolution and Component Flags: %i\n", (int)gds->gd_res);
+	printf ("[increments %sgiven; earth is %s; u,v relative to %s]\n",
+		(gds->gd_res & (1<<7)) ? "" : "not ",
+		(gds->gd_res & (1<<6)) ? "oblate spheroid" : "spherical",
+		(gds->gd_res & (1<<3)) ? "grid x,y" : "E and N");
+	lov = grb_ThreeByteInt (gds->gd_lov) / 1000.0;
+	if (lov >= 180.0 && lov <= 360.0)
+		lov -= 360.0;
+	else if (lov > 360.0)	/* in case a negative lon, contrary to spec */
+		lov = grb_ThreeByteSignInt (gds->gd_lov) / 1000.0;
+	printf ("Longitude of orientation: %.3f\n", lov);
+	dx = grb_ThreeByteInt (gds->gd_dx) / 1000.0;
+	dy = grb_ThreeByteInt (gds->gd_dy) / 1000.0;
+	printf ("Grid length (km) at lat 60, (dx, dy) = (%.3f km, %.3f km)\n", 
+		dx, dy);
+	printf ("Projection contains %s pole.\n",
+		gds->gd_pole ? "South" : "North");
+	printf ("Scan mode: %i ", gds->gd_scanmode);
+	printf ("[%si, %sj, adjacent points consecutive along %s]\n",
+		(gds->gd_scanmode & (1<<7)) ? "-" : "+",
+		(gds->gd_scanmode & (1<<6)) ? "+" : "-",
+		(gds->gd_scanmode & (1<<5)) ? "j" : "i");
+
+	phi1 = DEG_TO_RAD(60.0);	/* 60 degrees N */
+	lambda0 = DEG_TO_RAD(lov);	/* longitude of orientation */
+	phi = DEG_TO_RAD(la1);		/* lat/lon of (0,0) grid point */
+	lambda = DEG_TO_RAD(lo1);
+	PS_LLToXY (phi1, lambda0, phi, lambda, &x0, &y0);
+	printf ("(i=0,j=0) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
+		lo1, la1, x0, y0);
+	phi = phi1;			/* should get back (0,0) */
+	lambda = lambda0;
+	PS_LLToXY (phi1, lambda0, phi, lambda, &x, &y);
+	i = (x - x0) / dx;
+	j = (y - y0) / dy;
+	printf ("(i=%.2f,j=%.2f) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
+		i, j, lov, 60.0, x, y);
+	phi = DEG_TO_RAD(90.0);		/* North pole */
+	lambda = DEG_TO_RAD(lov);
+	PS_LLToXY (phi1, lambda0, phi, lambda, &xpole, &ypole);
+	jpole = (xpole - x0) / dx;
+	ipole = (ypole - y0) / dy;
+	printf ("(i=%.2f,j=%.2f) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
+		ipole, jpole, lov, 90.0, xpole, ypole);
+	/*
+	 * Upper right corner
+	 */
+	i = Nx - 1;
+	j = Ny - 1;
+	x = (dx * (i - ipole)) + xpole;
+	y = (dy * (j - jpole)) + ypole;
+	PS_XYToLL (phi1, lambda0, x, y, &lat, &lon);
+	printf ("(i=%.2f,j=%.2f) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
+		i, j, lon, lat, x, y);
+	/*
+	 * Upper left
+	 */
+	i = 0;
+	j = Ny - 1;
+	x = (dx * (i - ipole)) + xpole;
+	y = (dy * (j - jpole)) + ypole;
+	PS_XYToLL (phi1, lambda0, x, y, &lat, &lon);
+	printf ("(i=%.2f,j=%.2f) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
+		i, j, lon, lat, x, y);
+	/*
+	 * Lower right
+	 */
+	i = Nx - 1;
+	j = 0;
+	x = (dx * (i - ipole)) + xpole;
+	y = (dy * (j - jpole)) + ypole;
+	PS_XYToLL (phi1, lambda0, x, y, &lat, &lon);
+	printf ("(i=%.2f,j=%.2f) : (%.3f,%.3f) : (x=%.3f km, y=%.3f km)\n",
+		i, j, lon, lat, x, y);
+
+	printf ("-----\n");
 }
 
-
-
-
-static bool
-NormalLevel (pds)
-GFpds	*pds;
-/*
- * Return TRUE if the level of this GRIB grid is "normal" (i.e., a specific
- * isobaric level or height, rather than earth surface, cloud base, tropopause,
- * etc.)
- */
-{
-	int	l_id = pds->level_id;
-
-	return (l_id == 100 || l_id == 103);
-}
-
-
-
-
-static float
-ZLevel (pds, units)
-GFpds	*pds;
-AltUnitType	*units;
-/*
- * Return the vertical level from the given PDS.  If 'units' is non-NULL,
- * return the units type.
- */
-{
-	int	l_id = pds->level_id;
-
-	switch (l_id)
-	{
-	    case 100:
-		if (units)
-			*units = AU_mb;		/* millibars */
-		break;
-	    case 103:
-		if (units)
-			*units = AU_mMSL;	/* meters MSL */
-		break;
-	    default:
-		fprintf (stderr, "Can't deal with level type %d!", l_id);
-		return (-1.0);
-	}
-
-	return ((float) TwoByteInt (&(pds->level_val)));
-}
