@@ -10,6 +10,6 @@ DISTFILES = $(LFILES) Imakefile
 
 all::	/* nothing */
 
-InstallLibFile ($(LFILES), gplib, ..)
+InstallLibFile ($(LFILES),gplib,..)
 
 DistfilesTarget ($(DISTFILES))
