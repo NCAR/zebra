@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.17 1997-03-31 22:06:35 corbet Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.18 1997-04-01 17:34:38 corbet Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -1355,7 +1355,6 @@ RFHeader *hdr;
  */
 	if (nf < 0 || nf > MaxRFField)
 		nf = hdr->rf_NField;	/* Assume we want swapped. */
-	msg_ELog (EF_INFO, "Swapping %d fields", nf);
 	for (field = 0; field < nf; field++)
 	{
 		swap4 (&hdr->rf_Fields[field].rff_Scale.s_Scale);
