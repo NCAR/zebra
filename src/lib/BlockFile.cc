@@ -7,11 +7,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <iostream.h>
-#include <iomanip.h>
+#include <iostream>
+#include <iomanip>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.19 1999-03-01 02:04:41 burghart Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.20 2002-09-17 20:00:19 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -414,9 +414,13 @@ BlockFile::~BlockFile ()
 
 
 
-ostream&
-BlockFile::DumpHeader (ostream& out) 
+std::ostream&
+BlockFile::DumpHeader (std::ostream& out) 
 {
+        using std::endl;
+	using std::hex;
+	using std::dec;
+
 	if (! header)
 	{
 		out << "File not open." << endl;
@@ -429,12 +433,12 @@ BlockFile::DumpHeader (ostream& out)
 	out << (header->dirty() ? "*Dirty*" : "Clean") << endl;
 	out << "File: " << path << endl;
 	out << "Status(" << status << "), Errno(" << this->errnum << ")\n";
-	out << setiosflags(ios::showbase);
-	out << "Block magic = " << hex << h->bf_magic << endl;
-	out << "App magic   = " << hex << h->app_magic << endl;
-	out << dec;
+	out << setiosflags(std::ios::showbase);
+	out << "Block magic = " << std::hex << h->bf_magic << endl;
+	out << "App magic   = " << std::hex << h->app_magic << endl;
+	out << std::dec;
 	out << "Header size = " << h->header_size << endl;
-	out << "Blk version = " << hex << h->bf_version << dec << endl;
+	out << "Blk version = " << std::hex << h->bf_version << dec << endl;
 	out << "Revision    = " << h->revision << endl;
 	out << "Length      = " << h->bf_length << endl;
 	b = &(h->app_header);

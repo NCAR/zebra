@@ -33,8 +33,9 @@ public:
 		sizeof (ino_t));
     }
 
-    ostream& PutTo( ostream& s ) const
+    std::ostream& PutTo( std::ostream& s ) const
     {
+	using std::endl;
 	ZTime begin( dfc_begin ), end( dfc_end );
 	s << dfc_name << endl;
 	s << "from " << begin << " to " << end << endl;
@@ -62,8 +63,8 @@ public:
 
 SERIAL_STREAMABLE( DataFileCore );
 
-inline ostream& 
-operator <<(ostream& s, const DataFileCore& dfc)
+inline std::ostream& 
+operator <<(std::ostream& s, const DataFileCore& dfc)
 {
     return dfc.PutTo( s );
 }

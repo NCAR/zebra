@@ -7,17 +7,21 @@
 #undef NDEBUG
 #endif
 
-#include <iostream.h>
-#include <fstream.h>
+#include <iostream>
+#include <fstream>
 #include <assert.h>
 
 #include "BlockFile.hh"
 #include "Logger.hh"
 #include "Format.hh"
 
-//RCSID ("$Id: T_Block.cc,v 1.8 2000-06-08 16:29:37 granger Exp $")
+//RCSID ("$Id: T_Block.cc,v 1.9 2002-09-17 20:00:19 granger Exp $")
 
 static int TestStore (char *name);
+
+using std::ofstream;
+using std::endl;
+using std::cout;
 
 int main (int, char *[])
 {

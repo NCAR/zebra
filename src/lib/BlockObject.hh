@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.10 1998-08-27 22:42:56 granger Exp $
+/* $Id: BlockObject.hh,v 1.11 2002-09-17 20:00:19 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -6,7 +6,7 @@
 #ifndef _BlockObject_hh_
 #define _BlockObject_hh_
 
-#include <iostream.h>
+#include <iostream>
 
 #include "BlockFile.hh"
 #include "Serialize.hh"
@@ -53,11 +53,11 @@ public:
 
 SERIAL_STREAMABLE(Block);
 
-inline ostream &
-operator<< (ostream &o, const Block &b)
+inline std::ostream &
+operator<< (std::ostream &o, const Block &b)
 {
 	o << "(" << b.offset << ", " << b.length << ", "
-	  << ", " << b.revision << ")" << endl;
+	  << ", " << b.revision << ")" << std::endl;
 	return o;
 }
 

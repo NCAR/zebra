@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.17 2001-08-24 22:23:14 granger Exp $
+ * $Id: BlockFile.hh,v 1.18 2002-09-17 20:00:19 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -11,7 +11,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <iostream.h>		// to add stream operator to dump header
+#include <iostream>		// to add stream operator to dump header
 
 /* The types of our auxillary blocks, 
  * also an index into revision numbers in BlockFile objects. */
@@ -44,6 +44,8 @@ class SerialBuffer;
 class BlockFile
 {
 public:
+        typedef std::ostream ostream;
+
 	// File operation flags
 	enum BF_Flags
 	{
@@ -228,8 +230,8 @@ BlockFile::Errno ()
 
 
 
-inline ostream&
-operator<< (ostream& out, BlockFile& bf)
+inline std::ostream&
+operator<< (std::ostream& out, BlockFile& bf)
 {
 	return (bf.DumpHeader(out));
 }

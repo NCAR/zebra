@@ -24,7 +24,7 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 
-# include <iostream.h>
+# include <iostream>
 
 # include <message.h>
 # include <BTreeFile.cc>
@@ -521,8 +521,9 @@ Source::NFiles( const Platform *p )
 
 
 void
-Source::Dump ( ostream &out )
+Source::Dump ( std::ostream &out )
 {
+    using std::endl;
     out << "============ Platform offsets tree ===============" << endl;
     out << "Source: " << srcname << endl;
     out << "  Root: " << rootdir << endl;

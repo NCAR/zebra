@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <iostream.h>
+#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <assert.h>
@@ -186,7 +186,7 @@ struct Shortcut
 	// Insert a value at the current key and placeholder
 	int insert (const T &value);
 
-	void show (ostream &out)
+	void show (std::ostream &out)
 	{
 		if (valid())
 		{
@@ -200,7 +200,7 @@ struct Shortcut
 		{
 			out << "Context invalid.";
 		}
-		out << endl;
+		out << std::endl;
 	}
 };
 
@@ -287,12 +287,12 @@ public:
 
 	// typenames
 	typedef BTree<K,T> tree_type;
-	typedef BTree<K,T>::value_type value_type;
-	typedef BTree<K,T>::key_type key_type;
+	typedef typename BTree<K,T>::value_type value_type;
+	typedef typename BTree<K,T>::key_type key_type;
 	typedef BTreeNode<K,T> node_type;
 	typedef BTreeNode<K,T> *node_type_ptr;
 	typedef Shortcut<K,T> shortcut;
-	typedef BTree<K,T>::Node Node;
+	typedef typename BTree<K,T>::Node Node;
 
 	/* ---------------- Constructors and destructors ---------------- */
 
@@ -304,7 +304,7 @@ public:
 	// Erase all of this node's children and the node itself from the tree.
 	void erase ();
 
-	const BTree<K,T>::Node &Address ()
+	const typename BTree<K,T>::Node &Address ()
 	{
 		return thisNode;
 	}
@@ -431,9 +431,9 @@ public:
 
 		if (err)
 		{
-			cout << "CHECK ERROR in " 
-			     << (void*)this << ", depth: " << depth
-			     << ", nkeys: " << nkeys << endl;
+		    std::cout << "CHECK ERROR in " 
+			      << (void*)this << ", depth: " << depth
+			      << ", nkeys: " << nkeys << std::endl;
 		}
 
 		if (depth > 0)
@@ -448,15 +448,16 @@ public:
 	}
 		
 
-	ostream &print (ostream &out)
+        std::ostream &print (std::ostream &out)
 	{
 		// Depth first dump of this node
+	        using std::endl;
 		int indent = (tree.Depth() - depth) * 5;
 		std::string s(indent, ' ');
 		out << s;
 		out << "[" << (void *)this << " " << thisNode.addr
 		    << ": depth " << depth;
-		cout << ", nkeys " << nkeys << "]" << endl;
+		std::cout << ", nkeys " << nkeys << "]" << endl;
 		for (int i = 0; i < nkeys; ++i)
 		{
 			out << s << keys[i];
@@ -1438,19 +1439,20 @@ BTreeP::Stats::translate (SerialStream &ss)
 }
 
 
-ostream &
-BTreeP::Stats::report (ostream &out) const
+std::ostream &
+BTreeP::Stats::report (std::ostream &out) const
 {
 	out << "Nodes: " << nNodes
 	    << "; Keys: " << nKeys
 	    << "; Leaves: " << nLeaves;
-	out << endl;
+	out << std::endl;
 	return out;
 }
 
 
 template <class K, class T>
-ostream &BTree<K,T>::reportStats (ostream &out, const BTreeP::Stats &s) const
+std::ostream &BTree<K,T>::reportStats (std::ostream &out, 
+				       const BTreeP::Stats &s) const
 {
 	s.report (out);
 	int m = Order();
@@ -1462,7 +1464,7 @@ ostream &BTree<K,T>::reportStats (ostream &out, const BTreeP::Stats &s) const
 	if (s.nNodes > 0)
 		pctnodes = (int)(100.0*minnodes/(float)s.nNodes);
 	out << "Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
-	out << endl;
+	out << std::endl;
 	return out;
 }
 
@@ -1649,9 +1651,9 @@ BTree<K,T>::Check ()
 		e = root->check ();
 		if (e)
 		{
-			cout << "***** TREE CHECK FAILED; " 
-			     << e << " errors:" << endl;
-			Print (cout);
+		    std::cout << "***** TREE CHECK FAILED; " 
+			      << e << " errors:" << std::endl;
+		    Print (std::cout);
 		}
 	}
 	leave ();
@@ -1722,8 +1724,8 @@ int BTree<K,T>::Last (K *key /* = 0*/, T *value /* = 0*/)
 
 
 template <class K, class T>
-ostream &
-BTree<K,T>::Print (ostream &out)
+std::ostream &
+BTree<K,T>::Print (std::ostream &out)
 {
 	enterRead ();
 	if (! Empty())

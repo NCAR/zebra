@@ -18,17 +18,17 @@
  */
 
 # include "ZTime.h"
-# include <iostream.h>
+# include <iostream>
 
-RCSID ("$Id: ZTime.cc,v 2.2 2000-05-25 15:56:55 granger Exp $")
+RCSID ("$Id: ZTime.cc,v 2.3 2002-09-17 20:00:19 granger Exp $")
 
 /* ================================================================
  * So far the lone C++ implementation, put here to avoid including
  * iostream in ZTime.h.
  */
 
-ostream & 
-operator<< (ostream &out, const ZebraTime &t)
+std::ostream & 
+operator<< (std::ostream &out, const ZebraTime &t)
 {
 	out << TC_AscTime (&t, TC_Full);
 	return (out);

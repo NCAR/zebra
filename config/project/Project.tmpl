@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.75 2002-02-12 23:33:36 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.76 2002-09-17 20:00:17 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 
@@ -362,11 +362,18 @@ XCOMM -----------------------------------------------------------------------
 #   endif
 #endif
 
+/* By default expect to find udunits in system includes, which for GCC
+ * would include /usr/local/include
+ */
 #ifndef UDUnitsIncDir
-#   define UDUnitsIncDir /usr/local/include
-#endif
-#ifndef UDUnitsIncludes
+# define UDUnitsIncDir /**/
+# ifndef UDUnitsIncludes
+#   define UDUnitsIncludes /**/
+# endif
+#else
+# ifndef UDUnitsIncludes
 #   define UDUnitsIncludes -I$(UDUNITSINCDIR)
+# endif
 #endif
 
 # ifndef SweepFileIncDir

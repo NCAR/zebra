@@ -19,7 +19,7 @@
 // maintenance or updates for its software.
 //
 
-# include <iostream.h>
+# include <iostream>
 # include <string.h>
 # include <stdio.h>
 # include "Field.h"
@@ -31,7 +31,7 @@ extern "C"
 
 	
 
-RCSID("$Id: Field.cc,v 3.5 2002-09-14 07:48:53 granger Exp $")
+RCSID("$Id: Field.cc,v 3.6 2002-09-17 20:00:18 granger Exp $")
 
 //
 // The predefined field types.  Shared via Field.h.
@@ -201,8 +201,8 @@ Field::CanYield( const Field& wanted, double *slope, double *intercept ) const
 
 
 
-ostream&
-Field::PutTo( ostream& s ) const
+std::ostream&
+Field::PutTo( std::ostream& s ) const
 {
     if (name)
 	s << name;
@@ -289,8 +289,8 @@ Field::operator ==( const Field& f ) const
 	
 
 
-ostream&
-operator<<( ostream& s, const Field& f )
+std::ostream&
+operator<<( std::ostream& s, const Field& f )
 {
     return f.PutTo(s);
 }

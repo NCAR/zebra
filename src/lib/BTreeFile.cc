@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <iostream.h>
+#include <iostream>
 #include <assert.h>
 
 //#include <defs.h>
@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.16 2001-08-24 22:23:13 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.17 2002-09-17 20:00:18 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -86,8 +86,9 @@ protected:
 	BTreeFile<K,T>& filetree;
 	unsigned long lru;
 
-	BlockNode<K,T> *findLRU (BlockNode<K,T> *lrunode, Node *parent, 
-				 Node **lruparent, int *n);
+	BlockNode<K,T> *findLRU (BlockNode<K,T> *lrunode, 
+				 BTreeP::Node *parent, 
+				 BTreeP::Node **lruparent, int *n);
 
 	virtual void destroy ();
 };
@@ -371,13 +372,13 @@ BTreeFile<K,T>::release ()
  */
 template <class K, class T>
 BlockNode<K,T> * 
-BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, Node *parent, 
-			 Node **lruparent, int *n)
+BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, BTreeP::Node *parent, 
+			 BTreeP::Node **lruparent, int *n)
 {
 	// Add ourself to the count of nodes in the memory cache.
 	++(*n);
 	BlockNode<K,T> *child = 0;
-	Node *down = 0;
+	BTreeP::Node *down = 0;
 	for (int i = 0; (depth > 0) && (i < nkeys); ++i)
 	{
 		child = (BlockNode<K,T> *)children[i].local;
@@ -443,7 +444,7 @@ BTreeFile<K,T>::trimCache ()
 		// would be more open memory cache slots and we wouldn't
 		// be here.
 		//
-		Node *parent;
+	        BTreeP::Node *parent;
 		that = (BlockNode<K,T> *)rootNode.local;
 		if (that)
 		{	
@@ -487,7 +488,7 @@ BTreeFile<K,T>::lookupCache (int node_depth)
 
 template <class K, class T>
 BTreeNode<K,T> * 
-BTreeFile<K,T>::get (Node &node, int node_depth)
+BTreeFile<K,T>::get (BTreeP::Node &node, int node_depth)
 {
 	// The simple case is when this node is still in memory
 	BlockNode<K,T> *that = (BlockNode<K,T> *)node.local;
@@ -591,10 +592,11 @@ BTreeFileP::FileStatsPart::translate (SerialStream &ss)
 
 
 template <class K, class T>
-ostream &
-BTreeFile<K,T>::reportStats (ostream &out, 
+std::ostream &
+BTreeFile<K,T>::reportStats (std::ostream &out, 
 			     const BTreeFileP::FileStats &s) const
 {
+        using std::endl;
 	BTree<K,T>::reportStats (out, s);
 	out << "Nodes read: " << s.file.nodesRead 
 	    << "; written: " << s.file.nodesWritten

@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFileP.hh,v 1.7 1998-09-01 05:04:11 granger Exp $
+ * $Id: BlockFileP.hh,v 1.8 2002-09-17 20:00:19 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
  * such as auxiliary block classes.
@@ -9,7 +9,7 @@
 #ifndef _BlockFileP_hh_
 #define _BlockFileP_hh_
 
-#include <iostream.h>			// For << operators
+#include <iostream>			// For << operators
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"

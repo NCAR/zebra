@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.19 2002-09-16 07:48:18 granger Exp $
+ * $Id: BTree.hh,v 1.20 2002-09-17 20:00:18 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -7,7 +7,7 @@
 #ifndef _BTree_hh_
 #define _BTree_hh_
 
-#include <iostream.h>
+#include <iostream>
 
 // Reference to a node by some remote address and size, else by a pointer
 // to a cached copy in local memory.  In an entire tree, there is only one
@@ -53,7 +53,7 @@ public:
 		unsigned long nLeaves;
 		void translate (SerialStream &ss);
 		void reset () { nNodes = nKeys = nLeaves = 0; }
-		ostream &report (ostream &out) const;
+	        std::ostream &report (std::ostream &out) const;
 		Stats() { reset(); }
 	};
 };
@@ -219,15 +219,16 @@ public:
 		s = stats;
 	}
 
-	ostream &reportStats (ostream &out, const BTreeP::Stats &s) const;
+        std::ostream &reportStats (std::ostream &out, 
+				   const BTreeP::Stats &s) const;
 
-	virtual ostream &reportStats (ostream &out) const
+	virtual std::ostream &reportStats (std::ostream &out) const
 	{
 		return reportStats (out, stats);
 	}
 
 	/// Print all the nodes of the tree to 'out', indented by depth
-	ostream &Print (ostream &out);
+	std::ostream &Print (std::ostream &out);
 
 	/// Check the tree for consistency; return number of errors
 	int Check ();

@@ -7,13 +7,13 @@
 #include <map>
 #include <vector>
 #include <iostream>
-#include <strstream>
+#include <sstream>
 #include <iterator>
 
 #include "vor.h"
 #include <defs.h>
 
-RCSID("$Id: vor.cc,v 1.1 2000-12-13 23:01:46 granger Exp $")
+RCSID("$Id: vor.cc,v 1.2 2002-09-17 20:00:18 granger Exp $")
 
 
 VOR::map_type VOR::lookup;

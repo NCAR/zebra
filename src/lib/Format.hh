@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.7 2001-08-24 22:23:14 granger Exp $
+ * $Id: Format.hh,v 1.8 2002-09-17 20:00:19 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -46,7 +46,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 //#include <std.h>
-#include <iostream.h>
+#include <iostream>
 
 class Format
 {
@@ -319,7 +319,7 @@ public:
 
 
 
-inline ostream & operator<< (ostream &out, const Format &f)
+inline std::ostream & operator<< (std::ostream &out, const Format &f)
 {
 	//out << (const_cast<Format &>(f)).eval();
 	out << f.eval();

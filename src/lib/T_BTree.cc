@@ -2,16 +2,13 @@
  * Test the BTree
  */
 
-#include <iostream.h>
-#include <fstream.h>
-#include <strstream.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector>
-#ifndef NO_LOGICAL_PREDICATES
-#include <function.h>
-#endif
 #include <algorithm>
 
 #include <time.h>	// Need time() to seed srand()
@@ -22,7 +19,7 @@ using namespace std;
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.32 2002-09-16 07:48:18 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.33 2002-09-17 20:00:19 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
@@ -204,20 +201,14 @@ T_Members (test_tree &tree, vector<key_type> &keys)
 {
 	// Verify that all of the keys can be found in the tree
 	int err = 0;
-	vector<key_type>::iterator k;
+	typename vector<key_type>::iterator k;
 
-#ifdef NO_LOGICAL_PREDICATES
 	tree_member<test_tree> member(tree);
 	for (k = keys.begin(); k != keys.end(); ++k)
 	{
 		if (! member(*k))
 			break;
 	}
-#else
-	k = find_if (keys.begin(), keys.end(), 
-		     compose1(logical_not<bool>(), 
-			      tree_member<test_tree>(tree)));
-#endif
 	if (k != keys.end())
 	{
 		cout << "***** Member error: missing key: " << *k << endl;
@@ -250,8 +241,8 @@ T_Compare (test_tree &tree, vector<key_type> &keys,
 	// Given a tree, keys, and values, verify the tree contains all
 	// the keys and has the correct values
 	int err = 0;
-	vector<key_type>::iterator k;
-	vector<value_type>::iterator v;
+	typename vector<key_type>::iterator k;
+	typename vector<value_type>::iterator v;
 	value_type value;
 
 	for (k = keys.begin(), v = values.begin(); k != keys.end();
@@ -280,8 +271,8 @@ int
 T_Insert (test_tree &tree, vector<key_type> &keys, vector<value_type> &values)
 {
 	int err = 0;
-	vector<key_type>::iterator k;
-	vector<value_type>::iterator v;
+	typename vector<key_type>::iterator k;
+	typename vector<value_type>::iterator v;
 
 	// Do the insertions
 	//cout << " ...inserting keys: ";
@@ -322,8 +313,8 @@ T_Insert (test_tree &tree, vector<key_type> &keys, vector<value_type> &values)
 
 int
 T_Removal (test_tree &tree, 
-	   vector<key_type>::iterator k, 
-	   vector<key_type>::iterator last, int check_empty = 1)
+	   typename vector<key_type>::iterator k, 
+	   typename vector<key_type>::iterator last, int check_empty = 1)
 {
 	// Accept default initialization 
 	value_type v0 = value_type();
@@ -415,7 +406,7 @@ T_PartialRemoval (test_tree &tree, int n)
 	vector<value_type> values;
 	key_type key;
 	value_type val;
-	vector<key_type>::iterator k;
+	typename vector<key_type>::iterator k;
 
 	tree.First ();
 	//cout << " ...removal finding keys: ";
@@ -560,7 +551,7 @@ T_Traversal (test_tree &tree, int print = 0)
 {
 	// Build an ordered vector of keys by traversing the tree forwards.
 	vector<key_type> keys;
-	vector<key_type>::iterator iv;
+	typename vector<key_type>::iterator iv;
 	key_type key;
 	int err = 0;
 
@@ -649,8 +640,8 @@ T_RandomAccess (test_tree &tree,
 	int err = 0;
 	int ntimes = 5*tree.numKeys();
 	int nkeys = keys.size();
-	vector<key_type>::iterator k;
-	vector<value_type>::iterator v;
+	typename vector<key_type>::iterator k;
+	typename vector<value_type>::iterator v;
 	value_type val;
 
 	cout << "Random accesses (" << ntimes << ")..." << endl;

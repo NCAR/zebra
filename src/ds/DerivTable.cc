@@ -19,7 +19,7 @@
 // maintenance or updates for its software.
 //
 
-# include <iostream.h>
+# include <iostream>
 # include "DerivTable.h"
 
 RCSID ("$Id")

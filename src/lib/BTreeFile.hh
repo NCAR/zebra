@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.14 2001-08-24 22:23:14 granger Exp $
+ * $Id: BTreeFile.hh,v 1.15 2002-09-17 20:00:18 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -148,9 +148,10 @@ public:
 		s.file = BTreeFile<K,T>::fstats;
 	}
 
-	ostream &reportStats (ostream &out, const FileStats &s) const;
+        std::ostream &reportStats (std::ostream &out, 
+				   const FileStats &s) const;
 
-	virtual ostream &reportStats (ostream &out) const
+	virtual std::ostream &reportStats (std::ostream &out) const
 	{
 		FileStats s;
 		currentStats (s);
@@ -175,7 +176,7 @@ protected:
 	friend class BlockNode<K,T>;
 
 	/// Resurrect a reference to a node
-	virtual BTreeNode<K,T> *get (Node &, int depth);
+	virtual BTreeNode<K,T> *get (BTreeP::Node &, int depth);
 
 	/// Create a new node
 	virtual BTreeNode<K,T> *make (int depth);

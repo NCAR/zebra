@@ -1,5 +1,5 @@
 /*
- * $Id: DataFiles.h,v 3.2 1999-12-17 17:41:26 granger Exp $
+ * $Id: DataFiles.h,v 3.3 2002-09-17 20:00:18 granger Exp $
  *
  * Application interface to DataStore DataFile abstraction, for both
  * clients and daemon. 
@@ -32,7 +32,7 @@
 # include "DataTypes.h"
 
 # if __cplusplus	/* extra headers for C++ */
-#   include <iostream.h>
+#   include <iostream>
 #   include <SerialStream.hh>
 #   include <SerialZTime.hh>	/* ZTime with SerialStream methods */
 # else
@@ -70,7 +70,7 @@ class DataFileCore : public ds_DataFileCore
 {
 public:
     void translate( SerialStream& ss );
-    ostream& PutTo( ostream& s ) const;
+    std::ostream& PutTo( std::ostream& s ) const;
 };
 
 //
@@ -88,8 +88,8 @@ SERIAL_STREAMABLE( DataFileCore );
 //
 // Output operator for a regular ostream
 //
-inline ostream& 
-operator <<(ostream& s, const DataFileCore& dfc)
+inline std::ostream& 
+operator <<(std::ostream& s, const DataFileCore& dfc)
 {
     return dfc.PutTo( s );
 }
@@ -119,11 +119,11 @@ typedef struct ds_DataFile DataFile;
 class DataFile : public ds_DataFile
 {
 public:
-    ostream& PutTo( ostream& s ) const;
+    std::ostream& PutTo( std::ostream& s ) const;
 };
 
-inline ostream& 
-operator <<(ostream& s, const DataFile& df)
+inline std::ostream& 
+operator <<(std::ostream& s, const DataFile& df)
 {
     return df.PutTo( s );
 }

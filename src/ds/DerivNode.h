@@ -1,7 +1,7 @@
 //
 // DerivNode class: nodes of a derivation tree.  Subclasses include ConstDNode,
 // OpDNode, RawFldDNode, and FuncDNode.
-// $Id: DerivNode.h,v 3.4 1999-03-01 02:03:31 burghart Exp $
+// $Id: DerivNode.h,v 3.5 2002-09-17 20:00:18 granger Exp $
 //
 //
 //		Copyright (C) 1998 by UCAR
@@ -185,7 +185,7 @@ class ResultCache;	// defined in and used in DerivNode.cc
 //
 
 class DerivNode;
-ostream& operator <<( ostream& s, const DerivNode& dnode );
+std::ostream& operator <<( std::ostream& s, const DerivNode& dnode );
 
 
 
@@ -194,7 +194,7 @@ class DerivNode
 public:
     virtual ~DerivNode( void ) { }
     virtual const char* ClassId( void ) const = 0;
-    virtual ostream& PutTo( ostream& s ) const = 0;
+    virtual std::ostream& PutTo( std::ostream& s ) const = 0;
     virtual DerivNode* Copy( void ) const = 0;
     virtual Field* FieldList( int* nflds ) const = 0;
     virtual DerivNode* MetaEval( const DerivTable* dtables[], 
@@ -223,7 +223,7 @@ public:
     ~ConstDNode( void ) {}
     inline const char* ClassId( void ) const { return clid; }
     inline double Value( void ) const { return val; }
-    ostream& PutTo( ostream& s ) const;
+    std::ostream& PutTo( std::ostream& s ) const;
     DerivNode* Copy ( void ) const { return new ConstDNode( val ); }
     Field* FieldList( int* nflds ) const { *nflds = 0; return 0; };
     DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables,
@@ -257,7 +257,7 @@ public:
     const char* Oper( void ) const { return oper; }
     const DerivNode& Left( void ) const { return *left; }
     const DerivNode& Right( void ) const { return *right; }
-    ostream& PutTo( ostream& s ) const;
+    std::ostream& PutTo( std::ostream& s ) const;
     DerivNode* Copy( void ) const { return new OpDNode( *this ); }
     Field* FieldList( int* nflds ) const;
     DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables, 
@@ -292,7 +292,7 @@ public:
     ~RawFldDNode( void ) { delete fld; }
     inline const char* ClassId( void ) const { return clid; }
     const Field& Fld( void ) const { return *fld; }
-    ostream& PutTo( ostream& s ) const;
+    std::ostream& PutTo( std::ostream& s ) const;
     DerivNode* Copy( void ) const { return new RawFldDNode( *this ); }
     Field* FieldList( int* nflds ) const;
     DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables,
@@ -328,7 +328,7 @@ public:
     inline const char* ClassId( void ) const { return clid; }
     const char* FuncName( void ) const;
     const DerivNode& Arg( int which ) const { return *arg[which]; }
-    ostream& PutTo( ostream& s ) const;
+    std::ostream& PutTo( std::ostream& s ) const;
     DerivNode* Copy( void ) const { return new FuncDNode( *this ); }
     Field* FieldList( int* nflds ) const;
     DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables,

@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.9 1998-06-05 19:25:08 granger Exp $
+ * $Id: AuxBlock.hh,v 1.10 2002-09-17 20:00:18 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -150,7 +150,7 @@ public:
 
 	FreeStats Stats ();
 
-	void Show (ostream &out);
+	void Show (std::ostream &out);
 
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);
@@ -208,7 +208,7 @@ public:
 
 	// Info
 	static const char *ChangeName (ChangeType);
-	void Show (ostream &out);
+	void Show (std::ostream &out);
 
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);

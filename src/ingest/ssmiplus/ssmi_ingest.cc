@@ -27,7 +27,7 @@
 
 #ifndef lint
 static char *rcsid = 
-	"$Id: ssmi_ingest.cc,v 1.6 1994-11-16 19:37:52 granger Exp $";
+	"$Id: ssmi_ingest.cc,v 1.7 2002-09-17 20:00:18 granger Exp $";
 #endif
 
 #include <stdlib.h>
@@ -37,7 +37,7 @@ static char *rcsid =
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <iostream.h>
+#include <iostream>
 
 #include "tcl.h"
 

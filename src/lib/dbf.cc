@@ -2,11 +2,13 @@
  * Dump block file info.
  */
 
-#include <iostream.h>
+#include <iostream>
 
 #include "BlockFile.hh"
 
-// RCSID ("$Id: dbf.cc,v 1.1 1998-05-28 21:45:06 granger Exp $")
+// RCSID ("$Id: dbf.cc,v 1.2 2002-09-17 20:00:19 granger Exp $")
+
+using namespace std;
 
 int main (int argc, char *argv[])
 {

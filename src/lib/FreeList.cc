@@ -4,11 +4,11 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <iostream.h>
-#include <iomanip.h>
+#include <iostream>
+#include <iomanip>
 
 //#include <defs.h>
-//RCSID ("$Id: FreeList.cc,v 1.13 1998-10-20 20:44:42 granger Exp $");
+//RCSID ("$Id: FreeList.cc,v 1.14 2002-09-17 20:00:19 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -264,8 +264,9 @@ FreeList::Stats ()
 
 
 void
-FreeList::Show (ostream &out)
+FreeList::Show (std::ostream &out)
 {
+        using std::endl;
 	readSync ();
 	for (int i = 0; i < nfree; ++i)
 	{

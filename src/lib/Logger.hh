@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.9 2001-08-24 22:23:15 granger Exp $
+ * $Id: Logger.hh,v 1.10 2002-09-17 20:00:19 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -16,9 +16,8 @@
 #ifndef _Logger_hh_
 #define _Logger_hh_
 
-//#include <stdlib.h>		// For malloc() and free()
-#include <iostream.h>
-#include <strstream.h>
+#include <iostream>
+#include <sstream>
 #include <string>		// for strerror()
 #include <errno.h>
 
@@ -152,6 +151,8 @@ class Logger
 {
 public:
 	typedef std::string string;
+	typedef std::ostringstream ostringstream;
+        typedef std::ostream ostream;
 
 	/* ---------------- Class members ---------------- */
 
@@ -235,7 +236,7 @@ public:
 	// Log system error messages
 	virtual bool System (const string &s)
 	{
-		ostrstream buf;
+		ostringstream buf;
 		buf << "'" << strerror(errno) << "' (" << errno << "): ";
 		buf << s;
 		Problem (buf.str());
@@ -325,13 +326,13 @@ public:
 	{ }
 
 	StreamLogger (const string &name = "") :
-		Logger (name), out(cerr)
+		Logger (name), out(std::cerr)
 	{ }
 
 	virtual bool Log (int levels, const string &s)
 	{
 		out << context << ": ";
-		out << levelName(levels) << ": " << s << endl;
+		out << levelName(levels) << ": " << s << std::endl;
 		return true;
 	}
 

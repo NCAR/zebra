@@ -53,8 +53,8 @@ private:
 
 
 
-ostream& 
-operator <<( ostream& s, const DerivNode& dnode )
+std::ostream& 
+operator <<( std::ostream& s, const DerivNode& dnode )
 {
     return (dnode.PutTo(s));
 }
@@ -148,8 +148,8 @@ DerivNode::Eval( const Field flds[], const int nflds, const int ndata,
 const char *ConstDNode::clid = "ConstDNode";
 
 
-ostream& 
-ConstDNode::PutTo( ostream& s ) const 
+std::ostream& 
+ConstDNode::PutTo( std::ostream& s ) const 
 {
     return( s << val );
 }
@@ -219,8 +219,8 @@ OpDNode::~OpDNode( void )
 }
 	
 
-ostream&
-OpDNode::PutTo( ostream& s ) const 
+std::ostream&
+OpDNode::PutTo( std::ostream& s ) const 
 { 
     return( s << "(" << *left << " " << oper << " " << *right << ")"); 
 }
@@ -360,8 +360,8 @@ OpDNode::operator ==( const DerivNode& d ) const
 const char *RawFldDNode::clid = "RawFldDNode";
 
 
-ostream& 
-RawFldDNode::PutTo( ostream& s ) const 
+std::ostream& 
+RawFldDNode::PutTo( std::ostream& s ) const 
 { 
     return( s << fld->FullName() ); 
 }
@@ -620,8 +620,8 @@ FuncDNode::~FuncDNode( void )
 };
 
 
-ostream&
-FuncDNode::PutTo( ostream& s ) const 
+std::ostream&
+FuncDNode::PutTo( std::ostream& s ) const 
 {
     s << funcinfo->name << "(";
     for (int i = 0; i < funcinfo->nargs; i++)

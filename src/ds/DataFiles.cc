@@ -55,9 +55,10 @@ DataFileCore::translate( SerialStream& ss )
 
 
 
-ostream& 
-DataFileCore::PutTo( ostream& s ) const
+std::ostream& 
+DataFileCore::PutTo( std::ostream& s ) const
 {
+    using std::endl;
     ZTime begin( dfc_begin ), end( dfc_end );
 	
     s << dfc_name << endl;
@@ -69,8 +70,8 @@ DataFileCore::PutTo( ostream& s ) const
 
 
     
-ostream& 
-DataFile::PutTo( ostream& s ) const
+std::ostream& 
+DataFile::PutTo( std::ostream& s ) const
 {
     s << df_fullname << " (source " << df_srcid << ", plat " << df_pid <<
 	")\n";
