@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.8 1990-12-04 21:30:05 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.9 1990-12-14 14:04:24 burghart Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -9,6 +9,7 @@ static char *rcsid = "$Id: Track.c,v 1.8 1990-12-04 21:30:05 corbet Exp $";
 # include "../include/pd.h"
 # include "../include/message.h"
 # include "../include/DataStore.h"
+# include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
@@ -43,7 +44,6 @@ bool update;
 	time begin;
 	float *data, fx, fy, base, incr, cval;
 	Drawable d;
-	GC Gcontext;
 	Display *disp = XtDisplay (Graphics);
 	XColor xc, *colors, outrange;
 	DataObject *dobj;
@@ -134,7 +134,6 @@ bool update;
 /*
  * We need a graphics context.
  */
-	Gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
 	if (mono)
 	{
 		ct_GetColorByName (mtcolor, &xc);
@@ -180,7 +179,8 @@ bool update;
 		XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
 		x0 = x1; y0 = y1;
 	}
-	XFreeGC (disp, Gcontext);
+
+	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 	ds_FreeDataObject (dobj);
 /*
  * Annotate if necessary.
@@ -210,8 +210,11 @@ bool update;
 	 * Some text.
 	 */
 		sprintf (string, "%s:", ccfield);
-	 	DrawText (Graphics, GWFrame (Graphics), White, left, top,
+
+		XSetForeground (disp, Gcontext, White);
+	 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, top,
 			string, 0.0, 0.02, JustifyLeft, JustifyTop);
+
 		top += (int)(1.2 * 0.02 * wheight);
 	/*
 	 * See if there is a special printf format for this field.
@@ -230,9 +233,11 @@ bool update;
 		 */
 			cval += incr;
 			sprintf (string, format, cval);
+
+			XSetForeground (disp, Gcontext, colors[i].pixel);
 			DrawText (Graphics, GWFrame (Graphics),
-				colors[i].pixel, EVEN(i) ? left : mid, top,
-				string, 0.0, 0.02, JustifyLeft, JustifyTop);
+				Gcontext, EVEN(i) ? left : mid, top, string, 
+				0.0, 0.02, JustifyLeft, JustifyTop);
 			if (ODD(i))
 				top += (int)(1.2 * 0.02 * wheight);
 		}
