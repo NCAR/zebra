@@ -1,6 +1,6 @@
 //
 // The Zebra data store field class
-// $Id: Field.h,v 3.4 1999-03-01 02:03:33 burghart Exp $
+// $Id: Field.h,v 3.5 1999-11-22 20:23:21 granger Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research
@@ -33,7 +33,7 @@ class Field;
 // The predefined field types from Field.cc 
 //
 extern const char	*FT_Temp, *FT_Pres, *FT_RH, *FT_DP;
-extern const char	*FT_WSpd, *FT_WDir, *FT_UWind, *FT_UWind;
+extern const char	*FT_WSpd, *FT_WDir, *FT_UWind, *FT_VWind;
 
 ostream& operator<<( ostream& s, const Field& f );
 
