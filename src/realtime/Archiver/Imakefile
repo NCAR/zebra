@@ -1,5 +1,5 @@
 
-SRCS = Archiver.c Database.c
+SRCS = Archiver.c Database.c Arq.c
 OBJS = Archiver.o Database.o
 
 INCLUDES = $(XINCLUDES)
@@ -9,6 +9,10 @@ DISTFILES = $(SRCS) Imakefile Archiver.ad
 
 CompleteProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Archiver)
+
+DBOBJS = Arq.o Database.o
+CompleteProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
 DependTarget()
 LintTarget()
 

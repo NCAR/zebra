@@ -55,7 +55,7 @@
 
 # include "Database.h"
 
-RCSID ("$Id: Archiver.cc,v 1.36 1997-05-13 10:46:23 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.37 1997-05-13 23:04:35 granger Exp $")
 
 /*
  * Issues:
@@ -111,13 +111,10 @@ RCSID ("$Id: Archiver.cc,v 1.36 1997-05-13 10:46:23 granger Exp $")
 
   Enter the dumped files in a database and check for undumped or changed
   files by looking them up in the database.  Allows files to be inserted
-  prior to most recent file of a platform and still be dumped.
+  prior to the most recent file of a platform and still be dumped.
  */
 
 /*------------------------------------------------------------------------*/
-
-# define BFACTOR	120	/* Blocking factor for the tar command */
-# define BLOCKSIZE	(BFACTOR*512)
 
 # define DEF_DUMPINTERVAL 120	/* how often, in minutes, to dump	*/
 # define DEF_DEVICEFILE "/dev/nrst8"
@@ -219,6 +216,10 @@ Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
 	Boolean	ZeroZFree;	/* Free tape at 0z */
 	String	WaitTimes;	/* Delay button times, "n1,n2,n3,..." */
 	String  Database;	/* Name of the database file */
+	int	BFactor;	/* Blocking factor to calculate blk size */
+
+#define DEF_BFACTOR 120
+
 
 /*
  * The offset of each of these is zero since we want to store the
@@ -248,14 +249,16 @@ static XtResource AppResources[] = {
    { "waitTimes", "WaitTimes", XtRString, sizeof(String),
       0, XtRString, "1,2,5" },
    { "database", "Database", XtRString, sizeof(String),
-      0, XtRString, DUMPED_FILES }
+      0, XtRString, DUMPED_FILES },
+   { "blockFactor", "BlockFactor", XtRInt, sizeof(int),
+      0, XtRImmediate, (XtPointer)DEF_BFACTOR }
 };
 
 static XtPointer OptionBase[] = {
    (XtPointer) &TapeLimit, (XtPointer) &DriveName, (XtPointer) &OutputDir, 
    (XtPointer) &MountName, (XtPointer) &DumpInterval, (XtPointer) &StartMinute,
    (XtPointer) &MinDisk, (XtPointer) &ModeString, (XtPointer) &ZeroZFree, 
-   (XtPointer) &WaitTimes, (XtPointer) &Database };
+   (XtPointer) &WaitTimes, (XtPointer) &Database, (XtPointer) &BFactor };
 
 /*
  * For loading these resource from the command line:
@@ -274,7 +277,8 @@ static XrmOptionDescRec Options[] = {
    {"-n",	".mountName",	XrmoptionSepArg,	NULL},
    {"-tapelimit",".tapeLimit",	XrmoptionSepArg,	NULL},
    {"-wait",	".waitTimes",	XrmoptionSepArg,	NULL},
-   {"-database",".database",	XrmoptionSepArg,	NULL}
+   {"-database",".database",	XrmoptionSepArg,	NULL},
+   {"-b",	".blockFactor",	XrmoptionSepArg,	NULL}
 };
 
 /*---------------------------------------------------------------------*/
@@ -377,6 +381,7 @@ char **argv;
 			  Database);
 		exit (-9);
 	}
+	db_Close ();		/* Leave it closed except while needed */
 	/* UpdateMem (); */
 	switch (ArchiveMode)
 	{
@@ -468,8 +473,9 @@ char **argv;
 	else
 	{
 		msg_ELog (EF_INFO, "Tape drive mode");
-		msg_ELog (EF_INFO, "device name: %s, tapelimit: %lu",
-			DriveName, TapeLimit);
+		msg_ELog (EF_INFO, "device name: %s, bf:%d, blocksize:%d, "
+			  "tapelimit: %lu", DriveName, BFactor,
+			  (BFactor*512), TapeLimit);
 	}
 }
 
@@ -923,7 +929,7 @@ OpenTapeDevice ()
 {
 	if ((DeviceFD = open (DriveName, O_RDWR)) < 0)
 	{
-		msg_ELog (EF_INFO, "Error %d opening %s", errno, DriveName);
+		msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, DriveName);
 		return (0);
 	}
 	return (1);
@@ -1139,6 +1145,10 @@ DoTheWriteThing(explicit_finish)
 		}
 		else
 		    FreshTape = FALSE;
+		if (FreshTape)
+		{
+			msg_ELog (EF_INFO, "LOAD A NEW TAPE");
+		}
 	    break;
 
 	   case AR_EOD:
@@ -1191,7 +1201,7 @@ int all;
 	/*
 	 * The tar command, less the file names
 	 */
-	sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
+	sprintf (Tarbuf, "exec tar cfb - %d ", BFactor);
 	cmdlen = strlen (Tarbuf);
 	Tarlen = cmdlen;
 
@@ -1199,8 +1209,17 @@ int all;
 	 * Our cache of dumped file indices to which DumpPlatform
 	 * appends.
 	 */
+	if (db_Open (Database) != 0)
+	{
+		char buf[100];
+		sprintf (buf, "Cannot open database '%s'", Database);
+		msg_ELog (EF_PROBLEM, "%s", buf);
+		SetStatus (TRUE, buf);
+		return;
+	}
 	DumpedFiles = (int *) malloc (2048 * sizeof (int));
 	NFiles = 0;
+	
 
 	/*
 	 * Pass through the platform table and dump things.  Keep adding
@@ -1216,6 +1235,7 @@ int all;
 				break;
 		}
 	}
+	db_Close ();	/* Leave closed during the long delay in writing */
 
 	/*
 	 * Run the tar command to put this all together, but only if
@@ -1536,8 +1556,12 @@ char *cmd;
  */
 {
 	FILE *pfp = (FILE *) popen (cmd, "r");
-	static char fbuf[BLOCKSIZE];
-	int rstatus, nb, tnb = 0;
+	static char *fbuf = NULL;
+	int rstatus;
+	unsigned long nb, tnb = 0;
+	int step = 4;
+	unsigned long nblocks = 0;
+	unsigned long blocksize = BFactor * 512;
 # ifdef hpux
 	int fd = pfp->__fileL;	/* HP weirdness -- untested */
 # else
@@ -1557,9 +1581,14 @@ char *cmd;
 		return (FALSE);
 	}
 /*
+ * Set up our block buffer if not done yet.
+ */
+	if (!fbuf)
+		fbuf = (char *) malloc (blocksize);
+/*
  * Now read out chunks of stuff.
  */
-	while ((nb = netread (fd, fbuf, BLOCKSIZE)) > 0)
+	while ((nb = netread (fd, fbuf, blocksize)) > 0)
 	{
 		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
 		{
@@ -1573,6 +1602,27 @@ char *cmd;
 			return (FALSE);
 		}
 		tnb += nb;
+		if (tnb / blocksize > nblocks+step)
+		{
+			char stat[64];
+
+			nblocks += step;
+			if (nblocks > (1 << 11))
+			{
+				sprintf (stat,
+					 "Writing... %.1fk blocks, %.1f MB", 
+					 (double)nblocks / (1 << 10),
+					 (double)tnb / (1 << 20));
+				step = 128;
+			}
+			else
+				sprintf (stat,
+					 "Writing... %lu blocks, %lu KB", 
+					 nblocks, tnb >> 10);
+			SetStatus (FALSE, stat);
+			Sync ();
+		}
+				 
 		/*
 		 * Check for messages and X events between writes
 		 */
@@ -1736,6 +1786,15 @@ UpdateList ()
 	usy_traverse (DumpedTable, WriteFileDate, (long) fp, FALSE);
 	fclose (fp);
 #endif
+	if (db_Open (Database) != 0)
+	{
+		char buf[100];
+		sprintf (buf, "Failed to update database '%s'", Database);
+		msg_ELog (EF_PROBLEM, "%s", buf);
+		SetStatus (TRUE, buf);
+		Sync ();
+		return;
+	}
 /*
  * Insert the dumped files into the database.
  */
@@ -1747,6 +1806,7 @@ UpdateList ()
 		ds_GetFileInfo (DumpedFiles[i], &dfi);
 		db_Insert (&dfi, &now);
 	}
+	db_Close ();
 /*
  * Update the widget too.
  */

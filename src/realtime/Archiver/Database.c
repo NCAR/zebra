@@ -30,7 +30,21 @@ db_Open (const char *name)
 {
 	if (File)
 		dbm_close (File);
-	File = dbm_open ((char *)name, O_RDWR /* | O_CREAT */, 0664);
+	File = dbm_open ((char *)name, O_RDWR | O_CREAT, 0664);
+	return (File ? 0 : -1);
+}
+
+
+
+int
+db_Read (const char *name)
+/*
+ * Read-only open of a database.
+ */
+{
+	if (File)
+		dbm_close (File);
+	File = dbm_open ((char *)name, O_RDONLY, 0);
 	return (File ? 0 : -1);
 }
 
@@ -78,15 +92,14 @@ db_Insert (DataFileInfo *dfi, ZebraTime *zt)
 
 
 
-int
-db_Fetch (const DataFileInfo *in, DataFileInfo *dfi, ZebraTime *zt)
+
+static int
+db_Value (datum *key, DataFileInfo *dfi, ZebraTime *zt)
 {
-	datum key;
 	datum value;
 	int found = 0;
 
-	db_Key (in, &key);
-	value = dbm_fetch (File, key);
+	value = dbm_fetch (File, *key);
 	if (value.dptr)
 	{
 		found = 1;
@@ -97,4 +110,44 @@ db_Fetch (const DataFileInfo *in, DataFileInfo *dfi, ZebraTime *zt)
 	}
 	return (found ? 0 : -1);
 }
+
+
+
+
+int
+db_Fetch (const DataFileInfo *in, DataFileInfo *dfi, ZebraTime *zt)
+{
+	datum key;
+	datum value;
+
+	db_Key (in, &key);
+	return (db_Value (&key, dfi, zt));
+}
+
+
+
+const char *
+db_First (DataFileInfo *dfi, ZebraTime *zt)
+{
+	datum key;
+
+	key = dbm_firstkey (File);
+	if (key.dptr == 0 || (db_Value (&key, dfi, zt) != 0))
+		return (NULL);
+	return ((const char *)key.dptr);
+}
+
+
+
+const char *
+db_Next (DataFileInfo *dfi, ZebraTime *zt)
+{
+	datum key;
+
+	key = dbm_nextkey (File);
+	if (key.dptr == 0 || (db_Value (&key, dfi, zt) != 0))
+		return (NULL);
+	return ((const char *)key.dptr);
+}
+
 
