@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.15 1993-05-27 20:12:27 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.16 1993-05-27 20:19:59 corbet Exp $")
 #endif
 
 /*
@@ -668,12 +668,17 @@ int leave;
  */
 {
 	struct dsp_DeleteData del;
-
+/*
+ * Write lock the platform around the deletion just to be sure.
+ */
+	ds_WriteLock (platform);
 	del.dsp_type = dpt_DeleteData;
 	del.dsp_plat = platform;
 	del.dsp_leave = leave;
 	ds_SendToDaemon (&del, sizeof (del));
+	ds_FreeWLock (platform);
 }
+
 
 
 
@@ -1023,6 +1028,7 @@ int ndetail;
 	WriteCode wc;
 	Platform p;
 
+	ds_WriteLock (dc->dc_Platform);
 	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 	nsample = dc_GetNSample (dc);
 	sample = 0;
@@ -1108,6 +1114,7 @@ int ndetail;
 
 	} /* while (sample < nsample) */
 
+	ds_FreeWLock (dc->dc_Platform);
 	return (ndone == nsample);
 }
 
