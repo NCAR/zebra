@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.3 1989-04-14 11:27:49 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.4 1989-06-29 16:24:14 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -12,6 +12,8 @@
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
+
+# define PTR_SIZE	18
 
 
 typedef struct {
@@ -33,6 +35,8 @@ struct xtag
 	int	x_mono;		/* Is this a mono screen?	*/
 	long	x_fg, x_bg;	/* Foreground and background colors */
 	int 	x_base;		/* KLUDGE: color base		*/
+	int	x_xptr, x_yptr;	/* Pointer position		*/
+	Pixmap	x_ptr_pixmap;	/* Pixmap to save data covered by pointer */
 };
 
 
@@ -72,7 +76,8 @@ struct device *dev;
 /*
  * Figure out what our resolution will be.
  */
- 	if (! strcmp (type, "X11") || ! strcmp (type, "X700"))
+ 	if (! strcmp (type, "X11") || ! strcmp (type, "X700") ||
+		! strcmp (type, "x11") || ! strcmp (type, "x700"))
 		tag->x_xres = tag->x_yres = 700;
 	else
 		tag->x_xres = tag->x_yres = 500;
@@ -92,6 +97,11 @@ struct device *dev;
 	tag->x_fg = WhitePixel (tag->x_display, screen);
 	tag->x_bg = BlackPixel (tag->x_display, screen);
 	tag->x_base = 0;
+/*
+ * No pointer for now
+ */
+	tag->x_xptr = -1;
+	tag->x_yptr = -1;
 /*
  * Create the window to exist on that display.
  */
@@ -114,6 +124,12 @@ struct device *dev;
  */
  	XMapWindow (tag->x_display, tag->x_window);
 	XSync (tag->x_display, False);
+/*
+ * Get the pixmap to save the area covered by the pointer
+ */
+	tag->x_ptr_pixmap = XCreatePixmap (tag->x_display, tag->x_window, 
+		PTR_SIZE + 2, PTR_SIZE + 2, 
+		DefaultDepth (tag->x_display, screen));
 /*
  * Get a graphics context.
  */
@@ -193,6 +209,16 @@ char *ctag;
 	struct xtag *tag = (struct xtag *) ctag;
 
 	XClearWindow (tag->x_display, tag->x_window);
+/*
+ * Clear the pointer, too
+ */
+	tag->x_xptr = -1;
+	tag->x_yptr = -1;
+
+	XSetFunction (tag->x_display, tag->x_gc, GXset);
+	XFillRectangle (tag->x_display, tag->x_ptr_pixmap, tag->x_gc, 
+		0, 0, PTR_SIZE + 2, PTR_SIZE + 2);
+	XSetFunction (tag->x_display, tag->x_gc, GXcopy);
 }
 
 
@@ -255,8 +281,26 @@ char *ctag;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
-
-	/* XSync (tag->x_display, True); */
+/*
+ * Draw in the pointer if it's been placed
+ */
+	if (tag->x_xptr >= 0 && tag->x_yptr >= 0)
+	{
+		XSetForeground (tag->x_display, tag->x_gc, 
+			WhitePixel (tag->x_display, 0));
+		XDrawArc (tag->x_display, tag->x_window, tag->x_gc, 
+			tag->x_xptr - PTR_SIZE/2, tag->x_yptr - PTR_SIZE/2, 
+			PTR_SIZE, PTR_SIZE, 0, 25000);
+		XDrawLine (tag->x_display, tag->x_window, tag->x_gc, 
+			tag->x_xptr - PTR_SIZE/2, tag->x_yptr, 
+			tag->x_xptr + PTR_SIZE/2, tag->x_yptr);
+		XDrawLine (tag->x_display, tag->x_window, tag->x_gc, 
+			tag->x_xptr, tag->x_yptr - PTR_SIZE/2, 
+			tag->x_xptr, tag->x_yptr + PTR_SIZE/2);
+	}
+/*
+ * Flush everything out
+ */
 	XFlush (tag->x_display);
 }
 
@@ -303,15 +347,51 @@ x11_target (ctag, x, y)
 char *ctag;
 int *x, *y;
 /*
- * The target routine.
+ * Report the target location
  */
 {
-	int junk;
+	struct xtag *tag = (struct xtag *) ctag;
 
-	x11_pick (ctag, &junk, x, y);
+	*x = tag->x_xptr;
+	*y = tag->x_yres - tag->x_yptr;
+	return;
 }
 
 
+
+x11_put_target (ctag, x, y)
+char	*ctag;
+int	x, y;
+/*
+ * Put the target at the chosen location
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+/*
+ * Restore the data under the old pointer location (if there is an old
+ * pointer location)
+ */
+	if (tag->x_xptr > 0 && tag->x_yptr > 0)
+		XCopyArea (tag->x_display, tag->x_ptr_pixmap, tag->x_window,
+			tag->x_gc, 0, 0, PTR_SIZE + 2, PTR_SIZE + 2, 
+			tag->x_xptr - PTR_SIZE/2 - 1, 
+			tag->x_yptr - PTR_SIZE/2 - 1);
+/*
+ * Save the new target location
+ */
+	tag->x_xptr = x;
+	tag->x_yptr = tag->x_yres - y;
+/*
+ * Copy the portion of the screen which will be overwritten by the target
+ */
+	XCopyArea (tag->x_display, tag->x_window, tag->x_ptr_pixmap,
+		tag->x_gc, tag->x_xptr - PTR_SIZE/2 - 1, 
+		tag->x_yptr - PTR_SIZE/2 - 1, 
+		PTR_SIZE + 2, PTR_SIZE + 2, 0, 0);
+
+	x11_flush (ctag);
+	return;
+}
 
 
 
