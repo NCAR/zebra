@@ -1,4 +1,4 @@
-! $Id: LastData.ad,v 1.3 2004-01-05 18:39:14 granger Exp $
+! $Id: LastData.ad,v 1.4 2004-01-05 18:49:32 granger Exp $
 !
 ! Application defaults file for LastData, from the DataStore directory
 !
@@ -14,7 +14,7 @@
 *viewport.allowVert:	true
 *top		chainTop
 *bottom:	chainTop
-*Box.orientation:	horizontal
+*Box.orientation:	vertical
 *Box.vSpace:		1
 *die.horizDistance:	100
 *die.foreground:	red
