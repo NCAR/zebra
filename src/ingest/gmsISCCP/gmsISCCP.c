@@ -4,6 +4,7 @@
  */
 # include <errno.h>
 # include <stdio.h>
+# include <string.h>
 # include <math.h>
 # include <fcntl.h>
 # include <defs.h>
@@ -313,8 +314,8 @@ GetRawImages ()
 /*
  * Zero out the raw images
  */
-	bzero (RawImageIR, sizeof (RawImageIR));
-	bzero (RawImageVis, sizeof (RawImageVis));
+	memset (RawImageIR, '\0', sizeof (RawImageIR));
+	memset (RawImageVis, '\0', sizeof (RawImageVis));
 /*
  * Read until we hit a header record.  Quit if we hit a double EOF.
  */
