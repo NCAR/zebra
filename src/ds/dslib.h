@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.13 1996-08-13 21:20:39 granger Exp $"
+ * "$Id: dslib.h,v 3.14 1996-11-19 09:40:38 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -21,46 +21,23 @@
  * maintenance or updates for its software.
  */
 
-#ifndef __zeb_dslib_h_
-#define __zeb_dslib_h_
+#ifndef __zebra_dslib_h_
+#define __zebra_dslib_h_
 
-/*
- * This is the format of the data request list, which is generated as
- * part of the process of satisfying each application data grab.
+/* -------------------------------------------------------------------
+ * Prototypes and declarations shared by the CLIENT API modules only but
+ * not meant for public distribution are all contained in Appl.h 
+ * ------------------------------------------------------------------- */
+
+/* ======================================================================
+ * This file contains prototypes and declarations shared privately by the
+ * client API and the daemon implementations: Appl.c and d_Appl.c,
+ * respectively.  Prototypes shared publicly are in a special section
+ * of DataStore.h
  */
-typedef struct _GetList
-{
-	int	gl_dfindex;		/* Corresponding DF entry	*/
-# ifdef DF_USE
-	int	gl_dfuse;		/* Use count for this entry	*/
-# endif
-	ZebTime	gl_begin;		/* Begin time			*/
-	ZebTime	gl_end;			/* End time			*/
-	int	gl_flags;		/* Flag values			*/
-	int	gl_npoint;		/* Number of data points	*/
-	int	gl_nsample;		/* Number of samples		*/
-	struct _GetList *gl_next;	/* Next in the list		*/
-	int	gl_sindex;		/* Sample index for entire rq	*/
-} GetList;
 
-/*
- * Flags for the above.
- */
-# define GLF_SATISFIED	0x0001		/* This piece is satisfied	*/
-# define GLF_REMOTE	0x0002		/* This is a remote data grab	*/
-# define GLF_TRIED	0x0004		/* We have tried this one	*/
-
-/*
- * Prototypes required by the application interface but not fit
- * for public visibility.
- */
-GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
-void	dgl_ReturnList FP ((GetList *));
-void 	dgl_ForceClosure FP ((void));
-
-int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
-void	ds_GetFileStruct FP ((int, DataFile *));
-void	ds_GetPlatStruct FP ((PlatformId, ClientPlatform *, int));
+int	ds_GetFileStruct FP ((int, DataFile *));
+const PlatformClass *ds_GetClassStruct FP ((PlatClassId, PlatformClass *));
 int	ds_FindDF FP ((PlatformId, const ZebTime *, int));
 
-#endif /* __zeb_dslib_h_ */
+#endif /* __zebra_dslib_h_ */
