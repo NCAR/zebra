@@ -1,3 +1,14 @@
+1999-11-23  Gary Granger  <granger@ale.atd.ucar.edu>
+
+	* Developments in the Archiver and ingest scheduler (is) programs
+	  for the Integrated Sounding System have been merged back into
+	  Zebra.  Both can now run in the background without an X display
+	  or terminal.  An X interface for the Archiver can be opened on
+	  any X display, even after the Archiver has been started in the
+	  background.  The ingest scheduler supports the 'zrun' command
+	  protocol so that UI commands can be sent to is from any
+	  terminal.
+
 Fri Nov 21 13:41:29 1997  Chris Burghart  <burghart@saaz.atd.ucar.edu>
 
 	* This is the big field derivation addition.  With this addition,
