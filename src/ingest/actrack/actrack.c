@@ -1,4 +1,4 @@
-/* $Id: actrack.c,v 1.1 2000-12-13 23:01:46 granger Exp $ */
+/* $Id: actrack.c,v 1.2 2000-12-14 00:30:56 granger Exp $ */
 
 /*
  * Ingest track locations from the command line.
@@ -22,7 +22,7 @@
 #define BADVALUE	-99999.0
 
 MAKE_RCSID(
-   "$Id: actrack.c,v 1.1 2000-12-13 23:01:46 granger Exp $")
+   "$Id: actrack.c,v 1.2 2000-12-14 00:30:56 granger Exp $")
 
 
 struct Options
@@ -52,7 +52,7 @@ int *nfield;
 	static int inited = FALSE;
 	static struct field Fields[] = 
 	{
-		{ "y2k",   "seconds", "Seconds until 2000" }
+		{ "y2k",   "seconds", "Seconds since 2000" }
 	};
 	static const int NFields = ((sizeof(Fields))/sizeof(Fields[0]));
 	struct field *f;
@@ -70,7 +70,7 @@ int *nfield;
 static void
 Usage (char *prog)
 {
-    printf ("Usage: %s <platform> <lat> <lon> <alt> [epoch time]\n",prog);
+    printf ("Usage: %s <platform> <lat> <lon> <alt> [time]\n",prog);
     printf ("   %s -help\n",prog);
     printf ("   %s <platform> -vor <name> <azimuth> <range> <alt> [time]\n");
     printf ("            Enter vor-relative coordinates instead of lat/lon");
@@ -79,7 +79,8 @@ Usage (char *prog)
     printf ("   lat      degrees North\n");
     printf ("   lon      degrees East\n");
     printf ("   alt      kilometers above Mean Sea Level\n");
-    printf ("   time     if given, in seconds since Unix epoch\n");
+    printf ("   time     if given as one numer: seconds since Unix epoch\n");
+    printf ("            if form hh:mm:[ss], relative to current time\n");
     IngestUsage();
 }
 
@@ -173,7 +174,7 @@ PutTrack (PlatformId pid, ZebTime *zt, float lat, float lon, float alt)
     FieldId fids[DC_MaxField];
     struct field *f;
     ZebTime y2k;
-    float y2kleft;
+    float y2ksince;
 
     TC_ZtAssemble (&y2k, 2000, 1, 1, 0, 0, 0, 0);
     if (! (dc = dc_CreateDC (DCC_Scalar)))
@@ -192,11 +193,11 @@ PutTrack (PlatformId pid, ZebTime *zt, float lat, float lon, float alt)
     loc.l_lon = lon;
     loc.l_alt = alt;
     dc_SetLocAltUnits (dc, AU_kmMSL);
-    y2kleft = y2k.zt_Sec - zt->zt_Sec;
-    dc_AddScalar (dc, zt, 0, f[0].id, &y2kleft);
+    y2ksince = zt->zt_Sec - y2k.zt_Sec;
+    dc_AddScalar (dc, zt, 0, f[0].id, &y2ksince);
     dc_SetLoc (dc, 0, &loc);
     IngestLog (EF_DEVELOP, "platform: %s; lat: %g; lon: %g; alt: %g; y2k: %g",
-	       ds_PlatformName(pid), lat, lon, alt, y2kleft);
+	       ds_PlatformName(pid), lat, lon, alt, y2ksince);
     ds_StoreBlocks (dc, FALSE, NULL, 0);
     dc_DestroyDC (dc);
 }
@@ -295,16 +296,34 @@ Input (int argc, char *argv[], struct Options *opt)
     /* either use the current time or use the argument time */
     if (i < argc)
     {
-	/* force decimal interpretation of time number */
 	char *s = argv[i++];
-	long t = strtol(s, 0, 10);
-	if (t == 0)
+
+	/* check for a colon indicating hh:mm form */
+	int hh, mm, ss = 0;
+	if (sscanf (s, "%d:%d:%d", &hh, &mm, &ss) >= 2)
 	{
-	    IngestLog (EF_PROBLEM, 
-		       "probable problem: time '%s' parsed as zero", s);
-	    exit (3);
+	    int year, month, day;
+	    time_t t = time(0);
+	    TC_SysToZt (t, &zt);
+	    TC_ZtSplit (&zt, &year, &month, &day, 0, 0, 0, 0);
+	    TC_ZtAssemble (&zt, year, month, day, hh, mm, ss, 0);
+	    /* if re-assmbled time more than 6 hours into the future,
+	     * then it was probably meant to be on yesterday's date. */
+	    if (zt.zt_Sec > t + 6*3600)
+		zt.zt_Sec -= 24*3600;
 	}
-	TC_SysToZt (t, &zt);
+	else
+	{
+	    /* force decimal interpretation of time number */
+	    long t = strtol(s, 0, 10);
+	    if (t == 0)
+	    {
+		IngestLog (EF_PROBLEM, 
+			   "probable problem: time '%s' parsed as zero", s);
+		exit (3);
+	    }
+	    TC_SysToZt (t, &zt);
+	}
     }
     else
     {
@@ -325,7 +344,7 @@ Input (int argc, char *argv[], struct Options *opt)
     {
 	printf ("%g %g ", lat, lon);
     }
-    printf ("%g %ul ", alt, zt.zt_Sec);
+    printf ("%g %lu ", alt, zt.zt_Sec);
     /*
      * Add computed lat/lon on end for extra information
      */
