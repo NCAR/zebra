@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.6 1994-04-15 22:28:06 burghart Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.7 1994-09-12 17:58:40 granger Exp $")
 #endif
 
 /*
@@ -1388,13 +1388,16 @@ NSDump (dc)
 		return;
 	}
 
+	if ( !info->ns_Defined )
+		printf (", re-definitions %s", (info->ns_AllowRedefine) ?
+			"allowed" : "cause warnings");
+
 	printf ("\nNumber of variables: %-5i    Number of dimensions: %-5i\n",
 		info->ns_NField, info->ns_NDim);
 	/*
 	 * Print all info about each dimensions, and remember its ADE * for
 	 * reference when printing out our fields
 	 */
-	/*printf ("Dimensions:\n");*/
 	for (i = 0; i < info->ns_NDim; ++i)
 	{
 		printf("   %35s: size %-6lu  -- ", 
@@ -1410,7 +1413,6 @@ NSDump (dc)
 	 * NAME ( DIM1, DIM2, ... ) [static] 'DESC'
 	 * The dim name is retrieved from the ADE * list in dinfo[].
 	 */
-	/*printf ("Fields:\n");*/
 	for (i = 0; i < info->ns_NField; ++i)
 	{
 		printf("  %s %s ( ", (info->ns_Defined) ? 
@@ -1715,7 +1717,7 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 	else	/* i == info->ns_NField */
 	{
 		/*
-		 * Create new space in field ADE and fill it in, if space allows
+		 * Create space in field ADE and fill it in, if space allows
 		 */
 		if (info->ns_NField == DC_MaxField)
 		{
