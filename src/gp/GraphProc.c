@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.64 1997-05-13 11:24:18 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.65 1997-07-01 01:06:23 granger Exp $")
 
 /*
  * Default resources.
@@ -1223,6 +1223,27 @@ eq_ResetAbort ()
 
 
 void
+FreeColors (plot_description pd)
+{
+	bool keep = FALSE;
+/*
+ * Free colors if the "keep-colors" parameter does not exist or is false.
+ */
+	if (pd && (! pda_Search (pd, "global", "keep-colors", NULL,
+				 (char *) &keep, SYMT_BOOL) || ! keep))
+	{
+		ct_FreeColors ();
+	}
+	else if (pd)
+	{
+		msg_ELog (EF_DEBUG, "keeping allocated colors");
+	}
+}
+
+	
+
+
+void
 ChangePD (dmp)
 struct dm_pdchange *dmp;
 /*
@@ -1239,7 +1260,7 @@ struct dm_pdchange *dmp;
 	        lc_UnZoom(Zlevel);
 		pd_Release (Pd);
 		pc_CancelPlot ();
-		ct_FreeColors ();
+		FreeColors (Pd);
 	}
 /*
  * Go ahead and recompile the PD now.
@@ -1285,7 +1306,7 @@ ClearPD ()
 	        lc_UnZoom(Zlevel);
 		pd_Release (Pd);
 		pc_CancelPlot ();
-		ct_FreeColors ();
+		FreeColors (Pd);
 	}
 	Pd = NULL;
 }

@@ -55,6 +55,12 @@ Mon Nov 18 13:51:00 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* gp: FORTRAN no longer required; uses C versions instead
 
+Sun Apr 27 23:33:54 1997  Gary Granger  <granger@steam.atd.ucar.edu>
+
+	* Juneau Branch: add keep-colors qualified global component
+ 	  parameter to graphics process to avoid continually re-allocating
+ 	  colors
+
 Wed Feb  7 09:49:03 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* --- Version 4.2 --- tagged and branched.

@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.41 1997-02-14 07:18:22 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.42 1997-07-01 01:06:26 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -313,7 +313,7 @@ char	*param;
  */
 	if (! (pflags & F_NOINVALIDATE))
 	{
-		ct_FreeColors ();
+		FreeColors (Pd);
 		fc_InvalidateCache ();
 	}
 /*
