@@ -27,10 +27,9 @@
 
 # include "defs.h"
 # include "message.h"
-# include <DataStore.h>
 # include "ImageXfr.h"
 
-MAKE_RCSID("$Id: ImageXfr.c,v 2.7 1994-10-11 16:26:52 corbet Exp $")
+MAKE_RCSID("$Id: ImageXfr.c,v 2.8 1994-11-21 22:58:32 granger Exp $")
 
 # define MAXATTR	100		/* Max attribute space	*/
 
@@ -114,7 +113,8 @@ char **fields;
 /*
  * Attach to the silly thing.
  */
-	if ((desc->id_shmseg = shmat (desc->id_shmid, 0, 0)) == (char *) -1)
+	desc->id_shmseg = (char *) shmat (desc->id_shmid, 0, 0);
+	if (desc->id_shmseg == (char *) -1)
 	{
 		msg_ELog (EF_EMERGENCY, "Error %d attaching shmseg", errno);
 		free (desc);
@@ -193,7 +193,8 @@ char **fields;
 /*
  * Attach to the silly thing.
  */
-	if ((desc->id_shmseg = shmat (desc->id_shmid, 0, 0)) == (char *) -1)
+	desc->id_shmseg = (char *) shmat (desc->id_shmid, 0, 0);
+	if (desc->id_shmseg == (char *) -1)
 	{
 		msg_ELog (EF_EMERGENCY, "Error %d attaching shmseg", errno);
 		free (desc);

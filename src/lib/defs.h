@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.26 1994-11-17 07:13:27 granger Exp $ */
+/* $Id: defs.h,v 2.27 1994-11-21 22:58:33 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -90,6 +90,26 @@ typedef struct s_Location
 } Location;
 
 /*
+ * Scale and bias info for integer-encoded fields.
+ */
+typedef struct _ScaleInfo
+{
+	float	s_Scale;		/* real value = data/s_scale	*/
+	float	s_Offset;		/*   + s_Offset			*/
+} ScaleInfo;
+
+/*
+ * Regularly-spaced grids in geographical coordinates
+ */
+typedef struct _RGrid
+{
+	float	rg_Xspacing;		/* X dimension spacing		*/
+	float	rg_Yspacing;		/* Y (north/south) spacing	*/
+	float	rg_Zspacing;		/* Vertical spacing		*/
+	int	rg_nX, rg_nY, rg_nZ;	/* Dimensions			*/
+} RGrid;
+
+/*
  * Altitude units.  If you add new units here, be sure to add associated
  * units strings and formats to altunits.c.
  */
@@ -106,7 +126,7 @@ typedef enum
  * Functions.
  */
 void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
-void	tw_SetTime FP ((ZebTime *init_or_null)); /* null <==> use system time */
+void	tw_SetTime FP ((ZebTime *init_or_null)); /* null ==> use system time */
 void 	tw_DialAdjust FP ((int, int));
 int 	InterpDTime FP ((char *));
 void 	TC_SysToFcc FP ((long, UItime *));
@@ -123,7 +143,7 @@ char 	*GetLibDir FP ((void));
 char 	*GetProjDir FP ((void));
 char 	*GetDataDir FP ((void));
 
- /* New time format utilities */
+/* New time format utilities */
 
 long	TC_ZtToSys FP ((const ZebTime *));
 void	TC_SysToZt FP ((long, ZebTime *));
