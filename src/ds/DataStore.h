@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.23 1994-11-21 22:51:22 granger Exp $
+ * $Id: DataStore.h,v 3.24 1994-12-03 07:22:48 granger Exp $
  *
  * Public data store definitions.
  */
@@ -352,7 +352,7 @@ void		*dc_GetGlAttrBlock FP ((DataChunk *, int *));
 void		dc_SetGlAttrBlock FP ((DataChunk *, void *, int));
 int		dc_GetNGlobalAttrs FP ((DataChunk *));
 char 		**dc_GetGlobalAttrList FP ((DataChunk *dc, char *pattern,
-					    char **values[], int *natts));
+					    void **values[], int *natts));
 char 		**dc_GetGlobalAttrKeys FP ((DataChunk *dc, int *natts));
 /*
  * Transparent class methods.
@@ -391,7 +391,7 @@ void		*dc_GetSaAttrBlock FP ((DataChunk *, int, int *));
 void		dc_SetSaAttrBlock FP ((DataChunk *, int, void *, int));
 int		dc_GetNSampleAttrs FP ((DataChunk *, int sample));
 char 		**dc_GetSampleAttrList FP ((DataChunk *dc, int sample,
-			    char *pattern, char **values[], int *natts));
+			    char *pattern, void **values[], int *natts));
 char 		**dc_GetSampleAttrKeys FP ((DataChunk *dc, int sample,
 					    int *natts));
 AltUnitType	dc_GetLocAltUnits FP ((DataChunk *dc));
@@ -466,7 +466,7 @@ void		*dc_GetFiAttrBlock FP ((DataChunk *, FieldId, int *));
 void		dc_SetFiAttrBlock FP ((DataChunk *, FieldId, void *, int));
 int		dc_GetNFieldAttrs FP ((DataChunk *, FieldId));
 char		**dc_GetFieldAttrList FP ((DataChunk *, FieldId, char *,
-					   char **values[], int *));
+					   void **values[], int *));
 char 		**dc_GetFieldAttrKeys FP ((DataChunk *dc, FieldId fid,
 					   int *natts));
 /*

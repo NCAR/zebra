@@ -29,7 +29,7 @@
 #endif
 # endif
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.15 1994-04-15 22:28:09 burghart Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.16 1994-12-03 07:22:55 granger Exp $")
 
 /*
  * TODO:
@@ -2023,7 +2023,7 @@ dc_GetSampleAttrList(dc, sample, pattern, values, natts)
 DataChunk *dc;
 int sample;
 char *pattern;
-char **values[];
+void **values[];
 int *natts;
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,

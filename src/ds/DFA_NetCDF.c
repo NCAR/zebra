@@ -29,7 +29,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.36 1994-09-12 18:04:32 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.37 1994-12-03 07:22:41 granger Exp $")
 #endif
 
 # include <netcdf.h>
@@ -40,6 +40,12 @@ MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.36 1994-09-12 18:04:32 granger Exp $")
 #ifndef CFG_NC_NO_ALT_UNITS
 #define STORE_ALT_UNITS
 #endif
+
+/*
+ * Convert all character attribute arrays to strings when read,
+ * adding null-terminators where needed.
+ */
+#define CVT_CHAR_TO_STRING
 
 /*
  * Location fields: standard attributes
@@ -2861,7 +2867,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.36 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.37 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3883,9 +3889,10 @@ NCTag *tag;
 		ncattname(tag->nc_id, NC_GLOBAL, g, key);
 		ncattinq(tag->nc_id, NC_GLOBAL, key, &gltype, &len);
 	/*
-	 * now allocate space for the value, and get that too
+	 * now allocate space for the value, and get that too; the +1 is
+	 * in case we need to add a null terminator to character arrays
 	 */
-		value = (void *) malloc (len*nctypelen(gltype));
+		value = (void *) malloc ((len+1)*nctypelen(gltype));
 		ncattget(tag->nc_id, NC_GLOBAL, key, value);
 	/* 
 	 * Add the attribute.  Try to detect character arrays which are
@@ -3893,6 +3900,13 @@ NCTag *tag;
 	 */
 		if (gltype == NC_CHAR && ((char *)value)[len - 1] == '\0')
 			dc_SetGlobalAttrArray (dc, key, DCT_String, 1, value);
+#ifdef CVT_CHAR_TO_STRING
+		else if (gltype == NC_CHAR)
+		{
+			((char *)value)[len++] = '\0';
+			dc_SetGlobalAttrArray (dc, key, DCT_String, 1, value);
+		}
+#endif /* CVT_CHAR_TO_STRING */
 		else
 			dc_SetGlobalAttrArray (dc, key, dnc_ElemType(gltype),
 					       len, value);
@@ -3977,9 +3991,10 @@ int nfield;
 			ncattname(tag->nc_id, var, i, key);
 			ncattinq(tag->nc_id, var, key, &ftype, &len);
 		/* 
-		 * now allocate space for the value, and get that too 
+		 * now allocate space for the value, and get that too; the +1
+		 * is in case we need to add a null terminator to char arrays
 		 */
-			value = (void *) malloc (len*nctypelen(ftype));
+			value = (void *) malloc ((len+1)*nctypelen(ftype));
 			ncattget(tag->nc_id, var, key, value);
 		/* 
 		 * Now just stuff it into the data chunk, doing our best to
@@ -3988,6 +4003,14 @@ int nfield;
 			if (ftype == NC_CHAR && ((char *)value)[len-1] == '\0')
 				dc_SetFieldAttrArray (dc, fids[f], key,
 						      DCT_String, 1, value);
+#ifdef CVT_CHAR_TO_STRING
+			else if (ftype == NC_CHAR)
+			{
+				((char *)value)[len++] = '\0';
+				dc_SetFieldAttrArray (dc, fids[f], key,
+						      DCT_String, 1, value);
+			}
+#endif /* CVT_CHAR_TO_STRING */
 			else
 				dc_SetFieldAttrArray (dc, fids[f], key,
 					      dnc_ElemType(ftype), len, value);

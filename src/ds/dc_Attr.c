@@ -21,6 +21,7 @@
 
 # include <sys/types.h>
 # include <memory.h>
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
@@ -31,7 +32,7 @@
 # include <zl_regex.h> /* System-independent regex functions in Zeb library */
 
 #ifndef lint
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.10 1994-01-05 20:18:08 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.11 1994-12-03 07:22:50 granger Exp $")
 #endif
 
 /*--------------------------------------------------------------------
@@ -168,7 +169,7 @@ void *values;
 		rec->ar_Type = type;
 	rec->ar_NValues = nval;
 	rec->ar_Key = sizeof(AttrRec) + vlen;
-	sprintf ((char *)rec + rec->ar_Key, "%s", key);
+	strcpy ((char *)rec + rec->ar_Key, key);
 	if (vlen && values)
 		memcpy (AR_VALUES(rec), values, vlen);
 }
@@ -215,7 +216,7 @@ DataClass class;
 int code;
 char *key, *value;
 /*
- * Add this attribute to the data chunk.
+ * Add this string attribute to the data chunk.
  */
 {
 	dca_AddAttrArray (dc, class, code, key, DCT_String, 1, value);
@@ -231,7 +232,7 @@ DataClass class;
 int code;
 char *key;
 /*
- * Look up this attribute.
+ * Look up this key and return its string value.
  */
 {
 	DC_ElemType type;
@@ -584,7 +585,7 @@ int code;
 char *pattern;
 int (*func)();
 /*
- * Plow through all the attributes.
+ * Plow through all the attributes with string values.
  */
 {
 	return (dca_ProcAttrArrays (dc, class, code, pattern, 
@@ -702,7 +703,7 @@ DataChunk *dc;
 DataClass class;
 int code;
 char *pattern;
-char **values[];
+void **values[]; 	/* An array of void ptrs passed by reference */
 int *natts;
 /*
  * Generate an array of keys and corresponding values for the attributes of
@@ -721,7 +722,7 @@ int *natts;
  */
 {
 	static char **local_keys = NULL;
-	static char **local_vals = NULL;
+	static void **local_vals = NULL;
 	int num_atts, count;
 	AttrADE *ade;
 	AttrRec *rec;
@@ -756,10 +757,9 @@ int *natts;
 	if (num_atts == 0)
 		return (NULL);
 	local_keys = (char **)malloc((num_atts+1) * sizeof(char *));
-	local_vals = (char **)malloc((num_atts+1) * sizeof(char *));
+	local_vals = (void **)malloc((num_atts+1) * sizeof(void *));
 /*
- * Go through the local copy of the attributes, collecting keys and 
- * string-type values
+ * Go through the local copy of the attributes, collecting keys
  */
 	rec = dca_FirstRec (ade);
 	count = 0;
@@ -768,15 +768,10 @@ int *natts;
 	/*
 	 * Find the associated value for this key.
 	 */
-		if (AR_TYPE(rec) != DCT_String)
-		{
-			rec = dca_NextRec (ade, rec);
-			continue;
-		}
 		if (! pattern || zl_re_exec (AR_KEY(rec)))
 		{
 			local_keys[count] = AR_KEY(rec);
-			local_vals[count] = (char *)AR_VALUES(rec);
+			local_vals[count] = (void *)AR_VALUES(rec);
 			count++;
 		}
 	/*

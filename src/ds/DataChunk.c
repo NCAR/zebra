@@ -24,7 +24,7 @@
 # include <message.h>
 # include "DataStore.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.6 1994-01-26 11:24:23 granger Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.7 1994-12-03 07:22:44 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -825,7 +825,7 @@ char **
 dc_GetGlobalAttrList(dc, pattern, values, natts)
 DataChunk *dc;
 char *pattern;
-char **values[];
+void **values[];
 int *natts;
 {
 	return(	dca_GetAttrList(dc, DCC_Raw, ST_GLOBATTR,

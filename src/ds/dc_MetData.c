@@ -28,7 +28,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.10 1994-04-15 22:28:03 burghart Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.11 1994-12-03 07:22:52 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -1765,7 +1765,7 @@ dc_GetFieldAttrList(dc, fid, pattern, values, natts)
 DataChunk *dc;
 FieldId fid;
 char *pattern;
-char **values[];
+void **values[];
 int *natts;
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttrList"))

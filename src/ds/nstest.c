@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.12 1994-09-12 18:04:39 granger Exp $
+ * $Id: nstest.c,v 1.13 1994-12-03 07:22:58 granger Exp $
  */
 
 /*
@@ -75,6 +75,9 @@ struct message *msg;
 /* #define ZNF_TESTING */
 #endif
 
+#define ATTRIBUTES
+
+#ifdef notdef
 #define TRANSPARENT
 #define SCALAR
 #define GETFIELDS
@@ -82,6 +85,7 @@ struct message *msg;
 #define DELETE_OBS	/* test observation deletes */
 #define NSPACE
 #define COPY_SCALAR
+#define DUMMY_FILES
 #define TEST4_STORE
 #define SCALAR_NSPACE
 #define FIELD_TYPES
@@ -92,6 +96,7 @@ struct message *msg;
 #define DUMMY_FILES
 #define DATA_TIMES
 #define FETCH_GAP
+#endif
 
 #ifdef BACKWARDS
 #define dc_CheckClass(a)		{}
@@ -168,7 +173,9 @@ struct TestPlatform {
 	{ "t_aeri_types_cdf" },
 	{ "t_aeri_types_znf" },
 	{ "t_fieldtypes" },
-	{ "t_att_types_cdf" }
+#endif
+#ifdef ATTRIBUTES
+	{ "t_att_types_cdf" },
 #endif
 };
 
@@ -2569,7 +2576,7 @@ ZebTime when;
 	char value[50];
 	float data = 1.0;
 	char **keys;
-	char **values;
+	void **values;
 	int natts, nval, i;
 	DC_ElemType type;
 #	define NUM(ra) (sizeof(ra)/(sizeof((ra)[0])))
@@ -2581,9 +2588,12 @@ ZebTime when;
 	unsigned char *uget;
 	short sdata[] = { 512, 1024, 2048, 4096, 8192, 16384, 32767 };
 	short *sget;
+	char *cdata = "array of characters";
+	char *cptr;
 	struct AttrDesc ad;
 	int nfield = 10;
 	FieldId fields[10];
+	char *dash = "=>=>=>=>=>=>";
 
 	Announce ("------- testing DataChunk attributes ------------");
 	dc = dc_CreateDC(DCC_Scalar);
@@ -2600,18 +2610,20 @@ ZebTime when;
 			       NUM(sdata), (void *)sdata);
 	dc_SetGlobalAttrArray (dc, "global_string", DCT_String,
 			       1, "this is a global attribute string");
+	dc_SetGlobalAttrArray (dc, "global_char", DCT_Char,
+			       strlen(cdata), cdata); /* no null char */
 	EXPECT(1);
 	dc_SetGlobalAttrArray (dc, "global_string", DCT_String,
 			       2, "this is a global attribute string");
 	/*
 	 * Get the typed arrays added above
 	 */
-	printf ("Double attribute: ");
+	printf ("%s Double attribute: ", dash);
 	dget = (double *)dc_GetGlobalAttrArray (dc, "global_doubles", 
 						&type, &nval);
 	for (i = 0; i < nval; ++i) printf (" %lf ", dget[i]);
 	printf ("\n");
-	printf ("Short attribute: ");
+	printf ("%s Short attribute: ", dash);
 	sget = (short *)dc_GetGlobalAttrArray (dc, "global_shorts", 
 					       &type, &nval);
 	for (i = 0; i < nval; ++i) printf (" %hd ", sget[i]);
@@ -2621,7 +2633,7 @@ ZebTime when;
 	dc_AddScalar (dc, &when, 0, field, &data);
 	dc_SetFieldAttr (dc, field, "field_key", "field_value");
 	dc_SetSampleAttr (dc, 0, "sample_key", "sample_value");
-	printf ("printing dc, should include non-string attributes\n");
+	printf ("%s dc should include non-string attributes:\n", dash);
 	dc_DumpDC (dc);
 	/*
 	 * Now really crank out some attributes
@@ -2657,6 +2669,8 @@ ZebTime when;
 			       NUM(sdata), (void *)sdata);
 	dc_SetFieldAttrArray (dc, field, "field_string", DCT_String,
 			       1, "this is a field attribute string");
+	dc_SetFieldAttrArray (dc, field, "field_char", DCT_Char,
+			       strlen(cdata), cdata);
 	dc_SetSampleAttrArray (dc, 0, "sample_doubles", DCT_Double, 
 			       NUM(ddata), (void *)ddata);
 	dc_SetSampleAttrArray (dc, 0, "sample_floats", DCT_Float, 
@@ -2671,7 +2685,7 @@ ZebTime when;
 	/*
 	 * Store this datachunk and see what we get in the file
 	 */
-	printf ("Storing datachunk to platform '%s'\n", pname);
+	printf ("%s Storing datachunk to platform '%s'\n", dash, pname);
 	ds_Store (dc, TRUE, 0, 0);
 	/*
 	 * Now try doing all of them again, which will cause them all to be
@@ -2713,7 +2727,7 @@ ZebTime when;
 			printf ("Sample att error: '%s' should equal '%s'\n", 
 				key, value);
 	}
-	printf ("Deleting the even keys...\n");
+	printf ("%s Deleting the even keys...\n", dash);
 	for (i = 0; i < 50; i += 2)
 	{
 		sprintf (key, "key_%d", i);
@@ -2722,7 +2736,7 @@ ZebTime when;
 		sprintf (key, "sample_key_%d", i);
 		dc_RemoveSampleAttr (dc, 0, key);
 	}
-	printf ("Making sure they're gone...\n");
+	printf ("%s Making sure they're gone...\n", dash);
 	for (i = 0; i < 50; i += 2)
 	{
 		sprintf (key, "key_%d", i);
@@ -2734,25 +2748,51 @@ ZebTime when;
 		if (dc_GetSampleAttr (dc, 0, key) != NULL)
 			printf ("   sample key '%s' still exists\n", key);
 	}
-	if (dc_GetNGlobalAttrs(dc) != 56)
+	if (dc_GetNGlobalAttrs(dc) != 57 - 25)
 		printf ("%d global attrs should be %d\n",
-			dc_GetNGlobalAttrs(dc), 51);
+			dc_GetNGlobalAttrs(dc), 57 - 25);
 	dc_DumpDC (dc);
 	/*
 	 * Test retrieval of an attribute list
 	 */
-	printf ("retrieving a key and value list for field attributes\n");
+	printf ("%s retrieving a key/value list for field atts\n", dash);
 	keys = dc_GetFieldAttrList(dc, field, NULL, &values, &natts);
 	if (natts != dc_GetNFieldAttrs (dc, field))
 		printf ("error: getlist returns %d natts != getn %d\n",
 			natts, dc_GetNFieldAttrs (dc, field));
 	for (i = 0; i < natts; ++i)
-		printf ("   %s=%s%c", keys[i], values[i], (i+1)%3 ? ' ':'\n');
+	{
+		dc_GetFieldAttrArray (dc, field, keys[i], &type, &nval);
+		printf ("   %s=%s:%d%c", keys[i], (type != DCT_String) ?
+			dc_ElemToString(values[i], type) : (char *)values[i],
+			nval, (i+1)%3 ? ' ':'\n');
+	}
 	printf ("\n");
+	printf ("%s keys matching the pattern 'key_.[12345]':\n", dash);
+	keys = dc_GetFieldAttrList(dc, field, "key_.[12345]",
+				   &values, &natts);
+	for (i = 0; i < natts; ++i)
+	{
+		dc_GetFieldAttrArray (dc, field, keys[i], &type, &nval);
+		printf ("   %s=%s:%d%c", keys[i], (type != DCT_String) ?
+			dc_ElemToString(values[i], type) : (char *)values[i],
+			nval, (i+1)%3 ? ' ':'\n');
+	}
+	printf ("\n");
+	/*
+	 * Get a keys list
+	 */
+	keys = dc_GetGlobalAttrKeys(dc, &natts);
+	printf ("%s using dc_GetGlobalAttrKeys, %d atts, (getn=%d):\n", 
+		dash, natts, dc_GetNGlobalAttrs (dc));
+	for (i = 0; i < natts; ++i)
+		printf ("   %s%c", keys[i], (i+1)%5 ? ' ':'\n');
+	printf ("\n");
+
 	/*
 	 * Now for a clincher: process each attribute list to remove each key
 	 */
-	printf ("trying to remove all attributes...\n");
+	printf ("%s trying to remove all attributes...\n", dash);
 	ad.dc = dc;
 	ad.sample = 0;
 	ad.field = field;
@@ -2763,11 +2803,11 @@ ZebTime when;
 	ad.which = Field;
 	dc_ProcFieldAttrArrays (dc, field, NULL, T_RemoveAttr, (void *)&ad);
 	dc_DumpDC (dc);
-	printf ("Adding attributes with zero values and empty strings.\n");
+	printf ("%s Attributes with zero values and empty strings:\n", dash);
 	dc_SetGlobalAttrArray (dc, "global_flag", 0, 0, NULL);
 	dc_SetGlobalAttr (dc, "global_empty", "");
 	dc_DumpDC (dc);
-	printf ("Deleting the empty- and zero-valued global atts\n");
+	printf ("%s Deleting the empty- and zero-valued global atts\n", dash);
 	ad.which = Global;
 	dc_ProcessAttrArrays (dc, NULL, T_RemoveAttr, (void *)&ad);
 	dc_DumpDC (dc);
@@ -2776,11 +2816,23 @@ ZebTime when;
 	 * Fetch the previously stored file, hopefully including all of the
 	 * typed attributes, and dump it
 	 */
-	printf ("Fetching the attributes from '%s'\n", pname);
+	printf ("%s Fetching the attributes from '%s'\n", dash, pname);
 	ds_GetFields (plat, &when, &nfield, fields);
 	dc = ds_FetchObs (plat, DCC_Scalar, &when, 
 			  fields, nfield, NULL, 0);
 	dc_DumpDC (dc);
+	/*
+	 * Test that the character arrays came back as strings
+	 */
+	printf ("%s verifying char arrays were converted to strings\n", dash);
+	cptr = dc_GetGlobalAttr(dc, "global_char");
+	if (!cptr || strcmp(cptr, cdata))
+		printf ("Global att error: '%s' should be string '%s'\n", 
+			"global_char", cdata);
+	cptr = dc_GetFieldAttr(dc, field, "field_char");
+	if (!cptr || strcmp(cptr, cdata))
+		printf ("Field att error: '%s' should be string '%s'\n", 
+			"field_char", cdata);
 	dc_DestroyDC (dc);
 	Announce ("T_Attributes done.\n");
 }
