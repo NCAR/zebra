@@ -17,6 +17,11 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Updates: Revision 1.11  1999/03/01 02:03:57  burghart
+ * Updates: It's time to take the plunge.  This is the merge of the large file database
+ * Updates: changes made for the U. of Washington, specifically Branch_Seattle_980430.
+ * Updates: See the logs of that branch for details.
+ * Updates:
  * Revision 1.10  1997/06/22  22:08:18  granger
  * include errno.h instead of sys/errno.h so we can remove duplicate defn of
  * errno; put zebra includes in <>
@@ -107,7 +112,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.11 1999-03-01 02:03:57 burghart Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.12 2000-01-04 23:15:31 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -326,7 +331,7 @@ char *argv[];
 	    {
 		TC_ZtSplit (&times[i], &year, &month, &day, &hour, 
 			    &min, &sec, &usec);
-		printf ("%02d-%s-%02d,%02d:%02d:%02d\n",
+		printf ("%02d-%s-%04d,%02d:%02d:%02d\n",
 		    day, mname[month - 1], year, hour, min, sec);
 	    }
 	}

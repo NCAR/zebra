@@ -204,7 +204,7 @@ int nx, ny, nz;
  * Make the file itself.
  */
 	TC_ZtSplit (zt, &year, &mon, &day, &hour, &min, &sec, 0);
-	sprintf (fname, "%s%02d%02d%02d.%02d%02d%02d.cdf", 
+	sprintf (fname, "%s%d%02d%02d.%02d%02d%02d.cdf", 
 		 name, year, mon, day, hour, min, sec);
 	Nfile = nccreate (fname, NC_CLOBBER);
 /*

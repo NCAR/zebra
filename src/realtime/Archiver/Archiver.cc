@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.43 1999-12-17 17:12:09 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.44 2000-01-04 23:15:31 granger Exp $")
 
 /*
  * Issues:
@@ -1185,7 +1185,7 @@ DoTheWriteThing (int explicit_finish)
 		 * For optical disks, the ZeroZFree flag is ignored (?) 
 		 * Just write until the disk is full
 		 */
-		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
+		sprintf( datafile, "%s/%d%02d%02d.%02d%02d.tar",
 			 OutputDir,year,month,day,hour,minute );
 		mkdir (OutputDir, 0775);
 		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
