@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.8 1999-10-08 20:44:33 granger Exp $
+# $Id: zplotbatch,v 1.9 1999-10-13 05:41:11 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -123,7 +123,6 @@ now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
 echo "Current time: $now"
 
 # Begin looping over the plots we're supposed to make
-queryprocs=''
 while read when config windows; do
 
     echo "Processing: $when $config $windows"
@@ -161,6 +160,7 @@ while read when config windows; do
 	mkdir -p $subspool
     fi
 
+    queryprocs=''
     for plot in $procs ; do
 
 	win=`echo $plot | sed -e "s/-$DM.*//"`
@@ -177,7 +177,7 @@ while read when config windows; do
 	    # prepend the config here.
 
 	    images="$images $name"
-	    (set -x; zrun $plot "imgdump gif \"$name\"" ; sleep 5 ; \
+	    (set -x; zrun $plot "imgdump gif \"$name\"" ; set +x ; sleep 5 ; \
 	     zquery -t 30 $plot >/dev/null ; perl5 disclaim.pl $name) &
 	    queryprocs="$queryprocs $plot"
 
@@ -224,7 +224,7 @@ kill $dm
 #fi
 
 # Pass on the image file names
-echo Images: $images
+echo Images: `echo $images | sort`
 
 # echo "$0: waiting..."
 # wait
