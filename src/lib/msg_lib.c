@@ -28,7 +28,7 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.12 1993-03-09 22:16:09 martin Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.13 1993-04-28 15:48:40 corbet Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -57,7 +57,7 @@ static int Seq = 0;
  */
 static struct mqueue
 {
-	struct message mq_msg;		/* The actual message		*/
+	struct message *mq_msg;		/* The actual message		*/
 	struct mqueue *mq_next;		/* Next queue entry		*/
 } *Mq = 0, *Mq_free = 0, *Mq_tail;
 
@@ -81,6 +81,7 @@ static int msg_QueryHandler FP ((Message *));
 static int msg_DefaultQH FP ((char *));
 static void msg_SendPID FP ((void));
 static int msg_CQReply FP ((struct message *, int *));
+static void msg_free FP ((Message *));
 
 /*
  * How much data we write at once.
@@ -433,24 +434,18 @@ int fd;
 /*
  * Read one message directly from the pipe.  The message is returned in
  * static storage -- copy it if need be!
+ *
+ * (4/93 jc)	The message is no longer in static storage -- that burned
+ *		us just like one might expect it to.  Now, instead, one needs
+ *		to call msg_free to get rid of the message returned by this 
+ *		routine.
  */
 {
-	static struct message msg;
-# define MAX_STATIC 8192
-	static char static_data[MAX_STATIC];
-	static char *dyn_data = NULL;
+	Message *msg = ALLOC (Message);
 /*
- * Free dynamic data if it's allocated
+ * Read in the message structure.
  */
-	if (dyn_data)
-	{
-		free (dyn_data);
-		dyn_data = NULL;
-	}
-/*
- * Read in the message, and possibly any extra text.
- */
- 	if (msg_netread (Msg_fd, &msg, sizeof (struct message)) <= 0)
+ 	if (msg_netread (Msg_fd, msg, sizeof (Message)) <= 0)
 	{
 		perror ("Message handler disconnect");
 		if (Death_handler)
@@ -458,24 +453,33 @@ int fd;
 		return (0);
 	}
 /*
- * Get some dynamic memory if the data portion is too big
- */
-	if (msg.m_len > MAX_STATIC)
-	{
-		msg_ELog (EF_DEBUG, "Malloc'ing for message data (%d)",
-			msg.m_len);
-		msg.m_data = dyn_data = (char *) malloc (msg.m_len);
-	}
-	else
-		msg.m_data = static_data;
-/*
  * Read the data portion
  */
-	if (msg.m_len > 0)
-		msg_netread (Msg_fd, msg.m_data, msg.m_len);
-	
-	return (&msg);
+	if (msg->m_len > 0)
+	{
+		msg->m_data = malloc (msg->m_len);
+		msg_netread (Msg_fd, msg->m_data, msg->m_len);
+	}
+	else
+		msg->m_data = 0;
+	return (msg);
 }
+
+
+
+
+void
+msg_free (msg)
+Message *msg;
+/*
+ * Free the storage used with this message.
+ */
+{
+	if (msg->m_len > 0)
+		free (msg->m_data);
+	free (msg);
+}
+
 
 
 
@@ -487,11 +491,12 @@ int fd;
  */
 {
 	struct message *msg;
+	int ret;
 /*
  * If there is something waiting in the deferred queue, dispatch it.
  */
 	if (Mq)
-		return(msg_DispatchQueued());
+		return (msg_DispatchQueued ());
 /*
  * Otherwise read in a message and dispatch that.
  */
@@ -501,9 +506,11 @@ int fd;
 			return (1);
 		if (msg->m_proto >= 0 && msg->m_proto < MAXPROTO &&
 				ProtoHandlers[msg->m_proto])
-			return ((*ProtoHandlers[msg->m_proto]) (msg));
+			ret = (*ProtoHandlers[msg->m_proto]) (msg);
 		else
-			return ((*Msg_handler) (msg));
+			ret = (*Msg_handler) (msg);
+		msg_free (msg);
+		return (ret);
 	}
 }
 
@@ -565,8 +572,8 @@ void *param;
  * First search the queue for this protocol type.
  */
 	for (queue = Mq; queue; queue = queue->mq_next)
-		if (queue->mq_msg.m_proto == proto &&
-			(*func) (&queue->mq_msg, param) == 0)
+		if (queue->mq_msg->m_proto == proto &&
+			(*func) (queue->mq_msg, param) == 0)
 		{
 			msg_RemQueue (queue);
 			return (0);
@@ -600,7 +607,8 @@ void *param;
 		tail->mq_next = 0;
 	}
 /*
- * We finally got out.  Add this stuff to the end of the message queue.
+ * We finally got out.  Add this stuff to the end of the message queue, and
+ * free up the one message they consumed.
  */
  	if (queue)
 	{
@@ -610,6 +618,7 @@ void *param;
 			Mq_tail->mq_next = queue;
 		Mq_tail = tail;
 	}
+	msg_free (msg);
 }
 
 
@@ -811,14 +820,9 @@ struct message *msg;
 	else
 		new = ALLOC (struct mqueue);
 /*
- * Copy over the message.  We always allocate space for the message data.
+ * Save the info and return the structure.
  */
-	new->mq_msg = *msg;
-	new->mq_msg.m_data = malloc (msg->m_len);
-	memcpy (new->mq_msg.m_data, msg->m_data, msg->m_len);
-/*
- * Return the stuff.
- */
+	new->mq_msg = msg;
 	return (new);
 }
 
@@ -865,7 +869,7 @@ struct mqueue *zap;
 /*
  * Free up the data area, and put this entry on the free list.
  */
-	free (zap->mq_msg.m_data);
+	msg_free (zap->mq_msg);
 	zap->mq_next = Mq_free;
 	Mq_free = zap;
 }
@@ -885,11 +889,12 @@ msg_DispatchQueued ()
 
 	while (Mq)
 	{
-		if (Mq->mq_msg.m_proto >= 0 && Mq->mq_msg.m_proto < MAXPROTO &&
-				ProtoHandlers[Mq->mq_msg.m_proto])
-			ret =(*ProtoHandlers[Mq->mq_msg.m_proto])(&Mq->mq_msg);
+		if (Mq->mq_msg->m_proto >= 0 &&
+				Mq->mq_msg->m_proto < MAXPROTO &&
+				ProtoHandlers[Mq->mq_msg->m_proto])
+			ret =(*ProtoHandlers[Mq->mq_msg->m_proto])(Mq->mq_msg);
 		else
-			ret = (*Msg_handler) (&Mq->mq_msg);
+			ret = (*Msg_handler) (Mq->mq_msg);
 		msg_RemQueue (Mq);
 		if (ret)
 			return (ret);
