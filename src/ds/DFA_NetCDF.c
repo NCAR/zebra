@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.76 2002-09-17 18:28:43 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.77 2002-10-06 07:53:48 granger Exp $")
 
 # include <netcdf.h>
 
@@ -884,11 +884,12 @@ dnc_MatchVarName (int id, int platid, const char *name,
 		/* Fetch the long_name attribute in lower case so we can
 		 * match against it.
 		 */
-		if (!(ncattinq (id, varid, VATT_LONGNAME, &atype, &alen) >= 0
-		    && (atype == NC_CHAR) && (alen < 1024) &&
-		    ncattget (id, varid, VATT_LONGNAME, (void *)lname) >= 0))
+		lname[0] = '\0';
+		if (ncattinq (id, varid, VATT_LONGNAME, &atype, &alen) >= 0
+		    && (atype == NC_CHAR) 
+		    && (alen < 1024))
 		{
-		    lname[0] = '\0';
+		    ncattget (id, varid, VATT_LONGNAME, (void *)lname);
 		}
 		strtolower (lname);
 		if (! strncmp (vname, target, strlen(target)) &&
@@ -2340,15 +2341,30 @@ int ndetail;
 			(vfield = dnc_GetFieldVar (tag, fids[field])) < 0);
 		if (!fill)
 		{
+		        int ndims;
 			dnc_Slice (tag, vfield, start, count,
 				   details, ndetail);
 			data = dc_AddMultScalar (dc, tag->nc_times + begin, 
 				sbegin, nsamp, fids[field], NULL);
+			/*
+			 * As a special case for fields without any dimensions,
+			 * which includes special Zebra fields like lat, lon,
+			 * and alt, replicate them across the time samples.
+			 */
+			nc_inq_varndims (tag->nc_id, vfield, &ndims);
 			if (ncvargetg (tag->nc_id, vfield, start, count,
 				       /*stride*/NULL, imap, data) < 0)
 			{
 				dnc_NCError ("Scalar read");
 				fill = 1;
+			}
+			else if (ndims == 0)
+			{
+			    /* replicate the first value */
+			    float f = *(float*)data;
+			    int j;
+			    for (j = 1; j < count[0]; ++j)
+				*(float*)((char*)data + j*imap[0]) = f;
 			}
 		}
 		if (fill)
@@ -2579,6 +2595,12 @@ int ndetail;
 			}
 			imap[0] = sampsize;
 		}
+#ifdef DEBUG
+		msg_ELog (EF_DEVELOP,
+			  "reading%s field '%s', acquired data pointer: %x",
+			  is_static ? " static" : "",
+			  F_GetName (fids[field]), data);
+#endif
 		dim = (is_static) ? 0 : 1;
 		dim += (ndim-1);
 		elemsize = dc_SizeOf (dc, fids[field]);
@@ -2603,9 +2625,15 @@ int ndetail;
 			else
 				imap[dim] = imap[dim+1] * count[dim+1];
 		}
+		msg_ELog (EF_DEVELOP, "ncvargetg(varid:%i,data:%x)",
+			  varid, data);
+		/*
+		 * imap is only needed for non-static data interleaved
+		 * across samples.
+		 */
 		if ((varid < 0) ||
 		    ncvargetg (tag->nc_id, varid, start, count, 
-			       /*stride*/NULL, imap, data) < 0)
+			       /*stride*/NULL, is_static ? 0 : imap, data) < 0)
 		{
 			if (varid >= 0)
 				msg_ELog (EF_PROBLEM, 
@@ -3574,7 +3602,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.76 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.77 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
