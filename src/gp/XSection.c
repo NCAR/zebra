@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.45 1999-05-12 15:01:11 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.46 1999-07-15 17:13:40 burghart Exp $")
 
 /*
  * General definitions
@@ -144,7 +144,7 @@ LabelType	BottomLabel;
 /*
  * Drawing info
  */
-static float	Contour_center, Contour_step, Wind_scale;
+static float	Contour_center, Contour_step, Wind_scale, Text_size;
 static int	Line_width, Degrade;
 static zbool	Do_labels, Mono_color, Autoscale, Do_vectors;
 
@@ -337,6 +337,12 @@ ZebTime	*t;
 		 Zig_zag ? "Zig-zag" : "Planar");
 	An_TopAnnot (Scratch, White.pixel);
 /*
+ * Text size
+ */
+	Text_size = 0.03;
+	pda_Search (Pd, "global", "annot-height", "xsect", 
+		    (char *) &Text_size, SYMT_FLOAT);
+/*
  * For planar cross sections, get the endpoints and bottom label type
  */
 	if (! Zig_zag)
@@ -458,7 +464,7 @@ zbool	update;
  * Draw a cross-section contour plot based on the given PD component.
  */
 {
-	zbool	ok;
+	zbool	ok, sashow;
 	int	nplat;
 	char	platforms[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20];
@@ -579,23 +585,29 @@ zbool	update;
 	else
 		xs_PlaneContour (c, pnames, nplat, fldname);
 /*
- * Draw the background and set up for side annotation
+ * Draw the background and set up for side annotation (unless it's 
+ * specifically disabled)
  */
 	xs_Background ();
 
-	if (Fill_contour)
+	sashow = TRUE;
+	pda_Search (Pd, c, "sa-show", NULL, (char *) &sashow, SYMT_BOOL);
+	if (sashow)
 	{
+	    if (Fill_contour)
+	    {
 		sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
 			 Contour_center, Contour_step); 
 		An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch),
 				 75, TRUE, FALSE);
-	}
-	else if (! Mono_color)
-	{
+	    }
+	    else if (! Mono_color)
+	    {
 		sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
 			 Contour_center, Contour_step); 
 		An_AddAnnotProc (An_ColorNumber, c, Scratch, strlen (Scratch), 
 				 75, TRUE, FALSE);
+	    }
 	}
 }
 
@@ -615,6 +627,7 @@ zbool	update;
 	char	ufldname[40], vfldname[40], *pnames[MaxPlatforms];
 	char	cname[20], style[16];
 	int	nplat;
+	zbool	sashow;
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
  * plots so we don't have plots with different endpoints overlaying each
@@ -710,19 +723,24 @@ zbool	update;
  */
 	xs_Background ();
 
-	if (Do_vectors)
+	sashow = TRUE;
+	pda_Search (Pd, c, "sa-show", NULL, (char *) &sashow, SYMT_BOOL);
+	if (sashow)
 	{
+	    if (Do_vectors)
+	    {
 		sprintf (Scratch, "m/s|%li|%f|%f|%f", Ccolor.pixel, 
 			 10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
 		An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
 				 40, FALSE, FALSE);
-	}
-	else
-	{
+	    }
+	    else
+	    {
 		sprintf (Scratch, "m/s|%li|%d", Ccolor.pixel, 
 			 (int)(Wind_scale * USABLE_HEIGHT));
 		An_AddAnnotProc (An_BarbLegend, c, Scratch, strlen (Scratch), 
 				 100, FALSE, FALSE);
+	    }
 	}
 }
 
@@ -842,7 +860,7 @@ int	nplat;
 				White.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 			  XPIX (dist[p]), Pix_bottom + 3, Scratch, 
-			  0.0, 0.02, JustifyCenter, JustifyTop);
+			  0.0, Text_size, JustifyCenter, JustifyTop);
 	/*
 	 * Trace of altitude span
 	 */
@@ -971,7 +989,7 @@ int	nplat;
 				White.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 			  XPIX (dist[p]), Pix_bottom + 3, Scratch, 
-			  0.0, 0.02, JustifyCenter, JustifyTop);
+			  0.0, Text_size, JustifyCenter, JustifyTop);
 	/*
 	 * Trace of altitude span
 	 */
@@ -2295,7 +2313,7 @@ xs_Background ()
  */
 {
 	float	tick, tickinc, lolim, hilim, xpos, ypos, lat, lon;
-	int	lbltoggle;
+	int	lbltoggle, ypix;
 	XPoint	pts[5];
 /*
  * Draw a box
@@ -2369,7 +2387,7 @@ xs_Background ()
 
 			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 				XPIX (-0.005 * P_len), YPIX (tick), 
-				Scratch, 0.0, 0.03, JustifyRight, 
+				Scratch, 0.0, Text_size, JustifyRight, 
 				JustifyBottom);
 		}
 		lbltoggle = ! lbltoggle;
@@ -2380,7 +2398,7 @@ xs_Background ()
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (-0.04 * P_len),
 		  YPIX (P_bot + 0.5 * P_hgt), 
 		  (char *) au_LongUnitsName (AltUnits), 
-		  90.0, 0.03, JustifyCenter, JustifyBottom);
+		  90.0, Text_size, JustifyCenter, JustifyBottom);
 /*
  * No horizontal axis labels for zig-zag plots
  */
@@ -2439,7 +2457,7 @@ xs_Background ()
 
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 			  XPIX (tick), YPIX (P_bot) + 2, Scratch, 0.0,
-			  0.03, JustifyCenter, JustifyTop);
+			  Text_size, JustifyCenter, JustifyTop);
 	}
 
 	switch (BottomLabel)
@@ -2457,9 +2475,11 @@ xs_Background ()
 		Scratch[0] = '\0';
 	}			
 
+	ypix = (Text_size < 1.0) ? YPIX (P_bot - 1.2 * Text_size * P_hgt) :
+	    YPIX (P_bot - 1.2 * Text_size);
+	
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (0.5 * P_len), 
-		  YPIX (P_bot - 0.04 * P_hgt), Scratch, 0.0, 0.03, 
-		  JustifyCenter, JustifyTop);
+		  ypix, Scratch, 0.0, Text_size, JustifyCenter, JustifyTop);
 }
 
 
@@ -3153,6 +3173,7 @@ zbool	update;
 	float	bot, top, wanted_azim, azim, hlen, ang;
 	int	hdim, vdim, shifted, highlight;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
+	zbool	sashow;
 	FieldId	fid;
 	ZebTime	zt;
 	RGrid	rg;
@@ -3406,11 +3427,16 @@ zbool	update;
  */
 	xs_Background ();
 
-	step_per_color = (step * nsteps) / Ncolors;
-	sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, center, 
-		 step_per_color); 
-	An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch), 75, TRUE, 
-			 FALSE);
+	sashow = TRUE;
+	pda_Search (Pd, c, "sa-show", NULL, (char *) &sashow, SYMT_BOOL);
+	if (sashow)
+	{
+	    step_per_color = (step * nsteps) / Ncolors;
+	    sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, center, 
+		     step_per_color); 
+	    An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch), 75, 
+			     TRUE, FALSE);
+	}
 }
 
 
