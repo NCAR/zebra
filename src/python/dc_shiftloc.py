@@ -35,8 +35,8 @@ def usage():
     print
     print "The specified display configuration will be modified to show"
     print "an area centered on the location of a Zebra platform at a selected"
-    print "time (default now).  A new display configuration will be written"
-    print "named like the original with a _tmp extension, e.g., if "
+    print "time (default now).  By default, a new display configuration will"
+    print "be written named like the original with a _tmp extension, e.g., if "
     print "'/path/test.dc' is the template display configuration, the new"
     print "configuration will be written in '/path/test_tmp.dc'."
 
@@ -45,8 +45,8 @@ try:
     haveplat = 0
     haveolat = 0
     haveolon = 0
-    haveoutdc = 0
     havedc = 0
+    haveoutdc = 0
     
     try:
         optlist, rest = getopt.getopt(sys.argv[1:], "h",
