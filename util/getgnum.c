@@ -26,6 +26,7 @@
 # define SELOK 0	/* select ok flag */
 
 #include <stdio.h>
+#include <string.h>
 
 int
 get_g_num (min, max, deflt, base)

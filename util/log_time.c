@@ -7,6 +7,7 @@
 # include <time.h>
 # include <errno.h>
 # include <stdio.h>
+# include <string.h>
 
 /*----------------------------------------------------------------------*\
  *		Send a GMT timestamp and message to stdout		*

@@ -11,6 +11,7 @@
 # include <netdb.h>
 # include <signal.h>
 # include <stdio.h>
+# include <string.h>
 # include <fcntl.h>
 
 # define BACKLOG 5		/* max length of pending connections que */
