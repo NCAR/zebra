@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.22 1995-03-20 17:42:31 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.23 1995-04-07 22:25:14 burghart Exp $")
 
 
 
@@ -185,6 +185,12 @@ float	*x0, *y0, *x1, *y1, *alt;
 			  platform, datestring);
 		return (NULL);
 	}
+/*
+ * For image data, we need to do some ugly stuff to deal with altitude
+ * steps.
+ */
+	if (platorg == OrgImage)
+		ImageDataTime (comp, pid, *alt, &dtime);
 /*
  * Set up the forecast offset time detail
  */
