@@ -1,6 +1,7 @@
 /*
  * Useful definitions.
  */
+/* $Id: defs.h,v 1.3 1991-04-28 17:37:21 corbet Exp $ */
 # ifndef _DEFS_H_
 # define _DEFS_H_
 
@@ -14,6 +15,16 @@ typedef struct date_st time;	/* Different from UI "date" so we can
 				   change it. */
 enum pmode { NoMode, History, RealTime };
 
+/*
+ * Locations.
+ */
+typedef struct s_Location
+{
+	float	l_lat;
+	float	l_lon;
+	float	l_alt;
+} Location;
+
 
 /*
  * Functions.
@@ -24,12 +35,16 @@ enum pmode { NoMode, History, RealTime };
 	void tw_DefTimeWidget (int (*callback) (), char *title);
 	void tw_DialAdjust (int, int);
 	int InterpDTime (char *);
+	void TC_SysToFcc (long, time *);
+	long TC_FccToSys (time *);
 # else
 	char *malloc ();
 	char *realloc ();
 	void tw_DefTimeWidget ();
 	void tw_DialAdjust ();
 	int InterpDTime ();
+	void TC_SysToFcc ();
+	long TC_FccToSys ();
 # endif
 
 
@@ -42,6 +57,9 @@ enum pmode { NoMode, History, RealTime };
 
 # define DLT(d1,d2) ((d1).ds_yymmdd < (d2).ds_yymmdd || \
 	((d1).ds_yymmdd == (d2).ds_yymmdd && (d1).ds_hhmmss < (d2).ds_hhmmss))
+
+# define DLE(d1,d2) ((d1).ds_yymmdd < (d2).ds_yymmdd || \
+	((d1).ds_yymmdd == (d2).ds_yymmdd && (d1).ds_hhmmss <= (d2).ds_hhmmss))
 /*
  * Set up inline so that we can use it.
  */
