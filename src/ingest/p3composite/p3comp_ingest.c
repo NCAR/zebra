@@ -131,6 +131,7 @@ char **argv;
 	 	ds_Store (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 		free (srcgrid);
+		free (grid);
 		close (fd);
 	}
 }
