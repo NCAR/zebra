@@ -7,6 +7,11 @@
 # include "../include/defs.h"
 # include "../include/message.h"
 
+# ifdef TIMING
+# include <sys/time.h>
+# include <sys/resource.h>
+# endif
+
 /*
  * A macro to reference the data array two dimensionally
  */
@@ -27,6 +32,18 @@ static float	Datamin, Datamax, Datarange;
  * Clipping rectangle
  */
 static XRectangle	Clip;
+
+/*
+ * Forwards.
+ */
+static void RP_FPRasterize (), RP_IRasterize ();
+# ifdef __STDC__
+	static XImage *RP_GetXImage (Widget, int, int);
+# else
+	static XImage *RP_GetXImage ();
+# endif
+
+
 
 
 
@@ -49,6 +66,15 @@ int	xdim, ydim;
 	int		eheight, ewidth;
 	GC		gcontext;
 	XGCValues	gcvals;
+
+# ifdef TIMING
+	int msec;
+	struct rusage	ru;
+
+	getrusage (RUSAGE_SELF, &ru);
+	msec = - ((ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
+			(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000);
+# endif
 /*
  * Find the size of the drawable
  */
@@ -83,18 +109,10 @@ int	xdim, ydim;
 		for (j = 0; j < ydim; j++)
 		{
 			ypos = (int) (fypos += yinc);
-# ifdef notdef
-			ypos = (int)(ylo + (j + 0.5) / (float)(ydim - 1) *
-				(yhi - ylo) + 0.5);
-# endif
 		/*
 		 * Find the correct color and get a graphics context
 		 * with the color in the foreground
 		 */
-# ifdef notdef
-			r_color = (int) floor (Ncolor * 
-				(DATA (i, j) - Datamin) / Datarange);
-# endif
 			r_color = (int) (cscale * (DATA (j, i) - Datamin));
 
 			if (r_color >= 0 && r_color < Ncolor)
@@ -114,6 +132,13 @@ int	xdim, ydim;
  * Free the GC
  */
 	XFreeGC (XtDisplay (w), gcontext);
+
+# ifdef TIMING
+	getrusage (RUSAGE_SELF, &ru);
+	msec += (ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
+		(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000;
+	msg_ELog (EF_INFO, "Rect rastor time = %.3f sec", (float) msec/1000.0);
+# endif
 }
 
 
@@ -151,12 +176,13 @@ float	dmin, dmax;
 
 
 
-RasterXIPlot (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi)
+RasterXIPlot (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi, fast)
 Widget	w;
 Drawable 	d;
 float	*array;
 int	xlo, ylo, xhi, yhi;
 int	xdim, ydim;
+bool fast;
 /*
  * Draw contours of the rectangular (xdim x ydim) array into widget w.
  * The coordinates (xlo,ylo) and (xhi,yhi) specify the spatial extent of
@@ -175,6 +201,15 @@ int	xdim, ydim;
 	XImage		*image;
 	GC		gcontext;
 	XGCValues	gcvals;
+
+# ifdef TIMING
+	int msec;
+	struct rusage	ru;
+
+	getrusage (RUSAGE_SELF, &ru);
+	msec = - ((ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
+			(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000);
+# endif
 /*
  * Get a graphics context
  */
@@ -227,17 +262,50 @@ int	xdim, ydim;
 		yhi = Clip.y;
 	}
 /*
- * Allocate space for the ximage.
+ * Get our ximage and do the rasterization.
  */
-	xim = (unsigned char *) malloc (width*height);
-	ximp = xim;
-	image = XCreateImage (XtDisplay (w),
-		DefaultVisual (XtDisplay (w),
-			XScreenNumberOfScreen (XtScreen (w))),
-		8, ZPixmap, 0, (char *) xim, width, height, 8, width);
+	image = RP_GetXImage (w, width, height);
+	ximp = image->data;
+	if (fast)
+		RP_IRasterize (ximp, width, height, colgrid, row, icol,
+			rowinc, colinc, xdim);
+	else
+		RP_FPRasterize (ximp, width, height, colgrid, row, icol,
+			rowinc, colinc, xdim);
 /*
- * Loop through the array points
+ * Now we ship over the image, and deallocate everything.
  */
+	XPutImage (XtDisplay (w), d, gcontext, image, 0, 0, xlo, yhi,
+		width, height);
+	XFreeGC (XtDisplay (w), gcontext);
+	free (colgrid);
+
+# ifdef TIMING
+	getrusage (RUSAGE_SELF, &ru);
+	msec += (ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
+		(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000;
+	msg_ELog (EF_INFO, "XI raster time = %.3f sec", (float) msec/1000.0);
+# endif
+}
+
+
+
+
+
+static void
+RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc, xdim)
+unsigned char *ximp;
+int width, height, xdim;
+unsigned int *colgrid;
+float row, icol, rowinc, colinc;
+/*
+ * Do rasterization using the old floating point (Ardent vectorizable) 
+ * method.
+ */
+{
+	int i, j;
+	float col;
+
 	for (i = 0; i < height; i++)
 	{
 		unsigned int *cp = colgrid + ((int) row)*xdim;
@@ -250,13 +318,94 @@ int	xdim, ydim;
 		}
 		row += rowinc;
 	}
-/*
- * Now we ship over the image, and deallocate everything.
- */
-	XPutImage (XtDisplay (w), d, gcontext, image, 0, 0, xlo, yhi,
-		width, height);
-	XDestroyImage (image);	/* Zaps xim too */
-	free (colgrid);
 }
 
 
+
+
+
+
+static void
+RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc, xdim)
+unsigned char *ximp;
+int width, height, xdim;
+unsigned int *colgrid;
+float row, icol, rowinc, colinc;
+/*
+ * Do rasterization using the new integer-based (Sun-fast) method.
+ */
+{
+	int i, j, icolinc;
+# ifdef __STDC__
+	static int col;
+	static const short *s_col = (short *) &col;
+# else
+	int col;
+	short *s_col = (short *) &col;
+# endif
+/*
+ * Set up our integer values, which are simply the FP values scaled by 
+ * 64K, so that the integer part is in the upper two bytes.  We then kludge
+ * our way in with the short pointer to pull out the int part directly.
+ */
+	icolinc = (int) (colinc * 65536);
+/*
+ * Step through the data.
+ */
+	for (i = 0; i < height; i++)
+	{
+		unsigned int *cp = colgrid + ((int) row)*xdim;
+
+		col = (int) (icol*65536);
+		for (j = 0; j < width; j++)
+		{
+			*ximp++ = cp[*s_col];
+			col += icolinc;
+		}
+		row += rowinc;
+	}
+}
+
+
+
+
+
+
+static XImage *
+RP_GetXImage (w, width, height)
+Widget w;
+int width, height;
+/*
+ * Return an XImage with this geometry.
+ */
+{
+	static int XIwidth = -1, XIheight = -1;
+	static XImage *image = 0;
+	char *xim;
+/*
+ * If the geometry matches, we can just return what we got last time.  This
+ * will be the case most of the time -- only when the window changes will
+ * this change.
+ */
+	if (width == XIwidth && height == XIheight)
+		return (image);
+/*
+ * If there is an existing image, get rid of it.
+ */
+	if (image)
+		XDestroyImage (image);
+/*
+ * Now get a new one.
+ */
+	xim = malloc (width*height);
+	image = XCreateImage (XtDisplay (w),
+		DefaultVisual (XtDisplay (w),
+			XScreenNumberOfScreen (XtScreen (w))),
+		8, ZPixmap, 0, xim, width, height, 8, width);
+/*
+ * Save info and return the image.
+ */
+	XIwidth = width;
+	XIheight = height;
+	return (image);
+}
