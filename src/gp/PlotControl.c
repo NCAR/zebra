@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.5 1991-10-25 18:01:53 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.6 1991-12-19 17:46:27 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -507,13 +507,18 @@ float x0, y0, x1, y1;
  */
 {
 	extern void eq_ReturnPD ();
+	float temp;
 /*
  * Put the new stuff in the PD.
  */
-	pd_Store (Pd, "global", "x-min", (char *) &x0, SYMT_FLOAT);
-	pd_Store (Pd, "global", "y-min", (char *) &y0, SYMT_FLOAT);
-	pd_Store (Pd, "global", "x-max", (char *) &x1, SYMT_FLOAT);
-	pd_Store (Pd, "global", "y-max", (char *) &y1, SYMT_FLOAT);
+	temp = (float) x0;
+	pd_Store (Pd, "global", "x-min", (char *) &temp, SYMT_FLOAT);
+	temp = (float) y0;
+	pd_Store (Pd, "global", "y-min", (char *) &temp, SYMT_FLOAT);
+	temp = (float) x1;
+	pd_Store (Pd, "global", "x-max", (char *) &temp, SYMT_FLOAT);
+	temp = (float) y1;
+	pd_Store (Pd, "global", "y-max", (char *) &temp, SYMT_FLOAT);
 /*
  * Now get a replot done, and ship the PD back to the display manager.
  */
