@@ -1,10 +1,42 @@
 /*
- * Basic configuration parameters.
- * Everything defined in this file should have defaults in Zeb.tmpl,
- * except for where noted for directories.
+ * Zeb configuration parameters.
+ * -------------------------------
+ * In this file you can override any of the default configuration
+ * parameters.  All of the parameters are definition directives for
+ * the C pre-processor, of the form:
+ *
+ * #define Symbol <definition>
+ *
+ * To set a symbol to True or Yes or On, use
+ *
+ * #define Symbol YES
+ *  
+ * To turn a parameter off or disable an option, use
+ *
+ * #define Symbol NO
+ *
+ * Some symbols are not YES or NO but actually directory names or
+ * commands.  If a Symbol is not defined in this file, it will be 
+ * assigned a default definition in the Zeb template file, Zeb.tmpl, 
+ * in this directory.  Most of the defaults are mentioned in this
+ * file and there are instructions for how to change many of the
+ * configuration parameters.  However, many more parameters exist.
+ * If you think it necessary to change some other parameters, such
+ * as when porting to a new platform, look in the Zeb.tmpl file 
+ * for all of the available parameters and their defaults.  Also
+ * see Zeb-Imake.doc in this directory.
  */
-# define CONFIG_VERSION \
-	"$Id: config.h-v4.0,v 1.2 1992-08-20 13:22:41 granger Exp $"
+
+/*///////////////////////////////////////////////////////////////////////*/
+/*============================== Don't change anything in this section ==*/
+
+# ifdef MAKING_MAKEFILE
+/**/# -----------------------------------------------------------------------
+/**/# Definitions from config.h included here.  The definitions here override
+/**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
+/**/# $Id: config.h-v4.0,v 1.3 1993-03-24 22:43:22 granger Exp $
+/**/# -----------------------------------------------------------------------
+# endif
 
 # ifndef YES
 #	define YES 1
@@ -13,16 +45,40 @@
 #	define NO 0
 # endif
 
-/*
- * Directories in which ZEB files live.  These, alas, need to be defined
- * twice, once in quotes for programs, once without for Makefiles.  Someday
- * when we all have ANSI compilers that can be avoided, but we are not 
- * there yet.
+/*///////////////////////////////////////////////////////////////////////*/
+/*=======================================================================*/
+
+
+/*=======================================================================
+ * CHECK THE FOLLOWING DEFINITIONS:
+ *
+ * This section defines the directories in which ZEB files live.  These,
+ * alas, need to be defined twice, once in quotes for inclusion in program
+ * source files, and once without for inclusion in Makefiles.  Someday when
+ * we all have ANSI compilers that can be avoided, but we are not there
+ * yet.  These are set-up for the default Zeb installation, in which Zeb
+ * resides under /zeb, and the bin and lib directories are /zeb/bin and
+ * /zeb/lib.  If you would like to change the destination for Zeb, edit the
+ * definitions below.  But be sure to change the lines for both the quoted
+ * and un-quoted definitions.
+ * 
+ * PLEASE NOTE:
+ * Files will be installed into LibDir, BinDir, and BaseDir/include
+ * directories.  If you wish to preserve files already stored in these
+ * directories, either move the directories BEFORE building Zeb or specify
+ * different directory paths for the symbols below.  If you wish to
+ * overwrite a previous version of Zeb, you might as well completely erase
+ * the contents of BinDir so that programs which are no longer used are not
+ * left taking up space.
+ *
+ * REMEMBER, whenever changing any of these symbols, to also change the
+ * corresponding quoted/un-quoted symbol definition.  The quoted and
+ * unquoted definitions should contain the same directory path!
+ *
  */
-# ifdef MAKING_MAKEFILE	 		/* use unquoted definitions */
+# ifdef MAKING_MAKEFILE	 	/* use unquoted definitions for Makefiles */
 
 # define BaseDir	/zeb
-# define IncDir		BaseDir/include
 # define LibDir		BaseDir/lib
 # define EtcDir		BaseDir/etc	/* Shouldn't really be used for much */
 # define BinDir		BaseDir/bin
@@ -43,12 +99,20 @@
 # define DATADIR	"/zeb/data"
 
 # endif /* MAKING_MAKEFILE */
+/*=======================================================================*/
 
-/* --------------------------------------------------------------------------
+
+/* =========================================================================
+ * The following definitions determine which parts of the Zeb system will
+ * be compiled and installed in the build process.
+ *
+ * 	YES --- The capability WILL be compiled into the system.
+ * 	NO  --- The capability WILL NOT be included into the system.
+ *
  * Configurable options:
  * 
  * 	Plots
- * 		CAP
+ * 		CAP (Constant Altitude Plots)
  * 			lightning
  * 			various overlays (or overlays at all)
  * 			raster variations
@@ -69,7 +133,6 @@
  * 
  * 	Data menu
    ------------------------------------------------------------------------ */
-
 /*
  * The various plot types.
  */
@@ -85,102 +148,24 @@
  */
 # if C_PT_CAP
 /*
- * These YES if you want them.  If C_PT_CAP above is not YES, these
+ * Define these YES if you want them.  If C_PT_CAP above is not YES, these
  * settings will be ignored and none of them will be built.
  */
 #	define C_CAP_OVERLAY	YES	/* Overlays			*/
 #	define C_CAP_VECTOR	YES	/* Vector plots			*/
 # 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
 #	define C_CAP_RASTER	YES	/* Raster plots			*/
+#	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
 # endif
 
-
-# ifdef MAKING_MAKEFILE
-
-/**/# -----------------------------------------------------------------------
-/**/# Template info for Makefiles from config.h defined here
-/**/# See config.h!
-/**/# $Id: config.h-v4.0,v 1.2 1992-08-20 13:22:41 granger Exp $
-/**/# -----------------------------------------------------------------------
-
-/*
- * Using Open Windows?  Set this to YES, and be sure to set the
- * correct version number, either 2 or 3
+/* 
+ * Do you want to build any of Zeb's ingest modules?
  */
-# define UseOpenWindows NO	
-# define OpenWindowsVersion 2
-# define OpenWinHome	/usr/openwin
+#define BuildIngest NO
 
 /*
- * Does your X system support the shared memory extension?  The answer is
- * yes for MIT X at release 4 or greater, or for Openwin 2.0 or above.  If
- * unsure, run "xdpyinfo" and look for the MIT-SHM extension.
- */
-# define XSharedMemory NO
-
-/*
- * Compiler information.  Use of gcc is recommended if you have it.
- *
- * IncludeDirs is where the C compiler is told to look for "system" include
- * files.  If you have files in strange places (X window system, perhaps),
- * add the directories here.
- */
-# define UseGcc
-# define CDebugFlags -g
-
-# define XIncDir /local/X11R5/include
-# define XLibDir /local/X11R5/lib
-
-/*
-# define CCompiler gcc
-# define CDebugFlags -g
-# define CCOptions -O
-# define FortOptions -O
-# define XIncludes
-*/
-
-# define SudsLibrary    RDSSDir/suds/libsuds.a
-
-/*
- * Library information.
- *
- * The libraries for the X window system.  Change as needed.  If your X
- * libraries are not in /usr/lib or /usr/local/lib, throw in the appropriate
- * -L option here.
- */
-/*
-# define XLibraries -lXaw -lXmu -lXt -lXext -lX11
-*/
-
-/*
- * Fortran libraries needed to build the graphics process.  These are
- * set properly for Suns with Fortran 1.3 or beyond.
- */
-# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
-
-/*
- * The netCDF library.
- */
-/*
-# define NetCDFLibrary  -L$(NETCDFLIBDIR) -lnetcdf
-*/
-
-/*
- * System libraries which are routinely needed.
- */
-/*
-# define SystemLibraries -ltermcap -lm
-*/
-
-/*
- * Here we choose pieces of the system to create.
- */
-/* Do we make ingest modules?	*/
-#define BuildIngest YES
-
-/*
- * Individual ingest modules to select.  NONE of these will be built
- * if BuildIngest is NO
+ * Here you can select which individual ingest modules to build.  
+ * NONE of these will be built if BuildIngest is NO
  */
 # define	BuildIngestScheduler	YES
 # define	BuildClassIngest	YES
@@ -198,23 +183,236 @@
 # define	BuildRsgIngest		NO
 # define	BuildSatelliteIngest	NO
 
-/* Build Scan optimizer?	*/
-#define BuildOptimizer YES
+/* 
+ * Do you want to build the Scan optimizer?
+ */
+#define BuildOptimizer NO
 
 /*
- * Set this if you want the ingest-oriented DataStore utilities (being
- * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  It
+ * Set this if you want the ingest-oriented DataStore utilities (these being
+ * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  They
  * will not build properly under a non-ANSI compiler.
  */
 # define	BuildRealtimeDataStoreTools	YES
 
+/*
+ * The data manager utilities are the programs dsmanage and tapeindex.
+ * These are extremely useful in most environments, but not absolutely
+ * necessary.  These programs require a C++ compiler, so if you do not have
+ * a C++ compiler, define this to NO.  See further on in this file for
+ * information about specifying the C++ compiler.
+ */
+# define	BuildDataManager		YES
 
+/*
+ * The data file utilities are the program for handling various file 
+ * and converting files to Zeb's netCDF conventions.  Some examples
+ * are gprotocdf and mudtocdf, for GENPRO and MUDRAS, respectively.
+ * Unless you know you will need them, you might as well wait and only
+ * compile the programs you need when you need them.
+ */
+# define	BuildDataUtilities		NO
+
+/*///// That's all of the defintions for which pieces to install.   //////*/
+/*///// Go the next section for other compile configuration options //////*/
+/*========================================================================*/
+
+
+/*========================================================================
+ * COMPILATION OPTIONS
+ * -------------------
+ *
+ * In the following section, you can override any of the configuration
+ * defaults.  In general, here you choose whether you want to compile with
+ * MIT's X Windows or Sun's OpenWindows, and whether you want to use Sun's
+ * C compiler, cc, or GNU C, gcc, or some other C compiler.  Other
+ * parameters indicate the availability of certain capabilities utilized by
+ * Zeb, such as the X Shared Memory extension.
+ *
+ * By default, the configuration will attempt to compile with your systems
+ * default C compiler and link with X libraries from /usr/lib or any other
+ * standard library directories.  You can link with MIT's X and still use
+ * Zeb under OpenWindows, and vice versa.  Zeb must know if it is being
+ * linked with OpenWindows, however, because the build must make some
+ * adjustments in order to link properly.  If you have MIT's X
+ * distribution, Release 4 or 5, use it.  If you only have OpenWindows,
+ * version 2 or 3, then use that (the most recent version possible) and
+ * define the UseOpenWindows symbol below to YES and the OpenWindowsVersion
+ * symbol to the appropriate version number
+ *
+ */
+# ifdef MAKING_MAKEFILE
+
+/*
+ * Using Open Windows?  Define UseOpenWindows to YES, and be sure to 
+ * define OpenWindowsVersion to the correct version number, either 2 or 3.
+ * If the home directory of OpenWindows is not the default /usr/openwin,
+ * then define OpenWinHome to the correct directory.
+ *
+ * Zeb must be statically linked with the OpenWindows library.  If you are
+ * using Sun's cc compiler or GNU C, the static option will be used
+ * automatically.  Otherwise the definition of the CCStaticOption symbol
+ * will be used.  Define this symbol to the correct static option if it is
+ * not the default of '-Bstatic'.
+ */
+# define UseOpenWindows 	NO	
+# define OpenWindowsVersion 	2
+# define OpenWinHome		/usr/openwin
+
+/*
+ * Does your X system support the shared memory extension?  The answer is
+ * YES for MIT X, release 4 or greater, or for Openwin 2.0 or above.  If
+ * unsure, run "xdpyinfo" and look for a line indicating the MIT-SHM
+ * extension.
+ */
+# define XSharedMemory YES
+
+/*
+ * Compiler information:
+ * If you have gcc (GNU C), we recommend that you use it.
+ * If you wish to use gcc, simply define UseGcc to YES.
+ *  - This setting automatically sets the CCompiler command
+ *    (so don't override it) and any other necessary options
+ *    (such as -static if you have set UseOpenWindows to YES)
+ * If you wish to use a C compiler other than the default,
+ * define CCompiler to the C compiler command.  For most systems,
+ * the default will be 'cc'.
+ */
+# define UseGcc YES
+
+/*
+ * If you wish to compile dsmanage and tapeindex, you need to specify
+ * a C++ compiler, like Sun's CC or GNU's g++.  If you defined UseGcc
+ * to YES above, g++ will be used for the C++ compiler.  Otherwise the
+ * default is CC.  To define a different C++ compiler, define
+ * CccCompiler to the name of the compiler.  If the compiler requires
+ * any special library options, define them in CccLibs.  The C debug
+ * flags and options (defined below) will be passed to the C++
+ * compiler as well.  Options specific to the C++ compiler should
+ * be defined in CccOptions.
+ */
+#define CccOptions
+
+/*
+ * To set debugging flags for the FORTRAN and C compilers' command
+ * lines, define the symbols CDebugFlags and FortDebugFlags.
+ * The default is no debugging.  Note that for most compilers
+ * (gcc is an exception), the -g and -O flags cannot be combined.
+ * On Sun's, a debugging flag will disable optimization.  The FORTRAN
+ * should probably always be optimized, so make sure FortDebugFlags
+ * does not disable optimization by specifying any debug flags.
+ */
+# define CDebugFlags -g
+# define FortDebugFlags -g
+
+/*
+ * To change other compiler command line options, such as required by your
+ * compiler (floating point stuff, etc.), or optimization flags, define
+ * CCOptions and FortOptions.  The default is optimization, -O.
+ */
+# define CCOptions -O
+# define FortOptions -O
+
+/*
+ * During compilation, Zeb's source files must be able to find lots
+ * of include files.  By default, your compiler should check the
+ * standard include directories like /usr/include.  If the header files
+ * for any package that Zeb requires are not in some standard location,
+ * the correct directories need to be defined here.
+ * The available symbols are:
+ *
+ *	XIncDir		-- Location of X header files.  By default,
+ *			   this will be $OPENWINHOME/include if you
+ *			   are using OpenWindows.  Otherwise it will
+ *			   be empty (i.e. rely on the compiler to search
+ *			   the standard include directories).
+ *	NetCDFIncDir    -- Location of netCDF header files.  The default
+ *			   is '/usr/local/include'.
+ *	RDSSIncDir	-- RDSS include files.  The default is RDSSDir/include.
+ *			   If not defined above, RDSSDir is /rdss.
+ *
+ * During linking, the linker must be told where to find the libraries 
+ * for the various packages which Zeb requires.  The locations of these
+ * libraries can be defined in the following parameters:
+ *
+ * 	XLibDir		-- Location of X libraries.  Default: /usr/lib
+ *	NetCDFLibDir    -- Location of the netCDF library.
+ *	RDSSLibDir	-- RDSS Library directory.  Default: /usr/local/lib
+ *
+ */
+
+# define XIncDir /local/X11R5/include
+# define XLibDir /local/X11R5/lib
+
+/*
+ * If you need to define the actual command-line option for specifying
+ * some or all of the libraries, you can change several parameters.
+ * All of these parameters will default to the specified library directory
+ * (such as those that may have been defined above) and the standard
+ * name of the library: e.g. -L<libdir> -l<libname>.  The default is
+ * listed to the right of each of the parameter names.
+ *
+ * For these 3 libraries, it is unlikely that the defaults will not be
+ * sufficient:
+ *
+ *	XLibraries	-L<libdir> -lXaw -lXmu -lXt -lXext -lX11
+ *	NetCDFLibrary	-L<libdir> -lnetcdf
+ * 	RDSSLibrary	-L<libdir> -lrdss
+ *
+ * The following 2 libraries will probably need to be explicitly
+ * defined here, but ONLY if you need them for ingest modules.
+ *
+ * The SUDS library is only needed for the PAM and CLASS ingest modules.
+ *
+ *	SudsLibrary	$(RDSSDIR)/suds/libsuds.a
+ *
+ * The 'PAM configuration library', libunp.a, is only needed by
+ * the PAM ingest module.
+ *
+ *	PamCfgLibrary	-lunp
+ *
+ */
+
+# define PamCfgLibrary -L/usr/local/lib -lunp
+
+/*
+ * FORTRAN libraries tend to be very system-specific.  Define this
+ * parameter to be the command-line options necessary to link with
+ * the FORTRAN libraries on your system.
+ *
+ * Fortran libraries are needed to build the graphics process.  
+ *
+ * The definition below is for Suns with FORTRAN 1.3 or beyond, assuming
+ * you followed the recommended installation for FORTRAN.
+ */
+
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
+
+/*
+ * Some of Zeb's routines require the terminal capability library,
+ * usually /usr/lib/libtermcap.a, and the math library, /usr/lib/libm.a.
+ * These are the symbols and their defaults:
+ *
+ *	MathLibrary	-lm
+ *	TermcapLibrary	-ltermcap
+ *
+ * To change these definitions, use your compiler's options for 
+ * specifying libraries on the command line, such as -L for 
+ * search directories and -l for library names.
+ */
+
+# define MathLibrary	-lm
+# define TermcapLibrary -ltermcap
+
+/*========================================================================*/
 # endif /* MAKING_MAKEFILE */
 
 
 /*========================================================================
- * DO NOT MODIFY BELOW THIS LINE!
- * THESE ARE DEFINITIONS THAT SHOULD NOT CHANGE!
+ * ////////     You are now finished configuring Zeb!      ///////////////
+ * ////////           Do not edit any further!	           ///////////////
+ * ////////     Save this file and continue with the	   ///////////////
+ * ////////         installation instructions...	   ///////////////
  *========================================================================*/
 
 /*
@@ -225,6 +423,7 @@
 #	define C_CAP_VECTOR	NO	/* Vector plots			*/
 # 	define C_CAP_LIGHTNING	NO	/* Lightning location		*/
 #	define C_CAP_RASTER	NO	/* Raster plots			*/
+#	define C_CAP_TRACKS	NO	/* Track plots			*/
 # endif
 
 /*
