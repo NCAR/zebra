@@ -1,4 +1,4 @@
-/* $Id: dm_pd.c,v 1.1 1990-04-26 16:23:43 corbet Exp $ */
+static char *rcsid = "$Id: dm_pd.c,v 1.2 1990-07-08 12:59:29 corbet Exp $";
 /*
  * Plot description related routines.
  */
@@ -113,7 +113,6 @@ char *file;
 /*
  * Pull in the file.
  */
-	ui_printf ("Loading file %s...", file);
 	ERRORCATCH
 		pd = pdread (file);
 	ON_ERROR
@@ -135,6 +134,5 @@ char *file;
 /*
  * Stash away the PD.
  */
-	ui_printf ("PD %s\n", name);
 	pda_StorePD (pd, name);
 }
