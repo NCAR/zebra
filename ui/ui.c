@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.3 1989-06-05 14:14:02 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.4 1989-06-05 16:06:01 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -96,6 +96,7 @@ bool interact, nokeypad;
 	Cs->cs_csave = (struct csave *) NULL;
 	Cs->cs_test = Cs->cs_tstr = Cs->cs_term = Cs->cs_cvar = (char *) NULL;
 	Cs->cs_arg_table = (stbl) NULL;
+	ut_new_ctx ();
 /*
  * Initialize the symbol table, since not much else will work without it.
  */
@@ -1649,6 +1650,11 @@ int mode;
 	Cs->cs_term = "endmode";
 	Cs->cs_test = 0;
 /*
+ * If this is a command mode, create a token context for it.
+ */
+	if (mode == M_COMMAND)
+		ut_new_ctx ();
+/*
  * KLUDGE: put a tty source on it.
  */
 	inp = ucs_input ();
@@ -1750,6 +1756,10 @@ char *command;
 	Cs->cs_term = "(end-of-csave)";
 	Cs->cs_test = 0;
 	Cs->cs_mode = M_COMMAND;
+/*
+ * This mode needs a new token context.
+ */
+ 	ut_new_ctx ();
 /*
  * Fill in the save info.
  */
