@@ -2,6 +2,7 @@
  * Imakefile for the ETC directory.
  */
 
-HELPFILES = fest_stations.hlp xhelp.hlp zeb.hlp
+HELPFILES = xhelp.hlp zeb.hlp \
+	fest_stations.hlp fest_soundings.hlp fest_codes.hlp fest_profilers.hlp
 
 InstallLibFile ($(HELPFILES),.,.)

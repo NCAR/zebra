@@ -1,6 +1,6 @@
 38
 000000%000000/////  Welcome to Zeb
-788
+809
 
 / INTRODUCTION /
 
@@ -12,17 +12,18 @@ and also as a post-processing visualization tool.
 / USING HELP /
 
 This is the on-line help facility for Zeb.  Help can be
-obtained in several ways.  To see all of the help topics,
-press the <Topics> button, the leftmost icon above the title
-bar "Welcome to the Wide World of Zeb".  The <Up> and <Down>
-icon buttons, the second and third icons from the left, move
-up and down through the list of topics.  The <Search>
-button, picturing the magnifying glass, provides a search
-facility for finding text references within a single topic.  
+obtained in several ways.  Usually, pressing a <Help> button
+somewhere in Zeb will display a specific help topic in this
+window.  Once viewing a topic, the <Up> and <Down> icon
+buttons above, the second and third icons from the left,
+move up and down through all of Zeb's help topics.  The
+<Search> button, picturing the magnifying glass at the far
+right, provides a search facility for finding text
+references within a single topic.  
 
 Click the <Down> icon for more information on using Help... 
 moreonhelp   Using Zeb's On-line Help
-1340
+1523
 
 / SCROLLING HELP WINDOWS /
 
@@ -48,16 +49,19 @@ viewed by clicking on the topic name in the list.  Also,
 many of the help topics will be displayed automatically
 when help is requested in other parts of Zeb, such as in
 the Icon Bar help menu, one of the Zeb widgets, or a
-Graphics Window icon.
+Graphics Window icon.  The next topic is actually a "Table
+of Contents" which lists the help information in more
+detail than the topics list.  Click the <Down> icon to
+reach the table of contents.
 
 / EXITING HELP /
 
 To remove the help window, click on the <Quit> button found
 above the row of icon buttons in the help window.  If help
-is requested at a later time, the help window will pop up
-again.
+is requested again at a later time, the help window will
+pop up again.  
 tablecontentsTable of Contents
-4058
+4096
 
 / TABLE OF CONTENTS /
 
@@ -68,11 +72,12 @@ surface station listings.  To reach a particular topic,
 click on the <Topics> icon button in the help window to
 pop-up a list of topics, then click on the topic of
 interest.  A specific section of a topic may be found by
-scrolling the text in the help window.  Major section
+scrolling the text through the help window.  Major section
 headings, those capitalized below, are denoted by '/////'
-in the topic list.  To search for topics by a key word, use
-the pop-up search window by clicking on the <Search> icon
-above (picturing the magnifying glass).
+in the topic list.  To search the table of contents for a
+key word to help find a topic, use the pop-up search window
+by clicking on the <Search> icon above (picturing the
+magnifying glass).
 
 ***********************************************************
 
@@ -126,7 +131,7 @@ ZEB SYSTEM COMPONENTS
 
 	A. Changing the display configuration
 
- 9. Editing display configurations
+ 9. Editing Display Configurations
 
 	A. Editing display configurations
 	B. Cloning a configuration
@@ -271,7 +276,7 @@ SKEW-T PLOTS
 
 ***********************************************************
 components   /////  Zeb System Components
-5088
+5081
 
 / ZEB SYSTEM COMPONENTS /
 
@@ -314,7 +319,6 @@ Graphics Window.  Note that only the Icon Bar contains the
 See the topic "The Icon Bar Icons" for a description of
 each of the icons in the Icon Bar.
 
-
 / THE EVENT LOGGER /
 
 The Event Logger is an important part of the Zeb display
@@ -338,7 +342,6 @@ and <Debug> menu buttons are used primarily for development
 and real-time operations and should not be used for
 post-processing.
 
-
 / GRAPHICS WINDOWS /
 
 Graphics windows display the data on the screen.  A
@@ -357,7 +360,6 @@ each can be a different type of plot from the others.  See
 "Changing the Display Configuration" and "Editing Display
 Configurations." 
 
-
 / THE TIME WIDGET /
 
 The Time Widget is the "system time controller."  It can
@@ -370,7 +372,6 @@ icon bar, the time widget will not automatically appear in
 a configuration.  It must be explicitly popped up from the
 <Zeb> main menu on the Icon Bar.  See "Setting a History
 Time" for instructions on using the system time widget.
-
 
 / THE DISPLAY CONFIGURATION /
 
@@ -389,9 +390,6 @@ display can quickly and easily alternate between different
 personal preferences and different analysis applications. 
 See the topics "Changing the Display Configuration" and
 "Editing Display Configurations" for more information.
-
-
-
 
 
 iconbar      The Icon Bar Icons

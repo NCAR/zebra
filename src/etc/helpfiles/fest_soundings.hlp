@@ -1,0 +1,245 @@
+3
+000000%000000Sounding Sites
+3608
+
+Following is a list of sounding sites, grouped by category
+and in no particular order.  The second and third help
+topics, accessible by pressing the <Down> icon above,
+contain listings ordered alphabetically by ID name and
+city, respectively.
+
+
+    ID     LAT      LON    ALT   CITY
+   ---   -----   ------  -----   --------------------
+
+/ CLASS SITES /
+
+   akz   37.05   -97.10  0.377   Arkansas City
+   slb   42.64   -95.21  0.430   Storm Lake
+   iow   41.71   -91.61  0.241   Iowa City
+   ear   40.70   -99.10  0.662   Kearney
+   3v1   39.24   -102.29 1.286   Burlington
+   62k   39.83   -96.11  0.384   Seneca
+   irk   40.19   -92.59  0.291   Kirksville
+   stl   38.64   -90.24  0.161   Columbia
+
+/ NSSL CLASS SITES /
+
+   hys   38.90   -99.32  0.626   Hays
+   cou   38.82   -92.22  0.268   Columbia
+   hen   36.38   -92.23  0.175   Henderson
+   guy   36.70   -101.48 0.939   Guymon
+
+/ NWS SOUNDING SITES /
+
+   ABQ   35.02   -106.60 1613    Albuquerque,NM
+   AMA   35.23   -101.70 1099    Amarillo,TX
+   DDC   37.77   -99.97  790     Dodge City,KS
+   DEN   39.75   -104.87 1625    Denver,CO
+   ELP   31.80   -106.40 1194    El Paso,TX
+   FSI   34.39   -98.24  360     Fort Sill
+   GGG   32.38   -94.72  111     Longview,TX
+   GJT   39.12   -108.53 1475    Grand Junction,CO
+   GRB   44.48   -88.13  214     Green Bay,WI
+   HON   44.38   -98.22  393     Huron,SD
+   LBF   41.13   -100.97 849     North Platte,NE
+   LIT   34.73   -92.23  78      Little Rock,AR
+   LND   42.82   -108.73 1695    Lander,WY
+   MAF   31.95   -102.18 872     Midland,TX
+   OMA   41.30   -95.90  299     Omaha, OK
+   OUN   35.23   -97.47  362     Norman, OK
+   PAH   37.07   -88.77  125     Paducah, KY
+   PIA   40.67   -89.68  202     Peoria, IL
+   RAP   44.05   -103.07 966     Rapid City, SD
+   SEP   32.22   -98.18  402     Stephenville, TX
+   STC   45.55   -94.07  312     St. Cloud, MN
+   TOP   39.07   -95.62  270     Topeka, KS
+   UMN   36.88   -93.90  437     Monett, MO
+   BIS   46.77   -100.75 506     Bismark, ND
+   DRA   36.62   -116.02 1009    Mercury/Desert, NV
+   BOI   43.57   -116.22 874     Boise, ID
+   ELY   39.28   -114.85 1909    Ely, NV
+   GEG   47.63   -117.53 721     Spokane, WA
+   GGW   48.22   -106.62 700     Glascow,MT
+   GTF   47.48   -111.37 1115    Great Falls,MT
+   INW   35.02   -110.73 1488    Winslow,AZ
+   SLC   40.78   -111.97 1288    Salt Lake City, NV
+   TUS   32.12   -110.93 779     Tucson, AZ
+   WMC   40.90   -117.80 1322    Winnemucca, NV
+   MFR   42.37   -122.87 405     Medford, OR
+   MYF   32.82   -117.13 124     San Diego, CA
+   OAK   37.73   -122.22 3       Oakland, CA
+   SLE   44.92   -123.00 61      Salem, OR
+   UIL   47.95   -124.55 62      Quillayute, WA
+   VBG   34.71   -120.56 100     Vandenberg AFB, CA
+   ANN   55.03   -131.57 34      Annette Island, AK
+   OLM   46.97   -122.90 59      Olympia,WA
+   CGO   43.80   -123.03 195     Cottage Grove, OR
+   RDD   40.58   -122.40 177     Redding,CA
+   ILA   39.15   -122.08 25      Williams, CA
+   NPS   36.60   -121.89 30      Monterey, CA
+   PRB   35.67   -120.63 249     Pasarobles, CA
+   NTD   34.11   -119.11 2       Point Mugu, CA
+   YXY   60.72   -135.07 703     Whitehorse, YK
+   YYE   58.83   -122.60 382     Fort Nelson,BC
+   YSM   60.03   -111.93 203     Fort Smith, NT
+   YXS   53.88   -122.68 69      Prince George,BC
+   YZT   50.68   -127.37 22      Port Hardy, BC
+   WIL   40.04   -88.27  218     Flatlands, Il
+   WVK   50.23   -119.28 555     Vernon Bridge, BC
+   WSE   53.55   -114.10 766     Edmonton/SP, NT
+   YVQ   65.28   -126.80 73      Norman Wells, NT
+   YEV   68.30   -133.48 68      Inuvik, NT
+
+idsbyalphabetSounding Sites, Alphabetically by ID
+3298
+
+    ID     LAT      LON    ALT   CITY
+   ---   -----   ------  -----   ----------------------
+   3v1   39.24   -102.29 1.286   Burlington
+   62k   39.83   -96.11  0.384   Seneca
+   ABQ   35.02   -106.60 1613    Albuquerque,NM
+   akz   37.05   -97.10  0.377   Arkansas City
+   AMA   35.23   -101.70 1099    Amarillo,TX
+   ANN   55.03   -131.57 34      Annette Island, AK
+   BIS   46.77   -100.75 506     Bismark, ND
+   BOI   43.57   -116.22 874     Boise, ID
+   CGO   43.80   -123.03 195     Cottage Grove, OR
+   cou   38.82   -92.22  0.268   Columbia
+   DDC   37.77   -99.97  790     Dodge City,KS
+   DEN   39.75   -104.87 1625    Denver,CO
+   DRA   36.62   -116.02 1009    Mercury/Desert, NV
+   ear   40.70   -99.10  0.662   Kearney
+   ELP   31.80   -106.40 1194    El Paso,TX
+   ELY   39.28   -114.85 1909    Ely, NV
+   FSI   34.39   -98.24  360     Fort Sill
+   GEG   47.63   -117.53 721     Spokane, WA
+   GGG   32.38   -94.72  111     Longview,TX
+   GGW   48.22   -106.62 700     Glascow,MT
+   GJT   39.12   -108.53 1475    Grand Junction,CO
+   GRB   44.48   -88.13  214     Green Bay,WI
+   GTF   47.48   -111.37 1115    Great Falls,MT
+   guy   36.70   -101.48 0.939   Guymon
+   hen   36.38   -92.23  0.175   Henderson
+   HON   44.38   -98.22  393     Huron,SD
+   hys   38.90   -99.32  0.626   Hays
+   ILA   39.15   -122.08 25      Williams, CA
+   INW   35.02   -110.73 1488    Winslow,AZ
+   iow   41.71   -91.61  0.241   Iowa City
+   irk   40.19   -92.59  0.291   Kirksville
+   LBF   41.13   -100.97 849     North Platte,NE
+   LIT   34.73   -92.23  78      Little Rock,AR
+   LND   42.82   -108.73 1695    Lander,WY
+   MAF   31.95   -102.18 872     Midland,TX
+   MFR   42.37   -122.87 405     Medford, OR
+   MYF   32.82   -117.13 124     San Diego, CA
+   NPS   36.60   -121.89 30      Monterey, CA
+   NTD   34.11   -119.11 2       Point Mugu, CA
+   OAK   37.73   -122.22 3       Oakland, CA
+   OLM   46.97   -122.90 59      Olympia,WA
+   OMA   41.30   -95.90  299     Omaha, OK
+   OUN   35.23   -97.47  362     Norman, OK
+   PAH   37.07   -88.77  125     Paducah, KY
+   PIA   40.67   -89.68  202     Peoria, IL
+   PRB   35.67   -120.63 249     Pasarobles, CA
+   RAP   44.05   -103.07 966     Rapid City, SD
+   RDD   40.58   -122.40 177     Redding,CA
+   SEP   32.22   -98.18  402     Stephenville, TX
+   slb   42.64   -95.21  0.430   Storm Lake
+   SLC   40.78   -111.97 1288    Salt Lake City, NV
+   SLE   44.92   -123.00 61      Salem, OR
+   STC   45.55   -94.07  312     St. Cloud, MN
+   stl   38.64   -90.24  0.161   Columbia
+   TOP   39.07   -95.62  270     Topeka, KS
+   TUS   32.12   -110.93 779     Tucson, AZ
+   UIL   47.95   -124.55 62      Quillayute, WA
+   UMN   36.88   -93.90  437     Monett, MO
+   VBG   34.71   -120.56 100     Vandenberg AFB, CA
+   WIL   40.04   -88.27  218     Flatlands, Il
+   WMC   40.90   -117.80 1322    Winnemucca, NV
+   WSE   53.55   -114.10 766     Edmonton/SP, NT
+   WVK   50.23   -119.28 555     Vernon Bridge, BC
+   YEV   68.30   -133.48 68      Inuvik, NT
+   YSM   60.03   -111.93 203     Fort Smith, NT
+   YVQ   65.28   -126.80 73      Norman Wells, NT
+   YXS   53.88   -122.68 69      Prince George,BC
+   YXY   60.72   -135.07 703     Whitehorse, YK
+   YYE   58.83   -122.60 382     Fort Nelson,BC
+   YZT   50.68   -127.37 22      Port Hardy, BC
+alphabycitiesSounding Sites, Alphabetically by City
+3303
+
+    ID     LAT      LON    ALT   CITY
+   ---   -----   ------  -----   -------------------------
+
+   ABQ   35.02   -106.60 1613    Albuquerque,NM
+   AMA   35.23   -101.70 1099    Amarillo,TX
+   ANN   55.03   -131.57 34      Annette Island, AK
+   akz   37.05   -97.10  0.377   Arkansas City
+   BIS   46.77   -100.75 506     Bismark, ND
+   BOI   43.57   -116.22 874     Boise, ID
+   3v1   39.24   -102.29 1.286   Burlington
+   cou   38.82   -92.22  0.268   Columbia
+   stl   38.64   -90.24  0.161   Columbia
+   CGO   43.80   -123.03 195     Cottage Grove, OR
+   DEN   39.75   -104.87 1625    Denver,CO
+   DDC   37.77   -99.97  790     Dodge City,KS
+   WSE   53.55   -114.10 766     Edmonton/SP, NT
+   ELP   31.80   -106.40 1194    El Paso,TX
+   ELY   39.28   -114.85 1909    Ely, NV
+   WIL   40.04   -88.27  218     Flatlands, Il
+   YYE   58.83   -122.60 382     Fort Nelson,BC
+   FSI   34.39   -98.24  360     Fort Sill
+   YSM   60.03   -111.93 203     Fort Smith, NT
+   GGW   48.22   -106.62 700     Glascow,MT
+   GJT   39.12   -108.53 1475    Grand Junction,CO
+   GTF   47.48   -111.37 1115    Great Falls,MT
+   GRB   44.48   -88.13  214     Green Bay,WI
+   guy   36.70   -101.48 0.939   Guymon
+   hys   38.90   -99.32  0.626   Hays
+   hen   36.38   -92.23  0.175   Henderson
+   HON   44.38   -98.22  393     Huron,SD
+   YEV   68.30   -133.48 68      Inuvik, NT
+   iow   41.71   -91.61  0.241   Iowa City
+   ear   40.70   -99.10  0.662   Kearney
+   irk   40.19   -92.59  0.291   Kirksville
+   LND   42.82   -108.73 1695    Lander,WY
+   LIT   34.73   -92.23  78      Little Rock,AR
+   GGG   32.38   -94.72  111     Longview,TX
+   MFR   42.37   -122.87 405     Medford, OR
+   DRA   36.62   -116.02 1009    Mercury/Desert, NV
+   MAF   31.95   -102.18 872     Midland,TX
+   UMN   36.88   -93.90  437     Monett, MO
+   NPS   36.60   -121.89 30      Monterey, CA
+   OUN   35.23   -97.47  362     Norman, OK
+   YVQ   65.28   -126.80 73      Norman Wells, NT
+   LBF   41.13   -100.97 849     North Platte,NE
+   OAK   37.73   -122.22 3       Oakland, CA
+   OLM   46.97   -122.90 59      Olympia,WA
+   OMA   41.30   -95.90  299     Omaha, OK
+   PAH   37.07   -88.77  125     Paducah, KY
+   PRB   35.67   -120.63 249     Pasarobles, CA
+   PIA   40.67   -89.68  202     Peoria, IL
+   NTD   34.11   -119.11 2       Point Mugu, CA
+   YZT   50.68   -127.37 22      Port Hardy, BC
+   YXS   53.88   -122.68 69      Prince George,BC
+   UIL   47.95   -124.55 62      Quillayute, WA
+   RAP   44.05   -103.07 966     Rapid City, SD
+   RDD   40.58   -122.40 177     Redding,CA
+   SLE   44.92   -123.00 61      Salem, OR
+   SLC   40.78   -111.97 1288    Salt Lake City, NV
+   MYF   32.82   -117.13 124     San Diego, CA
+   62k   39.83   -96.11  0.384   Seneca
+   GEG   47.63   -117.53 721     Spokane, WA
+   STC   45.55   -94.07  312     St. Cloud, MN
+   SEP   32.22   -98.18  402     Stephenville, TX
+   slb   42.64   -95.21  0.430   Storm Lake
+   TOP   39.07   -95.62  270     Topeka, KS
+   TUS   32.12   -110.93 779     Tucson, AZ
+   VBG   34.71   -120.56 100     Vandenberg AFB, CA
+   WVK   50.23   -119.28 555     Vernon Bridge, BC
+   YXY   60.72   -135.07 703     Whitehorse, YK
+   ILA   39.15   -122.08 25      Williams, CA
+   WMC   40.90   -117.80 1322    Winnemucca, NV
+   INW   35.02   -110.73 1488    Winslow,AZ
+
