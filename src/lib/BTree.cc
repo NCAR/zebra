@@ -322,6 +322,13 @@ public:
 		{
 			int i;
 			int found = findKey (key, &i);
+			// Set the cursor whether the find succeeded or
+			// not.  So the cursor will be set to the found
+			// key, or to the insertion point of the search
+			// key.  The insertion point is the index of the
+			// next greater key or else it is equal to nkeys if
+			// the search key is greater than the rightmost key
+			// in the leaf.
 			s->set (this, key, i);
 			return (found);
 		}
@@ -489,26 +496,34 @@ public:
 		// If the target is not equal to the current key,
 		// we first need to advance to the next existing key.
 		// The shortcut at least points to where the target key	
-		// would have been inserted, i.e. s->key <= keys[k].
-		if (n > 0 && s->key < keys[k])
-		{
-			// this *is* the next key greater than the target
-			--n;
-		}
-		else if (n < 0 && s->key < keys[k])
-		{
-			// the key less than this one is behind us
-			--k;
-			++n;
-		}
-		s->set (this, keys[k], k);
+		// would have been inserted, i.e. s->i == nkeys or
+		// s->key <= keys[k].
 
-		// Now try to consume the remaining number of steps
+		if (n > 0 && (k >= nkeys || s->key < keys[k]))
+		{
+		    // k already points at the index succeeding
+		    // the target key.
+		    --n;
+		}
+		else if (n < 0 && (k >= nkeys || s->key < keys[k]))
+		{
+		    // The key less than this one is to the left.
+		    --k;
+		    ++n;
+		}
+		// The only other case besides the above is that the
+		// shortcut points to an existing key, meaning no
+		// adjustment is necessary.  Otherwise, at this point k and
+		// n have been adjusted as if to point to the next key
+		// (either left or right) from the cursor, but k might be
+		// >= nkeys or < 0 if the next key is in a sibling leaf.
+
+		// Now try to consume the remaining number of steps.
 		k += n;
 		n = 0;
 		if (k >= nkeys)
 		{
-			n = k - (nkeys - 1);
+			n = k - nkeys + 1;
 			k = nkeys - 1;
 		}
 		else if (k < 0)
@@ -580,11 +595,22 @@ public:
 
 	int value (shortcut *s, T *v)
 	{
-		if (v)
+	    // We can return a value only if the index is valid and the key
+	    // at that index matches the shortcut key.  If no value is
+	    // requested, then the call is ok.
+	    int ok = 1;
+	    if (v)
+	    {
+		if (s->i < nkeys && keys[s->i] == s->key)
 		{
-			value (s->i, v);
+		    value (s->i, v);
 		}
-		return (1);
+		else
+		{
+		    ok = 0;
+		}
+	    }
+	    return (ok);
 	}
 
 	int remove (shortcut *s)
@@ -1350,9 +1376,9 @@ Shortcut<K,T>::value (T *value, K *k)
 	int ok = 0;
 	if (valid())
 	{
-		ok = leaf->value (this, value); 
-		if (ok && k)
-			*k = key;
+	    ok = leaf->value (this, value);
+	    if (k && ok)
+		*k = key;
 	}
 	return ok;
 }

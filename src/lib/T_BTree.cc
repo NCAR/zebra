@@ -22,7 +22,7 @@ using namespace std;
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.31 2002-01-03 08:33:21 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.32 2002-09-16 07:48:18 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
@@ -470,6 +470,89 @@ T_ReverseRemoval (test_tree &tree)
 
 
 
+// Search for keys not in the tree and see if traversal still works.
+int
+T_OutsideSearch (test_tree &tree)
+{
+    int err = 0;
+    key_type key;
+    value_type value, checkval;
+
+    cout << "Testing keys outside tree range." << endl;
+    if (! tree.First (&key, &value))
+	return ++err;
+    if (! tree.Remove())
+	return ++err;
+    key_type lowest;
+    if (! tree.First (&lowest))
+	return ++err;
+
+    // Now we have a key lower than all other keys in the tree.
+    if (tree.Find (key))
+    {
+	cout << "***** Low key should not have been found." << endl;
+	return ++err;
+    }
+    // After a find on a lower key we still expect the cursor to be valid
+    // (current), but no value should be available because the key does not
+    // exist.
+    else if (! tree.Current () || tree.Current (0, &checkval))
+    {
+	++err;
+	cout << "***** Should have valid cursor but no value" 
+	     << " after failed find." << endl;
+    }
+    // Now try to advance to a valid key.
+    tree.Next();
+    key_type found;
+    if (! tree.Current(&found))
+    {
+	++err;
+	cout << "***** Next key after search key not found." << endl;
+    }
+    else if (found != lowest)
+    {
+	++err;
+	cout << "***** Expected next key to be lowest key in tree." << endl;
+    }
+    // Return the key when done.
+    tree.Insert (key, value);
+
+    // The same as above but for the end of the tree.
+    if (! tree.Last (&key, &value))
+	return ++err;
+    if (! tree.Remove())
+	return ++err;
+    key_type highest;
+    if (! tree.Last (&highest))
+	return ++err;
+
+    if (tree.Find (key))
+    {
+	cout << "***** High key should not have been found." << endl;
+	++err;
+    }
+    else if (! tree.Current () || tree.Current (0, &checkval))
+    {
+	++err;
+	cout << "***** Should have valid cursor but no value" 
+	     << " after failed find." << endl;
+    }
+    tree.Prev();
+    if (! tree.Current(&found))
+    {
+	++err;
+	cout << "***** Previous key to search key not found." << endl;
+    }
+    else if (found != highest)
+    {
+	++err;
+	cout << "***** Expected prev key to be highest key in tree." << endl;
+    }
+    tree.Insert (key, value);
+    return err;
+}
+
 
 
 int
@@ -615,6 +698,9 @@ TestTree (test_tree &tree, int N)
 
 	// Random accesses (ie datastore file access)
 	err += T_RandomAccess (tree, keys, values);
+
+	// Searches out of bounds.
+	err += T_OutsideSearch (tree);
 
 	// Ordered removal
 	cout << "Forward removal... " << endl;

@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.18 2001-08-24 22:23:13 granger Exp $
+ * $Id: BTree.hh,v 1.19 2002-09-16 07:48:18 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -99,7 +99,8 @@ public:
 	int Find (const K &key, T *value);
 
 	/** Just check for the existence of a given key and make it
-	    the current key.  Return non-zero if the key is found. */
+	    the current key.  Return non-zero if the key is found. 
+	    See Current(). */
 
 	int Find (const K &key)
 	{
@@ -107,7 +108,7 @@ public:
 	}
 
 	/** Get the value of the current key.  Return zero if current
-	    key invalid or there is no value. */
+	    key invalid or there is no value.  See Current(). */
 
 	int Value (T *value);
 
@@ -117,7 +118,7 @@ public:
 	int Remove (const K &key);
 
 	/** Remove the current key from the tree, returning zero if there's
-	    a problem. */
+	    a problem.  See Current(). */
 
 	int Remove ();
 
@@ -134,6 +135,18 @@ public:
 	{
 		return (Prev (1, key, value));
 	}
+
+        /** The cursor, or "current key", is valid after every call to
+	    Find(), even if the Find() fails to find the search key.  The
+	    search key becomes the "current key".  When the cursor is
+	    valid, Current() returns nonzero and Current (K* key) returns
+	    the current key.  If the current key is not actually in the
+	    BTree, then any call to Current() or Value() to get the value
+	    of the current key will fail and return 0.  Once the current
+	    key has been set, the current key can be advanced with the Next
+	    and Prev methods.  The "current key" is like a database row
+	    cursor. */
+
 	int Current (K *key = 0, T *value = 0);
 
 	/// Find the next key N steps from the current key
