@@ -18,13 +18,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_IRGrid.c,v 3.4 1996-11-19 09:32:32 granger Exp $")
+RCSID ("$Id: dc_IRGrid.c,v 3.5 1996-12-06 00:40:36 granger Exp $")
 
 /*
  * Our class-specific AuxData structure types.

@@ -80,6 +80,7 @@ struct TestPlatform *plats;
 	err += T_CatchNotify ();
 	err += T_CatchNotify ();
 	ds_CancelNotify ();
+	err += TX_ClearAll (EF_PROBLEM);
 	err += T_VerifyObs (plat_id, &when, NULL, 30);
 	err += T_VerifyObs (plat_id, &check, NULL, 1000);
 	check.zt_Sec += 1000;
@@ -636,13 +637,14 @@ int base;
 PlatformId pid;
 FieldId fid;
 {
-	ZebTime zt = *when;
+	ZebTime zt;
 	int maxs = microPlat.maxsamples;
 	int errors = 0;
 	int i;
 	float ms;
 	DataChunk *dc;
 
+	zt = *when;
 	zt.zt_MicroSec = base;
 	for (i = 0; i < maxs; ++i, ++zt.zt_MicroSec)
 	{
@@ -745,12 +747,13 @@ ZebTime *when;
 	PlatformId pid;
 	int errors = 0;
 	ZebTime *times = NULL;
-	ZebTime zt = *when;
+	ZebTime zt;
 	DataChunk *dc;
 	FieldId fid;
 	int nsamp;
 	int n;
 
+	zt = *when;
 	pid = MakePlatform (&microPlat);
 	CleanPlatform (pid);
 	zt.zt_MicroSec = 0;

@@ -1,6 +1,7 @@
 /*
  * Some quick checks on the fields interface.
  */
+#include <stdio.h>
 
 #include <defs.h>
 #include <Test.h>
@@ -8,7 +9,7 @@
 
 #include "apple.h"
 
-RCSID("$Id: T_Fields.c,v 3.1 1996-11-19 08:13:45 granger Exp $")
+RCSID("$Id: T_Fields.c,v 3.2 1996-12-06 00:40:22 granger Exp $")
 
 static int
 T_FieldNames ()

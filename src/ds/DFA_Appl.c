@@ -21,6 +21,7 @@
  * maintenance or updates for its software.
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include <defs.h>
@@ -33,7 +34,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.5 1996-11-19 10:57:33 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.6 1996-12-06 00:39:58 granger Exp $")
 
 /*
  * Local private prototypes.

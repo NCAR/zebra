@@ -21,6 +21,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <string.h>
 
 # include <defs.h>
@@ -29,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.20 1996-11-27 02:24:43 granger Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.21 1996-12-06 00:40:43 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 

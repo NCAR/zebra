@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <sys/types.h>
 # include <fcntl.h>
 # include <unistd.h>
@@ -35,7 +36,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.31 1996-11-26 22:36:33 granger Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.32 1996-12-06 00:40:06 granger Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the

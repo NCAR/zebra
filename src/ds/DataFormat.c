@@ -24,6 +24,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <string.h>
 # include <sys/types.h>
 # include <sys/stat.h>
@@ -39,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.3 1996-11-19 10:57:53 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.4 1996-12-06 00:40:14 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and

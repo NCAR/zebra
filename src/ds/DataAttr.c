@@ -20,6 +20,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <unistd.h>
 # include <string.h>
 
@@ -28,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: DataAttr.c,v 3.1 1996-11-19 08:10:37 granger Exp $")
+RCSID ("$Id: DataAttr.c,v 3.2 1996-12-06 00:40:09 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.

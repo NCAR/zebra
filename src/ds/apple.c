@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.10 1996-11-19 09:12:36 granger Exp $
+ * $Id: apple.c,v 3.11 1996-12-06 00:40:26 granger Exp $
  */
 
 /*
@@ -64,10 +64,10 @@ to 'expect'?
  * Some higher mechanism will pick which tests to run.
  */
 
-/* #include <stdlib.h> */
-/* #include <stdio.h> */
-/* #include <unistd.h> */
-/* #include <string.h> */
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
 
 #include <defs.h>
 #include <zl_symbol.h>		/* just need symbol tables */
@@ -76,7 +76,7 @@ to 'expect'?
 #include "DataStore.h"
 #include "apple.h"
 
-RCSID("$Id: apple.c,v 3.10 1996-11-19 09:12:36 granger Exp $")
+RCSID("$Id: apple.c,v 3.11 1996-12-06 00:40:26 granger Exp $")
 
 extern TestRoutine NSpaceTests[];
 extern TestRoutine ZNFTests[];

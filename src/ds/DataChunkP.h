@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.10 1996-11-19 10:57:52 granger Exp $ */
+/* $Id: DataChunkP.h,v 1.11 1996-12-06 00:40:12 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -50,11 +50,6 @@ extern RawClass RGridMethods;
 extern RawClass ImageMethods;
 extern RawClass LocationMethods;
 extern RawClass NSpaceMethods;
-
-/*
- * Convert a class pointer to the class id
- */
-#define dc_ClassID(c)	((c)->dcm_ClassId)
 
 /*
  * Method inheritance is marked with this guy.

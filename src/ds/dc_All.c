@@ -5,7 +5,7 @@
  * this module, and hence should only need the modules for the classes they
  * are using.
  */
-
+#include <stdio.h>
 
 #include <defs.h>
 #include <message.h>
@@ -13,7 +13,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID("$Id: dc_All.c,v 3.1 1996-11-19 09:15:01 granger Exp $")
+RCSID("$Id: dc_All.c,v 3.2 1996-12-06 00:40:31 granger Exp $")
 
 static RawClass *ClassTable[] =
 {

@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <sys/types.h>
 # include <string.h>
 
@@ -28,7 +29,7 @@
 # include "DataChunkP.h"
 # include <zl_regex.h> /* System-independent regex functions in Zebra lib */
 
-RCSID ("$Id: dc_Attr.c,v 1.15 1996-11-19 09:31:23 granger Exp $")
+RCSID ("$Id: dc_Attr.c,v 1.16 1996-12-06 00:40:32 granger Exp $")
 
 /*--------------------------------------------------------------------
  * Quick explanation of how attributes work now that they can have 

@@ -24,13 +24,14 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Image.c,v 1.6 1996-11-19 09:32:51 granger Exp $")
+RCSID ("$Id: dc_Image.c,v 1.7 1996-12-06 00:40:38 granger Exp $")
 
 /*
  * Our class-specific AuxData structure types.

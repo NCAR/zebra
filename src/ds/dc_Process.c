@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <sys/types.h>
 # include <string.h>
 
@@ -28,7 +29,7 @@
 # include "DataChunkP.h"
 # include <zl_regex.h>
 
-RCSID ("$Id: dc_Process.c,v 3.2 1996-11-26 22:36:49 granger Exp $")
+RCSID ("$Id: dc_Process.c,v 3.3 1996-12-06 00:40:45 granger Exp $")
 
 
 static int NDefaultDetail = 0;
@@ -48,7 +49,7 @@ static dsDetail *DefaultDetails = NULL;
  * type conversion (all fields to one type, one type to another)
  */
 
-static int dc_ApplyBadval FP ((DataChunk *dc, float target));
+static int dc_ApplyBadval FP ((DataChunk *dc, double target));
 
 
 void
@@ -97,9 +98,9 @@ int ndetail;
 
 
 static int
-dc_ApplyBadval (dc, target)
+dc_ApplyBadval (dc, badval_in)
 DataChunk *dc;
-float target;
+double badval_in;
 /*
  * For each field in the datachunk, test it's bad value against the
  * requested value, and if not equal convert all of that field's values
@@ -109,6 +110,7 @@ float target;
 	int nfield;
 	int i;
 	FieldId *fields;
+	float target = (float) badval_in;
 	int nsample = dc_GetNSample (dc);
 
 	if (! dc_IsSubClass (dc->dc_ClassP, DCP_MetData))

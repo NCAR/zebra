@@ -20,6 +20,7 @@
  */
 
 
+# include <stdio.h>
 # include <sys/types.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -35,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.12 1996-11-19 10:57:35 granger Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.13 1996-12-06 00:40:00 granger Exp $")
 
 
 /*

@@ -29,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: DataChunk.c,v 3.10 1996-11-19 09:02:37 granger Exp $")
+RCSID ("$Id: DataChunk.c,v 3.11 1996-12-06 00:40:11 granger Exp $")
 
 /*
  * The class methods structure for the raw class.
@@ -353,7 +353,7 @@ int len;
 
 
 
-void
+static void
 dc_RawDump (dc)
 DataChunk *dc;
 /*

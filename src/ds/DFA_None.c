@@ -20,11 +20,13 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
+
 # include <defs.h>
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_None.c,v 3.1 1996-11-27 02:21:22 granger Exp $")
+RCSID ("$Id: DFA_None.c,v 3.2 1996-12-06 00:40:02 granger Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"

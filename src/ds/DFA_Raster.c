@@ -1,6 +1,7 @@
 /*
  * Access to the FCC rasterfile format.
  */
+# include <stdio.h>
 # include <sys/types.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -18,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.15 1996-11-19 10:57:46 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.16 1996-12-06 00:40:04 granger Exp $")
 
 /*
  * This is the tag for an open raster file.

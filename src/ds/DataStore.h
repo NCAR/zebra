@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.37 1996-11-26 22:36:36 granger Exp $
+ * $Id: DataStore.h,v 3.38 1996-12-06 00:40:17 granger Exp $
  *
  * Public data store definitions.
  */
@@ -62,7 +62,7 @@ typedef enum {
 	FTGRIB = 5,
 	FTGRIBSfc = 6,	/* GRIB surface grids only */
 	FTGrads = 7,
-	FTHDF = 8,
+	FTHDF = 8
 	/* ... */
 } FileType;
 
@@ -409,15 +409,14 @@ extern bool 	_CheckClass;
 bool		dc_IsSubClassOf FP((DataClassID, DataClassID));
 bool		dc_IsSubClass FP((DataClassP classp, DataClassP superclass));
 #ifdef __cplusplus
-inline	DataClassID dc_Class (DataChunk *dc)
-		{ return (dc->dc_Class); }
-inline	PlatformId dc_Platform (DataChunk *dc)
+inline	PlatformId dc_PlatformId (DataChunk *dc)
 		{ return (dc->dc_Platform); }
+inline	DataClassID dc_ClassId (DataChunk *dc)
+		{ return (dc->dc_Class); }
 #else
-#define dc_Class(dc) ((dc)->dc_Class)
-#define dc_Platform(dc) ((dc)->dc_Platform)
-#endif
+#define dc_PlatformId(dc) ((dc)->dc_Platform)
 #define dc_ClassId(dc) ((dc)->dc_Class)
+#endif
 DataClassID	dc_SuperClass FP((DataClassID subclass));
 DataClassP	dc_Super FP((DataClassP subclass));
 void		dc_CheckClass FP((int check));

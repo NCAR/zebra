@@ -18,6 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 # include <string.h>
 
 # include <defs.h>
@@ -25,7 +26,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_TrAttr.c,v 3.1 1996-11-19 09:17:34 granger Exp $")
+RCSID ("$Id: dc_TrAttr.c,v 3.2 1996-12-06 00:40:48 granger Exp $")
 
 /* XXX Make sure any other transparent ADE keys are less than ST_ATTR! */
 # define ST_ATTR	1000	/* Per-sample attributes		*/

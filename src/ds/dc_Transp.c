@@ -18,6 +18,8 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+# include <stdio.h>
 # include <string.h>
 
 # include <defs.h>
@@ -25,7 +27,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Transp.c,v 1.23 1996-11-19 09:51:59 granger Exp $")
+RCSID ("$Id: dc_Transp.c,v 1.24 1996-12-06 00:40:50 granger Exp $")
 
 /*
  * TODO:

@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <string.h>
 # include <ctype.h>
 
@@ -28,7 +29,7 @@
 # include <message.h>
 # include "ds_fields.h"
 
-RCSID ("$Id: Fields.c,v 3.11 1996-11-21 22:20:21 granger Exp $")
+RCSID ("$Id: Fields.c,v 3.12 1996-12-06 00:40:19 granger Exp $")
 
 
 /*

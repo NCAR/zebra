@@ -19,6 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 
 # include <defs.h>
 # include <message.h>
@@ -27,12 +28,12 @@
 # include "GetList.h"
 # include "dslib.h"
 
-RCSID("$Id: GetList.c,v 3.11 1996-11-19 08:17:44 granger Exp $")
+RCSID("$Id: GetList.c,v 3.12 1996-12-06 00:40:20 granger Exp $")
 
 /*
  * Getlist lookaside list.
  */
-GetList *GList = 0;
+static GetList *GList = 0;
 
 
 static GetList	*dgl_GetEntry FP ((void));

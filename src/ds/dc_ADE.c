@@ -130,7 +130,7 @@ int subtype, len, free;
 		 * front.
 		 */
 		ade = dc_GetADC ();
-		ade->dca_ClassId = dc_ClassID (class);
+		ade->dca_ClassId = class->dcm_ClassId;
 		ade->dca_SubType = subtype;
 		ade->dca_Len = len;
 		ade->dca_Data = data;

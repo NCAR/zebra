@@ -21,6 +21,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <string.h>
 
 # include <defs.h>
@@ -29,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.4 1996-11-27 02:32:17 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.5 1996-12-06 00:40:41 granger Exp $")
 
 
 /*

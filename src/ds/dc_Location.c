@@ -19,6 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 
 # include <defs.h>
 # include <message.h>
@@ -26,7 +27,7 @@
 # include "DataChunkP.h"
 
 
-RCSID ("$Id: dc_Location.c,v 1.5 1996-11-19 09:34:01 granger Exp $")
+RCSID ("$Id: dc_Location.c,v 1.6 1996-12-06 00:40:39 granger Exp $")
 
 
 typedef struct _LocationDataChunk

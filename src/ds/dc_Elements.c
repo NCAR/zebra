@@ -20,6 +20,7 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <string.h>
 
 # include <defs.h>
@@ -27,7 +28,7 @@
 # include <message.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dc_Elements.c,v 3.2 1996-11-26 22:36:42 granger Exp $")
+RCSID ("$Id: dc_Elements.c,v 3.3 1996-12-06 00:40:34 granger Exp $")
 
 static const char *DC_ElemTypeNames[] =
 {
@@ -663,7 +664,6 @@ DC_ElemType type;
 		return (NULL);
 		break;
 	   default:
-		return (NULL);
 		break;
 	}
 	return (NULL);
