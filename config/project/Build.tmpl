@@ -1,0 +1,143 @@
+/* -*- C -*-
+ *
+ * Development build parameters.  When processed, this file expects the
+ * architecture symbols to be defined.  Defaults are chosen for the
+ * Makefile configuration symbols according to architecture.  Only those
+ * symbols which differ from their defaults (given in Project.tmpl) are
+ * defined here.
+ */
+
+XCOMM -----------------------------------------------------------------------
+XCOMM Zebra project auto-build parameters for development compilations
+XCOMM $Id: Build.tmpl,v 1.1 1995-04-15 00:02:42 granger Exp $
+XCOMM -----------------------------------------------------------------------
+
+# define UseInstalledZeb	YES
+# define BuildIngest		YES
+/*
+ * For development, default to omitting xhelp.  To include xhelp, define
+ * this to YES and define SUPPORT_XHELP in the AUTO_DEFINES.
+ */
+#ifndef BuildXHelp
+# define BuildXHelp		NO
+#endif
+
+/*
+ * If a BaseDir is defined, use it give defaults to BinDir and LibDir.
+ * Otherwise BinDir and LibDir default to relative paths in Project.tmpl,
+ * and BaseDir defaults to /zeb.
+ */
+#ifdef BaseDir
+# ifndef BinDir
+#  define BinDir BaseDir/bin
+# endif
+# ifndef LibDir
+#  define LibDir BaseDir/lib
+# endif
+#endif
+
+#if defined(SunArchitecture) && !defined(solaris)
+# define	BuildIngestScheduler	YES	/* Sun only	 	*/
+# define	BuildRadarIngest	YES	/* Sun only		*/
+# define	BuildSLGrabber		YES	/* Sun only		*/
+# define	Build_TRMM_Rain		YES	/* Sun only		*/
+# define	BuildDataUtilities	YES
+#else
+# define	BuildIngestScheduler	NO
+# define	BuildRadarIngest	NO
+# define	BuildSLGrabber		NO
+# define	Build_TRMM_Rain		NO
+# define	BuildDataUtilities		NO
+#endif /* SunArchitecture */
+
+# define	BuildPamIngest			NO
+# define	BuildRealtimeDataStoreTools	YES
+# define	BuildDataManager		NO
+
+#ifdef SunArchitecture
+# define UseOpenWindows 	NO	
+# define OpenWindowsVersion 	3
+# define OpenWinHome		/usr/openwin
+#else
+# define UseOpenWindows 	NO	
+#endif
+
+# define XSharedMemory YES
+# define UseGcc YES
+# define CccOptions
+# define CDebugFlags -g
+# define CCOptions -O
+
+XCOMM --- Deciding X and netCDF include directories
+
+#ifdef HPArchitecture
+# define XIncDir /usr/contrib/mitX11R5/include
+#else
+# define XIncDir /local/X11R5/include
+#endif
+
+#define NetCDFIncDir /usr/local/include
+
+XCOMM --- Deciding X, RDSS and netCDF library directories
+
+#if defined(HPArchitecture)
+# define XLibDir /usr/contrib/mitX11R5/lib	/* contrib for HP */
+#else
+# if defined(SGIArchitecture)
+  /* # define XLibDir /usr/lib */		/* leave it empty for SGI */
+# else
+#  define XLibDir /local/X11R5/lib		/* local for everything else */
+# endif
+#endif /* HPArchitecture */
+
+# define RDSSLibDir /usr/local/lib
+# define NetCDFLibDir /usr/local/lib
+
+XCOMM --- Deciding FORTRAN library paths
+
+#ifdef SunArchitecture
+# if OSMajorVersion < 5
+#  ifndef FortMajorVersion
+#   define FortMajorVersion 1
+#  endif
+#  if FortMajorVersion > 1
+/*  SunOS 4 with gcc or cc and FORTRAN SC2.x */
+#   define FortranLibraries \
+     -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi /usr/lang/SC2.0.1/values-Xa.o
+/* SunOS 4 with acc and FORTRAN SC2.x */
+/* # define FortranLibraries -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi */
+#  else	/* SC 1.0.1 */
+#   define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
+#  endif /* FortMajorVersion */
+# else /* OSMajorVersion >= 5 */
+/* Solaris, C2 and C3.0. */
+#  ifndef FortMajorVersion
+#   define FortMajorVersion 3	/* default to C3.0.1 */
+#  endif
+#  if FortMajorVersion > 2
+/* -lsunmath doesn't get linked into /opt/SUNWspro/lib
+ * so it really does have to point explicitly at SC3.0...
+ * And 3.0.1 requires M77 also.
+ */
+/*#   define FortranLibraries -L/opt/SUNWspro/SC3.0/lib -lF77 -lV77 -lsunmath*/
+/*
+ * Solaris, SC3.0.1, for some reason (for some programs) now requires M77
+ */
+#   define FortranLibraries -L/opt/SUNWspro/SC3.0.1/lib \
+					-lF77 -lV77 -lM77 -lsunmath
+#  else
+#   define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77
+#  endif /* FortMajorVersion */
+# endif /* OSMajorVersion */
+#endif /* SunArchitecture */
+
+#ifdef HPArchitecture
+# define FortranLibraries -lU77 -lf -lisamstub
+#endif
+
+#ifdef SGIArchitecture
+/* IRIX 5.x */
+# define FortranLibraries -lF77 -lI77 -lisam
+#endif
+
+XCOMM --- Finished with Build.tmpl
