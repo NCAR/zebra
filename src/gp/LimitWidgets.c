@@ -31,13 +31,14 @@
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/Toggle.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
 # include <pd.h>
 # include "GraphProc.h"
 
-RCSID("$Id: LimitWidgets.c,v 2.20 1995-04-17 22:10:48 granger Exp $")
+RCSID("$Id: LimitWidgets.c,v 2.21 1996-11-19 07:28:55 granger Exp $")
 
 /*
  * Station widget static data.

@@ -22,21 +22,20 @@
 # include <config.h>
 # if C_CAP_LIGHTNING
 
-# include <X11/Intrinsic.h>
 # include <math.h>
+# include <X11/Intrinsic.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
-# include <DataChunk.h>
-# include <ui_date.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID("$Id: Lightning.c,v 2.11 1995-08-03 20:59:56 corbet Exp $")
+RCSID("$Id: Lightning.c,v 2.12 1996-11-19 07:28:54 granger Exp $")
 
 extern Pixel	White;
 

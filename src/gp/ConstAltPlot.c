@@ -25,11 +25,10 @@
 # include <math.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
+
 # include <defs.h>
 # include <draw.h>
 # include <pd.h>
-# include <ui_date.h>
 # include <message.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
@@ -44,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.62 1996-11-18 17:25:26 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.63 1996-11-19 07:28:41 granger Exp $")
 
 
 /*

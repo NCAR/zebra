@@ -30,8 +30,7 @@
 # include <math.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_date.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
@@ -43,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.35 1996-01-10 19:07:48 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.36 1996-11-19 07:29:14 granger Exp $")
 
 /*
  * General definitions
@@ -2185,7 +2184,11 @@ float	vdat, xdat, ydat;
  * Sanity check
  */
 	if (iv < 0 || iv >= plane->vdim)
-		ui_error ("*BUG* Bad vertical index in xs_AddToLevel");
+	{
+		msg_ELog (EF_EMERGENCY, 
+			  "*BUG* Bad vertical index in xs_AddToLevel");
+		return;
+	}
 /*
  * Step through the grid horizontally at vertical index iv and use a distance
  * weighting scheme to apply the given point
@@ -2592,7 +2595,11 @@ float	x, y;
  */
 {
 	if (Tracelen >= BUFLEN)
-		ui_error ("BUG! Too many points in x-section sounding trace!");
+	{
+		msg_ELog (EF_EMERGENCY, "*BUG* %s",
+			  "Too many points in x-section sounding trace!");
+		return;
+	}
 
 	Trace[Tracelen].x = XPIX (x);
 	Trace[Tracelen].y = YPIX (y);

@@ -20,7 +20,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include <copyright.h>
 # include <string.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -29,15 +28,18 @@
 # include <X11/Shell.h>
 # include <X11/Xaw/SmeLine.h>
 
+# include <ui.h>
+# include <ui_date.h>
+
 # include <defs.h>
+# include <copyright.h>
 # include <message.h>
 # include <pd.h>
 # include <ds_fields.h>
 # include <DataStore.h>
-# include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.15 1996-03-12 17:41:27 granger Exp $")
 
+RCSID ("$Id: FieldMenu.c,v 2.16 1996-11-19 07:28:46 granger Exp $")
 
 /*
  * Stuff for the SME menu.

@@ -27,8 +27,7 @@
 
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
 # include <defs.h>
 # include <draw.h>
 # include <pd.h>
@@ -42,7 +41,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.12 1996-03-12 17:41:35 granger Exp $")
+RCSID("$Id: PlotPrim.c,v 1.13 1996-11-19 07:29:06 granger Exp $")
 
 
 static int PP_LineWidth = 0;

@@ -26,6 +26,8 @@
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
 # include <X11/extensions/shape.h>
+
+# include <ui.h>
 # include <ui_error.h>
 
 # include <config.h>
@@ -36,7 +38,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.26 1995-06-29 23:28:47 granger Exp $")
+RCSID("$Id: Icons.c,v 2.27 1996-11-19 07:28:48 granger Exp $")
 
 # include "GraphProc.h"
 # include "ActiveArea.h"

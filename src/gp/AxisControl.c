@@ -23,8 +23,6 @@
 
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
@@ -35,11 +33,10 @@
 # include "GC.h"
 # include "LayoutControl.h"
 # include "DrawText.h"
-# include "ui_date.h"
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.25 1995-06-29 23:28:20 granger Exp $")
+RCSID("$Id: AxisControl.c,v 1.26 1996-11-19 07:28:37 granger Exp $")
 
 /*
  * Convenient scratch string

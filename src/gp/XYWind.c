@@ -22,11 +22,9 @@
 
 # if C_PT_XYGRAPH
 
-
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <time.h>
@@ -40,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.28 1995-08-28 21:49:18 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.29 1996-11-19 07:29:24 granger Exp $")
 
 /*
  * General definitions

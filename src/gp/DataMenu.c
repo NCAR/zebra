@@ -25,6 +25,7 @@
 # include <X11/Shell.h>
 # include <X11/Xaw/SmeLine.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
@@ -32,7 +33,8 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.16 1995-09-21 20:14:53 burghart Exp $")
+
+RCSID ("$Id: DataMenu.c,v 2.17 1996-11-19 07:28:43 granger Exp $")
 
 
 /*

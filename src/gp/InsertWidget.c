@@ -32,18 +32,20 @@
 # include <X11/Xaw/SmeLine.h>
 # include <X11/Xaw/MenuButton.h>
 
+# include <ui.h>
+# include <ui_date.h>
+
 # include <defs.h>
 # include <timer.h>
 # include <message.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
-# include <ui_date.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.10 1995-11-19 18:13:31 granger Exp $")
+RCSID("$Id: InsertWidget.c,v 1.11 1996-11-19 07:28:50 granger Exp $")
 
 # ifndef PI
 # define PI		3.141592654

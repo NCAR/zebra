@@ -22,11 +22,9 @@
 
 # if C_PT_XYGRAPH
 
-
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <time.h>
@@ -39,11 +37,10 @@
 # include "LayoutControl.h"
 # include "XYCommon.h"
 # include "AxisControl.h"
-# include "ui_date.h"
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.19 1996-03-12 17:41:42 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.20 1996-11-19 07:29:22 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values

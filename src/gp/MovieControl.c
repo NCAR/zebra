@@ -32,6 +32,10 @@
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Scrollbar.h>
+
+# include <ui.h>
+# include <ui_date.h>
+
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
@@ -41,9 +45,8 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 # include "ActiveArea.h"
-# include <ui_date.h>
 
-RCSID ("$Id: MovieControl.c,v 2.25 1996-08-21 17:26:08 granger Exp $")
+RCSID ("$Id: MovieControl.c,v 2.26 1996-11-19 07:28:57 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/

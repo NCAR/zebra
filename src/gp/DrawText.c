@@ -25,12 +25,12 @@
 # include <math.h>
 # include <unistd.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
+
 # include <defs.h>
 # include <message.h>
 # include "DrawText.h"
 
-RCSID("$Id: DrawText.c,v 2.12 1996-01-23 22:29:10 corbet Exp $")
+RCSID("$Id: DrawText.c,v 2.13 1996-11-19 07:28:45 granger Exp $")
 
 # ifndef __STDC__
 #  ifndef sgi

@@ -23,11 +23,9 @@
 
 # if C_PT_XYGRAPH
 
-
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <time.h>
@@ -41,9 +39,8 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 # include "DrawText.h"
-# include "ui_date.h"
 
-RCSID ("$Id: XYGraph.c,v 1.34 1996-03-12 17:41:41 granger Exp $")
+RCSID ("$Id: XYGraph.c,v 1.35 1996-11-19 07:29:21 granger Exp $")
 
 /*
  * Prototypes

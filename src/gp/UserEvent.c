@@ -22,6 +22,7 @@
 
 # include <X11/Intrinsic.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <pd.h>
 # include <dm.h>
@@ -32,7 +33,7 @@
 # include "ActiveArea.h"
 # include "PixelCoord.h"
 
-RCSID("$Id: UserEvent.c,v 2.11 1995-09-23 02:41:03 granger Exp $")
+RCSID("$Id: UserEvent.c,v 2.12 1996-11-19 07:29:11 granger Exp $")
 
 /*
  * The structure which defines the response to a user event, such as a

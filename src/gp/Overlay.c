@@ -24,10 +24,12 @@
 # include <X11/Intrinsic.h>
 # include <string.h>
 
+# include <ui.h>
+
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.54 1995-10-31 04:07:17 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.55 1996-11-19 07:28:59 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>

@@ -20,15 +20,17 @@
  */
 
 # include <X11/Intrinsic.h>
+
 # include <ui.h>
+# include <ui_date.h>
+
 # include <config.h>
 # include <defs.h>
 # include <GraphicsW.h>
 # include <message.h>
 # include <pd.h>
 # include <DataStore.h>
-# include <ds_fields.h>
-# include <ui_date.h>
+
 # include "GC.h"
 # include "GraphProc.h"
 # include "DrawText.h"
@@ -38,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.50 1995-10-24 21:59:34 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.51 1996-11-19 07:29:04 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *

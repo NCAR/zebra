@@ -28,8 +28,7 @@
 # include <unistd.h>
 
 # include <X11/Intrinsic.h>
-# include <ui.h> 
-# include <ui_date.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
@@ -41,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.17 1995-06-29 23:29:49 granger Exp $")
+RCSID("$Id: TimeSeries.c,v 2.18 1996-11-19 07:29:10 granger Exp $")
 
 /*
  * General definitions

@@ -18,10 +18,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include <config.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
+# include <config.h>
 # include <defs.h>
 # include <pd.h>
 # include <GraphicsW.h>
@@ -32,7 +31,7 @@
 # include "GraphProc.h"
 # include "LayoutControl.h"
 
-RCSID("$Id: LayoutControl.c,v 1.13 1995-09-21 21:21:33 granger Exp $")
+RCSID("$Id: LayoutControl.c,v 1.14 1996-11-19 07:28:52 granger Exp $")
 
 /*
  * This set of routines maintains the division of the (NDC) coordinate

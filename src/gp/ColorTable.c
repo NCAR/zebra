@@ -21,15 +21,15 @@
 
 
 # include <X11/Intrinsic.h>
-# include <ui.h>
 
 # include <defs.h>
+# include <zl_symbol.h>
 # include <dm.h>
 # include <pd.h>
 # include <message.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: ColorTable.c,v 2.8 1995-10-12 16:41:23 corbet Exp $")
+RCSID ("$Id: ColorTable.c,v 2.9 1996-11-19 07:28:39 granger Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that
@@ -94,9 +94,6 @@ static stbl Ctable = 0;
 static CTable * ct_AskDMForTable FP((char *));
 static void ct_DoAlloc FP((CTable *));
 static int ct_MarkDealloc FP((char *, int, union usy_value *, int));
-#ifdef notdef
-static int ct_GetDMResponse FP((struct message *, struct dm_ctable **));
-#endif
 
 
 void

@@ -22,8 +22,7 @@
 
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <time.h>
@@ -36,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.29 1995-07-05 22:21:17 corbet Exp $")
+RCSID("$Id: XYCommon.c,v 1.30 1996-11-19 07:29:17 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 

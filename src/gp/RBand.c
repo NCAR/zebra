@@ -26,6 +26,8 @@
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/Command.h>
 
+# include <ui.h>
+
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
@@ -36,7 +38,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: RBand.c,v 2.13 1995-08-03 21:00:18 corbet Exp $")
+RCSID("$Id: RBand.c,v 2.14 1996-11-19 07:29:08 granger Exp $")
 
 /*
  * Types of things we can rubber band

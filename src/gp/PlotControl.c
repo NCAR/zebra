@@ -22,11 +22,14 @@
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
-# include "GraphicsW.h"
+
+# include <ui.h>
+
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
@@ -34,7 +37,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.39 1996-03-12 17:41:33 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.40 1996-11-19 07:29:02 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
