@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.21 2001-11-30 00:42:05 granger Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.22 2002-07-11 22:50:44 burghart Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -43,7 +43,7 @@ static char *rcsid = "$Id: ui_wPulldown.c,v 1.21 2001-11-30 00:42:05 granger Exp
 # include "ui_window.h"
 # include "ui_error.h"
 # include "ui_loadfile.h"
-# include "LiteClue.h"
+# include "LiteClue/LiteClue.h"
 
 # ifdef SMEMENU
 static Pixmap SubMenuPixmap = 0;

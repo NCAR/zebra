@@ -1,5 +1,5 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.11 1999-06-25 19:21:01 burghart Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.12 2002-07-11 22:50:44 burghart Exp $";
 /*
  * Interrupt handling.
  */
@@ -7,12 +7,6 @@ static char *rcsid = "$Id: ui_interrupt.c,v 1.11 1999-06-25 19:21:01 burghart Ex
 # include <signal.h>
 # include "ui_param.h"
 # include "ui_globals.h"
-
-# if BSD
-# define SIGNAL_RETURN int
-# else
-# define SIGNAL_RETURN void
-# endif
 
 /*
  * This array holds addresses of functions to be called in the event
@@ -24,12 +18,12 @@ static vfptr Handlers[MAXHANDLERS];
 # define EMPTYSLOT	(vfptr) 0
 
 
-static SIGNAL_RETURN uii_cc_handler ();
+static void uii_cc_handler ();
 # ifdef SIGTSTP
-static SIGNAL_RETURN uii_tstp ();
+static void uii_tstp ();
 # endif
 
-static SIGNAL_RETURN uii_fault ();
+static void uii_fault ();
 
 void
 uii_init ()
@@ -117,7 +111,7 @@ vfptr handler;
 
 
 
-static SIGNAL_RETURN
+static void
 uii_cc_handler (int dummy)
 /*
  * This is the ^C AST routine.
@@ -152,7 +146,7 @@ uii_cc_handler (int dummy)
 
 
 
-static SIGNAL_RETURN
+static void
 uii_fault (sig, code, scp, addr)
 int sig, code;
 void /*struct sigcontext*/ *scp;
@@ -171,7 +165,7 @@ char *addr;
 
 # ifdef SIGTSTP
 
-static SIGNAL_RETURN
+static void
 uii_tstp (int dummy)
 /*
  * Deal with a STOP signal.

@@ -3,7 +3,7 @@
  */
 
 # ifdef XSUPPORT
-static char *rcsid = "$Id: ui_wList.c,v 1.9 1998-02-26 21:19:00 burghart Exp $";
+static char *rcsid = "$Id: ui_wList.c,v 1.10 2002-07-11 22:50:44 burghart Exp $";
 /* 
  * Window system code.
  */
@@ -322,11 +322,7 @@ char *item;
  */
 {
 	union usy_value v;
-# ifdef X11R3
-	XtListReturnStruct *ritem = (XtListReturnStruct *) item;
-# else
 	XawListReturnStruct *ritem = (XawListReturnStruct *) item;
-# endif
 /*
  * Set up the "selection" variable.
  */
@@ -607,11 +603,7 @@ char *item;
  */
 {
 	union usy_value v;
-# ifdef X11R3
-	XtListReturnStruct *ritem = (XtListReturnStruct *) item;
-# else
 	XawListReturnStruct *ritem = (XawListReturnStruct *) item;
-# endif
 /*
  * Set up the "selection" variable.
  */

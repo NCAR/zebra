@@ -2,9 +2,7 @@
 /*
  * The actual command line parser.
  */
-# ifdef BSD
 # include <string.h>
-# endif
 # include "ui.h"
 # include "ui_cstack.h"
 # include "ui_globals.h"
@@ -14,7 +12,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.13 1999-06-25 19:21:01 burghart Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.14 2002-07-11 22:50:44 burghart Exp $";
 
 char *zapcase ();
 
