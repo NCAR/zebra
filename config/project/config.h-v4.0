@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.9 1993-07-07 15:53:44 burghart Exp $
+/**/# $Id: config.h-v4.0,v 1.10 1993-07-29 16:41:01 corbet Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -455,6 +455,14 @@
 #define RT_DS_TOOLS BuildRealtimeDataStoreTools
 #define BUILD_OPTIMIZER BuildOptimizer
 #define BUILD_INGEST BuildIngest
+
+/*
+ * Some parameters for dealing with buffer lengths.
+ */
+# define MAX_PLAT_LEN	160	/* Maximum platform len -- remember lists */
+# define MAX_PARAM_LEN	40	/* Length of parameter names		*/
+# define TIME_LEN	40	/* Length needed for encoded times	*/
+
 
 #ifndef MAKING_MAKEFILE
 
