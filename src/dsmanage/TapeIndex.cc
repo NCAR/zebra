@@ -46,7 +46,7 @@ extern "C"
 # include "Tape.h"
 
 
-static char *rcsid = "$Id: TapeIndex.cc,v 1.5 1993-10-25 21:34:08 corbet Exp $";
+static char *rcsid = "$Id: TapeIndex.cc,v 1.6 1995-01-10 15:36:14 burghart Exp $";
 
 
 //
@@ -153,6 +153,10 @@ main (int argc, char **argv)
 	PlatformIndex index;
 	PIndex = &index;
 	IName = argv[parser.optind + 1];
+//
+// Initialize field stuff
+//
+	F_Init ();
 //
 // Now it's time to pass through the data and get our stuff.
 //
