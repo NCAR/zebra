@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.1 1993-08-18 15:34:35 burghart Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.2 1993-10-05 16:14:16 burghart Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -424,7 +424,7 @@ Go ()
 	/*
 	 * Rasterize it.
 	 */
-		Rasterize (beam, Rd, (NField > 1) ? 2 : 1, FALSE);
+		Rasterize (beam, Rd, NField, FALSE);
 		if ((++nbeam % 100) == 0)
 			CheckMessages ();
 	}
