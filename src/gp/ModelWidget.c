@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID("$Id: ModelWidget.c,v 2.11 1998-12-17 17:18:00 burghart Exp $")
+RCSID("$Id: ModelWidget.c,v 2.12 1999-07-20 15:21:40 burghart Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -91,9 +91,6 @@ static void	mw_StopLoop FP ((Widget, XtPointer, XtPointer));
 static void	mw_TextChange FP ((Widget, XtPointer, XtPointer));
 static void	mw_NextFrame FP ((void));
 static void	mw_GenNFrame FP ((int *));
-#ifdef notdef
-static void	mw_Notification FP ((PlatformId, int, ZebTime *));
-#endif
 static void	mw_Dismiss FP ((Widget, XtPointer, XtPointer));
 static void	mw_ShowFrame FP ((int *));
 static void	mw_FrameStep FP ((Widget, XEvent *, String *, Cardinal *));
@@ -907,7 +904,8 @@ mw_GetFrameOffsets ()
 	/*
 	 * Get the offset list for this platform
 	 */
-		if (! ds_GetForecastTimes (pid, &PlotTime, offsets, &noffsets))
+		if (! ds_GetForecastTimes (pid, &IssueTime, offsets, 
+					   &noffsets))
 			continue;
 	/*
 	 * Merge these offsets into the main list
@@ -1028,25 +1026,6 @@ char	*param;
 	}
 }
 
-
-
-#ifdef notdef
-static void
-mw_Notification (pid, global, t)
-PlatformId pid;
-int global;
-ZebTime *t;
-{
-/*
- *  When the end time is 'now' used to regenerate frames as new data 
- *  becomes available.
- */
-	Notification = TRUE;
-	NotTime = *t;
-	msg_ELog (EF_DEBUG, "mw_Notification: New data for %s", 
-		  ds_PlatformName(pid));
-}
-#endif /* notdef */
 
 
 static void
