@@ -67,33 +67,18 @@ Widget Top, Form, Menu, Viewport, Box;
 XtAppContext Appc;
 
 
-# ifdef __STDC__
-	static void CreateWidget (void);
-	static void Die (void);
-	static int MsgHandler (Message *);
-	static void DoPlatforms (char *);
-	static void AddPlatform (char *, int, int, time *);
-	static void TogglePlat (Widget, int, int);
-	static void GetColors (void);
-	static void MakeLabel (int, time *, time *);
-	static void SetColor (int);
-	static void Arrival (PlatformId, int, time *, int);
-	static void TimeOut (time *, int);
-	static void MsgInput ();
-# else
-	static void CreateWidget ();
-	static void Die ();
-	static int MsgHandler ();
-	static void DoPlatforms ();
-	static void AddPlatform ();
-	static void TogglePlat ();
-	static void GetColors ();
-	static void MakeLabel ();
-	static void SetColor ();
-	static void Arrival ();
-	static void TimeOut ();
-	static void MsgInput ();
-# endif
+static void CreateWidget FP ((void));
+static void Die FP ((void));
+static int MsgHandler FP ((Message *));
+static void DoPlatforms FP ((char *));
+static void AddPlatform FP ((char *, int, int, ZebTime *));
+static void TogglePlat FP ((Widget, int, int));
+static void GetColors FP ((void));
+static void MakeLabel FP ((int, ZebTime *, ZebTime *));
+static void SetColor FP ((int));
+static void Arrival FP ((PlatformId, int, ZebTime *, int, UpdCode));
+static void TimeOut FP ((ZebTime *, int));
+static void MsgInput FP ((XtPointer, int *, XtInputId *));
 
 
 
@@ -129,7 +114,7 @@ char **argv;
 /*
  * Our polling interrupt.
  */
-	tl_AddRelativeEvent (TimeOut, 0, 60*INCFRAC, 60*INCFRAC);
+	tl_RelativeReq (TimeOut, 0, 60*INCFRAC, 60*INCFRAC);
 	XtRealizeWidget (Top);
 	XtAppAddInput (Appc, msg_get_fd (), XtInputReadMask, MsgInput, 0);
 	XtAppMainLoop (Appc);
@@ -256,7 +241,7 @@ char *config_file;
  * Add all the platforms.
  */
 {
-	time now;
+	ZebTime now;
 	FILE *cfile; 
 	char line[80], *cp, *strchr ();
 	int yellow, red;
@@ -275,7 +260,7 @@ char *config_file;
 /*
  * When are we?
  */
-	tl_GetTime (&now);
+	tl_Time (&now);
 /*
  * Go through and read in lines.
  */
@@ -311,13 +296,13 @@ static void
 AddPlatform (name, yellow, red, now)
 char *name;
 int yellow, red;
-time *now;
+ZebTime *now;
 /*
  * Add a platform by this name.
  */
 {
 	PlatformId pid;
-	time t;
+	ZebTime t;
 	Arg args[5];
 	int n, ntime;
 /*
@@ -404,7 +389,7 @@ GetColors ()
 static void
 MakeLabel (index, t, now)
 int index;
-time *t, *now;
+ZebTime *t, *now;
 /*
  * Make a label for this platform.
  */
@@ -417,14 +402,13 @@ time *t, *now;
  */
 	if (t)
 	{
-		if ((days = (TC_FccToSys (now)-TC_FccToSys (t))/(24*3600)) > 0)
-			sprintf (label, "%-14s +%d %2d:%02d:%02d",
-				Names[index], days, t->ds_hhmmss/10000,
-				(t->ds_hhmmss/100) % 100, t->ds_hhmmss % 100);
+		char atime[30];
+		TC_EncodeTime (t, TC_TimeOnly, atime);
+		if ((days = (TC_ZtToSys (now)-TC_ZtToSys (t))/(24*3600)) > 0)
+			sprintf (label, "%-14s +%d %s",
+				Names[index], days, atime);
 		else
-			sprintf (label, "%-17s %2d:%02d:%02d", Names[index], 
-				t->ds_hhmmss/10000, (t->ds_hhmmss/100) % 100,
-				t->ds_hhmmss % 100);
+			sprintf (label, "%-17s %s", Names[index], atime);
 	}
 	else
 		sprintf (label, "%-12s    -- Never --", Names[index]);
@@ -468,29 +452,20 @@ int index;
 
 
 static void
-Arrival (pid, index, t, ns)
+Arrival (pid, index, t, ns, code)
 PlatformId pid;
 int index, ns;
-time *t;
+ZebTime *t;
+UpdCode code;
 /*
  * Data's here for this one.
  */
 {
-	time now;
+	ZebTime now;
 	Arg args[2];
 
-	tl_GetTime (&now);
+	tl_Time (&now);
 	MakeLabel (index, t, &now);
-# ifdef notdef
-/*
- * Mark the most recent data.
- */
-	XtSetArg (args[0], XtNborderWidth, 0);
-	XtSetValues (Labels[Border], args, 1);
-	XtSetArg (args[0], XtNborderWidth, 1);
-	XtSetValues (Labels[index], args, 1);
-	Border = index;
-# endif
 }
 
 
@@ -499,7 +474,7 @@ time *t;
 
 static void
 TimeOut (t, junk)
-time *t;
+ZebTime *t;
 int junk;
 /*
  * Check things.
