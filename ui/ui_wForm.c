@@ -19,7 +19,12 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.9 1998-02-26 21:18:57 burghart Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.10 1998-12-17 16:46:17 burghart Exp $";
+
+/*
+ * malloc prototype
+ */
+void* malloc();
 
 
 # define MAXENTRY 100
