@@ -1,10 +1,11 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 2.1 1991-08-07 19:56:24 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 2.2 1991-09-12 19:30:11 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
+# include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
@@ -41,10 +42,18 @@ typedef struct
 
 name_to_num Pt_table[] =
 {
+# if C_PT_CAP
 	{"CAP",		PT_CAP		},
+# endif
+# if C_PT_SKEWT
 	{"skewt", 	PT_SKEWT	},
+# endif
+# if C_PT_XSECT
 	{"xsect",	PT_XSECT	},
+# endif
+# if C_PT_TSERIES
 	{"tseries",	PT_TSERIES	},
+# endif
 	{NULL,		0		}
 };
 
@@ -72,8 +81,12 @@ name_to_num Rt_table[] =
 	{"raster",		RT_RASTER	},
 	{"track",		RT_TRACK	},
 	{"overlay",		RT_OVERLAY	},
+# if C_PT_SKEWT
 	{"skewt",		RT_SKEWT	},
+# endif
+# if C_PT_TSERIES
 	{"tseries",		RT_TSERIES	},
+# endif
 	{"lightning",		RT_LIGHTNING	},
 	{NULL,			0		}
 };
@@ -103,19 +116,23 @@ static void	(*EOPHandler) () = 0;
 	char *	px_NumberToName (int, name_to_num *);
 	void	px_Init ();
 	void	px_AddComponent (char *, int);
+# if C_PT_CAP
 	void	CAP_FContour (char *, int);
 	void	CAP_Vector (char *, int);
 	void	CAP_Raster (char *, int);
 	void	CAP_LineContour (char *, int);
 	void	CAP_Init (time *);
+# endif
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	static bool px_GetCoords (void);
 # else
 	int	px_NameToNumber ();
 	char *	px_NumberToName ();
-	void	px_Init (), px_AddComponent (), CAP_FContour ();
+	void	px_Init (), px_AddComponent ();
+# if C_PT_CAP
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
-	void	CAP_Init ();
+	void	CAP_FContour (), CAP_Init ();
+# endif
 	void	px_AdjustCoords ();
 	static bool px_GetCoords ();
 # endif
@@ -123,9 +140,19 @@ static void	(*EOPHandler) () = 0;
 /*
  * Other routines.
  */
-extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
-extern void	xs_LineContour (), xs_FilledContour (), ts_Plot();
-extern void	li_CAPLight ();
+# if C_PT_CAP
+	extern void	tr_CAPTrack (), ov_CAPOverlay ();
+	extern void	li_CAPLight ();
+# endif
+# if C_PT_SKEWT
+	extern void	sk_Skewt ();
+# endif
+# if C_PT_XSECT
+	extern void	xs_LineContour (), xs_FilledContour ();
+# endif
+# if C_PT_TSERIES
+	extern void	ts_Plot();
+# endif
 
 /*
  * How many plot components in our plot description and which
@@ -333,11 +360,14 @@ time *cachetime;
 		Comp_index = i - 1;
 		px_AddComponent (comps[i], False);
 	}
+
+# if C_PT_CAP
 /*
  * On CAPs, annotate the altitude we eventually got.
  */
 	if (PlotType == PT_CAP)
 		CAP_Finish (Alt);
+# endif
 /*
  * If the altitude has changed, stash it.
  *
@@ -531,8 +561,8 @@ px_Init ()
 /*
  * Put in the entries that exist
  */
+# if C_PT_CAP
 	Plot_routines[PT_CAP][RT_INIT] = CAP_Init;
-
 	Plot_routines[PT_CAP][RT_FCONTOUR] = CAP_FContour;
 	Plot_routines[PT_CAP][RT_CONTOUR] = CAP_LineContour;
 	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
@@ -540,13 +570,19 @@ px_Init ()
 	Plot_routines[PT_CAP][RT_TRACK] = tr_CAPTrack;
 	Plot_routines[PT_CAP][RT_OVERLAY] = ov_CAPOverlay;
 	Plot_routines[PT_CAP][RT_LIGHTNING] = li_CAPLight;
+# endif
 
+# if C_PT_SKEWT
 	Plot_routines[PT_SKEWT][RT_SKEWT] = sk_Skewt;
+# endif
 
+# if C_PT_XSECT
 	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
-
+# endif
+# if C_PT_TSERIES
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
+# endif
 /*
  * Done
  */
