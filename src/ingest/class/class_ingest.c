@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.11 1993-02-19 23:06:48 burghart Exp $
+ * $Id: class_ingest.c,v 2.12 1993-03-24 18:50:20 burghart Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.11 1993-02-19 23:06:48 burghart Exp $")
+   "$Id: class_ingest.c,v 2.12 1993-03-24 18:50:20 burghart Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -71,6 +71,12 @@ static SiteTranslation	*SiteTransList = (SiteTranslation *) 0;
  * The name of the site name -> platform name translations file (if any)
  */
 static char	*Tfilename = NULL;
+
+/*
+ * Pressure quality threshold (1.5 by default, but can be changed by
+ * command line option)
+ */
+static float	QualThresh = 1.5;
 
 /*
  * Define all large data buffers globally:
@@ -429,6 +435,11 @@ ParseCommandLineOptions(argc, argv)
 		   Tfilename = strdup (argv[i+1]);
 		   IngestRemoveOptions (argc, argv, i, 2);
 		}
+		else if (! strncmp (argv[i], "-q", 2))
+		{
+		   QualThresh = atof (argv[i+1]);
+		   IngestRemoveOptions (argc, argv, i, 2);
+		}
 		else
 		   ++i;
 	}
@@ -446,6 +457,7 @@ Usage(prog)
 	printf ("   -show, -s		Dump data chunk as it's built\n");
 	printf ("   -fields		Describe the sounding file\n");
 	printf ("   -trans <tfile>	Use the site/platform translations in 'tfile'\n");
+	printf ("   -q <qval>		Set pressure quality threshold\n");
 	printf ("\n");
 	IngestUsage();
 	printf ("\nExamples:\n");
@@ -521,7 +533,7 @@ LoadFieldData(dc, times, nsamples, fields, nfields, reverse)
 		if (Pres[i] == BADVAL 	|| 
 		    QPres[i] == BADVAL 	|| 
 		    Pres[i] == 0.0 	|| 
-				(QPres[i] > 1.5 && QPres[i] != 77 
+				(QPres[i] > QualThresh && QPres[i] != 77 
 						&& QPres[i] != 88
 						&& QPres[i] != 99))
 			BadPts[nbad++] = i;
