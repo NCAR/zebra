@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.19 1997-02-14 07:09:39 granger Exp $
+ * $Id: class_ingest.c,v 2.20 1998-03-25 22:53:32 burghart Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -34,7 +34,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.19 1997-02-14 07:09:39 granger Exp $")
+   "$Id: class_ingest.c,v 2.20 1998-03-25 22:53:32 burghart Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -85,6 +85,44 @@ static char	*Tfilename = NULL;
  * command line option)
  */
 static float	QualThresh = 1.5;
+
+/*
+ * The list of fields available from CLASS files.  These are fixed in the
+ * CLASS format.
+ */
+struct _ClassField
+{
+    char *name;
+    char *type;		/* Zebra generic field type */
+    char *units;
+    char *description;
+} ClassFields[] = 
+{
+    { "tdelta", "", "s", "time since launch" },
+    { "pres", "P", "hPa", "pressure" },
+    { "temp", "T", "degC", "temperature" },
+    { "dp", "dp", "degC", "dewpoint" },
+    { "rh", "rh", "%", "relative humidity" },
+    { "u_wind", "uwind", "m/s", "u wind component" },
+    { "v_wind", "vwind", "m/s", "v wind component" },
+    { "wspd", "wspd", "m/s", "wind speed" },
+    { "wdir", "wdir", "deg", "wind direction" },
+    { "ascent", "", "m/s", "ascent rate" },
+    { "lon", "", "deg", "longitude" },
+    { "lat", "", "deg", "latitude" },
+    { "range", "", "km", "range from launch site" },
+    { "az", "", "deg", "azimuth from launch site" },
+    { "alt", "" },
+    { "qpres", "", "hPa", "pressure quality" },
+    { "qtemp", "", "degC", "temperature quality" },
+    { "qrh", "", "%", "humidity quality" },
+    { "qu", "", "m/s", "u wind quality" },
+    { "qv", "", "m/s", "v wind quality" },
+    { "qwind", "", "m/s", "wind quality" }
+};
+
+int NClassFields = sizeof (ClassFields) / sizeof (struct _ClassField);
+
 
 /*
  * Define all large data buffers globally:
@@ -571,20 +609,31 @@ ParseFieldNames(argc, argv, fields, nfields)
  */
 	for (f = 2; f < argc; f++)
 	{
+	    int c;
 	/*
-	 * Attempt to find an ID for this field name 
+	 * Make sure this field is among those available from a CLASS file,
+	 * then get an id and stash it in our field list.
 	 */
-		if ((fields[*nfields] = F_Lookup(argv[f])) == BadField)
-		{
-		   IngestLog(EF_PROBLEM,
-		      "%s: %s not a recognized field.",argv[1],argv[f]);
-		}
-		else
-		{
-		   IngestLog(EF_DEBUG,"%s: Field %s has id %d",argv[1],
-				     argv[f], fields[*nfields]);
-		   ++(*nfields);
-		}
+	    for (c = 0; c < NClassFields; c++)
+		if (! strcmp (argv[f], ClassFields[c].name))
+		    break;
+
+	    if (c == NClassFields)
+	    {
+		IngestLog(EF_PROBLEM,
+			  "%s: %s not a recognized field.", argv[1], argv[f]);
+	    }
+	    else
+	    {
+		struct _ClassField *cf = ClassFields + c;
+		
+		fields[*nfields] = F_Field (cf->name, cf->type, 
+					    cf->description, cf->units);
+
+		IngestLog(EF_DEBUG,"%s: Field %s has id %d", argv[1],
+			  argv[f], fields[*nfields]);
+		++(*nfields);
+	    }
 	}
 }
 
