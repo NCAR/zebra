@@ -132,15 +132,11 @@
  * --------------------------------------------------------------------
  */
 
-# if (UseOpenWin)
+# if (UseOpenWin && !UseXWindows)  
 # define XLibrary -lX11
 # define XLibraries $(OPENWINHOME)/lib
 # define XInclude -I$(OPENWINHOME)/include
-# elif (UseXWindows)
-#    ifndef XLibrary
-#       define XLibrary -lX11
-#    endif /* notdef XLibrary */
-# endif /* UseOpenWin */
+# endif         /* Use OpenWindows paths only if X11 is not available. */
 
 
 # ifndef XLibrary		/* Set to nothing - defaults elsewhere */
