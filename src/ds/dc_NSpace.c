@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.9 1994-10-31 21:41:22 sobol Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.10 1995-02-10 01:12:17 granger Exp $")
 #endif
 
 /*
@@ -268,9 +268,9 @@ static NSpaceFldInfo *DefineField FP((DataChunk *dc, NSpaceInfo *info,
 				      int is_static, char *routine));
 static void SetFieldSizes FP((NSpaceInfo *info, NSpaceFldInfo *finfo,
 			      NSpaceDimInfo *dinfo, char *routine));
-static int inline CheckStatic 
+inline static int CheckStatic 
 	FP((NSpaceFldInfo *finfo, int test, char *routine));
-static int inline CheckOpen FP((NSpaceInfo *info, char *routine));
+inline static int CheckOpen FP((NSpaceInfo *info, char *routine));
 
 /*****************************************************************
 // Public routines --- For defining, building, and inquiring
@@ -488,10 +488,8 @@ dc_NSDefineComplete (dc)
 	NSpaceInfo *info;
 	NSpaceFldInfo *finfo;
 	NSpaceDimInfo *dinfo;
-	int nfield, i;
+	int nfield;
 	FieldId fields[ DC_MaxField ];
-	unsigned long fsize, ssize;
-	bool uniform;
 
 	if (! IsNSpace(dc,"NSDefineComplete"))
 		return;
@@ -1322,7 +1320,6 @@ DataClass class;
 {
 	DataChunk *dc;
 	NSpaceInfo *info;
-	int i;
 /*
  * The usual.  Make a superclass chunk and tweak it to look like us.
  */
@@ -1424,7 +1421,7 @@ NSDump (dc)
 			       (j == (finfo->nsf_NDimn - 1)) ? "" : ", ");
 		printf(" )");
 		if (IsStatic(finfo))
-			printf(" static, offset=%d, ", finfo->nsf_StOffset);
+			printf(" static, offset=%ld, ", finfo->nsf_StOffset);
 		printf("size = %lu, ", finfo->nsf_Size);
 		printf("'%s'\n", F_GetDesc(finfo->nsf_Id));
 		++finfo;
@@ -1641,8 +1638,9 @@ FindFieldByID (dc, info, id, routine)
 	}
 	if ((i < 0) || (i >= info->ns_NField))
 	{
-		msg_ELog (EF_PROBLEM, "%s: no field %s in datachunk",
-			  routine, F_GetName (id));
+		char *f = F_GetName (id);
+		msg_ELog (EF_PROBLEM, "%s: field %s, id %d not in datachunk",
+			  routine, (f) ? f : "unknown", id);
 		return NULL;
 	}
 	return (finfo+i);
@@ -1807,7 +1805,7 @@ SetFieldSizes (info, finfo, dinfo, routine)
 
 
 /*---------------------------------------------- begin: CheckStatic -----*/
-static int inline
+inline static int
 CheckStatic(finfo, test, routine)
 	NSpaceFldInfo *finfo;
 	int test;
@@ -1834,7 +1832,7 @@ CheckStatic(finfo, test, routine)
 
 
 /*---------------------------------------------- begin: CheckOpen -----*/
-static int inline
+inline static int
 CheckOpen(info, routine)
 	NSpaceInfo *info;
 	char *routine;
