@@ -1,7 +1,7 @@
 /*
  * The FCC clock program.
  */
-static char *rcsid = "$Id: fccclock.c,v 2.1 1991-09-12 23:06:22 corbet Exp $";
+static char *rcsid = "$Id: fccclock.c,v 2.2 1991-12-07 17:59:46 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -96,9 +96,11 @@ char **argv;
  * our output.
  */
 	XtSetArg (args[0], XtNinput, False);
+# ifdef notdef
 	XtSetArg (args[1], XtNoverrideRedirect, True);
-	GrShell = XtCreatePopupShell ("grshell", topLevelShellWidgetClass,
-		Top, args, 2);
+# endif
+	GrShell = XtCreatePopupShell ("grshell", applicationShellWidgetClass,
+		Top, args, 1);
 /*
  * Inside this shell goes the label widget to hold the time.
  */
@@ -106,7 +108,7 @@ char **argv;
 	XtSetArg (args[1], XtNwidth, 100);
 	XtSetArg (args[2], XtNheight, 30);
 	XtSetArg (args[3], XtNframeCount, 1);
-	Graphics = XtCreateManagedWidget ("time", graphicsWidgetClass,
+	Graphics = XtCreateManagedWidget ("clock", graphicsWidgetClass,
 		GrShell, args, 4);
 /*
  * Tell DM that we're here.
@@ -188,6 +190,7 @@ greet_dm ()
 	struct dm_hello dmh;
 
 	dmh.dmm_type = DM_HELLO;
+	dmh.dmm_win = 0;
 	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
 }
 
