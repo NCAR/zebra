@@ -145,6 +145,7 @@ Message *msg;
 	struct dsp_PLock *dp;
 	struct dsp_FindDF *dfdf;
 	struct dsp_CacheInvalidate *dci;
+	struct dsp_DeleteData *dd;
 
 	switch (dt->dsp_type)
 	{
@@ -188,10 +189,22 @@ Message *msg;
 			dn->dsp_param, dn->dsp_nsample, dn->dsp_ucode);
 		break;
 
+	   case dpt_DeleteData:
+	   case dpt_DeleteObs:
+		dd = (struct dsp_DeleteData *) dt;
+		TC_EncodeTime (&(dd->dsp_when), TC_Full, abuf);
+		printf ("\t%s: pid %d at %s\n", 
+			(dd->dsp_type == dpt_DeleteData) ? "DeleteData" :
+			"DeleteObs", dd->dsp_plat, abuf);
+		break;
+
+	   case dpt_DataGone:
+		printf ("\t%s: dfi %d\n", "DataGone",
+			((struct dsp_DataGone *)dt)->dsp_file);
+		break;
+
 		PCASE(dpt_CancelNotify);
 		PCASE(dpt_CancelAck);
-		PCASE(dpt_DeleteData);
-		PCASE(dpt_DataGone);
 		PCASE(dpt_CopyNotifyReq);
 		PCASE(dpt_MarkArchived);
 		PCASE(dpt_Rescan);
