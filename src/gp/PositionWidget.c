@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.4 1991-11-22 20:53:12 kris Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.5 1991-11-26 23:42:15 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -122,7 +122,7 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
 	XtSetArg (args[n], XtNresize, True);		n++;
 	XtSetArg (args[n], XtNwidth, 300);		n++;
-	XtSetArg (args[n], XtNheight, 75);		n++;
+	XtSetArg (args[n], XtNheight, 120);		n++;
 	PosLabel = XtCreateManagedWidget ("GetPosition", labelWidgetClass,
 		parent, args, n);
 /*
@@ -303,9 +303,17 @@ pw_PosStatus ()
 	if (azimuth < 0.0)
 		azimuth += 360.0;
 
-	sprintf (string, "Az: %.0f  Range: %.0f %s\n", azimuth, range, 
+	sprintf (string, "Az: %.0f  Range: %.0f %s\n\n", azimuth, range, 
 		DoNm ? "Nm" : "km");
 	strcat (label, string);
+/*
+ * Calculate x and y.
+ */
+	sprintf (string, "x: %.0f km  y: %.0f km\n\n", subx, suby);
+	strcat (label, string);
+/*
+ * Say what its relative to.
+ */
 	sprintf (string, "Relative to %s", ONames[OIndex]);
 	strcat (label, string);
 
