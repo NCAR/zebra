@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.5 1991-12-13 00:12:40 martin Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.6 1992-01-17 16:35:22 martin Exp $"
 
 # include "/zeb/include/config.h"
 
@@ -6,13 +6,16 @@ CC=CCompiler
 CFLAGS=CCOptions IncludeDirs
 LIBS=ZebLibrary MiscLibs XLibraries
 
-BINDIR=../../bin
+ISS= ../..
+ISSLIB = $(ISS)/lib
+ISSINC = $(ISS)/include
+ISSBIN = $(ISS)/bin
 
 all:	is is.lf
 
 install:is is.lf
-	install -c is $(BINDIR)
-	install -c is.lf $(BINDIR)
+	install -c is $(ISSBIN)
+	install -c is.lf $(ISSBIN)
 
 include:
 
