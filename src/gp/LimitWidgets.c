@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.3 1991-11-04 18:06:11 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -884,12 +884,6 @@ XtPointer junk;
  * Get the string out of the widget and store it.
  */
 	msg_ELog (EF_DEBUG, "New value is '%s'", wd->d_vstring);
-
-	if(pd_Retrieve(Pd, wq->wq_comp, "field", field, SYMT_STRING))
-	{
-		sprintf(param, "%s-%s", field, wq->wq_param[0]);
-		pd_Store(Pd, "global", param, wd->d_vstring, SYMT_STRING);
-	}
 	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring);
 	lw_Popdown (wq);
 }
@@ -912,14 +906,6 @@ XtPointer junk;
  */
 	msg_ELog (EF_DEBUG, "New value is '%s' '%s'", wd->d_vstring[0],
 		wd->d_vstring[1]);
-
-	if(pd_Retrieve(Pd, wq->wq_comp, "field", field, SYMT_STRING))
-	{
-		sprintf(param1, "%s-%s", field, wq->wq_param[0]);
-		sprintf(param2, "%s-%s", field, wq->wq_param[1]);
-		pd_Store(Pd, "global", param1, wd->d_vstring[0], SYMT_STRING);
-		pd_Store(Pd, "global", param2, wd->d_vstring[1], SYMT_STRING);
-	}
 	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring[0]);
 	parameter (wq->wq_comp, wq->wq_param[1], wd->d_vstring[1]);
 	lw_Popdown (wq);
@@ -1122,7 +1108,7 @@ lw_TSSetup (wq, cmds)
 WidgetQueue *wq;
 struct ui_command *cmds;
 /*
- * Set up a double float widget.
+ * Set up a time series widget.
  */
 {
 	Arg args[5];
@@ -1160,10 +1146,10 @@ struct ui_command *cmds;
 /*
  * Get the parameter values.
  */
-	pd_Retrieve (Pd, wq->wq_comp, wq->wq_param[0], wd->d_vstring[0],
-		SYMT_STRING);
-	pd_Retrieve (Pd, wq->wq_comp, wq->wq_param[1], wd->d_vstring[1],
-		SYMT_STRING);
+	pda_Search (Pd, wq->wq_comp, wq->wq_param[0], "tseries", 
+		wd->d_vstring[0], SYMT_STRING);
+	pda_Search (Pd, wq->wq_comp, wq->wq_param[1], "tseries",
+		wd->d_vstring[1], SYMT_STRING);
 /*
  * Stash the label into the widget.
  */
