@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.51 1999-03-01 02:03:19 burghart Exp $")
+RCSID ("$Id: Appl.c,v 3.52 2001-10-16 22:26:28 granger Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -496,8 +496,8 @@ struct message *msg;
 		 * is not necessary because we never could have opened it.
 		 */
 #ifdef DEBUG
-		msg_ELog (EF_DEBUG,
-			  "DataGone received for %d", ddg->dsp_file);
+		msg_ELog (EF_DEBUG, "DataGone received for %s", 
+			  ddg->dsp_file.df_core.dfc_name);
 #endif /* DEBUG */
 		dfa_ForceClose (&(ddg->dsp_file));
 		break;

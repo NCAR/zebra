@@ -26,6 +26,7 @@
 # include "DataStore.h"
 # include "Platforms.h"
 
+# include <string>
 
 MAKE_RCSID ("$Id")
 
@@ -59,6 +60,7 @@ static void LoadDerivs( DerivTable *dtable, const char *fname, int quiet );
 //
 extern DerivTable *FDTable;
 extern int FDparse( void );
+extern void FD_scan_string ( const char *yy_str );
 
 //
 // C interface for the stuff we show externally
@@ -145,7 +147,6 @@ ds_GetDerivation( PlatformId pid, FieldId wantid, FieldId raw_ids[], int nraw )
 // Look for a viable derivation
 //
     deriv = want.MetaEval( dtables, ntables, raw_flds, nraw );
-
     delete[] raw_flds;
 
     return ((DerivMethod)deriv);
@@ -262,6 +263,7 @@ LoadDerivs( DerivTable *dtable, const char *fname, int quiet )
 	FDTable = dtable;
 	FDparse();
 	fclose (FDin);
+	FDin = 0;
     }
     else if (! quiet)
     {
@@ -314,6 +316,8 @@ _PlatDerList::Table( PlatformId pid )
     {
 	char fname[128];
 	const char *pdir;
+	const Platform *pi = dt_FindPlatform( pid );
+	const PlatformClass* pc = pi_Class (pi);
 	
 	derivs[pid] = new DerivTable;
     //
@@ -322,13 +326,27 @@ _PlatDerList::Table( PlatformId pid )
     // have an empty DerivTable.  If the platform's suggested directory
     // is a relative path, use that, otherwise use the platform's name.
     //
-	pdir = pi_SuggestedDir( dt_FindPlatform( pid ) );
+	pdir = pi_SuggestedDir(pi);
 	if (pdir[0] == '/')
 	    pdir = ds_PlatformName( pid );
 
 	sprintf( fname, "%s/derivs/%s", GetProjDir(), pdir );
 	LoadDerivs( derivs[pid], fname, 1 );	
-    }
 
+	// 
+	// Now add the derivations from the platform class, if any.  I
+	// think this means derivations in the per-platform file will take
+	// precedence, which I think is what we want.
+	//
+	if (pc->dpc_derivations)
+	{
+	    msg_ELog (EF_DEBUG, "parsing class derivations for %s:",
+		      pc_Name (pc));
+	    msg_ELog (EF_DEVELOP, "%s", pc->dpc_derivations);
+	    FDTable = derivs[pid];
+	    FD_scan_string (pc->dpc_derivations);
+	    FDparse();
+	}
+    }
     return derivs[pid];
 }

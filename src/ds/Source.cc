@@ -24,10 +24,14 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 
+# include <iostream.h>
+
 # include <message.h>
 # include <BTreeFile.cc>
 
 # include "Source.hh"
+
+#define CHECK 0
 
 RCSID ("$Id")
 
@@ -38,8 +42,15 @@ RCSID ("$Id")
 // (This is klugy, since we really shouldn't know here that the DataFileCore
 // uses CFG_DATAFILE_LEN bytes for the file name...)
 //
-const int PFL_ORDER = 32;
-const int PFL_SIZE = sizeof( DataFileCore ) - CFG_DATAFILE_LEN + 28;
+// const int PFL_SIZE = sizeof( DataFileCore ) - CFG_DATAFILE_LEN + 28;
+// const int PFL_ORDER = 32;
+//
+// For a while the size and order (32) originally specified were not used,
+// and so the BTree defaults were used.  This just makes those settings
+// explicit.  Someday we may want to tune them, or allow them to be tuned.
+
+const int PFL_ORDER = 128;
+const int PFL_SIZE = sizeof( DataFileCore );
 
 //
 // Construct a Source:
@@ -80,6 +91,15 @@ Source::Source( const char* in_srcname, const char* in_dir,
     {
       case BlockFile::OK:
 	poffsets = new OffsetTree( bfile );
+
+	if (CHECK)
+	{
+	    // Try a check, then enable future checks.
+	    poffsets->Check ();
+	    poffsets->Check (1);
+	    //	cerr << "Platform Offsets tree:" << endl;
+	    //	poffsets->Print (cerr);
+	}
 	break;
       case BlockFile::COULD_NOT_OPEN:
 	msg_ELog( EF_EMERGENCY, "Could not open cache %s for source '%s'",
@@ -140,9 +160,14 @@ Source::AddPlatform( const Platform *p )
 //
 // Instantiate a PlatFileList for the platform, and save its offset
 //
-    pflists[pi_Id( p )] = new PlatFileList( 0, bfile );
+    pflists[pi_Id( p )] = new PlatFileList( 0, bfile, PFL_ORDER, PFL_SIZE );
     poffsets->Insert( pname, pflists[pi_Id( p )]->Address() );
 
+    if (CHECK)
+    {
+	pflists[pi_Id( p )]->Check ();
+	pflists[pi_Id( p )]->Check (1);
+    }
     return 1;
 }
 
@@ -478,6 +503,8 @@ Source::NFiles( const Platform *p )
 	return 0;
 
     PlatFileList *pfl = GetPlatFileList( p );
+    return pfl->numKeys ();
+#ifdef notdef
     int nfiles = 0;
     bool ok;
 //
@@ -487,6 +514,33 @@ Source::NFiles( const Platform *p )
 	nfiles++;
 
     return nfiles;
+#endif
+}
+
+
+
+void
+Source::Dump ( ostream &out )
+{
+    out << "============ Platform offsets tree ===============" << endl;
+    out << "Source: " << srcname << endl;
+    out << "  Root: " << rootdir << endl;
+    out << endl;
+    poffsets->Print (out);
+
+    for (PlatformId plat = 0; plat < dt_NPlatform(); plat++)
+    {
+	const Platform *p = dt_FindPlatform (plat);
+	if (p)
+	{
+	    PlatFileList *pfl = GetPlatFileList (p);
+	    out << "--------------------------------------------" << endl;
+	    out << "Platform Name: " << pi_Name (p) << endl;
+	    out << "  Platform Id: " << plat << endl;
+	    out << endl;
+	    pfl->Print (out);
+	}
+    }
 }
 
 
@@ -529,6 +583,13 @@ Source::GetPlatFileList( const Platform *p )
 	    AddPlatform( p );
 
 	pfl = pflists[pid];
+	if (CHECK)
+	{
+	    pfl->Check ();
+	    pfl->Check (1);
+	    //	cerr << "Platform File List (" << pname << "): " << endl;
+	    //	pfl->Print (cerr);
+	}
     }
 //
 // Return the BTree from our list

@@ -24,6 +24,8 @@
 # include "d_Source.h"
 # include "Source.hh"
 
+# include <iostream.h>
+
 RCSID ("$Id")
 
 //
@@ -261,5 +263,11 @@ src_DirsAreForced (const Source *src)
     return src->DirsAreForced();
 }
 
+
+void 
+src_Dump (Source *src)
+{
+    src->Dump (cout);
+}
 
 } // end of extern "C"

@@ -1,7 +1,7 @@
 /*
  * Daemon Source-related functions.  These are mostly C bindings to the
  * methods of class Source.
- * $Id: d_Source.h,v 3.2 1999-03-19 16:19:07 burghart Exp $
+ * $Id: d_Source.h,v 3.3 2001-10-16 22:26:30 granger Exp $
  *
  *
  *		Copyright (C) 1998 by UCAR
@@ -99,6 +99,8 @@ zbool src_RemembersAll (const Source *src);
 
 void src_SetForceDirs (Source *src, zbool force);
 zbool src_DirsAreForced (const Source *src);
+
+void src_Dump (Source *src);
 
 # if __cplusplus
 } // end of extern "C"

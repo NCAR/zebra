@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.25 2000-06-07 20:28:52 granger Exp $
+! $Id: Daemon.state,v 2.26 2001-10-16 22:26:29 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -194,6 +194,12 @@ define state in-class
 	endinput
 	input 'subplats' 29
 		next subplats-class
+	endinput
+	input 'field' 34
+		next ust$final_unmunged_string
+	endinput
+	input 'derivation' 35
+		next ust$final_unmunged_string
 	endinput
 	input 'comment' 27
 		next ust$final_unmunged_string
@@ -612,7 +618,7 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.25 2000-06-07 20:28:52 granger Exp $'
+	local _id '$Id: Daemon.state,v 2.26 2001-10-16 22:26:29 granger Exp $'
 
 	start
 	done

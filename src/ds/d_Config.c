@@ -34,7 +34,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-RCSID("$Id: d_Config.c,v 2.18 2000-06-07 20:28:53 granger Exp $")
+RCSID("$Id: d_Config.c,v 2.19 2001-10-16 22:26:29 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -48,7 +48,8 @@ static void dc_DefPlatform (char *name, char *superclass);
 static int dc_InPlatformClass FP ((PlatformClass *, struct ui_command *));
 static void dc_AddSubPlats FP ((PlatformClass *pc, char *classname,
 				struct ui_command *cmds));
-
+static void dc_AddField (PlatformClass *pc, char *fname);
+static void dc_AddDerivation (PlatformClass *pc, char *dtext);
 /*-----------------------------------------------------------------------*/
 
 
@@ -385,6 +386,18 @@ struct ui_command *cmds;
 			dc_AddSubPlats (pc, UPTR(cmds[1]), cmds+2);
 		break;
 	/*
+	 * Field definition to be added.
+	 */
+	   case DK_FIELD:
+	        dc_AddField (pc, UPTR(cmds[1]));
+		break;
+	/*
+	 * Field derivation to be added.
+	 */
+	   case DK_DERIVATION:
+	        dc_AddDerivation (pc, UPTR(cmds[1]));
+		break;
+	/*
 	 * Comments for this class.
 	 */
 	   case DK_COMMENT:
@@ -445,6 +458,45 @@ dc_DefSubPlats (const char *target, const char *classname,
 			ds_AddClassSubplat ((PlatClassRef)pc, spc->dpc_id, 
 					    UPTR (*cmds));
 	}
+}
+
+
+
+static void
+dc_AddField (PlatformClass *pc, char *fname)
+{
+    FieldId fid;
+    char *copy = (char *)malloc (strlen(fname)+1);
+    char *eq;
+    strcpy (copy, fname);
+    fname = copy;
+    eq = strchr(fname, '=');
+    if (eq)
+    {
+	/* Add this line as a derivation */
+	dc_AddDerivation (pc, fname);
+	*eq = 0;
+    }
+    /* Now we can treat the text like a simple field specification */
+    fid = F_Lookup (fname);
+    if (fid == BadField)
+    {
+	msg_ELog (EF_PROBLEM, "bad field '%s' for class '%s'",
+		  fname, pc->dpc_name);
+    }
+    else
+    {
+	ds_AddClassField (pc, fid);
+    }
+    free (copy);
+}
+
+
+
+static void
+dc_AddDerivation (PlatformClass *pc, char *dtext)
+{
+    ds_AddClassDerivation (pc, dtext);
 }
 
 

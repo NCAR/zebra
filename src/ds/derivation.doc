@@ -228,4 +228,135 @@ Or in pseudo-code:
     }
 
 
-                
+Platform Class Derivations
+==========================
+
+For lack of a better place, here are some notes about platform class fields
+and derivations.  In addition to the per-platform derivation files
+originally supported by the zebra derivation module, later versions of
+zebra support derivations supplied with a platform class definition, such
+as in the datastore daemon config file (ds.config).  The keyword
+'derivation' in a class definition appends the quoted text string argument
+to any current derivation text for the platform class.  Platform subclasses
+inherit all of their superclass' derivations, and currently there is no way
+to disable that.
+
+This example defines an alias from a fully qualified mixing ratio field to
+the less qualified field which has a default derivation.  This allows
+requests for a field named 'mr' to return the derived mixing ratio values.
+One intention of this technique is mentioned below with class fields.
+
+class Surface
+	comment		'Surface Meteorology from Campbell Data Logger'
+      	organization	scalar
+	filetype	netcdf
+	daysplit
+	maxsamples	1440
+	derivation	"mr[w][%][Mixing Ratio] = [w][%];"
+endclass
+
+ISS profilers store their vertical gate heights relative to ground level,
+so this class derivation provides gate altitudes in heights above MSL
+computed using the profilers 'alt' location.  I think this would work, but
+it hasn't yet been tried.  If it doesn't, we should make it work. :)
+
+derivation "altitude[AltMSL][meters][Height above MSL] = [Height][meters] + alt[][meters];"
+
+Multiple derivation lines are allowed: all of them will be concatenated
+together into a single set of derivations for the platform class.  The
+exact same syntax rules apply as for derivation files.  In particular, each
+derivation should be followed by a semicolon.  Multiple derivations can be
+included in one 'derivation' line, as long as they are separated by
+semicolons.
+
+The full set of derivations is associated with the platform class and
+passed on to each datastore client which requests the definition of that
+platform class.  The client parses the derivations right after loading the
+per-platform derivation file, giving the per-platform derivations
+precedence over the platform class derivations.  This means it's possible
+to keep all derivations in the datastore config file rather than in a tree
+of files under the 'derivs' directory, depending upon which approach seems
+preferable.  Where many platform instances will share the same set of
+derivations which are not appropriate in the defaults derivation file,
+putting the derivations in a platform class can avoid duplicating
+derivations in individual platform files.  This was part of the original
+motivation for platform class derivations.  The ISS has well-defined,
+hierarchical platform classes, but the set of possible platform instances
+in a particular datastore session is dynamic.  Maintaining derivations in
+the platform classes is simpler than maintaining a hierarchy of directories
+filled with identical platform derivation files.
+
+Platform Class Fields
+=====================
+
+In the case of ISS surface data, a common set of derived fields needs to be
+available and easily accessible for display.  In the past that would
+require writing explicit field menus for all the cases in which surface
+data might be displayed.  It seems more natural to allow a platorm
+definition to augment its set of fields and then include these 'platform
+class fields' in the lists of fields returned by platform queries.  To all
+datastore clients, including the graphics process, the class fields would
+appear to be normal fields available directly from the data files, even if
+the fields would actually be derived.  Secondly, when the platform's fields
+are poorly specified, such as without units or type or description, it
+would be convenient to more fully qualify the platform's fields with
+derivation aliases rather than modifying the original data files.  Class
+fields fill both of these needs.
+
+Use a 'field' line in a platform class defintion to identify the field:
+
+	field 	"[w][%]"
+
+The above line adds the derived mixing ratio field, so mixing ratio will
+automatically appear as a choice in all field menus generated for the
+platform.  However, most users will not know that field type 'w'
+corresponds to mixing ration, so a derivation alias included in the field
+line can make the field choice more descriptive.
+
+	field	"mr[w][%][Mixing Ratio] = [w][%];"
+
+The datastore daemon detects the equals (=) sign in the field specifier and
+first adds the whole line as if it had been passed in a 'derivation'
+statement.  Then the field in the lefthand side is added as a normal class
+field.  The effect is that a descriptive field called 'mr' with title
+'Mixing Ratio' will appear in field menus, and it will alias the built-in
+derivation for mixing ratio.
+
+When a platform class field has the same name as an explicit data file
+field, the platform class field will be returned in field list queries in
+place of the data file field.  This allows the platform class definition to
+override incorrect or incomplete field specifications in the data files.
+This override can only happen for platform class fields.  Note the class
+field must also alias the data file field for any data to be returned for
+it:
+
+	! Elaborate the undocumented netcdf fields
+	!
+	field		"tdry[T][degC][Temperature] = tdry;"
+	field		"pres[P][hPa][Pressure] = pres;"
+	field		"rh[rh][%][Relative humidity] = rh;"
+	field		"wspd[wspd][meters second-1][Wind Speed] = wspd;"
+	field		"wdir[wdir][degrees_north][Wind Direction] = wdir;"
+
+The above example relates to the ISS surface platform, which for several
+years now has been ingesting data with only field names.  The aliases are
+only valid for the surface platform, thus they would not be appropriate for
+the global derivation defaults.
+
+Normally class fields would also be used for the common derivations
+expected for a plaform.  From the derivation examples above, probably the
+derived field should also be a class field:
+
+	! Commonly derived surface fields
+	!
+	field	"mr[w][g/kg][Mixing ratio] = [w][g/kg];"
+	field	"dewpoint[T_d][degC][Dewpoint Temperature] = [T_d][degC];"
+
+Disclaimer
+----------
+
+I (gary) added the platform class derivations and fields to serve my own
+needs for a unified ISS project configuration, and because I thought they'd
+be cool.  If anyone finds the additions an abomination relative to Chris'
+original field derivation design, at least you know to blame me and not
+him. :)

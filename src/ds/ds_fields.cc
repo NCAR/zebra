@@ -87,7 +87,7 @@ F_Closure( void )
  * Reset to zero fields and destroy our field cache.
  */
 {
-    delete( FList );
+    delete[] FList;
     FList = 0;
     NFlds = MaxFlds = 0;
 }
@@ -195,8 +195,10 @@ F_Lookup( const char* name )
 	    openbracket = closebracket + 1;
 	}
     //
-    // If there's anything else, it's a problem
+    // If there's anything else, besides whitespace, it's a problem
     //
+	while (*openbracket && isspace(*openbracket))
+	    ++openbracket;
 	if (*openbracket)
 	{
 	    msg_ELog( EF_PROBLEM, "Badly formed field name '%s'", name );

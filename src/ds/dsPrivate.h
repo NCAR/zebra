@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.35 1999-03-01 02:03:45 burghart Exp $
+ * $Id: dsPrivate.h,v 3.36 2001-10-16 22:26:30 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -39,7 +39,7 @@ extern "C" {
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x980417
+# define DSProtocolVersion	0x20011011
 
 /*
  * Write codes -- used to note the placement of data by client and daemon.
@@ -305,9 +305,10 @@ struct dsp_ClassStruct
 	int dsp_result;			/* zero on failure		*/
 	PlatClassId dsp_cid;		/* Requested class id		*/
 	PlatformClass dsp_class;	/* Platform class structure	*/
-	PlatClassId dsp_subplatid[1];	/* dsp_pc.dpc_nsubplats		*/
+	PlatClassId dsp_subplatid[1];	/* dsp_class.dpc_nsubplats	*/
 	/* followed by subplat names separated by null characters */
 	/* followed by the null-terminated comment string */
+        /* followed by dsp_class.dpc_nfields null-separated field strings */
 };
 
 

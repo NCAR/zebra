@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.73 2001-10-11 16:39:37 burghart Exp $")
+RCSID ("$Id: Daemon.c,v 3.74 2001-10-16 22:26:29 granger Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -152,6 +152,7 @@ zbool StatRevisions = TRUE;      /* Use stat() calls to get revision
 
 zbool Debug = FALSE;             /* Produce voluminous output as it happens */
 zbool ParseOnly = FALSE;         /* Parse the init file and abort        */
+zbool ShowCache = FALSE;
 
 static int Argc;
 static char **Argv;
@@ -179,6 +180,7 @@ char *prog;
 	printf("   -debug      Print log messages\n");
 	printf("   -version    Print version information\n");
 	printf("   -copyright  Print copyright information\n");
+	printf("   -showcache  Dump the source cache files and exit.\n");
 	printf("variables: \n");
 	printf("   name=value  Override config file variable\n");
 	printf("initfile: \n");
@@ -233,6 +235,11 @@ char **argv;
 			printf ("%s", Z_copyright());
 			exit (0);
 		}
+		else if (Match (argv[i], "-showcache"))
+		{
+			ShowCache = TRUE;
+		}
+		    
 		/* variable settings and init files handled later */
 	}
 /*
@@ -426,6 +433,17 @@ FinishInit ()
 	    
 	    free (datadir);
 	    free (cachefile);
+	}
+/*
+ * Respond to requests to show cache files before scanning.
+ */
+	if (ShowCache)
+	{
+		for (s = 0; s < NSrcs; s++)
+		{
+		    src_Dump (Srcs[s]);
+		}
+		exit (0);
 	}
 /*
  * Perform the file scan to see what is out there.

@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.17 1999-03-01 02:03:20 burghart Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.18 2001-10-16 22:26:28 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -170,7 +170,7 @@ ds_AttrCheck (const DataFile *df, const ZebraTime *t, char *attr)
 {
 	char *dattr;
 	char *a;
-	int len, i;
+	int len;
 	int result = 0;
 /*
  * If no data attrs, assume yes.
@@ -255,8 +255,10 @@ FieldId *flist;
  * Return a list of the available fields in this platform at this time.
  */
 {
+        const PlatformClass *pc;
 	const DataFile *df;
 	int result;
+	int max = *nfld;
 /*
  * Find a file entry to look at.
  */
@@ -270,6 +272,35 @@ FieldId *flist;
  */
 	InstallDFA;
 	result = dfa_GetFields (df, t, nfld, flist);
+/*
+ * Now merge the list in the file with any defined for the platform.
+ */
+	if ((pc = dt_FindClass (ds_PlatformClass (plat))) != 0)
+	{
+	    int i;
+	    for (i = 0; i < pc->dpc_nfields; ++i)
+	    {
+		/* Look for the name, and if it matches any field found
+		 * already, override it.  Else add this field to the end.
+		 */
+		int found = 0;
+		int f;
+		char fname[256]; /* XXX */
+		strcpy (fname, F_GetName (pc->dpc_fields[i]));
+		for (f = 0; fname[0] && f < *nfld; ++f)
+		{
+		    if (! strcmp (fname, F_GetName (flist[f])))
+		    {
+			flist[f] = pc->dpc_fields[i];
+			found = 1;
+		    }
+		}
+		if (! found && *nfld < max)
+		{
+		    flist[(*nfld)++] = pc->dpc_fields[i];
+		}
+	    }
+	}
 	return (result);
 }
 
@@ -373,7 +404,6 @@ ZebraTime *rettimes;
 	int nseen = 0;
 	int max = n;
 	const DataFile *df;
-	int i;
 /*
  * We don't do it all yet.
  */
@@ -653,7 +683,7 @@ dsDetail *details;
  *		The return value is NULL.
  */
 {
-    DataChunk *return_dc, *base_dc;
+    DataChunk *return_dc;
     GetList *get;
 /*
  * Make the get list describing where this data has to come from.
@@ -1149,7 +1179,6 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	{
 	    if (derivs[df])
 	    {
-		FieldId template;
 		int i, ndims, is_static;
 		char *names[DC_MaxDimension];
 		FieldId dims[DC_MaxDimension];
@@ -1464,7 +1493,6 @@ DerivationCheck (PlatformId pid, DataClass class, GetList *gl, FieldId *flds,
 {
     int f;
     zbool is_raw;
-    FieldId fileflds[MAXRAWFLDS];
 /*
  * Derivation is only an option for MetData datachunks
  */
@@ -1495,7 +1523,6 @@ FldAvailable (FieldId fld, PlatformId pid, GetList *gl, zbool *is_raw,
 {
     int nfflds, ff;
     FieldId fileflds[MAXRAWFLDS];
-    zbool raw;
     GetList *gp;
 /*
  * Loop through the get list, seeing if this field is available raw in

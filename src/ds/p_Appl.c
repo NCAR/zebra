@@ -13,7 +13,7 @@
 #include "dsPrivate.h"		/* platform and class type definitions */
 #include "Platforms.h"
 
-RCSID("$Id: p_Appl.c,v 3.1 1999-03-01 16:32:11 burghart Exp $")
+RCSID("$Id: p_Appl.c,v 3.2 2001-10-16 22:26:30 granger Exp $")
 
 
 /* ================
@@ -183,6 +183,31 @@ PlatformId pid;
 			return (pc->dpc_org);
 	}
 	return (OrgUnknown);
+}
+
+
+const FieldId *
+ds_PlatformClassFields (PlatformId pid, int *nfield)
+/*
+ * Return the number of class fields defined in this platform and a pointer
+ * to an array of them.  The array belongs to the platform definition and
+ * should not be changed.
+ */
+{
+	const Platform *p;
+	FieldId *fields = 0;
+	
+	*nfield = 0;
+	if ((p = dt_FindPlatform (pid)))
+	{
+		const PlatformClass *pc = dt_FindClass (p->dp_class);
+		if (pc)
+		{
+		    *nfield = pc->dpc_nfields;
+		    fields = pc->dpc_fields;
+		}
+	}
+	return (fields);
 }
 
 
@@ -537,6 +562,15 @@ const char *comment;
 }
 
 
+void
+ds_SetDirectory (cd, dir)
+PlatClassRef cd;
+const char *dir;
+{
+	dt_SetString (cd->dpc_dir, dir, sizeof (cd->dpc_dir), "SetDirectory");
+}
+
+
 /* -----------------------
  * Actually define classes and instances to the daemon
  */
@@ -585,28 +619,31 @@ const char *name;
 }
 
 
-
-#ifdef notdef
 void
-ds_AddClassSubplat (cid, pclass, pname)
-PlatClassId cid;
-PlatClassId pclass;
-char *pname;
+ds_AddClassField (PlatClassRef pc, FieldId fid)
+/*
+ * Add a field to this class.
+ */
 {
-	struct dsp_AddSubplat asp;
-	SubPlatform *sp = &asp.dsp_subplat;
-
-	sp->dps_class = pclass;
-	dt_SetString (sp->dps_name, pname, sizeof (sp->dps_name), 
-		      "add class subplat message");
-	asp.dsp_class = cid;
-	asp.dsp_type = dpt_AddSubplat;
-	ds_SendToDaemon (&asp, sizeof (asp));
+    dt_AddClassField (pc, fid);
 }
-#endif
 
 
+void
+ds_AddClassDerivation (PlatClassRef pc, char *dtext)
+/*
+ * Add a derivation to this class.
+ */
+{
+    dt_AddClassDerivation (pc, dtext);
+}
 
+
+void
+ds_SetDerivations (PlatClassRef pc, char* dtext)
+{
+    dt_SetDerivations (pc, dtext);
+}
 
 
 /* =======================================================================

@@ -136,7 +136,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID ("$Id: dc_NSpace.c,v 1.18 1999-03-01 02:03:42 burghart Exp $")
+RCSID ("$Id: dc_NSpace.c,v 1.19 2001-10-16 22:26:30 granger Exp $")
 
 /*
  * The DCC_NSpace public interface is included in DataStore.h, along with
@@ -1490,8 +1490,7 @@ NSDump (dc)
 		printf("   %35s: size %-6lu  -- ", 
 		       dinfo[i].nsd_Name, dinfo[i].nsd_Size);
 		if (dinfo[i].nsd_Id != BadField)
-			printf("field %i, '%s'\n", 
-			       dinfo[i].nsd_Id, F_GetDesc(dinfo[i].nsd_Id));
+			printf("field '%s'\n", F_GetDesc(dinfo[i].nsd_Id));
 		else
 			printf("no field id\n");
 	}

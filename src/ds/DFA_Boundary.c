@@ -36,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.18 1999-10-26 22:22:57 burghart Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.19 2001-10-16 22:26:28 granger Exp $")
 
 
 /*
@@ -521,6 +521,7 @@ bf_GetHeader (int fd, struct BFHeader* hdr, int* doswap)
     }
 	
     msg_ELog (EF_PROBLEM, "Bad magic (%x) in boundary file", hdr->bh_Magic);
+    return 0;
 }
 
 

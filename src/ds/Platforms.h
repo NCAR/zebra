@@ -1,5 +1,5 @@
 /*
- * $Id: Platforms.h,v 3.6 2000-11-07 19:53:19 granger Exp $
+ * $Id: Platforms.h,v 3.7 2001-10-16 22:26:29 granger Exp $
  *
  * The interface to platform classes and instances shared by daemon
  * and client.  The application, be they daemon or client, can choose
@@ -65,6 +65,15 @@ typedef struct ds_PlatformClass
 	char 	*dpc_comment;		/* Comment about this class	*/
 	SubPlatform *dpc_subplats;	/* Subplatform templates	*/
 	int	dpc_nsubplats;		/* Number of subplats in array	*/
+/*
+ * Additional field definitions for the platform.
+ */
+        FieldId *dpc_fields;
+	int     dpc_nfields;
+/*
+ * Platform class derivations.
+ */
+        char    *dpc_derivations;
 /*
  * Info for directory suggestions
  */
@@ -352,11 +361,20 @@ void dt_AddClassSubPlat (PlatformClass *pc, PlatClassId subplat,
 			 const char *name);
 void dt_CopyClassSubPlats (const PlatformClass *src, PlatformClass *dest);
 void dt_EraseClassSubPlats (PlatformClass *pc);
+
+void dt_AddClassField (PlatformClass *pc, FieldId fid);
+void dt_CopyClassFields (const PlatformClass *src, PlatformClass *dest);
+void dt_EraseClassFields (PlatformClass *pc);
+void dt_AddClassDerivation (PlatformClass *pc, char *dtext);
+void dt_SetDerivations (PlatformClass *pc, const char *dtext);
+
 void dt_FillClassDir (PlatformClass *pc, const PlatformClass *super);
 zbool dt_ValidateClass (PlatformClass *pc);
 void dt_CopyClass (PlatformClass *dest, const PlatformClass *src);
 void dt_EraseClass (PlatformClass *pc);
 void dt_SetComment (PlatformClass *pc, const char *comment);
+void dt_FreePlatform (PlatformInstance *pi);
+void dt_DestroyClass (PlatClassRef pc);
 
 struct dsp_ClassStruct;	/* actual struct defined in dsPrivate.h */
 int dt_ExtractClass (PlatformClass *pc, struct dsp_ClassStruct *dsp, 

@@ -1,7 +1,7 @@
 //
 // Source: a class holding a large list of files; each file can be retrieved
 // by platform and time.  
-// $Id: Source.hh,v 3.4 2001-10-11 16:34:20 burghart Exp $
+// $Id: Source.hh,v 3.5 2001-10-16 22:26:29 granger Exp $
 //
 //		Copyright (C) 1998 by UCAR
 //	University Corporation for Atmospheric Research
@@ -31,6 +31,8 @@
 
 # include "DataFiles.h"
 # include "Platforms.h"
+
+# include <iosfwd>
 
 template <class K, class T> class BTreeFile;
 
@@ -170,6 +172,9 @@ public:
     bool DirsAreForced( void ) const;
     bool IsGood( void ) const;
     class Error {};
+
+    // Debug method to dump contents to a stream
+    void Dump ( std::ostream &out );
 
 private:
 //

@@ -28,8 +28,8 @@ FieldId field;
 	/* test dc_NSGetField */
 	(void)dc_NSGetField(dc, field, &rndim, names, sizes,
 			    &rstatic);
-	sprintf (buf, "dc_NSGetField(%s:id %i): %i dims, %s static, ( ",
-		 F_GetName(field), field, rndim, (rstatic) ? "is" : "not");
+	sprintf (buf, "dc_NSGetField(%s): %i dims, %s static, ( ",
+		 F_GetName(field), rndim, (rstatic) ? "is" : "not");
 	for (i = 0; i < rndim; ++i)
 		sprintf (buf+strlen(buf), "%s=%lu ",names[i],sizes[i]);
 	sprintf (buf+strlen(buf),")\n");

@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.73 2001-01-18 17:55:30 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.74 2001-10-16 22:26:29 granger Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -310,6 +310,8 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	set -x; \
 	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
+	if [ ! -d ./data ]; then rm -f ./data; \
+	ln -s /net/shared/zebra/project/test/data . ; fi ; \
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 

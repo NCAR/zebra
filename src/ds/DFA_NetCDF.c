@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.69 2000-11-22 18:26:14 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.70 2001-10-16 22:26:28 granger Exp $")
 
 # include <netcdf.h>
 
@@ -533,7 +533,7 @@ dnc_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsamp)
 /*
  * Try opening the file.
  */
-	ncopts = 0;		/* Change default error behavior	 */
+	ncopts = 0;	/* Change default error behavior */
 	if ((id = ncopen (file, NC_NOWRITE)) < 0)
 		return (FALSE);
 /*
@@ -608,7 +608,7 @@ int write;
 /*
  * Try to open the file.
  */
-	ncopts = 0;		/* Change default error behavior	 */
+	ncopts = 0;	/* Change default error behavior */
 	flags = (write ? (NC_WRITE | NC_NOFILL) : NC_NOWRITE);
 	if ((tag->nc_id = ncopen (fname, flags)) < 0)
 	{
@@ -750,9 +750,9 @@ NCTag *tag;
 	 * declared, the original declaration wins out.
 	 */
 		ncvarinq (tag->nc_id, fld, cp, &type, &ndim, dims, &natt);
-		sprintf (longname, cp);
-		sprintf (units, "unknown");
-		sprintf (typename, "");
+		strcpy (longname, cp);
+		strcpy (units, "unknown");
+		strcpy (typename, "");
 		
 		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_LONGNAME, 
 					longname, sizeof(longname));
@@ -1723,29 +1723,10 @@ char *s;
  */
 {
 /*
- * error number -> message mapping (taken from netcdf.h)
- */
-	static char *errmsg[] =
-	{ 
-	  "no error", "bad NetCDF id", "too many files open", 
-	  "can't overwrite file", "invalid argument", "write to read only",
-	  "op not allowed in data mode", "op not allowed in define mode",
-	  "coordinates out of domain", "MAX_NC_DIMS exceeded", "name in use",
-	  "attribute not found", "MAX_NC_ATTRS exceeded", 
-	  "not a NetCDF data type", "invalid dimension id", 
-	  "NC_UNLIMITED in wrong index", "MAX_NC_VARS exceeded", 
-	  "variable not found", "bad action on NC_GLOBAL varid", 
-	  "not a NetCDF file", "string too short", "MAX_NC_NAME exceeded",
-	  "NC_UNLIMITED size already in use"
-	};
-/*
  * Print the error message
  */
-	if (ncerr <= 22 && ncerr >= 0)
-		msg_ELog (EF_PROBLEM, "NetCDF error %d (%s) -- %s", ncerr, 
-			errmsg[ncerr], s);
-	else
-		msg_ELog (EF_PROBLEM, "NetCDF error %d -- %s", ncerr, s);
+	msg_ELog (EF_PROBLEM, "%s: NetCDF error %d, %s", s, ncerr, 
+		  nc_strerror (ncerr));
 }
 
 
@@ -2660,7 +2641,6 @@ int ndetail;
  */
 	start[0] = begin;	count[0] = 1;
 	start[1] = 0;		count[1] = tag->nc_nPlat;
-	altindex = dnc_AltIndex (tag, details, ndetail);
 /*
  * Plow through each desired sample.
  */
@@ -3530,7 +3510,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.69 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.70 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }

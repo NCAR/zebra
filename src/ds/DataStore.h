@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.49 1999-03-01 02:03:30 burghart Exp $
+ * $Id: DataStore.h,v 3.50 2001-10-16 22:26:29 granger Exp $
  *
  * Public data store definitions.
  */
@@ -918,21 +918,6 @@ int		ds_GetNPlat FP ((void));
 void 		ds_ForceRescan FP ((PlatformId platform, int all));
 void		ds_ForceClosure FP ((void));
 
-/* --------------------------------------------------------------------- */
-/* The platform and class access interface shared by daemon and client
- * but implemented differently by each.  These are essentially the routines
- * needed by DFA methods, which to be shared by the daemon must be
- * re-implemented by the daemon in d_Appl.c.
- */
-PlatformId 	ds_LookupPlatform FP ((const char *name));
-PlatClassId	ds_LookupClass FP ((const char *name));
-PlatClassId	ds_PlatformClass FP ((PlatformId pid));
-const char *	ds_PlatformName FP ((PlatformId));
-const char *	ds_ClassName FP ((PlatClassId));
-DataOrganization ds_PlatformDataOrg FP ((PlatformId pid));
-int		ds_IsMobile FP ((PlatformId));
-int		ds_IsModelPlatform FP ((PlatformId));
-int		ds_MaxSamples FP ((PlatformId id));
 /* -------------------------------------------------------------------- */
 
 /* protect for programs which don't need message.h */
@@ -962,6 +947,20 @@ int		ds_SetStringDetail FP ((char *k, char *s, dsDetail *, int n));
 typedef struct ds_PlatformClass *PlatClassRef;
 
 /*
+ * Basic platform and class query interface.
+ */
+PlatformId 	ds_LookupPlatform FP ((const char *name));
+PlatClassId	ds_LookupClass FP ((const char *name));
+PlatClassId	ds_PlatformClass FP ((PlatformId pid));
+const char *	ds_PlatformName FP ((PlatformId));
+const char *	ds_ClassName FP ((PlatClassId));
+DataOrganization ds_PlatformDataOrg FP ((PlatformId pid));
+int		ds_IsMobile FP ((PlatformId));
+int		ds_IsModelPlatform FP ((PlatformId));
+int		ds_MaxSamples FP ((PlatformId id));
+const FieldId * ds_PlatformClassFields (PlatformId pid, int *nfield);
+
+/*
  * Manipulate class references
  */
 PlatClassRef	ds_NewSubClass FP ((const char *name, PlatClassId sid));
@@ -970,6 +969,9 @@ PlatClassRef	ds_NewNamedClass (const char *name, const char *super);
 void		ds_AddClassSubplat FP ((const PlatClassRef pc, 
 					PlatClassId subid, 
 					const char *subname));
+void            ds_AddClassDerivation (PlatClassRef pc, char* dtext);
+void            ds_SetDerivations (PlatClassRef pc, char* dtext);
+void            ds_AddClassField (PlatClassRef pc, FieldId fid);
 void		ds_EraseClassSubplat (PlatClassRef pc);
 void		ds_DestroyClass FP ((PlatClassRef pc));
 int		ds_ShowPlatformClass FP ((FILE *fp, PlatClassId cid));
@@ -991,6 +993,7 @@ void		ds_SetAbstract FP ((PlatClassRef cd));
 void		ds_SetVirtual FP ((PlatClassRef cd));
 void		ds_SetMaxSample FP ((PlatClassRef cd, int maxsamp));
 void		ds_SetComment FP ((PlatClassRef cd, const char *comment));
+void            ds_SetDirectory (PlatClassRef cd, const char *dir);
 
 /*
  * Source info

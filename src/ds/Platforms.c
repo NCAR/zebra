@@ -45,7 +45,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.8 2000-11-08 19:03:28 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.9 2001-10-16 22:26:29 granger Exp $")
 
 
 
@@ -68,9 +68,10 @@ Derived =
 };
 
 /*
- * Blocks by which subplat allocated arrays are increased.
+ * Blocks by which subplat and fieldid allocated arrays are increased.
  */
 # define ALLOC_SUBPLATS	10
+# define ALLOC_FIELDS	10
 
 /*
  * Default file keep time for real-time operations.
@@ -129,6 +130,9 @@ const char *name;
 	pc->dpc_comment = NULL;
 	pc->dpc_subplats = NULL;
 	pc->dpc_nsubplats = 0;
+	pc->dpc_fields = NULL;
+	pc->dpc_nfields = 0;
+	pc->dpc_derivations = NULL;
 }
 
 
@@ -196,6 +200,11 @@ const PlatformClass *src;
 	dest->dpc_subplats = NULL;
 	dest->dpc_nsubplats = 0;
 	dt_CopyClassSubPlats (src, dest);
+	dest->dpc_fields = NULL;
+	dest->dpc_nfields = 0;
+	dt_CopyClassFields (src, dest);
+	dest->dpc_derivations = NULL;
+	dt_SetDerivations (dest, src->dpc_derivations);
 }
 
 
@@ -209,8 +218,11 @@ PlatformClass *pc;
  */
 {
 	dt_EraseClassSubPlats (pc);
+	dt_EraseClassFields (pc);
 	if (pc->dpc_comment)
 		free (pc->dpc_comment);
+	if (pc->dpc_derivations)
+		free (pc->dpc_derivations);
 	dt_InitClass (pc, NULL);
 }
 
@@ -240,6 +252,44 @@ const char *comment;
 	{
 		pc->dpc_comment = (char *) malloc (strlen(comment)+1);
 		strcpy (pc->dpc_comment, (char *) comment);
+	}
+}
+
+
+
+void
+dt_SetDerivations (PlatformClass *pc, const char *dtext)
+{
+	if (pc->dpc_derivations)
+		free (pc->dpc_derivations);
+	pc->dpc_derivations = NULL;
+	if (dtext)
+	{
+		pc->dpc_derivations = (char *) malloc (strlen(dtext)+1);
+		strcpy (pc->dpc_derivations, (char *) dtext);
+	}
+}
+
+
+
+void
+dt_AddClassDerivation (PlatformClass *pc, char *dtext)
+{
+	if (dtext)
+	{
+		int len = strlen(dtext)+1;
+		if (pc->dpc_derivations)
+		{
+			len += strlen (pc->dpc_derivations);
+			pc->dpc_derivations =
+			    (char*)realloc(pc->dpc_derivations, len);
+		}
+		else
+		{
+			pc->dpc_derivations = (char*)malloc(len);
+			pc->dpc_derivations[0] = '\0';
+		}
+		strcat (pc->dpc_derivations, dtext);
 	}
 }
 
@@ -329,6 +379,69 @@ PlatformClass *dest;
 
 
 
+void
+dt_AddClassField (PlatformClass *pc, FieldId id)
+/*
+ * Add a field to the platform.
+ */
+{
+	int len;
+
+	len = (pc->dpc_nfields + ALLOC_FIELDS) * sizeof(FieldId);
+	if (pc->dpc_nfields == 0)
+		pc->dpc_fields = (FieldId *) malloc (len);
+	else if ((pc->dpc_nfields % ALLOC_FIELDS) == 0)
+		pc->dpc_fields = (FieldId *)
+			realloc (pc->dpc_fields, len);
+	pc->dpc_fields[pc->dpc_nfields] = id;
+	pc->dpc_nfields++;
+}
+
+
+
+void
+dt_EraseClassFields (pc)
+PlatformClass *pc;
+/*
+ * Remove the subplats from this class 
+ */
+{
+	if (pc->dpc_fields)
+		free (pc->dpc_fields);
+	pc->dpc_fields = NULL;
+	pc->dpc_nfields = 0;
+}
+
+
+
+void
+dt_CopyClassFields (src, dest)
+const PlatformClass *src;
+PlatformClass *dest;
+/*
+ * Create space for the src fields in dest and copy.
+ * First erase any fields from the dest class.
+ */
+{
+	int len;
+
+	dt_EraseClassFields (dest);
+	if (src->dpc_nfields == 0)
+		return;
+/*
+ * Figure out how many blocks of ALLOC_FIELDS have been allocated in src,
+ * and allocate this much for the dest class
+ */
+	len = ((src->dpc_nfields - 1) / ALLOC_FIELDS) + 1;
+	len *= ALLOC_FIELDS * sizeof(FieldId);
+	dest->dpc_fields = (FieldId *) malloc (len);
+	dest->dpc_nfields = src->dpc_nfields;
+	memcpy (dest->dpc_fields, src->dpc_fields,
+		src->dpc_nfields * sizeof(FieldId));
+}
+
+
+
 zbool
 dt_ValidateClass (pc)
 PlatformClass *pc;
@@ -413,19 +526,23 @@ int *retlen;			/* length of final message */
     len = sizeof (struct dsp_ClassStruct);
 
 /*
- * The length we calculate first is a maximum. We'll adjust it
- * later to fit the space we actually used.
+ * The length we calculate first is a maximum, not including any class
+ * fields we need to send. We'll adjust it later to fit the space we
+ * actually used. 
  */
     if (pc->dpc_nsubplats > 1)
 	len += (pc->dpc_nsubplats - 1) * sizeof (SubPlatform);
 
     if (pc->dpc_comment)
 	len += strlen (pc->dpc_comment) + 1;
+
+    if (pc->dpc_derivations)
+	len += strlen (pc->dpc_derivations) + 1;
 /*
- * Allocate space separate from that given to us if our class has a comment
- * or subplats.
+ * Allocate space separate from that given to us if our class has fields,
+ * since we don't know how much space that will take.
  */
-    if (len > sizeof (struct dsp_ClassStruct))
+    if (len > sizeof (struct dsp_ClassStruct) || pc->dpc_nfields > 0)
 	answer = (struct dsp_ClassStruct *) malloc (len);
 
     answer->dsp_type = dpt_R_ClassStruct;
@@ -450,11 +567,32 @@ int *retlen;			/* length of final message */
     }
     if (pc->dpc_comment)
     {
-	strcpy ((char *)answer + len, pc->dpc_comment);
+	char *cp = (char *)answer + len;
 	len += strlen (pc->dpc_comment) + 1;
+	strcpy (cp, pc->dpc_comment);
+    }
+    if (pc->dpc_derivations)
+    {
+	char *cp = (char *)answer + len;
+	len += strlen (pc->dpc_derivations) + 1;
+	strcpy (cp, pc->dpc_derivations);
+    }
+    /* 
+     * Pack the fields in, but we have to pass them by name since FieldIds
+     * do not translate between processes.
+     */
+    for (i = 0; i < pc->dpc_nfields; ++i)
+    {
+	char *fname = F_GetFullName (pc->dpc_fields[i]);
+	int c = len;
+	len += strlen(fname) + 1;
+	answer = (struct dsp_ClassStruct *) realloc (answer, len);
+	strcpy ((char *)answer + c, fname);
+	msg_ELog (EF_DEVELOP, "class %s: injected field %s",
+		  pc->dpc_name, (char*)answer+c);
     }
     *retlen = len;
-    if (answer != am)
+    if (answer != am && pc->dpc_nfields == 0)
 	answer = (struct dsp_ClassStruct *) realloc (answer, len);
     return (answer);
 }
@@ -479,7 +617,6 @@ int len;
 	 * Start with the basics.
 	 */
 	*pc = dsp->dsp_class;
-	pc->dpc_comment = NULL;
 	c = sizeof (struct dsp_ClassStruct);
 	/*
 	 * Now continue with the optional trailers.
@@ -497,10 +634,34 @@ int len;
 			c += strlen (pc->dpc_subplats[i].dps_name) + 1;
 		}
 	}
-	if (c < len)		/* still have a comment to include */
+	if (pc->dpc_comment != 0)
 	{
+		pc->dpc_comment = 0;
 		dt_SetComment (pc, (char *)dsp + c);
-		c += strlen (pc->dpc_comment) + 1;
+		c += strlen ((char *)dsp + c) + 1;
+	}
+	if (pc->dpc_derivations != 0)
+	{
+		char *dtext = (char*)dsp + c;
+		pc->dpc_derivations = 0;
+		dt_SetDerivations (pc, dtext);
+		c += strlen (dtext) + 1;
+	}
+	if (pc->dpc_nfields > 0)
+	{
+		int slen = ((pc->dpc_nfields - 1) / ALLOC_FIELDS) + 1;
+		slen *= ALLOC_FIELDS * sizeof (FieldId);
+		msg_ELog (EF_DEVELOP, "allocated %d bytes for %d class fields"
+			  " for class %s", slen, pc->dpc_nfields, 
+			  pc->dpc_name);
+		pc->dpc_fields = (FieldId *) malloc (slen);
+		for (i = 0; i < pc->dpc_nfields; ++i)
+		{
+		    char *cp = (char*)dsp + c;
+		    msg_ELog (EF_DEVELOP, "parsing class field: %s", cp);
+		    pc->dpc_fields[i] = F_Lookup (cp);
+		    c += strlen (cp) + 1;
+		}
 	}
 	/*
 	 * Add future trailers here.
@@ -576,7 +737,6 @@ dt_NewPlatform (const char *name)
  */
 {
 	PlatformInstance *new;
-	int size;
 /*
  * Allocate a new platform table entry.
  */
@@ -872,6 +1032,8 @@ const PlatformClass *spc;/* the class's superclass, or null */
 	dt_DecodeSubplats (fp, spc, pc);
 	if (pc->dpc_comment)
 		fprintf (fp, "\tcomment\t'%s'\n", pc->dpc_comment);
+	if (pc->dpc_derivations)
+		fprintf (fp, "\tderivation\t'%s'\n", pc->dpc_derivations);
 	fprintf (fp, "endclass %s\n", pc->dpc_name);
 	return (0);
 }

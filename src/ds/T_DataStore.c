@@ -430,6 +430,184 @@ char *plat;
 
 
 
+/* Define fields on a platform and see that they are returned. */
+static int
+T_ClassFields(ZebTime *start, char *plat)
+{
+	FieldId cfields[10];
+	int ncfields = 0;
+	FieldId fields[20];
+	const FieldId *fieldp;
+	FieldId *dc_fields;
+	DataChunk *dc;
+	DataChunk *fdc;
+	int dc_nfield;
+	int nfield, i, j;
+	char buf[128];
+	int errors = 0;
+	PlatClassRef pc;
+	PlatClassId cid;
+	PlatformId pid;
+
+	sprintf (buf, "Testing class fields for platform '%s'", plat);
+	Announce (buf);
+
+	/* Verify that we can get class fields from the daemon
+	 * for a permanent platform.
+	 */
+	if ((pid = ds_LookupPlatform ("surface")) == BadPlatform)
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, "expected platform 'surface' to be defined");
+	}
+	else
+	{
+	    FieldId idmr = F_Lookup ("mr[w][%][Mixing Ratio]");
+	    /* Get its fields */
+	    fieldp = ds_PlatformClassFields (pid, &nfield);
+	    if (nfield != 1 || idmr != fieldp[0])
+	    {
+		++errors;
+		msg_ELog (EF_PROBLEM, "did not find class field '%s'",
+			  F_GetFullName (idmr));
+	    }
+	}
+
+	/* This one will override a field from the file. */
+	ncfields = 0;
+	cfields[ncfields++] = F_Lookup ("scalar[][degC][Basic Field]");
+	cfields[ncfields++] = F_Lookup ("tdry[T][degC][Temperature]");
+	cfields[ncfields++] = F_Lookup ("tbot[T][degC][Bottom Temperature]");
+	cfields[ncfields++] = 
+	    F_Lookup("ir[][kilowatt m-2][Infrared Radiation]");
+
+	if ((cid = ds_LookupClass (plat)) == BadClass)
+	{
+	    pc = ds_NewClass (plat);
+	    msg_ELog (EF_DEBUG, "defining platform class '%s'", plat);
+	    ds_AssignClass (pc, OrgScalar, FTNetCDF, FALSE);
+	    ds_SetMaxSample (pc, 1024);
+	    ds_SetComment (pc, 
+			   "automatically defined class for T_ClassFields");
+	    for (i = 0; i < ncfields; ++i)
+	    {
+		char buf[256];
+		ds_AddClassField (pc, cfields[i]);
+		/* Add the derivation alias as well */
+		sprintf (buf, "%s = %s;", F_GetFullName(cfields[i]),
+			 F_GetName (cfields[i]));
+		ds_AddClassDerivation (pc, buf);
+	    }
+	    cid = ds_DefineClass (pc);
+	}
+	if ((pid = ds_LookupPlatform (plat)) == BadPlatform)
+	{
+	    pid = ds_DefinePlatform (cid, plat);
+	}
+
+	/* Before data are stored, no fields should be returned. */
+	CleanPlatform (pid);
+	nfield = 20;
+	if (ds_GetFields(pid, start, &nfield, fields) != 0
+	    || nfield != 0)
+	{
+		++errors;
+		msg_ELog (EF_PROBLEM, 
+			  "ds_GetFields('%s',nfld=10) %s", plat,
+			  "should have returned false with no data");
+	}
+
+	/* Now store data to this platform with 4 fields. */
+	dc = T_SimpleScalarChunk (start, 1, 10, 4, FALSE, FALSE);
+	dc->dc_Platform = pid;
+	dc_fields = dc_GetFields (dc, &dc_nfield);
+	ds_Store (dc, TRUE, NULL, 0);
+	nfield = 20;
+	if (!ds_GetFields(dc->dc_Platform, start, &nfield, fields))
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, 
+		      "ds_GetFields('%s',nfld=20) failed", plat);
+	}
+	else
+	{
+	    for (i = 0; i < dc_nfield; ++i)
+	    {
+		for (j = 0; j < nfield; ++j)
+		{
+		    if (fields[j] == dc_fields[i])
+			break;
+		}
+		if (strcmp(F_GetName(dc_fields[i]),"scalar") == 0)
+		{
+		    if (j < nfield)
+		    {
+			++errors;
+			msg_ELog (EF_PROBLEM,
+				  "%s not overridden by class field", 
+				  F_GetFullName(dc_fields[i]));
+		    }
+		}
+		else if (j >= nfield)
+		{
+		    ++errors;
+		    msg_ELog (EF_PROBLEM,
+			      "ds_GetFields(): field %s not found", 
+			      F_GetName(dc_fields[i]));
+		}
+	    }
+	    /* Now make sure the class fields made it into the list */
+	    for (i = 0; i < ncfields; ++i)
+	    {
+		for (j = 0; j < nfield; ++j)
+		    if (fields[j] == cfields[i])
+			break;
+		if (j >= nfield)
+		{
+		    ++errors;
+		    msg_ELog (EF_PROBLEM, 
+			      "class field %s not found",
+			      F_GetFullName (cfields[i]));
+		}
+	    }
+	}
+	/* Now fetch the data and make sure we get data for the class field.
+	 */
+	{
+	    ZebraTime end;
+	    dc_GetTime (dc, dc_GetNSample(dc)-1, &end);
+	    fdc = ds_Fetch (pid, DCC_Scalar, start, &end, 
+			    fields, nfield, NULL, 0);
+	}
+	if (! fdc || dc_GetNSample (fdc) == 0 || 
+	    dc_GetNSample(dc) != dc_GetNSample (fdc))
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, "classfields: error fetching data");
+	}
+	else
+	{
+	    for (i = 0; i < dc_GetNSample (fdc); ++i)
+	    {
+		float here = dc_GetScalar(dc, i, dc_fields[0]);
+		float there = dc_GetScalar(fdc,i, cfields[0]);
+		if (here != there)
+		{
+		    ++errors;
+		    msg_ELog (EF_PROBLEM, "%s: %g != %g",
+			      "fetched class field mismatch",
+			      here, there);
+		}
+	    }
+	}
+	dc_DestroyDC(fdc);
+	dc_DestroyDC(dc);
+	return (errors);
+}
+
+
+
+
 
 TestRoutine DataStoreTests[] = 
 {
@@ -439,6 +617,8 @@ TestRoutine DataStoreTests[] =
 	{ "fetchgapznf", FTZebra, DCC_None, TR_PLAT, T_FetchGap,
 	  "verify no data is fetched between sample times for znf",
           "t_gap_znf" },
+	{ "classfields", FTNetCDF, DCC_None, TR_PLAT, T_ClassFields,
+	  "ds_GetFields on platform with class fields", "t_classfields" },
 	{ "getfieldscdf", FTNetCDF, DCC_None, TR_PLAT, T_GetFields,
 	  "ds_GetFields on netcdf interface", "t_getfields_cdf" },
 	{ "getfieldsznf", FTZebra, DCC_None, TR_PLAT, T_GetFields,
