@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.9 1993-06-04 20:29:57 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.10 1993-06-24 20:36:22 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -102,8 +102,8 @@ static bool	DoFeet = FALSE;
 void		sk_Skewt FP ((char *, int)); 
 static void	sk_Background FP (()); 
 static void	sk_Lift FP ((int, float*, float*, float*, double)); 
-static void	sk_Thermo FP ((char *, XColor));
-static void	sk_Winds FP ((char *, XColor, int, int, bool));
+static void	sk_Thermo FP ((char *, XColor,bool));
+static void	sk_Winds FP ((char *, XColor, int, int, bool,int));
 static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
 static void	sk_DrawText FP ((char *, double, double, double, XColor, 
 				 double, int, int)); 
@@ -128,6 +128,7 @@ bool	update;
 	char		platforms[80], windplats[80];
 	char		*pnames[5], *wpnames[5];
 	XColor		color;
+	int		skip;
 /*
  * Get the platform list and color table
  */
@@ -197,6 +198,15 @@ bool	update;
 		SYMT_BOOL))
 		DoFeet = FALSE;
 	msg_ELog (EF_DEBUG, "DoFeet %s", DoFeet ? "true" : "false");
+
+/*
+ * Plot every "skip" points
+ */
+        if ( !pda_Search (Pd,c,"data-skip", "skewt",(char *) &skip, SYMT_INT))
+        {
+            skip = 1;
+        }
+
 /*
  * Get the color table
  */
@@ -240,14 +250,16 @@ bool	update;
 	/*
 	 * Do the thermo bit, then the winds
 	 */
-		sk_Thermo (pnames[plat], color);
+		sk_Thermo (pnames[plat], color, (bool)(!update));
 		sk_Winds ((nwplat > 0) ? wpnames[plat] : pnames[plat],
-			  color, plat, nplat, (bool)(nwplat > 0));
+			  color, plat, nplat, (bool)((nwplat > 0)&&(!update)),
+			  skip);
 	}
 /*
  * Add a period to the top annotation
  */
-	An_TopAnnot (".  ", Tadefclr.pixel);
+        if (! update) 
+	    An_TopAnnot (".  ", Tadefclr.pixel);
 /*
  * Unclip since we want to return the shared GC in clean condition
  */
@@ -695,9 +707,10 @@ ENDCATCH
 
 
 static void
-sk_Thermo (pname, color)
+sk_Thermo (pname, color, annot)
 char	*pname;
 XColor	color;
+bool    annot;
 /*
  * Plot the thermo data using the given platform name and color
  */
@@ -713,7 +726,8 @@ XColor	color;
 /*
  * Add this platform to the annotation
  */
-	An_TopAnnot (pname, Tacmatch ? color.pixel : Tadefclr.pixel);
+        if ( annot ) 
+	    An_TopAnnot (pname, Tacmatch ? color.pixel : Tadefclr.pixel);
 /*
  * Get the platform id and obtain a good data time
  */
@@ -831,11 +845,12 @@ XColor	color;
 
 
 static void
-sk_Winds (pname, color, plot_ndx, nplots, annot)
+sk_Winds (pname, color, plot_ndx, nplots, annot, skip)
 char	*pname;
 XColor	color;
 int	plot_ndx, nplots;
 bool	annot;
+int	skip;
 /*
  * Plot sounding winds given:
  *	pname:	the platform name
@@ -847,7 +862,7 @@ bool	annot;
 {
 	float	xstart, xscale, yscale, xov[2], yov[2], badvalue;
 	float	*pres, *u, *v, wspd, wdir;
-	int	i, nfld, npts;
+	int	i, nfld, npts, ipts;
 	char	string[40];
 	bool	have_u, have_v, have_uv;
 	ZebTime	ptime;
@@ -921,23 +936,31 @@ bool	annot;
 	u = (float *) malloc (npts * sizeof (float));
 	v = (float *) malloc (npts * sizeof (float));
 
+        ipts = 0;
 	for (i = 0; i < npts; i++)
 	{
-		pres[i] = dc_GetScalar (dc, i, flist[0]);
+           if ( ((i+skip) % skip) ) continue;
+		pres[ipts] = dc_GetScalar (dc, i, flist[0]);
 
 		if (have_uv)
 		{
-			u[i] = dc_GetScalar (dc, i, flist[1]);
-			v[i] = dc_GetScalar (dc, i, flist[2]);
+			u[ipts] = dc_GetScalar (dc, i, flist[1]);
+			v[ipts] = dc_GetScalar (dc, i, flist[2]);
 		}
 		else
 		{
 			wspd = dc_GetScalar (dc, i, flist[1]);
 			wdir = dc_GetScalar (dc, i, flist[2]);
-			u[i] = wspd * cos (DEG_TO_RAD (270.0 - wdir));
-			v[i] = wspd * sin (DEG_TO_RAD (270.0 - wdir));
+			u[ipts] = wspd == badvalue || wdir == badvalue ?
+				badvalue :
+                                wspd * cos (DEG_TO_RAD (270.0 - wdir));
+			v[ipts] = wspd == badvalue || wdir == badvalue ?
+				badvalue :
+                                wspd * sin (DEG_TO_RAD (270.0 - wdir));
 		}
+		ipts++;
 	}
+        npts = ipts;
 
 	dc_DestroyDC (dc);
 /*

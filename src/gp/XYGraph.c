@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.15 1993-04-20 20:29:25 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.16 1993-06-24 20:36:27 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -350,7 +350,7 @@ bool	update;
 		    npts[plat] = dc_GetNSample (dc);
 		    for (n = 0; n < fcount; n++)
 		    {
-			    data[n] = (float *) malloc (npts[plat] *
+			    data[n] = (float *) calloc (npts[plat] ,
 							sizeof (float));
 			    for (m = 0; m < npts[plat]; m++)
 				    data[n][m] = dc_GetScalar (dc, m, fids[n]);
@@ -523,6 +523,8 @@ bool	update;
 	if ( !TriggerGlobal )
 	{
 	    lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
+            lc_GetUserCoord ( &xmin,&xmax,NULL,NULL,xscalemode);
+            lc_GetUserCoord ( NULL,NULL,&ymin,&ymax,yscalemode);
 	    gp_Clip( &xmin, &ymin,&xmax,&ymax, xscalemode, yscalemode );
 	    for (plat = 0; plat < nplat; plat++)
 	    {

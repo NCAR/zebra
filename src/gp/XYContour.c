@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.10 1993-04-20 20:28:16 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.11 1993-06-24 20:36:24 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -595,6 +595,8 @@ bool	update;
 
 	    ct_GetColorByName("white",&Black);
             lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
+            lc_GetUserCoord ( &xmin,&xmax,NULL,NULL, xscalemode);
+            lc_GetUserCoord ( NULL,NULL,&ymin,&ymax, yscalemode);
 	    if ( xscalemode & INVERT )
 	    {
 	        clip.x = devX(&xmax,xscalemode);

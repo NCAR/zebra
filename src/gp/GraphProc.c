@@ -45,8 +45,10 @@
 # include "EventQueue.h"
 # include "GC.h"
 # include "GraphProc.h"
+# include "PixelCoord.h"
+# include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.26 1993-03-12 22:02:39 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.27 1993-06-24 20:36:08 barrett Exp $")
 
 /*
  * Default resources.
@@ -629,6 +631,17 @@ struct ui_command *cmds;
 	   case GPC_USERANNOT:
 		aw_SetLoc ();
 		break;
+
+        /*
+         * The zoom and unzoom commands
+         */
+	   case GPC_ZOOM:
+		pc_Zoom(cmds +1);
+                break;
+
+	   case GPC_UNZOOM:
+		pc_UnZoom();
+                break;
 	/*
 	 * "Should never happen"
 	 */
@@ -893,6 +906,7 @@ struct dm_pdchange *dmp;
  */
 	if (Pd)
 	{
+	        lc_UnZoom(Zlevel);
 		pd_Release (Pd);
 		pc_CancelPlot ();
 		ct_FreeColors ();
@@ -907,6 +921,11 @@ struct dm_pdchange *dmp;
  * Invalidate the frame cache.
  */
 	fc_InvalidateCache ();
+/*
+ * Load Zoom coordinates
+ */
+	lc_LoadZoom ();
+
 /*
  * Now we need to set up to display the new PD, and also to redo icons.
  */
@@ -1360,10 +1379,14 @@ struct ui_command *cmds;
  */
 	else
 	{
-		usy_g_symbol (Vtable, "linex0", &type, &v); x0 = v.us_v_float;
-		usy_g_symbol (Vtable, "liney0", &type, &v); y0 = v.us_v_float;
-		usy_g_symbol (Vtable, "linex1", &type, &v); x1 = v.us_v_float;
-		usy_g_symbol (Vtable, "liney1", &type, &v); y1 = v.us_v_float;
+		usy_g_symbol (Vtable, "linex0", &type, &v); 
+		x0 = XUSER(v.us_v_int);
+		usy_g_symbol (Vtable, "liney0", &type, &v); 
+		y0 = YUSER(v.us_v_int);
+		usy_g_symbol (Vtable, "linex1", &type, &v); 
+		x1 = XUSER(v.us_v_int);
+		usy_g_symbol (Vtable, "liney1", &type, &v); 
+		y1 = YUSER(v.us_v_int);
 	}
 /*
  * Get the window and component to which the endpoints are going

@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.7 1992-10-02 21:59:29 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.8 1993-06-24 20:36:13 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -94,7 +94,15 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.7 1992-10-02 21:59:29 barrett Exp
  * Variables defining the layout of the various components.
  * and user coordinate-transformation.
  */
-DataValRec	UX0, UX1, UY0, UY1;
+DataValRec	UX0, UX1, UY0, UY1; /* Actual coordinates of use */
+DataValRec	IUX0, IUX1, IUY0, IUY1; /* Inverted coordinates */
+DataValRec	OUX0, OUX1, OUY0, OUY1; /* The ORIGINAL coordinates
+				           before applying zoom transform */
+/*
+ *  Variables containing boundary of the the various graphics regions
+ *  in the normalized coordinate system (0.0, 1.0)
+ */
+
 float	FX0 = 0.0, FY0 = 0.0, FX1 = 1.0, FY1 = 1.0;
 float	AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
 float	IconX0,IconX1,IconY0,IconY1;
@@ -103,6 +111,108 @@ float	AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
 float	LegendX0,LegendX1,LegendY0,LegendY1;
 int	AxisSet[] = {0,0,0,0}, LegendSet = 0, IconSet = 0, AnnotateSet = 0;
 TransRegion CurrentTrans = DataTrans;
+
+typedef struct ScaleRec_ {
+    float scale;  /* store scaling factore */
+    struct scaleRec_ *next, *prev;
+} ScaleStack;
+
+ScaleStack *ZoomStack[4] = { NULL, NULL, NULL, NULL};
+ScaleStack *ZoomBottom[4] = { NULL, NULL, NULL, NULL};
+int	Zlevel = 0;
+
+void lc_LoadZoom ( )
+{
+   float xmin, xmax, ymin,ymax;
+   int zlev;
+   if ( pd_Retrieve (Pd, "global", "zoom-level", (char *) &zlev, SYMT_INT) &&
+	zlev > 0 ) {
+       pd_Retrieve (Pd, "global", "zoom-xmin", (char *) &xmin, SYMT_FLOAT);
+       pd_Retrieve (Pd, "global", "zoom-xmax", (char *) &xmax, SYMT_FLOAT);
+       pd_Retrieve (Pd, "global", "zoom-ymin", (char *) &ymin, SYMT_FLOAT);
+       pd_Retrieve (Pd, "global", "zoom-ymax", (char *) &ymax, SYMT_FLOAT);
+       lc_Zoom ( xmin, xmax, ymin, ymax );
+   }
+}
+
+void lc_Zoom ( xmin, xmax, ymin, ymax )
+float xmin,xmax,ymin,ymax;   /* normalized coordinates of area to be "zoomed" */
+{
+   ScaleStack *zs = NULL;
+   int		i;
+   float      box[4] = { xmin, xmax, ymin, ymax };
+   /*
+    * Only allow 13 levels of zoom...
+    */
+   for ( i =0; i < 4; i++) {
+      zs = (ScaleStack*)malloc (sizeof (ScaleStack));
+      if ( zs ) {
+         zs->next = (struct scaleRec_ *)ZoomStack[i];
+         zs->prev = NULL;
+         zs->scale = box[i];
+         if ( ZoomStack[i] ) {
+            ZoomStack[i]->prev = (struct scaleRec_ *)zs;
+         } else {
+            ZoomBottom[i] = zs;
+         }
+         ZoomStack[i] = zs;
+      } else {
+	   msg_ELog (EF_PROBLEM, "Couldn't allocate zoom record.");
+      }
+   }
+   /*
+    * Mark the zoom-level
+    */
+   Zlevel++;
+   pd_Store (Pd, "global", "zoom-level", (char *) &Zlevel, SYMT_INT);
+   pd_Store (Pd, "global", "zoom-xmin", (char *) &box[0], SYMT_FLOAT);
+   pd_Store (Pd, "global", "zoom-xmax", (char *) &box[1], SYMT_FLOAT);
+   pd_Store (Pd, "global", "zoom-ymin", (char *) &box[2], SYMT_FLOAT);
+   pd_Store (Pd, "global", "zoom-ymax", (char *) &box[3], SYMT_FLOAT);
+}
+
+void lc_UnZoom (nlevel)
+int nlevel;
+{
+   ScaleStack *zs;
+   int		i;
+   do {
+      for ( i= 0; i < 4; i++ ) {
+        if ( ZoomStack[i] ) {
+          zs = ZoomStack[i];
+          ZoomStack[i] = (ScaleStack*)(zs->next);
+          if (ZoomStack[i]) 
+             ZoomStack[i]->prev = NULL;
+          else 
+	     ZoomBottom[i] = NULL;
+          free (zs);
+        }
+      }
+      /*
+       * Don't decrement below zero.
+       */
+      if (Zlevel) { 
+         Zlevel--;
+      } 
+      nlevel--;
+   }
+   while ( nlevel > 0);
+   
+   /*
+    * Mark the zoom-level info in the plot description.
+    */
+   pd_Store (Pd, "global", "zoom-level", (char *) &Zlevel, SYMT_INT);
+   if ( Zlevel > 0 ) {
+       pd_Store (Pd, "global", "zoom-xmin", 
+		(char *) &(ZoomStack[0]->scale), SYMT_FLOAT);
+       pd_Store (Pd, "global", "zoom-xmax", 
+		(char *) &(ZoomStack[1]->scale), SYMT_FLOAT);
+       pd_Store (Pd, "global", "zoom-ymin", 
+		(char *) &(ZoomStack[2]->scale), SYMT_FLOAT);
+       pd_Store (Pd, "global", "zoom-ymax", 
+		(char *) &(ZoomStack[3]->scale), SYMT_FLOAT);
+   }
+}
 
 void
 lc_SetAxisDim(axis,pixSize)
@@ -298,73 +408,229 @@ int	pixWidth,pixHeight;
     else
 	AnnotateSet = 0;
 }
-
-void
-lc_SetUserCoord( xmin, xmax, ymin,ymax)
+void 
+lc_GetOrigCoord( xmin, xmax, ymin, ymax )
 DataValPtr xmin,xmax,ymin,ymax;
+/*
+ * Return the current UNZOOMED coordinate system
+ */
 {
-    switch ( xmin->type )
-    {
-	case 't':
-	case 'i':
-	case 'f':
-	case 'd':
-	    UX0 = *xmin;
-	break;
-	default:
-	    fprintf ( stderr, "\rBad value for User Coordinate xmin\n" );
-	break;
+    if (xmin) *xmin = OUX0;
+    if (xmax) *xmax = OUX1;
+    if (ymin) *ymin = OUY0;
+    if (ymax) *ymax = OUY1;
+}
+void 
+lc_GetUserCoord( xmin, xmax, ymin, ymax, mode )
+DataValPtr xmin,xmax,ymin,ymax;
+/*
+ * Return the current ZOOMED  coordinate system
+ */
+{
+    if (mode & INVERT) {
+        if (xmin) *xmin = IUX0;
+        if (xmax) *xmax = IUX1;
+        if (ymin) *ymin = IUY0;
+        if (ymax) *ymax = IUY1;
+    } else {
+        if (xmin) *xmin = UX0;
+        if (xmax) *xmax = UX1;
+        if (ymin) *ymin = UY0;
+        if (ymax) *ymax = UY1;
     }
-    switch ( xmax->type )
-    {
-	case 't':
-	case 'i':
-	case 'f':
-	case 'd':
-	    UX1 = *xmax;
-	break;
-	default:
-	    fprintf ( stderr, "\rBad value for User Coordinate xmax\n" );
-	break;
-    }
-    switch ( ymin->type )
-    {
-	case 't':
-	case 'i':
-	case 'f':
-	case 'd':
-	    UY0 = *ymin;
-	break;
-	default:
-	    fprintf ( stderr, "\rBad value for User Coordinate ymin\n" );
-	break;
-    }
-    switch ( ymax->type )
-    {
-	case 't':
-	case 'i':
-	case 'f':
-	case 'd':
-	    UY1 = *ymax;
-	break;
-	default:
-	    fprintf ( stderr, "\rBad value for User Coordinate ymax\n" );
-	break;
-    }
+}
+lc_ComputeZoom( min, max, dim, mode ) 
+DataValPtr min,max;
+char dim;
+unsigned short mode;
+{
+   float	fmax, fmin;
+   DataValRec   umax, umin;
+   float	adjmin, adjmax;
+   ScaleStack   *zsMin, *zsMax;
+   char		a[8];
+   if ( min->type != max->type ) {
+      msg_ELog( EF_PROBLEM, "ComputeZoom: min and max are not same type");
+      return;
+   }
+   /*
+    * Set up the parameters
+    */
+   switch ( dim ) {
+      case 'x':
+	fmin = FX0;
+	fmax = FX1;
+        zsMin = ZoomBottom[0];
+        zsMax = ZoomBottom[1];
+      break;
+      case 'y':
+	fmin = FY0;
+	fmax = FY1;
+        zsMin = ZoomBottom[2];
+        zsMax = ZoomBottom[3];
+      break;
+      default:
+        msg_ELog( EF_PROBLEM, "ComputeZoom: unknown dimension %c",dim);
+	return;
+      break;
+   }
+   if (mode == INVERT) 
+      strcpy( a, "(invt)");
+   else
+      strcpy( a, "(norm)");
+       
+   while ( zsMin && zsMax ) {
+      switch ( min->type ) {
+	    case 't':
+		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
+		    (float)( max->val.t.zt_Sec - min->val.t.zt_Sec );
+		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
+		    (float)( max->val.t.zt_Sec - min->val.t.zt_Sec );
+                if (mode == INVERT) {
+		   max->val.t.zt_Sec -= (long)adjmin;
+		   min->val.t.zt_Sec -= (long)adjmax;
+                } else {
+		   min->val.t.zt_Sec += (long)adjmin;
+		   max->val.t.zt_Sec += (long)adjmax;
+                }
+	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %u max(%f) %u",a,dim,
+			zsMin->scale,min->val.t.zt_Sec,
+			zsMax->scale,max->val.t.zt_Sec);
+	    break;
+	    case 'i':
+		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
+		    (float)( max->val.i - min->val.i );
+		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
+		    (float)( max->val.i - min->val.i );
+                if (mode == INVERT) {
+		   max->val.i -= (int)adjmin;
+		   min->val.i -= (int)adjmax;
+                } else {
+		   min->val.i += (int)adjmin;
+		   max->val.i += (int)adjmax;
+                }
+	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %d max(%f) %d",a,dim,
+			zsMin->scale,min->val.i, zsMax->scale,max->val.i);
+            break;
+	    case 'f':
+		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
+		    (float)( max->val.f - min->val.f );
+		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
+		    (float)( max->val.f - min->val.f );
+                if ( mode == INVERT ) {
+		   max->val.f -= adjmin;
+		   min->val.f -= adjmax;
+                } else {
+		   min->val.f += adjmin;
+		   max->val.f += adjmax;
+                }
+	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %f max(%f) %f",a,dim,
+			zsMin->scale,min->val.f, zsMax->scale,max->val.f);
+            break;
+	    case 'd':
+		adjmin = ((zsMin->scale-fmin) / (fmax-fmin)) *
+		    (float)( max->val.d - min->val.d );
+		adjmax = ((zsMax->scale-fmax) / (fmax-fmin)) *
+		    (float)( max->val.d - min->val.d );
+                if ( mode == INVERT ) {
+		   max->val.d -= (double)adjmin;
+		   min->val.d -= (double)adjmax;
+                } else {
+		   min->val.d += (double)adjmin;
+		   max->val.d += (double)adjmax;
+                }
+	        msg_ELog (EF_DEBUG, "%szoomed-%c: min(%f) %f max(%f) %f",a,dim,
+			zsMin->scale,min->val.d, zsMax->scale,max->val.d);
+	    break;
+      }
+      zsMin = (ScaleStack *)(zsMin->prev);
+      zsMax = (ScaleStack *)(zsMax->prev);
+  }
 }
 
 void
-lc_GetTime( t, tsec )
-time	*t;
-time_t	tsec;
+lc_SetUserCoord( xmin, xmax, ymin,ymax )
+DataValPtr xmin,xmax,ymin,ymax;
+/*
+ * Set the user coordinates from the original coordinates
+ * input: ORIGINAL coordinates actual min and max values
+ */
 {
-    struct tm 	*tstruct;
-    tstruct = gmtime(&tsec);
-    t->ds_yymmdd = tstruct->tm_year*10000 + 
-		(tstruct->tm_mon+1)*100 + tstruct->tm_mday;
-    t->ds_hhmmss = tstruct->tm_hour*10000 + 
-		tstruct->tm_min*100 + tstruct->tm_sec;
+    if ( xmin && xmax ) {
+      if ( xmin->type == xmax->type ) {
+        switch ( xmin->type )
+        {
+	    case 't':
+	        msg_ELog (EF_DEBUG, "xmin %u xmax %u", 
+			xmin->val.t.zt_Sec, xmax->val.t.zt_Sec);
+	    break;
+	    case 'i':
+	        msg_ELog (EF_DEBUG, "xmin %d xmax %d", 
+			xmin->val.i, xmax->val.i);
+	    break;
+	    case 'f':
+	        msg_ELog (EF_DEBUG, "xmin %f xmax %f", 
+			xmin->val.f, xmax->val.f);
+	    break;
+	    case 'd':
+	        msg_ELog (EF_DEBUG, "xmin %f xmax %f", 
+			xmin->val.d, xmax->val.d);
+	    break;
+	    default:
+	        msg_ELog (EF_PROBLEM, 
+			"Unknown type for x user coordinate system");
+        	return;
+	    break;
+        }
+	OUX0 = *xmin; OUX1 = *xmax;
+	UX0 = *xmin; UX1 = *xmax;
+	IUX0 = *xmin; IUX1 = *xmax;
+        lc_ComputeZoom( &UX0, &UX1, 'x', 0 );
+        lc_ComputeZoom( &IUX0, &IUX1, 'x', INVERT);
+      } else {
+	msg_ELog (EF_PROBLEM, "xmin and xmax are not the same type.");
+        return;
+      }
+    }
+    if ( ymin && ymax ) {
+      if ( ymin->type == ymax->type ) {
+        switch ( ymin->type )
+        {
+	    case 't':
+	        msg_ELog (EF_DEBUG, "ymin %u ymax %u", 
+			ymin->val.t.zt_Sec, ymax->val.t.zt_Sec);
+	    break;
+	    case 'i':
+	        msg_ELog (EF_DEBUG, "ymin %d ymax %d", 
+			ymin->val.i, ymax->val.i);
+	    break;
+	    case 'f':
+	        msg_ELog (EF_DEBUG, "ymin %f ymax %f", 
+			ymin->val.f, ymax->val.f);
+	    break;
+	    case 'd':
+	        msg_ELog (EF_DEBUG, "ymin %f ymax %f", 
+			ymin->val.d, ymax->val.d);
+	    break;
+	    default:
+	        msg_ELog (EF_PROBLEM, 
+			"Unknown type for y user coordinate system");
+        	return;
+	    break;
+        }
+	OUY0 = *ymin; OUY1 = *ymax;
+	UY0 = *ymin; UY1 = *ymax;
+	IUY0 = *ymin; IUY1 = *ymax;
+        lc_ComputeZoom( &UY0, &UY1, 'y',0 );
+        lc_ComputeZoom( &IUY0, &IUY1, 'y',INVERT ); 
+      } else {
+	msg_ELog (EF_PROBLEM, "ymin and ymax are not the same type.");
+        return;
+      }
+    }
+
 }
+
 
 void
 lc_DecrData( d1,incr )
@@ -444,26 +710,28 @@ unsigned short mode;
 {
     int dev_y = 0;
     float	uy0,uy1,uy;
+    DataValRec umin, umax;
+    lc_GetUserCoord( NULL, NULL, &umin, &umax,  mode );
     switch ( user_y->type )
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(UY1.val.t.zt_Sec - UY0.val.t.zt_Sec);
-	    uy = (float)(user_y->val.t.zt_Sec - UY0.val.t.zt_Sec);
+	    uy1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
+	    uy = (float)(user_y->val.t.zt_Sec - umin.val.t.zt_Sec);
 	break;
 	case 'd':
-	    uy0 = (float)UY0.val.d;
-	    uy1 = (float)UY1.val.d;
+	    uy0 = (float)umin.val.d;
+	    uy1 = (float)umax.val.d;
 	    uy = (float)user_y->val.d;
 	break;
 	case 'i':
-	    uy0 = (float)UY0.val.i;
-	    uy1 = (float)UY1.val.i;
+	    uy0 = (float)umin.val.i;
+	    uy1 = (float)umax.val.i;
 	    uy = (float)user_y->val.i;
 	break;
 	case 'f':
-	    uy0 = (float)UY0.val.f;
-	    uy1 = (float)UY1.val.f;
+	    uy0 = (float)umin.val.f;
+	    uy1 = (float)umax.val.f;
 	    uy = (float)user_y->val.f;
 	break;
 	default:
@@ -502,26 +770,28 @@ unsigned short mode;
 {
     int dev_x = 0;
     float ux,ux0,ux1;
+    DataValRec umin, umax;
+    lc_GetUserCoord( &umin,&umax, NULL, NULL, mode );
     switch ( user_x->type )
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    ux0 = 0.0;
-	    ux1 = (float)(UX1.val.t.zt_Sec - UX0.val.t.zt_Sec);
-	    ux = (float)(user_x->val.t.zt_Sec - UX0.val.t.zt_Sec);
+	    ux1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
+	    ux = (float)(user_x->val.t.zt_Sec - umin.val.t.zt_Sec);
 	break;
 	case 'd':
-	    ux0 = (float)UX0.val.d;
-	    ux1 = (float)UX1.val.d;
+	    ux0 = (float)umin.val.d;
+	    ux1 = (float)umax.val.d;
 	    ux = (float)user_x->val.d;
 	break;
 	case 'i':
-	    ux0 = (float)UX0.val.i;
-	    ux1 = (float)UX1.val.i;
+	    ux0 = (float)umin.val.i;
+	    ux1 = (float)umax.val.i;
 	    ux = (float)user_x->val.i;
 	break;
 	case 'f':
-	    ux0 = UX0.val.f;
-	    ux1 = UX1.val.f;
+	    ux0 = umin.val.f;
+	    ux1 = umax.val.f;
 	    ux = user_x->val.f;
 	break;
 	default:
@@ -562,27 +832,29 @@ unsigned short mode;
     float	ux0,ux1,ux;
     struct tm	*t;
     time_t	timeSec;
+    DataValRec umin, umax;
+    lc_GetUserCoord( &umin,&umax, NULL, NULL, mode );
 
 /*
     user_x = (DataValPtr)calloc(1,sizeof(DataValRec));
 */
-    switch ( UX0.type )
+    switch ( umin.type )
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    ux0 = 0.0;
-	    ux1 = (float)(UX1.val.t.zt_Sec - UX0.val.t.zt_Sec);
+	    ux1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
 	break;
 	case 'f':
-	    ux0 = (float)UX0.val.f;
-	    ux1 = (float)UX1.val.f;
+	    ux0 = (float)umin.val.f;
+	    ux1 = (float)umax.val.f;
 	break;
 	case 'i':
-	    ux0 = (float)UX0.val.i;
-	    ux1 = (float)UX1.val.i;
+	    ux0 = (float)umin.val.i;
+	    ux1 = (float)umax.val.i;
 	break;
 	case 'd':
-	    ux0 = (float)UX0.val.d;
-	    ux1 = (float)UX1.val.d;
+	    ux0 = (float)umin.val.d;
+	    ux1 = (float)umax.val.d;
 	break;
     }
     switch ( CurrentTrans )
@@ -608,11 +880,11 @@ unsigned short mode;
 	    }
 	break;
     }
-    switch (user_x.type = UX0.type)
+    switch (user_x.type = umin.type)
     {
 	case 't': 
-	    user_x.val.t.zt_Sec = UX0.val.t.zt_Sec + (long)ux;
-	    user_x.val.t.zt_MicroSec = UX0.val.t.zt_MicroSec;
+	    user_x.val.t.zt_Sec = umin.val.t.zt_Sec + (long)ux;
+	    user_x.val.t.zt_MicroSec = umin.val.t.zt_MicroSec;
 	break;
 	case 'f':
 	    user_x.val.f = ux;
@@ -635,26 +907,28 @@ unsigned short mode;
     float	uy0,uy1,uy;
     struct tm	*t;
     time_t	timeSec;
+    DataValRec umin, umax;
+    lc_GetUserCoord( NULL, NULL, &umin, &umax,  mode );
 
 /*
     user_y = (DataValPtr)calloc(1,sizeof(DataValRec));*/
-    switch ( UY0.type )
+    switch ( umin.type )
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(UY1.val.t.zt_Sec - UY0.val.t.zt_Sec);
+	    uy1 = (float)(umax.val.t.zt_Sec - umin.val.t.zt_Sec);
 	break;
 	case 'f':
-	    uy0 = (float)UY0.val.f;
-	    uy1 = (float)UY1.val.f;
+	    uy0 = (float)umin.val.f;
+	    uy1 = (float)umax.val.f;
 	break;
 	case 'i':
-	    uy0 = (float)UY0.val.i;
-	    uy1 = (float)UY1.val.i;
+	    uy0 = (float)umin.val.i;
+	    uy1 = (float)umax.val.i;
 	break;
 	case 'd':
-	    uy0 = (float)UY0.val.d;
-	    uy1 = (float)UY1.val.d;
+	    uy0 = (float)umin.val.d;
+	    uy1 = (float)umax.val.d;
 	break;
     }
     switch ( CurrentTrans )
@@ -680,11 +954,11 @@ unsigned short mode;
 	    }
 	break;
     }
-    switch (user_y.type = UY0.type)
+    switch (user_y.type = umin.type)
     {
 	case 't': 
-	    user_y.val.t.zt_Sec = UY0.val.t.zt_Sec + (long)uy;
-	    user_y.val.t.zt_MicroSec = UY0.val.t.zt_MicroSec;
+	    user_y.val.t.zt_Sec = umin.val.t.zt_Sec + (long)uy;
+	    user_y.val.t.zt_MicroSec = umin.val.t.zt_MicroSec;
 	break;
 	case 'f':
 	    user_y.val.f = uy;

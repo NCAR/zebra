@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.17 1992-12-23 18:44:32 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.18 1993-06-24 20:36:17 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,6 +30,8 @@ static char *rcsid = "$Id: PlotControl.c,v 2.17 1992-12-23 18:44:32 kris Exp $";
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
+# include "LayoutControl.h"
+# include "PixelCoord.h"
 
 
 int		pc_TimeTrigger FP ((char *));
@@ -581,10 +583,14 @@ struct ui_command *cmds;
  */
 	else
 	{
-		usy_g_symbol (Vtable, "boxx0", &type, &v); x0 = v.us_v_float;
-		usy_g_symbol (Vtable, "boxy0", &type, &v); y0 = v.us_v_float;
-		usy_g_symbol (Vtable, "boxx1", &type, &v); x1 = v.us_v_float;
-		usy_g_symbol (Vtable, "boxy1", &type, &v); y1 = v.us_v_float;
+		usy_g_symbol (Vtable, "boxx0", &type, &v); 
+		x0 = XUSER(v.us_v_int);
+		usy_g_symbol (Vtable, "boxy0", &type, &v); 
+		y0 = YUSER(v.us_v_int);
+		usy_g_symbol (Vtable, "boxx1", &type, &v); 
+		x1 = XUSER(v.us_v_int);
+		usy_g_symbol (Vtable, "boxy1", &type, &v); 
+		y1 = YUSER(v.us_v_int);
 	}
 /*
  * Store these values.
@@ -616,6 +622,53 @@ pc_PopCoords ()
 	O_coords = cs->cs_next;
 	free (cs);
 }
+
+pc_Zoom (cmds)
+struct ui_command *cmds;
+/*
+ * Push a new set of coords onto the zoom stack.
+ */
+{
+	SValue v;
+	int type;
+	float x0, y0, x1, y1;
+/*
+ * Get the box coordinates from the "drawbox" command
+ * and set the zoom box
+ */
+	usy_g_symbol (Vtable, "boxx0", &type, &v); 
+	x0 = (float)v.us_v_int / (float)GWWidth(Graphics);
+	usy_g_symbol (Vtable, "boxy0", &type, &v); 
+	y0 = 1.0 - (float)v.us_v_int / (float)GWHeight(Graphics);
+	usy_g_symbol (Vtable, "boxx1", &type, &v); 
+	x1 = (float)v.us_v_int / (float)GWWidth(Graphics);
+	usy_g_symbol (Vtable, "boxy1", &type, &v); 
+	y1 = 1.0 - (float)v.us_v_int / (float)GWHeight(Graphics);
+        lc_Zoom ( x0, x1, y1, y0 );
+/*
+ * Force a replot and send the PD back to the display manager
+ */
+	fc_InvalidateCache ();
+	Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
+	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
+	pdm_ScheduleUpdate ();
+}
+
+pc_UnZoom ( ) 
+/*
+ * Pop one level of coords off the stack.
+ */
+{
+   /*
+    * Pop the most recent zoom coords and force a replot
+    */
+   lc_UnZoom(1);
+   fc_InvalidateCache ();
+   Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
+   Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
+   pdm_ScheduleUpdate ();
+}
+
 
 
 /*======================================================================*/

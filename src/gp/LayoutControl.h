@@ -88,6 +88,7 @@ extern float   AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
 extern float   IconX0,IconX1,IconY0,IconY1;
 extern float   AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
 extern float   LegendX0,LegendX1,LegendY0,LegendY1;
+extern int     Zlevel;
 typedef struct DataVal_
 {
     char	type; /* 'i', 'f', 'd', or 't' */
@@ -99,7 +100,7 @@ typedef struct DataVal_
 	ZebTime	t;
     } val;
 } DataValRec, *DataValPtr;
-extern  DataValRec	UX0,UX1,UY0,UY1;
+/*extern  DataValRec	UX0,UX1,UY0,UY1;*/
 /*
  * User coordinate to pixel coordinate macros
  */
@@ -142,7 +143,9 @@ extern void lc_GetTime FP(( time *, time_t ));
 extern void lc_DecrData FP(( DataValPtr,double ));
 extern void lc_IncrData FP(( DataValPtr,double ));
 extern int lc_CompareData FP(( DataValPtr,DataValPtr ));
-extern int devY FP((DataValPtr, int ));
-extern int devX FP((DataValPtr,int ));
-extern DataValRec userX FP((int,int ));
-extern DataValRec userY FP((int ,int ));
+extern int devY FP((DataValPtr, unsigned short ));
+extern int devX FP((DataValPtr,unsigned short ));
+extern DataValRec userX FP((int,unsigned short));
+extern DataValRec userY FP((int ,unsigned short ));
+extern void lc_Zoom FP((float,float,float,float));
+extern void lc_UnZoom FP(());

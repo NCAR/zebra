@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.12 1992-11-03 15:59:27 burghart Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.13 1993-06-24 20:36:05 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -64,6 +64,7 @@ ac_DisplayAxes ()
     unsigned short	scalemode = 0;
     static int		oldHeight = 0;
     static int		oldncomps = 0;
+    static int          zlev = 0;
     int		        ncomps = 0;
     int			currentHeight = GWHeight(Graphics);
     char		**comps;
@@ -98,7 +99,7 @@ ac_DisplayAxes ()
             if ( ac_PlotAxis( Pd, comps[ic], side ) )
             {
 	        computed = ac_QueryAxisState(Pd,comps[ic],side,&datatype);
-	        if ( !computed || oldHeight != currentHeight )
+	        if ( !computed || oldHeight != currentHeight || zlev != Zlevel )
 	        {
 		    ac_ComputeAxisDescriptors(Pd, comps[ic], side, datatype);
 		    computed = 1;
@@ -117,6 +118,7 @@ ac_DisplayAxes ()
     }
     oldHeight = GWHeight(Graphics);
     oldncomps = ncomps;
+    zlev = Zlevel;
 }
 
 
@@ -181,6 +183,7 @@ char			datatype;
     char	*flist[10];
     char	fnames[80];
     int		n;
+    unsigned short	scalemode = 0;
 
     /*
      *  Get parameters to use while computing the scale.
@@ -191,6 +194,8 @@ char			datatype;
 	    n = CommaParse ( fnames,flist );
         xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max,
 				 n > 0 ? flist[0] : "");
+	xy_GetScaleInfo(pd,c,'x', &scalemode);
+	lc_ComputeZoom( &min, &max, 'x',scalemode);
     }
     else if ( side == 'r' || side == 'l' )
     {
@@ -198,6 +203,8 @@ char			datatype;
 	    n = CommaParse ( fnames,flist );
         xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max,
 				 n > 0 ? flist[0] : "");
+	xy_GetScaleInfo(pd,c,'y', &scalemode);
+	lc_ComputeZoom( &min, &max, 'y',scalemode);
     }
 
     ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
@@ -282,6 +289,7 @@ unsigned short		mode;
     float	center;
     int		axisSpaceWidth;
     DataValRec	yOrig,xOrig;
+    DataValRec	umin,umax;
     int		direction;
     int		nextoffset = 0;
     unsigned short xmode = 0,ymode = 0;
@@ -341,41 +349,42 @@ unsigned short		mode;
 	
     msg_ELog ( EF_DEBUG,"Draw Axis: component = %s side = %c datatype = %c",
 		c,side,datatype);
-    switch ( datatype )
-    {
-	case 'f':
-            msg_ELog ( EF_DEBUG,"Draw Axis: component = %s min = %f max = %f",
-		c,
-		min.val.f, max.val.f);
-	break;
-	case 't':
-	    TC_EncodeTime ( &(min.val.t), TC_Full, smin );
-	    TC_EncodeTime ( &(max.val.t), TC_Full, smax );
-            msg_ELog ( EF_DEBUG,"Draw Axis: component = %s min = %s max = %s",
-		c, smin, smax );
-	break;
-    }
     switch (side)
     {
 	case 't':
 	    direction = -1;
 	    axisSpaceHeight = abs((int)(GWHeight(Graphics)*AxisY1[AXIS_TOP]) -
 			(int)(GWHeight(Graphics)*AxisY0[AXIS_TOP]));
-	    yOrig = UY1;
+	    lc_GetUserCoord (NULL,NULL,NULL,&yOrig,ymode);
 	    goto horizontal;
 	case 'b':
 	    direction = 1;
 	    axisSpaceHeight = (int)(GWHeight(Graphics)*AxisY1[AXIS_BOTTOM]) -
 			(int)(GWHeight(Graphics)*AxisY0[AXIS_BOTTOM]);
-	    yOrig = UY0;
+	    lc_GetUserCoord (NULL,NULL,&yOrig,NULL,ymode);
 horizontal:
 	    xmode = mode;
 	   /*
             * Set-up coordinate system.
             */
-	    savemin = UX0;
-	    savemax = UX1;
-	    lc_SetUserCoord ( &min,&max, &UY0,&UY1);
+            lc_GetOrigCoord ( &savemin, &savemax, NULL, NULL);
+	    lc_SetUserCoord ( &min,&max, NULL,NULL);
+            lc_GetUserCoord ( &min,&max, NULL,NULL, xmode);
+            switch ( datatype )
+            {
+	        case 'f':
+                    msg_ELog ( EF_DEBUG,
+			"Draw Axis: component = %s x-min = %f x-max = %f",
+			c, min.val.f, max.val.f);
+	        break;
+	        case 't':
+	            TC_EncodeTime ( &(min.val.t), TC_Full, smin );
+	            TC_EncodeTime ( &(max.val.t), TC_Full, smax );
+                    msg_ELog ( EF_DEBUG,
+			"Draw Axis: component = %s x-min = %s x-max = %s",
+			c, smin, smax );
+	        break;
+            }
 
 	   /*
             * Draw axis-line.
@@ -434,13 +443,14 @@ horizontal:
 			    	devY(&yOrig,ymode) + direction*(offset + ticlen));
 			    if ( drawGrid > 0.0 )
 			    {
+				lc_GetUserCoord(NULL, NULL, &umin,&umax, ymode);
     				XSetForeground ( Disp, Gcontext, gridPix.pixel);
 		    	        XDrawLine( XtDisplay(Graphics), 
 			    	    GWFrame(Graphics), Gcontext, 
 			    	    devX(&ticLoc,xmode), 
-				    devY(&UY1,ymode) , 
+				    devY(&umax,ymode) , 
 			    	    devX(&ticLoc,xmode), 
-			    	    devY(&UY0,ymode) );
+			    	    devY(&umin,ymode) );
     				XSetForeground ( Disp, Gcontext, mainPix.pixel);
 			    }
 		            DrawText ( Graphics, GWFrame(Graphics), 
@@ -481,27 +491,42 @@ horizontal:
 		    Gcontext, xloc, yloc, label, 0.0,fscale, 
 		    JustifyCenter, direction > 0 ? JustifyTop : JustifyBottom);
 	    nextoffset = nextoffset + maxHeight + 2;
-	    lc_SetUserCoord ( &savemin,&savemax, &UY0,&UY1);
+	    lc_SetUserCoord ( &savemin,&savemax, NULL,NULL);
 	break;
 	case 'r':
 	    direction = 1;
 	    axisSpaceWidth = abs((int)(GWWidth(Graphics)*AxisX1[AXIS_RIGHT]) -
 			(int)(GWWidth(Graphics)*AxisX0[AXIS_RIGHT]));
-	    xOrig = UX1;
+	    lc_GetUserCoord (NULL,&xOrig,NULL,NULL,xmode);
 	    goto vertical;
 	case 'l':
 	    direction = -1;
 	    axisSpaceWidth = abs((int)(GWWidth(Graphics)*AxisX1[AXIS_LEFT]) -
 			(int)(GWWidth(Graphics)*AxisX0[AXIS_LEFT]));
-	    xOrig = UX0;
+	    lc_GetUserCoord (&xOrig,NULL,NULL,NULL,xmode);
 vertical:
 	    ymode = mode;
 	   /*
             * Set-up coordinate system.
             */
-	    savemin = UY0;
-	    savemax = UY1;
-	    lc_SetUserCoord ( &UX0,&UX1,&min,&max );
+            lc_GetOrigCoord ( NULL,NULL, &savemin, &savemax );
+	    lc_SetUserCoord ( NULL,NULL,&min,&max );
+	    lc_GetUserCoord ( NULL,NULL,&min,&max, ymode );
+            switch ( datatype )
+            {
+	        case 'f':
+                    msg_ELog ( EF_DEBUG,
+			"Draw Axis: component = %s y-min = %f y-max = %f",
+			c, min.val.f, max.val.f);
+	        break;
+	        case 't':
+	            TC_EncodeTime ( &(min.val.t), TC_Full, smin );
+	            TC_EncodeTime ( &(max.val.t), TC_Full, smax );
+                    msg_ELog ( EF_DEBUG,
+			"Draw Axis: component = %s y-min = %s y-max = %s",
+			c, smin, smax );
+	        break;
+            }
 
 	   /*
             * Draw axis-line.
@@ -564,12 +589,13 @@ vertical:
 			    	devY(&ticLoc,ymode));
 			    if ( drawGrid > 0.0 )
 			    {
+				lc_GetUserCoord(&umin,&umax, NULL, NULL, xmode);
     				XSetForeground ( Disp, Gcontext, gridPix.pixel);
 		    	        XDrawLine( XtDisplay(Graphics), 
 			    	    GWFrame(Graphics), Gcontext, 
-			    	    devX(&UX0,xmode) , 
+			    	    devX(&umin,xmode) , 
 			    	    devY(&ticLoc,ymode), 
-			    	    devX(&UX1,xmode) , 
+			    	    devX(&umax,xmode) , 
 			    	    devY(&ticLoc,ymode));
     				XSetForeground ( Disp, Gcontext, mainPix.pixel);
 			    }
@@ -621,7 +647,7 @@ vertical:
 		    label, direction > 0 ? -90.0 :90.0,
 		    fscale, JustifyCenter, JustifyBottom,&x1,&y1,&x2,&y2);
 	    nextoffset = nextoffset + abs(x1-x2) + 2;
-	    lc_SetUserCoord ( &UX0,&UX1,&savemin,&savemax);
+	    lc_SetUserCoord ( NULL,NULL,&savemin,&savemax);
 	break;
 
     }

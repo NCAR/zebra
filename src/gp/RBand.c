@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.7 1992-07-02 15:45:27 kris Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.8 1993-06-24 20:36:20 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -348,34 +348,30 @@ XEvent *event;
 	    /*
 	     * Save the box corners in the variable table
 	     */
-		v.us_v_float = RBandX > RBandX0 ? XUSER (RBandX0) :
-			XUSER (RBandX);
-		usy_s_symbol (Vtable, "boxx0", SYMT_FLOAT, &v);
-		v.us_v_float = RBandX > RBandX0 ? XUSER (RBandX) :
-			XUSER (RBandX0);
-		usy_s_symbol (Vtable, "boxx1", SYMT_FLOAT, &v);
+		v.us_v_int = RBandX > RBandX0 ? RBandX0 : RBandX;
+		usy_s_symbol (Vtable, "boxx0", SYMT_INT, &v);
+		v.us_v_int = RBandX > RBandX0 ? RBandX : RBandX0;
+		usy_s_symbol (Vtable, "boxx1", SYMT_INT, &v);
 
-		v.us_v_float = RBandY > RBandY0 ? YUSER (RBandY0) :
-			YUSER (RBandY);
-		usy_s_symbol (Vtable, "boxy0", SYMT_FLOAT, &v);
-		v.us_v_float = RBandY > RBandY0 ? YUSER (RBandY) :
-			YUSER (RBandY0);
-		usy_s_symbol (Vtable, "boxy1", SYMT_FLOAT, &v);
+		v.us_v_int = RBandY > RBandY0 ? RBandY0 : RBandY;
+		usy_s_symbol (Vtable, "boxy0", SYMT_INT, &v);
+		v.us_v_int = RBandY > RBandY0 ? RBandY : RBandY0;
+		usy_s_symbol (Vtable, "boxy1", SYMT_INT, &v);
 
 		break;
 	    case RBTLine:
 	    /*
 	     * Save the line endpoints in the variable table
 	     */
-		v.us_v_float = XUSER (RBandX0);
-		usy_s_symbol (Vtable, "linex0", SYMT_FLOAT, &v);
-		v.us_v_float = XUSER (RBandX);
-		usy_s_symbol (Vtable, "linex1", SYMT_FLOAT, &v);
+		v.us_v_int = RBandX0;
+		usy_s_symbol (Vtable, "linex0", SYMT_INT, &v);
+		v.us_v_int = RBandX;
+		usy_s_symbol (Vtable, "linex1", SYMT_INT, &v);
 
-		v.us_v_float = YUSER (RBandY0);
-		usy_s_symbol (Vtable, "liney0", SYMT_FLOAT, &v);
-		v.us_v_float = YUSER (RBandY);
-		usy_s_symbol (Vtable, "liney1", SYMT_FLOAT, &v);
+		v.us_v_int = RBandY0;
+		usy_s_symbol (Vtable, "liney0", SYMT_INT, &v);
+		v.us_v_int = RBandY;
+		usy_s_symbol (Vtable, "liney1", SYMT_INT, &v);
 
 		break;
 	    default:

@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.15 1993-06-17 23:11:04 corbet Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.16 1993-06-24 20:36:29 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -643,6 +643,8 @@ bool	update;
         if ( !TriggerGlobal )
         {
             lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
+            lc_GetUserCoord ( &xmin,&xmax,NULL,NULL,xscalemode);
+            lc_GetUserCoord ( NULL,NULL,&ymin,&ymax,yscalemode);
             gp_Clip( &xmin, &ymin, &xmax, &ymax, xscalemode,
 	    		yscalemode | FUDGEBOT);
             msg_ELog ( EF_DEBUG,
