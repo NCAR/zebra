@@ -9,7 +9,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.3 1993-05-13 14:36:33 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.4 1993-05-18 21:27:46 granger Exp $")
 
 extern int optind;
 
@@ -365,9 +365,9 @@ zn_Header *hdr;
 	}
 	if (hdr->znh_Org != OrgOutline && hdr->znh_Org != OrgTransparent)
 	{
-		if (hdr->znh_OffLoc == -1)	/* Static location */
+		if (hdr->znh_OffLoc < 1)	/* Static location */
 		{
-			Location *locn = &hdr->znh_Loc;
+			Location *locn = &(hdr->znh_Loc);
 			
 			printf ("Static location: ");
 			printf ("%8.3f lat, %8.3f lon, %8.2f alt\n",
