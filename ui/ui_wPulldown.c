@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.14 1993-09-09 19:52:50 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.15 1994-03-31 16:34:16 burghart Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -322,6 +322,7 @@ struct ui_command *cmds;
 		}
 		else
 			menu->mbm_eexpr[menu->mbm_nentries] = 0;
+		menu->mbm_eval[menu->mbm_nentries] = FALSE;
 		menu->mbm_nentries++;
 		break;
 	/*
