@@ -42,7 +42,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.5 1993-05-26 19:36:47 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.6 1993-11-03 23:34:31 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -122,7 +122,7 @@ DSSetup ()
 	while ((slash = DDir.index ('/', slash + 1)) >= 0)
 		lastslash = slash;
 	DDir.del (lastslash, DDir.length() - lastslash);
-//	cout << "Data dir is '" << DDir << "'.\n";
+	cout << "Data dir is '" << DDir << "'.\n";
 //
 // Make the platform list.
 //
@@ -365,7 +365,9 @@ GetPlatDir (const char *name)
 {
 	PlatformId pid = ds_LookupPlatform ((char *) name);
 	DataSrcInfo dsi;
+	static char retbuf[256];	// XXX
 
 	ds_GetDataSource (pid, 0, &dsi);
-	return (dsi.dsrc_Where);
+	strcpy (retbuf, dsi.dsrc_Where);
+	return (retbuf);
 }

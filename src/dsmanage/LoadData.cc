@@ -48,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.5 1993-06-07 20:29:43 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.6 1993-11-03 23:34:28 corbet Exp $")
 
 class LoadSelect;
 
@@ -283,7 +283,7 @@ dsSourceSelect (Widget w, XtPointer tbutton, XtPointer junk)
 			"Tape device:" : "CD Directory:");
 	XtSetValues (dsLdSrcWidget->devprompt, args, 1);
 	XtSetArg (args[0], XtNstring,
-			dsLdSrcWidget->tape ? "/dev/rst8" : "/zeb");
+			dsLdSrcWidget->tape ? "/dev/rst8" : "/cd");
 	XtSetValues (dsLdSrcWidget->file, args, 1);
 //
 // Index sensitivity
