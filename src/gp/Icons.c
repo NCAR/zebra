@@ -63,10 +63,10 @@ struct IconList
 	char	il_component[MAXNAME]; /* The component with this icon */
 	char	il_menus[3][MAXNAME];	/* Menus to pop up. 	*/
 };
-static struct IconList *AvailIcons = 0;	/* Which icons are available	*/
-static struct IconList *UsedIcons = 0;	/* Which are in use		*/
-static struct IconList *AvailPos = 0;	/* Which position icons are available*/
-static struct IconList *UsedPos = 0;	/* Which position icons are in use*/
+static struct IconList *AvailIcons = NULL; /* Which icons are available	*/
+static struct IconList *UsedIcons = NULL; /* Which are in use		*/
+static struct IconList *AvailPos = NULL; /* Which position icons are available*/
+static struct IconList *UsedPos = NULL;	/* Which position icons are in use*/
 
 /*
  * We want to keep the icon pixmaps around, since there aren't a whole
@@ -281,14 +281,9 @@ int *fg, *bg, disable;
  */
 {
 	char platform[80], iname[40], fname[120], color[40]; 
-	char agelimit[10], agecolor[40], agebackground[40];
-	char repr[40];
 	union usy_value v;
 	int type, yh, xh;
-	int seconds, ntime;
 	unsigned int h, w;
-	time dtime, timenow;
-	PlatformId pid;
 	Pixmap pmap;
 	Display *disp = XtDisplay (Graphics);
 	Window root = RootWindow (disp, 0);
@@ -318,37 +313,6 @@ int *fg, *bg, disable;
 		strcpy (color, "black");
 	ct_GetColorByName (color, &xc);
 	*bg = xc.pixel;
-/*
- * If the data is too old, then change those colors.
- */
-	pd_Retrieve (Pd, comp, "representation", repr, SYMT_STRING);
-	if (pda_Search (Pd, comp, "icon-age-limit", platform, agelimit,
-		SYMT_STRING) && (strcmp (repr, "overlay") != 0))
-	{
-		seconds = pc_TimeTrigger (agelimit);
-		pid = ds_LookupPlatform (platform);
-		if (! PlotTime.ds_hhmmss)
-			tl_GetTime (&timenow);
-		else
-			timenow = PlotTime;
-		ntime = ds_DataTimes (pid, &timenow, 1, DsBefore, &dtime);
-		if ((ntime == 0) || ((TC_FccToSys (&timenow) - 
-			TC_FccToSys (&dtime)) > seconds))
-		{
-			if (pda_Search (Pd, comp, "icon-age-color", NULL,
-				agecolor, SYMT_STRING))
-			{
-				ct_GetColorByName (agecolor, &xc);
-				*fg = xc.pixel;
-			}
-			if (pda_Search (Pd, comp, "icon-age-background", 
-				NULL, agebackground, SYMT_STRING))
-			{
-				ct_GetColorByName (agebackground, &xc);
-				*bg = xc.pixel;
-			}
-		}
-	}
 /*
  * If this icon already exists in our table, we can just return it.
  */
@@ -510,3 +474,145 @@ XEvent *ev;
 	XtCallActionProc (w, "XawPositionSimpleMenu", ev, &menu, 1);
 	XtCallActionProc (w, "MenuPopup", ev, &menu, 1);
 }
+
+
+void
+I_ColorIcons (colorcomp)
+char *colorcomp;
+/*
+ * Put in the icons.
+ */
+{
+        int disable, fg, bg;
+        int seconds, ntime, update;
+	time timenow, datatime;
+        char comp[40], platform[40], repr[40];
+	char agelimit[40], color[40];
+	PlatformId pid;
+	Arg args[2];
+	XColor xc;
+        struct IconList *ilp;
+/*
+ * Get default colors just in case.
+ */
+	ct_GetColorByName ("white", &xc);
+	fg = xc.pixel;
+	ct_GetColorByName ("black", &xc);
+	bg = xc.pixel;
+/*
+ * Is this an update or global plot.
+ */
+	if (strcmp (colorcomp, "global") == 0)
+		update = FALSE;
+	else update = TRUE;
+/*
+ * Go through each icon.
+ */
+	ilp = UsedIcons;	
+	while (ilp != NULL)
+        {
+	/*
+	 * Don't bother with the global component.
+	 */
+		strcpy (comp, ilp->il_component);
+		if (strcmp (comp, "global") == 0)
+		{
+			ilp = ilp->il_next;
+			continue;
+		}
+	/*
+	 * If its an update check for matching components, otherwise
+	 * don't bother.
+	 */
+		if (update && (strcmp (comp, colorcomp) != 0))
+		{
+			ilp = ilp->il_next;
+			continue;
+		}
+        /*
+         * Is this one disabled?  Then don't bother.
+         */
+		disable = FALSE;
+                pda_Search (Pd, comp, "disable", comp, (char *) &disable, 
+			SYMT_BOOL);
+		if (disable)
+		{
+			ilp = ilp->il_next;
+			continue;
+		}
+	/*
+	 * Get the platform name and representation.
+	 */
+	 	pda_ReqSearch (Pd, comp, "platform", NULL, platform,
+			SYMT_STRING);
+        	pda_ReqSearch (Pd, comp, "representation", NULL, repr,
+			SYMT_STRING);
+	/*
+	 * See if this platform has an age limit and convert it to seconds. 
+	 */
+	        if (pda_Search (Pd, comp, "icon-age-limit", platform, agelimit,
+                	SYMT_STRING) && (strcmp (repr, "overlay") != 0))
+        	{
+			seconds = pc_TimeTrigger (agelimit); 
+		/*
+		 * Get the latest data time.
+		 */
+			if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+			{
+				ilp = ilp->il_next;
+				continue;	
+			}		
+			if (! PlotTime.ds_hhmmss) 
+				tl_GetTime (&timenow); 
+			else
+                       		timenow = PlotTime;
+               		ntime = ds_DataTimes (pid, &timenow, 1, DsBefore, 
+				&datatime);
+		/*
+		 * If the data is old then color it.
+		 */
+               		if ((ntime == 0) || ((TC_FccToSys (&timenow) -
+                       		TC_FccToSys (&datatime)) > seconds))
+               		{
+                       		if (pda_Search (Pd, comp, "icon-age-foreground",
+					NULL, color, SYMT_STRING))
+                       		{
+                               		ct_GetColorByName (color, &xc);
+					fg = xc.pixel;
+                       		}
+                       		if (pda_Search (Pd, comp, "icon-age-background",
+                               		NULL, color, SYMT_STRING))
+                       		{
+                          		ct_GetColorByName (color, &xc);
+					bg = xc.pixel;
+                       		}
+               		}
+		/*
+		 * If the data isn't old color it the regular colors.
+		 */
+			else
+			{
+        			if (pda_Search (Pd, comp, "icon-color",
+                			platform, color, SYMT_STRING)) 
+				{
+        				ct_GetColorByName (color, &xc);
+        				fg = xc.pixel;
+				}
+        			if (pda_Search (Pd, comp, "icon-background",
+                         		platform, color, SYMT_STRING))
+				{
+        				ct_GetColorByName (color, &xc);
+        				bg = xc.pixel;
+				}
+			}
+		/*
+		 * Set the resoures in the widget.
+		 */
+			XtSetArg (args[0], XtNforeground, fg);
+			XtSetArg (args[1], XtNbackground, bg);
+			XtSetValues (ilp->il_icon, args, TWO);
+       		}
+		ilp = ilp->il_next;
+	}
+}
+
