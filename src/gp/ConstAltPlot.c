@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.17 1992-10-06 15:53:25 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.18 1992-10-06 15:54:51 corbet Exp $")
 
 
 /*
@@ -364,8 +364,8 @@ Boolean	update;
 	float	*rgrid, *ugrid, *vgrid, *qgrid[4];
 	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
-	Boolean	ok, shifted;
-	int	tacmatch = 0, grid, linewidth, len, npts, degrade;
+	Boolean	ok;
+	int	tacmatch = 0, grid, linewidth, len, npts, degrade, shifted;
 	XColor	color, qcolor;
 	ZebTime zt;
 	PlatformId pid, *platforms;
