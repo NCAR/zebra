@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.27 1994-04-15 22:27:26 burghart Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.28 1994-04-26 19:31:08 corbet Exp $")
 #endif
 
 /*
@@ -635,6 +635,7 @@ FieldId *flist;
 /*
  * Find a file entry to look at.
  */
+	*nfld = 0;
 	if ((dfindex = ds_FindDF (plat, t, SRC_ALL)) < 0)
 		return (0);
 /*
