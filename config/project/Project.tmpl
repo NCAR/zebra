@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.34 1995-07-06 04:15:22 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.35 1995-07-06 05:13:03 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -815,8 +815,8 @@ XCOMM -----------------------------------------------------------------------
  * programs only needing protocol access and not file access can use DSLIBS.
  */
             ZLIBS = $(LIBZEB) $(LIBRDSS)
-           DSLIBS = $(LIBZEBDS)
           DFALIBS = $(LIBZEBDS) $(LIBNETCDF) $(LIBHDF)
+           DSLIBS = $(DFALIBS)		/* Until Appl.c split committed */
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
