@@ -23,7 +23,7 @@
 # include "ui_date.h"
 # include "ui_globals.h"
 
-static char *Rcsid = "$Id: ui_symbol.c,v 1.4 1989-04-13 15:37:23 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.5 1989-10-27 14:05:30 corbet Exp $";
 
 /*
  * This is the format of a single symbol table entry.
@@ -1016,4 +1016,59 @@ char * arg;
 	sdp->sd_next = sym->ste_daemons;
 	sym->ste_daemons = sdp;
 	return (TRUE);
+}
+
+
+
+int
+usy_z_daemon (table, symbol, ops, func, arg)
+struct symbol_table *table;
+char *symbol;
+int ops;
+int (*func) ();
+char * arg;
+/*
+ * Remove all symbol daemons that match these args.
+ * Entry:
+ *	TABLE	is the symbol table containing the symbol.
+ *	SYMBOL	Is the name of the actual symbol to be affected.
+ *	OPS	is the list of operations handled by this daemon.
+ *	FUNC	is the daemon function.
+ *	ARG	is the argument to be passed to this daemon.
+ * Exit:
+ *	All daemons matching these arguments have been removed.  The return
+ *	value is the number of daemons which were removed.
+ */
+{
+	struct ste *sym = usy_find_symbol (table, symbol);
+	struct sdaemon *sdp, *next, *last;
+	int nzap = 0;
+/*
+ * Make sure that the symbol actually exists.
+ */
+	if (! sym)
+		return (0);
+/*
+ * Now step through the structures, removing the ones that match.
+ */
+	last = next = sym->ste_daemons;
+	for (sdp = next; sdp; sdp = next)
+	{
+		next = sdp->sd_next;
+		if (sdp->sd_func == func && sdp->sd_arg == arg)
+		{
+			nzap++;
+			if (sdp == sym->ste_daemons)
+				sym->ste_daemons = next;
+			else
+				last->sd_next = next;
+			relvm (sdp);
+		}
+		else
+			last = sdp;
+	}
+/*
+ * Done.
+ */
+ 	return (nzap);
 }
