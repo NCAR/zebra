@@ -332,6 +332,8 @@ ToBigI4 (long val, void *vdest)
 	dest[2] = c[1];
 	dest[3] = c[0];
     }
+
+    return (1);
 }
 
     
@@ -363,6 +365,8 @@ ToBigUI4 (unsigned long val, void *vdest)
 	dest[2] = c[1];
 	dest[3] = c[0];
     }
+
+    return (1);
 }
 
 
@@ -399,6 +403,8 @@ ToLittleI4 (long val, void *vdest)
 	dest[2] = c[sizeof(long) - 3];
 	dest[3] = c[sizeof(long) - 4];
     }
+
+    return (1);
 }
 
     
@@ -432,6 +438,8 @@ ToLittleUI4 (unsigned long val, void *vdest)
 	dest[2] = c[sizeof(long) - 3];
 	dest[3] = c[sizeof(long) - 4];
     }
+
+    return (1);
 }
 
 
@@ -464,6 +472,8 @@ ToBigI2 (long val, void *vdest)
 	dest[0] = c[1];
 	dest[1] = c[0];
     }
+
+    return (1);
 }
 
     
@@ -495,6 +505,8 @@ ToBigUI2 (unsigned long val, void *vdest)
 	dest[0] = c[1];
 	dest[1] = c[0];
     }
+
+    return (1);
 }
 
 
@@ -527,6 +539,8 @@ ToLittleI2 (long val, void *vdest)
 	dest[0] = c[sizeof(long) - 1];
 	dest[1] = c[sizeof(long) - 2];
     }
+
+    return (1);
 }
 
     

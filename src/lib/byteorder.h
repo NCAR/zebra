@@ -1,4 +1,4 @@
-/* $Id: byteorder.h,v 2.7 1997-12-24 23:35:50 burghart Exp $ */
+/* $Id: byteorder.h,v 2.8 1997-12-30 16:07:02 burghart Exp $ */
 /*
  * Byte order testing and swapping functions.  Two's complement is assumed
  * for all signed values.
@@ -24,6 +24,16 @@ static inline int BigEndian (void);
  */
 static inline void swap4 (void *p);
 static inline void swap2 (void *p);
+
+/*
+ * The FromXXX functions convert 'src' from representation XXX and return
+ * the integer value in local representation.
+ * 
+ * The ToXXX functions convert 'val' from local integer representation to
+ * representation XXX.  If successful, the results are written into 'dest' and
+ * 1 is returned.  If not successful, 'dest' is unchanged, 0 is returned, and
+ * 'errno' (from errno.h) is set to EDOM (domain error).
+ */
 
 /*
  * 4-byte integer handling
