@@ -1,7 +1,6 @@
 /*
  * Interface to the sound generator.
  */
-static char *rcsid = "$Id: Sound_lib.c,v 2.2 1993-08-04 17:17:05 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,10 +27,10 @@ static char *rcsid = "$Id: Sound_lib.c,v 2.2 1993-08-04 17:17:05 granger Exp $";
 # include "message.h"
 
 
+RCSID("$Id: Sound_lib.c,v 2.3 1995-04-15 00:13:12 granger Exp $")
 
 
-
-
+void
 DoSound (sound)
 char *sound;
 /*
