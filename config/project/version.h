@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 1.9 1995-08-28 22:02:17 granger Exp $
+ * $Id: version.h,v 1.10 1996-02-07 16:48:07 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -168,7 +168,7 @@ static const char rcs_author[] = id ;
 
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.9 1995-08-28 22:02:17 granger Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.10 1996-02-07 16:48:07 granger Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
 #ifdef __GNUC__
@@ -185,11 +185,11 @@ static const char *use_V_compileid = (0, use_V_compileid, V_compileid);
  * well as updating the ChangeLog and this file.
  */
 static const char zeb_version_id1[] = 
-"@(#)$ZebraVersion: 4.2-alpha $";
+"@(#)$ZebraVersion: 4.2 $";
 static const char zeb_version_id2[] = 
 "@(#)$ZebraVersion: Research Data Program, NCAR $";
 static const char zeb_version_id3[] = 
-"@(#)$Copyright: University Corporation for Atmospheric Research, 1994 $";
+"@(#)$Copyright: University Corporation for Atmospheric Research, 1996 $";
 
 #if __GNUC__
 static const char *use_zeb_version_id1 = 
