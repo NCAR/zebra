@@ -21,12 +21,14 @@
 
 # include <stdio.h>
 # include <string.h>
-# include "defs.h"
-# include "message.h"
-# include <copyright.h>
-# include "DataStore.h"
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.13 1995-04-19 14:46:18 granger Exp $")
+# include <defs.h>
+# include <copyright.h>
+# include <message.h>
+# include <timer.h>
+# include <DataStore.h>
+
+MAKE_RCSID ("$Id: dsdump.c,v 3.14 1995-04-25 16:11:34 granger Exp $")
 
 
 /*
@@ -38,8 +40,9 @@ static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
 static void PrintInfo FP((int index, DataFileInfo *dfi));
 
 
+static int
 msg_handler ()
-{ }
+{ return (0); }
 
 
 static void
@@ -283,8 +286,6 @@ bool obs;		/* list only most recent file */
 	DataSrcInfo dsi;
 	DataFileInfo dfi;
 	char *name;
-
-	ds_LockPlatform (pid);
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
@@ -306,6 +307,7 @@ bool obs;		/* list only most recent file */
 	 * Now dump out each source, quitting at the first file outside
 	 * of our period, unless period == 0.
 	 */
+		ds_LockPlatform (pid);
 		for (i = 0; i < pi->pl_NDataSrc; i++)
 		{
 			ds_GetDataSource (pid, i, &dsi);
@@ -325,8 +327,8 @@ bool obs;		/* list only most recent file */
 					break;
 			}
 		}
+		ds_UnlockPlatform (pid);
 	}
-	ds_UnlockPlatform (pid);
 }
 
 
@@ -355,7 +357,7 @@ PlatformInfo *pi;
 		char *name;
 
 		ds_GetPlatInfo (subplats[i], &spi);
-		if (name = strchr(spi.pl_Name, '/'))
+		if ((name = strchr(spi.pl_Name, '/')))
 			++name;
 		else
 			name = spi.pl_Name;
