@@ -4,7 +4,7 @@
 ! Most widgets have now been moved out of here, finding their home instead
 ! in the library directory and brought in through the require mechanism.
 !
-! $Id: GraphProc.widgets,v 1.17 1995-08-03 20:59:46 corbet Exp $
+! $Id: GraphProc.widgets,v 1.18 1995-09-21 21:05:04 granger Exp $
 !
 set ui$initial_state 'initial'
 
@@ -33,10 +33,337 @@ define widget global-left intmenu 'Global left menu'
 	entry 'Position Readout...' 'popup position'
 	entry 'Model Forecast Times...' 'popup model'
 	line
+	submenu 'Window Regions' 'global-regions'
 	submenu 'Change Scale' 'global-scale-menu'
 	submenu 'Set Window Range' global-adjust-limits
 	submenu 'Window Operations' global-window-ops
+	submenu 'Layout Parameters'  global-layout
+	line
+	entry 'Help on this Plot Type' 'plot-type-help'
 endmenu
+
+
+define widget global-regions intmenu 'regions'
+	title 'Project Regions'
+	line
+	entry 'Local' 'DoZoom -100 100 -100 100'
+	entry 'Regional' 'DoZoom -500 500 -500 500'
+	entry 'Mesoscale' 'DoZoom -1000 1000 -1000 1000'
+endmenu
+
+
+procedure plot-type-help
+	local type PDParam("global","plot-type")
+	if (type = "CAP")
+		dm "help horizontal-plots"
+	elseif (type = "skewt")
+		dm "help skewt"
+	elseif (type = "xsect")
+		dm "help cross-section"
+	elseif (type = "tseries")
+		dm "message 'No help topic for tseries plot types'"
+		dm "help index"
+	elseif (type = "xygraph")
+		dm "help xy-graphs"
+	endif
+endprocedure
+
+
+!
+! A menu for changing layout parameters
+!
+define widget global-layout intmenu 'layout parameters'
+	title 'Layout Parameters'
+	line
+	submenu 'Icon Space Height' icon-space
+	submenu 'Top Annotation Height' annotate-space
+	submenu 'Legend Space Width' legend-space
+	line
+	submenu 'Left Axis Width' axis-left-space
+	submenu 'Right Axis Width' axis-right-space
+	line
+	submenu 'Top Axis Height' axis-top-space
+	submenu 'Bottom Axis Height' axis-bottom-space
+	line
+	entry 'Help' 'help layout'
+endmenu
+
+
+define widget icon-space intmenu 'icon space parameter'
+	title 'Icon Space Height'
+	line
+	entry 'None' 'parameter global icon-space 0' \
+		(PDParam("global","icon-space") = "0")
+	line
+	entry '2.5%' 'parameter global icon-space 0.025' \
+		(PDParam("global","icon-space") = "0.025")
+	entry '5%' 'parameter global icon-space 0.05' \
+		(PDParam("global","icon-space") = "0.05")
+	entry '7.5%' 'parameter global icon-space 0.075' \
+		(PDParam("global","icon-space") = "0.075")
+	entry '10%' 'parameter global icon-space 0.1' \
+		(PDParam("global","icon-space") = "0.1")
+	entry '15%' 'parameter global icon-space 0.15' \
+		(PDParam("global","icon-space") = "0.15")
+	entry '20%' 'parameter global icon-space 0.2' \
+		(PDParam("global","icon-space") = "0.2")
+	entry '30%' 'parameter global icon-space 0.3' \
+		(PDParam("global","icon-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global icon-space 20' \
+		(PDParam("global","icon-space") = "20")
+	entry '40 pixels' 'parameter global icon-space 40' \
+		(PDParam("global","icon-space") = "40")
+	entry '50 pixels (default)' 'parameter global icon-space 50' \
+		(PDParam("global","icon-space") = "50")
+	entry '60 pixels' 'parameter global icon-space 60' \
+		(PDParam("global","icon-space") = "60")
+	entry '80 pixels' 'parameter global icon-space 80' \
+		(PDParam("global","icon-space") = "80")
+	entry '100 pixels' 'parameter global icon-space 100' \
+		(PDParam("global","icon-space") = "100")
+	entry '120 pixels' 'parameter global icon-space 120' \
+		(PDParam("global","icon-space") = "120")
+	entry '140 pixels' 'parameter global icon-space 140' \
+		(PDParam("global","icon-space") = "140")
+	entry '160 pixels' 'parameter global icon-space 160' \
+		(PDParam("global","icon-space") = "160")
+endmenu
+
+define widget legend-space intmenu 'legend space parameter'
+	title 'Side Legend Width'
+	line
+	entry 'None' 'parameter global sa-space 0' \
+		(PDParam("global","sa-space") = "0")
+	line
+	entry '2.5%' 'parameter global sa-space 0.025' \
+		(PDParam("global","sa-space") = "0.025")
+	entry '5%' 'parameter global sa-space 0.05' \
+		(PDParam("global","sa-space") = "0.05")
+	entry '7.5%' 'parameter global sa-space 0.075' \
+		(PDParam("global","sa-space") = "0.075")
+	entry '10%' 'parameter global sa-space 0.1' \
+		(PDParam("global","sa-space") = "0.1")
+	entry '15% (default)' 'parameter global sa-space 0.15' \
+		(PDParam("global","sa-space") = "0.15")
+	entry '20%' 'parameter global sa-space 0.2' \
+		(PDParam("global","sa-space") = "0.2")
+	entry '30%' 'parameter global sa-space 0.3' \
+		(PDParam("global","sa-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global sa-space 20' \
+		(PDParam("global","sa-space") = "20")
+	entry '40 pixels' 'parameter global sa-space 40' \
+		(PDParam("global","sa-space") = "40")
+	entry '60 pixels' 'parameter global sa-space 60' \
+		(PDParam("global","sa-space") = "60")
+	entry '80 pixels' 'parameter global sa-space 80' \
+		(PDParam("global","sa-space") = "80")
+	entry '100 pixels' 'parameter global sa-space 100' \
+		(PDParam("global","sa-space") = "100")
+	entry '120 pixels' 'parameter global sa-space 120' \
+		(PDParam("global","sa-space") = "120")
+	entry '140 pixels' 'parameter global sa-space 140' \
+		(PDParam("global","sa-space") = "140")
+	entry '160 pixels' 'parameter global sa-space 160' \
+		(PDParam("global","sa-space") = "160")
+endmenu
+
+define widget annotate-space intmenu 'annotate space parameter'
+	title 'Top Annotation Height'
+	line
+	entry 'None' 'parameter global ta-space 0' \
+		(PDParam("global","ta-space") = "0")
+	line
+	entry '2.5%' 'parameter global ta-space 0.025' \
+		(PDParam("global","ta-space") = "0.025")
+	entry '5%' 'parameter global ta-space 0.05' \
+		(PDParam("global","ta-space") = "0.05")
+	entry '7.5%' 'parameter global ta-space 0.075' \
+		(PDParam("global","ta-space") = "0.075")
+	entry '10% (default)' 'parameter global ta-space 0.1' \
+		(PDParam("global","ta-space") = "0.1")
+	entry '15%' 'parameter global ta-space 0.15' \
+		(PDParam("global","ta-space") = "0.15")
+	entry '20%' 'parameter global ta-space 0.2' \
+		(PDParam("global","ta-space") = "0.2")
+	entry '30%' 'parameter global ta-space 0.3' \
+		(PDParam("global","ta-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global ta-space 20' \
+		(PDParam("global","ta-space") = "20")
+	entry '40 pixels' 'parameter global ta-space 40' \
+		(PDParam("global","ta-space") = "40")
+	entry '60 pixels' 'parameter global ta-space 60' \
+		(PDParam("global","ta-space") = "60")
+	entry '80 pixels' 'parameter global ta-space 80' \
+		(PDParam("global","ta-space") = "80")
+	entry '100 pixels' 'parameter global ta-space 100' \
+		(PDParam("global","ta-space") = "100")
+	entry '120 pixels' 'parameter global ta-space 120' \
+		(PDParam("global","ta-space") = "120")
+	entry '140 pixels' 'parameter global ta-space 140' \
+		(PDParam("global","ta-space") = "140")
+	entry '160 pixels' 'parameter global ta-space 160' \
+		(PDParam("global","ta-space") = "160")
+endmenu
+
+define widget axis-top-space intmenu 'axis top space'
+	title 'Top Axis Height'
+	line
+	entry 'None' 'parameter global axis-top-space 0' \
+		(PDParam("global","axis-top-space") = "0")
+	line
+	entry '2.5%' 'parameter global axis-top-space 0.025' \
+		(PDParam("global","axis-top-space") = "0.025")
+	entry '5%' 'parameter global axis-top-space 0.05' \
+		(PDParam("global","axis-top-space") = "0.05")
+	entry '7.5%' 'parameter global axis-top-space 0.075' \
+		(PDParam("global","axis-top-space") = "0.075")
+	entry '10%' 'parameter global axis-top-space 0.1' \
+		(PDParam("global","axis-top-space") = "0.1")
+	entry '15%' 'parameter global axis-top-space 0.15' \
+		(PDParam("global","axis-top-space") = "0.15")
+	entry '20%' 'parameter global axis-top-space 0.2' \
+		(PDParam("global","axis-top-space") = "0.2")
+	entry '30%' 'parameter global axis-top-space 0.3' \
+		(PDParam("global","axis-top-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global axis-top-space 20' \
+		(PDParam("global","axis-top-space") = "20")
+	entry '40 pixels' 'parameter global axis-top-space 40' \
+		(PDParam("global","axis-top-space") = "40")
+	entry '60 pixels' 'parameter global axis-top-space 60' \
+		(PDParam("global","axis-top-space") = "60")
+	entry '80 pixels' 'parameter global axis-top-space 80' \
+		(PDParam("global","axis-top-space") = "80")
+	entry '100 pixels' 'parameter global axis-top-space 100' \
+		(PDParam("global","axis-top-space") = "100")
+	entry '120 pixels' 'parameter global axis-top-space 120' \
+		(PDParam("global","axis-top-space") = "120")
+	entry '140 pixels' 'parameter global axis-top-space 140' \
+		(PDParam("global","axis-top-space") = "140")
+	entry '160 pixels' 'parameter global axis-top-space 160' \
+		(PDParam("global","axis-top-space") = "160")
+endmenu
+
+define widget axis-bottom-space intmenu 'axis bottom space'
+	title 'Bottom Axis Height'
+	line
+	entry 'None' 'parameter global axis-bottom-space 0' \
+		(PDParam("global","axis-bottom-space") = "0")
+	line
+	entry '2.5%' 'parameter global axis-bottom-space 0.025' \
+		(PDParam("global","axis-bottom-space") = "0.025")
+	entry '5%' 'parameter global axis-bottom-space 0.05' \
+		(PDParam("global","axis-bottom-space") = "0.05")
+	entry '7.5%' 'parameter global axis-bottom-space 0.075' \
+		(PDParam("global","axis-bottom-space") = "0.075")
+	entry '10%' 'parameter global axis-bottom-space 0.1' \
+		(PDParam("global","axis-bottom-space") = "0.1")
+	entry '15%' 'parameter global axis-bottom-space 0.15' \
+		(PDParam("global","axis-bottom-space") = "0.15")
+	entry '20%' 'parameter global axis-bottom-space 0.2' \
+		(PDParam("global","axis-bottom-space") = "0.2")
+	entry '30%' 'parameter global axis-bottom-space 0.3' \
+		(PDParam("global","axis-bottom-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global axis-bottom-space 20' \
+		(PDParam("global","axis-bottom-space") = "20")
+	entry '40 pixels' 'parameter global axis-bottom-space 40' \
+		(PDParam("global","axis-bottom-space") = "40")
+	entry '60 pixels' 'parameter global axis-bottom-space 60' \
+		(PDParam("global","axis-bottom-space") = "60")
+	entry '80 pixels' 'parameter global axis-bottom-space 80' \
+		(PDParam("global","axis-bottom-space") = "80")
+	entry '100 pixels' 'parameter global axis-bottom-space 100' \
+		(PDParam("global","axis-bottom-space") = "100")
+	entry '120 pixels' 'parameter global axis-bottom-space 120' \
+		(PDParam("global","axis-bottom-space") = "120")
+	entry '140 pixels' 'parameter global axis-bottom-space 140' \
+		(PDParam("global","axis-bottom-space") = "140")
+	entry '160 pixels' 'parameter global axis-bottom-space 160' \
+		(PDParam("global","axis-bottom-space") = "160")
+endmenu
+
+define widget axis-left-space intmenu 'axis left space'
+	title 'Left Axis Width'
+	line
+	entry 'None' 'parameter global axis-left-space 0' \
+		(PDParam("global","axis-left-space") = "0")
+	line
+	entry '2.5%' 'parameter global axis-left-space 0.025' \
+		(PDParam("global","axis-left-space") = "0.025")
+	entry '5%' 'parameter global axis-left-space 0.05' \
+		(PDParam("global","axis-left-space") = "0.05")
+	entry '7.5%' 'parameter global axis-left-space 0.075' \
+		(PDParam("global","axis-left-space") = "0.075")
+	entry '10%' 'parameter global axis-left-space 0.1' \
+		(PDParam("global","axis-left-space") = "0.1")
+	entry '15%' 'parameter global axis-left-space 0.15' \
+		(PDParam("global","axis-left-space") = "0.15")
+	entry '20%' 'parameter global axis-left-space 0.2' \
+		(PDParam("global","axis-left-space") = "0.2")
+	entry '30%' 'parameter global axis-left-space 0.3' \
+		(PDParam("global","axis-left-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global axis-left-space 20' \
+		(PDParam("global","axis-left-space") = "20")
+	entry '40 pixels' 'parameter global axis-left-space 40' \
+		(PDParam("global","axis-left-space") = "40")
+	entry '60 pixels' 'parameter global axis-left-space 60' \
+		(PDParam("global","axis-left-space") = "60")
+	entry '80 pixels' 'parameter global axis-left-space 80' \
+		(PDParam("global","axis-left-space") = "80")
+	entry '100 pixels' 'parameter global axis-left-space 100' \
+		(PDParam("global","axis-left-space") = "100")
+	entry '120 pixels' 'parameter global axis-left-space 120' \
+		(PDParam("global","axis-left-space") = "120")
+	entry '140 pixels' 'parameter global axis-left-space 140' \
+		(PDParam("global","axis-left-space") = "140")
+	entry '160 pixels' 'parameter global axis-left-space 160' \
+		(PDParam("global","axis-left-space") = "160")
+endmenu
+
+define widget axis-right-space intmenu 'axis right space'
+	title 'Right Axis Width'
+	line
+	entry 'None' 'parameter global axis-right-space 0' \
+		(PDParam("global","axis-right-space") = "0")
+	line
+	entry '2.5%' 'parameter global axis-right-space 0.025' \
+		(PDParam("global","axis-right-space") = "0.025")
+	entry '5%' 'parameter global axis-right-space 0.05' \
+		(PDParam("global","axis-right-space") = "0.05")
+	entry '7.5%' 'parameter global axis-right-space 0.075' \
+		(PDParam("global","axis-right-space") = "0.075")
+	entry '10%' 'parameter global axis-right-space 0.1' \
+		(PDParam("global","axis-right-space") = "0.1")
+	entry '15%' 'parameter global axis-right-space 0.15' \
+		(PDParam("global","axis-right-space") = "0.15")
+	entry '20%' 'parameter global axis-right-space 0.2' \
+		(PDParam("global","axis-right-space") = "0.2")
+	entry '30%' 'parameter global axis-right-space 0.3' \
+		(PDParam("global","axis-right-space") = "0.3")
+	line
+	entry '20 pixels' 'parameter global axis-right-space 20' \
+		(PDParam("global","axis-right-space") = "20")
+	entry '40 pixels' 'parameter global axis-right-space 40' \
+		(PDParam("global","axis-right-space") = "40")
+	entry '60 pixels' 'parameter global axis-right-space 60' \
+		(PDParam("global","axis-right-space") = "60")
+	entry '80 pixels' 'parameter global axis-right-space 80' \
+		(PDParam("global","axis-right-space") = "80")
+	entry '100 pixels' 'parameter global axis-right-space 100' \
+		(PDParam("global","axis-right-space") = "100")
+	entry '120 pixels' 'parameter global axis-right-space 120' \
+		(PDParam("global","axis-right-space") = "120")
+	entry '140 pixels' 'parameter global axis-right-space 140' \
+		(PDParam("global","axis-right-space") = "140")
+	entry '160 pixels' 'parameter global axis-right-space 160' \
+		(PDParam("global","axis-right-space") = "160")
+endmenu
+
 
 define widget global-scale-menu intmenu 'scale by factors'
 	title 'Change Scale'
@@ -55,6 +382,7 @@ define widget global-window-ops intmenu 'window ops'
 	line
 !	entry 'Zoom Window' 'dm concat("require zoom; zoom ",window_name)' 
 	entry 'Reset Window' 'dm "require ResetWindow; ResetWindow"'
+	entry 'Restart Window' 'dm concat("restart ",window_name)'
 	entry 'Delete Window' 'dm concat("kill ",window_name)'
 endmenu
 
@@ -305,10 +633,10 @@ define widget GlobalTopAnnot intmenu 'Annotation colors'
 	entry 'Large' 'TopAnnotSize 24' \
 		(PDParam (icon_component, "ta-scale") = "24")
 	line
-	entry 'Color Match On' 'color_match true'  \
+	entry 'Color Match' 'ToggleBoolean ta-color-match' \
 		(PDParam (icon_component, "ta-color-match") = "true")
-	entry 'Color Match Off' 'color_match false'  \
-		(PDParam(icon_component, "ta-color-match") = "false")
+	entry 'Window Name' 'ToggleBoolean ta-show-name' \
+		(PDParam (icon_component, "ta-show-name") = "true")
 endmenu
 
 
