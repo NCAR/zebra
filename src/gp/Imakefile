@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.7 1993-05-14 16:58:21 corbet Exp $ 
+/**/# $Id: Imakefile,v 1.8 1993-05-14 21:33:25 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,7 +20,7 @@
  */
 
 
-LOCAL_LIBRARIES=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
+LOCAL_LIBRARIES=$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
 
 CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a
 
