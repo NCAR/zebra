@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.3 1992-12-29 20:15:59 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1993-02-23 06:51:53 granger Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -46,6 +46,11 @@ DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 NXSRCS = NetXfr.c nx_BCast.c nx_PktGrabber.c nx_DirImage.c
 NXOBJS = NetXfr.o nx_BCast.o nx_PktGrabber.o nx_DirImage.o
 
+/*
+ * For debugging
+ */
+TESTSRCS = dstest.c dctest.c
+
 APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
 
 /*
@@ -54,7 +59,7 @@ APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
  * need to be changed if it is decided that they will not be
  * distributed with the general distribution
  */
-SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(NXSRCS) $(BINSRCS)
+SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(NXSRCS) $(BINSRCS) $(TESTSRCS)
 
 HEADERS = BoundaryFile.h DataChunk.h DataChunkP.h DataStore.h NetXfr.h \
 	  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
@@ -98,9 +103,9 @@ BuildIncludes(DataStore.h ds_fields.h DataChunk.h,.,.)
 /*
  * Test programs.  These programs are not included in the all::
  * or install:: targets, but they are cleaned and they will have
- * saber targets just like normal programs
+ * saber targets just like normal programs, and their dependencies
+ * will be listed by makedepend
  */
-
 TestProgramTarget(dctest,dctest.o $(DCOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 TestProgramTarget(dstest,dstest.o $(DSLIBOBJS) $(DCOBJS),
@@ -170,11 +175,4 @@ LintTarget()
 
 DistfilesTarget($(DISTFILES))
 
-/*
- * The test file header dependencies are explicitly given here
- * since they are not include in the standard SRCS string (because
- * these files are not distributed
- */
-dstest.o: defs.h message.h copyright.h DataStore.h
-dctest.o: defs.h message.h DataStore.h DataChunk.h
 
