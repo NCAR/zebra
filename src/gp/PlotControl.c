@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.28 1994-04-15 21:26:19 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.29 1994-05-19 21:06:40 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -205,6 +205,10 @@ pc_PlotHandler ()
 		mc_PDChange();
 		return;
 	}
+/*
+ * KLUGE: Keep the model widget up-to-date by telling it a paramter changed
+ */
+	mw_ParamChange ("");
 /*
  * If we're in history mode, find the plot time and do a global plot now
  */
