@@ -48,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.7 1994-02-01 20:43:47 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.8 1994-10-07 18:30:18 corbet Exp $")
 
 class LoadSelect;
 
@@ -799,7 +799,7 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
 
 
 
-void LoadSelect::complain (const char *complaint, int self = 0)
+void LoadSelect::complain (const char *complaint, int self)
 //
 // Register a complaint.
 //

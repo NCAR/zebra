@@ -48,7 +48,7 @@ public:
 
 
 inline
-fContainer::fContainer (int initial = 10)
+fContainer::fContainer (int initial)
 //
 // Create an fContainer.
 //

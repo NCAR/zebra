@@ -49,7 +49,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.1 1993-06-01 20:09:50 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.2 1994-10-07 18:30:24 corbet Exp $")
 
 class DelSelect;
 
@@ -474,7 +474,7 @@ DelSelect::addButtons (Widget form, PlatformIndex *index)
 
 
 
-void DelSelect::complain (const char *complaint, int self = 0)
+void DelSelect::complain (const char *complaint, int self)
 //
 // Register a complaint.
 //
@@ -855,7 +855,7 @@ void ExecTimeSelect (Widget w, XtPointer xls, XtPointer junk)
 
 static void
 MarkTimeFiles (DelSelect *ls, PlatformIndex *select,
-		const ZebTime &tbegin, const ZebTime &tend, int skip = 0)
+		const ZebTime &tbegin, const ZebTime &tend, int skip)
 //
 // Mark up files which should be selected according to the criteria.
 //

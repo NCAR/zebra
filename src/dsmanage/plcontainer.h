@@ -46,7 +46,7 @@ public:
 
 
 inline
-plContainer::plContainer (int initial = 10)
+plContainer::plContainer (int initial)
 //
 // Create an plContainer.
 //

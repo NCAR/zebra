@@ -23,6 +23,13 @@ APPDEFAULTS = dsmanage.ad
 
 DISTFILES = $(SRCS) $(HEADERS) $(APPDEFAULTS) Imakefile
 
+#ifdef SGIArchitecture
+.SUFFIXES:	.cc
+
+.cc.o:
+	$(C++) $(C++FLAGS) -U_SGI_SOURCE -c $<
+# endif
+
 CccProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),/**/)
 CccProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),/**/)
 

@@ -47,7 +47,7 @@ protected:
 	Widget	dw_form;		// The form that holds everything.
 public:
 	dsWindow (char *, const dsDisplay &, int top=0); // Create with name
-	~dsWindow ();
+	virtual ~dsWindow ();
 	virtual void popup ();			// Put on screen
 	virtual void popdown ();		// Take off screen
 };
@@ -82,6 +82,7 @@ class dsMainWindow : private dsWindow
 	Widget	spaceLabel;		// The free space label
 public:
 	dsMainWindow (const dsDisplay &);
+	~dsMainWindow () {};
 	void UpdateSpace ();
 };
 

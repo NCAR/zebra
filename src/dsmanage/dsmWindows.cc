@@ -41,7 +41,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.3 1994-10-07 18:30:30 corbet Exp $";
 //
 // Forwards.
 //
@@ -78,7 +78,7 @@ dsDisplay::sync ()
 }
 
 
-dsWindow::dsWindow (char *name, const dsDisplay &disp, int top = 0)
+dsWindow::dsWindow (char *name, const dsDisplay &disp, int top)
 //
 // Create a base window.
 //
@@ -135,7 +135,7 @@ static void ZapPopup (Widget, XtPointer, XtPointer);
 
 
 dsPopupWindow::dsPopupWindow (const dsDisplay &disp, char *title,
-				int zapspace = 50) :
+				int zapspace) :
 	dsWindow (title, disp, 0)
 //
 // Create a popup window.

@@ -24,9 +24,10 @@
 # include <errno.h>
 # include "Tape.h"
 
-static char *rcsid = "$Id: Tape.cc,v 1.2 1993-02-02 19:35:33 corbet Exp $";
+static char *rcsid = "$Id: Tape.cc,v 1.3 1994-10-07 18:30:28 corbet Exp $";
 
-Tape::Tape (const char *drive, int write = 0)
+// gcc gripes? Tape::Tape (const char *drive, int write = 0)
+Tape::Tape (const char *drive, int write)
 //
 // Open up a tape.
 //
