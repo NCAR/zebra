@@ -19,6 +19,10 @@
  * maintenance or updates for its software.
  */
 
+# include <defs.h>
+
+RCSID("$Id: DialBox.c,v 2.3 1995-05-24 00:07:03 granger Exp $")
+
 # ifdef titan
 
 # include <stropts.h>
@@ -26,10 +30,7 @@
 # include <machine/gin.h>
 # include <errno.h>
 
-# include <defs.h>
 # include "dm_vars.h"
-
-RCSID("$Id: DialBox.c,v 2.2 1995-04-18 22:18:27 granger Exp $")
 
 /*
  * Local data.
@@ -259,4 +260,4 @@ int dial, motion;
 	}
 }
 
-# endif
+# endif /* titan */
