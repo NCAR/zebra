@@ -1,13 +1,20 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.6 1993-07-23 19:51:56 case Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.7 1996-01-02 02:48:21 granger Exp $";
 /*
  * Interrupt handling.
  */
+# include <sys/types.h>
 # ifdef UNIX
 # include <signal.h>
 # endif
 # include "ui_param.h"
 # include "ui_globals.h"
+
+# ifdef sgi
+# define SIGNAL_RETURN void
+# else
+# define SIGNAL_RETURN int
+# endif
 
 /*
  * This array holds addresses of functions to be called in the event
@@ -21,18 +28,39 @@ static vfptr Handlers[MAXHANDLERS];
 
 
 
+# ifdef UNIX
+
+static SIGNAL_RETURN
+uii_fault (sig, code, scp, addr)
+int sig, code;
+struct sigcontext *scp;
+char *addr;
+/*
+ * Handle a seg/bus error.
+ */
+{
+	printf ("\n\r%s: code %d addr 0x%x!\n\r",
+		sig == SIGBUS ? "Bus error" : "Segmentation violation",
+		code, addr);
+	ui_finish ();	/* Restore tty	*/
+	abort ();
+}
+
+# endif
+
+
 uii_init ()
 /*
  * Initialize the interrupt handling.
  */
 {
-	int hndl, uii_cc_handler ();
+	int hndl;
+	SIGNAL_RETURN uii_cc_handler ();
 # ifdef SIGTSTP
-	int uii_tstp ();
+	SIGNAL_RETURN uii_tstp ();
 # endif
 # ifdef UNIX
 	void (*oldh)();
-	int uii_fault ();
 # endif
 /*
  * No interrupts in batch jobs.
@@ -66,7 +94,7 @@ uii_init ()
 
 
 
-
+SIGNAL_RETURN
 uii_cc_handler ()
 /*
  * This is the ^C AST routine.
@@ -112,6 +140,7 @@ uii_cc_handler ()
 
 # ifdef SIGTSTP
 
+SIGNAL_RETURN
 uii_tstp ()
 /*
  * Deal with a STOP signal.
@@ -202,22 +231,3 @@ vfptr handler;
 
 
 
-
-# ifdef UNIX
-
-uii_fault (sig, code, scp, addr)
-int sig, code;
-struct sigcontext *scp;
-char *addr;
-/*
- * Handle a seg/bus error.
- */
-{
-	printf ("\n\r%s: code %d addr 0x%x!\n\r",
-		sig == SIGBUS ? "Bus error" : "Segmentation violation",
-		code, addr);
-	ui_finish ();	/* Restore tty	*/
-	abort ();
-}
-
-# endif
