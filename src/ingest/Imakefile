@@ -1,0 +1,103 @@
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:26:56 granger Exp $"
+
+/*
+ * All individual ingest-related routines are kept in subdirectories.
+ * Code and header files which are shared
+ * among ingest modules are kept in ./ingest, hence this directory is listed
+ * first so that its files will be installed in the library and
+ * the include directory.
+ */
+#define IHaveSubdirs
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+#if BuildIngestScheduler
+IS=is
+#endif
+#if BuildClassIngest
+CLASS=class
+#endif
+#if BuildRadarIngest
+RADAR=radar
+#endif
+#if BuildRadarLimits
+RADARLIMITS=RadarLimits
+#endif
+#if BuildSLGrabber
+SLGRABBER=SLGrabber
+#endif
+#if BuildAircrftIngest
+AIRCRAFT=aircraft
+#endif
+#if BuildFMIngest
+FM=fm
+#endif
+#if BuildLLPIngest
+LLP=llp
+#endif
+#if BuildNatsIngest
+NATS=nats
+#endif
+#if BuildNowradIngest
+NOWRAD=nowrad
+#endif
+#if BuildP3Ingest
+P3=p3
+#endif
+#if BuildPamIngest
+PAM=pam
+#endif
+#if BuildProfsIngest
+PROFS=profs
+#endif
+#if BuildRsgIngest	/* the rsg directory is currently ignored since */
+			/*    I don't know what it does 		*/
+RSG=
+#endif
+#if BuildSatelliteIngest
+SATELLITE=satellite
+#endif
+
+SUBDIRS = ingest mcidas \
+	$(AIRCRAFT) \
+	$(LLP) \
+	$(RADAR) \
+	$(NATS) \
+	$(CLASS) \
+	$(PAM) \
+	$(P3) \
+	$(NOWRAD) \
+	$(SLGRABBER) \
+	$(RADARLIMITS) \
+	$(SATELLITE) \
+	$(PROFS) \
+	$(FM) \
+	$(RSG) \
+	$(IS)
+
+DISTFILES = Imakefile
+DISTSUBDIRS = ingest mcidas aircraft llp radar nats class pam p3 nowrad \
+	      SLGrabber RadarLimits satellite profs fm is
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+InstallLibSubdirs($(SUBDIRS))
+DistfilesTarget($(DISTFILES))
+DistfilesSubdirs($(DISTSUBDIRS))
+

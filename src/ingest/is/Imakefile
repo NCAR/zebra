@@ -1,0 +1,27 @@
+
+MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:29:00 granger Exp $"
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
+GCC_LIB="/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a"
+CLIBS=$(GCC_LIB)
+
+SRCS = is.c 
+OBJS = is.o
+
+DISTFILES = Imakefile $(SRCS) is.state is_cmds.h is_vars.h
+
+NormalProgramTarget(is,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UILoadFileTarget(is.lf,is.state)
+
+code_src:
+        #setopt ansi
+        #load $(CFLAGS) $(SOURCES) $(LIBS) $(GCC_LIB)
+
+LintTarget()
+
+DependTarget()
+
+DistfilesTarget($(DISTFILES))
+

@@ -1,0 +1,54 @@
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:29:05 granger Exp $"
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
+SRCS =  radar_ingest.c mtape.c Input.c Rasterize.c StatusWidget.c \
+	RadarStatus.c XDisplay.c ds_consumer.c
+
+OBJS = radar_ingest.o mtape.o Input.o Rasterize.o StatusWidget.o
+
+HDRS = Ethernet.h HouseKeeping.h RadarInfo.h Types.h display.h radar_ingest.h
+
+APPDEFAULTS = radar_ingest.ad RadarStatus.ad
+
+DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) \
+	    radar_ingest.state cp4.lr.params cp4.params \
+	    cp4disk.p mhr.params mhrdisk.p
+
+
+NormalProgramTargetNoInstall(radar_ingest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
+
+InstallProgramSetUID(radar_ingest,$(BINDIR))
+
+InstallAppDefaults(radar_ingest)
+InstallAppDefaults(RadarStatus)
+
+TestProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+NormalProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+LintTarget()
+
+DependTarget()
+
+DistfilesTarget($(DISTFILES))
+
