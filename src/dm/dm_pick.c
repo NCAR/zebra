@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.3 1991-12-07 18:01:49 kris Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.4 1993-02-18 22:18:27 burghart Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -86,7 +86,9 @@ char *winname;
 		 * On a button press, we've selected a window.
 		 */
 		    case ButtonPress:
-		    	win = event.xbutton.subwindow;
+			win = (event.xbutton.subwindow == None) ? root :
+				event.xbutton.subwindow;
+
 			break;
 		/*
 		 * On a button release, we're done.
