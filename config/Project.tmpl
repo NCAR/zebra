@@ -1,6 +1,7 @@
+/* -*- C -*- */
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.12 1995-02-23 16:54:09 case Exp $
+/**/# $Id: Project.tmpl,v 1.13 1995-05-24 22:59:10 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -341,6 +342,20 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define MathLibrary LoaderLibPrefix -lm
 #endif
 
+#ifdef HPArchitecture
+# ifndef RegexpLibrary
+#  define RegexpLibrary /* HP defines SystemV but has no -lgen library */
+# endif
+#endif
+
+#ifndef RegexpLibrary
+#  if SystemV || SystemV4
+#     define RegexpLibrary LoaderLibPrefix -lgen
+#  else
+#     define RegexpLibrary /**/
+#  endif
+#endif
+
 #ifndef SystemLibraries
 #define SystemLibraries $(MATHLIB) $(TERMCAPLIB)
 #endif
@@ -631,8 +646,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
       FORTRUNPATH = FortranRunPath
             XLIBS = XLibraries
              XLIB = XLib
-          MATHLIB = MathLibrary
-       TERMCAPLIB = TermcapLibrary
+          LIBMATH = MathLibrary
+       LIBTERMCAP = TermcapLibrary
+        LIBREGEXP = RegexpLibrary
+          MATHLIB = $(LIBMATH)
+       TERMCAPLIB = $(LIBTERMCAP)
     SYS_LIBRARIES = SystemLibraries
 
           DEPLIBS = 
