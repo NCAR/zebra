@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.12 1993-10-20 22:16:47 corbet Exp $
+/**/# $Id: Project.tmpl,v 1.13 1993-10-21 18:55:02 corbet Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -553,6 +553,16 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
 .cc.o:
 	$(C++) $(C++FLAGS) -c $<
+
+/*
+ * HP's f77 groks .F files, but somebody forgot to tell their make about it.
+ */
+#ifdef HPArchitecture
+.SUFFIXES:	.F
+
+.F.o:
+	$(FC) $(FFLAGS) -c $<
+# endif
 
 /*
  * Rules specific to the Zeb project.  Some of these override rules
