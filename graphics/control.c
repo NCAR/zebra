@@ -12,7 +12,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.11 1990-03-29 15:44:31 corbet Exp $";
+static char *rcsid = "$Id: control.c,v 1.12 1990-03-30 13:23:29 corbet Exp $";
 static int Trace = 0;
 
 /*
@@ -1378,6 +1378,11 @@ float *x0, *y0, *x1, *y1;
 		(dev->gd_flags & GDF_PIXEL) == 0)
 		return (GE_DEVICE_UNABLE);
 /*
+ * Come up with the scale factor to be applied to the font.
+ */
+ 	pixheight = W_TO_DC (height, 0.0, ov->ov_y1 - ov->ov_y0, dev->gd_yres);
+	scale = ((float) pixheight) / ((float) gt_f_height (font));
+/*
  * If they want device text, and we can't do it for whatever reason, switch
  * them to stroke.
  */
@@ -1389,11 +1394,6 @@ float *x0, *y0, *x1, *y1;
 		ftype = GFT_STROKE;
 		scale = ((float) pixheight) / ((float) gt_f_height (font));
 	}
-/*
- * Come up with the scale factor to be applied to the font.
- */
- 	pixheight = W_TO_DC (height, 0.0, ov->ov_y1 - ov->ov_y0, dev->gd_yres);
-	scale = ((float) pixheight) / ((float) gt_f_height (font));
 /*
  * Figure out the start position.
  */
