@@ -11,6 +11,7 @@
 # endif
 
 # include <setjmp.h>
+# include <string.h>
 # include "ui_symbol.h"
 
 # ifdef UNIX
@@ -21,14 +22,14 @@
 
 
 static char *rcsid =
-   "$Id: ui_error.c,v 1.14 1998-02-26 21:18:29 burghart Exp $";
+   "$Id: ui_error.c,v 1.15 1998-02-26 21:50:14 burghart Exp $";
 /*
  * Stack stuff.
  */
 static struct jstack
 {
 	struct jstack *js_next;	/* Next entry in the stack	*/
-	jmp_buf *js_value;
+	jmp_buf js_value;
 } *Stack = 0;
 
 /*
@@ -113,7 +114,7 @@ va_dcl
  *			jump to that instead.
  */
 	if (Stack)
-		longjmp (*Stack->js_value, TRUE);
+		longjmp (Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 
@@ -231,7 +232,7 @@ va_dcl
  	if (jump)
 	{
 		if (Stack)
-			longjmp (*Stack->js_value, TRUE);
+			longjmp (Stack->js_value, TRUE);
 		else
 			c_panic ("No error handler specified");
 	}
@@ -324,7 +325,7 @@ va_dcl
  * Jump through the error stack.
  */
 	if (Stack)
-		longjmp (*Stack->js_value, TRUE);
+		longjmp (Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 }
@@ -369,7 +370,7 @@ va_dcl
 
 
 void
-ui_epush (jmp_buf *label)
+ui_epush (jmp_buf label)
 /*
  * Push an error catch onto the stack.
  */
@@ -380,7 +381,8 @@ ui_epush (jmp_buf *label)
 		Js_lal = Js_lal->js_next;
 	else
 		jp = (struct jstack *) getvm (sizeof (struct jstack));
-	jp->js_value = label;
+
+	memmove (jp->js_value, label, sizeof (jmp_buf));
 	jp->js_next = Stack;
 	Stack = jp;
 }
@@ -458,7 +460,7 @@ va_dcl
  *			somebody will have put something on the stack.
  */
 	if (Stack)
-		longjmp (*Stack->js_value, TRUE);
+		longjmp (Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 }
@@ -572,7 +574,7 @@ ui_eresignal ()
 {
 	ui_epop ();
 	if (Stack)
-		longjmp (*Stack->js_value, TRUE);
+		longjmp (Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 }
