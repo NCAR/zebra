@@ -74,6 +74,7 @@ endprocedure
 ! Apply all the junk they just put in.
 !
 procedure ctr-step-apply
+	parameter global 'plot-hold' 'true'
 	local f ui$form
 	local comp getftext(f, 'comp')
 	local mode getftext(f, 'mode')
@@ -85,6 +86,7 @@ procedure ctr-step-apply
 	local step getftext(f, 'step')
 	local param concat(field, '-step')
 	parameter #comp #param #step
+	parameter global 'plot-hold' 'false'
 endprocedure
 
 
