@@ -145,7 +145,10 @@
 #endif
 #ifdef SOLX86
 #define DEFAULT_CPP "/usr/ccs/lib/cpp"
-#endif 
+#endif
+#ifdef solaris
+#define DEFAULT_CPP "/usr/ccs/lib/cpp"
+#endif
 
 /*
  * Step 5:  cpp_argv
@@ -289,6 +292,17 @@ char *cpp_argv[ARGUMENTS] = {
 # ifdef ATT
 	"-DATT",
 # endif
+# ifdef DELL
+        "-DDELL",
+# endif
+#endif
+#ifdef solaris
+        "-Dsolaris",
+#endif
+#ifdef sgi
+#ifdef IRIX5
+        "-DIRIX5",
+#endif
 #endif
 #ifdef __386BSD__
 # ifdef __FreeBSD__
