@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.30 1995-05-11 15:44:16 granger Exp $
+ * $Id: DataStore.h,v 3.31 1995-06-08 21:26:52 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -412,6 +412,7 @@ DataPtr		dc_AddAlignedSample FP((DataChunk *dc, ZebTime *, DataPtr data,
 int		dc_ReserveStaticSpace FP((DataChunk *dc, int len));
 void		dc_SetPlat FP((DataChunk *, int, PlatformId));
 PlatformId	dc_GetPlat FP((DataChunk *, int));
+bool		dc_SetTime FP((DataChunk *, int, ZebTime *));
 bool		dc_GetTime FP((DataChunk *, int, ZebTime *));
 void		dc_SortSamples FP((DataChunk *dc));
 void		dc_AdjustSample FP((DataChunk *, int, int));

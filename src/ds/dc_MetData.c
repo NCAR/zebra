@@ -31,7 +31,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.12 1995-02-10 01:16:59 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.13 1995-06-08 21:26:57 burghart Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -1514,10 +1514,9 @@ DataPtr data;
 	for (samp = start; samp < start + nsamp; ++samp)
 	{
 	/*
-	 * If the sample already exists, then we need not do anything.
-	 * Though, to be proper, we should probably check the times.
-	 * Otherwise, we set away some space for the sample, and use the
-	 * returned address to store the data.
+	 * If this is a new sample, add space for it.  Otherwise, overwrite
+	 * the time in the existing sample.  Either way, "dest" ends up as
+	 * the location for writing our data.
 	 */
 		if (samp >= finfo->fi_NSample)
 		{
@@ -1526,7 +1525,10 @@ DataPtr data;
 			++finfo->fi_NSample;
 		}
 		else
+		{
+			dc_SetTime (dc, samp, t + samp - start);
 			dest = dc_GetSample (dc, samp, NULL);
+		}
 	/*
 	 * This absolutely, undubitably, definately, certainly, without
 	 * fail should never, ever happen, not even in a million years.

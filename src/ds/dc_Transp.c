@@ -27,7 +27,7 @@
 # include "DataChunk.h"
 # include "DataChunkP.h"
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.17 1995-02-10 01:17:03 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.18 1995-06-08 21:27:03 burghart Exp $")
 
 /*
  * TODO:
@@ -1267,6 +1267,39 @@ int len;
 
 
 
+bool
+dc_SetTime (dc, sample, t)
+DataChunk *dc;
+int sample;
+ZebTime *t;
+/*
+ * Set the time of the given sample.
+ */
+{
+	AuxTrans *tp;
+/*
+ * The obligatory class check.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Set time"))
+		return (FALSE);
+/*
+ * Find our data.
+ */
+	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
+				(int *) 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
+		return (FALSE);
+	}
+/*
+ * Make sure the sample exists.  If so, return the info.
+ */
+	if (sample < 0 || sample >= tp->at_NSample)
+		return (FALSE);
+	tp->at_Samples[sample].ats_Time = *t;
+	return (TRUE);
+}
+
 
 
 bool
@@ -1282,7 +1315,7 @@ ZebTime *t;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get sample"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get time"))
 		return (FALSE);
 /*
  * Find our data.
