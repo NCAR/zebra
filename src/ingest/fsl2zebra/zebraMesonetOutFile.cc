@@ -101,14 +101,21 @@ zebraMesonetOutFile::createFile(StationMap& needStations,
     NcVar* latvar = ncfile->add_var("latitude", ncFloat, stationDim);
     if (! latvar->is_valid())
 	throw FileError("creating 'latitude' var");
+    if (! latvar->add_att("units", "degrees_N"))
+	throw FileError("adding 'units' attribute to latvar");
 
     NcVar* lonvar = ncfile->add_var("longitude", ncFloat, stationDim);
     if (! lonvar->is_valid())
 	throw FileError("creating 'longitude' var");
+    if (! lonvar->add_att("units", "degrees_E"))
+	throw FileError("adding 'units' attribute to lonvar");
 
     NcVar* altvar = ncfile->add_var("altitude", ncFloat, stationDim);
     if (! altvar->is_valid())
 	throw FileError("creating 'altitude' var");
+    if (! altvar->add_att("units", "m") ||
+	! altvar->add_att("long_name", "station altitude (MSL)"))
+	throw FileError("adding attributes to altvar");
 
     //
     // data vars
