@@ -20,10 +20,16 @@
  * maintenance or updates for its software.
  */
 
+/*
+ * Get atof and strtod protos from floatingpoint.h first instead of 
+ * parameter-less protos in ANSI location stdlib.h
+ */
+# include <math.h>
+
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.1 1995-08-03 21:00:15 corbet Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.2 1995-08-28 21:40:54 granger Exp $")
 
 /*
  * This whole mess can be configured out.
