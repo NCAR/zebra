@@ -27,7 +27,28 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.31 1993-04-29 18:57:47 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.32 1995-05-20 06:48:02 granger Exp $";
+
+/*
+ * Public variables, declared in ui_window.h
+ */
+Widget Top;		/* Our (unrealized) top widget		*/
+XtAppContext Appc;	/* The application context		*/
+XFontStruct *Labelfont;	/* The font for labels.			*/
+Cursor Zapcursor;	/* The cursor for zap buttons		*/
+
+/*
+ * This pixmap holds the little mark used in pulldown menus.
+ */
+Pixmap Mb_mark;
+char Mb_mark_file[200];
+
+/*
+ * We have two symbol tables.
+ */
+stbl Widget_table;	/* Where the actual widgets live	*/
+stbl Widget_vars;	/* Variables used by commands and such  */
+
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/

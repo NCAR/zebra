@@ -1,4 +1,4 @@
-/* $Id: ui_window.h,v 1.9 1993-04-12 17:31:51 burghart Exp $ */
+/* $Id: ui_window.h,v 1.10 1995-05-20 06:48:03 granger Exp $ */
 /*
  * Definitions for windowing code.
  */
@@ -41,22 +41,22 @@ struct mtemp
 /*
  * Window-system related stuff.
  */
-Widget Top;		/* Our (unrealized) top widget		*/
-XtAppContext Appc;	/* The application context		*/
-XFontStruct *Labelfont;	/* The font for labels.			*/
-Cursor Zapcursor;	/* The cursor for zap buttons		*/
+extern Widget Top;		/* Our (unrealized) top widget		*/
+extern XtAppContext Appc;	/* The application context		*/
+extern XFontStruct *Labelfont;	/* The font for labels.			*/
+extern Cursor Zapcursor;	/* The cursor for zap buttons		*/
 
 /*
  * This pixmap holds the little mark used in pulldown menus.
  */
-Pixmap Mb_mark;
-char Mb_mark_file[200];
+extern Pixmap Mb_mark;
+extern char Mb_mark_file[200];
 
 /*
  * We have two symbol tables.
  */
-stbl Widget_table;	/* Where the actual widgets live	*/
-stbl Widget_vars;	/* Variables used by commands and such  */
+extern stbl Widget_table;	/* Where the actual widgets live	*/
+extern stbl Widget_vars;	/* Variables used by commands and such  */
 
 
 
