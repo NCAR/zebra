@@ -48,7 +48,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.18 1992-10-13 04:39:47 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.19 1992-12-03 04:31:07 granger Exp $")
 
 /*
  * Issues:
@@ -108,8 +108,8 @@ MAKE_RCSID ("$Id: Archiver.cc,v 1.18 1992-10-13 04:39:47 granger Exp $")
 # define DEF_DEVICEFILE "/dev/nrst8"
 # define DEF_MOUNTNAME "eod0"
 # define DEF_OUTPUTDIR "/eod0"
-# define DEF_TAPELIMIT 3500000000
-# define DEF_MINDISK 10000
+# define DEF_TAPELIMIT (3500000000ul)
+# define DEF_MINDISK (10000ul)
 
 # define AR_TAPE 1
 # define AR_EOD 2
