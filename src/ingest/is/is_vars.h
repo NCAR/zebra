@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.2 1991-10-11 15:41:46 martin Exp $
+ * $Id: is_vars.h,v 1.3 1991-10-30 19:01:50 martin Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -30,7 +30,7 @@
 #define MAX_FILE_NAME 256
 #define MAX_RESTARTS  5
 enum CONFIG_TYPE {
-	IS_FTYPE, IS_STYPE
+	IS_FTYPE, IS_CTYPE, IS_PTYPE
 };
 
 /*
@@ -65,10 +65,6 @@ struct is_config {
 	char            timer;	/* true if timer is running (means that file
 				 * type is active) */
 	int             timer_slot;	/* timer slot */
-	char           *device;	/* serial type device */
-	int             n_stty_args;	/* number of device parameters */
-	char           *stty_args[MAX_STTY_ARGS];	/* serial device
-							 * parameters */
 	int             active;	/* number of active processes associated with
 				 * this configuration */
 	char            ingest_file[MAX_FILE_NAME];	/* complet path name of

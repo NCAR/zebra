@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.3 1991-10-11 21:37:53 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.4 1991-10-30 19:02:53 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -282,8 +282,8 @@ start_cfg(name, type, v, all)
 	/*
 	 * merely start the timer so that this cfg will run in a tick. File
 	 * type configurations will have a non-zero interval, and so will
-	 * repeat. Serial types will have a zero interval, and so will not be
-	 * repeated.
+	 * repeat. Continuous types will have a zero interval, and so will
+	 * not be repeated.
 	 */
 
 	int             i;
@@ -299,7 +299,8 @@ start_cfg(name, type, v, all)
 	 * make sure that configuration is not already running
 	 */
 
-	if (cfg->timer || (cfg->type == IS_STYPE && cfg->active)) {
+	if (cfg->timer || (((cfg->type == IS_CTYPE)
+			    || (cfg->type == IS_PTYPE)) && cfg->active)) {
 		ui_printf
 			("%s is already in operation; must stop it first\n", cfg->name);
 		return;
@@ -390,6 +391,9 @@ stop(name, type, v, all)
 
 is_config(cmds)
 	struct ui_command *cmds;
+/*
+ * parse out the configuration specifications
+ */
 {
 	/*
 	 * parse the config command only
@@ -425,8 +429,7 @@ is_config(cmds)
 		 * file type ingestor
 		 */
 		if
-			(cfg->platform &&
-			 cfg->directory &&
+			(cfg->directory &&
 			 cfg->filename &&
 			 cfg->process &&
 			 cfg->interval)
@@ -440,13 +443,11 @@ is_config(cmds)
 				 "Configuration %s is incomplete and will be ignored\n",
 				 UPTR(cmds[0]));
 		break;
-	case IS_STYPE:
+	case IS_CTYPE:
 		/*
-		 * serial type ingestor
+		 * continuous type ingestor
 		 */
-		if (cfg->platform &&
-		    cfg->process &&
-		    cfg->device)
+		if (cfg->process)
 			/*
 			 * Enter configuration in symbol table, using name as
 			 * symbol
@@ -457,6 +458,23 @@ is_config(cmds)
 				 "Configuration %s is incomplete and will be ignored\n",
 				 UPTR(cmds[0]));
 
+		break;
+	case IS_PTYPE:
+		/*
+		 * periodic type ingestor
+		 */
+		if (cfg->process && cfg->interval)
+			/*
+			 * Enter configuration in symbol table, using name as
+			 * symbol
+			 */
+			usy_s_symbol(Configs, UPTR(*cmds), SYMT_POINTER, &v);
+		else
+			ui_error(
+				 "Configuration %s is incomplete and will be ignored\n",
+				 UPTR(cmds[0]));
+
+		break;
 	}
 
 }
@@ -515,24 +533,6 @@ do_config(cfg, cmds)
 
 	case ISC_INTERVAL:
 		cfg->interval = UINT(cmds[1]);
-		break;
-
-	case ISC_DEVICE:
-		cfg->device = usy_string(UPTR(cmds[1]));
-		break;
-
-	case ISC_STTY:
-		cmds += 1;
-		for (i = 0; cmds[i].uc_ctype != UTT_END; i++)
-			if (i < MAX_STTY_ARGS) {
-				cfg->n_stty_args++;
-				cfg->stty_args[i] = usy_string(UPTR(cmds[i]));
-			} else {
-				ui_error(
-					 "Max %d stty args allowed, rest are ignored\n",
-					 MAX_STTY_ARGS);
-				break;
-			}
 		break;
 
 	case ISC_ENDCON:
@@ -604,7 +604,17 @@ list_cfg(name, type, v, junk)
 	ui_nf_printf("\ttimer:\t\t%c\n", cfg->timer ? 'T' : 'F');
 	ui_nf_printf("\tactive:\t\t%d\n", cfg->active);
 	ui_nf_printf("\trestart:\t%c\n", cfg->restart ? 'T' : 'F');
-	ui_nf_printf("\ttype:\t\t%s\n", cfg->type == IS_FTYPE ? "file" : "serial");
+	switch (cfg->type) {
+	case IS_FTYPE:
+		ui_nf_printf("\ttype:\t\t%s\n", "file");
+		break;
+	case IS_CTYPE:
+		ui_nf_printf("\ttype:\t\t%s\n", "continuous");
+		break;
+	case IS_PTYPE:
+		ui_nf_printf("\ttype:\t\t%s\n", "continuous");
+		break;
+	}
 	ui_nf_printf("\tplatform:\t%s\n", cfg->platform);
 	ui_nf_printf("\tdirectory:\t%s\n", cfg->directory);
 	ui_nf_printf("\tmovedir:\t%s\n", cfg->movedir);
@@ -617,10 +627,6 @@ list_cfg(name, type, v, junk)
 	ui_nf_printf("\tinterval:\t%d\n", cfg->interval);
 	ui_nf_printf("\trollover:\t%c\n", cfg->rollover ? 'T' : 'F');
 	ui_nf_printf("\ttimer slot:\t%d\n", cfg->timer_slot);
-	ui_nf_printf("\tdevice:\t\t%s\n", cfg->device);
-	ui_nf_printf("\tstty args(%d):\n", cfg->n_stty_args);
-	for (i = 0; i < cfg->n_stty_args; i++)
-		ui_nf_printf("\t\t\t%s\n", cfg->stty_args[i]);
 	ui_nf_printf("\tingest file:\t%s\n", cfg->ingest_file);
 	ui_nf_printf("\tn_restarts:\t%d\n", cfg->n_restarts);
 
@@ -684,7 +690,7 @@ cfg_go(cfg)
 		this_proc->next = cfg->proc;
 		cfg->proc = this_proc;
 		cfg->active++;
-		if (cfg->type == IS_FTYPE)
+		if (cfg->type == IS_FTYPE || cfg->type == IS_PTYPE)
 			cfg->timer = TRUE;
 		else
 			cfg->timer = FALSE;
@@ -773,7 +779,11 @@ for IS_FTYPE only:
 4. if another file is available for ingest, restart the cfg,
    and set the rollover flag to indicate this type processing
 
-for IS_STYPE only:
+for IS_PTYPE only:
+
+2. Do nothing. The job will be resheduled by the timer.
+
+for IS_CTYPE only:
 
 2. if restart is specified, and is < MAX_RESTARTS, restart it.
 
@@ -855,10 +865,13 @@ for IS_STYPE only:
 					cfg->rollover = FALSE;
 				break;
 
-			case IS_STYPE:
+			case IS_PTYPE:
+				break;
+
+			case IS_CTYPE:
 				/*
-				 * for serial type ingestors, reshedule them
-				 * under certain conditions
+				 * for continuous type ingestors, reshedule
+				 * them under certain conditions
 				 */
 				if (cfg->restart)
 					if (cfg->n_restarts++ < MAX_RESTARTS)
@@ -905,16 +918,23 @@ timed_check(t, cfg)
 	 * conditions. We only want to have one ingestor running at a time
 	 * for a configuration.
 	 * 
-	 * remember that the timer is used to run serial type ingestors just
+	 * remember that the timer is used to run continuous type ingestors just
 	 * once. They are not scheduled periodically
 	 */
-	if (!cfg->rollover)
-		if (cfg->type == IS_STYPE) {
-			cfg_go(cfg);
-		} else if (find_file(cfg)) {
-			cfg_go(cfg);
+	switch (cfg->type) {
+	case IS_CTYPE:
+	case IS_PTYPE:
+		cfg_go(cfg);
+		break;
 
-		}
+	case IS_FTYPE:
+		if (!cfg->rollover)
+			if (find_file(cfg)) {
+				cfg_go(cfg);
+
+			}
+		break;
+	}
 }
 
 
@@ -1011,27 +1031,29 @@ init_cfg(cmds, cfg, name)
 	int             i;
 
 	cfg->name = usy_string(name);
-	cfg->type = (UKEY(cmds[1]) == ISC_FTYPE) ? IS_FTYPE :
-		IS_STYPE;
+	switch (UKEY(cmds[1])) {
+	case ISC_FTYPE:
+		cfg->type = IS_FTYPE;
+		break;
+	case ISC_CTYPE:
+		cfg->type = IS_CTYPE;
+		break;
+	case ISC_PTYPE:
+		cfg->type = IS_PTYPE;
+		break;
+	}
 	cfg->directory = NULL;
+	cfg->platform = NULL;
 	cfg->movedir = NULL;
 	cfg->filename = NULL;
 	cfg->process = NULL;
 	cfg->interval = 0;
-	cfg->device =
-		NULL;
 	cfg->n_proc_args = 0;
 	for (i = 0; i < MAX_PROC_ARGS;
 	     i++)
 		cfg->proc_args[i] = NULL;
-	cfg->n_stty_args = 0;
-	for
-		(i = 0; i < MAX_STTY_ARGS; i++)
-		cfg->stty_args[i] = NULL;
 	cfg->active = FALSE;
 	cfg->proc = NULL;
-	cfg->type =
-		(UKEY(cmds[1]) == ISC_FTYPE) ? IS_FTYPE : IS_STYPE;
 	cfg->active = FALSE;
 	cfg->proc = NULL;
 	cfg->ingest_file[0] = 0;
