@@ -1,13 +1,23 @@
 %{
-#include "FldDerivation.h"
-#include "DerivNode.h"
 
-int yylex(void);
+# include "DerivTable.h"
+# include "DerivNode.h"
+# include "Field.h"
+
+/*
+ * Pointer to the derivation list we're modifying.  This must be set by 
+ * somebody before yyparse() is called!
+ */
+DerivTable	*FDDerivList = 0;
+
+extern "C" char *gettxt( const char*, const char * );
+
+int yylex( void );
 
 void
 yyerror(const char* errmsg)
 {
-	cout << errmsg << endl;
+	printf( "%s\n", errmsg );
 }
 %}
 
@@ -39,7 +49,7 @@ list:	/* empty */
 	;
 
 derivation:	
-	field '=' expr ';'	{ DerivList.AddDerivation(*($1), $3); }
+	field '=' expr ';'	{ FDDerivList->AddDerivation(*($1), $3); }
 	| error ';'
 	;
 
@@ -52,30 +62,30 @@ field:	NAME			{ $$ = new Field($1); }
 	| BSTRING BSTRING BSTRING	{ $$ = new Field(0, $1, $2, $3); }
 	;
 
-expr:	field			{ $$ = new RawFldNode($1); }
-	| DOUBLE		{ $$ = new ConstNode($1); }
+expr:	field			{ $$ = new RawFldDNode($1); }
+	| DOUBLE		{ $$ = new ConstDNode($1); }
 	| '(' expr ')'		{ $$ = $2; }
 	| '(' error ')'		{ $$ = 0; }
-	| NAME '(' expr ')'	{ $$ = new FuncNode($1, $3); }
+	| NAME '(' expr ')'	{ $$ = new FuncDNode($1, $3); }
 	| NAME '(' expr ',' expr ')'	
-				{ $$ = new FuncNode($1, $3, $5); }
+				{ $$ = new FuncDNode($1, $3, $5); }
 	| NAME '(' expr ',' expr ',' expr ')'	
-				{ $$ = new FuncNode($1, $3, $5, $7); }
+				{ $$ = new FuncDNode($1, $3, $5, $7); }
 	| NAME '(' expr ',' expr ',' expr ',' expr ')'	
-				{ $$ = new FuncNode($1, $3, $5, $7, $9); }
+				{ $$ = new FuncDNode($1, $3, $5, $7, $9); }
 	| NAME '(' error ')'	{ $$ = 0; }
-	| expr '+' expr		{ $$ = new OpNode("+", $1, $3); }
-	| expr '-' expr		{ $$ = new OpNode("-", $1, $3); }
+	| expr '+' expr		{ $$ = new OpDNode("+", $1, $3); }
+	| expr '-' expr		{ $$ = new OpDNode("-", $1, $3); }
 	| '+' expr		{ $$ = $2; }
-	| '-' expr	{ $$ = new OpNode("*", new ConstNode(-1), $2); }
-	| expr '*' expr		{ $$ = new OpNode("*", $1, $3); }
-	| expr '/' expr		{ $$ = new OpNode("/", $1, $3); }
-	| expr '<' expr		{ $$ = new OpNode("<", $1, $3); }
-	| expr '>' expr		{ $$ = new OpNode(">", $1, $3); }
-	| expr EQ expr		{ $$ = new OpNode("==", $1, $3); }
-	| expr NE expr		{ $$ = new OpNode("!=", $1, $3); }
-	| expr GE expr		{ $$ = new OpNode(">=", $1, $3); }
-	| expr LE expr		{ $$ = new OpNode("<=", $1, $3); }
+	| '-' expr	{ $$ = new OpDNode("*", new ConstDNode(-1), $2); }
+	| expr '*' expr		{ $$ = new OpDNode("*", $1, $3); }
+	| expr '/' expr		{ $$ = new OpDNode("/", $1, $3); }
+	| expr '<' expr		{ $$ = new OpDNode("<", $1, $3); }
+	| expr '>' expr		{ $$ = new OpDNode(">", $1, $3); }
+	| expr EQ expr		{ $$ = new OpDNode("==", $1, $3); }
+	| expr NE expr		{ $$ = new OpDNode("!=", $1, $3); }
+	| expr GE expr		{ $$ = new OpDNode(">=", $1, $3); }
+	| expr LE expr		{ $$ = new OpDNode("<=", $1, $3); }
 	;
 
 %%

@@ -23,12 +23,14 @@ _epsilon_[][ ] = 0.622;		/* Ratio of molecular weight of water to
 
 _R_d_[][J/(kg K)] = 287;	/* Gas constant for dry air */
 
+_pi_[][] = 3.14159265358979323846;	/* Pi */
+
 
 /*
  * Latent heat of condensation (J/kg) from temperature (K)
  * Ref: Note 1 of FOPPCD
  */
-[L_c][J/kg] = 2.500e6 - 2369 * ([T] - 273);
+[L_c][J/kg] = 2.500e6 - 2369 * ([T][K] - 273);
 
 /*
  * Mixing ratio (g/kg) from vapor pressure (mb) and pressure (mb)
@@ -37,23 +39,27 @@ _R_d_[][J/(kg K)] = 287;	/* Gas constant for dry air */
 [w][g/kg] = 1000 * _epsilon_ * ([e][mb] / ([P][mb] - [e][mb]));
 
 /*
- * Vapor pressure (mb) from saturation vapor pressure (mb), pressure (mb),
- * temperature (K), and wet bulb temperature (twet)
+ * Vapor pressure (mb) from relative humidity (%) and saturation vapor 
+ * pressure (mb)
+ * Ref: definition of relative humidity
+ */
+[e][mb] = 0.01 * [rh][%] * [e_sw][mb];
+
+/*
+ * Vapor pressure (mb) from pressure (mb), temperature (K), and wet bulb 
+ * temperature (K)
  * Ref: Note 3 of FOPPCD
  *
- * For this we need saturation vapor pressure (mb) at T = T_wet
+ * For this we calculate saturation vapor pressure (mb) at T = T_wet
  * Ref: Note 6 of FOPPCD
  */
-[e][mb] = [e_w][mb] - [P][mb] * ([T][K] - [T_wet][K]) * 
+[e][mb] = e_sw ([T_wet][K]) - [P][mb] * ([T][K] - [T_wet][K]) * 
 	(0.00066 * (0.6859 + 0.00115 * [T_wet][K]));
-
-[e_w][mb] = _E_3_ * exp (5.0065 * ln (_T_3_ / [T_wet][K])) * 
-	exp ((5.0065 + 19.83923) * (1 - _T_3_ / [T_wet][K]));
 
 /*
  * Relative humidity
  */
-[rh][%] = 100.0 * [e][mb] / [e_w][mb];
+[rh][%] = 100.0 * [e][mb] / [e_sw][mb];
 
 /*
  * Virtual temperature, from temperature (K), vapor pressure (mb), and 
@@ -71,11 +77,10 @@ _R_d_[][J/(kg K)] = 287;	/* Gas constant for dry air */
 
 /*
  * Saturation vapor pressure over a plane surface of water (mb), from 
- * temperature (K)
+ * temperature (K).  We use our convenient (and fast) built-in for this.
  * Ref: Note 6 of FOPPCD
  */
-[e_sw][mb] = _E_3_ * exp (5.0065 * ln (_T_3_ / [T][K])) * 
-	exp ((5.0065 + 19.83923) * (1 - _T_3_ / [T][K]));
+[e_sw][mb] = e_sw ([T][K]);
 
 /*
  * Temperature of the lifting condensation level (K), from temperature (K),

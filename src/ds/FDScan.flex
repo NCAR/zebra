@@ -1,14 +1,30 @@
 /*
- * Token definitions for field derivations
+ * lex token definitions for field derivations
+ */
+
+/*
+ * Necessary header stuff
  */
 %{
-#include <math.h>	/* for strtod() used below */
-#include <string.h>	/* for strcpy() */
+# include <math.h>	/* for strtod() used below */
+# include <string.h>	/* for strcpy() */
 
-#include "DerivNode.h"
-#include "y.tab.h"
- 
-#define yywrap()	1	
+# include "DerivNode.h"
+# include "FDParse.tab.h"
+
+/*
+ * Redefine yylval to use the "FD" prefix, since "flex -P" neglects to redefine
+ * this important symbol for us.
+ */
+# ifndef yylval
+#	define yylval FDlval
+# endif
+
+# ifdef __cplusplus
+extern "C"
+# endif
+int yywrap( void ) { return 1; }
+
 %}
 
 /*

@@ -1,114 +1,351 @@
+# include <math.h>
+# include <stdio.h>
 # include "DerivNode.h"
+# include "DerivTable.h"
+
+extern "C"
+{
+# include <met_formulas.h>
+}
+
+//
+// ResultCache class to hold intermediate results while a DerivNode is being
+// evaluated.
+//
+class ResultCache
+{
+public:
+    ResultCache( void );
+    ~ResultCache( void );
+    void Add( const DerivNode& dnode, const double *data, const int ndata );
+    double *Find( const DerivNode& dnode, int *ndata = 0 );
+private:
+    int	maxcachelen;
+    int	cachelen;
+    DerivNode **nodes;
+    double **results;
+    int *lengths;
+};
+
+
 
 ostream& 
 operator <<( ostream& s, const DerivNode& dnode )
 {
-	return (dnode.PutTo(s));
+    return (dnode.PutTo(s));
 }
 
-//
-// ConstNode member functions
-//
-DerivNode*
-ConstNode::MetaEval( const Field *avail, int navail, const Field *cantuse, 
-		     int ncantuse ) const
+
+void
+DerivNode::Eval( const Field flds[], const int nflds, const int ndata, 
+		 const double* dataptrs[], double* out_data, 
+		 const double badval, ResultCache *rcache ) const
 {
-	return ( Copy() );
+//
+// Simple if we find a copy of ourselves in the result cache
+//
+    double *results;
+    if (rcache && (results = rcache->Find( *this )) != 0)
+    {
+	for (int i = 0; i < ndata; i++)
+	    out_data[i] = results[i];
+
+	return;
+    }
+//
+// If there is no result cache, create an empty one
+//
+    int own_rcache = (rcache == 0);
+
+    if (own_rcache)
+	rcache = new ResultCache;
+//
+// Perform the calculation
+//
+    Calculate( flds, nflds, ndata, dataptrs, out_data, badval, rcache );
+//
+// Add our results to the cache if it was given to us.  Delete the cache
+// if we created it ourselves.
+//
+    if (own_rcache)
+	delete rcache;
+    else
+	rcache->Add( *this, out_data, ndata );
+
+    return;
 }
 
 
 //
-// OpNode member functions
+// ConstDNode member functions
 //
-OpNode::OpNode( const char* op,  DerivNode* l, DerivNode* r ) 
-{
-	oper = new char[strlen( op ) + 1];
-	strcpy( oper, op );
-	left = l;
-	right = r;
-}
+const char *ConstDNode::clid = "ConstDNode";
 
-
-OpNode::OpNode( const OpNode& n )
-{
-	oper = new char[strlen( n.oper ) + 1];
-	strcpy( oper, n.oper );
-	left = n.left->Copy();
-	right = n.right->Copy();
-}
-
-
-OpNode::~OpNode( void ) 
-{ 
-	delete oper; 
-	delete left; 
-	delete right; 
-}
-	
 
 ostream& 
-OpNode::PutTo( ostream& s ) const 
+ConstDNode::PutTo( ostream& s ) const 
+{
+    return( s << val );
+}
+
+
+DerivNode*
+ConstDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
+		      const Field *cantuse, int ncantuse ) const
+{
+    return ( Copy() );
+}
+
+
+
+void
+ConstDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+		       const double* dataptrs[], double* out_data, 
+		       const double badval, ResultCache *rcache ) const
+{
+    for (int i = 0; i < ndata; i++)
+	out_data[i] = val;
+}
+
+
+
+int
+ConstDNode::operator ==( const DerivNode& d ) const
+{
+    if (ClassId() != d.ClassId())
+	return 0;
+
+    ConstDNode *cd = (ConstDNode*)&d;
+    return (val == cd->val); 
+}
+
+
+//
+// OpDNode member functions
+//
+const char *OpDNode::clid = "OpDNode";
+
+OpDNode::OpDNode( const char* op,  DerivNode* l, DerivNode* r ) 
+{
+    oper = new char[strlen( op ) + 1];
+    strcpy( oper, op );
+// we become the owner of l and r
+    left = l;
+    right = r;
+}
+
+
+OpDNode::OpDNode( const OpDNode& n )
+{
+    oper = new char[strlen( n.oper ) + 1];
+    strcpy( oper, n.oper );
+    left = n.left->Copy();
+    right = n.right->Copy();
+}
+
+
+OpDNode::~OpDNode( void ) 
 { 
-	return( s << "(" << *left << " " << oper << " " << *right << ")"); 
+    delete[] oper; 
+    delete left; 
+    delete right; 
 }
-
-
-DerivNode*
-OpNode::MetaEval( const Field *avail, int navail, const Field *cantuse, 
-		  int ncantuse ) const
-{
-	DerivNode	*l, *r;
-
-	if ((l = left->MetaEval( avail, navail, cantuse, ncantuse )) != 0 && 
-	    (r = right->MetaEval( avail, navail, cantuse, ncantuse )) != 0)
-		return( new OpNode( oper, l, r ) );
-	else
-		return( 0 );
 	
-		
-		
+
+ostream&
+OpDNode::PutTo( ostream& s ) const 
+{ 
+    return( s << "(" << *left << " " << oper << " " << *right << ")"); 
 }
 
-//
-// RawFldNode member functions
-//
-DerivNode*
-RawFldNode::MetaEval( const Field *avail, int navail, const Field *cantuse, 
-		      int ncantuse ) const
+
+Field*
+OpDNode::FieldList( int* nflds ) const
 {
-	DerivNode	*dtree = 0;
-	double	slope, intercept;
-	int	i;
+    int i, nleft, nright;
+//
+// Get the field lists from our right an left nodes
+//
+    Field* leftlist = left->FieldList( &nleft );
+    Field* rightlist = right->FieldList( &nright );
+//
+// Allocate retlist big enough to hold both the right and left lists, and
+// initialize it from the left list.
+//
+    Field *retlist = new Field[nleft + nright];
+    int retlistlen = 0;
+    for (i = 0; i < nleft; i++)
+	retlist[retlistlen++] = leftlist[i];
+//
+// Now merge in the right list, looking out for duplicate fields
+//
+    for (i = 0; i < nright; i++)
+    {
+	int	f;
+	
+	for (f = 0; f < retlistlen; f++)
+	    if (rightlist[i] == retlist[f])
+		break;
+
+	if (f == retlistlen)
+	    retlist[retlistlen++] = rightlist[i];
+    }
+
+    delete[] leftlist;
+    delete[] rightlist;
+
+    *nflds = retlistlen;
+    return retlist;
+}
+	
+
+DerivNode*
+OpDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
+		   const Field *cantuse, int ncantuse ) const
+{
+    DerivNode	*l = 0, *r = 0;
+
+    if ((l = left->MetaEval( dlist, avail, navail, cantuse, ncantuse )) != 0 &&
+	(r = right->MetaEval( dlist, avail, navail, cantuse, ncantuse )) != 0)
+	return( new OpDNode( oper, l, r ) );
+    else
+    {
+	delete l;
+	delete r;
+	return( 0 );
+    }
+}
+
+
+void
+OpDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+		    const double* dataptrs[], double* out_data, 
+		    const double badval, ResultCache *rcache ) const
+{
+    double* leftdp = new double[ndata];
+    double* rightdp = new double[ndata];
+//
+// First evaluate the left and right operands
+//
+    left->Eval( flds, nflds, ndata, dataptrs, leftdp, badval, rcache );
+    right->Eval( flds, nflds, ndata, dataptrs, rightdp, badval, rcache );
+//
+// Operate!
+//
+    for (int i = 0; i < ndata; i++)
+    {
+	double	lval = leftdp[i];
+	double	rval = rightdp[i];
+	
+	if (lval == badval || rval == badval)
+	    out_data[i] = badval;
+	else
+	{
+	    if (! strcmp (oper, "+"))
+		out_data[i] = lval + rval; 
+	    else if (! strcmp (oper, "-"))
+		out_data[i] = lval - rval;
+	    else if (! strcmp (oper, "*"))
+		out_data[i] = lval * rval;
+	    else if (! strcmp (oper, "/"))
+		out_data[i] = lval / rval;
+	    else if (! strcmp (oper, "%"))
+		out_data[i] = fmod( lval, rval );
+	    else
+	    {
+		fprintf( stderr, 
+			 "Unknown operator '%s' in OpDNode::Calculate()\n",
+			 oper );
+		out_data[i] = badval;
+	    }
+	}
+    }
+//
+// Delete the arrays from the evaluated left and right operands
+//
+    delete[] leftdp;
+    delete[] rightdp;
+}
+
+
+int
+OpDNode::operator ==( const DerivNode& d ) const
+{
+    if (ClassId() != d.ClassId())
+	return 0;
+
+    OpDNode *od = (OpDNode*)&d;
+
+    if (strcmp (oper, od->oper))
+	return 0;
+
+    return (*left == *(od->left) && *right == *(od->right));
+}
+
+
+
+//
+// RawFldDNode member functions
+//
+const char *RawFldDNode::clid = "RawFldDNode";
+
+
+ostream& 
+RawFldDNode::PutTo( ostream& s ) const 
+{ 
+    return( s << fld->Name() ); 
+}
+
+
+Field* 
+RawFldDNode::FieldList( int* nflds ) const
+{
+    *nflds = 1;
+// We have to use "new Field[]" to keep in line with the interface spec, which
+// says that the user will be able to use "delete[]" on what we return.
+    Field *flist = new Field[1];
+    flist[0] = *fld;
+    return flist;
+}
+
+
+DerivNode*
+RawFldDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
+		       const Field *cantuse, int ncantuse ) const
+{
+    DerivNode	*dtree = 0;
+    double	slope, intercept;
+    int	i;
 //
 // First look for this field among the available fields
 //
-	for (i = 0; i < navail; i++)
-	{
-		if (! avail[i].CanYield( *fld, &slope, &intercept ))
-			continue;
-	//
-	// Found it!
-	//
-		dtree = new RawFldNode( new Field( avail[i] ) );
-	//
-	// Put in the slope and intercept for units conversion (if any)
-	//	
-		if (dtree && slope != 1.0)
-			dtree = new FuncNode( "*", new ConstNode( slope ), 
-					      dtree );
+    for (i = 0; i < navail; i++)
+    {
+	if (! avail[i].CanYield( *fld, &slope, &intercept ))
+	    continue;
+    //
+    // Found it!
+    //
+	dtree = new RawFldDNode( avail[i] );
+    //
+    // Put in the slope and intercept for units conversion (if any)
+    //	
+	if (dtree && slope != 1.0)
+	    dtree = new OpDNode( "*", new ConstDNode( slope ), 
+				 dtree );
 
-		if (dtree && intercept != 0.0)
-			dtree = new FuncNode( "+", new ConstNode( intercept ), 
-					      dtree );
+	if (dtree && intercept != 0.0)
+	    dtree = new OpDNode( "+", new ConstDNode( intercept ), 
+				 dtree );
 
-		return( dtree );
-	}
+	return( dtree );
+    }
 //
 // If the wanted field is in the list of fields we can't use, return 0
 //
-	for (i = 0; i < ncantuse; i++)
-		if (cantuse[i].CanYield( *fld ))
-			return 0;
+    for (i = 0; i < ncantuse; i++)
+	if (cantuse[i].CanYield( *fld ))
+	    return 0;
 //
 // We didn't find it among the available fields, so see if we can derive it
 //
@@ -116,102 +353,636 @@ RawFldNode::MetaEval( const Field *avail, int navail, const Field *cantuse,
 // derive it, and we don't want some deeper recursion into MetaEval() to 
 // try also.
 //
-	Field	*newcantuse = new Field[ncantuse + 1];
-	if (ncantuse > 0)
-		memcpy( newcantuse, cantuse, ncantuse * sizeof( Field ) );
-	newcantuse[ncantuse] = *fld;
+    Field	*newcantuse = new Field[ncantuse + 1];
+
+    for (i = 0; i < ncantuse; i++)
+	newcantuse[i] = cantuse[i];
+
+    newcantuse[ncantuse] = *fld;
 //
 // Loop through the possible derivations
 //
-	for (i = 0; (dtree = DerivList.NthDerivation( fld, i )) != 0; i++)
-	{
-		if ((dtree = dtree->MetaEval( avail, navail, newcantuse, 
-					      ncantuse + 1 )) != 0)
-			break;
-	}
+    const DerivNode	*deriv;
 	
-	delete newcantuse;
-	return (dtree);
+    for (i = 0; (deriv = dlist->NthDerivation( *fld, i )) != 0; i++)
+    {
+	if ((dtree = deriv->MetaEval( dlist, avail, navail, newcantuse, 
+				      ncantuse + 1 )) != 0)
+	    break;
+    }
+
+    delete[] newcantuse;
+    return (dtree);
+}
+
+
+void
+RawFldDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+			const double* dataptrs[], double* out_data, 
+			const double badval, ResultCache *rcache ) const
+{
+//
+// If our field is in the list, just copy over the data
+//	
+    for (int f = 0; f < nflds; f++)
+    {
+	if (flds[f] != *fld)
+	    continue;
+	
+	memmove (out_data, dataptrs[f], ndata * sizeof (double));
+	return;
+    }
+//
+// Not there, so fill with badval
+//
+    for (int i = 0; i < ndata; i++)
+	out_data[i] = badval;
+}
+
+
+int
+RawFldDNode::operator ==( const DerivNode& d ) const
+{ 
+    if (ClassId() != d.ClassId())
+	return 0;
+    
+    RawFldDNode	*rd = (RawFldDNode*)&d;
+    return (*fld == *(rd->fld));
 }
 
 
 //
-// FuncNode member functions
+// FuncDNode stuff starts here...
 //
-FuncNode::FuncNode( const char* funcname, DerivNode* a0, DerivNode* a1, 
-		    DerivNode* a2, DerivNode* a3 )
+
+//
+// The predefined functions that can be used by FuncDNodes
+//
+static void FDN_BadFill( double *result, const double badval, 
+			 const int ndata );
+static void FDN_ln( double *result, const double badval, const int ndata,
+		    const double *operand );
+static void FDN_exp( double *result, const double badval, const int ndata,
+		     const double *operand );
+static void FDN_sqrt( double *result, const double badval, const int ndata, 
+		      const double *operand );
+static void FDN_sin( double *result, const double badval, const int ndata,
+		     const double *operand );
+static void FDN_cos( double *result, const double badval, const int ndata,
+		     const double *operand );
+static void FDN_atan2( double *result, const double badval, const int ndata,
+		       const double *y, const double *x );
+static void FDN_pow( double *result, const double badval, const int ndata,
+		     const double *mant, const double *exp );
+static void FDN_t_wet( double *result, const double badval, const int ndata,
+		       const double *t, const double *p, const double *rh );
+static void FDN_e_sw( double *result, const double badval, const int ndata,
+		      const double *t );
+
+//
+// Class-wide table of functions that can be used by FuncDNodes
+//
+
+struct FDNFuncInfo
 {
-	name = new char[strlen( funcname ) + 1];
-	strcpy( name, funcname );
-	arg[0] = a0;
-	arg[1] = a1;
-	arg[2] = a2;
-	arg[3] = a3;
+    char*	name;
+    int		nargs;
+    FDFunction	func;
+} *FDN_FTable = 0, FDN_BadFuncInfo = { "badfill", 0, (FDFunction)FDN_BadFill };
+
+int	FDN_TableLen = 0;
+int	FDN_MaxTableLen = 0;
+
+static void	FDN_InitFTable( void );
+
+
+//
+// FuncDNode member functions.  We become the owner of the DerivNodes passed
+// to us as args at instantiation.
+//
+const char *FuncDNode::clid = "FuncDNode";
+
+FuncDNode::FuncDNode( const char* funcname, DerivNode* a0, DerivNode* a1, 
+		      DerivNode* a2, DerivNode* a3 )
+{
+    int	f;
+//
+// Make sure the class-wide table of allowed functions has been built
+//
+    if (! FDN_FTable)
+	FDN_InitFTable ();
+//
+// Linear search to find the named function in our table
+//
+    for (f = 0; f < FDN_TableLen; f++)
+	if (! strcmp (funcname, FDN_FTable[f].name))
+	    break;
+//
+// Use the function info we found, or FDN_BadFuncInfo.
+//
+    if (f == FDN_TableLen)
+    {
+	fprintf( stderr, "FuncDNode::FuncDNode(): Unknown function '%s()'\n",
+		 funcname );
+	fprintf( stderr, 
+		 "A function returning badvalue will be used instead.\n" );
+
+	funcinfo = &FDN_BadFuncInfo;
+	return;
+    }
+
+    funcinfo = FDN_FTable + f;
+//
+// Verify the arg count
+//    
+    int	nargs = a3 ? 4 : a2 ? 3 : a1 ? 2 : a0 ? 1 : 0;
+    if (nargs != funcinfo->nargs)
+    {
+	fprintf( stderr, "FuncDNode::FuncDNode: %s takes %d args, not %d.\n",
+		 funcinfo->name, funcinfo->nargs, nargs );
+	fprintf( stderr, 
+		 "A function returning badvalue will be used instead.\n" );
+
+	funcinfo = &FDN_BadFuncInfo;
+    }
+//
+// Save the args we were given
+//    
+    arg[0] = a0;
+    arg[1] = a1;
+    arg[2] = a2;
+    arg[3] = a3;
 }
 
 
-FuncNode::FuncNode( const FuncNode& n ) 
+FuncDNode::FuncDNode( const FuncDNode& n ) 
 {
-	name = new char[strlen( n.name ) + 1];
-	strcpy( name, n.name );
-	for (int i = 0; i < 4; i++)
-		arg[i] = n.arg[i] ? n.arg[i]->Copy() : 0;
+    funcinfo = n.funcinfo;
+    for (int i = 0; i < FuncDNodeMaxArgs; i++)
+    {
+	if (n.arg[i])
+	    arg[i] = n.arg[i]->Copy();
+	else
+	    arg[i] = 0;
+    }
 };
 
 
-FuncNode::~FuncNode( void ) 
+FuncDNode::~FuncDNode( void ) 
 { 
-	delete name;
-	for (int i = 0; i < 4; i++)
-		delete arg[i];
+    for (int i = 0; i < funcinfo->nargs; i++)
+	if (arg[i])
+	    delete arg[i];
 };
 
 
 ostream&
-FuncNode::PutTo( ostream& s ) const 
+FuncDNode::PutTo( ostream& s ) const 
 {
-	s << name << "(" << *arg[0];
-	if (arg[1])
-		s << ", " << *arg[1];
-	if (arg[2])
-		s << ", " << *arg[2];
-	if (arg[3])
-		s << ", " << *arg[3];
+    s << funcinfo->name << "(";
+    for (int i = 0; i < funcinfo->nargs; i++)
+    {
+	if (i > 0)
+	    s << ", ";
+
+	s << *arg[i];
+    }
+
 	
-	s << ")";
+    s << ")";
 	
-	return( s ); 
+    return( s ); 
+}
+
+
+const char* 
+FuncDNode::FuncName( void ) const 
+{
+    return funcinfo->name;
+}
+
+
+Field* 
+FuncDNode::FieldList( int* nflds ) const
+{
+    int fcount[FuncDNodeMaxArgs], fcountsum, a;
+    Field*	flist[FuncDNodeMaxArgs];
+//
+// Get the field lists from our argument nodes
+//
+    fcountsum = 0;
+    
+    for (a = 0; a < funcinfo->nargs; a++)
+    {
+	flist[a] = arg[a]->FieldList( &fcount[a] );
+	fcountsum += fcount[a];
+    }
+//
+// Allocate retlist big enough to hold both the lists from all our arg nodes
+//
+    Field* retlist = new Field[fcountsum];
+    int retlistlen = 0;
+//
+// Now merge together the arg nodes' lists, looking out for duplicate fields
+//
+    for (a = 0; a < funcinfo->nargs; a++)
+    {
+	for (int i = 0; i < fcount[a]; i++)
+	{
+	    int f;
+
+	    for (f = 0; f < retlistlen; f++)
+		if (flist[a][i] == retlist[f])
+		    break;
+	    if (f == retlistlen)
+		retlist[retlistlen++] = flist[a][i];
+	}
+    }
+//
+// Delete the lists we got from our arg nodes
+//
+    for (a = 0; a < funcinfo->nargs; a++)
+	delete[] flist[a];
+
+    *nflds = retlistlen;
+    return retlist;
 }
 
 
 DerivNode*
-FuncNode::MetaEval( const Field *avail, int navail, const Field *cantuse, 
-		    int ncantuse ) const
+FuncDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
+		     const Field *cantuse, int ncantuse ) const
 {
-	DerivNode	*a[4];
+    DerivNode	*a[4];
 
-	a[0] = a[1] = a[2] = a[3] = 0;
+    a[0] = a[1] = a[2] = a[3] = 0;
 //
 // Loop through the non-NULL args
 //
-	for (int i = 0; (i < 4) && arg[i]; i++)
+    for (int i = 0; i < funcinfo->nargs; i++)
+    {
+    //
+    // Get the meta-eval of each arg.  If any of the meta-eval's fails,
+    // delete the saved stuff and return NULL.
+    //
+	if (! (a[i] = arg[i]->MetaEval( dlist, avail, navail, cantuse, 
+					ncantuse )))
 	{
-	//
-	// Get the meta-eval of each arg.  If any of the meta-eval's fails,
-	// delete the saved stuff and return NULL.
-	//
-		if (! (a[i] = arg[i]->MetaEval( avail, navail, cantuse, 
-					        ncantuse )))
-		{
-			for (int k = 0; k < i; k++)
-				delete a[k];
-			return 0;
-		}
+	    for (int k = 0; k < i; k++)
+		delete a[k];
+	    return 0;
 	}
+    }
 //
 // We have successfully meta-eval'ed our args, so everything's cool
 //
-	return new FuncNode( name, a[0], a[1], a[2], a[3] );
+    return new FuncDNode( funcinfo->name, a[0], a[1], a[2], a[3] );
 }
 
 
+void
+FuncDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+		      const double* dataptrs[], double* out_data, 
+		      const double badval, ResultCache *rcache ) const
+{
+    double* arg_dp[FuncDNodeMaxArgs];
+    int a;
+//
+// First evaluate each of our args
+//
+    for (a = 0; a < funcinfo->nargs; a++)
+    {
+	arg_dp[a] = new double[ndata];
+	arg[a]->Eval( flds, nflds, ndata, dataptrs, arg_dp[a], badval, 
+		      rcache );
+    }
+//
+// Now call our function
+//
+    switch (funcinfo->nargs)
+    {
+      case 0:
+	funcinfo->func( out_data, badval, ndata );
+	break;
+      case 1:
+	funcinfo->func( out_data, badval, ndata, arg_dp[0] );
+	break;
+      case 2:
+	funcinfo->func( out_data, badval, ndata, arg_dp[0], arg_dp[1] );
+	break;
+      case 3:
+	funcinfo->func( out_data, badval, ndata, arg_dp[0], arg_dp[1], 
+			arg_dp[2] );
+	break;
+      case 4:
+	funcinfo->func( out_data, badval, ndata, arg_dp[0], arg_dp[1], 
+			arg_dp[2], arg_dp[3] );
+	break;
+    }
+//
+// Free the arrays from our evaluated args
+//
+    for (a = 0; a < funcinfo->nargs; a++)
+	delete[] arg_dp[a];
+}
+
+
+int
+FuncDNode::operator ==( const DerivNode& d ) const
+{
+    if (ClassId() != d.ClassId())
+	return 0;
+
+    FuncDNode *fd = (FuncDNode*)&d;
+
+    if (funcinfo != fd->funcinfo)
+	return 0;
+
+    for (int i = 0; i < funcinfo->nargs; i++)
+	if (! (*arg[i] == *(fd->arg[i])))
+	    return 0;
+
+    return 1;
+}
+
+
+static void
+FDN_InitFTable ( void )
+{
+    FDN_MaxTableLen = 20;
+    FDN_FTable = new struct FDNFuncInfo[FDN_MaxTableLen];
+    
+    FDN_AddFunction( "ln", 1, (FDFunction) FDN_ln );
+    FDN_AddFunction( "exp", 1, (FDFunction) FDN_exp );
+    FDN_AddFunction( "sqrt", 1, (FDFunction) FDN_sqrt );
+    FDN_AddFunction( "sin", 1, (FDFunction) FDN_sin );
+    FDN_AddFunction( "cos", 1, (FDFunction) FDN_cos );
+    FDN_AddFunction( "atan2", 2, (FDFunction) FDN_atan2 );
+    FDN_AddFunction( "pow", 2, (FDFunction) FDN_pow );
+    FDN_AddFunction( "t_wet", 3, (FDFunction) FDN_t_wet );
+    FDN_AddFunction( "e_sw", 1, (FDFunction) FDN_e_sw );
+}
+
+void
+FDN_AddFunction( const char *fname, const int nargs, const FDFunction func )
+{
+//
+// Get a bigger function list if necessary
+//
+    if (FDN_TableLen == FDN_MaxTableLen)
+    {
+	FDN_MaxTableLen += 20;
+	struct FDNFuncInfo *newlist = new struct FDNFuncInfo[FDN_MaxTableLen];
+	for (int i = 0; i < FDN_TableLen; i++)
+	    newlist[i] = FDN_FTable[i];
+	delete[] FDN_FTable;
+	FDN_FTable = newlist;
+    }
+//
+// Add the function to our list
+//
+    struct FDNFuncInfo* fentry = &(FDN_FTable[FDN_TableLen]);
+    fentry->name = new char[strlen (fname) + 1];
+    strcpy( fentry->name, fname);
+    fentry->nargs = nargs;
+    fentry->func = func;
+    FDN_TableLen++;
+}
+
+//
+// The predefined FuncDNode-callable functions
+//
+
+static void
+FDN_BadFill( double *result, const double badval, const int ndata )
+{
+    for (int i = 0; i < ndata; i++)
+	result[i] = badval;
+}
+
+
+static void
+FDN_ln( double *result, const double badval, const int ndata,
+	const double *operand )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( operand[i] == badval || operand[i] <= 0 )
+	    result[i] = badval;
+	else
+	    result[i] = log( operand[i] );
+    }
+}
+
+
+static void
+FDN_exp( double *result, const double badval, const int ndata,
+	 const double *operand )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( operand[i] == badval )
+	    result[i] = badval;
+	else
+	    result[i] = exp( operand[i] );
+    }
+}
+
+
+static void
+FDN_sqrt( double *result, const double badval, const int ndata, 
+	  const double *operand )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( operand[i] == badval || operand[i] < 0 )
+	    result[i] = badval;
+	else
+	    result[i] = sqrt( operand[i] );
+    }
+}
+
+
+static void
+FDN_sin( double *result, const double badval, const int ndata,
+	 const double *operand )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( operand[i] == badval )
+	    result[i] = badval;
+	else
+	    result[i] = sin( operand[i] );
+    }
+}
+
+
+static void
+FDN_cos( double *result, const double badval, const int ndata,
+	 const double *operand )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( operand[i] == badval || operand[i] < 0 )
+	    result[i] = badval;
+	else
+	    result[i] = sqrt( operand[i] );
+    }
+}
+
+
+static void
+FDN_atan2( double *result, const double badval, const int ndata,
+	   const double *y, const double *x )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if (x[i] == badval || y[i] == badval)
+	    result[i] = badval;
+	else if (x[i] == 0.0 && y[i] == 0.0)
+	    result[i] = badval;
+	else
+	    result[i] = atan2( y[i], x[i] );
+    }
+}
+
+
+static void
+FDN_pow( double *result, const double badval, const int ndata,
+	 const double *mant, const double *exp )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if (mant[i] == badval || exp[i] == badval)
+	    result[i] = badval;
+	else
+	    result[i] = pow( mant[i], exp[i] );
+    }
+}
+
+
+static void
+FDN_t_wet( double *result, const double badval, const int ndata,
+	   const double *t, const double *p, const double *rh )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( t[i] == badval || p[i] == badval || rh[i] == badval )
+	    result[i] = badval;
+	else
+	    result[i] = t_wet( t[i], p[i], rh[i] );
+    }
+}
+
+
+static void
+FDN_e_sw( double *result, const double badval, const int ndata,
+	  const double *t )
+{
+    for (int i = 0; i < ndata; i++)
+    {
+	if ( t[i] == badval )
+	    result[i] = badval;
+	else
+	    result[i] = e_sw( t[i] );
+    }
+}
+
+
+//
+// ResultCache stuff
+//
+
+ResultCache::ResultCache( void )
+{
+    maxcachelen = 0;
+    cachelen = 0;
+    nodes = 0;
+    results = 0;
+    lengths = 0;
+}
+
+
+void
+ResultCache::Add( const DerivNode& dnode, const double *data, const int ndata )
+{
+//
+// Make sure we have enough space
+//
+    if (cachelen == maxcachelen)
+    {
+	maxcachelen += 20;
+
+	DerivNode **newnodes = new DerivNode*[maxcachelen];
+	double **newresults = new double*[maxcachelen];
+	int *newlengths = new int[maxcachelen];
+
+	for (int i = 0; i < cachelen; i++)
+	{
+	    newresults[i] = results[i];
+	    newnodes[i] = nodes[i];
+	    newlengths[i] = lengths[i];
+	}
+
+	delete nodes;
+	delete results;
+	delete lengths;
+
+	nodes = newnodes;
+	results = newresults;
+	lengths = newlengths;
+    }
+//
+// Add the new node and results
+//
+    nodes[cachelen] = dnode.Copy();
+    lengths[cachelen] = ndata;
+    results[cachelen] = new double[ndata];
+
+    double *dest = results[cachelen];
+    for (int i = 0; i < ndata; i++)
+	dest[i] = data[i];
+
+    cachelen++;
+}
+
+
+ResultCache::~ResultCache( void )
+{
+    for (int i = 0; i < cachelen; i++)
+    {
+	delete nodes[i];
+	delete results[i];
+    }
+    
+    delete nodes;
+    delete results;
+    delete lengths;
+}
+
+
+double*
+ResultCache::Find( const DerivNode& dnode, int* ndata )
+{
+//
+// Look for a match
+//  
+    int	n;
+    for (n = 0; n < cachelen; n++)
+	if (dnode == *(nodes[n]))
+	    break;
+
+    if (n == cachelen)
+	return 0;
+//
+// We have a match!
+//
+    if (ndata)
+	*ndata = lengths[n];
+    return (results[n]);
+}
+
+    
+
+    
+    

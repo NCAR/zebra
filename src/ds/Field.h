@@ -1,5 +1,6 @@
 //
 // The Zebra data store field class
+// $Id: Field.h,v 3.2 1997-09-24 15:12:40 burghart Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research
@@ -19,55 +20,55 @@
 // maintenance or updates for its software.
 //
 
+# ifndef __zebra_Field_h_
+# define __zebra_Field_h_
+
 # include <stdlib.h>
+# include <iostream.h>
 extern "C"
 {
 # include <udunits.h>
 }
 
-class FieldType;
 class Field;
 
 //
-// Everybody needs to know about FT_Undefined (shared from Field.cc)
+// The predefined field types from Field.cc 
 //
-extern FieldType	FT_Undefined;
+extern const char	*FT_Temp, *FT_Pres, *FT_RH, *FT_DP;
+extern const char	*FT_WSpd, *FT_WDir, *FT_UWind, *FT_UWind;
 
-
-
-class FieldType
-{
-    public:
-	FieldType (const char* tname);
-	FieldType (void) { *this = FT_Undefined; }
-	inline const char* Name(void) const { return(name); }
-	inline bool operator==(const FieldType& fld) const
-	{
-		return (name == fld.name);
-	}
-    private:
-	const char*	name;
-};
-
-
+ostream& operator<<( ostream& s, const Field& f );
 
 class Field
 {
-    public:
-	Field(const char* fname, const char* fdesc, const char* funits);
-	Field(const char* fname, const char* type, const char* fdesc, 
-	      const char* funits);
-	Field(const char* fname, const FieldType& type, const char* fdesc, 
-	      const char* funits);
-	inline const char* Name(void) const { return (name); }
-	inline const char* Desc(void) const { return (desc); }
-	inline const char* Units(void) const { return (units); }
-	bool CanYield(const Field &wanted, double *slope = NULL, 
-		      double *intercept = NULL) const;
-    private:
-	const char*	name;
-	const char*	desc;
-	const char*	units;
-	utUnit*		ud_units;
-	FieldType	type;
+public:
+    Field( const char* fname = 0, const char* type = 0, 
+	   const char* funits = 0, const char* fdesc = 0 );
+// use our assignment operator for copying
+    Field( const Field& src ) { ud_units = 0; *this = src; };
+    ~Field( void ) { delete ud_units; };
+    inline const char* Name( void ) const { return (name); }
+    inline const char* TypeName( void ) const { return (type); }
+    inline const char* Desc( void ) const { return (desc); }
+    inline const char* Units( void ) const { return (units); }
+    char CanYield( const Field &wanted, double *slope = 0, 
+		   double *intercept = 0) const;
+    ostream& PutTo( ostream& s ) const;  
+    int CompareTo( const Field& f ) const;
+    const Field& operator =( const Field& src );
+    int operator ==( const Field& f ) const;
+    inline int operator !=( const Field& f ) const 
+    { 
+	return (! (*this == f)); 
+    };
+private:
+    const char*	name;
+    const char*	desc;
+    const char*	units;
+    const char*	type;
+    utUnit*		ud_units;
 };
+
+
+# endif // __zebra_Field_h_

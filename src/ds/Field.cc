@@ -20,75 +20,115 @@
 //
 
 # include <iostream.h>
-# include <stdio.h>
 # include <string.h>
+# include <stdio.h>
 # include "Field.h"
-
-
-
-//
-// The one field type everybody needs to know about.  Shared via Field.h.
-//
-FieldType	FT_Undefined("Undefined");
-
-//
-// Prototypes for non-member functions
-//
-const char* CachedString (const char* string);
-
-
-
-Field::Field(const char* fname, const char* fdesc, const char* funits)
+extern "C"
 {
-//
-// We don't have a field type, so create this field with type FT_Undefined
-//
-	*this = Field(fname, FT_Undefined, fdesc, funits);
+#	include <udunits.h>
+#	include <message.h>
 }
 
+	
+
+RCSID("$Id: Field.cc,v 3.2 1997-09-24 15:12:39 burghart Exp $")
+
+//
+// The predefined field types.  Shared via Field.h.
+//
+const char* FT_Temp = "T";
+const char* FT_Pres = "P";
+const char* FT_RH = "rh";
+const char* FT_DP = "T_d";
+const char* FT_WSpd = "wspd";
+const char* FT_WDir = "wdir";
+const char* FT_UWind = "uwind";
+const char* FT_VWind = "vwind";
+
+
+//
+// Prototypes for local non-member functions
+//
+static const char* CachedString( const char* string );
+
+
+//
+// Have we initialized udunits yet?
+//
+static int UDUnitsReady = 0;
 
 
 
-Field::Field(const char* fname, const char *type, const char* fdesc, 
-	     const char* funits)
+
+Field::Field( const char* fname, const char* ftype, const char* funits, 
+	      const char* fdesc )
 {
-	*this = Field(fname, FieldType(type), fdesc, funits);
-}
-
-
-
-
-Field::Field(const char* fname, const FieldType& ftype, const char* fdesc, 
-	     const char* funits)
-{
-	name = fname ? CachedString(fname) : 0;
-	desc = fdesc ? CachedString(fdesc) : 0;
-	if (funits)
+    name = fname ? CachedString( fname ) : 0;
+    type = ftype ? CachedString( ftype ) : 0;
+    units = funits ? CachedString( funits ) :	0;
+    desc = fdesc ? CachedString( fdesc ) : 0;
+//
+// If we have a units string, try to build ud_units.  If no units string, or
+// if it isn't understood by utScan(), then leave ud_units as a null pointer.
+//	
+    if (units)
+    {
+	if (! UDUnitsReady)
 	{
-		units = CachedString(funits);
-		ud_units = new(utUnit);
-		if (utScan(funits, ud_units) != 0)
-		{
-			delete(ud_units);
-			ud_units = 0;
-		}
+	    utInit( 0 );
+	    UDUnitsReady = 1;
 	}
-	else
+	
+	ud_units = new utUnit;
+	if (utScan( funits, ud_units ) != 0)
 	{
-		units = 0;
-		ud_units = 0;
+	    msg_ELog (EF_INFO, "Non-standard units '%s' for field %s[%s]",
+		      units, name ? name : "(unnamed)", type ? type : "");
+	    delete( ud_units );
+	    ud_units = 0;
 	}
-
-	type = ftype;
+    }
+    else
+	ud_units = 0;
 }
 
 
 
-bool
-Field::CanYield(const Field& wanted, double *slope, double *intercept) const
+const Field&
+Field::operator =( const Field& src )
+{
+//
+// name, type, units, and desc are cached strings, so we can copy directly
+//
+    name = src.name;
+    type = src.type;
+    units = src.units;
+    desc = src.desc;
+//
+// Generate a separate ud_units, though.  We don't test the utScan() call,
+// since it presumably worked for our source field...
+//
+    delete ud_units;
+
+    if (src.ud_units)
+    {
+	ud_units = new utUnit;
+	utScan( units, ud_units );
+    }
+    else
+	ud_units = 0;
+
+    return src;
+}
+
+
+
+
+char
+Field::CanYield( const Field& wanted, double *slope, double *intercept ) const
 //
 // Return true iff this field can yield the field 'wanted', with at most a 
-// units conversion.  If true is returned, then the slope and intercept
+// linear units conversion.  If true is returned, then the slope and intercept
 // for the units conversion are also returned.
 //
 {
@@ -97,76 +137,178 @@ Field::CanYield(const Field& wanted, double *slope, double *intercept) const
 // 'wanted'.  If wanted units are given, we must either match them or be 
 // able to convert to them.
 //
-	double	dummy, *s, *i;
+    double	dummy, *s, *i;
 
-	s = slope ? slope : &dummy;
-	i = intercept ? intercept : &dummy;
+    s = slope ? slope : &dummy;
+    i = intercept ? intercept : &dummy;
 //
-// Initialize slope and intercept for the case where unit names are the same
-// and we short-circuit the call to utConvert()
+// Initialize slope and intercept for the case where unit names are 
+// exactly the same and we short-circuit the call to utConvert()
 //
-	*s = 1.0;
-	*i = 0.0;
+    *s = 1.0;
+    *i = 0.0;
 
-	return ((!wanted.name || (wanted.name == name)) &&
-		(!wanted.desc || (wanted.desc == desc)) &&
-		(wanted.type == type) &&
-		(!wanted.units || (wanted.units == units) ||
-		 (ud_units && wanted.ud_units &&
-		  utConvert(ud_units, wanted.ud_units, s, i) == 0)));
-}
-
-	
-	
-
-FieldType::FieldType (const char* tname)
-{
-	name = CachedString(tname);
+    return ((!wanted.name || (wanted.name == name)) &&
+	    (!wanted.desc || (wanted.desc == desc)) &&
+	    (!wanted.type || (wanted.type == type)) &&
+	    (!wanted.units || (wanted.units == units) ||
+	     (ud_units && wanted.ud_units &&
+	      utConvert(ud_units, wanted.ud_units, s, i) == 0)));
 }
 
 
 
 
-const char*
-CachedString(const char* string)
+static const char*
+CachedString( const char* string )
 //
 // If possible, return the string matching 'string' from our cache.  Otherwise,
-// make a new cache entry and return that.  This allows that everybody who
+// make a new cache entry and return that.  This ensures that everybody who
 // asks for a given string gets exactly the same pointer.  Hence, string
 // equivalence comparisons between strings obtained from CachedString() are
 // simple pointer equality tests.
 //
 {
-	static char** stringcache = NULL;
-	static int nstrings = 0;
-	static int maxstrings = 0;
+    static char** stringcache = NULL;
+    static int nstrings = 0;
+    static int maxstrings = 0;
 //
-// Return the string out of our cache if it's already there.  Dumb linear
-// search here.  If this gets too costly, we'll have to make the cache a
-// sorted array.
+// Return the string out of our cache if it's already there.  Binary
+// search since we keep the array sorted.
 //
-	for (int i = 0; i < nstrings; i++)
-		if (! strcmp (string, stringcache[i]))
-			return (stringcache[i]);
+    int	bottom = 0;
+    int	top = nstrings - 1;
+
+    while (bottom <= top)
+    {
+	int	middle = (bottom + top) / 2;
+	int	cmp = strcmp( string, stringcache[middle] );
+	if (cmp < 0)
+	    top = middle - 1;
+	else if (cmp == 0)
+	    return stringcache[middle];
+	else // cmp > 0
+	    bottom = middle + 1;
+    }
 //
 // Nope.  Need to add a new string to the cache.
 //
-	if (nstrings == maxstrings)
-	{
-		maxstrings += 100;
-		char** newcache = new (char*)[maxstrings];
-		memcpy (newcache, stringcache, nstrings * sizeof (char*));
-		delete (stringcache);
-		stringcache = newcache;
-	}
+    int	loc = top + 1;
 
-	stringcache[nstrings] = new char[strlen(string) + 1];
-	strcpy (stringcache[nstrings], string);
-	return (stringcache[nstrings++]);
+    if (nstrings == maxstrings)
+    {
+    //
+    // We're out of space so allocate a bigger array and copy the old
+    // one over.
+    //
+	maxstrings += 100;
+	char** newcache = new char*[maxstrings];
+	memcpy( newcache, stringcache, nstrings * sizeof (char*) );
+	delete( stringcache );
+	stringcache = newcache;
+    }
+
+    memmove( stringcache + loc + 1, stringcache + loc, 
+	     (nstrings - loc) * sizeof (char*) );
+    stringcache[loc] = new char[strlen(string) + 1];
+    strcpy( stringcache[loc], string );
+    nstrings++;
+    return( stringcache[loc] );
 }
 
-	
-	       
 
+
+
+ostream&
+Field::PutTo( ostream& s ) const
+{
+    if (name)
+	s << name;
+
+    if (type || units || desc)
+    {
+	s << "[" << (type ? type : "") << "]";
+	if (units || desc)
+	{
+	    s << "[" << (units ? units : "") << "]";
+	    if (desc)
+		s << "[" << desc << "]";
+	}
+    }
+
+    return( s );
+}
+
+
+int
+Field::CompareTo( const Field& f ) const
+//
+// Simple comparison function to allow for sorting Fields.  Return an integer
+// less than zero if this is "less than" f, zero if they are "equal", and
+// greater than zero if this is "greater than" f.
+//
+{
+    int	cmp;
+
+    if (name || f.name)
+    {
+	if (! name && f.name)
+	    return -1;
+	else if (name && ! f.name)
+	    return 1;
+	else if ((cmp = strcmp( name, f.name )) != 0)
+	    return cmp;
+    }
+
+    if (type || f.type)
+    {
+	if (! type && f.type)
+	    return -1;
+	else if (type && ! f.type)
+	    return 1;
+	else if ((cmp = strcmp( type, f.type )) != 0)
+	    return cmp;
+    }
+    
+    if (units || f.units)
+    {
+	if (! units && f.units)
+	    return -1;
+	else if (units && ! f.units)
+	    return 1;
+	else if ((cmp = strcmp( units, f.units )) != 0)
+	    return cmp;
+    }
+
+    if (desc || f.desc)
+    {
+	if (! desc && f.desc)
+	    return -1;
+	else if (desc && ! f.desc)
+	    return 1;
+	else if ((cmp = strcmp( desc, f.desc )) != 0)
+	    return cmp;
+    }
+
+    return 0;
+}
 	
-		
+
+
+int
+Field::operator ==( const Field& f ) const
+//
+// Equality operator
+//
+{
+    return ((name == f.name) && (type == f.type) && (units == f.units) &&
+	    (desc == f.desc));
+}
+	
+
+
+ostream&
+operator<<( ostream& s, const Field& f )
+{
+    return f.PutTo(s);
+}
