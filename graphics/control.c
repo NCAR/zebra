@@ -4,6 +4,7 @@
  * The upper level, control routines for the graphics package.
  */
 
+# include <math.h>
 # include "param.h"
 # include "graphics.h"
 # include "device.h"
@@ -12,7 +13,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.15 1993-03-24 21:56:26 case Exp $";
+static char *rcsid = "$Id: control.c,v 1.16 1993-09-16 22:06:04 case Exp $";
 static int Trace = 0;
 
 /*
