@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.6 1993-06-01 17:11:07 corbet Exp $
+/**/# $Id: config.h-v4.0,v 1.7 1993-06-08 16:38:32 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -353,11 +353,12 @@
  * XLibraries, NetCDFLibrary, RDSSLibrary.  For example, to use a 
  * version of RDSS which has a different name, use 
  *
- * #define RDSSLibrary -L/usr/local/lib -lrdss2
+ * #define RDSSLibrary -L/usr/local/lib -lrdssui2 -lrdssutil2
  *
  * which on most UNIX systems is equivalent to
  *
- * #define RDSSLibrary /usr/local/lib/librdss2.a
+ * #define RDSSLibrary /usr/local/lib/librdssui2.a \
+ * 		       /usr/local/lib/librdssutil2.a
  *
  * Note that defining one of the 'Library' symbols as above will completely
  * circumvent the definition of the corresponding 'LibDir' symbol.  See the
@@ -379,7 +380,7 @@
  *
  *	XLibraries	-lXaw -lXmu -lXt -lXext -lX11
  *	NetCDFLibrary	-lnetcdf
- * 	RDSSLibrary	-lrdss
+ * 	RDSSLibrary	-lrdssui -lrdssutil
  *
  * The following 2 libraries will probably need to be explicitly
  * defined here, but ONLY if you need them for ingest modules.
@@ -393,6 +394,9 @@
  *
  *	PamCfgLibrary	-lunp
  *
+ * If you don't need to ingest any PAM or CLASS data (which will be the
+ * case 99% of the time), you can safely ignore the definition of the
+ * two symbols above.
  */
 
 /* # define PamCfgLibrary /usr/local/lib/libunp.a */

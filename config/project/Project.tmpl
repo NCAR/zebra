@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.7 1993-05-26 19:11:57 corbet Exp $
+/**/# $Id: Project.tmpl,v 1.8 1993-06-08 16:38:30 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -198,11 +198,11 @@
 #ifndef RDSSLibDir
 #   define RDSSLibDir /**/
 #   ifndef RDSSLibrary
-#      define RDSSLibrary LoaderLibPrefix -lrdss
+#      define RDSSLibrary LoaderLibPrefix -lrdssui -lrdssutil
 #   endif
 #else
 #   ifndef RDSSLibrary
-#      define RDSSLibrary -L$(RDSSLIBDIR) LoaderLibPrefix -lrdss
+#      define RDSSLibrary -L$(RDSSLIBDIR) LoaderLibPrefix -lrdssui -lrdssutil
 #   endif
 #endif
 
