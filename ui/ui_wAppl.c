@@ -7,6 +7,7 @@
 # include "ui.h"
 # include "ui_window.h"
 
+static char *rcsid = "$Id: ui_wAppl.c,v 1.2 1990-04-20 14:22:56 corbet Exp $";
 
 /*
  * The format of an application widget.
@@ -22,7 +23,7 @@ struct appl_widget
 	Widget aw_w;		/* The actual X widget			*/
 	/* -- End of gen_widget stuff */
 	Widget (*aw_acreate) ();/* The application create function	*/
-	void aw_adestroy ();	/* Application destroy method		*/
+	void (*aw_adestroy) ();	/* Application destroy method		*/
 	char *aw_tag;		/* Application tag			*/
 };
 
