@@ -42,8 +42,7 @@ PlatformInstance *PTable;
 /*
  * Keep track of timer events.
  */
-/* # define MAXPLAT 1024 - this is already defined in included files */
-static int TimeEvent[MAXPLAT];
+static int TimeEvent[CFG_MAX_PLATFORMS];
 
 
 main ()
@@ -61,7 +60,7 @@ main ()
 /*
  * Time events too.
  */
-	for (i = 0; i < MAXPLAT; i++)
+	for (i = 0; i < CFG_MAX_PLATFORMS; i++)
 		TimeEvent[i] = -1;
 /*
  * Now we just wait for something to happen.
