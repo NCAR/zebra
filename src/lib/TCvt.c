@@ -24,7 +24,7 @@
 # include <ctype.h>
 # include <sys/types.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.12 1994-03-21 20:27:02 burghart Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.13 1994-03-30 17:49:56 granger Exp $")
 
 /*
  * The months of the year.
@@ -225,13 +225,16 @@ const char	*string;
 ZebTime		*zt;
 /*
  * Attempt a simple decoding of the string of the form 
- * "dd-mmm-yy,hh:mm:ss.uuuuuu" into a ZebTime.  Return FALSE
- * if we don't get at least the first three fields.
+ * "dd-mmm-{yy|yyyy},hh:mm:ss.uuuuuu" into a ZebTime.  Return FALSE
+ * if we don't get at least the first three fields.  Either 2- or
+ * 4-digit years are supported because TC_ZtAssemble accepts
+ * either one.
  */
 {
 	char	cmonth[3];
 	int	nfields, year, month, day, hour, minute;
 	float	fsecond;
+	int second, microsec;
 	struct tm	t;
 # if defined(SVR4) || defined(SYSV)
 	char	tz[20];
@@ -263,31 +266,12 @@ ZebTime		*zt;
 	if (month == 12)
 		return (FALSE);
 /*
- * Trust the rest and use it to build a "struct tm", that we then convert
- * into seconds.
+ * Trust the rest and use it to assemble a ZebTime structure.
  */
-	t.tm_year = year;
-	t.tm_mon = month;
-	t.tm_mday = day;
-	t.tm_hour = hour;
-	t.tm_min = minute;
-	t.tm_sec = (int) fsecond;
-	zt->zt_MicroSec = (fsecond - (int)fsecond) * 1000000;
-#if defined(SVR4) || defined(SYSV)
-	strcpy (tz, "TZ=GMT");
-        putenv (tz);
-        timezone = 0;
-        /* altzone = 0; */
-        daylight = 0;
-        t.tm_wday = t.tm_yday = 0;
-        t.tm_isdst = -1;
-	zt->zt_Sec = mktime (&t);
-#else
-        t.tm_zone = (char *) 0;
-        t.tm_wday = t.tm_yday = t.tm_isdst = 0;
-	zt->zt_Sec = timegm (&t);
-#endif
-
+	second = (int)fsecond;
+	microsec = (fsecond - second) * 1e+6;
+	++month;	/* ZtAssemble expects 1..12 */
+	TC_ZtAssemble (zt, year, month, day, hour, minute, second, microsec);
 	return (TRUE);
 }
 
@@ -322,7 +306,9 @@ TC_ZtAssemble (zt, year, month, day, hour, minute, second, microsec)
 ZebTime *zt;
 int year, month, day, hour, minute, second, microsec;
 /*
- * Put together a zeb time out of these constituents.
+ * Put together a zeb time out of these constituents.  For the tm
+ * structure, the year field is the two-digit value (year - 1900).
+ * Make the sure the year we're passed is converted to this convention.
  */
 {
 	struct tm t;
@@ -330,13 +316,15 @@ int year, month, day, hour, minute, second, microsec;
 	char tz[20];
 #endif
 
+	if (year >= 1900)
+		year -= 1900;
 	t.tm_year = year;
 	t.tm_mon = month-1;
 	t.tm_mday = day;
 	t.tm_hour = hour;
 	t.tm_min = minute;
 	t.tm_sec = second;
-	zt->zt_MicroSec = 0;
+	zt->zt_MicroSec = microsec;
 #if defined(SVR4) || defined(SYSV)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
