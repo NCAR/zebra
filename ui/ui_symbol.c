@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.11 1993-07-23 19:54:48 case Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.12 1993-07-27 22:20:20 case Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -878,14 +878,13 @@ char *re;
  */
 	if (re)
 	{
-#ifndef SVR4 
-		char *stat = re_comp (re);
-                if (stat)
-                        ui_error ("(BUG) RE comp error: %s", stat);
-
-#else
+#ifdef SVR4 
                 char *stat = regcmp(re, (char*)0);
                 if (!stat)
+                        ui_error ("(BUG) RE comp error: %s", stat);
+#else
+		char *stat = re_comp (re);
+                if (stat)
                         ui_error ("(BUG) RE comp error: %s", stat);
 #endif
 	}
@@ -896,10 +895,10 @@ char *re;
  	for (; slot < HASH_MOD; slot++)
 		for (sp = table->st_ste[slot]; sp; )
 		{
-#ifndef SVR4 
-			if (! re || re_exec (sp->ste_sym))
+#ifdef SVR4
+                        if (! re ||  ! regex (re, sp->ste_sym))
 #else
-                        if (! re ||  ! regex (re, sp->ste_sym)) 
+                        if (! re || re_exec (sp->ste_sym))
 #endif
 				list[nsy++] = sp;
 			sp = sp->ste_next;
