@@ -56,7 +56,7 @@
 # include <Tabs.h>
 #endif
 
-RCSID ("$Id: GraphProc.c,v 2.77 2001-11-30 21:29:28 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.78 2002-10-15 08:02:46 granger Exp $")
 
 /*
  * Default resources.
@@ -1921,13 +1921,8 @@ struct ui_command *cmds;
 
 
 
-
-
-
-
 static int
-AnswerQuery (who)
-char *who;
+GPAnswerQuery (char *who)
 /*
  * Answer a query from this person.
  */
@@ -1960,6 +1955,19 @@ char *who;
 }
 
 
+
+static int
+AnswerQuery (who)
+char *who;
+/*
+ * Queue an answer to a query from this person.  The answer is queued so
+ * that pending display changes take effect before the response, allowing
+ * for some synchronization when remotely controlling a graphics process.
+ */
+{
+    Eq_AddEvent (PDisplay, (void(*)())GPAnswerQuery, 
+		 who, strlen(who)+1, Augment);
+}
 
 
 
