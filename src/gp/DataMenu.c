@@ -1,7 +1,7 @@
 /*
  * The data available menu.
  */
-static char *rcsid = "$Id: DataMenu.c,v 2.3 1991-10-17 15:21:57 kris Exp $";
+static char *rcsid = "$Id: DataMenu.c,v 2.4 1991-10-25 18:00:26 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -225,7 +225,7 @@ SetupPlats ()
  */
 	if (PostProcMode)
 	{
-		t = PlotTime;
+		t = PostProcTime;
 		if (! pda_Search (Pd, "global", "pp-dm-time-adjust", NULL,
 			adjust_str, SYMT_STRING))
 				adjust = 600;
