@@ -5,7 +5,7 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.3 1992-01-10 19:20:14 barrett Exp $";
+static char *rcsid = "$Id: PlotPrim.c,v 1.4 1992-01-29 22:29:02 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -39,7 +39,32 @@ static char *rcsid = "$Id: PlotPrim.c,v 1.3 1992-01-10 19:20:14 barrett Exp $";
 # include "GC.h"
 # include "LayoutControl.h"
 # include "DrawText.h"
+/*
+ * Line style
+ */
+typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
+#define		CROSS	1
+#define		XMARK	2
 
+
+# ifdef __STDC__
+    extern void gp_Clip (DataValPtr, DataValPtr, DataValPtr, DataValPtr,
+			 int, int);
+    extern void gp_Pline (DataValPtr, DataValPtr, int, LineStyle, XColor,int, int);
+    extern void gp_WindVector (DataValPtr, DataValPtr, DataValPtr, DataValPtr, 
+		int, int,double, LineStyle, XColor*, int, double, int,int);
+    extern void gp_WindBarb (DataValPtr, DataValPtr, DataValPtr, DataValPtr, 
+		int, int,int, LineStyle, XColor*, int, double, int,int);
+    extern void gp_Points (DataValPtr, DataValPtr, int, XColor,int, int);
+    extern void gp_Symbol (DataValPtr, DataValPtr, int, XColor,int, int,int);
+# else
+    extern void gp_Clip (); 
+    extern void gp_Pline ();
+    extern void gp_WindVector ();
+    extern void gp_WindBarb ();
+    extern void gp_Points ();
+    extern void gp_Symbol ();
+# endif
 /*
  * General definitions
  */
@@ -50,12 +75,7 @@ static char *rcsid = "$Id: PlotPrim.c,v 1.3 1992-01-10 19:20:14 barrett Exp $";
 # define AUTO_YMIN	(1<<3)
 # define ROUNDIT(x)	((int)(x + 0.5))
 
-void	gp_Pline (),  gp_Clip () ;
 
-/*
- * Line style
- */
-typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
 /*
  * Color array and indices
@@ -405,4 +425,145 @@ unsigned short	xscalemode, yscalemode;
  * Free the allocated points
  */
 	free (pts);
+}
+
+void
+gp_RGBtoHLS(r,g,b,h,l,s)
+float	r,g,b; /* range [0,1] */
+float	*h,*l,*s; /* hue = [0,360], lightness & saturation = [0,1] 
+		     except if s == 0, h = undefined */
+{
+    float	max,min;
+    float	undefined = 0.0;
+    float	rc,bc,gc;
+    max = r > g ? r : g;
+    max = max > b ? max : b;
+    min = r < g ? r : g;
+    min = min < b ? min : b;
+    *l = (max+min)/2.0;		/*lightness*/
+
+    /*
+     * Calculate saturation and hue
+     */
+    if ( max == min ) /* achromatic r==g==b */
+    {
+	*s = 0.0;
+	*h = undefined;
+    }
+    else	      /* chromatic */
+    {
+	if ( *l <= 0.5 )
+	    *s = (max-min)/(max+min);
+	else
+	    *s = (max-min)/(2.0-max-min);
+
+	rc = (max-r)/(max-min);
+	gc = (max-g)/(max-min);
+	bc = (max-b)/(max-min);
+	if ( r == max ) 
+	    *h = bc-gc;
+	else if ( g == max ) 
+	    *h = 2 + rc - bc;
+	else if ( b == max )
+	    *h = 4 + gc -rc;
+	*h = *h * 60.0;  /* convert to degrees */
+	if ( *h < 0.0 ) *h = *h + 360.0;
+    }
+}
+float
+additiveColor ( n1,n2, hue )
+float	n1,n2,hue;
+{
+    if ( hue > 360.0 ) hue = hue - 360;
+    if ( hue < 0.0 ) hue = hue + 360;
+    if ( hue < 60.0 ) 
+	return ( n1 + (n2-n1)*hue/60.0 );
+    else if ( hue < 180.0 ) 
+	return ( n2 );
+    else if ( hue < 240.0 ) 
+	return ( n1 + (n2-n1)*(240.0-hue)/60.0 );
+    else
+	return ( n1 );
+    
+}
+void
+gp_HLStoRGB(r,g,b,h,l,s)
+float	*r,*g,*b;
+float	h,l,s;
+{
+    float	m1,m2;
+    float	undefined = 0.0;
+    if ( l <= 0.5 ) 
+	m2 = l *(1.0+s);
+    else
+	m2 = l + s - l*s;
+    m1 = 2*l -m2;
+    if ( s == 0.0 )
+    {
+	if ( h == undefined )
+	    *r = *g = *b = l;
+	else
+	    fprintf ( stderr, "\rbad h,l,s values\n");
+    }
+    else
+    {
+	*r = additiveColor( m1,m2, h + 120);
+	*g = additiveColor( m1,m2, h );
+	*b = additiveColor( m1,m2, h - 120);
+    }
+}
+void
+gp_Symbol (x, y, npts, color_ndx,xscalemode, yscalemode,symbol)
+DataValPtr	x, y;
+int		npts;
+XColor		color_ndx;
+unsigned short	xscalemode, yscalemode;
+int		symbol;
+/*
+ * ENTRY:
+ *	x,y	polyline coordinates in user-coordinate system.
+ *	npts	the number of points
+ *	color_ndx	index of the color to use
+ *	xscalemode,yscalemode mask used to transform user coordinates
+ *	symbol		symbol to be drawn CROSS or XMARK
+ * EXIT:
+ *	The polyline has been drawn
+ */
+{
+	int	i;
+	XPoint	pts[2];
+	char	dash[2];
+	int	xPix,yPix;
+
+	if (npts == 0)
+		return;
+/*
+ * Set up the foreground color and line style
+ */
+	XSetForeground (XtDisplay (Graphics), Gcontext, color_ndx.pixel);
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, LineSolid, 
+		CapButt, JoinMiter);
+/*
+ * Draw the symbol for each point
+ */
+	for (i = 0; i < npts; i++)
+	{
+	    xPix = devX (&(x[i]),xscalemode);
+	    yPix = devY (&(y[i]),yscalemode);
+	    switch ( symbol )
+	    {
+		case CROSS:
+		    XDrawLine(XtDisplay(Graphics),GWFrame(Graphics),
+			Gcontext, xPix-3, yPix, xPix+3, yPix );
+		    XDrawLine(XtDisplay(Graphics),GWFrame(Graphics),
+			Gcontext, xPix, yPix-3, xPix, yPix+3 );
+		break;
+		case XMARK:
+		    XDrawLine(XtDisplay(Graphics),GWFrame(Graphics),
+			Gcontext, xPix-3, yPix-3, xPix+3, yPix+3 );
+		    XDrawLine(XtDisplay(Graphics),GWFrame(Graphics),
+			Gcontext, xPix-3, yPix+3, xPix+3, yPix-3 );
+		break;
+	    }
+	}
 }
