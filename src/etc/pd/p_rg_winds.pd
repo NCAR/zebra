@@ -1,0 +1,18 @@
+!
+! Generic PD for a gridded winds display.
+! Fill in platform.
+!
+global
+	pd-name:	p_rg_winds
+p_rg_winds
+	platform:	CHANGEME
+	representation:	vector
+	u-field:	u_wind
+	v-field:	v_wind
+	arrow-scale:	0.01
+	color:		red
+	icon-left-menu:		standard-cap-left-menu
+	icon-right-menu:	rg-winds-right
+	icon:		meso_winds
+	limit-proc:	adj_arrow_scale
+	require:	winds, simple-color
