@@ -57,6 +57,8 @@ static Pixmap gw_GetShmPixmap();
 static void gw_SetShmPossible();
 # endif
 
+static void gw_GetVisualAndColormap (/* Graphics w, Visual **visual, 
+				     int *depth, Colormap *colormap */);
 static void gw_CreateFrame(/* Graphics w, int frame */);
 static void gw_DestroyFrame(/* Graphics w, int frame */);
 
@@ -177,29 +179,15 @@ GraphicsWidget	w;
 XtValueMask		*value_mask;
 XSetWindowAttributes	*attributes;
 {
-	XVisualInfo	vinfo;
-	int		i, status, depth = 8;
-
+	int		i, depth;
+	Colormap	colormap;
+	Visual		*visual;
 /*
- * Get an eight deep pseudocolor visual if possible, otherwise go 
- * with monochrome
+ * Get an appropriate visual, with its depth and an associated colormap.
  */
-	status = XMatchVisualInfo (XtDisplay (w), 
-		XScreenNumberOfScreen (w->core.screen), depth, PseudoColor, 
-		&vinfo);
-
-	if (status == 0)
-	{
-		depth = 1;
-		status = XMatchVisualInfo (XtDisplay (w), 
-			XScreenNumberOfScreen (w->core.screen), depth, 
-			StaticGray, &vinfo);
-	}
-
-	if (status == 0)
-		XtError ("No visual matches for realizing a GraphicsWidget");
-
+	gw_GetVisualAndColormap (w, &visual, &depth, &colormap);
 	w->core.depth = depth;
+	attributes->colormap = colormap;
 /*
  * Make the window and get its attributes
  */
@@ -209,27 +197,26 @@ XSetWindowAttributes	*attributes;
 		w->graphics.ardent_server = True;
 		w->core.window = XBCreateWindow (XtDisplay (w), 
 			(w->core.parent ? 
-			w->core.parent->core.window : w->core.screen->root),
-			w->core.x, w->core.y, w->core.width, w->core.height, 
-			w->core.border_width, w->core.depth, InputOutput, 
-			vinfo.visual, 2, True, *value_mask, attributes);
+			 w->core.parent->core.window : w->core.screen->root),
+			 w->core.x, w->core.y, w->core.width, w->core.height, 
+			 w->core.border_width, w->core.depth, InputOutput, 
+			 visual, 2, True, *value_mask, attributes);
 	}
 	else
 	{
 		w->graphics.ardent_server = False;
-		XtCreateWindow (w, (unsigned int) InputOutput,
-			vinfo.visual, *value_mask, attributes);
+		XtCreateWindow (w, (unsigned int) InputOutput, visual, 
+				*value_mask, attributes);
 	}
 # else
-	XtCreateWindow ((Widget) w, (unsigned int) InputOutput, vinfo.visual, 
-		*value_mask, attributes);
+	XtCreateWindow ((Widget) w, (unsigned int) InputOutput, visual, 
+			*value_mask, attributes);
 # endif /* use_XB */
 
 /*
  * Get the GC that travels with the widget
  */
 	w->graphics.gc = XCreateGC (XtDisplay (w), XtWindow (w), 0, NULL);
-
 /*
  * Allocate the pixmaps for the frames and clear them out
  */
@@ -243,16 +230,16 @@ XSetWindowAttributes	*attributes;
 		{
 			w->graphics.frameaddr = (char **) 
 				XtMalloc (w->graphics.frame_count * 
-				sizeof (char *));
+					  sizeof (char *));
 			w->graphics.frame_shared = (Boolean *) 
 				XtMalloc (w->graphics.frame_count * 
-				sizeof (Boolean));
+					  sizeof (Boolean));
 			w->graphics.shminfo = (XShmSegmentInfo *) 
 				XtMalloc (w->graphics.frame_count * 
-				sizeof (XShmSegmentInfo));
+					  sizeof (XShmSegmentInfo));
 			w->graphics.image = (XImage **) 
 				XtMalloc (w->graphics.frame_count * 
-				sizeof (XImage *));
+					  sizeof (XImage *));
 		}
 # endif
 	}
@@ -260,14 +247,14 @@ XSetWindowAttributes	*attributes;
 		w->graphics.frames = NULL;
 	
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
-		w->core.background_pixel);
+			w->core.background_pixel);
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
 		gw_CreateFrame (w, i);
 		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
-			w->graphics.gc, 0, 0, w->core.width, w->core.height);
+				w->graphics.gc, 0, 0, w->core.width, 
+				w->core.height);
 	}
-
 /*
  * Initialize the draw and display frame numbers
  */
@@ -287,6 +274,75 @@ XSetWindowAttributes	*attributes;
 # endif
 }
 
+
+
+
+static void
+gw_GetVisualAndColormap (w, visual, depth, colormap)
+GraphicsWidget	w;
+Visual		**visual;
+int		*depth;
+Colormap	*colormap;
+{
+	int		nmatches;
+	XVisualInfo	template, *matches;
+/*
+ * Try to use the default visual if possible (so we can also use the
+ * default colormap).  We'll take it if it's either an 8-bit pseudocolor
+ * visual or a 1-bit (monochrome) pseudocolor visual.
+ */
+	*visual = DefaultVisualOfScreen (w->core.screen);
+	*depth = DefaultDepthOfScreen (w->core.screen);
+	if ((*visual)->class == PseudoColor && (*depth == 8 || *depth == 1))
+	{
+		*colormap = DefaultColormapOfScreen (w->core.screen);
+		msg_ELog (EF_DEBUG, 
+			  "Graphics widget using default (%d-bit) visual",
+			  *depth);
+
+		return;
+	}
+/*
+ * OK, we don't like the default visual.  See if we can get an 8-bit 
+ * pseudocolor visual.
+ */
+	template.screen = XScreenNumberOfScreen (w->core.screen);
+        template.depth = 8;
+	template.class = PseudoColor;
+
+	matches = XGetVisualInfo (XtDisplay (w), VisualScreenMask | 
+				  VisualDepthMask | VisualClassMask, &template,
+				  &nmatches);
+/*
+ * If that failed, try for a 1-bit pseudocolor visual.
+ */
+	if (! matches)
+	{
+		template.depth = 1;
+		matches = XGetVisualInfo (XtDisplay (w), VisualScreenMask | 
+					  VisualDepthMask | VisualClassMask, 
+					  &template, &nmatches);
+		if (! matches)
+			XtError ("No good visuals for a GraphicsWidget");
+	}
+/*
+ * We have one or matches, so just take the first one.
+ */
+	*visual = matches[0].visual;
+	*depth = matches[0].depth;
+	XFree (matches);
+/*
+ * Now we need to get an appropriate colormap.  Since I know of no way to
+ * get information about existing virtual colormaps, we can't find a good
+ * one that already exists.  We just have to create our own...
+ */
+	*colormap = XCreateColormap (XtDisplay (w), 
+				     w->core.parent->core.window, *visual,
+				     AllocNone);
+	msg_ELog (EF_DEBUG, "Graphics widget using non-default %d-bit visual", 
+		  *depth);
+	msg_ELog (EF_DEBUG, "and creating its own colormap. :-(");
+}
 
 
 
