@@ -5,7 +5,7 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.2 1992-01-02 17:02:50 barrett Exp $";
+static char *rcsid = "$Id: PlotPrim.c,v 1.3 1992-01-10 19:20:14 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -208,7 +208,7 @@ double		scale;
 LineStyle	style;
 XColor		*colors;
 int		ncolor;
-int		cstep;
+float		cstep;
 unsigned short	xscalemode, yscalemode;
 {
     double	radians;
@@ -218,6 +218,7 @@ unsigned short	xscalemode, yscalemode;
     char	dash[2];
     Pixel	color;
     float	tangle;
+    int		level;
 
     if ( npts == 0 ) return;
 
@@ -263,7 +264,8 @@ unsigned short	xscalemode, yscalemode;
 	    vpt = (double)v[i].val.f;
 	    radius = sqrt(upt*upt + vpt*vpt);
 	}
-	color = colors[(int)(radius/(float)cstep)% ncolor].pixel;
+	level = (int)(radius/cstep);
+	color = colors[level % ncolor].pixel;
 	XSetForeground (XtDisplay (Graphics), Gcontext, color);
 	draw_vector ( XtDisplay(Graphics), GWFrame(Graphics),Gcontext,
 		devX(&(x[i]),xscalemode),devY(&(y[i]),yscalemode), upt, vpt, scale);
@@ -283,7 +285,7 @@ int		shaftlen;
 LineStyle	style;
 XColor		*colors;
 int		ncolor;
-int		cstep;
+float		cstep;
 unsigned short	xscalemode, yscalemode;
 {
     double	radians;
@@ -293,6 +295,7 @@ unsigned short	xscalemode, yscalemode;
     char	dash[2];
     Pixel	color;
     float	tangle;
+    int		level;
 
     if ( npts == 0 ) return;
 
@@ -341,7 +344,8 @@ unsigned short	xscalemode, yscalemode;
 	fprintf ( stdout, "\rradius = %f radians = %f\n",(float)radius,
 		(float)radians);
 */
-	color = colors[(int)(radius/(float)cstep)% ncolor].pixel;
+	level = (int)(radius/cstep);
+	color = colors[level % ncolor].pixel;
 	XSetForeground (XtDisplay (Graphics), Gcontext, color);
 	radians = radians + 3.1415926; /* reverse direction */
 	draw_barb ( XtDisplay(Graphics), GWFrame(Graphics),Gcontext,
