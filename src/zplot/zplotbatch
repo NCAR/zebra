@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.16 1999-11-06 01:22:38 granger Exp $
+# $Id: zplotbatch,v 1.17 1999-11-25 05:18:21 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -85,7 +85,7 @@ fi
 $xvfb $display >/dev/null 2>&1 &
 x=$!
 sleep 5
-DISPLAY=${display}.0 ; export DISPLAY
+DISPLAY=unix:${display}.0 ; export DISPLAY
 xhost +
 
 # Make sure we have a datastore running; we don't need the event logger
