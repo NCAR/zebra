@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.22 1991-04-19 17:35:57 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.23 1991-05-01 17:08:50 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -36,13 +36,15 @@ typedef struct
 # define PT_CAP		0
 # define PT_SKEWT	1
 # define PT_XSECT	2
-# define N_PTYPES	3	/* Increase this as plot types are added */
+# define PT_TSERIES	3
+# define N_PTYPES	4	/* Increase this as plot types are added */
 
 name_to_num Pt_table[] =
 {
 	{"CAP",		PT_CAP		},
 	{"skewt", 	PT_SKEWT	},
 	{"xsect",	PT_XSECT	},
+	{"tseries",	PT_TSERIES	},
 	{NULL,		0		}
 };
 
@@ -57,7 +59,8 @@ name_to_num Pt_table[] =
 # define RT_OVERLAY	5
 # define RT_SKEWT	6
 # define RT_FCONTOUR	7
-# define N_RTYPES	8	/* Increase this as rep. types are added */
+# define RT_TSERIES	8
+# define N_RTYPES	9	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -69,6 +72,7 @@ name_to_num Rt_table[] =
 	{"track",		RT_TRACK	},
 	{"overlay",		RT_OVERLAY	},
 	{"skewt",		RT_SKEWT	},
+	{"tseries",		RT_TSERIES	},
 	{NULL,			0		}
 };
 
@@ -116,7 +120,7 @@ static void	(*EOPHandler) () = 0;
  * Other routines.
  */
 extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
-extern void	xs_LineContour (), xs_FilledContour ();
+extern void	xs_LineContour (), xs_FilledContour (), ts_Plot();
 
 /*
  * How many plot components in our plot description and which
@@ -524,6 +528,8 @@ px_Init ()
 
 	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
+
+	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
 /*
  * Done
  */
