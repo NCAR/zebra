@@ -51,7 +51,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.26 1994-02-03 22:08:43 burghart Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.27 1994-05-21 07:24:07 granger Exp $")
 
 /*
  * Issues:
@@ -111,7 +111,7 @@ MAKE_RCSID ("$Id: Archiver.c,v 1.26 1994-02-03 22:08:43 burghart Exp $")
 # define DEF_DEVICEFILE "/dev/nrst8"
 # define DEF_MOUNTNAME "eod0"
 # define DEF_OUTPUTDIR "/eod0"
-# define DEF_TAPELIMIT ((unsigned long) 3500000000)
+# define DEF_TAPELIMIT ((unsigned long) 3500000000ul)
 # define DEF_MINDISK ((unsigned long) 10000)
 
 # define AR_TAPE 1
@@ -158,6 +158,7 @@ unsigned long	BytesWritten = 0;	/* Statistics stuff */
 int		FilesWritten = 0;
 
 static char Tarbuf[65536]; 	/* Where the tar command is built.  */
+unsigned long Tarlen = 0;       /* == strlen(Tarbuf) at all times */
 
 /*
  * Widget info.
@@ -287,13 +288,14 @@ static void	RequestWrite FP((int finish));
 static void	DoTheWriteThing FP((int finish));
 static void	SaveFiles FP ((int));
 static void	LoadFileList FP ((void));
+static int *	GetFileChain FP ((PlatformId pid, ZebTime *since, int *count));
 static void	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
 static int	RunTar FP ((char *));
 static void	UpdateList FP ((void));
 static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
 static int	TellDaemon FP ((char *, int, SValue *, int));
 static void	UpdateMem FP ((void));
-static void	FinishFinishing FP((void));
+static void	FinishFinishing FP((int error));
 
 /*---------------------------------------------------------------------*/
 
@@ -501,7 +503,7 @@ char **argv;
  * have been set in InitArchiver()
  */
 {
-	Arg args[5];
+	Arg args[10];
 	int n;
 	Widget w, above, button;
 	XColor screen, exact;
@@ -581,9 +583,10 @@ char **argv;
  * Status info.
  */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "0 Bytes in 0 files");	n++;
+	XtSetArg (args[n], XtNlabel, "0 Bytes in 0 files             "); n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
+	XtSetArg (args[n], XtNresize, True);            n++;
 	Bytes = XtCreateManagedWidget ("bytes", labelWidgetClass, Form,args,n);
 
 	XtRealizeWidget (Top);
@@ -690,7 +693,8 @@ Finish ()
  * and dying
  */
 static void
-FinishFinishing()
+FinishFinishing(error)
+int error;  /* non-zero if we're finishing due to an error */
 {
 	msg_ELog(EF_DEBUG, "finishing a finish");
 	switch ( ArchiveMode )
@@ -706,7 +710,10 @@ FinishFinishing()
 		EjectEOD ();
 	    break;
 	}
-	SetStatus (TRUE, "CROAK");
+	if (error)
+		SetStatus (TRUE, "CROAK");
+	else
+		SetStatus (FALSE, "Finished");
 	Die ();
 }
 
@@ -832,12 +839,13 @@ LoadFileList ()
 	DumpedTable = usy_c_stbl ("DumpedTable");
 	if ((fp = fopen (listfile, "r")) == NULL)
 	{
-		msg_ELog (EF_INFO, "No dumped file list");
+		msg_ELog (EF_INFO, "No dumped file list, '%s'", listfile);
 		return;
 	}
 /*
  * Go through and read each platform.
  */
+	msg_ELog (EF_DEBUG, "Reading dumped file list from %s", listfile);
 	while (fgets (pname, 200, fp))
 	{
 	/*
@@ -847,7 +855,7 @@ LoadFileList ()
 		  sscanf (colon + 1, "%d %d", &d.ds_yymmdd, &d.ds_hhmmss) != 2)
 		{
 			msg_ELog (EF_PROBLEM, "Bad DumpedTable line: %s",
-					pname);
+				  pname);
 			continue;
 		}
 		*colon = '\0';
@@ -1048,7 +1056,7 @@ DoTheWriteThing(explicit_finish)
 		     * error
 		     */
 		    if (explicit_finish)
-			FinishFinishing();
+			FinishFinishing(TRUE);
 		}
 		break;
 	}
@@ -1066,7 +1074,7 @@ DoTheWriteThing(explicit_finish)
 	 * This won't return.
 	 */
 	if (explicit_finish)
-	   	FinishFinishing();
+	   	FinishFinishing(FALSE);
 
 	switch ( ArchiveMode )
 	{
@@ -1145,6 +1153,7 @@ int all;
 	 */
 	sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
 	cmdlen = strlen (Tarbuf);
+	Tarlen = cmdlen;
 
 	/*
 	 * Pass through the platform table and dump things.
@@ -1161,7 +1170,7 @@ int all;
 	 * Run the tar command to put this all together, but only if
 	 * we actually got any files to write
 	 */
-	if ( strlen(Tarbuf) > cmdlen )
+	if ( Tarlen > cmdlen )
 	{
 		/* 
 		 * Do all the settings to signal a write in progress 
@@ -1201,6 +1210,58 @@ int all;
 
 
 
+static int *
+GetFileChain (pid, since, count)
+PlatformId pid;
+ZebTime *since;		/* Want files since this time	*/
+int *count;		/* Return number of files found */
+/*
+ * Return an array of data file indices from latest to oldest.
+ * The array must be freed by the caller.
+ */
+{
+	DataFileInfo dfi;
+	DataSrcInfo dsi;
+	int *chain;
+	int nchain;
+	int findex;
+	int n;
+
+	n = 0;
+	chain = NULL;
+/*
+ * Fill the array
+ */
+	ds_LockPlatform (pid);
+	ds_GetDataSource (pid, 0, &dsi);
+	findex = dsi.dsrc_FFile;
+	if (findex != 0)
+		ds_GetFileInfo (findex, &dfi);
+	while (findex && TC_Less (*since, dfi.dfi_End))
+	{
+		if (! chain)
+		{
+			nchain = 32;
+			chain = (int *) malloc (nchain * sizeof(int));
+		}
+		else if (n == nchain)
+		{
+			nchain *= 2;
+			chain = (int *) realloc (chain, nchain * sizeof(int));
+
+		}
+		chain[n++] = findex;
+		if ((findex = dfi.dfi_Next) > 0)
+			ds_GetFileInfo (findex, &dfi);
+	}
+
+	ds_UnlockPlatform (pid);
+	*count = n;
+	return (chain);
+}
+
+
+
 static void
 DumpPlatform (pid, pi, all)
 PlatformId pid;
@@ -1211,44 +1272,61 @@ int all;
  * the Tarbuf command buffer
  */
 {
-	ZebTime last, dumptime;
+	ZebTime dumptime;
 	SValue v;
-	int type, findex;
+	int *chain;
+	int type;
 	DataSrcInfo dsi;
 	DataFileInfo dfi;
+	int findex;
+	int nfiles, i;
+	char buf[512];
 /*
  * Find the last time this thing was dumped.
  */
 	if (usy_g_symbol (DumpedTable, pi->pl_Name, &type, &v))
-		TC_UIToZt (&(v.us_v_date), &last);
+		TC_UIToZt (&(v.us_v_date), &dumptime);
 	else
-		last.zt_Sec = last.zt_MicroSec = 0;
-/*
- * Go through the file chain.  We never dump the most recent file, on the 
- * assumption that it is still being written to (unless we've been told
- * to do them all.
- */
+		dumptime.zt_Sec = dumptime.zt_MicroSec = 0;
+
+	ds_LockPlatform (pid);
 	ds_GetDataSource (pid, 0, &dsi);
-	ds_GetFileInfo (findex = dsi.dsrc_FFile, &dfi);
-	if (findex == 0 || 
-			(! all && (findex = dfi.dfi_Next) == 0) ||
-			TC_LessEq (dfi.dfi_End, last))
-		return;		/* Nothing to dump */
-	dumptime = dfi.dfi_End;
+	chain = GetFileChain (pid, &dumptime, &nfiles);
+	TC_EncodeTime (&dumptime, TC_Full, buf);
+	msg_ELog (EF_DEBUG, "platform '%s' has %d files since %s",
+		  ds_PlatformName (pid), nfiles, buf);
 /*
- * Now go through and do it.
+ * Now step through the file chain as far as we can.  We'll skip the loop
+ * entirely if we have no files, or if there is only one and we are not
+ * supposed to do all of them.  We have to traverse the file chain in time
+ * order in case we have to abort before putting all of the file names on
+ * the command line.  That way we can advance the dump time forward with
+ * each file as its put on the tar command line.
  */
-	while (findex && TC_Less (last, dfi.dfi_End))
+	for (i = nfiles - 1; (nfiles > 0) && (i >= (all ? 0 : 1)); --i)
 	{
-		char *fname = dfi.dfi_Name;
+		char *fname;
+
+		findex = chain[i];
+		ds_GetFileInfo (findex, &dfi);
 	/*
-	 * Fix up the file name and add it to our big tar command.
+	 * Fix up the file name
 	 */
-		msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
-		strcat (Tarbuf, dsi.dsrc_Where);
-		strcat (Tarbuf, "/");
-		strcat (Tarbuf, fname);
-		strcat (Tarbuf, " ");
+		fname = dfi.dfi_Name;
+		sprintf (buf, "%s/%s ", dsi.dsrc_Where, fname);
+	/*
+	 * If this file name will not fit in the tar command line, skip it
+	 * and the rest of the files in this platform.
+	 */
+		if (Tarlen + strlen(buf) + 1 >= sizeof(Tarbuf))
+		{
+			msg_ELog (EF_DEBUG, "tar command line full");
+		        break;
+		}
+		msg_ELog (EF_DEBUG, "Dumping file '%s' (index %d)", 
+			  fname, findex);
+		strcat (Tarbuf, buf);
+		Tarlen += strlen(buf);
 	/*
 	 * Send the MarkArchived request now, even though we do not know
 	 * that the tar will succeed.  This is to help insure that nothing
@@ -1257,14 +1335,22 @@ int all;
 	 * archived flag, when picking files to write.
 	 */
 		ds_MarkArchived (findex);
-		if ((findex = dfi.dfi_Next) > 0)
-			ds_GetFileInfo (findex, &dfi);
+	/*
+	 * Advance the dumped time to include this file
+	 */
+		dumptime = dfi.dfi_End;
 	}
+	if (chain)
+		free (chain);
 /*
  * Record the new time.
  */
+	TC_EncodeTime (&dumptime, TC_Full, buf);
+	msg_ELog (EF_INFO, "platform '%s' being dumped up to %s",
+		  ds_PlatformName (pid), buf);
 	TC_ZtToUI (&dumptime, &(v.us_v_date));
 	usy_s_symbol (DumpedTable, pi->pl_Name, SYMT_DATE, &v);
+	ds_UnlockPlatform (pid);
 }
 
 
@@ -1306,8 +1392,8 @@ char *cmd;
 	{
 		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
 		{
-			msg_ELog (EF_EMERGENCY, "Archive device write error %d",
-				errno);
+			msg_ELog (EF_EMERGENCY,"Archive device write error %d",
+				  errno);
 			if ( ArchiveMode == AR_EOD ) close(DeviceFD);
 			ActionButton (); /* Free drive */
 			SetStatus (TRUE, "Device write error!");
@@ -1522,6 +1608,7 @@ UpdateList ()
 /*
  * Scan through our table and write everything.
  */
+	msg_ELog (EF_DEBUG, "Writing dumped file dates to '%s'", listfile);
 	usy_traverse (DumpedTable, WriteFileDate, (long) fp, FALSE);
 	fclose (fp);
 /*
