@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.19 2002-11-14 05:51:10 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.20 2002-11-18 17:33:35 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -80,7 +80,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.19 2002-11-14 05:51:10 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.20 2002-11-18 17:33:35 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -1166,7 +1166,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	
 	// Give a guess about how many samples in a typical sounding
 	// to avoid some memory thrashing.
-	dc_HintNSamples (dc, 5000, /*decrease*/ 0);
+	dc_HintNSamples (dc, 10000, /*decrease*/ 0);
 	dc_SetLocAltUnits (dc, AU_kmMSL);
 
 	// Skip the header
