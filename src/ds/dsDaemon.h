@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.23 1996-08-22 01:36:16 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.24 1996-11-19 09:36:01 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -45,21 +45,6 @@ extern int NDTEUsed;		/* How many data table entries used. 	*/
 extern int DTFreeList;		/* The datafile free list		*/
 extern int NPlatform;		/* How many platforms			*/
 extern int NClass;		/* Number of platform classes		*/
-
-/*
- * The default data directory.
- */
-# define DDIR_LEN	CFG_FILEPATH_LEN
-
-extern char DefDataDir[DDIR_LEN];
-extern char RemDataDir[DDIR_LEN];
-
-
-/*
- * This is a kludge to make it easier to keep a uniform init file.  If this
- * flag is set, no remote directories will be accessed.
- */
-extern bool DisableRemote;
 
 /*
  * Allow the revision numbering to be chosen from the config file.
@@ -124,40 +109,32 @@ void InitSharedMemory FP ((void));
 /*
  * Data table routines.
  */
+
+/* --- class and platform tables --- */
+int dt_CheckId FP ((PlatformId id));
+int dt_CheckClassId FP ((PlatClassId id));
 PlatformClass *dt_NewClass FP((const char *name, const char *superclass));
 PlatformInstance *dt_Instantiate FP((PlatformClass *pc, 
 				     PlatformId parent, 
 				     const char *name));
-void dt_FillClassDirs FP((PlatformClass *pc));
-void dt_AddClassSubPlat FP((PlatformClass *pc, PlatformClass *spc,
-			    const char *name));
-void dt_DefSubPlat FP((PlatformId parent, PlatformClass *spc,
-		       const char *name));
-void dt_EraseClassSubPlats FP((PlatformClass *pc));
-bool dt_ValidateClass FP((PlatformClass *pc));
+PlatformInstance *dt_DefSubPlat FP((PlatformId parent, PlatformClass *spc,
+				    const char *name));
 PlatformInstance *dt_FindInstance FP((const char *name));
-Platform *dt_FindPlatform FP ((const char *, int));
+Platform *dt_FindPlatform FP ((const char *));
 PlatformClass *dt_FindClass FP((const char *name));
 void dt_ClientPlatform FP((PlatformInstance *pi, ClientPlatform *p));
-void dt_SearchPlatforms FP ((int (*func)(), void *arg, int sort, char *re));
+void dt_SearchPlatforms FP((int (*function)(), struct dsp_PlatformSearch *req,
+			    PlatformId *pids, int *npids));
+const char *ds_ClassName FP ((PlatClassId id));
+
+/* --- data file entries --- */
 DataFile *dt_NewFile FP ((void));
 void dt_RemoveDFE FP ((Platform *, int));
 void dt_CutDFE FP ((PlatformInstance *p, int dfi));
 void dt_FreeDFE FP ((DataFile *));
 void dt_AddToPlatform FP ((Platform *, DataFile *, int local));
 void dt_SortDFE FP ((PlatformInstance *p, DataFile *df, int local));
-int dt_SetString FP((char *dest, const char *src, int maxlen, char *op));
 char *dt_DFEFilePath FP((Platform *pi, DataFile *df));
-
-/*
- * UI command parsing
- */
-void dc_DefPlatform FP((char *name, char *superclass));
-void dc_DefPlatformClass FP((char *name, char *superclass, int platform));
-void dc_SubPlatform FP((struct ui_command *cmds));
-void dc_DefSubPlats FP((char *target, char *classname, 
-			struct ui_command *cmds));
-void dc_DefInstances FP((char *classname, struct ui_command *cmds));
 
 /*
  * Daemon public routines
@@ -171,11 +148,22 @@ void DataFileGone FP ((DataFile *df));
  */
 void	DataScan FP ((void));
 void	Rescan FP ((PlatformId platid, int all));
-void	WriteCache FP ((struct ui_command *));
+void	WriteCache FP ((const char *ufile, int onlydirty));
 void	ReadCacheFile FP ((char *, int));
 void	RescanPlat FP ((Platform *));
 long	StatRevision FP ((Platform *, DataFile *, ino_t *));
-int	CreateDataDir FP ((Platform *pi));
+
+# ifdef UI_H_SYMBOLS
+/*
+ * UI command parsing external prototypes; only called in Daemon.c
+ */
+void dc_DefPlatform FP((char *name, char *superclass));
+void dc_DefPlatformClass FP((char *name, char *superclass, int platform));
+void dc_SubPlatform FP((struct ui_command *cmds));
+void dc_DefSubPlats FP((char *target, char *classname, 
+			struct ui_command *cmds));
+void dc_DefInstances FP((char *classname, struct ui_command *cmds));
+# endif /* UI_H_SYMBOLS */
 
 /*
  * Debuggin' routines
@@ -202,16 +190,22 @@ void	dbg_EncodeElapsed FP((char *prefix, time_t *start, time_t *end,
  * getting away from clumsy cpp definitions. (static in case the compiler
  * doesn't support inline).
  */
-static inline PlatformClass *pi_Class (pi)
+/*
+ * If inline has been defined because it is not supported by the compiler,
+ * then use static.
+ */
+#define INLINE static inline
+
+INLINE PlatformClass *pi_Class (pi)
 PlatformInstance *pi;
 { return (CTable + pi->dp_class); }
 
-static inline PlatformClass *pc_SuperClass (pc)
+INLINE PlatformClass *pc_SuperClass (pc)
 PlatformClass *pc;
 { return ((pc->dpc_superclass == BadClass) ?
 	  NULL : (CTable + pc->dpc_superclass)); }
 
-static inline PlatformInstance *pi_Parent (pi)
+INLINE PlatformInstance *pi_Parent (pi)
 PlatformInstance *pi;
 { return ((pi->dp_parent == BadPlatform) ?
 	  NULL : (PTable + pi->dp_parent)); }
@@ -221,81 +215,81 @@ PlatformInstance *pi;
  * copied into the instances also and thus can ge tested there.
  * This may change.
  */
-static inline int pi_Subplatform (pi)
+INLINE int pi_Subplatform (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_SUBPLATFORM); }
 
-static inline int pi_Mobile (pi)
+INLINE int pi_Mobile (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_MOBILE); }
 
-static inline int pi_Composite (pi)
+INLINE int pi_Composite (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_COMPOSITE); }
 
-static inline int pi_Regular (pi)
+INLINE int pi_Regular (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_REGULAR); }
 
-static inline int pi_Remote (pi)
+INLINE int pi_Remote (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_REMOTE); }
 
-static inline int pi_Daysplit (pi)
+INLINE int pi_Daysplit (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_SPLIT); }
 
-static inline int pi_Model (pi)
+INLINE int pi_Model (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_MODEL); }
 
-static inline int pi_Virtual (pi)
+INLINE int pi_Virtual (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_VIRTUAL); }
 
 /*
  * Actual instance-specific flags
  */
-static inline int pi_Dirty (pi)
+INLINE int pi_Dirty (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_DIRTY); }
 
-static inline int pi_CacheLoaded (pi)
+INLINE int pi_CacheLoaded (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_CLOADED); }
 
-static inline int pi_RCacheLoaded (pi)
+INLINE int pi_RCacheLoaded (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_RCLOADED); }
 
-static inline int pi_DirExists (pi)
+INLINE int pi_DirExists (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_DIREXISTS); }
 
 /*
  * Access for other platform instance members
  */
-static inline char *pi_Name (pi)
+INLINE char *pi_Name (pi)
 PlatformInstance *pi;
 { return (pi->dp_name); }
 
-static inline char *pi_Dir (pi)
+INLINE char *pi_Dir (pi)
 PlatformInstance *pi;
 { return (pi->dp_dir); }
 
-static inline char *pi_RDir (pi)
+INLINE char *pi_RDir (pi)
 PlatformInstance *pi;
 { return (pi->dp_rdir); }
 
 /*
  * Access to data file lists through instance structure
  */
-static inline int pi_LocalData (pi)
+INLINE int pi_LocalData (pi)
 PlatformInstance *pi;
 { return (pi_Subplatform(pi) ? pi_Parent(pi)->dp_LocalData :
 	  pi->dp_LocalData); }
 
-static inline int pi_RemoteData (pi)
+INLINE int pi_RemoteData (pi)
 PlatformInstance *pi;
 { return (pi_Subplatform(pi) ? pi_Parent(pi)->dp_RemoteData :
 	  pi->dp_RemoteData); }
@@ -308,19 +302,19 @@ PlatformInstance *pi;
 /*
  * Access to class members through the instance structure
  */
-static inline DataOrganization pi_DataOrg (pi)
+INLINE DataOrganization pi_DataOrg (pi)
 PlatformInstance *pi;
 { return (pi_Class(pi)->dpc_org); }
 
-static inline FileType pi_FileType (pi)
+INLINE FileType pi_FileType (pi)
 PlatformInstance *pi;
 { return (pi_Class(pi)->dpc_ftype); }
 
-static inline unsigned short pi_Keep (pi)
+INLINE unsigned short pi_Keep (pi)
 PlatformInstance *pi;
 { return (pi_Class(pi)->dpc_keep); }
 
-static inline unsigned short pi_MaxSamp (pi)
+INLINE unsigned short pi_MaxSamp (pi)
 PlatformInstance *pi;
 { return (pi_Class(pi)->dpc_maxsamp); }
 
