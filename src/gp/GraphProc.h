@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.30 1993-11-30 23:34:19 granger Exp $ */
+/* $Id: GraphProc.h,v 2.31 1993-12-01 16:54:15 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -215,6 +215,7 @@ extern void An_ColorNumber FP ((char *, char *, int, int, int));
 extern void An_ColorVector FP ((char *, char *, int, int, int));
 extern void An_BarbLegend FP ((char *, char *, int, int, int));
 extern void An_ColorString FP ((char *, char *, int, int, int));
+extern void An_ColorScale FP ((char *, char *, int, int, int));
 extern int An_GetLeft FP (());
 extern void An_GetSideParams FP ((char *, float *, int *));
 extern void An_ResetAnnot FP ((int));
