@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.18 2002-07-11 22:42:32 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.19 2002-07-12 00:30:30 burghart Exp $"
 
 /*
  * This Imakefile is now here only for builds via Zebra.  If Zebra gets
@@ -31,8 +31,10 @@ SUBDIRS = LiteClue
 DISTSUBDIRS = $(SUBDIRS)
 
 LOCALLIB = uilib.a
+
 UI_LIBDIR = $(LIBDIR)/rdssui
-UI_LF = $(UILIBDIR)/ui.lf
+LOADFILE = ui.lf
+UI_LF = $(UI_LIBDIR)/$(LOADFILE)
 
 /*
  * ProjectZebra needs the -I. since some ui headers use <> to include
@@ -146,7 +148,22 @@ BuildIncludes($(HEADERS),.,.)
 
 #endif /* ProjectZebra */
 
-UIBootFileDepsTarget(ui.lf, ui.state, ui_commands ./uib)
+#
+# UI loadfile
+#
+$(LOADFILE): ui.state uib
+	$(RM) $@
+	@echo "Making $@"
+	@echo read ui.state\; set 'ui$pager_mode' false\; save $@ all | \
+		./uib
+
+AllTarget($(LOADFILE))
+InstallNonExecFile($(LOADFILE),$(UI_LIBDIR))
+
+clean::
+	RemoveFile($(LOADFILE))
+
+CvsIgnoreFile(ui.lf)
 
 DependTarget()
 
