@@ -3,7 +3,6 @@
  * concept of fields and stuff in general interpretable as meteorological
  * data.
  */
-static char *rcsid = "$Id: dc_MetData.c,v 1.1 1991-11-19 22:24:26 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,6 +27,7 @@ static char *rcsid = "$Id: dc_MetData.c,v 1.1 1991-11-19 22:24:26 corbet Exp $";
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
+MAKE_RCSID ("$Id: dc_MetData.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -49,6 +49,17 @@ typedef struct _FldInfo
 } FldInfo;
 
 /*
+ * If we have non-uniform fields, then the beginning piece of every sample
+ * contains a list of the following:
+ */
+typedef struct _FieldTOC
+{
+	int	ft_Offset;		/* Offset of this field		*/
+	int	ft_Len;			/* Length of this field		*/
+} FieldTOC;
+
+
+/*
  * Our class-specific AuxData structure types.
  */
 # define ST_FLDINFO	1000
@@ -65,6 +76,8 @@ typedef struct _FldInfo
 	static void	dc_CopyData (DataChunk *, FldInfo *, int, int, int,
 				DataPtr);
 	static void	dc_DumpMD (DataChunk *);
+	static void	dc_AddNonUniform (DataChunk *, FldInfo *, int, time *,
+				int, int, int, DataPtr);
 # else
 # endif
 
@@ -81,7 +94,7 @@ RawDCClass MetDataMethods =
 
 
 
-
+/* ARGSUSED */
 static DataChunk *
 dc_MDCreate (class)
 DataClass class;
@@ -102,8 +115,41 @@ DataClass class;
 
 
 
+void
+dc_SetupFields (dc, nfield, fields)
+DataChunk *dc;
+int nfield;
+FieldId *fields;
+/*
+ * Set up this DC to take non-uniform fields.
+ */
+{
+	FldInfo *finfo;
+	int fld;
+/*
+ * The usual sanity checking.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetupFields"))
+		return;
+/*
+ * Allocate and fill in our structure.
+ */
+	finfo = ALLOC (FldInfo);
+	finfo->fi_NField = nfield;
+	for (fld = 0; fld < nfield; fld++)
+		finfo->fi_Fields[fld] = fields[fld];
+	finfo->fi_Uniform = FALSE;
+	finfo->fi_Badval = DefaultBadval;
+/* 
+ * Attach it to the DC.
+ */
+	dc_AddADE (dc, (DataPtr) finfo, DCC_MetData, ST_FLDINFO, 
+				sizeof (FldInfo), TRUE);
+}
 
 
+
+/* ARGSUSED */
 void
 dc_SetupUniformFields (dc, nsamples, nfield, fields, size)
 DataChunk *dc;
@@ -127,7 +173,7 @@ FieldId *fields;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetupFields"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetupFields"))
 		return;
 /*
  * Allocate and fill in our structure.
@@ -166,7 +212,7 @@ DataChunk *dc;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetBadval"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetBadval"))
 		return (0);
 /*
  * Grab the field info structure, and return the bad value flag stored
@@ -195,7 +241,7 @@ float badval;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetBadval"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetBadval"))
 		return;
 /*
  * Grab the field info structure, and set the bad value flag.
@@ -226,7 +272,7 @@ DataChunk *dc;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetNField"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetNField"))
 		return (0);
 /*
  * Grab the field info structure and return the number.
@@ -235,6 +281,34 @@ DataChunk *dc;
 						== NULL)
 		return (0);
 	return (finfo->fi_NField);
+}
+
+
+
+
+FieldId *
+dc_GetFields (dc, nf)
+DataChunk *dc;
+int *nf;
+/*
+ * Return the list of fields in this DC.
+ */
+{
+	FldInfo *finfo;
+/*
+ * The usual sanity checking.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFields"))
+		return (0);
+/*
+ * Grab the field info structure and return the stuff.
+ */
+	if ((finfo = (FldInfo *) dc_FindADE (dc, DCC_MetData, ST_FLDINFO, 0))
+						== NULL)
+		return (0);
+	if (nf)
+		*nf = finfo->fi_NField;
+	return (finfo->fi_Fields);
 }
 
 
@@ -267,7 +341,7 @@ DataPtr data;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "AddMData"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "AddMData"))
 		return;
 /*
  * Grab the field info structure and return the number.
@@ -288,15 +362,83 @@ DataPtr data;
 		return;
 	}
 /*
- * Arrange for space for this data.
+ * If we have non-uniform fields, things are more complicated, so we'll
+ * hand it off.
  */
-	if (! dc_ArrangeSpace (dc, t, size, start, nsamp, finfo))
-		return;
+	if (! finfo->fi_Uniform)
+		dc_AddNonUniform (dc, finfo, findex, t, size, start, nsamp,
+					data);
 /*
- * Now copy the data over.
+ * Otherwise arrange for space for this data and copy it over..
  */
-	dc_CopyData (dc, finfo, findex, start, nsamp, data);
+	else
+	{
+		if (! dc_ArrangeSpace (dc, t, size, start, nsamp, finfo))
+			return;
+		dc_CopyData (dc, finfo, findex, start, nsamp, data);
+	}
 }
+
+
+
+
+
+
+static void
+dc_AddNonUniform (dc, finfo, findex, t, size, start, nsamp, data)
+DataChunk *dc;
+FldInfo *finfo;
+int findex, size, start, nsamp;
+time *t;
+DataPtr data;
+/*
+ * Add this field to a DC with non-uniform data.
+ */
+{
+	int samp, len, i;
+	DataPtr space;
+	FieldTOC *ft;
+
+	for (samp = start; samp < start + nsamp; samp++)
+	{
+	/*
+	 * If the sample exists, make sure this field is not already a 
+	 * part of it, then expand to the size we need.
+	 */
+		if (space = dc_GetSample (dc, samp, &len))
+		{
+			ft = (FieldTOC *) space;
+			ft[findex].ft_Offset = len;
+			ft[findex].ft_Len = size;
+			dc_AdjustSample (dc, samp, len + size);
+		}
+	/*
+	 * Otherwise, create it.
+	 */
+		else
+		{
+			dc_AddSample (dc, t, NULL,
+				size + finfo->fi_NField*sizeof (FieldTOC));
+			ft = (FieldTOC *) (space = dc_GetSample(dc,samp,&len));
+			for (i = 0; i < finfo->fi_NField; i++)
+				ft[i].ft_Offset = ft[i].ft_Len = 0;
+			ft[findex].ft_Offset = finfo->fi_NField*
+						sizeof (FieldTOC);
+			ft[findex].ft_Len = size;
+		}
+	/*
+	 * Now copy in the data.
+	 */
+		memcpy ((char *) space + ft[findex].ft_Offset, data, size);
+	/*
+	 * On to the next one.
+	 */
+		t++;
+		data = (char *) data + size;
+	}
+}
+
+
 
 
 
@@ -330,18 +472,10 @@ time *t;
 int size, start, nsamp;
 FldInfo *finfo;
 /*
- * Get this data chunk set up to accept the new data.
+ * Get this data chunk set up to accept the new data (uniform fields).
  */
 {
 	int nexist, samp;
-/*
- * We don't even begin to think about non-uniform cases yet.
- */
-	if (! finfo->fi_Uniform)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to handle non-uniform fields!");
-		return (FALSE);
-	}
 /*
  * Make sure the size is what we were promised.
  */
@@ -372,7 +506,7 @@ FldInfo *finfo;
  */
 	for (samp = start; samp < start + nsamp; samp++)
 		if (samp >= nexist)
-			(void) dc_AddSample (dc, t + samp, NULL,
+			(void) dc_AddSample (dc, t + samp - start, NULL,
 						finfo->fi_NField*size);
 	return (TRUE);
 }
@@ -427,12 +561,13 @@ FieldId field;
  */
 {
 	FldInfo *finfo;
+	FieldTOC *ft;
 	int findex;
 	DataPtr data;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetMData"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetMData"))
 		return (NULL);
 /*
  * Grab the field info structure.
@@ -460,9 +595,21 @@ FieldId field;
 /*
  * Now that we have everything, we're set.
  */
+	if (finfo->fi_Uniform)
+	{
+		if (len)
+			*len = finfo->fi_Size;
+		return ((char *) data + findex*finfo->fi_Size);
+	}
+/*
+ * In the non-uniform case, find the TOC and return the info from there.
+ */
+	ft = (FieldTOC *) data;
+	if (ft[findex].ft_Len <= 0)
+		return (NULL);
 	if (len)
-		*len = finfo->fi_Size;
-	return ((char *) data + findex*finfo->fi_Size);
+		*len = ft[findex].ft_Len;
+	return ((char *) data + ft[findex].ft_Offset);
 }
 
 
@@ -481,7 +628,7 @@ DataChunk *dc;
 /*
  * The usual sanity checking.
  */
-	if (! ds_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetMData"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetMData"))
 		return;
 /*
  * Grab the field info structure.

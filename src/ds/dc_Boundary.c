@@ -1,7 +1,6 @@
 /*
  * The boundary data chunk class.
  */
-static char *rcsid = "$Id: dc_Boundary.c,v 1.1 1991-11-16 01:18:54 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,6 +23,7 @@ static char *rcsid = "$Id: dc_Boundary.c,v 1.1 1991-11-16 01:18:54 corbet Exp $"
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
+MAKE_RCSID ("$Id: dc_Boundary.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 
 
 /*
@@ -44,7 +44,7 @@ typedef struct _BndSamp
  * Local routines.
  */
 # ifdef __STDC__
-	static DataChunk *dc_BndCreate (DataChunkClass);
+	static DataChunk *dc_BndCreate (DataClass);
 	static void dc_BndDump (DataChunk *);
 # endif
 
@@ -70,7 +70,7 @@ RawDCClass BoundaryMethods =
 
 static DataChunk *
 dc_BndCreate (class)
-DataChunkClass class;
+DataClass class;
 /*
  * Create a boundary data chunk.
  */
@@ -83,7 +83,7 @@ DataChunkClass class;
 /*
  * No AuxData at all for boundaries, so we just set the class and return.
  */
-	dc->dc_Class = DCC_Boundary;
+	dc->dc_Class = class;
 	return (dc);
 }
 
@@ -123,7 +123,7 @@ int npt;
 /*
  * Just stuff in the sample and be done with it.
  */
-	dc_TrAddSample (dc, t, (DataPointer) pts, npt*sizeof (Location));
+	dc_AddSample (dc, t, (DataPtr) pts, npt*sizeof (Location));
 }
 
 
@@ -142,7 +142,7 @@ int sample, *npt;
 	int len;
 	Location *ret;
 
-	if (! (ret = (Location *) dc_TrGetSample (dc, sample, &len)))
+	if (! (ret = (Location *) dc_GetSample (dc, sample, &len)))
 		return (NULL);
 	*npt = len/sizeof (Location);
 	return (ret);
@@ -161,7 +161,7 @@ DataChunk *dc;
 {
 	int i, nbnd, pt;
 
-	printf ("BOUNDARY class, %d boundaries\n", nbnd = dc_TrGetNSample(dc));
+	printf ("BOUNDARY class, %d boundaries\n", nbnd = dc_GetNSample(dc));
 	for (i = 0; i < nbnd; i++)
 	{
 		Location *locs;

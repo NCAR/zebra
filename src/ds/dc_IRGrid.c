@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_IRGrid.c,v 1.1 1991-11-21 17:53:41 corbet Exp $")
+MAKE_RCSID ("$Id: dc_IRGrid.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -53,6 +53,7 @@ typedef struct _PlatInfo
 # ifdef __STDC__
 	static DataChunk *dc_IRGCreate (DataClass);
 	static bool dc_GetPlatList (DataChunk *, PlatInfo **, int *);
+	static void dc_IRDump (DataChunk *);
 # else
 # endif
 
@@ -63,7 +64,7 @@ RawDCClass IRGridMethods =
 	dc_IRGCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
-	0,			/* Dump				*/
+	dc_IRDump,		/* Dump				*/
 };
 
 
@@ -121,7 +122,7 @@ FieldId *fields;
 /*
  * Do the field setup.
  */
-	dc_SetupUniformFields (dc, 0, nfld, fields, nfld*nplat*sizeof (float));
+	dc_SetupUniformFields (dc, 0, nfld, fields, nplat*sizeof (float));
 /*
  * Allocate the platform space and set that up too.
  */
@@ -319,4 +320,35 @@ FieldId field;
  * Get the info.
  */
 	return ((float *) dc_GetMData (dc, sample, field, NULL));
+}
+
+
+
+
+static void
+dc_IRDump (dc)
+DataChunk *dc;
+/*
+ * Dump this think out.
+ */
+{
+	PlatInfo *pinfo;
+	int nplat, plat;
+/*
+ * Get our platform list.
+ */
+	if (! dc_GetPlatList (dc, &pinfo, &nplat))
+	{
+		msg_ELog (EF_PROBLEM, "No platform list for GetPlatforms");
+		return;
+	}
+/*
+ * Dump it out.
+ */
+	printf ("IRGRID class, %d platforms\n", nplat);
+	for (plat = 0; plat < nplat; plat++)
+		printf ("\t%2d: (%s) at %.4f %.4f %.2f\n", pinfo[plat].pi_Id,
+			/* ds_PlatformName (pinfo[plat].pi_Id) */"(name here)",
+			pinfo[plat].pi_Loc.l_lat, pinfo[plat].pi_Loc.l_lon,
+			pinfo[plat].pi_Loc.l_alt);
 }

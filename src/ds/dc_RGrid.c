@@ -25,15 +25,25 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 1.1 1991-11-21 22:31:44 corbet Exp $")
+MAKE_RCSID ("$Id: dc_RGrid.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
 /*
  * Our class-specific AuxData structure types.
  */
-# define ST_DIMENSIONS	42
+# define ST_GRID_GEOM	99
 
+/*
+ * One of these for every sample to keep track of our grid information.  Note
+ * that the use of the old structures forces the same origin and spacing for
+ * each field, but that shouldn't be a problem.
+ */
+typedef struct _GridGeometry
+{
+	Location	gg_Loc;		/* Where is the origin	*/
+	RGrid		gg_Rg;		/* Dims and spacing	*/
+} GridGeometry;
 
 
 
@@ -81,6 +91,7 @@ DataClass class;
 
 
 
+
 void
 dc_RGSetup (dc, nfld, fields)
 DataChunk *dc;
@@ -96,27 +107,148 @@ FieldId *fields;
  *	The data chunk has been set up.
  */
 {
-	PlatInfo *pinfo;
-	int plat;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_IRGrid, "IRSetup"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGSetup"))
 		return;
 /*
  * Do the field setup.
  */
-/*	dc_SetupUniformFields (dc, 0, nfld, fields, nplat*sizeof (float)); */
 	dc_SetupFields (dc, nfld, fields);
+}
+
+
+
+
+
+void
+dc_RGAddGrid (dc, sample, field, origin, rg, t, data, len)
+DataChunk *dc;
+int sample, len;
+FieldId field;
+Location *origin;
+RGrid *rg;
+time *t;
+float *data;
 /*
- * Allocate the platform space and set that up too.
+ * Add this field to the DC.
+ * Entry:
+ *	DC	is the data chunk to be modified.
+ *	SAMPLE	is the sample to be added.
+ *	FIELD	is the field ID for this grid.
+ *	ORIGIN	is the origin of the grid.
+ *	RG	is the spacing information
+ *	T	is the time of this data
+ *	DATA	is the actual data
+ *	LEN	is the length of the grid data, IN BYTES.  If it is specified
+ *		as zero, the length will be calculated from the dimensions.
+ * Exit:
+ *	The grid has been added.
  */
-	pinfo = (PlatInfo *) malloc (nplat * sizeof (PlatInfo));
-	for (plat = 0; plat < nplat; plat++)
+{
+	GridGeometry *gg;
+	int nsamples = dc_GetNSample (dc);
+/*
+ * Checking time.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGSetup"))
+		return;
+/*
+ * Make them add samples in order.
+ */
+	if (sample > nsamples)
 	{
-		pinfo[plat].pi_Id  = pids[plat];
-		pinfo[plat].pi_Loc = locs[plat];
+		msg_ELog (EF_PROBLEM, "Try to add grid %d when exist %d",
+			sample, nsamples);
+		return;
 	}
-	dc_AddADE (dc, pinfo, DCC_IRGrid, ST_PLATFORMS,
-				nplat*sizeof (PlatInfo), TRUE);
+/*
+ * If there is no data in this grid, create our geometry information now.
+ */
+	if (nsamples <= 0)
+	{
+	/*
+	 * Initialize a new Geometry structure.
+	 */
+		gg = ALLOC (GridGeometry);
+		gg->gg_Loc = *origin;
+		gg->gg_Rg = *rg;
+		dc_AddADE (dc, gg, DCC_RGrid, ST_GRID_GEOM,
+				sizeof (GridGeometry), TRUE);
+	}
+/*
+ * This is not the first data, so there should already be a GridGeometry
+ * structure.
+ */
+	else if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid,
+							ST_GRID_GEOM, NULL)))
+	{
+		msg_ELog (EF_PROBLEM, "Grid geometry block vanished!");
+		return;
+	}
+/*
+ * If they are adding a new sample to the DC, expand our grid info now.
+ */
+	else if (sample == nsamples)
+	{
+		int newlen = nsamples*sizeof (GridGeometry);
+		gg = (GridGeometry *) realloc (gg, newlen);
+		gg[sample].gg_Loc = *origin;
+		gg[sample].gg_Rg = *rg;
+		dc_ChangeADE (dc, gg, DCC_RGrid, ST_GRID_GEOM, newlen);
+	}
+/*
+ * Otherwise, everything is set up.  Now we just add the new data.
+ */
+	if (len == 0)
+		len = rg->rg_nX * rg->rg_nY * rg->rg_nZ * sizeof (float);
+	dc_AddMData (dc, t, field, len, sample, 1, data);
+}
+
+
+
+
+float *
+dc_RGGetGrid (dc, sample, field, origin, rg, len)
+DataChunk *dc;
+int sample, *len;
+FieldId field;
+Location *origin;
+RGrid *rg;
+/*
+ * Retrieve a grid from this DC.
+ */
+{
+	GridGeometry *gg;
+	DataPtr data;
+/*
+ * Checking time.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGGetGrid"))
+		return (NULL);
+/*
+ * Find the data itself.
+ */
+	if (! (data = dc_GetMData (dc, sample, field, len)))
+		return (NULL);
+/*
+ * Now look up our dimension info.
+ */
+	if (! (origin || rg))  /* Maybe they don't want it. */
+		return ((float *) data);
+	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid, ST_GRID_GEOM, 
+					NULL)))
+	{
+		msg_ELog (EF_PROBLEM, "GridGeometry structure gone");
+		return (NULL);
+	}
+/*
+ * Return the stuff they want.
+ */
+	if (origin)
+		*origin = gg[sample].gg_Loc;
+	if (rg)
+		*rg = gg[sample].gg_Rg;
+	return ((float *) data);
 }

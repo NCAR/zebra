@@ -1,7 +1,6 @@
 /*
  * The scalar data chunk class.
  */
-static char *rcsid = "$Id: dc_Scalar.c,v 1.1 1991-11-19 23:09:15 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -26,6 +25,7 @@ static char *rcsid = "$Id: dc_Scalar.c,v 1.1 1991-11-19 23:09:15 corbet Exp $";
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
+MAKE_RCSID ("$Id: dc_Scalar.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -72,4 +72,83 @@ DataClass class;
 	dc = dc_CreateDC (SUPERCLASS);
 	dc->dc_Class = class;
 	return (dc);
+}
+
+
+
+
+
+void
+dc_SetScalarFields (dc, nfield, fields)
+DataChunk *dc;
+int nfield;
+FieldId *fields;
+/*
+ * Set the given list as the field list for this scalar data chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "SetScalarFields"))
+		return;
+	dc_SetupUniformFields (dc, 0, nfield, fields, sizeof (float));
+}
+
+
+
+
+
+void
+dc_AddScalar (dc, t, sample, field, value)
+DataChunk *dc;
+time *t;
+int sample;
+FieldId field;
+float *value;
+/*
+ * Add this scalar datum to the data chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
+		return;
+	dc_AddMData (dc, t, field, sizeof (float), sample, 1, value);
+}
+
+
+
+
+
+void
+dc_AddMultScalar (dc, t, begin, nsample, field, values)
+DataChunk *dc;
+time *t;
+int begin, nsample;
+FieldId field;
+float *values;
+/*
+ * Add a set of values to this data chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
+		return;
+	dc_AddMData (dc, t, field, sizeof (float), begin, nsample, values);
+}
+
+
+
+
+float
+dc_GetScalar (dc, sample, field)
+DataChunk *dc;
+int sample;
+FieldId field;
+/*
+ * Get a scalar value back from this DC.
+ */
+{
+	float *ret;
+
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
+		return (0.0);
+	if (! (ret = (float *) dc_GetMData (dc, sample, field, NULL)))
+		return (dc_GetBadval (dc));
+	return (*ret);
 }

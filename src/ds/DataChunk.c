@@ -1,7 +1,6 @@
 /*
  * General DataChunk management routines, and code for the DCC_Raw object.
  */
-static char *rcsid = "$Id: DataChunk.c,v 1.1 1991-11-16 01:18:54 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -26,15 +25,15 @@ static char *rcsid = "$Id: DataChunk.c,v 1.1 1991-11-16 01:18:54 corbet Exp $";
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
+MAKE_RCSID ("$Id: DataChunk.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 
 
 /*
  * The class methods structure for the raw class.
  */
 # ifdef __STDC__
-	DataChunk *Dc_RawCreate (DataChunkClass);
+	DataChunk *Dc_RawCreate (DataClass);
 	void Dc_RawDestroy (DataChunk *);
-	void Dc_RawAdd (DataChunk *, int);
 	void Dc_RawDump (DataChunk *);
 # else
 	/* ....later.....*/
@@ -53,16 +52,23 @@ RawDCClass RawMethods =
 
 /*
  * This is the table which allows us to find individual class records.  It
- * is dependent on the definition of DataChunkClass in DataChunk.h
+ * is dependent on the definition of DataClass in DataChunk.h
  */
-extern RawDCClass TranspMethods, BoundaryMethods;
+extern RawDCClass TranspMethods, BoundaryMethods, MetDataMethods;
+extern RawDCClass ScalarMethods, IRGridMethods, RGridMethods;
+extern RawDCClass ImageMethods;
 
 static RawDCClass *ClassTable[] =
 {
 	0,			/* DCC_None		*/
 	&RawMethods,		/* DCC_Raw		*/
 	&TranspMethods,		/* DCC_Transparent	*/
-	&BoundaryMethods,	/* DCC_Boundary	*/
+	&BoundaryMethods,	/* DCC_Boundary		*/
+	&MetDataMethods,	/* DCC_MetData		*/
+	&ScalarMethods,		/* DCC_Scalar		*/
+	&IRGridMethods,		/* DCC_IRGRID		*/
+	&RGridMethods,		/* DCC_RGRID		*/
+	&ImageMethods,		/* DCC_Image		*/
 };
 
 
@@ -71,7 +77,7 @@ static RawDCClass *ClassTable[] =
 
 bool
 dc_IsSubClassOf (class, superclass)
-DataChunkClass class, superclass;
+DataClass class, superclass;
 /*
  * Return TRUE iff the given class is a subclass of "superclass".
  */
@@ -91,8 +97,8 @@ return (TRUE);
 
 
 bool
-ds_ReqSubClassOf (class, superclass, op)
-DataChunkClass class, superclass;
+dc_ReqSubClassOf (class, superclass, op)
+DataClass class, superclass;
 char *op;
 /*
  * Return TRUE iff the required subclass relationship exists.  If it does
@@ -111,9 +117,9 @@ char *op;
 
 
 
-DataChunkClass
+DataClass
 dc_GetSuperClass (class)
-DataChunkClass class;
+DataClass class;
 /*
  * Return the superclass of this class.
  */
@@ -127,7 +133,7 @@ DataChunkClass class;
 
 DataChunk *
 dc_CreateDC (class)
-DataChunkClass class;
+DataClass class;
 /*
  * Create a data chunk of this class.
  */
@@ -148,7 +154,7 @@ DataChunk *dchunk;
  * Get rid of this data chunk.
  */
 {
-	DataChunkClass class = dchunk->dc_Class;
+	DataClass class = dchunk->dc_Class;
 /*
  * Move up the class hierarchy until a destroy method is found.
  */
@@ -170,7 +176,7 @@ DataChunk *dc;
  * Dump out this data chunk.
  */
 {
-	DataChunkClass class = dc->dc_Class;
+	DataClass class = dc->dc_Class;
 /*
  * Go through and dump this one at every level which is prepared for it.
  */
@@ -235,8 +241,8 @@ AuxDataChain ade;
 void
 dc_AddADE (dc, data, class, subtype, len, free)
 DataChunk *dc;
-DataPointer data;
-DataChunkClass class;
+DataPtr data;
+DataClass class;
 int subtype, len, free;
 /*
  * Add an AuxData entry to this data chunk.
@@ -270,7 +276,7 @@ int subtype, len, free;
 static inline AuxDataChain
 dc_IntFindADE (dc, class, subtype)
 DataChunk *dc;
-DataChunkClass class;
+DataClass class;
 int subtype;
 /*
  * Find the AuxData entry corresponding to this stuff.
@@ -288,10 +294,10 @@ int subtype;
 
 
 
-DataPointer 
+DataPtr 
 dc_FindADE (dc, class, subtype, len)
 DataChunk *dc;
-DataChunkClass class;
+DataClass class;
 int subtype, *len;
 /*
  * Search for an AuxData entry in this data object.
@@ -324,8 +330,8 @@ int subtype, *len;
 void
 dc_ChangeADE (dc, data, class, subtype, len)
 DataChunk *dc;
-DataPointer data;
-DataChunkClass class;
+DataPtr data;
+DataClass class;
 int subtype, len;
 /*
  * Change the data stored in this ADE.  This routine only been be called
@@ -395,7 +401,7 @@ AuxDataChain ade;
 void
 dc_RemoveADE (dc, class, subtype)
 DataChunk *dc;
-DataChunkClass class;
+DataClass class;
 int subtype;
 /*
  * Remove the AuxData entry corresponding to the given codes from
@@ -423,7 +429,7 @@ int subtype;
 
 static DataChunk *
 Dc_RawCreate (class)
-DataChunkClass class;
+DataClass class;
 /*
  * Create a raw data chunk.
  */
@@ -443,7 +449,7 @@ DataChunkClass class;
 	dc = ALLOC (DataChunk);
 	dc->dc_Class = DCC_Raw;
 	dc->dc_Platform = BadPlatform;	/* They have to set this themselves */
-	dc->dc_Data = (DataPointer) 0;	/* No data yet */
+	dc->dc_Data = (DataPtr) 0;	/* No data yet */
 	dc->dc_DataLen = 0;
 	dc->dc_AuxData = (AuxDataChain) 0;
 /*
@@ -492,10 +498,10 @@ int len;
  */
 {
 	if (dc->dc_DataLen > 0)
-		dc->dc_Data = (DataPointer) realloc (dc->dc_Data,
+		dc->dc_Data = (DataPtr) realloc (dc->dc_Data,
 						dc->dc_DataLen + len);
 	else
-		dc->dc_Data = (DataPointer) malloc (len);
+		dc->dc_Data = (DataPtr) malloc (len);
 	dc->dc_DataLen += len;
 }
 
