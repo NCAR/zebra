@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.4 1992-07-03 18:30:12 granger Exp $
+ * $Id: class_ingest.c,v 2.5 1992-07-22 14:55:35 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -28,7 +28,8 @@
 #include <copyright.h>
 
 #ifndef lint
-MAKE_RCSID("$Id: class_ingest.c,v 2.4 1992-07-03 18:30:12 granger Exp $")
+MAKE_RCSID(
+   "$Id: class_ingest.c,v 2.5 1992-07-22 14:55:35 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -39,7 +40,7 @@ static void	ParseCommandLineOptions FP((int *argc, char *argv[]));
 static void   	ParseFieldNames FP((int argc, char *argv[],
 				    FieldId *fields, int *nfields));
 static void 	LoadFieldData FP((DataChunk *dc, ZebTime *times,
-				  int nsamples, FieldId *fields, int nfields));
+			  int nsamples, FieldId *fields, int nfields));
 ZebTime *	GetTimes FP((int *npts));
 
 
@@ -66,8 +67,10 @@ int	BadPts[BUFLEN];		/* Holds an index to each of the bad
 /*
  * Global debugging flags set from command line
  */
-char DumpDataChunk = (char)0;	/* Initially false */
 char JustShowFields = (char)0;	/* Initially false */
+char DumpDataChunk = (char)0;   /* Dump chunks AS BUILT rather than
+				 * like ingest.c option which is
+				 * WHEN STORED */
 
 
 int main (argc, argv)
@@ -80,7 +83,7 @@ int main (argc, argv)
 				/* The FieldId's of each field which the
 				 * user has specified on the cmd-line */
 	int nfields;		/* The number of fields to be stored */
-	ZebTime *times;		/* Times for each sample in the s'nding file */
+	ZebTime *times;		/* Times for ea. sample in the s'nding file */
 	int nsamples;		/* Number of samples, or pts, in the file */
 	DataChunk *Dchunk;   	/* The DataChunk we will be building */
 	struct ui_command end_cmd = { UTT_END };
