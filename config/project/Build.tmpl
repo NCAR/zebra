@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.42 2000-09-08 15:02:41 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.43 2001-10-04 21:52:51 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -201,12 +201,10 @@ XCOMM --- Auto-binary distribution
 # define	BuildPamIngest			NO
 # define	BuildRealtimeDataStoreTools	YES
 
-/* Shared zebra module and Python utils only build on Linux at the moment */
-#ifdef LinuxArchitecture
-# define 	BuildPythonUtils 	YES
-#else
-# define        BuildPythonUtils	NO
-#endif
+/* 
+ * Python shared zebra module only builds with gcc at the moment
+ */
+# define BuildPythonUtils UseGcc
 
 #ifdef SunArchitecture
 # ifndef UseOpenWindows

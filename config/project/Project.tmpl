@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.73 2001-01-17 23:21:17 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.74 2001-10-04 21:52:51 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 
@@ -761,8 +761,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #  define BuildMapUtilities NO
 # endif
 #endif
+
+/*
+ * The python shared library build works if we're using gcc
+ */
 #ifndef BuildPythonUtils
-#define BuildPythonUtils YES
+#  define BuildPythonUtils UseGcc
 #endif
 
 #ifndef BuildClassIngest
