@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.9 1994-04-27 08:24:28 granger Exp $"
+ * "$Id: dslib.h,v 3.10 1994-10-11 16:24:54 corbet Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -27,7 +27,7 @@
 /*
  * The platform lookup table.
  */
-stbl Pf_Names;
+extern stbl Pf_Names;
 
 
 /*
@@ -63,7 +63,7 @@ void	dgl_ReturnList FP ((GetList *));
 
 int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
 void	ds_GetFileStruct FP ((int, DataFile *));
-void	ds_GetPlatStruct FP ((PlatformId, ClientPlatform *, bool));
+void	ds_GetPlatStruct FP ((PlatformId, ClientPlatform *, int));
 int	ds_FindDF FP ((PlatformId, ZebTime *, int));
 
 #endif /* __zeb_dslib_h_ */

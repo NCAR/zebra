@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.19 1994-06-28 20:03:16 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.20 1994-10-11 16:26:14 corbet Exp $")
 
 
 
@@ -48,8 +48,8 @@ int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
 					float *rspacing, unsigned long *rnum,
 					float *origin));
 DataChunk 	*ga_NSRGrid FP((DataChunk *dc, FieldId fid, Location *location,
-				float latspacing, float lonspacing,
-				int nlats, int nlons, bool transpose));
+				double latspacing, double lonspacing,
+				int nlats, int nlons, int transpose));
 
 
 

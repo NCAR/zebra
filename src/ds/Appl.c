@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.34 1994-09-12 17:55:58 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.35 1994-10-11 16:24:24 corbet Exp $")
 #endif
 
 /*
@@ -69,8 +69,8 @@ static int	ds_AwaitFile FP ((Message *, DataFile *));
 static int	ds_AwaitGrant FP ((Message *, int));
 static int	ds_AwaitPID FP ((Message *, PlatformId *));
 static void	ds_SendToDaemon FP ((void *, int));
-static void	ds_SendSearch FP((char *regexp, bool sort, bool subs,
-				  bool sendplats));
+static void	ds_SendSearch FP((char *regexp, int sort, int subs,
+				  int sendplats));
 static int	ds_AwaitDF FP ((Message *, int *));
 static void	ds_ZapCache FP ((DataFile *));
 static void	ds_GreetDaemon FP ((void));
@@ -118,6 +118,10 @@ static int LockCount = 0;
  */
 static int MaxFuture = 3600;	/* One hour into future	*/
 
+/*
+ * The platform lookup table.
+ */
+stbl Pf_Names;
 
 
 

@@ -13,7 +13,7 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.9 1994-08-01 20:42:23 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.10 1994-10-11 16:24:31 corbet Exp $")
 
 
 
@@ -50,8 +50,9 @@ static int AttrLen;
 static void	drf_WSync FP ((RFTag *));
 static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
 static int	drf_FldOffset FP ((RFTag *, FieldId));
-static int	drf_TimeIndex FP ((const RFTag *, const ZebTime *));
-static void	drf_GetField FP ((const RFTag *, const RFToc *,int));
+static int	drf_TimeIndex FP ((const RFTag * const, const ZebTime *const));
+static void	drf_GetField FP ((const RFTag * const, const RFToc *const,
+			        const int));
 static void	drf_ReadOldToc FP ((RFTag *));
 static void	drf_ReadAttrs FP ((RFTag *, RFToc *, int, DataChunk *));
 static void	drf_ClearToc FP ((RFHeader *, RFToc *));

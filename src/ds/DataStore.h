@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.21 1994-04-27 08:24:04 granger Exp $
+ * $Id: DataStore.h,v 3.22 1994-10-11 16:24:39 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -43,7 +43,7 @@ typedef enum {
         Org1dGrid       = 8,
 	OrgTransparent  = 9,
 	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zeb */
-	OrgNSpace	= 11,
+	OrgNSpace	= 11
 } DataOrganization;
 
 /*
@@ -100,7 +100,7 @@ typedef enum
 {
 	UpdOverwrite,		/* Only overwrote existing data	*/
 	UpdInsert,		/* Inserted new data in middle	*/
-	UpdAppend,		/* New data at the end		*/
+	UpdAppend		/* New data at the end		*/
 } UpdCode;	
 
 
@@ -216,7 +216,7 @@ typedef enum _DC_ElemType {
 	DCT_ZebTime
 } DC_ElemType;
 
-#ifdef __STDC__
+#if defined(__STDC__) && !defined(sgi)
 typedef long double LongDouble;
 #else
 typedef double LongDouble;
@@ -339,7 +339,7 @@ typedef struct _RawDataChunk {
 extern bool 	_CheckClass;
 
 bool		dc_IsSubClassOf FP((DataClass, DataClass));
-void		dc_CheckClass FP((bool));
+void		dc_CheckClass FP((int));
 
 /*
  * Basic data chunk methods.
@@ -370,10 +370,10 @@ char 		**dc_GetGlobalAttrKeys FP ((DataChunk *dc, int *natts));
 /*
  * Transparent class methods.
  */
-void		dc_HintNSamples FP((DataChunk *dc, int nsample,bool decrease));
-void		dc_HintSampleSize FP((DataChunk *dc, int size, bool override));
-void		dc_HintMoreSamples FP((DataChunk *dc, int nsample, bool decr));
-void		dc_HintUseAverages FP((DataChunk *dc, bool use));
+void		dc_HintNSamples FP((DataChunk *dc, int nsample, int decrease));
+void		dc_HintSampleSize FP((DataChunk *dc, int size, int override));
+void		dc_HintMoreSamples FP((DataChunk *dc, int nsample, int decr));
+void		dc_HintUseAverages FP((DataChunk *dc, int use));
 void		dc_AddMoreSamples FP((DataChunk *dc, int nsample, int size));
 int		dc_GetNSample FP((DataChunk *));
 DataPtr		dc_GetSample FP((DataChunk *, int, int *));
@@ -636,7 +636,7 @@ typedef struct s_PlatformInfo
 typedef enum
 {
 	dst_Local,		/* Local disk source	*/
-	dst_NFS,		/* Remotely mounted fs	*/
+	dst_NFS			/* Remotely mounted fs	*/
 } DataSrcType;
 
 
@@ -675,16 +675,16 @@ typedef struct s_DataFileInfo
 int		ds_Initialize FP ((void));
 PlatformId	ds_LookupPlatform FP ((char *));
 PlatformId *	ds_GatherPlatforms FP ((char *regexp, int *nplat, 
-					bool alphabet, bool subs));
+					int alphabet, int subs));
 PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat, 
-					bool alphabet, bool subs));
+					int alphabet, int subs));
 PlatformId *	ds_LookupSubplatforms FP ((PlatformId parent, int *nsubplat));
 char *		ds_PlatformName FP ((PlatformId));
 int		ds_IsMobile FP ((PlatformId));
 bool		ds_IsModelPlatform FP ((PlatformId));
-bool		ds_Store FP ((DataChunk *dc, bool newfile, 
+bool		ds_Store FP ((DataChunk *dc, int newfile, 
 			      dsDetail *details, int ndetail));
-bool		ds_StoreBlocks FP ((DataChunk *dc, bool newfile,
+bool		ds_StoreBlocks FP ((DataChunk *dc, int newfile,
 				    dsDetail *details, int ndetail));
 DataChunk *	ds_Fetch FP ((PlatformId, DataClass, ZebTime *, ZebTime *,
 			FieldId *, int, dsDetail *, int));
@@ -694,11 +694,11 @@ void		ds_DeleteData FP ((PlatformId, ZebTime *));
 void		ds_DeleteObs FP ((PlatformId platform, ZebTime *zaptime));
 bool		ds_InsertFile FP ((PlatformId platform, char *filename,
 				   ZebTime *begin, ZebTime *end,
-				   int nsample, bool local));
-bool		ds_ScanFile FP((PlatformId platid, char *fname, bool local));
+				   int nsample, int local));
+bool		ds_ScanFile FP((PlatformId platid, char *fname, int local));
 void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
-int		ds_DataTimes FP ((PlatformId, ZebTime *, int,TimeSpec,
+int		ds_DataTimes FP ((PlatformId, ZebTime *, int, TimeSpec,
 			ZebTime *));
 int		ds_GetObsSamples FP ((PlatformId, ZebTime *, ZebTime *,
 			Location *, int));

@@ -23,7 +23,7 @@
 # include "message.h"
 # include "copyright.h"
 # include "timer.h"
-MAKE_RCSID ("$Id: settime.c,v 2.3 1993-07-01 20:17:29 granger Exp $");
+MAKE_RCSID ("$Id: settime.c,v 2.4 1994-10-11 16:27:02 corbet Exp $")
 
 
 int msg_handler (), intr (), Slot;

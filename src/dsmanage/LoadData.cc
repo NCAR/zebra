@@ -48,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.8 1994-10-07 18:30:18 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.9 1994-10-11 16:25:23 corbet Exp $")
 
 class LoadSelect;
 
@@ -98,6 +98,7 @@ class dsLoadSource : public dsPopupWindow
 	Widget	indtext;	// Associated text
 public:
 	dsLoadSource ();
+	~dsLoadSource ();
 	const char *GetIndFile ();
 	const char *GetDev ();
 	int isTape () { return tape; }	// Going to tape?
@@ -242,6 +243,11 @@ dsLoadSource::dsLoadSource () :
 
 
 
+dsLoadSource::~dsLoadSource ()
+{ }
+
+
+
 
 
 void
@@ -372,7 +378,7 @@ class LoadSelect : public dsPopupWindow
 	void UpdFSummary ();
 public:
 	LoadSelect (PlatformIndex *, const char *, int);
-	~LoadSelect () { delete[] dir; ZapChoosers (); };
+	~LoadSelect ();
 //
 // Widget tweaking methods.
 //
@@ -668,6 +674,13 @@ LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory,
 	UpdFSummary ();
 }
 
+
+
+LoadSelect::~LoadSelect () 
+{
+	delete[] dir;
+	ZapChoosers (); 
+};
 
 
 

@@ -38,7 +38,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: Dialog.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: Dialog.cc,v 1.3 1994-10-11 16:25:19 corbet Exp $";
 
 
 dsDialog::dsDialog (char *title, char *prompt, void (*goproc) (char *),
@@ -101,6 +101,10 @@ dsDialog::dsDialog (char *title, char *prompt, void (*goproc) (char *),
 	cancelcb = cancelproc;
 }
 
+
+
+dsDialog::~dsDialog ()
+{ /* SGI gcc bug food */ }
 
 
 

@@ -27,7 +27,7 @@ class StatusWindow : public dsPopupWindow
 	int sw_abort;
 public:
 	StatusWindow (const char *, int nf, int bytes);
-//	~StatusWindow ();
+	~StatusWindow ();
 	void popdown () { delete this; };
 	int status (int nf, int bytes);
 	void setAbort (int value) { sw_abort = value; }

@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 3.1 1992-05-27 17:24:03 corbet Exp $ */
+/* $Id: NetXfr.h,v 3.2 1994-10-11 16:26:59 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -37,7 +37,7 @@ typedef enum
 	NMT_Retransmit,		/* Please retransmit something		*/
   /* Internal messages */
 	NMT_NewPort,		/* Connect to a new port		*/
-	NMT_WakeUp,		/* Deal with your packets!		*/
+	NMT_WakeUp		/* Deal with your packets!		*/
 } NetMsgType;
 
 /*

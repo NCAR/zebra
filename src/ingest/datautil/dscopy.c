@@ -24,7 +24,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.5 1993-03-24 22:49:34 corbet Exp $");
+MAKE_RCSID ("$Id: dscopy.c,v 1.6 1994-10-11 16:24:10 corbet Exp $")
 
 
 # define MAX_TIMES 10000

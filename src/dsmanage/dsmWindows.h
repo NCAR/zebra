@@ -66,6 +66,7 @@ protected:
 	Widget corner;		// Upper left widget -- for forms
 public:
 	dsPopupWindow (const dsDisplay &disp, char *title, int zapspace = 50);
+	~dsPopupWindow ();
 	void SetTitle (const char *);
 };
 
@@ -82,7 +83,7 @@ class dsMainWindow : private dsWindow
 	Widget	spaceLabel;		// The free space label
 public:
 	dsMainWindow (const dsDisplay &);
-	~dsMainWindow () {};
+	~dsMainWindow ();
 	void UpdateSpace ();
 };
 

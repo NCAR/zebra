@@ -26,7 +26,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.11 1994-08-31 18:22:53 granger Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.12 1994-10-11 16:25:08 corbet Exp $")
 
 
 /*
@@ -34,7 +34,7 @@ MAKE_RCSID ("$Id: dsdump.c,v 3.11 1994-08-31 18:22:53 granger Exp $")
  */
 static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
 static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
-			     bool names, bool files, bool obs));
+			     int names, int files, int obs));
 static void PrintInfo FP((int index, DataFileInfo *dfi));
 
 

@@ -41,7 +41,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.3 1994-10-07 18:30:30 corbet Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.4 1994-10-11 16:25:36 corbet Exp $";
 //
 // Forwards.
 //
@@ -164,6 +164,10 @@ dsPopupWindow::dsPopupWindow (const dsDisplay &disp, char *title,
 			args, n);
 	XtAddCallback (zap, XtNcallback, ZapPopup, (XtPointer) this);
 }
+
+
+dsPopupWindow::~dsPopupWindow ()
+{ /* nothing */ }
 
 
 

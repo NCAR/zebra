@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.15 1994-05-24 00:14:13 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.16 1994-10-11 16:24:49 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -51,8 +51,8 @@ extern int NClass;		/* Number of platform classes		*/
  */
 # define DDIR_LEN	CFG_FILEPATH_LEN
 
-char DefDataDir[DDIR_LEN];
-char RemDataDir[DDIR_LEN];
+extern char DefDataDir[DDIR_LEN];
+extern char RemDataDir[DDIR_LEN];
 
 
 /*
@@ -125,7 +125,7 @@ bool dt_ValidateClass FP((PlatformClass *pc));
 PlatformInstance *dt_FindInstance FP((const char *name));
 Platform *dt_FindPlatform FP ((const char *, int));
 PlatformClass *dt_FindClass FP((const char *name));
-void dt_SearchPlatforms FP ((int (*func)(), void *arg, bool sort, char *re));
+void dt_SearchPlatforms FP ((int (*func)(), void *arg, int sort, char *re));
 DataFile *dt_NewFile FP ((void));
 void dt_FreeDFE FP ((DataFile *));
 void dt_AddToPlatform FP ((Platform *, DataFile *, int));
@@ -137,7 +137,7 @@ char *dt_DFEFilePath FP((Platform *pi, DataFile *df));
  * UI command parsing
  */
 void dc_DefPlatform FP((char *name, char *superclass));
-void dc_DefPlatformClass FP((char *name, char *superclass, bool platform));
+void dc_DefPlatformClass FP((char *name, char *superclass, int platform));
 void dc_SubPlatform FP((struct ui_command *cmds));
 void dc_DefSubPlats FP((char *target, char *classname, 
 			struct ui_command *cmds));

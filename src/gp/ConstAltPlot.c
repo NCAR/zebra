@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.44 1994-09-15 21:50:04 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.45 1994-10-11 16:25:58 corbet Exp $")
 
 
 /*
@@ -120,13 +120,13 @@ static void	CAP_StDoScalar FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
 				    FieldId quadfields[4], XColor *color,
 				    XColor *qcolor, ZebTime *zt, char *sticon,
-				    int linewidth, float unitlen, int, 
+				    int linewidth, double unitlen, int, 
 				    bool quadstn[4]));
 static void	CAP_StDoIRGrid FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
 				    FieldId quadfields[4], XColor *color,
 				    XColor *qcolor, ZebTime *zt, char *sticon,
-				    int linewidth, float unitlen, int, 
+				    int linewidth, double unitlen, int, 
 				    bool quadstn[4]));
 static DataChunk *CAP_StGetData FP ((char *c, PlatformId plat, FieldId *fields,
 				     int nfield, int *shifted));
@@ -134,8 +134,8 @@ static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0,
 				      int y0, PlatformId plat, char *sticon,
 				      XColor *color, XColor *qcolor,
 				      int linewidth, float *ugrid, 
-				      float *vgrid, float badvalue, 
-				      float unitlen, float *qgrid[4],
+				      float *vgrid, double badvalue, 
+				      double unitlen, float *qgrid[4],
 				      int, bool quadstn[4]));
 
 

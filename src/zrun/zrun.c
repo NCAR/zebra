@@ -22,7 +22,7 @@
 # include <defs.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id");
+MAKE_RCSID ("$Id: zrun.c,v 1.2 1994-10-11 16:27:11 corbet Exp $")
 
 
 int IncMsg (), QResp ();

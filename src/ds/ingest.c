@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.10 1994-04-15 22:28:18 burghart Exp $
+/* $Id: ingest.c,v 1.11 1994-10-11 16:24:56 corbet Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -43,16 +43,16 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.10 1994-04-15 22:28:18 burghart Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.11 1994-10-11 16:24:56 corbet Exp $")
 #endif
 
 
 /*
  * Public Prototypes:
  */
-bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
+bool _Ingest_ds_Store FP((DataChunk *dc, int newfile, 
 			  dsDetail *details, int ndetail));
-bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, bool newfile, 
+bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, int newfile, 
 				dsDetail *details, int ndetail));
 PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 void _Ingest_ds_DeleteData FP((PlatformId platform, int leave));

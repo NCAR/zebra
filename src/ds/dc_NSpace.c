@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.7 1994-09-12 17:58:40 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.8 1994-10-11 16:24:45 corbet Exp $")
 #endif
 
 /*
@@ -265,7 +265,7 @@ static NSpaceFldInfo *FindFieldByID FP((DataChunk *dc, NSpaceInfo *info,
 static NSpaceFldInfo *DefineField FP((DataChunk *dc, NSpaceInfo *info,
 				      FieldId field, int ndims,
 				      unsigned short *dim_indices, 
-				      short is_static, char *routine));
+				      int is_static, char *routine));
 static void SetFieldSizes FP((NSpaceInfo *info, NSpaceFldInfo *finfo,
 			      NSpaceDimInfo *dinfo, char *routine));
 static int inline CheckStatic 

@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.36 1994-10-10 16:38:40 corbet Exp $";
+	"$Id: Overlay.c,v 2.37 1994-10-11 16:26:24 corbet Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -185,6 +185,7 @@ static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
 				double, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
+static int ov_InFeature ();
 
 
 /*
@@ -911,7 +912,6 @@ struct ui_command *cmds;
  */
 {
 	struct FList *fl;
-	static int ov_InFeature ();
 	union usy_value v;
 /*
  * Create our table if necessary.

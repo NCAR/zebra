@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.40 1994-09-15 21:50:12 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.41 1994-10-11 16:26:10 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -72,7 +72,7 @@ extern int  MaxFrames;		/* Maximun number of frames		*/
 /*
  * Our plot type and user plot limits
  */
-extern int	PlotType;
+/* extern int	PlotType; */  /* PlotExec only - why was it here?? */
 extern float	Xlo, Xhi, Ylo, Yhi;
 /*
  * Search path for icon and map files.
@@ -279,7 +279,7 @@ extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 extern void FindWindsFields FP ((PlatformId, ZebTime *, char *, char *,
 		FieldId *));
-extern void GetWindData FP ((FieldId *, float *, float *, float));
+extern void GetWindData FP ((FieldId *, float *, float *, double));
 
 
 
@@ -305,7 +305,7 @@ extern void GetWindData FP ((FieldId *, float *, float *, float));
 		     int xlo, int ylo, int xhi, int yhi));
 	void RP_Init FP ((XColor *colors, int count, XColor c_outrange,
 		  XRectangle clip, double dmin, double dmax, 
-		  Boolean highlight, double hvalue, XColor hcolor,
+		  int highlight, double hvalue, XColor hcolor,
 		  double hrange));
 	void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
 			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
@@ -313,7 +313,7 @@ extern void GetWindData FP ((FieldId *, float *, float *, float));
 	void RasterXIPlot FP ((Widget w, Drawable d, float *array, 
 		       int xdim, int ydim, 
 		       int xlo, int ylo, int xhi, int yhi,
-		       bool fast));
+		       int fast));
 	void ChangeCursor FP ((Widget w, Cursor cursor));
 # ifdef SHM
 	void RP_ZapSHMImage FP ((Widget w));

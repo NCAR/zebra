@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.18 1994-05-18 22:01:52 burghart Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.19 1994-10-11 16:24:41 corbet Exp $")
 
 
 /*
@@ -44,7 +44,7 @@ static int	FileKnown FP ((Platform *, char *, char *, int));
 static int	FileChanged FP ((Platform *p, DataFile *df));
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
-static char     *CacheFileName FP((Platform *p, bool local));
+static char     *CacheFileName FP((Platform *p, int local));
 
 
 void

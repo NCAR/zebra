@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.9 1993-08-04 17:16:42 granger Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.10 1994-10-11 16:26:28 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -43,7 +43,7 @@ typedef enum
 	RBTLine,
 	RBTPolyLine,
 	RBTOutline,
-	RBTPoint,
+	RBTPoint
 # ifdef notdef		/* not handled yet */
 	RBTCircle,
 	RBTEllipse,

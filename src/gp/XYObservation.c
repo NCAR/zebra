@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.14 1994-09-15 21:50:35 corbet Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.15 1994-10-11 16:26:37 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -57,7 +57,7 @@ typedef enum
  */
 void xy_Observation FP ((char *, int));
 static void XYO_DoSideAnnotation FP ((char *, char *, Pixel, char *, char *,
-		char *, float, ZebTime *));
+		char *, double, ZebTime *));
 
 
 

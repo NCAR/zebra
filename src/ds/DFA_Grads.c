@@ -16,7 +16,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.4 1994-09-15 21:49:13 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.5 1994-10-11 16:24:28 corbet Exp $")
 
 
 

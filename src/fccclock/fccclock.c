@@ -35,7 +35,7 @@
 # include <timer.h>
 # include <pd.h>
 
-MAKE_RCSID ("$Id: fccclock.c,v 2.6 1994-05-24 00:17:49 granger Exp $");
+MAKE_RCSID ("$Id: fccclock.c,v 2.7 1994-10-11 16:25:49 corbet Exp $")
 
 /*
  * Default resources.

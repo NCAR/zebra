@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.41 1994-09-12 18:04:37 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.42 1994-10-11 16:24:35 corbet Exp $")
 
 
 /*
@@ -139,6 +139,11 @@ int CTableGrow = 50;	/* Amount to grow by		*/
 int DFTableSize = 2000;	/* Data file table size		*/
 int DFTableGrow = 500;	/* Amount to grow by		*/
 
+/*
+ * Default data directory.
+ */
+char DefDataDir[DDIR_LEN];
+char RemDataDir[DDIR_LEN];
 
 /*
  * Other options

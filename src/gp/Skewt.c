@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.13 1994-09-16 19:59:59 corbet Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.14 1994-10-11 16:26:31 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -102,8 +102,8 @@ static bool	DoFeet = FALSE;
 void		sk_Skewt FP ((char *, int)); 
 static void	sk_Background FP (()); 
 static void	sk_Lift FP ((int, float*, float*, float*, double)); 
-static void	sk_Thermo FP ((char *, char *, XColor, bool));
-static void	sk_Winds FP ((char *, char *, XColor, int, int, bool, bool, 
+static void	sk_Thermo FP ((char *, char *, XColor, int));
+static void	sk_Winds FP ((char *, char *, XColor, int, int, int, int, 
 			      int));
 static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
 static void	sk_DrawText FP ((char *, double, double, double, XColor, 

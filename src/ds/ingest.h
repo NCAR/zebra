@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.9 1994-04-15 22:28:20 burghart Exp $
+ * $Id: ingest.h,v 1.10 1994-10-11 16:24:59 corbet Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -64,9 +64,9 @@ extern void	IngestParseOptions FP((int *argc, char *argv[],
 extern void 	IngestInitialize FP((char *module_name));
 extern void	IngestUsage();
 
-extern bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
+extern bool _Ingest_ds_Store FP((DataChunk *dc, int newfile, 
 				dsDetail *details, int ndetail));
-extern bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, bool newfile, 
+extern bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, int newfile, 
 				       dsDetail *details, int ndetail));
 extern PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 

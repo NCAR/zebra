@@ -24,14 +24,13 @@
 # include <sys/ipc.h>
 # include <sys/shm.h>
 # include <errno.h>
-char * shmat ();
 
 # include "defs.h"
 # include "message.h"
 # include <DataStore.h>
 # include "ImageXfr.h"
 
-MAKE_RCSID("$Id: ImageXfr.c,v 2.6 1994-01-28 21:31:02 granger Exp $")
+MAKE_RCSID("$Id: ImageXfr.c,v 2.7 1994-10-11 16:26:52 corbet Exp $")
 
 # define MAXATTR	100		/* Max attribute space	*/
 

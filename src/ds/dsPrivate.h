@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.25 1994-09-15 21:49:17 corbet Exp $
+ * $Id: dsPrivate.h,v 3.26 1994-10-11 16:24:51 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -43,7 +43,7 @@ typedef enum {
 	FTZeb = 4,
 	FTGRIB = 5,
 	FTGRIBSfc = 6,	/* GRIB surface grids only */
-	FTGrads = 7,
+	FTGrads = 7
 	/* ... */
 } FileType;
 
@@ -222,7 +222,7 @@ typedef enum
 	wc_NewFile,		/* Create a new file		*/
 	wc_Overwrite,		/* Overwrite existing datum	*/
 	wc_Append,		/* Append to existing file	*/
-	wc_Insert,		/* Insert before some data	*/
+	wc_Insert		/* Insert before some data	*/
 } WriteCode;
 
 
@@ -284,7 +284,7 @@ enum dsp_Types
 	dpt_DeleteObs,			/* 35: DANGER remove an observation*/
 	dpt_PlatformSearch,		/* Match regex to platform names*/
 	 dpt_R_PlatformSearch,		/* Reply with list of plat ids	*/
-	 dpt_R_PlatStructSearch,	/* For sending back structs 	*/
+	 dpt_R_PlatStructSearch		/* For sending back structs 	*/
 };
 
 # define DSP_FLEN	CFG_FILEPATH_LEN /* File name length		*/

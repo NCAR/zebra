@@ -37,7 +37,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "StatusWin.h"
 
-static char *rcsid = "$Id: StatusWin.cc,v 1.1 1992-09-10 22:26:51 corbet Exp $";
+static char *rcsid = "$Id: StatusWin.cc,v 1.2 1994-10-11 16:25:28 corbet Exp $";
 
 
 //
@@ -119,6 +119,10 @@ StatusWindow::StatusWindow (const char *source, int nf, int bytes) :
 	(void) status (0, 0);
 }
 
+
+
+StatusWindow::~StatusWindow ()
+{ }				     
 
 
 

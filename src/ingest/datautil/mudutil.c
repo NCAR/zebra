@@ -25,7 +25,7 @@
 # include <defs.h>
 # include "mudutil.h"
 
-MAKE_RCSID ("$Id: mudutil.c,v 1.3 1993-07-01 20:12:16 granger Exp $");
+MAKE_RCSID ("$Id: mudutil.c,v 1.4 1994-10-11 16:24:12 corbet Exp $")
 
 
 /*

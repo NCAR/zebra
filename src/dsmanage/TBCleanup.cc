@@ -49,7 +49,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.2 1994-10-07 18:30:24 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.3 1994-10-11 16:25:33 corbet Exp $")
 
 class DelSelect;
 
@@ -102,7 +102,7 @@ class DelSelect : public dsPopupWindow
 	void UpdFSummary ();
 public:
 	DelSelect (PlatformIndex *);
-	~DelSelect () { ZapChoosers (); };
+	~DelSelect ();
 //
 // Widget tweaking methods.
 //
@@ -352,6 +352,13 @@ DelSelect::DelSelect (PlatformIndex *ind) :
 //
 	UpdFSummary ();
 }
+
+
+DelSelect::~DelSelect ()
+{
+	ZapChoosers (); 
+};
+
 
 
 

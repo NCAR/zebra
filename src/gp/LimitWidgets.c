@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.17 1994-06-29 21:26:53 case Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.18 1994-10-11 16:26:20 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -61,7 +61,7 @@ typedef enum {
 	SingleStringWidget = 2,
 	TimeSeriesWidget = 3,
 	SingleIntWidget = 4,
-	StationWidget = 5,
+	StationWidget = 5
 } WidgetType;
 # define N_WIDGET_TYPES 6	/* Keep this updated!	*/
 

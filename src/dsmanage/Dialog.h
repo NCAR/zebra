@@ -27,6 +27,7 @@ class dsDialog : public dsPopupWindow
 public:
 	dsDialog (char * title, char *prompt, void (*goproc) (char *),
 		void (*cancelproc) ());
+	~dsDialog ();
 	void popdown () { delete this; };
 	void cancel ();
 	void ok ();

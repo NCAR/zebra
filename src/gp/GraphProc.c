@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.47 1994-09-15 21:50:09 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.48 1994-10-11 16:26:05 corbet Exp $")
 
 /*
  * Default resources.
@@ -152,6 +152,7 @@ static int AnswerQuery FP ((char *));
 static void SendGeometry FP((struct dm_msg *dmm));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void Enqueue FP ((EQpriority, char *));
+static int dmgr_message ();
 
 
 GPShutDown ()
@@ -455,7 +456,6 @@ msg_handler (msg)
 struct message *msg;
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
-	static int dmgr_message ();
 /*
  * Just branch out on the message type.
  */

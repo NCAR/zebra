@@ -21,7 +21,7 @@
  */
 
 static char *rcsid = 
-   "$Id: dsdwidget.c,v 1.18 1994-04-01 08:27:17 granger Exp $";
+   "$Id: dsdwidget.c,v 1.19 1994-10-11 16:25:12 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -66,7 +66,7 @@ bool	DisplayUp = False;
 FILE	*Fptr;
 char	Fname[30];
 
-static void	AddPlatforms FP((char *re, bool sort));
+static void	AddPlatforms FP((char *re, int sort));
 static void	CreateDSDWidget FP((void));
 static void	Die FP((void));
 static void	DumpPlatform FP((int, PlatformInfo *));

@@ -1,7 +1,7 @@
 /*
  * Structures describing the zeb native file format.
  */
-/* $Id: znfile.h,v 1.3 1994-04-15 22:28:24 burghart Exp $ */
+/* $Id: znfile.h,v 1.4 1994-10-11 16:25:01 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -96,7 +96,7 @@ typedef struct _zn_Sample
 typedef enum
 {
 	DF_Float,		/* 4-byte floating point		*/
-	DF_Byte,		/* 1-byte scaled			*/
+	DF_Byte			/* 1-byte scaled			*/
 } DataFormat;
 
 # define ZN_FLD_LEN 40

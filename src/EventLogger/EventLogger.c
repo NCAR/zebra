@@ -42,7 +42,7 @@
 # include <config.h>
 # include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.24 1994-05-21 05:16:45 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.25 1994-10-11 16:24:04 corbet Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.24 1994-05-21 05:16:45 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.25 1994-10-11 16:24:04 corbet Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -186,7 +186,7 @@ char *Mother = 0;
 /*
  * Forwards.
  */
-void	SendToMother FP((char code, char *from, char *text));
+void	SendToMother FP((int code, char *from, char *text));
 Widget	MakeDbgButton FP ((Widget));
 void	NewProc FP ((char *));
 void	DeadProc FP ((char *));
@@ -213,7 +213,7 @@ static Widget CreateLogSettings FP ((Widget w, Widget top));
 static void CreateMaskMenu FP ((Widget button, char *name, int *maskp));
 static void ChangeMaskCallback FP ((Widget w, XtPointer, XtPointer));
 static void LogMessage FP ((int flag,  char *from,  char *text));
-static char *FormatMessage FP ((char code, char *from_in,
+static char *FormatMessage FP ((int code, char *from_in,
 				char *msg_in));
 static void AppendToDisplay FP ((char *fmtbuf));
 static void AppendToLogFile FP ((char *fmtbuf));

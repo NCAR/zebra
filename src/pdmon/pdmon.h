@@ -1,7 +1,7 @@
 /*
  * Description of the PD monitor protocol.
  */
-/* $Id: pdmon.h,v 1.2 1993-11-30 02:13:04 granger Exp $ */
+/* $Id: pdmon.h,v 1.3 1994-10-11 16:26:56 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,7 +35,7 @@ typedef enum
  * Gp messages.
  */
 	pdm_MyPD,		/* Here is my plot description	*/
-	pdm_Exit,		/* Graphics process exiting	*/
+	pdm_Exit		/* Graphics process exiting	*/
 } PdmMsgType;
 
 

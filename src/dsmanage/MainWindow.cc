@@ -38,7 +38,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.5 1994-10-07 18:30:21 corbet Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.6 1994-10-11 16:25:26 corbet Exp $";
 //
 // Externs.
 //
@@ -139,6 +139,9 @@ dsMainWindow::dsMainWindow (const dsDisplay &disp) :
 }
 
 
+
+dsMainWindow::~dsMainWindow () 
+{ /* yawn */ }
 
 
 
