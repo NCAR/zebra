@@ -10,13 +10,15 @@
 # include <varargs.h>
 # endif
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.3 1993-10-04 15:04:09 case Exp $";
+static char *rcsid = "$Id: ui_OutHook.c,v 1.4 1994-11-01 02:56:49 case Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
  */
 
+#ifndef hpux
 extern int printf ();
+#endif 
 static void errprint ();
 
 typedef void (*vfptr) ();
@@ -162,7 +164,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif / *ifdef __STDC__ */
+# endif /* ifdef __STDC__ */
 
         vsprintf (buf, fmt, args);
 
