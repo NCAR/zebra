@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.33 1995-12-04 09:57:11 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.34 1996-01-10 21:14:37 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -17,7 +17,8 @@ CLIBS=$(LIBGCC)
 INCLUDES = $(HDFINCLUDES) $(NETCDFINCLUDES)
 
 /* DEFINES = -DHDF_TEST -DHDF_INTERFACE */	/* for HDF testing */
-DEFINES = $(HDFDEFINES) /* -DDEBUG -DTEST_TIME_UNITS */
+/* DEBUG = -DDEBUG */
+DEFINES = $(HDFDEFINES) $(DEBUG) /* -DTEST_TIME_UNITS */
 
 #CCOPTIONS=
 #CCOPTIONS=-pipe -pg
@@ -134,9 +135,10 @@ TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 ZEBPROGS = $(BINDIR)/message $(BINDIR)/timer $(BINDIR)/zstop $(BINDIR)/dsdump
 TESTPROJ = /net/shared/zebra/project/test
 TESTOUT = > /dev/null 2>&1
+SOCKET = ./test.socket
 
 test:: $(ZEBPROGS) dsDaemon aline apple nstest.config
-	-@ZEB_SOCKET=./test.socket; export ZEB_SOCKET; \
+	-@ZEB_SOCKET=$(SOCKET); export ZEB_SOCKET; \
 	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET; \
 	DSDUMP=$(BINDIR)/dsdump; export DSDUMP; \
 	DATA_DIR=$(TESTPROJ)/data; export DATA_DIR; \
