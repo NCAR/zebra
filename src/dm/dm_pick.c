@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.6 1993-03-18 07:08:59 granger Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.7 1993-10-22 16:27:45 corbet Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -99,6 +99,7 @@ char *winname;
  */
 	XUngrabPointer (Dm_Display, CurrentTime);
 	XSync (Dm_Display, False);
+	msg_ELog (EF_DEBUG, "Pick got win 0x%x", win);
 /*
  * Establish a default answer, in case our search fails
  */
@@ -150,6 +151,7 @@ struct wpick *wp;
 		 * NOT been reparented.  Compare the picked window with
 		 * the windows we know about.
 		 */
+			msg_ELog (EF_DEBUG, "OR case");
 			if (wp->wp_id == win->cfw_win)
 			{
 				strcpy (wp->wp_name, win->cfw_name);
@@ -164,7 +166,8 @@ struct wpick *wp;
 		 * the parent window of the windows we know about.
 		 */
 			XQueryTree (Dm_Display, win->cfw_win, &root, &parent, 
-				&children, &nchild);	
+				&children, &nchild);
+			msg_ELog (EF_DEBUG, "NOR, parent is 0x%x", parent);
 		/*
 		 * Don't need the children, so free them, if any
 		 */
@@ -175,6 +178,21 @@ struct wpick *wp;
 				strcpy (wp->wp_name, win->cfw_name);
 				return (FALSE);
 			}
+		/*
+		 * failing that, do it all one more time, since mwm likes
+		 * to put two levels of reparenting in...
+		 */
+			XQueryTree (Dm_Display, parent, &root, &parent, 
+				&children, &nchild);
+			msg_ELog (EF_DEBUG, "NOR, parent2 is 0x%x", parent);
+			if (nchild)
+				XFree(children);
+			if (wp->wp_id == parent && parent != root)
+			{
+				strcpy (wp->wp_name, win->cfw_name);
+				return (FALSE);
+			}
+
 		}
 	}
 	return (TRUE);
