@@ -31,7 +31,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.15 1995-06-12 18:48:01 burghart Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.16 1995-06-23 23:05:57 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -1345,7 +1345,7 @@ DataPtr data;
  * the sample already exists
  */
 	for (samp = 0; samp < nsamp; samp++)
-		dc_SetTime (dc, samp, t + samp - start);
+		dc_SetTime (dc, samp + start, t + samp);
 /*
  * Uniform and non-uniform data are handled differently, and hence separately.
  */
