@@ -1,3 +1,5 @@
+#ifndef _xhelp_h_
+#define _xhelp_h_
 /*----------------------------------------------------------------------------------*
  :                           xhelp: A help facility for X                           :
  :                                   version 1.0                                    :    
@@ -108,7 +110,7 @@
  **    Mark Newsome                                                          **
  **    January 1991, September 1991                                          **
  **
- **    $Id: xhelp.h,v 1.4 1993-11-30 23:36:07 granger Exp $
+ **    $Id: xhelp.h,v 1.5 1994-01-26 15:54:09 granger Exp $
  ******************************************************************************/
 
 #include <stdio.h>
@@ -234,3 +236,4 @@ int XhGetHelpStatusProperty(w)
 } /** XhGetHelpStatusProperty() **/
 
 
+#endif /* !_xhelp_h_ */
