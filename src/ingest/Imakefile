@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 1994-01-21 11:48:34 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1994-01-26 01:37:06 granger Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -65,32 +65,11 @@ PROFS = profs
 #if BuildSatelliteIngest
 SATELLITE = satellite
 #endif
-#if BuildRadarLimits
-RADARLIMITS = RadarLimits
-#endif
-#if BuildNatsIngest
-NATS = nats
-#endif
-#if BuildP3Ingest
-P3 = p3
-#endif
-#if BuildPamIngest
-PAM = pam
-#endif
 #if BuildRAPDataServerIngest
 RAP_DATA_SERVER = rap_data_server
 #endif
 #if BuildWetnetIngest
 WETNET = wetnet
-#endif
-#if BuildAircraftIngest
-AIRCRAFT = aircraft
-#endif
-#if BuildFMIngest
-FM = fm
-#endif
-#if BuildLLPIngest
-LLP = llp
 #endif
 #if BuildP3Composite
 P3COMPOSITE = p3composite
@@ -126,6 +105,33 @@ PRECIP = precip
 DAP = dap
 #endif
 
+#ifdef notdef		/* ----------------------------------------------
+			 * These directories are ignored since they
+			 * currently reside in the zeb-nondist repository
+			 * and are not being distributed in the Zeb tree
+			 * ---------------------------------------------- */
+#if BuildRadarLimits
+RADARLIMITS = RadarLimits
+#endif
+#if BuildNatsIngest
+NATS = nats
+#endif
+#if BuildP3Ingest
+P3 = p3
+#endif
+#if BuildPamIngest
+PAM = pam
+#endif
+#if BuildAircraftIngest
+AIRCRAFT = aircraft
+#endif
+#if BuildFMIngest
+FM = fm
+#endif
+#if BuildLLPIngest
+LLP = llp
+#endif
+#endif		/* ---------------- Ignore non-distributed directories -- */
 
 /*
  * This line cannot be divided with escaped newlines because it
@@ -137,20 +143,26 @@ SUBDIRS = mcidas $(IS) $(CLASS) $(RADAR) $(SLGRABBER) $(NOWRAD) $(PROFS) \
 	  $(SSMI) $(TRMM_RAIN) $(TRMM_SONDE) $(FEST_P3_C130) $(PRECIP) \
 	  $(DAP)
 
-/*
- * Other subdirectories which for the moment are not made by their
- * parent directory, but they are included as distfiles so they'll
- * be put in distribution lists as whole directories rather than 
- * file-by-file.
- */
-OTHERSUBDIRS = raps
+DISTFILES = Imakefile
 
-DISTFILES = Imakefile $(OTHERSUBDIRS)
+#ifdef notdef	/* Before ingest directories were moved to zeb-nondist */
+
 DISTSUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
 	      SLGrabber RadarLimits satellite profs fm is tao \
 	      p3composite st_ingest togast gmsISCCP rap_data_server \
 	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
 	      dap
+#endif
+
+/*
+ * If any ingest module directories are added to zeb/src/ingest, they
+ * should be included below.
+ */
+DISTSUBDIRS = mcidas radar class nowrad SLGrabber satellite profs is tao \
+	      p3composite st_ingest togast gmsISCCP rap_data_server \
+	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
+	      dap
+
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
@@ -184,32 +196,11 @@ OmitBuildRules(profs ingest)
 #if !BuildSatelliteIngest
 OmitBuildRules(satellite ingest)
 #endif
-#if !BuildRadarLimits
-OmitBuildRules(radar limits)
-#endif
-#if !BuildNatsIngest
-OmitBuildRules(nats ingest)
-#endif
-#if !BuildP3Ingest
-OmitBuildRules(P3 ingest)
-#endif
-#if !BuildPamIngest
-OmitBuildRules(PAM ingest)
-#endif
 #if !BuildRAPDataServerIngest
 OmitBuildRules(RAP data server)
 #endif
 #if !BuildWetnetIngest
 OmitBuildRules(WETNET ingest)
-#endif
-#if !BuildAircraftIngest
-OmitBuildRules(aircraft ingest)
-#endif
-#if !BuildFMIngest
-OmitBuildRules(field mill ingest)
-#endif
-#if !BuildLLPIngest
-OmitBuildRules(llp ingest)
 #endif
 #if !BuildP3Composite
 OmitBuildRules(P3 composite ingest)
@@ -244,3 +235,28 @@ OmitBuildRules(PrecipIngest)
 #if !BuildDAPIngest
 OmitBuildRules(DAP ingest)
 #endif
+
+
+#ifdef notdef	/* ---- Directories not presently being distributed ----- */
+#if !BuildRadarLimits
+OmitBuildRules(radar limits)
+#endif
+#if !BuildNatsIngest
+OmitBuildRules(nats ingest)
+#endif
+#if !BuildP3Ingest
+OmitBuildRules(P3 ingest)
+#endif
+#if !BuildPamIngest
+OmitBuildRules(PAM ingest)
+#endif
+#if !BuildAircraftIngest
+OmitBuildRules(aircraft ingest)
+#endif
+#if !BuildFMIngest
+OmitBuildRules(field mill ingest)
+#endif
+#if !BuildLLPIngest
+OmitBuildRules(llp ingest)
+#endif
+#endif		/* ------------------------------------------------------ */
