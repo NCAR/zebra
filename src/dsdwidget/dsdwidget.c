@@ -79,35 +79,19 @@ static struct fname
 
 # define NFLAG (sizeof (Flags)/sizeof (struct fname))
 
-# ifdef __STDC__
-        static void	AddPlatforms ();
-        static void	CreateDSDWidget (void);
-        static void	Die (void);
-	static void	DumpPlatform (Platform *);
-	static void	DumpChains (char *, int);
-	static void	GetTimes (Platform *, ZebTime *, ZebTime *);
-        static void	SetEntry (int, ZebTime *, ZebTime *);
-        static int	MsgHandler (Message *);
-        static void	MsgInput ();
-	static int	PopupDisplay (Widget, XtPointer, XtPointer);
-	static void	Rescan ();
-        static Widget	CreateDisplayWidget (void);
-        static void	PopdownDisplay (Widget, XtPointer, XtPointer);
-# else
-        static void	AddPlatforms ();
-        static void	CreateDSDWidget ();
-        static void	Die ();
-	static void	DumpPlatform ();
-	static void	DumpChains ();
-	static void	GetTimes ();
-        static void	SetEntry ();
-        static int	MsgHandler ();
-        static void	MsgInput ();
-	static int	PopupDisplay ();
-	static void	Rescan ();
-        static Widget	CreateDisplayWidget ();
-        static void	PopdownDisplay ();
-# endif
+static void	AddPlatforms FP((void));
+static void	CreateDSDWidget FP((void));
+static void	Die FP((void));
+static void	DumpPlatform FP((Platform *));
+static void	DumpChains FP((char *, int));
+static void	GetTimes FP((Platform *, ZebTime *, ZebTime *));
+static void	SetEntry FP((int, ZebTime *, ZebTime *));
+static int	MsgHandler FP((Message *));
+static void	MsgInput ();
+static int	PopupDisplay FP((Widget, XtPointer, XtPointer));
+static void	Rescan FP((void));
+static Widget	CreateDisplayWidget FP((void));
+static void	PopdownDisplay FP((Widget, XtPointer, XtPointer));
 
 
 main (argc, argv)
@@ -296,7 +280,7 @@ int start;
 		dp = DFTable + start;
 		TC_EncodeTime (&dp->df_begin, TC_Full, abegin);
 		TC_EncodeTime (&dp->df_end, TC_TimeOnly, aend);
-		fprintf (Fptr, "  %s %2d/%d '%s' %s -> %s [%d]\n", which,
+		fprintf (Fptr, "  %s %2d/%d '%s' %s -> %s [%hu]\n", which,
 			start, dp->df_use, dp->df_name,
 			abegin, aend, dp->df_nsample);
 		start = dp->df_FLink;
@@ -329,7 +313,7 @@ CreateDSDWidget ()
         XtSetArg (args[n], XtNfromVert, NULL);                  n++;
         button = XtCreateManagedWidget ("rsdisk", commandWidgetClass,
                         Form, args, n);
-        XtAddCallback (button, XtNcallback, Rescan, 0);
+        XtAddCallback (button, XtNcallback, (XtCallbackProc) Rescan, 0);
 /*
  * Also the die button.
  */
@@ -449,13 +433,13 @@ AddPlatforms ()
 	/*
 	 * Create a command button for a platform.
 	 */
-		GetTimes (p, &begin, &end);
+		GetTimes (p, (ZebTime *)&begin, (ZebTime *)&end);
         	Entry[nplat] = XtCreateManagedWidget (p->dp_name, 
 			commandWidgetClass, Box, NULL, 0);
 		XtAddCallback (Entry[nplat], XtNcallback, 
 			(XtCallbackProc) PopupDisplay, (XtPointer) i);
 
-		SetEntry (nplat, &begin, &end);
+		SetEntry (nplat, (ZebTime *)&begin, (ZebTime *)&end);
 		nplat++;
 	}
 	dsm_ShmUnlock ();
