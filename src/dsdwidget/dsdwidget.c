@@ -184,10 +184,12 @@ XtInputId *morejunk;
  * Input is happening.
  */
 {
+	static int nexit = 0;
+
         if (msg_incoming (*fd))
         {
-                msg_ELog (EF_INFO, "Exiting.");
-		Die ();
+		if (++nexit > 50)
+			Die ();
         }
 }
 
@@ -198,6 +200,7 @@ Die ()
  * Exit gracefully.
  */
 {
+        msg_ELog (EF_INFO, "Exiting.");
 	unlink (Fname);
         exit (0);
 }
