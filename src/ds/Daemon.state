@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 1.3 1991-04-04 22:52:58 corbet Exp $
+! $Id: Daemon.state,v 2.0 1991-07-18 22:49:58 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -23,10 +23,21 @@ define state initial
 	input 'every' 15
 		next every-interval
 	endinput
+	input 'broadcast' 17
+		next bcast-address
+	endinput
+	input 'receive' 18
+		next ust$final_int
+	endinput
 enddef
 
 
 
+define state bcast-address
+	input string
+		next ust$final_int
+	endinput
+enddef
 
 
 !
@@ -63,6 +74,9 @@ define state in-platform
 	input 'maxsamples' 13
 		next ust$final_int
 	endinput
+	input 'remote' 16
+		next ust$final_unmunged_string
+	endinput
 enddef
 
 
@@ -78,6 +92,9 @@ define state file-type
 		next ust$no_more
 	endinput
 	input 'raster' 2
+		next ust$no_more
+	endinput
+	input 'compressed_raster' 3
 		next ust$no_more
 	endinput
 enddef
