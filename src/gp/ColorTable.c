@@ -1,7 +1,7 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 1.1 1990-05-07 16:08:01 corbet Exp $";
+static char *rcsid = "$Id: ColorTable.c,v 1.2 1990-05-14 09:03:36 burghart Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -78,7 +78,7 @@ static stbl Ctable = 0;
  */
 # ifdef __STDC__
 	static CTable * ct_AskDMForTable (char *);
-	static int ct_GetDMResponse (struct message *, struct dm_ctable *);
+	static int ct_GetDMResponse (struct message *, struct dm_ctable **);
 	static void ct_DoAlloc (CTable *);
 	static int ct_MarkDealloc (char *, int, union usy_value *, int);
 # else
@@ -156,7 +156,7 @@ char *name;
  */
 {
 	struct dm_ctr ctr;
-	struct dm_ctable repl;
+	struct dm_ctable *repl;
 	CTable *ct;
 	union usy_value v;
 /*
@@ -168,21 +168,21 @@ char *name;
 /*
  * Now await the reply.
  */
-	repl.dmm_ncolor = -1;
+	repl = NULL;
 	msg_Search (MT_DISPLAYMGR, ct_GetDMResponse, &repl);
 /*
  * If it failed, we fail too.
  */
-	if (repl.dmm_ncolor == -1)
+	if (repl == NULL)
 		return (0);
 /*
  * Otherwise it's time to allocate and fill in a ctable structure.
  */
 	ct = ALLOC (CTable);
 	strcpy (ct->ct_name, name);
-	ct->ct_ncolor = repl.dmm_ncolor;
+	ct->ct_ncolor = repl->dmm_ncolor;
 	ct->ct_colors = (XColor *) malloc (ct->ct_ncolor * sizeof (XColor));
-	memcpy (ct->ct_colors, repl.dmm_cols, ct->ct_ncolor*sizeof (XColor));
+	memcpy (ct->ct_colors, repl->dmm_cols, ct->ct_ncolor*sizeof (XColor));
 	ct->ct_alloc = FALSE;
 /*
  * Store a symbol table entry.
@@ -203,7 +203,7 @@ char *name;
 static int
 ct_GetDMResponse (msg, ctr)
 struct message *msg;
-struct dm_ctable *ctr;
+struct dm_ctable **ctr;
 /*
  * The color table search routine, called out of msg_Search.
  */
@@ -218,7 +218,7 @@ struct dm_ctable *ctr;
  * Got it.  Copy out the info and return.
  */
 	if (dmm->dmm_type == DM_TABLE)
-		*ctr = *dmm;
+		*ctr = dmm;
 	return (0);
 }
 
