@@ -50,6 +50,20 @@
 
 #define streq(a, b)        ( strcmp((a), (b)) == 0 )
 
+/*#define DEBUG*/
+
+#ifdef DEBUG
+#define ENTER(msg) ui_printf("RdssMenu: entering %s\n",msg);
+#define EXIT(msg) ui_printf("RdssMenu: exiting %s\n",msg);
+#define IFD(cmd) cmd
+#define ACK(msg) ui_printf("RdssMenu: ack %s\n",msg);
+#else
+#define ENTER(msg)
+#define EXIT(msg)
+#define IFD(cmd)
+#define ACK(msg)
+#endif
+
 #define offset(field) XtOffsetOf(RdssMenuRec, rdss_menu.field)
 
 static XtResource resources[] = { 
@@ -97,7 +111,7 @@ static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
-     <BtnUp>:           MenuPopdown() notify() unhighlight()"; 
+     <BtnUp>:           notify() unhighlight() MenuPopdown()"; 
 
 /*
  * Semi Public function definitions. 
@@ -672,21 +686,49 @@ Cardinal * num_params;
     SmeObject entry = smw->rdss_menu.entry_set;
     SmeObjectClass class;
  
-    if ( entry == NULL) return;
+    ENTER("Unhighlight()")
+    if ( entry == NULL)
+    { 
+	EXIT("Unhighlight(): entry_set is null")
+	return;
+    }
 
-    class = (SmeObjectClass) entry->object.widget_class;
-    (class->sme_class.unhighlight) ( (Widget) entry);
 /*
- * Our current entry should disappear if:
+ * Our current entry (entry_set) should disappear (be set to NULL)
+ * and unhighlighted if:
  *	1) the entry is anything other than an smeMenuObject
  *		or
- *	2) it is an smeMenuObject and its submenu was popped down by its 
- *	   unhighlight
+ *	2) it is an smeMenuObject, the event is LeaveWindow, and
+ *	   the event occurred inside the entry
+ *
+ * Note that its possible that a SmeMenu object created us and is
+ * calling our action artificially with a NULL event.  A NULL
+ * event implies unhighlight no matter what.
  */
-    if ((WidgetClass) class != smeMenuObjectClass || 
-	! SmeMenuPoppedUp ((Widget) entry))
+
+    class = (SmeObjectClass) entry->object.widget_class;
+
+    if (((WidgetClass)class != smeMenuObjectClass) || 
+	(!event) ||
+	(event->type != LeaveNotify) || 
+	(entry != GetEventEntry(w, event)))
+    {
+	(class->sme_class.unhighlight) ( (Widget) entry);
 	smw->rdss_menu.entry_set = NULL;
+    }
+    else
+    {
+	IFD(ui_printf("	ignoring LeaveWindow event in SmeMenuObject %s\n",
+			XtName(entry));)
+    }
+
+    IFD(ui_printf("	entry_set is now %s\n",
+		(smw->rdss_menu.entry_set)?
+		XtName(smw->rdss_menu.entry_set):("NULL"));)
+    EXIT("Unhighlight()")
 }
+
+
 
 /*      Function Name: Highlight
  *      Description: Highlights current entry.
@@ -708,20 +750,35 @@ Cardinal * num_params;
     SmeObject entry;
     SmeObjectClass class;
     
-    if ( !XtIsSensitive(w) ) return;
+    ENTER("Highlight()")
+    if ( !XtIsSensitive(w) )
+    {
+	EXIT("Highlight(): menu not sensitive")
+	return;
+    }
     
     entry = GetEventEntry(w, event);
-
+    IFD(ui_printf("	event entry is %s\n",
+		(entry)?XtName(entry):"NULL");)
+    IFD(ui_printf("	entry_set is %s\n",
+		(smw->rdss_menu.entry_set)?
+		XtName(smw->rdss_menu.entry_set):"NULL");)
     if (entry == smw->rdss_menu.entry_set && (! entry ||
 	    	entry->object.widget_class != smeMenuObjectClass)) return;
 
     if (entry != smw->rdss_menu.entry_set)
 	    Unhighlight(w, event, params, num_params);
 
-    if (entry == NULL) return;
+    if (entry == NULL) 
+    {
+	EXIT("Highlight(): entry is NULL")
+	return;
+    }
 
-    if ( !XtIsSensitive( (Widget) entry)) {
+    if ( !XtIsSensitive( (Widget) entry)) 
+    {
 	smw->rdss_menu.entry_set = NULL;
+	EXIT("Highlight(): entry not sensitive, entry_set set to NULL")
 	return;
     }
 
@@ -729,7 +786,10 @@ Cardinal * num_params;
     class = (SmeObjectClass) entry->object.widget_class;
 
     (class->sme_class.highlight) ( (Widget) entry);
+    EXIT("Highlight(): entry_set set to entry")
 }
+
+
 
 /*      Function Name: Notify
  *      Description: Notify user of current entry.
@@ -756,6 +816,7 @@ Cardinal * num_params;
     class = (SmeObjectClass) entry->object.widget_class;
     (class->sme_class.notify)( (Widget) entry );
 }
+
 
 /************************************************************
  *
@@ -1053,7 +1114,11 @@ XPoint * location;
     
     XtRealizeWidget(w);
     
-    location->x -= (Position) w->core.width/2;
+    /*
+     * Given x,y for widget, adjust so that cursor is on default
+     * entry.
+     */
+    location->x -= (Position) 5;  /* Fixed for user's sanity */
     
     if (smw->rdss_menu.popup_entry == NULL)
 	entry = smw->rdss_menu.label;
