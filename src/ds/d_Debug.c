@@ -13,7 +13,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.9 1996-11-25 21:29:42 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.10 1997-06-30 21:48:45 ishikawa Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -48,14 +48,15 @@ typedef enum {
 	FTZeb = 4,
 	FTGRIB = 5,
 	FTGRIBSfc = 6,	/* GRIB surface grids only */
-	FTGrads = 7
+	FTGrads = 7,
+	FTGradsModel = 8
 	/* ... */
 } FileType;
 #endif
 
 static char *ftypestr[] = {
 	"unknown", "netcdf", "boundary", "raster", "cmpraster", "zeb",
-	"grib", "grib_sfc", "grads"
+	"grib", "grib_sfc", "grads", "grads_model"
 };
 
 static char *inheritdir[] = { "none", "append", "copy" };

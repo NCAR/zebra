@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.2 1997-01-14 17:47:55 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.3 1997-06-30 21:48:13 ishikawa Exp $")
 
 
 /*
@@ -93,7 +93,8 @@ static const char *_FTypeName[] =
 	"grib",		/* FTGRIB = 5 */
 	"grib_sfc", 	/* FTGRIBSfc = 6 */
 	"grads",	/* FTGrads = 7 */
-	"hdf"		/* FTHDF = 8 */
+	"grads_model",  /* FTGradsModel = 8 */
+	"hdf"		/* FTHDF = 9 */
 };
 #define FTypeName(ftype) (_FTypeName[(ftype)+1])
 #define NFType ((sizeof(_FTypeName)/sizeof(char *)))
