@@ -13,7 +13,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.5 1998-06-05 19:31:38 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.6 1998-08-27 22:51:46 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -37,6 +37,7 @@ BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order, long sz, int fix) :
 	our_bf(0)
 {
 	Init (order, sz, fix);
+	OpenHeader ();
 }
 
 
@@ -44,12 +45,12 @@ BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order, long sz, int fix) :
 template <class K, class T>
 BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 	BTree(0, 0, 0),
-	SyncBlock (*(new BlockFile ("btree.bf", MAGIC
-				    /*BlockFile::BF_CREATE*/))),
+	SyncBlock (*(new BlockFile ("btree.bf", MAGIC))),
 	bf (SyncBlock::bf),
 	our_bf(1)
 {
 	Init (order, sz, fix);
+	OpenHeader ();
 }
 
 
@@ -58,14 +59,47 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 template <class K, class T>
 BTreeFile<K,T>::BTreeFile (const char *fname, int order, long sz, int fix) :
 	BTree(0, 0, 0),
-	SyncBlock (*(new BlockFile (fname, MAGIC
-				    /*BlockFile::BF_CREATE*/))),
+	SyncBlock (*(new BlockFile (fname, MAGIC))),
 	bf (SyncBlock::bf),
 	our_bf(1)
 {
 	Init (order, sz, fix);
+	OpenHeader ();
 }
 
+
+
+template <class K, class T>
+BTreeFile<K,T>::BTreeFile (BlkOffset addr, BlockFile &_bf, 
+			   int order, long sz, int fix) : 
+	BTree(0, 0, 0),
+	SyncBlock (_bf),
+	bf (&_bf),
+	our_bf(0)
+{
+	Init (order, sz, fix);
+	if (addr)
+	{
+		// Open a tree on an existing block.
+		Open (addr);
+	}
+	else
+	{
+		// Else create a new one.
+		Create ();
+	}
+}
+
+
+
+/*
+ * Return the header block to which we're currently attached.
+ */
+template <class K, class T>
+BlkOffset BTreeFile<K,T>::Address ()
+{
+	return block.offset;
+}
 
 
 
@@ -73,15 +107,16 @@ template <class K, class T>
 void
 BTreeFile<K,T>::Reopen ()
 {
-	BlockFile *reopen = new BlockFile (bf->Path(), MAGIC);
+	BlkOffset addr = Address();
+	string path(bf->Path());
 
 	// Release what we have, and start over with our own file
 	release ();
-
-	bf = reopen;
+	bf = new BlockFile (path.c_str());
 	our_bf = 1;
 	attach (Block(), *bf);
-	Init (order, value_size, value_size_fixed);
+	Init (order, elementSize(), elementFixed());
+	Open (addr);
 }
 
 
@@ -90,15 +125,21 @@ template <class K, class T>
 void
 BTreeFile<K,T>::Init (int order, long sz, int fix)
 {
-	Setup (order, sz, fix);
+	Setup (order, sz, fix);		// Do our superclass setup
 	key_size = 0;
-	value_size = sz;
 	key_size_fixed = 0;
-	value_size_fixed = fix;
 	node_size = 0;
 	leaf_size = 0;
-	log = Logger::For("BTreeFile");
+	log.Declare ("BTreeFile");
+	log.Extend (bf->Path());
+}
 
+
+
+template <class K, class T>
+void
+BTreeFile<K,T>::OpenHeader ()
+{
 	if (bf->Status() != BlockFile::OK)
 	{
 		++err;
@@ -117,32 +158,69 @@ BTreeFile<K,T>::Init (int order, long sz, int fix)
 	{
 		if (magic != MAGIC)
 		{
-			log->Error ("BlockFile has wrong magic number.");
+			log.Error ("BlockFile has wrong magic number.");
 			++err;
 			return;
 		}
-		log->Info (Format("Reading BTreeFile header at (%u,%u)") %
-			   header.offset % header.length);
-		attach (header);
-		readSync ();
-
-		// If we have a root node, it must always be in memory.
-		if (depth != -1)
-			root = get (rootNode, depth);
+		log.Info (Format("Reading BTreeFile header at (%u,%u)") %
+			  header.offset % header.length);
+		Open (header.offset);
 	}
 	else
 	{
-		// We're just creating a new tree from scratch.
+		// We're just creating a new tree from scratch, but we still
+		// need to set the BlockFile application header.
 		bf->WriteLock ();
-		writeSync (1);
-		log->Info (Format("BTreeFile header allocated at (%u,%u)") %
-			   block.offset % block.length);
+		Create ();
 		bf->setHeader (block, MAGIC);
 		bf->Unlock ();
 	}
 	bf->Unlock ();
 }
 
+
+
+/*
+ * Create a new b-tree by allocating a new header block.
+ */
+template <class K, class T>
+void
+BTreeFile<K,T>::Create ()
+{
+	if (bf->Status() != BlockFile::OK)
+	{
+		++err;
+		return;
+	}
+	// We're just creating a new tree from scratch.
+	bf->WriteLock ();
+	writeSync (1);
+	log.Info (Format("BTreeFile header allocated at (%u,%u)") %
+		  block.offset % block.length);
+	bf->Unlock ();
+}
+
+
+
+/*
+ * Open the b-tree at the given header block.
+ */
+template <class K, class T>
+void
+BTreeFile<K,T>::Open (BlkOffset addr)
+{
+	if (bf->Status() != BlockFile::OK)
+	{
+		++err;
+		return;
+	}
+	attach (Block(addr));
+	readSync ();
+
+	// If we have a root node, it must always be in memory.
+	if (depth != -1)
+		root = get (rootNode, depth);
+}
 
 
 #ifdef notdef
@@ -201,11 +279,27 @@ BTree<K,T>::BTree (BlockFile &bf, BlkOffset offset) :
 #endif
 
 
+
+/*
+ * Obliterate all memory of this tree.  This means first erasing
+ * it, and finally freeing the header block and object.
+ */
+template <class K, class T>
+void
+BTreeFile<K,T>::Destroy ()
+{
+	Erase ();
+	assert (Empty());
+	free ();
+	delete this;
+}
+
+
+
 template <class K, class T>
 BTreeFile<K,T>::~BTreeFile ()
 {
 	release ();
-	delete log;
 }
 
 
@@ -246,7 +340,7 @@ BTreeFile<K,T>::get (Node &node, int depth)
 		that->block.length = nodeSize (that);
 		that->thisNode.addr = that->block.offset;
 		that->thisNode.local = that;
-		log->Debug (Format("Recreating node from block (%u,%u)") %
+		log.Debug (Format("Recreating node from block (%u,%u)") %
 			    that->block.offset % that->block.length);
 		that->readSync ();
 	}
@@ -263,15 +357,15 @@ template <class K, class T>
 BTreeNode<K,T> * 
 BTreeFile<K,T>::make (int depth)
 {
-	log->Info (Format(" + creating node, depth: %i") % depth);
+	log.Info (Format(" + creating node, depth: %i") % depth);
 	BlockNode<K,T> *made = new BlockNode<K,T> (*bf, *this, depth);
 	made->thisNode.local = made;
 	// Force allocation to get an address
 	made->allocate (nodeSize (made));
 	assert (made->block.offset > 0);
 	made->thisNode.addr = made->block.offset;
-	log->Info (Format(" + node created (%u,%u), depth: %i")
-		   % made->block.offset % made->block.length % depth);
+	log.Info (Format(" + node created (%u,%u), depth: %i")
+		  % made->block.offset % made->block.length % depth);
 	return (made);
 }
 
@@ -341,9 +435,12 @@ template <class K, class T>
 void
 BTreeFile<K,T>::translate (SerialStream &ss)
 {
-	// Translate our persistent state
-	ss << depth << order << rootNode;
-	ss << key_size << value_size << key_size_fixed << value_size_fixed;
+	// Translate our superclass state
+	BTree::serial (ss);
+	TranslateBlock::translate (ss);
+
+	// Translate our own persistent state
+	ss << key_size << key_size_fixed;
 	ss << node_size << leaf_size;
 }
 
@@ -369,24 +466,6 @@ BTreeFile<K,T>::setKeySize (int ks, int fixed)
 
 
 template <class K, class T>
-void
-BTreeFile<K,T>::setValueSize (int vs, int fixed)
-{
-	enterWrite ();
-	if (rootNode.addr == 0)
-	{
-		value_size = vs;
-		value_size_fixed = fixed;
-		leaf_size = 0;
-		node_size = 0;
-		mark ();
-	}
-	leave ();
-}
-
-
-
-template <class K, class T>
 int
 BTreeFile<K,T>::keySize (int *fixed)
 {
@@ -401,14 +480,19 @@ BTreeFile<K,T>::keySize (int *fixed)
 
 template <class K, class T>
 int
-BTreeFile<K,T>::valueSize (int *fixed)
+BTreeFile<K,T>::setElementSize (int vs, int fixed)
 {
-	enterRead ();
-	if (fixed)
-		*fixed = value_size_fixed;
+	enterWrite ();
+	int done = BTree::setElementSize (vs, fixed);
+	if (done)
+	{
+		leaf_size = 0;
+		node_size = 0;
+	}
 	leave ();
-	return (value_size);
+	return done;
 }
+
 
 
 
@@ -609,10 +693,14 @@ template <class K, class T>
 void
 BlockNode<K,T>::translate (SerialStream &ss)
 {
+	// Overflow must be the first object in the stream.  It is
+	// expected to be there by read(). 
+	ss << overflow;
+
 	// Need to keep our originally allocated block length in our
 	// persistent state so we can free it all when done with it.
-	ss << overflow;
-	ss << block.length;
+	TranslateBlock::translate (ss);
+
 	ss << nkeys;
 	for (int i = 0; i < nkeys; ++i)
 	{
@@ -652,7 +740,7 @@ BlockNode<K,T>::baseSize (SerialBuffer &wb)
 	// a separate count gives us the length of the key buffer.
 	SerialCountStream& cs = *wb.countStream();
 	cs << overflow;
-	cs << block.length;
+	TranslateBlock::translate (cs);
 	cs << nkeys;
 	long s = cs.Count();
 
@@ -690,7 +778,7 @@ BlockNode<K,T>::leafSize (SerialBuffer &wb)
 
 	// Values
 	int fixed = 0;
-	long vlen = filetree.valueSize (&fixed);
+	long vlen = filetree.elementSize (&fixed);
 	if (!vlen)
 		vlen = sizeof (T);
 	vlen *= maxKeys();

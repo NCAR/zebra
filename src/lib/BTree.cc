@@ -11,14 +11,10 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.13 1998-05-28 22:00:42 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.14 1998-08-27 22:51:45 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
-//#include "HeapFactory.hh"
-
-// XDR_ADDTYPE (tree_base);
-
 
 
 /*================================================================
@@ -32,25 +28,14 @@
 template <class K, class T>
 BTree<K,T>::BTree (int _order, long sz, int fix) : current(0)
 {
-	Setup (_order, sz, fix /*,new HeapFactory<K,T>()*/);
+	Setup (_order, sz, fix);
 }
 
-
-#ifdef notdef
-/*
- * For subclasses:
- */
-template <class K, class T>
-BTree<K,T>::BTree (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
-{
-	Setup (_order, sz, fix/*, f*/);
-}
-#endif
 
 
 template <class K, class T>
 void
-BTree<K,T>::Setup (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
+BTree<K,T>::Setup (int _order, long sz, int fix)
 {
 	depth = -1;
 	root = 0;
@@ -61,11 +46,20 @@ BTree<K,T>::Setup (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
 		current = new Shortcut<K,T>;
 
 	order = _order;
-	fixed = fix;
-	sizes = sz;
-	//factory = f;
+	elem_size_fixed = fix;
+	elem_size = sz;
 	if (order < 3)
 		order = DEFAULT_ORDER;
+}
+
+
+
+template <class K, class T>
+void
+BTree<K,T>::serial (SerialStream &ss)
+{
+	ss << depth << order << rootNode;
+	ss << elem_size << elem_size_fixed;
 }
 
 
@@ -299,6 +293,26 @@ BTree<K,T>::Print (ostream &out)
 	leave ();
 	return (out);
 }
+
+
+
+template <class K, class T>
+int
+BTree<K,T>::setElementSize (int vs, int fixed)
+{
+	int done = 0;
+	enterWrite ();
+	if (Empty())
+	{
+		elem_size = vs;
+		elem_size_fixed = fixed;
+		mark ();
+		done = 1;
+	}
+	leave ();
+	return done;
+}
+
 
 
 /* ---------------- Protected methods ---------------- */

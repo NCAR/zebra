@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.11 1998-06-02 23:21:13 granger Exp $
+ * $Id: BTree.hh,v 1.12 1998-08-27 22:51:45 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -8,7 +8,24 @@
 #define _BTree_hh_
 
 #include <iostream.h>
-#include "Factory.hh"		// Need the Node class
+// #include "Factory.hh"		// Need the Node class
+
+// Reference to a node by some remote address and size, else by a pointer
+// to a cached copy in local memory.  In an entire tree, there is only one
+// reference to each node, in its parent.
+
+class SerialStream;
+
+struct Node
+{
+	void *local;		// Memory cache
+	unsigned long addr;	// Persistent address
+
+	Node () : local(0), addr(0) { }
+
+	inline void translate (SerialStream &ss);
+};
+
 
 /*
  * Opaque forward references.
@@ -127,13 +144,25 @@ public:
 
 	inline int elementFixed ()
 	{
-		return (fixed);
+		return elem_size_fixed;
 	};
 
 	inline long elementSize ()
-	{ 
-		return sizes;
+	{
+		return elem_size;
 	};
+
+	inline long elementSize (int *fixed)
+	{
+		if (fixed) *fixed = elem_size_fixed;
+		return elem_size;
+	};
+
+	// Attempt to set the element size and whether that size is constant.
+	// This only succeeds when the tree is empty (ie, no root node).
+	// Return non-zero when it succeeds.
+	//
+	virtual int setElementSize (int vs, int fixed = 0);
 
 	void Statistics (BTreeStats &);
 
@@ -156,6 +185,12 @@ public:
 		return _err;
 	}
 
+	// Allow our persistent state to be translated, usually by 
+	// a persistent subclass implementation, without actually being
+	// Translatable.
+	//
+	void serial (SerialStream &ss);
+
 	/* ----- Public constructors and destructors ----- */
 
 	/// Create a simple, empty BTree
@@ -163,24 +198,27 @@ public:
 
 	virtual void Reopen () { }
 
+	// Explicitly release this tree and all its keys and resources,
+	// wherever they may be.
+	//
+	virtual void Destroy () 
+	{
+		delete this;
+	}
+
 	virtual ~BTree ();
 
 protected:
 
-	// Constructor reserved for subclasses to delay some of the
-	// initialization, especially the factory.
-	//BTree (int order, long sz, int fix /*,NodeFactory<K,T> *f */);
-
 	// Delayed initialization must be completed with this call.
-	void Setup (int order, long sz, int fix /*,NodeFactory<K,T> *f */);
+	void Setup (int order, long sz, int fix);
 
 	// Persistent state
 	int depth;			// Depth of the root node (-1 if none)
 	int order;
 	Node rootNode;			// Root factory address
-	int fixed;			// non-zero for fixed element sizes
-	long sizes;			// sizes of elements, or a guess
-	//long bufSize;			// Set at construction
+	int elem_size;			// sizes of elements, or a guess
+	int elem_size_fixed;		// non-zero for fixed element sizes
 
 	// Transient state
 	BTreeNode<K,T> *root;
@@ -220,53 +258,7 @@ protected:
 	/// Create a new node
 	virtual node_type *make (int depth);
 
-	/// Release this tree.  This is called by the base destructor.  The
-	/// default implementation erases the tree.  Subclasses can override
-	/// this to delete any nodes in memory without deleting the 
-	/// persistent copy.
-	//virtual void release ();
-
-#ifdef notdef
-	/// Delete a node.
-	virtual void destroy (node_type *node);
-
-	// Done with this btree
-	virtual void release ();
-	virtual void writeLock ();
-	virtual void readLock ();
-	virtual void unlock ();
-#endif
-
 };
 
-
-	/// Create an empty, persistent BTree on the given BlockFile
-	//BTree (BlockFile &bf, int order = DEFAULT_ORDER);
-
-	/// Restore a BTree from a BlockFile at the given address
-	//BTree (BlockFile &bf, BlkOffset offset);
-
-	//void translate (SerialStream &ss);
-
-	// Return the fixed sizes of our nodes
-	//long leafSize ();
-	//long nodeSize ();
-
-#ifdef notdef
-	/// Return estimated element size in bytes
-	int ElementSize ();
-
-	/* Set info.  The storage object and tree order cannot be changed.
-	 * The element size is used as a default length when inserting
-	 * a key and value, and it is used to estimate the space required
-	 * for a block of N elements for a leaf.
-	 */
-	void SetElementSize (int size);
-
-	int keySize (void)
-	{
-		return (key_size);
-	};
-#endif
 
 #endif /* _BTree_hh_ */
