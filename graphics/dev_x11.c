@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.24 1991-12-20 17:21:38 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.25 1992-04-29 21:54:42 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -54,6 +54,7 @@ struct xtag
 	Pixmap	x_tgt_pixmap;	/* Pixmap to save data covered by target*/
 	char	*x_zwork;	/* Zoom workspace			*/
 	int	x_zx, x_zy;	/* Zoom origins				*/
+	char	x_current;	/* Window is up to date			*/
 	char	x_zoomok;	/* Zoom is up to date.			*/
 	char	x_zquad;	/* Which quad we are zoomed on		*/
 	char	x_qdone[5];	/* Is this quad done?			*/
@@ -157,6 +158,7 @@ struct device *dev;
 
 	tag->x_fg = 1;
 	tag->x_bg = 0;
+	tag->x_current = FALSE;
 /*
  * No target for now
  */
@@ -333,6 +335,7 @@ char *ctag;
 	XFillRectangle (tag->x_display, tag->x_sw[0], tag->x_tgt_gc, 0, 0,
 		tag->x_xres, tag->x_yres);
 	tag->x_zoomok = FALSE;
+	tag->x_current = TRUE;
 /*
  * Clear the target pixmap and remember we need to redo it
  */
@@ -402,14 +405,22 @@ int color, ltype, npt, *data;
 # endif
  	XDrawLines (tag->x_display, tag->x_sw[0], tag->x_gc, xp, npt,
 		CoordModeOrigin);
-	tag->x_zoomok = FALSE;
-	relvm (xp);
-	return;
-
-# ifdef notdef
+	tag->x_current = FALSE;
+/*
+ * If we are not operating in a zoomed mode, we're done now.
+ */
+	if (! tag->x_zoomok || ! tag->x_zquad)
+	{
+		tag->x_zoomok = FALSE;
+		relvm (xp);
+		return;
+	}
 /*
  * Go through and double each coordinate and draw into quad 1.
  */
+	XSetLineAttributes (tag->x_display, tag->x_gc, 2, 
+		(ltype == GPLT_SOLID) ? LineSolid : LineOnOffDash, CapButt,
+		JoinMiter);
 	for (pt = 0; pt < npt; pt++)
 	{
 		xp[pt].x *= 2;
@@ -417,9 +428,6 @@ int color, ltype, npt, *data;
 	}
  	XDrawLines (tag->x_display, tag->x_sw[1], tag->x_gc, xp, npt,
 		CoordModeOrigin);
-	if (tag->x_zquad == 1)
-	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
-			CoordModeOrigin);
 /*
  * Offset into quadrant 2.
  */
@@ -427,9 +435,6 @@ int color, ltype, npt, *data;
 		xp[pt].x -= tag->x_xres;
  	XDrawLines (tag->x_display, tag->x_sw[2], tag->x_gc, xp, npt,
 		CoordModeOrigin);
-	if (tag->x_zquad == 2)
-	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
-			CoordModeOrigin);
 /*
  * Offset into quadrant 4.
  */
@@ -437,9 +442,6 @@ int color, ltype, npt, *data;
 		xp[pt].y -= tag->x_yres;
  	XDrawLines (tag->x_display, tag->x_sw[4], tag->x_gc, xp, npt,
 		CoordModeOrigin);
-	if (tag->x_zquad == 4)
-	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
-			CoordModeOrigin);
 /*
  * Offset into quadrant 3.
  */
@@ -447,11 +449,7 @@ int color, ltype, npt, *data;
 		xp[pt].x += tag->x_xres;
  	XDrawLines (tag->x_display, tag->x_sw[3], tag->x_gc, xp, npt,
 		CoordModeOrigin);
-	if (tag->x_zquad == 3)
-	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
-			CoordModeOrigin);
 	relvm (xp);
-# endif
 }
 
 
@@ -472,6 +470,8 @@ char *ctag;
 	x11_clip (ctag, 0, 0, tag->x_xres, tag->x_yres);
 	if (tag->x_zquad)
 		x11_calc_zoom (tag, tag->x_zquad);
+ 	if (tag->x_current)
+		return;
 	XCopyArea (tag->x_display, tag->x_sw[tag->x_zquad], tag->x_window,
 		tag->x_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
 /*
@@ -511,6 +511,7 @@ char *ctag;
  * Flush everything out
  */
 	XFlush (tag->x_display);
+	tag->x_current = TRUE;
 }
 
 
@@ -616,6 +617,7 @@ int	x, y;
  * Make sure we redo the pixmap on the next flush
  */
 	tag->x_do_pxm = TRUE;
+	tag->x_current = FALSE;
 
 	x11_flush (ctag);
 	return;
@@ -647,6 +649,7 @@ char	*ctag;
  */
 	tag->x_xtgt = tag->x_ytgt = -1;
 
+	tag->x_current = FALSE;
 	x11_flush (ctag);
 	return;
 }
@@ -828,6 +831,7 @@ int x, y, xs, ys, size, org;
  	xi->data = (char *) 0;
 	XDestroyImage (xi);
 	tag->x_zoomok = FALSE;
+	tag->x_current = FALSE;
 }
 
 
@@ -869,6 +873,7 @@ struct xtag *tag;
 		tag->x_zquad = 0;
 	}
 	tag->x_zoomok = FALSE;
+	tag->x_current = FALSE;
 }
 
 
@@ -903,30 +908,27 @@ int x0, y0, x1, y1;
 	 	XCopyArea (tag->x_display, tag->x_sw[0], tag->x_window,
 			tag->x_tgt_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
 		tag->x_zquad = 0;
+		tag->x_current = FALSE;
 	}
 /*
  * Quad.
  */
  	else
 	{
+		int oldquad = tag->x_zquad;
 	/*
 	 * Calculate the quad.
 	 */
 		tag->x_zx = x0 ? tag->x_xres/2 : 0;
 		tag->x_zy = y0 ? 0 : tag->x_yres/2;
 		tag->x_zquad = (tag->x_zx ? 1 : 0) + (tag->x_zy ? 2 : 0) + 1;
+		if (tag->x_zquad == oldquad)
+			return;
+		tag->x_current = FALSE;
 	/*
 	 * Create the zoomed image, if necessary.
 	 */
 		x11_calc_zoom (tag, tag->x_zquad);
-# ifdef notdef	/* Happens in flush now */
-	/*
-	 * Now send the appropriate window.
-	 */
-	 	XCopyArea (tag->x_display, tag->x_sw[tag->x_zquad],
-			tag->x_window, tag->x_tgt_gc, 0, 0, tag->x_xres,
-			tag->x_yres, 0, 0);
-# endif
 	}
 /*
  * Sync things out.
@@ -1315,6 +1317,7 @@ float rot;
 	XDrawString (tag->x_display, tag->x_sw[0], tag->x_gc, x, 
 		tag->x_yres - y + 1 - tag->x_fonts[f]->descent, text,
 		strlen (text));
+	tag->x_current = FALSE;
 }
 
 
