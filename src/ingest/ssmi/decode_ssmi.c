@@ -4,6 +4,7 @@
  * calling DECODE with the correct C<-->FORTRAN calling conventions.
  */
 
+#include <defs.h>
 #include "outdat.h"
 
 /*
