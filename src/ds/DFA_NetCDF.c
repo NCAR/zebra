@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char    *rcsid = "$Id: DFA_NetCDF.c,v 2.4 1991-09-24 21:29:17 martin Exp $";
+static char    *rcsid = "$Id: DFA_NetCDF.c,v 2.5 1991-10-22 20:05:13 barrett Exp $";
 
 #include "../include/defs.h"
 #include "../include/message.h"
@@ -1121,12 +1121,30 @@ dnc_DataTimes(index, when, which, n, dest)
 {
 	NCTag          *tag;
 	int             t, i;
+	long		offset;
 	/*
 	 * Get the file open.
 	 */
 	if (!dfa_OpenFile(index, FALSE, (void *) &tag))
 		return;
-	t = dnc_TimeIndex(tag, when);
+	/*
+	 * PATCH: since dnc_TimeIndex returns 0 no-matter what when
+	 * there is only one data point in the file and then there
+	 * is no way to know whether "when" is greater than or
+	 * less than.
+	 */
+	if (tag->nc_ntime == 1)
+	{
+            offset = TC_FccToSys(when) - tag->nc_base;
+            if (offset <= tag->nc_times[0])
+              t=-1;
+            else if (offset >= tag->nc_times[tag->nc_ntime - 1])
+              t = tag->nc_ntime-1;
+	}
+	else
+	{
+	    t = dnc_TimeIndex(tag, when);
+	}
 	/*
 	 * Copy out the info.
 	 */
