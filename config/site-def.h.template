@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.24 1995-06-05 10:56:43 case Exp $
+/**/# $Id: site-def.h.template,v 1.25 1995-06-05 17:00:08 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -273,7 +273,7 @@
  * SGI users should edit the lines to read:
  *
  */	  /*# define FortranPath*/
-/*        # define FortranLibraries -lF77
+/*        # define FortranLibraries -lF77 -lI77 -lisam
  *
  * HP-UX users should edit the line to read:
  *
