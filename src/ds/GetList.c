@@ -1,7 +1,7 @@
 /*
  * Figure out how to do the data access.
  */
-static char *rcsid = "$Id: GetList.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: GetList.c,v 1.3 1991-02-26 19:08:07 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -22,12 +22,21 @@ GetList *GList = 0;
 	static int	dgl_DoList (int, GetList *);
 	static int	dgl_Overlaps (GetList *, DataFile *);
 	static GetList	*dgl_FixList (GetList *, DataFile *, int *);
+	static bool	dgl_TimeProblem (int, DataObject *, int, int *);
+	static int	dgl_RequestNewDF (Platform *, char *, time *);
+	static int	dgl_GetNDFResp (struct message *,
+					struct dsp_R_CreateFile *);
+	static void	dgl_AbortNewDF (Platform *, int);
 # else
 	static GetList	*dgl_GetEntry ();
 	static void	dgl_ReturnEntry ();
 	static int	dgl_DoList ();
 	static int	dgl_Overlaps ();
 	static GetList	*dgl_FixList ();
+	static int	dgl_TimeProblem ();
+	static int	dgl_RequestNewDF ();
+	static int	dgl_GetNDFResp ();
+	static void	dgl_AbortNewDF ();
 # endif
 
 
@@ -273,4 +282,216 @@ int *complete;
 	new->gl_end = dp->df_begin;		/* - 1? */
 	pmu_dsub (&new->gl_end.ds_yymmdd, &new->gl_end.ds_hhmmss, 1);
 	return (new);
+}
+
+
+
+
+
+
+int
+dgl_GetDestFile (dobj, new, begin, end)
+DataObject *dobj;
+bool new;
+int begin, *end;
+/*
+ * Figure out what the next destination file should be.
+ * Entry:
+ *	DOBJ	is the data object describing the put request.
+ *	NEW	is TRUE iff a new file should be created regardless.
+ *	BEGIN	is the first sample that we are trying to store.
+ * Exit:
+ *	If a destination is possible then:
+ *		The return value is the data file index of the destination.
+ *		END is the index of the last sample which should go to
+ *			this file (call again for data beyond END).
+ *	else
+ *		The return value is negative
+ *		END is the index of the last value which can not be output.
+ */
+{
+	Platform *plat = PTable + dobj->do_id;
+	DataFile *dp;
+	int newdf;
+	char fname[240];
+/*
+ * For now, we enforce a restriction that this data must be later in time
+ * than anything we have on disk now.  The reason is that doing the right
+ * thing here can be somewhat complicated, involving overwriting some 
+ * existing data, or moving data to put something in the middle, when there
+ * is existing data after this stuff.
+ */
+	if (LOCALDATA (*plat) &&
+			dgl_TimeProblem (LOCALDATA (*plat), dobj, begin, end))
+		return (-1);
+/*
+ * Now we see if we can use the existing, most recent file.  Essentially, 
+ * the conditions for that are: (1) the file exists, (2) we aren't being told
+ * to create a new file, (3) the file is not full, and (4) there is not a 
+ * huge gap in time between the end of the last file and our current time.
+ * (4) is implemented for now by just checking that they refer to the same
+ * day.  Something smarter is desirable.
+ */
+	dp = DFTable + LOCALDATA (*plat);
+	if (! new && LOCALDATA (*plat) && dp->df_nsample < plat->dp_maxsamp &&
+		dp->df_end.ds_yymmdd == dobj->do_times[begin].ds_yymmdd)
+	{
+	/*
+	 * We can use it.  Calculate how many samples can go there.
+	 */
+		if ((*end = (begin + plat->dp_maxsamp - dp->df_nsample)) >=
+				dobj->do_npoint)
+			*end = dobj->do_npoint - 1;
+		return (LOCALDATA (*plat));
+	}
+/*
+ * OK, we we have to do here is to create an entirely new file.  We start that 
+ * process by requesting a new data file entry from the daemon.
+ */
+	dfa_MakeFileName (plat, &dobj->do_times[begin], fname);
+	if ((newdf = dgl_RequestNewDF (plat,fname,&dobj->do_times[begin])) < 0)
+	{
+		*end = dobj->do_npoint;		/* Everything fails */
+		return (-1);
+	}
+/*
+ * Have DFA get the file made for us.  They use the data object to know which
+ * fields/platforms belong therein.  A bit kludgy, but it works.
+ */
+	if (! dfa_CreateFile (newdf, dobj))
+	{
+		dgl_AbortNewDF (plat, newdf);
+		*end = dobj->do_npoint;
+		return (-1);
+	}
+/*
+ * Now see how much of this data we are able to put into it.
+ */
+	if ((*end = (begin + plat->dp_maxsamp)) >= dobj->do_npoint)
+		*end = dobj->do_npoint - 1;
+	return (newdf);
+}
+
+
+
+
+
+
+
+static bool
+dgl_TimeProblem (dfile, dobj, begin, end)
+int dfile;
+DataObject *dobj;
+int begin, *end;
+/*
+ * Perform time sanity checking.
+ */
+{
+	DataFile *dp = DFTable + dfile;
+/*
+ * If our first sample is past the current end time, there is no problem.
+ */
+	if (DLT (dp->df_end, dobj->do_times[begin]))
+		return (FALSE);
+	msg_ELog (EF_DEBUG, "Time problem, dobj %d %06d, df %d %06d",
+		dobj->do_times[begin].ds_yymmdd,
+		dobj->do_times[begin].ds_hhmmss,
+		dp->df_end.ds_yymmdd, dp->df_end.ds_hhmmss);
+/*
+ * It appears that there is a problem.  See now if there is any hope at all
+ * of salvaging part of the data.
+ */
+	if (DLT (dobj->do_times[dobj->do_npoint - 1], dp->df_end))
+	{
+		*end = dobj->do_npoint;
+		return (TRUE);
+	}
+/*
+ * It seems that there is some overlap.  Find out where we can start
+ * storing data.
+ */
+	for (*end = begin + 1; *end < dobj->do_npoint; *end++)
+		if (DLT (dp->df_end, dobj->do_times[*end]))
+			break;
+	(*end)--;
+	return (TRUE);
+}
+
+
+
+
+
+static int
+dgl_RequestNewDF (plat, file, t)
+Platform *plat;
+char *file;
+time *t;
+/*
+ * Get a new datafile entry from the DS daemon for this new file.
+ * Entry:
+ *	PLAT	is the platform for which this file is being created.
+ *	FILE	is the name of the file.
+ *	T	is the expected begin time of the data to put into the file.
+ * Exit:
+ *	On success, the return value is the new DF entry.  Otherwise a
+ *	negative value is returned.
+ */
+{
+	struct dsp_CreateFile dspcf;
+	struct dsp_R_CreateFile dspresp;
+/*
+ * Put together the request for the daemon.
+ */
+	dspcf.dsp_type = dpt_NewFileRequest;
+	dspcf.dsp_plat = plat - PTable;
+	dspcf.dsp_time = *t;
+	strcpy (dspcf.dsp_file, file);
+/*
+ * Ship it off, and pick out our response.
+ */
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &dspcf, sizeof (dspcf));
+	msg_Search (MT_DATASTORE, dgl_GetNDFResp, &dspresp);
+	return ((dspresp.dsp_type == dpt_R_NewFileSuccess) ?
+			dspresp.dsp_FileIndex : -1);
+}
+
+
+
+
+static int
+dgl_GetNDFResp (msg, dspresp)
+struct message *msg;
+struct dsp_R_CreateFile *dspresp;
+/*
+ * Pick out our response to the new file create request.
+ */
+{
+	struct dsp_Template *t = (struct dsp_Template *) msg->m_data;
+
+	if (t->dsp_type == dpt_R_NewFileSuccess ||
+			t->dsp_type == dpt_R_NewFileFailure)
+	{
+		*dspresp = * (struct dsp_R_CreateFile *) t;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
+static void
+dgl_AbortNewDF (plat, df)
+Platform *plat;
+int df;
+/*
+ * Abort this DF create, for some reason.
+ */
+{
+	struct dsp_AbortNewFile abort;
+
+	abort.dsp_type = dpt_AbortNewFile;
+	abort.dsp_FileIndex = df;
+	abort.dsp_pid = plat - PTable;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &abort, sizeof (abort));
 }
