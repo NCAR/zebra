@@ -137,3 +137,113 @@ endprocedure
 procedure adjust_representation_style style string
 	param #icon_component representation-style #style
 endprocedure
+
+!
+! Limits adjust for color coded barbs/vectors
+!
+
+procedure xyw-center-step junk string
+	popup xyw-center-step
+endprocedure
+
+
+define widget xyw-center-step form ''
+	popup xyw-ctr-step-popup
+	noheader
+!
+! title/zeb line.
+!
+	label l1 'Center and step for barb color coding'
+	button help 'Help' command 'help limits'
+	button apply 'Apply' command 'xyw-ctr-step-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	newline
+!
+! Scale mode.
+!
+	label lmode 'Mode: '
+	button mode 'FUNKY' command 'ToggleMode' width 70
+	label comp 'comp' color gray95 
+	newline
+!
+! The actual center and step if they want to tweak it.
+!
+	label lcenter 'Center: '
+	blank center '0.0' width 60 
+	label lstep ' Step: '
+	blank step '0.0' width 60
+enddef
+
+
+!
+! The popup procedure for the center/step form.
+!
+procedure xyw-ctr-step-popup
+!
+! Pull some basic info.
+!
+	local f ui$form
+	local rep pd_param(icon_component,'representation','string')
+	local plat pd_param(icon_component, 'platform', 'string')
+!
+! Stash aside the component name, we will want it later.
+!
+	formtext #f 'comp' #icon_component
+!
+! Now see if they have auto scaling turned on.
+!
+	local mode pd_ParamSearch(icon_component, 'scale-mode', plat, 'string')
+	if (mode = 'auto' or mode = 'autoscale')
+		formtext #f mode 'auto'
+	else
+		formtext #f mode 'manual'
+	endif
+!
+! Pull in the center and step values.
+!
+	local value pd_ParamSearch(icon_component, 'center', rep, 'string')
+	if (value = '(Undefined)')
+		formtext #f center 0
+	else
+		formtext #f center #value
+	endif
+
+	local value pd_ParamSearch(icon_component, 'step', rep, 'string')
+	if (value = '(Undefined)')
+		formtext #f step 1
+	else
+		formtext #f step #value
+	endif
+endprocedure
+
+
+
+!
+! Apply all the junk they just put in.
+!
+procedure xyw-ctr-step-apply
+	parameter global 'plot-hold' 'true'
+	local f ui$form
+	local comp getftext(f, 'comp')
+	local mode getftext(f, 'mode')
+	parameter #comp 'scale-mode' #mode
+	local center getftext(f, 'center')
+	parameter #comp center #center
+	local step getftext(f, 'step')
+	parameter #comp step #step
+	parameter global 'plot-hold' 'false'
+endprocedure
+
+
+
+!
+! Tweak autoscale mode.
+!
+procedure ToggleMode
+	local current getftext(ui$form, 'mode')
+	if (current = 'manual')
+		formtext #ui$form 'mode' 'auto'
+	else
+		formtext #ui$form 'mode' 'manual'
+	endif
+endprocedure
