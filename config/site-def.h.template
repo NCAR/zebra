@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.14 1993-07-23 19:38:23 case Exp $
+/**/# $Id: site-def.h.template,v 1.15 1993-09-27 18:21:59 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -238,13 +238,6 @@
 #       define NetCDFIncDir /usr/local/include
 #       define NetCDFLibDir /usr/local/lib
 # endif
-
-/*
- * If you have Makedepend (normally included with the MIT X11 
- * distribution and OpenWindows 3.0 or higher ),
- * set this to YES and verify that Makedepend is in your path.
- */
-# define HaveMakeDepend NO 
 
 
 /*========================================================================
