@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.25 1995-07-18 19:07:01 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.26 1995-09-12 20:58:54 granger Exp $")
 
 /*
  * Exported variables
@@ -913,7 +913,7 @@ char *name;
  * higher priority for another (yet-to-be-assigned) window in the config.
  */
 {
-	static Process *queue[4] = { 0, 0, 0, 0 }; /* static else cc gripes */
+	Process *queue[4];
 	Process *proc, **pp;
 	int i, n;
 
@@ -922,6 +922,7 @@ char *name;
 	if (proc && proc->p_state != P_ASSIGNED && proc->p_class == pc)
 		return (proc);
 
+	queue[3] = queue[2] = queue[1] = queue[0] = NULL;
 	pp = dp_ProcessList (NULL);
 	while ((proc = *pp++))
 	{
