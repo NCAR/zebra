@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: StatusWidget.c,v 2.1 1991-09-16 22:18:06 burghart Exp $";
+static char *rcsid = "$Id: StatusWidget.c,v 2.2 1994-10-26 00:36:14 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -67,10 +67,11 @@ static unsigned char LThrCounts;
 # endif
 
 
-static void
+static int
 IgnoreRinfo ()
-{ }
-
+{ 
+	return (0);
+}
 
 
 
@@ -200,7 +201,7 @@ Widget parent;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	ThrEnable = XtCreateManagedWidget ("ThrEnable", commandWidgetClass,
 			form, args, n);
-	XtAddCallback (ThrEnable, XtNcallback, ChangeEnable, 0);
+	XtAddCallback(ThrEnable, XtNcallback, (XtCallbackProc)ChangeEnable, 0);
 /*
  * Labels for the counts.
  */
@@ -215,7 +216,8 @@ Widget parent;
 	XtSetArg (args[n], XtNfromHoriz, ThrCountLbl);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	w = XtCreateManagedWidget ("CountUp", commandWidgetClass, form,args,n);
-	XtAddCallback (w, XtNcallback, ChangeCounts, 1);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc)ChangeCounts, 
+		       (XtPointer)1);
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "\337");		n++;
 	XtSetArg (args[n], XtNfromHoriz, w);		n++;

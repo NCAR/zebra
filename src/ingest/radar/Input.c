@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.6 1994-09-06 20:30:38 burghart Exp $";
+static char *rcsid = "$Id: Input.c,v 2.7 1994-10-26 00:36:12 granger Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -46,10 +46,12 @@ static enum { FileSource, NetSource, NoSource } InputType = NoSource;
 static char InSource[200];
 
 /*
- * File input stuff.
+ * File input stuff.  BUFLEN is the default size of Tbuffer; the size can
+ * be changed via the indirect variable buffer_len
  */
 # define BUFLEN 32768
-static unsigned short Tbuffer[BUFLEN];
+static unsigned short *Tbuffer = NULL;
+static int buffer_len = BUFLEN;
 
 /*
  * The beam structure we pass back.
@@ -86,6 +88,18 @@ static int Recycle = FALSE;
 
 
 
+void
+InputInitialize ()
+/*
+ * Add an indirect variable which we will use to set our buffer size.
+ */
+{
+	stbl vtable = usy_g_stbl ("ui$variable_table");
+
+	usy_c_indirect (vtable, "buffer_len", &buffer_len, SYMT_INT, 0);
+}
+
+
 
 void 
 FileInput (file)
@@ -119,9 +133,23 @@ char *interface;
 void
 SetupInput ()
 /*
- * Set up the input source.
+ * Set up the input source and our buffer space.
  */
 {
+	int len;
+
+	if (! Tbuffer)
+	{
+		len = buffer_len * sizeof(unsigned short);
+		msg_ELog (EF_DEBUG, "setting read buffer to %d bytes", len);
+		Tbuffer = (unsigned short *) malloc (len);
+		if (! Tbuffer)
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "could not allocate input buffer");
+			die ();
+		}
+	}
 /*
  * Branch out depending on the type of input we have.
  */
@@ -163,7 +191,7 @@ GetBeam ()
  * Return a beam to the rasterizer.
  */
 {
-	int len = BUFLEN, status;
+	int len = buffer_len, status;
 	static char 	file[200];
 	static int	nlog = 0, curlog = 0, logreclen = 0;
 

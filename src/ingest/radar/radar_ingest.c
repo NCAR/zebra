@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.9 1994-06-01 17:01:57 burghart Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.10 1994-10-26 00:36:17 granger Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -171,6 +171,7 @@ char **argv;
 	DefineWidgets ();
 	SetupIndirect ();
 	ds_Initialize ();
+	InputInitialize ();
 	Argc = argc;
 	Argv = argv;
 /*

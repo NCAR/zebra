@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.6 1994-06-17 21:49:11 burghart Exp $ */
+/* $Id: radar_ingest.h,v 2.7 1994-10-26 00:36:20 granger Exp $ */
 
 
 /*
@@ -113,6 +113,7 @@ extern bool Project;
  * Functions.
  */
 # ifdef __STDC__
+	void	InputInitialize (void);
 	void 	SetupInput (void);
 	Beam 	GetBeam (void);
 	void	Rasterize (Beam, RDest *, int, int);
@@ -120,6 +121,7 @@ extern bool Project;
 	void	OutputSweep (UItime *, double, int, int, int, int, int, int);
 # else
 # 	define const
+	void	InputInitialize ();
 	void 	SetupInput ();
 	Beam 	GetBeam ();
 	void	Rasterize ();
