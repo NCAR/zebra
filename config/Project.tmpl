@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.10 1994-11-01 03:03:34 case Exp $
+/**/# $Id: Project.tmpl,v 1.11 1994-11-07 20:56:51 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -304,7 +304,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 
 #ifndef XLib
 # if (UseXWindows || UseOpenWindows)
-#   define XLib -L$(XLIBDIR) LoaderLibPrefix -lX11
+#   define XLib XRunPath -L$(XLIBDIR) LoaderLibPrefix -lX11
 # else
 #   define XLib   /* Nothing */
 # endif
