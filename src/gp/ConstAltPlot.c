@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.48 1994-11-19 00:34:35 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.49 1994-12-09 18:32:35 corbet Exp $")
 
 
 /*
@@ -552,22 +552,19 @@ bool update;
 	quad |= pd_Retrieve (Pd, c, "quad2", quadrants[1], SYMT_STRING);
 	quad |= pd_Retrieve (Pd, c, "quad3", quadrants[2], SYMT_STRING);
 	quad |= pd_Retrieve (Pd, c, "quad4", quadrants[3], SYMT_STRING);
-
-	if (quad)
+/*
+ * Get a color for the quadrants.  Do this whether or not we have data in
+ * the quads -- we'll be drawing the axes regardless.
+ */
+	if (!pd_Retrieve (Pd, c, "quad-color", quadclr, SYMT_STRING))
 	{
-	/*
-	 * Get a color for the quadrants.
-	 */
-		if (!pd_Retrieve (Pd, c, "quad-color", quadclr, SYMT_STRING))
-		{
-			strcpy (quadclr, cname);
-			qcolor = color;
-		}
-		else if(! ct_GetColorByName (quadclr, &qcolor))
-		{
-			strcpy (quadclr, cname);
-			qcolor = color;
-		}
+		strcpy (quadclr, cname);
+		qcolor = color;
+	}
+	else if(! ct_GetColorByName (quadclr, &qcolor))
+	{
+		strcpy (quadclr, cname);
+		qcolor = color;
 	}
 /*
  * Flag any quadrants marked for station labels instead of fields,
