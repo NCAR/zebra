@@ -47,7 +47,7 @@ Less global variables: put them all in a global state structure.
 # include <stdio.h>
 # include <errno.h>
 # include <fcntl.h>
-# include <sgtty.h>
+# include <termios.h>
 # include <string.h>
 
 # include <defs.h>
@@ -55,7 +55,7 @@ Less global variables: put them all in a global state structure.
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.7 1994-10-13 23:02:48 sobol Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.8 1997-12-16 16:21:57 burghart Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -368,7 +368,7 @@ Connection *conn;
 		{ 0,		0	},
 	};
 	int i;
-	struct sgttyb tbuf;
+	struct termios tbuf;
 /*
  * Locate our speed.
  */
@@ -403,17 +403,25 @@ Connection *conn;
 	}
 # endif
 /*
- * Tweak it.
+ * Set to 8 bit, no parity, 1 stop bit, RTS/CTS flow control enabled, hang
+ * up on last close.
  */
-	tbuf.sg_flags = RAW;
-	tbuf.sg_ispeed = tbuf.sg_ospeed = Speeds[i].n_speed;	
+	tbuf.c_cflag = CS8 | CREAD | CRTSCTS | HUPCL;
+	tbuf.c_cflag |= Speeds[i].n_speed;
+/*
+ * Tweak it to be as raw as possible.
+ */
+	tbuf.c_iflag = 0;
+	tbuf.c_oflag = 0;
+	tbuf.c_lflag = 0;
 /*
  * Store the new parameters.
  */
-	if (ioctl (conn->c_Fd, TIOCSETP, &tbuf) != 0)
+	if (tcsetattr (conn->c_Fd, TCSANOW, &tbuf) != 0)
 	{
-		perror ("ioctl parameter setup");
-		msg_ELog (EF_EMERGENCY, "Ioctl error %d", errno);
+		perror ("tcsetattr");
+		msg_ELog (EF_EMERGENCY, "Error %d setting tty parameters", 
+			  errno);
 		Die ("could not set tty parameters", 6);
 	}
 }
