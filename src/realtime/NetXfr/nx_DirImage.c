@@ -26,7 +26,7 @@
 # include <ImageXfr.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_DirImage.c,v 3.6 1995-09-21 16:29:29 burghart Exp $")
+RCSID("$Id: nx_DirImage.c,v 3.7 1995-09-21 23:51:13 granger Exp $")
 
 /*
  * We're only set up to deal with one image source for now.  Should
@@ -164,7 +164,7 @@ int set;
  * Send it, but only if there's something real.
  */
 	if (ymin < ymax && xmin < xmax)
-		SendDChunk (dc, strstr (attr,"newfile"));
+		SendDChunk (dc, (strstr (attr,"newfile") != NULL));
 	else
 		msg_ELog (EF_INFO, "Dropping empty image");
 	dc_DestroyDC (dc);
