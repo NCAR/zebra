@@ -38,7 +38,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.25 1996-11-19 10:57:38 granger Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.26 1997-02-03 22:16:50 granger Exp $")
 
 
 /*
@@ -1507,8 +1507,6 @@ GFTag	*tag;
 	int	len, pds_len, bms_len, bds_len;
 	int	status, ng, ncopy, ednum, bds_pos;
 	unsigned char buf[64];
-	GFpds	*pds;
-	GFgds	*gds = 0;
 /*
  * Rewind the file first
  */
@@ -1522,6 +1520,8 @@ GFTag	*tag;
 	ng = tag->gt_ngrids;
 	while ((status = grb_FindRecord (fd, buf)) > 0)
 	{
+		GFpds *pds;
+		GFgds *gds = 0;
 	/*
 	 * Read the next 4 bytes and determine the GRIB edition.  In Edition 1
 	 * and beyond, these are the the last 4 bytes of the IS.  For Edition
@@ -1646,7 +1646,7 @@ GFTag	*tag;
 				realloc (tag->gt_grib, 
 					 tag->gt_maxgrids * sizeof (GRIBdesc));
 			tag->gt_times = (ZebTime *) 
-				realloc (tag->gt_grib, 
+				realloc (tag->gt_times, 
 					 tag->gt_maxgrids * sizeof (ZebTime));
 		}
 
