@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Ov_Grid.c,v 2.9 1998-10-28 21:21:56 corbet Exp $")
+RCSID ("$Id: Ov_Grid.c,v 2.10 1999-11-01 20:27:10 burghart Exp $")
 
 # define BETWEEN(x,a,b)    ((((x)-(a))*((x)-(b))) <= 0)
 
@@ -245,6 +245,11 @@ float aint;
 	char label[30];
 	Drawable frame = GWFrame (Graphics);
 /*
+ * We don't want any clipping, especially for our annotation,
+ * so we unclip and leave it there.
+ */
+	SetClip (TRUE);
+/*
  * Pass along the rows.  Start as far left as possible on a multiple of xs,
  * but greater than (Xlo + xoff)
  */
@@ -435,6 +440,11 @@ float aint;
 	char label[30];
 	int approx;
 	Drawable frame = GWFrame (Graphics);
+/*
+ * We don't want any clipping, especially for our annotation,
+ * so we unclip and leave it there.
+ */
+	SetClip (TRUE);
 /*
  * Figure out where we are.
  */
