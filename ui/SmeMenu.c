@@ -1,5 +1,5 @@
 #if ( !defined(lint) && !defined(SABER) )
-static char rcsid[] = "$Id: SmeMenu.c,v 1.10 1993-04-12 19:14:31 granger Exp $";
+static char rcsid[] = "$Id: SmeMenu.c,v 1.11 1993-04-12 19:50:35 granger Exp $";
 #endif 
 
 /*
@@ -113,7 +113,6 @@ static XtGeometryResult QueryGeometry();
  */
 static void GetDefaultSize(), DrawBitmaps(), GetBitmapInfo();
 static void CreateGCs(), DestroyGCs();
-static void SaveTranslations(), RestoreTranslations();
 static Widget FindPopup();
 
     
@@ -450,7 +449,6 @@ Highlight(w)
  */
 	if (entry->sme_menu.menu && wantup && !entry->sme_menu.up) 
 	{
-		XtTranslations trans;
 		Position root_x, root_y;
 
 		/* 
@@ -478,30 +476,9 @@ Highlight(w)
 				return;
 			}
 		}
-
-		/*
-		 * Now replace the menu shell's actions.  Since this is a
-		 * sub-menu, it will be popped down and unhighlighted "from
-		 * above", i.e. from its ancestors in the modal cascade.
-		 * All we want the sub-menu to handle is the 'notify' part
-		 * of a <BtnUp>.  The <BtnUp> event will also get re-mapped
-		 * to the spring-loaded menu at the top of the cascade, and
-		 * that menu will begin the propagation of the popdown and
-		 * unhighlight actions to the whole cascade.  Override is
-		 * required because we want to shell to keep its enter,
-		 * leave, and motion event translations.  The current
-		 * translations are saved in the SmeMenu instance so that
-		 * they can be restored later; for all we know this menu
-		 * popup may later become a top menu in which case it will
-		 * need its original translations.
-		 */
-		SaveTranslations (w);
-		trans = XtParseTranslationTable("<BtnUp>: notify()");
-		XtOverrideTranslations (entry->sme_menu.popup, trans);
 		
 		/*
-		 * We now have a popup shell, with the correct translations,
-		 * and a place to put it
+		 * We now have a popup shell and a place to put it
 		 */
 		loc.x = root_x; loc.y = root_y;
 		entry->sme_menu.up = True;
@@ -518,41 +495,12 @@ Highlight(w)
  	else if (entry->sme_menu.up && (!wantup))
 	{
 		XtPopdown (entry->sme_menu.popup);
-		RestoreTranslations (w);
 		entry->sme_menu.up = False;
-		IFD(ui_printf("	%s highlight popping down menu %s, %s\n",
-			      XtName(w),XtName((Widget)entry->sme_menu.popup),
-			      "restoring translations");)
+		IFD(ui_printf("	%s highlight popping down menu %s\n",
+			      XtName(w),
+			      XtName((Widget)entry->sme_menu.popup));)
 	}
 	EXIT("Highlight(): successful",w)
-}
-
-
-
-static void
-SaveTranslations(w)
-	Widget w;
-{
-	SmeMenuObject entry = (SmeMenuObject) w;
-	Arg arg;
-
-	XtSetArg(arg, XtNtranslations, 
-		 &(entry->sme_menu.popup_trans));
-	XtGetValues(entry->sme_menu.popup, &arg, (Cardinal)1);
-}
-
-
-
-static void
-RestoreTranslations(w)
-	Widget w;
-{
-	SmeMenuObject entry = (SmeMenuObject) w;
-	Arg arg;
-
-	XtSetArg(arg, XtNtranslations, 
-		 entry->sme_menu.popup_trans);
-	XtSetValues(entry->sme_menu.popup, &arg, (Cardinal)1);
 }
 
 
@@ -598,11 +546,9 @@ Widget w;
 	 * Then popdown the menu shell
 	 */
 	XtPopdown (popup);
-	RestoreTranslations (w);
 	entry->sme_menu.up = False;
-	IFD(ui_printf("%s: menu '%s' popped down, %s\n",
-		      XtName(w), XtName(popup),
-		      "translations restored");)
+	IFD(ui_printf("%s: menu '%s' popped down\n",
+		      XtName(w), XtName(popup));)
 	EXIT("Unhighlight(): done",w)
 }
 
