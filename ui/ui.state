@@ -11,7 +11,7 @@
 ! Nothing other than "define state" and its inferiors should appear here.
 ! IF YOU CHANGE THIS FILE, MAKE SURE IT WILL GET THROUGH uib!
 !
-! $Id: ui.state,v 1.5 1992-08-05 16:25:28 burghart Exp $
+! $Id: ui.state,v 1.6 2000-12-02 07:05:26 granger Exp $
 
 !
 ! Kludge needed to get the state definitions read in with the bootstrap
@@ -45,7 +45,7 @@ define state ust$boot_initial
 	eoftext 'exit'
 	ctable 'ui$command_table'
 	helpfile 'ust$boot_initial.help'
-	@ ui_commands.
+	@ ui_commands
 	input 'test' -31
 		next ust$final_expression
 	endinput
