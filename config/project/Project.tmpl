@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.50 1997-01-06 21:23:11 burghart Exp $
+XCOMM $Id: Project.tmpl,v 1.51 1997-01-14 21:59:34 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -449,26 +449,26 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #if ! UseInstalledZebra
-#ifndef ZebLibrary
-#    define ZebLibrary	 	$(TOP)/src/lib/libZeb.a
+#ifndef ZebraLibrary
+#    define ZebraLibrary 	$(TOP)/src/lib/libZebra.a
 #endif
-#ifndef ZebDSLibrary
-#    define ZebDSLibrary	$(TOP)/src/ds/libZebDS.a
+#ifndef ZebraDSLibrary
+#    define ZebraDSLibrary	$(TOP)/src/ds/libZebraDS.a
 #endif
 #ifndef MCIDASLibrary
 #    define MCIDASLibrary	$(TOP)/src/ingest/mcidas/libmcidas.a
 #endif
 #endif
 
-#ifndef ZebLibrary
-#define ZebLibrary LoaderLibPrefix $(LIBDIR)/libZeb.a
+#ifndef ZebraLibrary
+#define ZebraLibrary LoaderLibPrefix $(LIBDIR)/libZebra.a
 #endif
 
-# ifndef ZebDSLibrary
-#define ZebDSLibrary LoaderLibPrefix $(LIBDIR)/libZebDS.a
+#ifndef ZebraDSLibrary
+#define ZebraDSLibrary LoaderLibPrefix $(LIBDIR)/libZebraDS.a
 #endif
 
-# ifndef MCIDASLibrary
+#ifndef MCIDASLibrary
 #define MCIDASLibrary LoaderLibPrefix $(LIBDIR)/libmcidas.a
 #endif
 
@@ -870,12 +870,14 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 
 /*
  * Library link command-line options.  These make variables should include
- * any -L options and the -l prefix to library names, or they can explicitly
- * name the archive file (which is what LIBZEB defaults to, which is why it can
- * be included in the default value of DEPLIBS).
+ * any -L options and the -l prefix to library names, or they can
+ * explicitly name the archive file (which is what LIBZEBRA defaults to,
+ * which is why it can be included in the default value of DEPLIBS).
  */
-           LIBZEB = ZebLibrary
-         LIBZEBDS = ZebDSLibrary
+         LIBZEBRA = ZebraLibrary
+       LIBZEBRADS = ZebraDSLibrary
+           LIBZEB = $(LIBZEBRA)
+         LIBZEBDS = $(LIBZEBRADS)
         LIBNETCDF = NetCDFLibrary
 # if MapProjections
           LIBPROJ = ProjLibrary
@@ -898,7 +900,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
         LIBREGEXP = RegexpLibrary
     SYS_LIBRARIES = SystemLibraries
 
-          DEPLIBS = $(LIBZEB)
+          DEPLIBS = $(LIBZEBRA)
           MATHLIB = $(LIBMATH)
        TERMCAPLIB = $(LIBTERMCAP)
 /*
@@ -908,9 +910,9 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  * to make it easier to add and remove formats down the road.  Likewise,
  * programs only needing protocol access and not file access can use DSLIBS.
  */
-            ZLIBS = $(LIBZEB) $(LIBRDSS)
-          DFALIBS = $(LIBZEBDS) $(LIBNETCDF) $(LIBHDF)
-           DSLIBS = $(LIBZEBDS)
+            ZLIBS = $(LIBZEBRA) $(LIBRDSS)
+          DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF)
+           DSLIBS = $(LIBZEBRADS)
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
