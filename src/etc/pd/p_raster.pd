@@ -13,6 +13,7 @@ p_raster
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 	icon-right-menu:	raster-right
+	out-of-range-color:	none
 	require:	raster
 	scale-mode:	auto
 	limit-proc:	raster-limit-proc
