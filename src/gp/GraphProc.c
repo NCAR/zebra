@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.18 1991-01-22 21:59:34 burghart Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.19 1991-01-26 00:10:36 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -15,6 +15,7 @@ static char *rcsid = "$Id: GraphProc.c,v 1.18 1991-01-22 21:59:34 burghart Exp $
 # include "../include/pd.h"
 # include "../include/GraphicsW.h"
 # include "../include/timer.h"
+# include "../include/DataStore.h"
 
 # include "gp_cmds.h"
 # include "EventQueue.h"
@@ -294,6 +295,12 @@ struct message *msg;
 	  */
 	    case MT_TIMER:
 		tm_message ((struct tm_time *) msg->m_data);
+		break;
+	 /*
+	  * Data store.
+	  */
+	    case MT_DATASTORE:
+	    	ds_DSMessage (msg);
 		break;
 	}
 	return (0);
