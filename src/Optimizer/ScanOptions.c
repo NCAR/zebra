@@ -33,7 +33,7 @@
 # include "globals.h"
 # include "prototypes.h"
 
-RCSID("$Id: ScanOptions.c,v 1.7 1997-04-29 03:51:16 granger Exp $")
+RCSID("$Id: ScanOptions.c,v 1.8 2000-04-24 19:08:09 burghart Exp $")
 
 /*
  * Scan option widget stuff
@@ -585,7 +585,7 @@ so_CreateDisplayWidget ()
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNborderWidth, 2); n++;
-	XtSetArg (args[n], XtNlabel, "Remove"); n++;
+	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
 	w = XtCreateManagedWidget ("remove", commandWidgetClass, form, 
 		args, n);
 	XtAddCallback (w, XtNcallback, so_RemoveDisplay, (XtPointer) 0);
