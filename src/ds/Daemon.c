@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.42 1994-10-11 16:24:35 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.43 1994-11-17 09:00:46 granger Exp $")
 
 
 /*
@@ -116,6 +116,8 @@ char *ECmds[MAXEVERY];
 static Lock *FreeLocks = 0;
 
 bool InitialScan = TRUE;
+int PlatformsScanned = 0;
+
 time_t LastScan = 0;	/* Time of the most recent FULL scan */
 time_t LastCache = 0;	/* Time to which cache files are up-to-date */
 time_t Genesis;		/* In the beginning, there was Zeb...*/
@@ -184,7 +186,12 @@ char **argv;
 /*
  * Hook into the message system.
  */
-	msg_connect (msg_Handler, DS_DAEMON_NAME);
+	if (! msg_connect (msg_Handler, DS_DAEMON_NAME))
+	{
+		printf ("%s: unable to connect to message handler\n", argv[0]);
+		exit (1);
+	}
+		
 	msg_join ("Client events");
 	msg_DeathHandler (Shutdown);
 	msg_SetQueryHandler (dbg_AnswerQuery);
@@ -199,7 +206,7 @@ char **argv;
  * Initialize.
  */
 	vtable = usy_g_stbl ("ui$variable_table");
-	strcpy (DefDataDir, DATADIR);
+	strcpy (DefDataDir, GetDataDir());
 	RemDataDir[0] = '\0';
 	usy_c_indirect (vtable, "datadir", DefDataDir, SYMT_STRING, DDIR_LEN);
 	usy_c_indirect (vtable, "remdatadir", RemDataDir, SYMT_STRING,
@@ -529,10 +536,6 @@ Shutdown ()
  * Clean up in UI land.
  */
 	ui_finish ();
-/*
- * Clean up the shared memory segment.
- */
-	/* ShmCleanup (); */
 	exit (0);
 }
 
@@ -556,7 +559,10 @@ struct message *msg;
 	switch (tm->mh_type)
 	{
 	   case MH_SHUTDOWN:
-		if (CacheOnExit)
+	/*
+	 * Don't write cache files if we haven't finished scanning
+	 */
+		if (! InitialScan && CacheOnExit)
 			WriteCache (0);
 		ui_finish ();
 		exit (1);
@@ -759,10 +765,8 @@ struct dsp_CreateFile *request;
  * Fill in the info and hook it into the platform.
  */
 	ClearLocks (PTable + request->dsp_plat);
-	strncpy (new->df_name, request->dsp_file, sizeof(new->df_name));
-	new->df_name[sizeof(new->df_name) - 1] = '\0';
-	if (strlen(request->dsp_file) >= sizeof(new->df_name))
-	   msg_ELog(EF_PROBLEM,"%s: new filename too long",request->dsp_file);
+	dt_SetString (new->df_name, request->dsp_file, sizeof(new->df_name),
+		      "request for new file");
 	new->df_begin = new->df_end = request->dsp_time;
 	new->df_rev = 0;
 	new->df_FLink = new->df_BLink = new->df_nsample = 0;
