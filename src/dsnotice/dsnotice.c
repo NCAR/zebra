@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.6 1996-12-17 01:49:14 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.7 1997-05-10 20:53:45 granger Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
@@ -44,8 +44,9 @@ char *prog;
    fprintf(stderr,"Usage: %s [-all] [-dir] [regexp ...]\n", prog);
    fprintf(stderr,"   Print notifications for all platforms or only those\n");
    fprintf(stderr,"   matching the given regular expressions.\n");
-   fprintf(stderr,"   -all   \tReceive notifies all platforms\n");
-   fprintf(stderr,"   -dir   \tShow platform directory path on each update\n");
+   fprintf(stderr,"   -all   \tReceive notifies all platforms.\n");
+   fprintf(stderr,"   -dir   \tShow platform directory on each notice.\n");
+   fprintf(stderr,"   -log   \tSend notices to event logger.\n");
    fprintf(stderr,"   Options can be abbreviated to any number of letters.\n");
 }
 
@@ -88,6 +89,8 @@ char **argv;
 	char **platname = NULL;
 	int i, j, p, nplat, total;
 	int len;
+	int send_mask;
+	int print_mask;
 /*
  * Check args.
  */
@@ -113,6 +116,11 @@ char **argv;
 		exit (1);
 	}
 /*
+ * Default is not to send to logger but to print to console.
+ */
+	send_mask = msg_ELSendMask (0);
+	print_mask = msg_ELPrintMask (EF_ALL);
+/*
  * Figure out the params, then do the dirty work.
  */
 	p = 0;
@@ -127,6 +135,12 @@ char **argv;
 			all = TRUE;
 		else if (!strncmp(argv[i], "-dir", len))
 			ShowPlatDir = TRUE;
+		else if (!strncmp(argv[i], "-log", len))
+		{
+			/* Toggle the notice locations */
+			send_mask = msg_ELSendMask (send_mask);
+			print_mask = msg_ELPrintMask (print_mask);
+		}
 		else
 		{
 			fprintf (stderr, "%s: invalid option '%s'\n",
@@ -174,7 +188,7 @@ char **argv;
 			}
 		}
 	}
-	fprintf (stderr, "Receiving notices for %d platforms.\n", total);
+	msg_ELog (EF_INFO, "Receiving notices for %d platforms.", total);
 	if (platname)
 		free (platname);
 
@@ -244,13 +258,13 @@ UpdCode ucode;
 	platname = ds_PlatformName (pid);
 	platdir = PlatDirectory (pid);
 	filename = PlatFileName (pid, when);
-	printf ("%s %s %s %s %i %s\n", 
+	msg_ELog (EF_INFO, "%s %s %s %s %i %s", 
 		platname ? platname : "NULL", 
 		filename ? filename : "NULL",
 		(ShowPlatDir ? (platdir ? platdir : "NULL") : ""),
 		tbuf, nsample, (ucode == UpdOverwrite) ? "owr" :
 		((ucode == UpdInsert) ? "ins" : "app"));
-	fflush (stdout);
+	/* fflush (stdout); */
 }
 
 
