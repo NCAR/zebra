@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.31 1993-01-21 21:37:27 case Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.32 1993-07-23 19:41:12 case Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -111,9 +111,9 @@ struct device *dev;
 	struct xtag *tag = (struct xtag *) getvm (sizeof (struct xtag));
 	XSetWindowAttributes attr;
 	XGCValues gcontext;
-	XVisualInfo template, *vlist;
+	XVisualInfo template, *vlist, *p_visinfo;
 	XWMHints hints;
-	int screen, pv[2], pm, nmatch, depth, i;
+	int screen, pv[2], pm, nmatch, depth, i, found;
 	XEvent ev;
 /*
  * Figure out what our resolution will be.
@@ -133,9 +133,9 @@ struct device *dev;
 	else if (! strcmp (type, "Sun-screen"))
 	{
 		tag->x_xres = 1148;
-		tag->x_yres = 880;
+		tag->x_yres = 864;
 		dev->gd_xb = 164;
-		dev->gd_yb = 110;
+		dev->gd_yb = 108;
 	}
 	else
 	{
@@ -169,6 +169,7 @@ struct device *dev;
  * it's monochrome city.  We really won't work well with anything but a
  * 8 bit visual, but if we ask for that the Ardent server freaks.
  */
+        found = FALSE;
 	template.screen = screen;
 	template.class = PseudoColor;
 	vlist = XGetVisualInfo (tag->x_display,
@@ -176,11 +177,22 @@ struct device *dev;
 	tag->x_mono = ! nmatch;
 	if (nmatch)
 	{
-		tag->x_visual = vlist->visual;
-		depth = vlist->depth;
-		XFree ((char *) vlist);
+/*
+ * Try to find a visual with at least a depth of 8.
+ */ 
+		for (i = 0, p_visinfo = vlist; i < nmatch; i++,p_visinfo++)
+                {
+                    if (p_visinfo->class == PseudoColor &&
+                        p_visinfo->depth >= 8){
+		        tag->x_visual = p_visinfo->visual;
+		        depth = p_visinfo->depth;
+		        XFree ((char *) vlist);
+                        found = TRUE;
+                        break;
+                    }
+                }
 	}
-	else
+        if (!found)
 	{
 		tag->x_visual = DefaultVisual (tag->x_display, screen);
 		depth = CopyFromParent;
@@ -201,7 +213,7 @@ struct device *dev;
 	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
-		tag->x_yres, 2, depth, InputOutput, tag->x_visual,
+		tag->x_yres, 0, depth, InputOutput, tag->x_visual,
 		CWBackPixel|CWBorderPixel|CWBackingStore|CWEventMask, &attr);
 /*
  * Set the input flag for difficult window managers.
@@ -395,7 +407,8 @@ int color, ltype, npt, *data;
 /*
  	if (! tag->x_zquad)
 	{
-	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
+	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, 
+                                (XPoint *) xp, npt,
 			CoordModeOrigin);
 		tag->x_zoomok = FALSE;
 		relvm (xp);
@@ -403,7 +416,8 @@ int color, ltype, npt, *data;
 	}
 */
 # endif
- 	XDrawLines (tag->x_display, tag->x_sw[0], tag->x_gc, xp, npt,
+ 	XDrawLines (tag->x_display, tag->x_sw[0], tag->x_gc, 
+                               (XPoint *) xp, npt,
 		CoordModeOrigin);
 	tag->x_current = FALSE;
 /*
@@ -426,28 +440,32 @@ int color, ltype, npt, *data;
 		xp[pt].x *= 2;
 		xp[pt].y *= 2;
 	}
- 	XDrawLines (tag->x_display, tag->x_sw[1], tag->x_gc, xp, npt,
+ 	XDrawLines (tag->x_display, tag->x_sw[1], tag->x_gc, 
+                (XPoint *) xp, npt,
 		CoordModeOrigin);
 /*
  * Offset into quadrant 2.
  */
  	for (pt = 0; pt < npt; pt++)
 		xp[pt].x -= tag->x_xres;
- 	XDrawLines (tag->x_display, tag->x_sw[2], tag->x_gc, xp, npt,
+ 	XDrawLines (tag->x_display, tag->x_sw[2], tag->x_gc, 
+                (XPoint *) xp, npt,
 		CoordModeOrigin);
 /*
  * Offset into quadrant 4.
  */
  	for (pt = 0; pt < npt; pt++)
 		xp[pt].y -= tag->x_yres;
- 	XDrawLines (tag->x_display, tag->x_sw[4], tag->x_gc, xp, npt,
+ 	XDrawLines (tag->x_display, tag->x_sw[4], tag->x_gc, 
+                (XPoint *) xp, npt,
 		CoordModeOrigin);
 /*
  * Offset into quadrant 3.
  */
 	for (pt = 0; pt < npt; pt++)
 		xp[pt].x += tag->x_xres;
- 	XDrawLines (tag->x_display, tag->x_sw[3], tag->x_gc, xp, npt,
+ 	XDrawLines (tag->x_display, tag->x_sw[3], tag->x_gc, 
+                (XPoint *) xp, npt,
 		CoordModeOrigin);
 	relvm (xp);
 }
@@ -982,7 +1000,7 @@ XImage *read, *write;
  */
  	XPutImage (tag->x_display, tag->x_sw[q], tag->x_tgt_gc, write, 0, 0,
 		0, 0, tag->x_xres, tag->x_yres);
-	XDestroyImage (read);
+/* 0XDestroyImage (read);  */
 }
 
 
