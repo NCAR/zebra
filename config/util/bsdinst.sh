@@ -92,7 +92,7 @@ then
 	cp $src /tmp/$dstbase
 	rmcmd="rm -f /tmp/$dstbase"
 	src=$dstbase
-	srcdir="/tmp"
+	srcdir=/tmp
 	dst="`echo $dst | sed 's,^\(.*\)/.*$,\1,'`"
 	if [ x$dst = x ]
 	then
@@ -132,8 +132,7 @@ fi
 # we don't have write permission for it
 #
 rm -f $dst/$srcbase
-#(cd $srcdir ; $installcmd $flags -f $dst $src)
-($installcmd $flags -f $dst $srcdir/$src)
+(cd $srcdir ; $installcmd -f $dst $flags $src)
 
 if [ x$dostrip = xstrip ]
 then
