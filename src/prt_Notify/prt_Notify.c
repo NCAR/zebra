@@ -27,18 +27,12 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: prt_Notify.c,v 3.7 1995-04-20 20:19:17 granger Exp $")
+RCSID("$Id: prt_Notify.c,v 3.8 1995-04-20 20:29:18 granger Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
 static void MakeTimerRequest FP ((PlatformId));
 static void TimeToNotify FP ((ZebTime *, PlatformId));
-
-#ifdef notdef
-/* kludge to keep acc compiler happy - these vars are not used */
-PlatformClass    *CTable;
-PlatformInstance *PTable;
-#endif
 
 /*
  * Keep track of timer events.
