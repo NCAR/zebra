@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.11 1997-05-13 21:44:50 ishikawa Exp $ */
+/* $Id: ui_param.h,v 1.12 1998-03-03 00:15:34 burghart Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -50,14 +50,22 @@
 # endif
 
 /*
+ * So far only g++ has the predefined bool type per the final draft 
+ * ANSI C++ standard.  Everywhere else, we have to use our own typedef.
+ * 
+ * We choose "typedef int" rather than "typedef char" because g++'s bool
+ * is 4 bytes on all the systems tested.  We must have a size match for 
+ * symbols and structures shared between g++ and non-g++ object modules.
+ */
+# if !(__cplusplus && __GNUC__)
+typedef int bool;
+# endif
+
+/*
  * Data types of interest.
  */
 typedef unsigned char byte;	/* Basic byte variable */
-# ifndef __cplusplus
-typedef char bool;		/* Boolean variable	*/
-# else
-# define bool char	/* For some reason g++ doesn't like the typedef */
-# endif
+
 struct date_st
 {
 	long	ds_yymmdd;	/* Day portion	*/
