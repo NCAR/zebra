@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.15 1995-12-04 10:04:33 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.16 1996-01-12 01:13:12 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -183,21 +183,28 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 #if defined(HPArchitecture)
 # define XLibDir /usr/contrib/mitX11R5/lib	/* contrib for HP */
 # define XIncDir /usr/contrib/mitX11R5/include
-#else
-# if defined(SGIArchitecture)
-  /* # define XLibDir /usr/lib */		/* leave it empty for SGI */
-# else
-#  if ! UseOpenWindows	/* otherwise use default in Project.tmpl */
-#   if defined(SVR4Architecture)
-#    define XIncDir /local/X11R6/include
-#    define XLibDir /local/X11R6/lib
-#   else
-#    define XIncDir /local/X11R5/include
-#    define XLibDir /local/X11R5/lib
-#   endif
+#endif /* HPArchitecture */
+
+#if defined(SGIArchitecture)
+/* # define XLibDir /usr/lib */		/* leave it empty for SGI */
+#endif /* SGIArchitecture */
+
+#if defined(LinuxArchitecture)
+# define XLibDir /usr/X11R6/lib
+# define XIncDir /usr/X11R6/include
+#endif /* LinuxArchitecture */
+
+#if defined(SunArchitecture)
+# if ! UseOpenWindows	/* otherwise use default in Project.tmpl */
+#  if defined(SolarisArchitecture)
+#   define XIncDir /local/X11R6/include
+#   define XLibDir /local/X11R6/lib
+#  else
+#   define XIncDir /local/X11R5/include
+#   define XLibDir /local/X11R5/lib
 #  endif
 # endif
-#endif /* HPArchitecture */
+#endif /* SunArchitecture */
 
 #if !BuildRDSS
 # define RDSSLibDir /usr/local/lib
@@ -208,7 +215,7 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 XCOMM --- Deciding FORTRAN library paths
 
 #ifdef SunArchitecture
-# ifndef SVR4Architecture /* sunos 4.1.3 */
+# ifndef SolarisArchitecture /* sunos 4.1.3 */
 #  ifndef FortMajorVersion
 #   define FortMajorVersion 1
 #  endif
@@ -239,7 +246,7 @@ XCOMM --- Deciding FORTRAN library paths
 #  else
 #   define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77
 #  endif /* FortMajorVersion */
-# endif /* SVR4Architecture */
+# endif /* SolarisArchitecture */
 #endif /* SunArchitecture */
 
 #ifdef HPArchitecture
