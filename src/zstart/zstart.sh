@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.8 1996-03-12 17:56:15 granger Exp $
+# $Id: zstart.sh,v 1.9 1996-03-12 21:17:53 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -146,14 +146,17 @@ again:
 # If another machine is hosting the datastore, start that session now
 #
 	if (! $?ZEB_ZSTART ) setenv ZEB_ZSTART $ZEB_TOPDIR/bin/zstart
-	if ( $?DS_DAEMON_HOST && ($HOST != $DS_DAEMON_HOST)) then
-	 rsh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n -s $DS_DAEMON_HOST $ZEB_PROJDIR
-	 if ( $status != 0 ) then
-		echo "Datastore session on host $DS_DAEMON_HOST failed."
-	 	exit 1
-	 endif
-	else
-	 unsetenv DS_DAEMON_HOST
+	if ( $?DS_DAEMON_HOST ) then
+		if ($HOST != $DS_DAEMON_HOST) then
+	 		rsh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n -s \
+				$DS_DAEMON_HOST $ZEB_PROJDIR
+			if ( $status != 0 ) then
+			  echo "No datastore session on host $DS_DAEMON_HOST."
+		 	  exit 1
+			endif
+		else
+			unsetenv DS_DAEMON_HOST
+		endif
 	endif
 #
 # Make pointers to all of our executables so that somebody can
