@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.16 1993-06-24 20:36:27 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.17 1993-06-29 15:37:11 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -340,7 +340,7 @@ bool	update;
 	/*
 	 * Now that we have a data chunk, update the overlay times widget
 	 */
-	    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+	    if (!update) lw_TimeStatus (c, pnames[plat], &eTimeReq);
 	/*
 	 * Extract the data from the data chunk
 	 */

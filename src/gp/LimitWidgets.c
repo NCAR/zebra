@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.14 1993-03-19 23:27:26 granger Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.15 1993-06-29 15:37:04 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1406,7 +1406,11 @@ char *s;
  * Add this to our status.
  */
 {
-	strcat (OvStatus, s);
+        if ( strlen(OvStatus) + strlen(s) < 1024 )
+	    strcat (OvStatus, s);
+        else
+	    msg_ELog (EF_PROBLEM, "OvAddString: status array overflow");
+	    
 }
 
 
@@ -1445,6 +1449,7 @@ ZebTime *t;
  */
 {
 	char fld[40];
+        char line[120];
 /*
  * Retrieve all necessary data.
  */
@@ -1455,10 +1460,10 @@ ZebTime *t;
 /*
  * Put together the text.
  */
-	sprintf (OvStatus + strlen (OvStatus), "%-14s %-10s %-10s ", comp, 
-		plat, fld);
-	TC_EncodeTime (t, TC_Full, OvStatus + strlen (OvStatus));
-	strcat (OvStatus, "\n");
+	sprintf (line, "%-14s %-10s %-10s ", comp, plat, fld);
+	TC_EncodeTime (t, TC_Full, line + strlen (line));
+	strcat (line, "\n");
+        lw_OvAddString( line );
 }
 
 

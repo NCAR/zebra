@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.4 1993-04-20 20:29:45 burghart Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.5 1993-06-29 15:37:14 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -380,7 +380,7 @@ bool	update;
 	/*
 	 * Now that we have a data chunk, update the overlay times widget
 	 */
-	    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+	    if (!update) lw_TimeStatus (c, pnames[plat], &eTimeReq);
 	/*
 	 * Extract the data from the data chunk
 	 */
@@ -645,6 +645,8 @@ bool	update;
 			if ( annotLoc && zdata[plat][si].val.f > xbase.val.f )
 			{
 	    		    lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
+	    		    lc_GetUserCoord ( &xmin,&xmax,NULL,NULL,xscalemode);
+	    		    lc_GetUserCoord ( NULL,NULL,&ymin,&ymax,yscalemode);
 	    		    gp_Clip( &xmin, &ymin,&xmax,&ymax, 
 				xscalemode, yscalemode );
 			    xpos[0] = xdata[plat][si];
