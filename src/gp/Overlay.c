@@ -20,38 +20,15 @@
  */
 
 # include <math.h>
+# include <stdio.h>
+# include <X11/Intrinsic.h>
+# include <string.h>
 
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.46 1995-08-28 21:49:14 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.47 1995-08-31 18:02:15 granger Exp $")
 
-/* 
- * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
- * always compiled, the PositionIcon function will always be compiled...
- */
-# if (1 || C_CAP_OVERLAY || C_CAP_VECTOR || C_CAP_LIGHTNING || C_CAP_TRACKS)
-# define OV_POSITION_ICON
-# else
-# undef OV_POSITION_ICON
-# endif
-
-# ifdef OV_POSITION_ICON
-
-# include <stdio.h>
-# include <X11/Intrinsic.h>
-/* take the atof and strtod prototypes from stdlib.h (included by defs.h)
- * rather than floatingpoint.h (included by math.h) */
-#ifdef SVR4
-# define strtod __strtod_fp_h
-# define atof __atof_fp_h
-#endif
-# include <math.h>
-#ifdef SVR4
-# undef strtod
-# undef atof
-#endif
-# include <string.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <message.h>
@@ -78,8 +55,6 @@ typedef struct _OvIcon
 } OvIcon;
 
 static stbl OvIcons = 0;	/* Symbol table for icons		*/
-
-# endif /* ifdef OV_POSITION_ICON */
 
 /* //////////////////////////////////////////////////////////////////// */
 
@@ -1783,21 +1758,13 @@ int *fg;
 }
 
 
-
-
-
-
-
-
-
-
 # endif		/* C_CAP_OVERLAY */
 
+/* //////////////////////////////////////////////////////////////////// */
 
 /*
  * These routines are special, and should be here even without overlays.
  */
-# ifdef OV_POSITION_ICON
 
 static OvIcon *
 ov_GetIcon (name)
@@ -1873,4 +1840,3 @@ int	x, y, fg;
 	return (TRUE);
 }
 
-# endif
