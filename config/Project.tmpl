@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
-/**/# RDSS Libraries project build parameters
-/**/# $Id: Project.tmpl,v 1.1 1993-05-12 15:02:59 case Exp $
+/**/# RDSS Software project build parameters
+/**/# $Id: Project.tmpl,v 1.2 1993-07-23 19:27:14 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -93,6 +93,14 @@
 #define UicCmd uic	/* Assumes uic in path */
 #endif
 
+#ifndef CpOption
+#ifdef SGIArchitecture
+#define CpOption /**/
+#else
+#define CpOption -p
+#endif
+#endif
+
 
 
 /* ---------------------------------------------------------------------------
@@ -164,11 +172,11 @@
 #ifndef RDSSIncDir
 #   define RDSSIncDir $(RDSSDIR)/include
 #   ifndef RDSSIncludes
-#      define RDSSIncludes -I$(RDSSINCDIR)
+#      define RDSSIncludes -I$(INCDIR)
 #   endif
 #else
 #   ifndef RDSSIncludes
-#      define RDSSIncludes -I$(RDSSINCDIR)
+#      define RDSSIncludes -I$(INCDIR)
 #   endif
 #endif
 
@@ -182,6 +190,20 @@
 
 #ifndef XIncDir
 #define XIncDir          /* nothing - overidden in site-def.h if need be */
+#endif
+
+/*
+ * For RDSS Radar
+ */
+
+#ifndef RADARInclude
+#define RADARInclude $(RDSSDIR)/radar/h
+#endif
+
+#if SystemV4
+#  ifndef UseSystemVDev
+#     define UseSystemVDev YES
+#  endif
 #endif
 
 
@@ -200,17 +222,7 @@
 #define RDSSUtilLib LoaderLibPrefix $(LIBDIR)/librdssutil.a
 #endif
 
-#ifndef RDSSLibDir
-#   define RDSSLibDir /**/
-#   ifndef RDSSLibrary
-#      define RDSSLibrary LoaderLibPrefix -lrdss
-#   endif
-#else
-#   ifndef RDSSLibrary
-#      define RDSSLibrary -L$(RDSSLIBDIR) LoaderLibPrefix -lrdss
-#   endif
-#endif
-
+#if UseNetCDF
 #ifndef NetCDFLibDir
 #   define NetCDFLibDir /**/
 #   ifndef NetCDFLibrary
@@ -220,6 +232,10 @@
 #   ifndef NetCDFLibrary
 #      define NetCDFLibrary -L$(NETCDFLIBDIR) LoaderLibPrefix -lnetcdf
 #   endif
+#endif
+#else
+#   define NetCDFLibDir /**/
+#   define NetCDFLibrary /**/
 #endif
 
 #ifndef XLibDir
@@ -232,15 +248,23 @@
 
 
 #ifndef XLibraries
-#  if (UseXWindows)
-#    define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXt LoaderLibPrefix -lXmu LoaderLibPrefix -lXext LoaderLibPrefix -lX11
-#  elif (UseOpenWindows && !OldOpenWin)
-   /*libXmu must be statically linked else symbols will be missed */
-#    define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw $(OPENWINHOME)/lib/libXmu.a -L$(XLIBDIR) LoaderLibPrefix -lXt  LoaderLibPrefix -lXext LoaderLibPrefix -lX11
+#  if (UseOpenWindows && !OldOpenWin)
+#    if !SystemV4
+#define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw \
+$(OPENWINHOME)/lib/libXmu.a \
+-L$(XLIBDIR) LoaderLibPrefix -lXt LoaderLibPrefix -lXext \
+LoaderLibPrefix -lX11
+#    else
+#define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
+LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
+#    endif
+#elif (UseXWindows)
+#define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
+LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #else
-#    define XLibraries   /* Nothing */
-#  endif
-#endif /* ndef Xlibraries */
+#define XLibraries /**/
+#endif
+#endif
 
 
 #ifndef XLib
@@ -257,7 +281,11 @@
 #endif
 
 #ifndef TermcapLibrary
+#if defined(SunArchitecture) && SystemV4
+#define TermcapLibrary -L/usr/ccs/lib -ltermcap
+#else 
 #define TermcapLibrary LoaderLibPrefix -ltermcap
+#endif
 #endif
 
 #ifndef MathLibrary
@@ -292,16 +320,25 @@
 #   define NetCDFFlag    /* Nothing */
 #endif
 
+#if SystemV4
+#  if UseSystemVDev
+#     define SystemVDevFlag -DSYSVDEV
+#  else
+#     define SystemVDevFlag   /* Nothing */
+#  endif
+#else
+#  define SystemVDevFlag /* Nothing */
+#endif /* System V Devices */
 
-# ifndef XWindowsFlag
-#    if (UseXWindows)
-#       define XWindowsFlag -DXSUPPORT
-#    elif (UseOpenWindows && !OldOpenWin)
+
+#ifndef XWindowsFlag
+#    if (UseXWindows || (UseOpenWindows && !OldOpenWin))
 #       define XWindowsFlag -DXSUPPORT
 #    else
-#       define XWindowsFlag   /* Nothing */
+#       define XWindowsFlag /**/
 #    endif
-# endif
+#endif
+
  
 /*
  * Figure out RGB color database.
@@ -347,25 +384,43 @@
 #define CccLibs /* who knows ? */
 #endif
 #endif /* CccLibs */
+
 #ifndef CCOptions
 #define CCOptions DefaultCCOptions
 #endif
+
 #ifndef CCStaticOption
-#ifdef UseGcc
-#define CCStaticOption -static
-#else
-#define CCStaticOption -Bstatic
-#endif
+# if SystemV4
+#   if UseGcc
+#      define CCStaticOption -static -dn
+#   else
+#      define CCStaticOption -Bstatic -dn
+#   endif
+# else
+#   if UseGcc
+#      define CCStaticOption -static
+#   else
+#      define CCStaticOption -Bstatic
+#   endif
+# endif
 #endif /* CCStaticOption */
 
 #ifndef CDebugFlags
 #define CDebugFlags DefaultCDebugFlags
 #endif
+
 #ifndef FortDebugFlags
 #define FortDebugFlags /* none */
 #endif
 #ifndef FortOptions
 #define FortOptions -O
+#endif
+#ifndef FortStaticOption
+# if SystemV4
+#   define FortStaticOption -Bstatic -dn
+# else
+#   define FortStaticOption -Bstatic
+# endif
 #endif
 
 /*/////////////////////////////////////// Defaults for build options /////////*/
@@ -379,26 +434,27 @@
 
 
 /**/# ------------------------------------------------------------------------------
-/**/# RDSS Libraries make variables; these are coordinated with site-def.h and the above defaults
+/**/# RDSS software make variables; these are coordinated with site-def.h and the above defaults
 /**/# ------------------------------------------------------------------------------
 
           PATHSEP = /			/* for building filenames */
 
      BUILDINCROOT = RDSSIncDir  	/* root of build include directory */
       BUILDINCDIR = $(BUILDINCROOT)	/* where headers put in inc directory */
-      BUILDINCTOP = BuildIncTop		/* top relative to BUILDINCDIR */
 
 /*
  * General directory locations
  */
+
+          RDSSDIR = RDSSHome            /* Top of RDSS installation */
            BINDIR = RDSSBinDir		/* programs */
           INCROOT = RDSSIncDir		/* base of where to put header files */
            INCDIR = RDSSIncDir		/* The build and install includes  */
            LIBDIR = RDSSLibDir		/* RDSS Libraries library directory */
-          DESTDIR = 
         CONFIGDIR = ConfigDir		/* build configuration information */
-          RDSSDIR = RDSSHome		/* Top of RDSS installation */
-      OPENWINHOME = OpenWinHome
+      OPENWINHOME = OpenWinHome         /* OpenWindows home */
+          DESTDIR =                     /* Nothing */
+
 
 /* 
  * At the moment, this section sets the DEPEND command to an installed version,
@@ -425,11 +481,15 @@
                     $(CONFIGSRC)/site-def.h $(IMAKESRC)/Imake.tmpl \
                     $(IMAKESRC)/site.def $(IMAKESRC)/Imake.rules
 
+#if !DoRanlibCmd
+          RANLIB = true 
+#endif
+
 /*
  * Include directories
  */
-       RDSSINCDIR = RDSSIncDir
      NETCDFINCDIR = NetCDFIncDir
+      RADARINCDIR = RADARInclude
 
 /*
  * Directory include options; only the TOP_INCLUDES option will always exist
@@ -440,30 +500,40 @@
         XINCLUDES = XIncDir
    NETCDFINCLUDES = NetCDFIncludes
    CONFIGINCLUDES =
+    RADARINCLUDES = -I$(RADARINCDIR)
 
 /* 
  * Project-wide include directories.  Local Imakefiles use the INCLUDES variable
+ * or FINCLUDES for FORTRAN includes
  */
-   EXTRA_INCLUDES = 
-		  
+
+   EXTRA_INCLUDES =
+ 
 /*
  * Project-wide defines. Local Imakefiles should use the EXTRA_DEFINES variable
+ * or EXTRA_FDEFINES for Fortran defines
  */
-	  DEFINES = -DUNIX
+
+#ifdef SGIArchitecture
+          DEFINES = -DUNIX -cckr
+#else
+          DEFINES = -DUNIX
+#endif
+         FDEFINES = -DUNIX
 
 
 /*
  * Local flags.  Imakefiles include them as needed.
  */
      XWINDOWSFLAG = XWindowsFlag 
-	  COLORDB = ColorDB
+          COLORDB = ColorDB
        ENDIANFLAG = EndianFlag
        NETCDFFLAG = NetCDFFlag
+      SYSVDEVFLAG = SystemVDevFlag
 
 /*
  * Library directories
  */
-       RDSSLIBDIR = RDSSLibDir
      NETCDFLIBDIR = NetCDFLibDir
           XLIBDIR = XLibDir
       SUNVIEWLIBS = SunviewLibs
@@ -475,13 +545,12 @@
  */
 
      LIBRDSSGRAPH = RDSSGraphLib
-	LIBRDSSUI = RDSSUiLib
+        LIBRDSSUI = RDSSUiLib
       LIBRDSSUTIL = RDSSUtilLib
-          LIBRDSS = RDSSLib
         LIBNETCDF = NetCDFLibrary
             FLIBS = FortranLibraries
             XLIBS = XLibraries
-	     XLIB = XLib
+             XLIB = XLib
           MATHLIB = MathLibrary
        TERMCAPLIB = TermcapLibrary
     SYS_LIBRARIES = SystemLibraries
@@ -494,6 +563,8 @@
                CC = CCompiler
               C++ = CccCompiler
       CDEBUGFLAGS = CDebugFlags
+        CCOPTIONS = CCOptions 
+      CSTATICFLAG = CCStaticOption
          C++FLAGS = CccOptions $(CFLAGS)
           C++LIBS = CccLibs /* variable should be explicitly included in 	*/
                             /* targets for c++ progs 				*/
@@ -507,12 +578,14 @@
 #endif
       FORTOPTIONS = FortOptions
    FORTDEBUGFLAGS = FortDebugFlags
-           FFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS)
-          FCFLAGS = $(FFLAGS)
+   FORTSTATICFLAG = FortStaticOption
+           FFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS) $(FDEFINES) $(EXTRA_FDEFINES) $(FINCLUDES)
+          FCFLAGS = $(FFLAGS) $(EXTRA_FFLAGS)
 
               UIC = UicCmd
             ARADD = ArAdd
      INSTAPPFLAGS = InstAppFlags
+         CPOPTION = CpOption
 
 /*
  * Our own implicit rules, such as for C++ files (.cc extension)
@@ -525,4 +598,12 @@
  * in Imake.rules, which is included after the project template (this file).
  */
 #include <RDSSLib.rules>
+
+/*
+ * Robot defines
+ */
+
+        DEFDBDIR = DefDBDir
+       DEFDBTYPE = DefDBType
+       DEFDBNAME = DefDBName
 
