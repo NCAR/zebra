@@ -1,9 +1,4 @@
 /*
- * REMAINING DETAILS:
- *	Bad value flags (and attrs in general)
- */
-
-/*
  * Access to netCDF files.
  */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -32,7 +27,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.13 1993-02-11 22:48:17 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.14 1993-04-02 16:14:15 corbet Exp $")
 
 # include "netcdf.h"
 
@@ -250,7 +245,7 @@ NCTag **rtag;
 /*
  * Do some filling in.
  */
-	tag->nc_org = PTable[dp->df_platform].dp_org;
+	tag->nc_org = ds_PlatformDataOrg (dp->df_platform);
 	tag->nc_plat = dp->df_platform;
 	tag->nc_ntime = 0;
 	tag->nc_locs = (Location *) 0;
@@ -1716,7 +1711,6 @@ NCTag **rtag;
  */
 {
 	NCTag *tag = ALLOC(NCTag);
-	Platform *plat = PTable + df->df_platform;
 	int ndim, dims[6], vars[MAXFIELD], var, vbase, nfield;
 	ZebTime t;
 	float badval;
@@ -1738,7 +1732,7 @@ NCTag **rtag;
 	tag->nc_times = (double *) 0;
 	tag->nc_ntime = tag->nc_nrec = 0;
 	tag->nc_timeIsFloat = FALSE;
-	tag->nc_org = plat->dp_org;
+	tag->nc_org = ds_PlatformDataOrg (dc->dc_Platform);
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
 	tag->nc_buffered = TRUE;
@@ -1751,10 +1745,13 @@ NCTag **rtag;
  * XXX WIRE IT UNLIMITED FOR NOW, UNTIL WE FIGURE OUT HOW TO KEEP TRACK
  * OF HOW MANY SAMPLES ARE ACTUALLY WRITTEN.
  */
-	if (TRUE || plat->dp_org == OrgIRGrid || plat->dp_flags & DPF_DISCRETE)
+# ifdef notdef
+	if (plat->dp_org == OrgIRGrid || plat->dp_flags & DPF_DISCRETE)
 		tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
 	else
 		tag->nc_dTime = ncdimdef(tag->nc_id, "time", plat->dp_maxsamp);
+# endif
+	tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
 	tag->nc_dTOffset = tag->nc_dTime;
 /*
  * Create the other dimensions that we need for variables.
@@ -1808,7 +1805,7 @@ NCTag **rtag;
 		sprintf(history,"created by Zeb DataStore, ");
 		(void)gettimeofday(&tv, NULL);
 		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.13 $\n");
+		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.14 $\n");
 		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
 			       NC_CHAR, strlen(history)+1, history);
 	}
@@ -2248,7 +2245,7 @@ WriteCode wc;
 /*
  * For mobile platforms, we need to store the location info too.
  */
-	if (PTable[tag->nc_plat].dp_flags & DPF_MOBILE)
+	if (ds_IsMobile (tag->nc_plat))
 	{
 		dc_GetLoc (dc, sample, &loc);
 		dnc_PutLocation (tag, start[0], count[0], &loc);
