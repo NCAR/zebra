@@ -11,6 +11,6 @@ DISTFILES = Imakefile $(TABLES)
 
 all::
 
-InstallLibFile ($(TABLES),colortables,.)
+InstallLibFile ($(TABLES),colortables,..)
 
 DistfilesTarget($(DISTFILES))
