@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.11 1993-12-14 03:22:44 granger Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.12 1994-02-01 18:36:50 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -309,9 +309,10 @@ PF_Pair	**fc_pairs;
  */
 	pairs = (PF_Pair *) malloc (PAIRBLOCK * sizeof (PF_Pair));
 /*
- * Loop through each component.
+ * Loop through each component.  Start at 2 since the "base" field is split
+ * off and kept elsewhere.
  */
-	while (complist[i])
+	for (i = 2; complist[i]; i++)
 	{
 	/*
 	 * Get the field and platform parameters from the plot description.
@@ -344,11 +345,11 @@ PF_Pair	**fc_pairs;
 		/*
 		 * Store a pair.
 		 */
-			pairs[numpairs].pfp_platform = 							ds_LookupPlatform (pnames[j]);
+			pairs[numpairs].pfp_platform =
+				ds_LookupPlatform (pnames[j]);
 			pairs[numpairs].pfp_field = F_Lookup (field);
 			numpairs++;
 		}
-		i++;
 	}
 	*fc_pairs = pairs;
 	return (numpairs);

@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.22 1994-01-19 02:03:37 granger Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.23 1994-02-01 18:36:53 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -58,7 +58,7 @@ bool	update;
  */
 {
 	bool	ok, xauto, yauto, xinvert, yinvert, angle, sideAnnot, doKnot;
-	int	npts[MAX_PLAT], plat, nplat;
+	int	npts[MAX_PLAT], plat, nplat, alen;
 	int	nxfield, nyfield, ncolors, skip, dmode;
 	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
 	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
@@ -223,12 +223,15 @@ bool	update;
 		return;
 	}
 /*
- * Allocate space for pointers to the data arrays and for observation info
+ * Allocate space for pointers to the data arrays and for observation info.
+ * Also zero them out or else we get undesirable free() calls below.  I speak
+ * from experience.
  */
-	xdata = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
-	ydata = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
-	w1data = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
-	w2data = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
+	alen = nplat*sizeof (DataValPtr);
+	xdata = (DataValPtr*) malloc (alen);  memset (xdata, 0, alen);
+	ydata = (DataValPtr*) malloc (alen);  memset (ydata, 0, alen);
+	w1data = (DataValPtr*) malloc (alen); memset (w1data, 0, alen);
+	w2data = (DataValPtr*) malloc (alen); memset (w2data, 0, alen);
 /*
  * Initialize data min/max values.
  */
