@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.19 1993-01-19 22:48:03 kris Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.20 1993-02-03 21:20:34 martin Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -84,6 +84,9 @@ bool update;
 	DataChunk *dc;
 	Location loc;
 	FieldId fields[5];
+	float badvalue;
+	float u, v;
+
 /*
  * Pull in our parameters.
  */
@@ -122,13 +125,58 @@ bool update;
 /*
  * Figure the begin time.
  */
-	begin = PlotTime;
-	begin.zt_Sec -= period;
-/*
- * Get the data.
- */
-	dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
+	if (period) {
+
+	  /* time-period type plot */
+
+	    begin = PlotTime;
+	    begin.zt_Sec -= period;
+	    dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
 			&PlotTime, fields, numfields, 0, 0);
+	  } else {
+
+	    /* observation type plot */
+
+	    if (update) {
+
+	      /* update, get data since last plot */
+
+	      if (!pda_Search ( Pd, comp, "data-end-time", NULL, (char*) &begin, SYMT_DATE)){
+		begin = PlotTime;
+	      }
+	      msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
+		       begin.zt_Sec, PlotTime.zt_Sec);
+	      dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
+			&PlotTime, fields, numfields, 0, 0);
+
+	    } else {
+	      
+	      /* global, get whole observation */
+
+	      begin = PlotTime;
+	      
+	      if (!ds_GetObsTimes(pid, &PlotTime, &begin, 1, NULL)) {
+		dc = NULL;
+	      } else {
+		msg_ELog(EF_DEBUG,"global, FetchObs for %d", begin.zt_Sec);
+		dc = ds_FetchObs(pid, numfields ? DCC_Scalar : DCC_Location, &begin,
+				 fields, numfields, 0, 0);
+	      }
+	    }
+
+	    if (dc) {
+	      nsamp = dc_GetNSample (dc);
+	      msg_ELog(EF_DEBUG,"%d points returned in observation mode", nsamp);
+	      dc_GetTime (dc, nsamp-1, &zt);
+	      
+	      /* remember end of this data span */
+	      msg_ELog(EF_DEBUG,"storing zt as data-end-time of %d", zt.zt_Sec);
+	      pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
+
+	    }
+
+	  }
+      
 	if (! dc)
 	{
 		msg_ELog (EF_INFO, "No %s data available", platform);
@@ -136,6 +184,7 @@ bool update;
 	}
 	shifted = ApplySpatialOffset (dc, comp, &PlotTime);
 	nsamp = dc_GetNSample (dc);
+	badvalue = dc_GetBadval (dc);
 /*
  * Convert the first points.
  */
@@ -179,14 +228,15 @@ bool update;
 			if(((timenow % a_int) == 0) || 
 			   ((vectime + a_int) < timenow))
 			{
-				vectime = timenow - timenow % a_int;
-				FixForeground (a_clr.pixel);
-				FixLWidth (a_lwidth);
-				draw_vector (Disp, d, Gcontext, x0, y0, 
-					dc_GetScalar (dc, i-1, fields[afield]),
-					dc_GetScalar(dc, i-1,fields[afield+1]),
-					unitlen);
-				FixLWidth (lwidth);
+				u = dc_GetScalar (dc, i-1, fields[afield]);
+				v = dc_GetScalar(dc, i-1,fields[afield+1]);
+				if (u != badvalue && v != badvalue) {
+				  vectime = timenow - timenow % a_int;
+				  FixForeground (a_clr.pixel);
+				  FixLWidth (a_lwidth);
+				  draw_vector (Disp, d, Gcontext, x0, y0, u, v, unitlen);
+				  FixLWidth (lwidth);
+				}
 			}
 		}
 	/*
@@ -588,11 +638,14 @@ bool *mono, *showposition;
  */
 	if (! tr_GetParam (comp, "time-period", platform, tmp, SYMT_STRING))
 		*period = 300;
-	else if ((*period = pc_TimeTrigger (tmp)) == 0)
-	{
-		msg_ELog (EF_PROBLEM, "Unparsable time-period: '%s'", tmp);
-		*period = 300;
-	}
+	else if ((!strcmp(tmp, "observation"))) {
+	  /* if time-period == "observation", set period == 0 as a flag */
+	  *period = 0;
+	  } else if ((*period = pc_TimeTrigger (tmp)) == 0)
+	    {
+	      msg_ELog (EF_PROBLEM, "Unparsable time-period: '%s'", tmp);
+	      *period = 300;
+	    }
 /*
  * Do they want us to pare things down?
  */
