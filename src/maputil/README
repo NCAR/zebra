@@ -1,0 +1,58 @@
+Glossary
+========
+
+	CBD	"Compressed Binary Data", the format used for the CIA World
+		Bank II map files
+	DEM	Digital Elevation Model: a form for gridded map data
+	DLG	Digital Line Graph: a form for topologically structured (lines/
+		nodes/polygons) map data
+	FIPS	Federal Information Processing Standard
+	SDTS	Spatial Data Transfer Standard: a specific file format used
+		by the USGS for DLG data, based on FIPS 123
+	USGS	United States Geological Survey
+
+
+Contents of the directory
+=========================
+
+cbd2zebra.c
+	Program to convert CBD format CIA World Bank II map files into
+	Zebra-usable form.
+
+DEM_records.txt
+	Brief description of the structure of DEM files.
+
+DEMextract.c
+	Program to extract a selected rectangular area from USGS 1:250,000 
+	(3 arc second) DEM files into a gridded netCDF file (usable in Zebra).
+
+dlg2zebra.c
+	Program to extract a Zebra map of selected features from a directory
+	of USGS SDTS DLG files.
+
+dlg_sdts.ps.gz
+	Compressed PostScript document "DLG-3 SDTS Transfer Description,"
+	describing the SDTS form of USGS DLG data files.
+
+drawmap.c
+	Simple map digitizing program which uses the digitizing tablet in the 
+	Users' Room.
+
+extractmap.c
+	Program to extract a given region from the NCAR Graphics map database
+	and convert it to Zebra-usable form.  Except perhaps for making maps
+	of large multi-state regions, this should be superceded by dlg2zebra.
+
+fips123
+	Subdirectory for the FIPS PUB 123 Function Library, used for unpacking
+	SDTS files.
+
+landmark.c
+	Program to add landmarks to a Zebra map file.
+
+sdtsdump.c
+	Simple SDTS file dumping program.
+
+
+
+
