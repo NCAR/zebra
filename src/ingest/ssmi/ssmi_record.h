@@ -2,7 +2,7 @@
  * Record structure of SSM/I Antenna Temperature tapes from Remote Sensing 
  * Systems
  *
- * $Id: ssmi_record.h,v 1.2 1993-06-07 18:35:40 granger Exp $
+ * $Id: ssmi_record.h,v 1.3 1993-06-21 22:15:15 granger Exp $
  */
 /*
  *		Copyright (C) 1993 UCAR
@@ -42,6 +42,16 @@
 
 typedef unsigned char	LoData[10];
 typedef unsigned char	HiData[12];
+typedef unsigned short	Ushort;
+
+/*
+ * Some useful defs for dealing with times in SSMI records
+ */
+#define EPOCH_1987	536457600L	/* 00:00 Jan. 1, 1987 in UNIX epoch */
+#define SSMI_TIME(rec)	((rec)->time_sec + EPOCH_1987)
+#define SSMI_LAT(rec)	((rec)->sat_lat * 1.0e-6 - 90.0)
+#define SSMI_LON(rec)	((rec)->sat_lon * 1.0e-6)
+#define SSMI_ORBIT(rec)	((rec)->orbit * 1.0e-4)
 
 /*
  * SSMI Logical Record 
@@ -67,20 +77,16 @@ typedef struct _SSMI_Rec
 	long	semimajor;	/* major semi-axis of orbit (km) */
 	long	eccentricity;	/* orbit eccentricity */
 	long	perigee_ang;	/* angle of perigee of orbit */
-	short	cold_a[35];	/* cold counts for A-scan */
-	short	hot_a[35];	/* hot counts for A-scan */
-	short	agc_b[3];	/* AGC readings for B-scan (counts) */
-	short	cold_b[10];	/* cold counts for B-scan */
-	short	hot_b[10];	/* hot counts for B-scan */
-	short	a_lat[19];	/* geodetic latitudes for A-scan */
-	short	a_lon[19];	/* east longitudes for A-scan */
+	Ushort	cold_a[35];	/* cold counts for A-scan */
+	Ushort	hot_a[35];	/* hot counts for A-scan */
+	Ushort	agc_b[3];	/* AGC readings for B-scan (counts) */
+	Ushort	cold_b[10];	/* cold counts for B-scan */
+	Ushort	hot_b[10];	/* hot counts for B-scan */
+	Ushort	a_lat[19];	/* geodetic latitudes for A-scan */
+	Ushort	a_lon[19];	/* east longitudes for A-scan */
 	short	ab_diff[19];	/* packed B-scan minus A-scan lat/lon diffs */
 	LoData	lo_data[64];	/* 19, 22, 37 GHz T_A's & sfc. types (K) */
 	HiData	hi_data[64];	/* 85 GHz T_A's (K) */
 } SSMI_Rec, SSMI_LogicalRec;
 
 
-/* 
- * SSMI Physical Record is an array of at most 16 logical records
- */
-typedef SSMI_LogicalRec SSMI_PhysicalRec[16];
