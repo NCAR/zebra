@@ -336,10 +336,10 @@ sub clear
 	print BATCH "$plot\n";
     }
     close BATCH;
-    print "Running: /bin/sh ./batch-plot - < $batch\n";
+    print "Running: batch-plot - < $batch\n";
     if ($debug < $D_NoPlot)
     {
-	if (! open (BP, "/bin/sh ./batch-plot - < $batch 2>&1 |"))
+	if (! open (BP, "batch-plot - < $batch 2>&1 |"))
 	{
 	    $status="$FAIL batch-plot: $!";
 	    print "$status" if $debug;
