@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 1.3 1991-12-27 21:24:54 corbet Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 1.4 1992-03-18 21:12:14 corbet Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -57,7 +57,7 @@ RawDCClass RawMethods =
  */
 extern RawDCClass TranspMethods, BoundaryMethods, MetDataMethods;
 extern RawDCClass ScalarMethods, IRGridMethods, RGridMethods;
-extern RawDCClass ImageMethods;
+extern RawDCClass ImageMethods, LocationMethods;
 
 static RawDCClass *ClassTable[] =
 {
@@ -70,6 +70,7 @@ static RawDCClass *ClassTable[] =
 	&IRGridMethods,		/* DCC_IRGRID		*/
 	&RGridMethods,		/* DCC_RGRID		*/
 	&ImageMethods,		/* DCC_Image		*/
+	&LocationMethods,	/* DCC_Location		*/
 };
 
 
