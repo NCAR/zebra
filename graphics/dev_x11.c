@@ -5,7 +5,7 @@
 # include "config.h"
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.16 1990-03-29 15:44:50 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.17 1990-03-29 15:45:47 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -250,10 +250,8 @@ struct device *dev;
 /*
  * Clear the window.
  */
-	printf ("Waiting for expose..."); fflush (stdout);
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
 	XClearWindow (tag->x_display, tag->x_window);
-	printf ("got it.\r\n");
 /*
  * Initialize zoom stuff.
  */
