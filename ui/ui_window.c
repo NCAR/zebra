@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.29 1993-03-19 18:53:56 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.30 1993-04-12 17:30:45 burghart Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -108,7 +108,7 @@ uw_init ()
 	strcpy (Title_font_name, DEFAULT_TITLE_FONT);
 	usy_c_indirect (Ui_variable_table, "ui$menu_mark_file", Mb_mark_file,
 		SYMT_STRING, 200);
-	strcpy (Mb_mark_file, DEFAULT_MARK_FILE);
+	Mb_mark_file[0] = '\0';
 	Mb_mark = 0;
 }
 
