@@ -37,6 +37,7 @@ int uit_itod (), uit_ftob (), uit_btof (), uit_btoi ();
 typedef int (*ifptr) ();
 ifptr Cvt_tbl[CVT_WIDTH * CVT_WIDTH] =
 {
+/* float	int		string		date		bool	*/
   uit_ident,	uit_ftoi,	uit_bad,	uit_ftod, 	uit_ftob,
   uit_itof,	uit_ident,	uit_bad,	uit_itod, 	uit_ident,
   uit_bad,	uit_bad,	uit_ident,	uit_bad, 	uit_bad,
@@ -567,4 +568,29 @@ union usy_value *v;
 {
 	if (v->us_v_int != 0)
 		v->us_v_int = TRUE;
+}
+
+
+
+
+int uit_int_type (name)
+char *name;
+/*
+ * Given a type name, convert it to an internal type.
+ */
+{
+/* 
+ * Kludge, for now.
+ */
+	if (! strcmp (name, "integer"))
+		return (SYMT_INT);
+	else if (! strcmp (name, "float"))
+		return (SYMT_FLOAT);
+	else if (! strcmp (name, "bool"))
+		return (SYMT_BOOL);
+	else if (! strcmp (name, "date"))
+		return (SYMT_DATE);
+	else if (! strcmp (name, "string"))
+		return (SYMT_STRING);
+	return (SYMT_UNDEFINED);
 }
