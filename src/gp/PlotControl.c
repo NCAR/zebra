@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.12 1992-09-15 20:00:10 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.13 1992-11-03 16:39:54 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -436,7 +436,8 @@ time *t;
 {
 	char **comps;
 	char rep[40];
-	int reroute, global;
+	int reroute;
+	bool global;
 /*
  * Look at times and components.  Florida change: Use the current time
  * for the plot, instead of the data time -- that way things like boundaries

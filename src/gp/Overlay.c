@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.14 1992-10-20 19:55:36 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.15 1992-11-03 16:35:13 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -124,7 +124,7 @@ static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
 			float *, float *));
 static int 	ov_FindWBReply FP ((struct message *, struct dm_rp_wbounds *));
 static void 	ov_Boundary FP ((char *, int));
-static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, int *,
+static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, bool *,
 			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
@@ -132,8 +132,8 @@ static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, OvIcon **, LabelOpt *,
 			char *, float *));
-static void	ov_SGSetup FP ((char *, float *, float *, float *, int *,
-			int *, int *, float *, float *));
+static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
+			int *, bool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
 			double, int, double, double));
 static void	ov_TicGrid FP ((int, int, int, int, double, double,
@@ -975,7 +975,8 @@ int update;
 	char platform[500], label[20], *pnames[40];
 	char iconname[40], *lat, *lon;
 	PlatformId pid;
-	int lwidth, npt, closed, nplats, i;
+	bool closed;
+	int lwidth, npt, nplats, i;
 	int pt, total_pts;
 	int showicon, adjust;
 	short first_valid;
@@ -1181,7 +1182,8 @@ ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize,
 	showicon, iconname, adjust)
 char	*comp, *platform, *label, *iconname;
 XColor	*xc;
-int	*lwidth, *closed, *showicon;
+int	*lwidth, *showicon;
+bool	*closed;
 LabelOpt *opt;
 float	*asize;
 int	*adjust;
@@ -1604,7 +1606,8 @@ int update;
  */
 {
 	float xs, ys, theight, xoff, yoff;
-	int top, bottom, left, right, aint, solid, tic, ll;
+	int top, bottom, left, right, aint, tic;
+	bool solid, ll;
 /*
  * Dig out our info.
  */
@@ -1869,7 +1872,8 @@ ov_SGSetup (comp, xs, ys, theight, solid, ticwidth, ll, xoff, yoff)
 char *comp;
 float *xs, *ys;
 float *theight, *xoff, *yoff;
-int *solid, *ticwidth, *ll;
+int *ticwidth;
+bool *solid, *ll;
 /*
  * Get everything set up to draw a grid.
  */
