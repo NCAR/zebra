@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 1.3 1991-12-27 21:23:14 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -68,18 +68,15 @@ typedef struct _FieldTOC
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static DataChunk *dc_MDCreate (DataClass);
-	static int	dc_GetIndex (FldInfo *, FieldId);
-	static int	dc_ArrangeSpace (DataChunk *, time *, int, int, int,
-				FldInfo *);
-	static void	dc_CopyData (DataChunk *, FldInfo *, int, int, int,
-				DataPtr);
-	static void	dc_DumpMD (DataChunk *);
-	static void	dc_AddNonUniform (DataChunk *, FldInfo *, int, time *,
-				int, int, int, DataPtr);
-# else
-# endif
+static DataChunk *dc_MDCreate FP((DataClass));
+static int	dc_GetIndex FP((FldInfo *, FieldId));
+static int	dc_ArrangeSpace FP((DataChunk *, time *, int, int, int,
+			FldInfo *));
+static void	dc_CopyData FP((DataChunk *, FldInfo *, int, int, int,
+			DataPtr));
+static void	dc_DumpMD FP((DataChunk *));
+static void	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, time *,
+			int, int, int, DataPtr));
 
 RawDCClass MetDataMethods =
 {
@@ -238,6 +235,7 @@ float badval;
  */
 {
 	FldInfo *finfo;
+	char sbad[20];
 /*
  * The usual sanity checking.
  */
@@ -255,6 +253,11 @@ float badval;
 	finfo->fi_Badval = badval;
 	if (dc_GetNSample (dc) > 0)
 		msg_ELog (EF_PROBLEM, "Bad value flag set on non-empty DC");
+/*
+ * Also store it as a global attribute.
+ */
+	sprintf (sbad, "%f", badval);
+	dc_SetGlobalAttr (dc, "Bad_value_flag", sbad);
 }
 
 
