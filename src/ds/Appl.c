@@ -26,7 +26,7 @@
 #include "dsPrivate.h"
 # define NO_SHM
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.6 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.7 1993-05-04 17:06:14 corbet Exp $")
 
 
 /*
@@ -956,6 +956,7 @@ int ndetail;
 	nsample = dc_GetNSample (dc);
 	for (sample = 0; sample < nsample; sample++)
 	{
+		bool new = FALSE;
 	/*
 	 * Find a feasible location for this data.
 	 */
@@ -970,6 +971,7 @@ int ndetail;
 			if ((dfile = ds_MakeNewFile (dc, &p, sample)) < 0)
 				break;	/* Bail completely */
 			wc = wc_Append; /* Now that the file is around */
+			new = TRUE;
 		}
 	/*
 	 * Now we just shove the sample out.
@@ -986,10 +988,13 @@ int ndetail;
 				nnew++;
 		}
 	/*
-	 * Fill in the daemon on what we have done.
+	 * Fill in the daemon on what we have done.  If we added a new
+	 * file we need to refresh the platform structure.
 	 */
 	 	ds_NotifyDaemon (&p, dfile, dc, now, nnew, sample, 
 			sample == (nsample - 1));
+		if (new)
+			ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 		now = nnew = 0;
 	}
 /*
