@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.8 1993-10-22 21:25:23 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.9 1993-12-14 03:25:24 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -133,8 +133,8 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   float rowinc, float colinc,
 				   int xdim, int pad));
 
+/* static bool RP_ShmPossible FP ((Display *disp)); */
 # ifdef SHM
-static bool RP_ShmPossible FP ((Display *disp));
 static XImage *RP_GetSharedXImage FP ((Widget w, int width, int height));
 # endif
 
@@ -220,11 +220,11 @@ int	xlo, ylo, xhi, yhi;
 					Datamin));
 
 				if (r_color >= 0 && r_color < Ncolor)
-					XSetForeground (XtDisplay (w), gcontext,
-						Colors[r_color].pixel);
+					XSetForeground (XtDisplay (w), 
+					   gcontext, Colors[r_color].pixel);
 				else
-					XSetForeground (XtDisplay (w), gcontext,
-						Color_outrange.pixel);
+					XSetForeground (XtDisplay (w), 
+					   gcontext, Color_outrange.pixel);
 			}
 		/*
 		 * Draw a rectangle for this point
@@ -318,6 +318,9 @@ bool	fast;
 	int		outrange = Color_outrange.pixel;
 	unsigned char	*xim, *ximp;
 	XImage		*image;
+#ifdef SHM
+	bool		using_shared;
+#endif
 	GC		gcontext;
 	XGCValues	gcvals;
 	Display		*disp = XtDisplay (w);
@@ -394,8 +397,12 @@ bool	fast;
  * Get our ximage and do the rasterization.
  */
 # ifdef SHM
+	using_shared = FALSE;
+	image = NULL;
 	if (GWShmPossible (Graphics))
 		image = RP_GetSharedXImage (w, width, height);
+	if (image)
+		using_shared = TRUE;
 	else
 # endif
 		image = RP_GetXImage (w, width, height);
@@ -411,12 +418,13 @@ bool	fast;
  * Now we ship over the image, and deallocate everything.
  */
 # ifdef SHM
-	if (GWShmPossible (Graphics))
+	/* if (GWShmPossible (Graphics)) */
+	if (using_shared)
 		XShmPutImage (disp, d, gcontext, image, 0, 0,
-			xlo, yhi, width, height, False);
+			      xlo, yhi, width, height, False);
 	else
 # endif
-	XPutImage (disp, d, gcontext, image, 0, 0, xlo, yhi, width, height);
+	   XPutImage (disp, d, gcontext, image, 0, 0, xlo, yhi, width, height);
 
 	XFreeGC (disp, gcontext);
 	free (colgrid);
@@ -429,65 +437,6 @@ bool	fast;
 # endif
 }
 
-
-
-
-
-# ifdef SHMx
-static bool
-RP_ShmPossible (dpy)
-Display *dpy;
-/*
- * Return TRUE iff we can do shared memory.  This function is almost an
- * exact copy of the one used by the GraphicsWidget, so if something changes
- * here it might need to be changed there as well.
- */
-{
-	static int known = FALSE, possible;
-
-	if (known)
-		return(possible);
-
-	known = TRUE;
-	{
-#		define HOSTLEN 50
-		int maj, min, sp;
-		char host[HOSTLEN];
-		int n;
-		char *c;
-	/*
-	 * First see if the server even supports the extension
-	 */
-		possible = XShmQueryVersion(dpy, &maj, &min, &sp);
-		possible = possible && sp;
-		msg_ELog(EF_DEBUG, "Raster: XShm %s supported by display %s",
-			 possible ? "IS" : "NOT", dpy->display_name);
-		if (!possible)
-			return(possible);
-	/*
-	 * Then check that server and client are on the same host, otherwise we
-	 * can't very well share memory, can we?  If the display name is
-	 * "unix:?.?" or ":?.?", we'll assume the server is local.  The whole
-	 * heuristic is rather flawed, but it should be accurate most of the time.
-	 */
-		n = (c = strchr(dpy->display_name, ':')) ? 
-			(int)(c - dpy->display_name) : strlen(dpy->display_name);
-		gethostname(host, HOSTLEN);
-		host[HOSTLEN - 1] = '\0';
-		if (!n || (!strncmp(dpy->display_name, "unix", n)))
-			possible = TRUE;
-		else if (n == strlen(host))
-			possible = !strncmp(host, dpy->display_name, n);
-		else
-			possible = FALSE;
-		msg_ELog(EF_DEBUG, 
-			 "Raster: XShm %s, server %s, client @ %s",
-			 possible ? "True" : "False",
-			 dpy->display_name, host);
-		return(possible);
-	}
-}
-# endif /* SHM */
 
 
 
@@ -535,7 +484,7 @@ int 		xdim, pad;
 static int XIwidth = -1, XIheight = -1;
 static XImage *image = 0;
 static XShmSegmentInfo shminfo;
-
+static bool shm_failed = FALSE;	/* If we fail once, don't try it again */
 
 
 static XImage *
@@ -547,6 +496,9 @@ int width, height;
  */
 {
 	Display *disp = XtDisplay (w);
+
+	if (shm_failed)
+		return (NULL);
 /*
  * If the geometry matches, we can just return what we got last time.  This
  * will be the case most of the time -- only when the window changes will
@@ -574,11 +526,33 @@ int width, height;
  */
 	shminfo.shmid = shmget (IPC_PRIVATE, image->bytes_per_line*height,
 		IPC_CREAT | 0777);
+/*
+ * Check for failures.  More than likely the failures will be from lack of
+ * shared memory facilities or high enough shared memory limits in the kernel.
+ * Therefore, once we fail once, it behooves us not to try again.
+ */
 	if (shminfo.shmid < 0)
-		msg_ELog (EF_EMERGENCY, "SHM get failure (%d)!", errno);
-	shminfo.shmaddr = (char *) shmat (shminfo.shmid, 0, 0);
-	if (shminfo.shmaddr == (char *) -1)
-		msg_ELog (EF_EMERGENCY, "SHM attach failure (%d)!", errno);
+	{
+		shm_failed = TRUE;
+		msg_ELog (EF_EMERGENCY, "rp SHM get failure (%d)!", errno);
+	}
+	else if ((shminfo.shmaddr = (char *) shmat (shminfo.shmid, 0, 0))
+		 == (char *) -1)
+	{
+		shm_failed = TRUE;
+		msg_ELog (EF_EMERGENCY, "rp SHM attach failure (%d)!", 
+			  errno);
+	}
+/*
+ * Deal with our failures
+ */
+	if (shm_failed)
+	{
+		XDestroyImage (image);
+		image = NULL;
+		msg_ELog (EF_INFO, "Raster: Abandoning XShmExtension attempt");
+		return (NULL);
+	}
 /*
  * Hook everything together.
  */
@@ -804,7 +778,7 @@ float 		scale, bias;
 	 * must create a local image, process our data, and then
 	 * send the image to the server.
 	 */
-	if (GWShmPossible (Graphics))
+	if (GWFrameShared (Graphics, frame))
 	{
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
 		destimg += yhi * GWGetBPL(w, frame) + xlo;
