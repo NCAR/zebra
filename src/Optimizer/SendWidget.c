@@ -38,7 +38,7 @@
 # include "prototypes.h"
 # include "radar.h"
 
-RCSID("$Id: SendWidget.c,v 1.8 1999-03-04 22:15:52 burghart Exp $")
+RCSID("$Id: SendWidget.c,v 1.9 2000-04-24 19:08:36 burghart Exp $")
 
 /*
  * Private prototypes
@@ -97,7 +97,7 @@ Widget	parent;
  * the radars.
  */
 {
-	Widget	form, w, wstatus = NULL;
+	Widget	form, w, wstatus = NULL, above;
 	int	n, r;
 	Arg	args[10];
 	char	wname[20];
@@ -115,35 +115,45 @@ Widget	parent;
 /*
  * Put together a dial/send widget and status widget for each radar
  */
+	above = NULL;
+	
 	for (r = 0; r < Nradars; r++)
 	{
+	/*
+	 * No widgets for radars with no modem device/param file name
+	 */
+		if (! Rad[r].line_out)
+		    continue;
 	/*
 	 * Dial/send widget
 	 */
 		sprintf (wname, "dialsend%d", r);
 
 		n = 0;
-		XtSetArg (args[n], XtNfromHoriz, wstatus); n++;
-		XtSetArg (args[n], XtNfromVert, NULL); n++;
+		XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+		XtSetArg (args[n], XtNfromVert, above); n++;
 		XtSetArg (args[n], XtNwidth, 100); n++;
 		XtSetArg (args[n], XtNresizable, True); n++;
 		XtSetArg (args[n], XtNresize, True); n++;
-		w = WButton[r] = XtCreateManagedWidget (wname, 
-			commandWidgetClass, form, args, n);
+		w = WButton[r] = 
+		    XtCreateManagedWidget (wname, commandWidgetClass, form, 
+					   args, n);
 	/*
 	 * Status widget
 	 */
 		sprintf (wname, "status%d", r);
 
 		n = 0;
-		XtSetArg (args[n], XtNfromHoriz, wstatus); n++;
-		XtSetArg (args[n], XtNfromVert, w); n++;
+		XtSetArg (args[n], XtNfromHoriz, w); n++;
+		XtSetArg (args[n], XtNfromVert, above); n++;
 		XtSetArg (args[n], XtNborderWidth, 0); n++;
 		XtSetArg (args[n], XtNwidth, 100); n++;
 		XtSetArg (args[n], XtNresizable, True); n++;
 		XtSetArg (args[n], XtNresize, True); n++;
 		wstatus = WStatus[r] = XtCreateManagedWidget (wname, 
 			labelWidgetClass, form, args, n);
+
+		above = w;
 	/*
 	 * If we have a phone number, start out in dial mode.  Otherwise,
 	 * start in send mode.
@@ -547,8 +557,9 @@ char	*fname;
  */
     if (! (sfile = fopen (fname, "w")))
     {
-	msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
-	return;
+	msg_ELog (EF_PROBLEM, "Error %d opening param file '%s'", errno, 
+		  fname);
+	return 0;
     }
 /*
  * Generate the scan

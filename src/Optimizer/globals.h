@@ -1,6 +1,6 @@
 /*
  * Global definitions
- * $Id: globals.h,v 1.4 1997-04-29 03:51:18 granger Exp $
+ * $Id: globals.h,v 1.5 2000-04-24 19:08:37 burghart Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -38,8 +38,11 @@
 # define SIND(x)	(sin (DEG_TO_RAD (x)))
 # define TAND(x)	(tan (DEG_TO_RAD (x)))
 # define ATAND(x)	(RAD_TO_DEG (atan (x)))
-# define MIN(x,y)	((x) < (y) ? (x) : (y))
-# define MAX(x,y)	((x) > (y) ? (x) : (y))
+
+# ifndef MIN	/* they're defined for us in Linux sys/param.h */
+#   define MIN(x,y)	((x) < (y) ? (x) : (y))
+#   define MAX(x,y)	((x) > (y) ? (x) : (y))
+# endif
 
 /*
  * Maximum number of radars we can handle
