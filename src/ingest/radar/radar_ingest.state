@@ -15,6 +15,12 @@ define state initial
 	input 'field' 5
 		next field-name
 	endinput
+	input 'threshold' 6
+		next threshold-offset
+	endinput
+	input 'consumer' 7
+		next consumer-args
+	endinput
 enddef
 
 
@@ -45,6 +51,38 @@ define state source-type
 enddef
 
 
+define state threshold-offset
+	input 'offset' 0
+		ignore
+		next threshold-offset
+	endinput
+	input integer
+		next threshold-counts
+	endinput
+enddef
+
+define state threshold-counts
+	input 'threshold' 0
+		ignore
+		next threshold-counts
+	endinput
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+
+define state consumer-args
+	input EOS
+		done
+	endinput
+	input string
+		next consumer-args
+	endinput
+enddef
+
+set ui$initial_state "initial"
+
 procedure ui$init
 !
 ! Set up for CP4 at Marshall.
@@ -57,4 +95,16 @@ procedure ui$init
 	set GMT_offset		7
 	set platform		"cp4"
 	set minimum_sweep	50
+!
+! If there was a command file specified, we just read it and go
+! straight into run mode.  Otherwise we expect to be interactive.
+!
+	if (defined ("CommandFile"))
+		local rcmd "read"
+		message 'Reading command file'
+		#rcmd #CommandFile
+		go
+	else
+		message 'No command file'
+	endif
 endprocedure

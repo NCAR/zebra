@@ -2,7 +2,7 @@
  * Consume images into the data store.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 1.1 1991-04-28 17:38:15 corbet Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 1.2 1991-06-14 22:24:06 corbet Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -124,7 +124,7 @@ int set;
 	time t;
 	ScaleInfo scale[2];
 	char *images[4];
-	int xmin, ymin, xmax, ymax, i;
+	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
 /*
  * Grab it.
@@ -136,16 +136,25 @@ int set;
 		return;
 	}
 /*
+ * Trim out blank data.
+ */
+	offset = TrimImage (images[0], &ymin, &ymax);
+	cvt_Origin (loc.l_lat, loc.l_lon);
+	cvt_ToLatLon (0.0, (YRes - ymax)*rg.rg_Yspacing, &loc.l_lat,
+			&loc.l_lon);
+	rg.rg_nY = ymax - ymin + 1;
+/*
  * Fill in the rest of our data object.
  */
-	printf ("Set %d, [%d, %d] to [%d, %d]\n", set, xmin, ymin, xmax, ymax);
+	msg_ELog (EF_INFO, "Set %d, [%d, %d] to [%d, %d]", set, xmin, ymin,
+				xmax, ymax);
 	OutData.do_begin = OutData.do_end = t;
 	OutData.do_times = &t;
 	OutData.do_desc.d_img.ri_rg = &rg;
 	OutData.do_desc.d_img.ri_scale = scale;
 	OutData.do_aloc = &loc;
 	for (i = 0; i < OutData.do_nfield; i++)
-		OutData.do_data[i] = (float *) images[i];
+		OutData.do_data[i] = (float *) (images[i] + offset);
 /*
  * Send it.
  */
@@ -157,4 +166,36 @@ int set;
 	for (i = 0; i < OutData.do_nfield; i++)
 		memset (images[i] + ymin*XRes, 0xff, (ymax - ymin + 1)*XRes);
 	IX_ReleaseFrame (ShmDesc, set);
+}
+
+
+
+
+int
+TrimImage (image, min, max)
+unsigned char *image;
+int *min, *max;
+/*
+ * Trim off raster lines which are all badflags.
+ */
+{
+	int i;
+	unsigned char *cp = image + *min*XRes;
+/*
+ * Search forward to the first non-blank char.
+ */
+	for (i = *min*XRes; i < YRes*XRes; i++)
+		if (*cp++ != 0xff)
+			break;
+	*min = ((cp - 1) - image)/XRes;
+/*
+ * Now go back from the far end and do the same thing.
+ */
+	cp = image + *max*XRes + XRes - 1;
+	for (i = cp - image; i > 0; i--)
+		if (*cp-- != 0xff)
+			break;
+	*max = ((cp + 1) - image)/XRes;
+
+	return (*min * XRes);
 }

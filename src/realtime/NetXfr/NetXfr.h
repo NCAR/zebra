@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 1.7 1991-06-12 16:43:00 corbet Exp $ */
+/* $Id: NetXfr.h,v 1.8 1991-06-14 22:19:20 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */

@@ -1,7 +1,7 @@
 /*
  * Ingest radar data and rasterize it.
  */
-static char *rcsid = "$Id: radar_ingest.c,v 1.3 1991-06-12 22:42:20 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 1.4 1991-06-14 22:24:06 corbet Exp $";
 
 # include <errno.h>
 # include <sys/time.h>

@@ -1,4 +1,4 @@
-/* $Id: radar_ingest.h,v 1.1 1991-04-28 17:38:15 corbet Exp $ */
+/* $Id: radar_ingest.h,v 1.2 1991-06-14 22:24:06 corbet Exp $ */
 /*
  * Global stuff for the radar ingest module.
  */
@@ -66,6 +66,18 @@ extern float PixScale;
 unsigned char CMap[256];
 
 /*
+ * Thresholding information.
+ */
+extern bool DoThresholding;		/* Thresholding is enabled	*/
+extern int ThrFldOffset;		/* Offset to threshold field	*/
+unsigned char ThrCounts;		/* Threshold count value	*/
+
+/*
+ * Do we do elevation projection?
+ */
+extern bool Project;
+
+/*
  * Functions.
  */
 # ifdef __STDC__
@@ -89,3 +101,5 @@ unsigned char CMap[256];
 # define RIC_FILE	3
 # define RIC_INTERFACE	4
 # define RIC_FIELD	5
+# define RIC_THRESHOLD	6
+# define RIC_CONSUMER	7

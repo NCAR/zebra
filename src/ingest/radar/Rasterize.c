@@ -1,7 +1,7 @@
 /*
  * Rasterize incoming radar data.
  */
-static char *rcsid = "$Id: Rasterize.c,v 1.2 1991-04-28 17:38:15 corbet Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 1.3 1991-06-14 22:24:06 corbet Exp $";
 
 # include <defs.h>
 # include <sys/time.h>
@@ -154,6 +154,7 @@ int xmin, xmax, ymin, ymax;
 
 
 
+# ifdef notdef
 
 InitFake ()
 {
@@ -167,6 +168,8 @@ InitFake ()
 	FakeBeam[510] = FakeBeam[511] = 128;
 }
 
+
+# endif
 
 
 void
@@ -239,17 +242,34 @@ const int offset, skip;
  */
 {
 	register int chunk, gate;
+	const bool dothresh = DoThresholding;
+	unsigned char tvalue = ThrCounts;
 
 	for (chunk = 0; chunk < beam->b_npart; chunk++)
 	{
 		const int ngate = beam->b_gdesc[chunk].gd_ngate;
 		unsigned char *data = beam->b_gdesc[chunk].gd_data + offset;
-		for (gate = 0; gate < ngate; gate++)
+	/*
+	 * Do the thresholding check here, instead of at every gate.
+	 */
+	 	if (dothresh)
 		{
-			/* *dest++ = CMap[*data]; */
-			*dest ++ = *data;
-			data += skip;
+			register unsigned char *thresh = data - offset +
+							  ThrFldOffset;
+			for (gate = 0; gate < ngate; gate++)
+			{
+				*dest++ = (*thresh >= ThrCounts) ? *data : 0xFF;
+				data += skip;
+				thresh += skip;
+			}
 		}
+		else
+			for (gate = 0; gate < ngate; gate++)
+			{
+				/* *dest++ = CMap[*data]; */
+				*dest ++ = *data;
+				data += skip;
+			}
 	}
 }
 
@@ -440,6 +460,8 @@ struct RastInfo *rinfo;
  */
 	pr0 = (hk->rhozero1 + hk->rhozero2/1000.0)*PixScale;
 	pgs = 1.0/((hk->gate_spacing/1000.0)*PixScale);
+	if (Project)
+		pgs /= cos (DegToRad (hk->elevation/CORR_FACT));
 	/* printf ("Gt %5.3f/%5.3f ", pr0, pgs); */
 /*
  * Figure the number of gates until the shortest intersection with an edge

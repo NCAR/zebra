@@ -1,7 +1,7 @@
 /*
  * Deal with getting radar beams into the system.
  */
-static char *rcsid = "$Id: Input.c,v 1.2 1991-04-28 17:38:15 corbet Exp $";
+static char *rcsid = "$Id: Input.c,v 1.3 1991-06-14 22:22:08 corbet Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -10,7 +10,7 @@ static char *rcsid = "$Id: Input.c,v 1.2 1991-04-28 17:38:15 corbet Exp $";
 # include <sys/ioctl.h>
 # include <sys/stropts.h>
 # include <net/if.h>
-	# include <netinet/in.h>
+# include <netinet/in.h>
 # include <net/nit_if.h>
 # include <net/nit_pf.h>
 # include <net/packetfilt.h>
@@ -31,7 +31,7 @@ static char InSource[200];
 /*
  * File input stuff.
  */
-# define BUFLEN 16000
+# define BUFLEN 32000
 static unsigned char Tbuffer[BUFLEN];
 
 /*
