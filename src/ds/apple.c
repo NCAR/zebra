@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.13 1997-02-12 08:55:06 granger Exp $
+ * $Id: apple.c,v 3.14 1997-11-21 20:36:45 burghart Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ to 'expect'?
 #include "DataStore.h"
 #include "apple.h"
 
-RCSID("$Id: apple.c,v 3.13 1997-02-12 08:55:06 granger Exp $")
+RCSID("$Id: apple.c,v 3.14 1997-11-21 20:36:45 burghart Exp $")
 
 extern TestRoutine NSpaceTests[];
 extern TestRoutine ZNFTests[];
@@ -91,6 +91,7 @@ extern TestRoutine DataFormatTests[];
 extern TestRoutine DataChunkTests[];
 extern TestRoutine FieldTests[];
 extern TestRoutine MetDataTests[];
+extern TestRoutine DerivationTests[];
 
 /*
  * Choose the modules to link and register.
@@ -110,6 +111,7 @@ static TestRoutine *TestModules[] =
 	DataChunkTests,
 	FieldTests,
 	MetDataTests,
+	DerivationTests,
 	NULL
 };
 
@@ -134,9 +136,9 @@ TestField TestFields[] = {
 	{ "field2",	"Test Field, too",		"none" },
 	{ "fld3",	"field #3",			"none" },
 	{ "no4",	"Number 4 field",		"none" },
-	{ "pres",	"Pressure",		       	"mb" },
+	{ "pres",	"Pressure",		       	"hPa" },
 	{ "temp",	"Temperature",			"degC" },
-	{ "rh",		"Relative humidity",		"pct" },
+	{ "rh",		"Relative humidity",		"percent" },
 	{ "dpt",	"Dewpoint",			"K" }
 };
 

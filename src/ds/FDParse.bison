@@ -5,10 +5,10 @@
 # include "Field.h"
 
 /*
- * Pointer to the derivation list we're modifying.  This must be set by 
- * somebody before yyparse() is called!
+ * Pointer to the derivation table we're to modify.  This must be set by 
+ * the caller before FDparse() is called!
  */
-DerivTable	*FDDerivList = 0;
+DerivTable	*FDTable = 0;
 
 extern "C" char *gettxt( const char*, const char * );
 
@@ -49,7 +49,7 @@ list:	/* empty */
 	;
 
 derivation:	
-	field '=' expr ';'	{ FDDerivList->AddDerivation(*($1), $3); }
+	field '=' expr ';'	{ FDTable->AddDerivation(*($1), $3); }
 	| error ';'
 	;
 

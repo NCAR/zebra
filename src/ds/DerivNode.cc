@@ -36,41 +36,83 @@ operator <<( ostream& s, const DerivNode& dnode )
 }
 
 
+
+
 void
 DerivNode::Eval( const Field flds[], const int nflds, const int ndata, 
 		 const double* dataptrs[], double* out_data, 
 		 const double badval, ResultCache *rcache ) const
+//
+// Perform the derivation: flds and nflds are a list and count of raw
+// fields; ndata is the number of data points; dataptrs are pointers to
+// data arrays for each of the raw fields; out_data is the array to which
+// the results are to be written; badval is the bad data flag, both for the
+// incoming data and to be used for the results; rcache is a cache of
+// intermediate results, which if non-zero is searched to see if an
+// equivalent of this node has already been calculated, and to which our
+// results are added if we have to calculate them ourselves.
+//
 {
 //
-// Simple if we find a copy of ourselves in the result cache
+// Do we need to create our our result cache?
 //
-    double *results;
-    if (rcache && (results = rcache->Find( *this )) != 0)
+    int make_rcache = (rcache == 0);
+//
+// Perform the derivation in manageable chunks to limit our intermediate
+// memory usage
+//
+    const int chunklen = 50000;
+
+    for (int offset = 0; offset < ndata; offset += chunklen)
     {
-	for (int i = 0; i < ndata; i++)
-	    out_data[i] = results[i];
+    //
+    // How many elements are we doing this time?
+    //
+	int ncalc = (ndata - offset) < chunklen ? (ndata - offset) : chunklen;
+    //
+    // Destination location, with offset applied
+    //
+	double *destptr = out_data + offset;
+    //
+    // Simple if we find a copy of ourselves in the result cache
+    //
+	double *results;
+	if (rcache && (results = rcache->Find( *this )) != 0)
+	{
+	    for (int i = 0; i < ncalc; i++)
+		destptr[i] = results[i];
 
-	return;
+	    continue;
+	}
+    //
+    // Make our own result cache if necessary
+    //
+	if (make_rcache)
+	    rcache = new ResultCache;
+    //
+    // New source data pointers, with offset applied
+    //
+	const double **srcptrs = new const double*[nflds];
+	
+	for (int f = 0; f < nflds; f++)
+	    srcptrs[f] = dataptrs[f] + offset;
+    //
+    // Perform the calculation
+    //
+	Calculate( flds, nflds, ncalc, srcptrs, destptr, badval, rcache );
+	delete[] srcptrs;
+    //
+    // Add our results to the cache if it was given to us.  Delete the cache
+    // if we created it ourselves.
+    //
+	if (make_rcache)
+	{
+	    delete rcache;
+	    rcache = 0;
+	}
+	else
+	    rcache->Add( *this, destptr, ncalc );
     }
-//
-// If there is no result cache, create an empty one
-//
-    int own_rcache = (rcache == 0);
-
-    if (own_rcache)
-	rcache = new ResultCache;
-//
-// Perform the calculation
-//
-    Calculate( flds, nflds, ndata, dataptrs, out_data, badval, rcache );
-//
-// Add our results to the cache if it was given to us.  Delete the cache
-// if we created it ourselves.
-//
-    if (own_rcache)
-	delete rcache;
-    else
-	rcache->Add( *this, out_data, ndata );
 
     return;
 }
@@ -90,8 +132,9 @@ ConstDNode::PutTo( ostream& s ) const
 
 
 DerivNode*
-ConstDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-		      const Field *cantuse, int ncantuse ) const
+ConstDNode::MetaEval( const DerivTable* dtables[], const int ndtables,
+		      const Field *avail, const int navail, 
+		      const Field *cantuse, const int ncantuse ) const
 {
     return ( Copy() );
 }
@@ -99,11 +142,11 @@ ConstDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail,
 
 
 void
-ConstDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+ConstDNode::Calculate( const Field flds[], const int nflds, const int ncalc, 
 		       const double* dataptrs[], double* out_data, 
 		       const double badval, ResultCache *rcache ) const
 {
-    for (int i = 0; i < ndata; i++)
+    for (int i = 0; i < ncalc; i++)
 	out_data[i] = val;
 }
 
@@ -200,13 +243,16 @@ OpDNode::FieldList( int* nflds ) const
 	
 
 DerivNode*
-OpDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-		   const Field *cantuse, int ncantuse ) const
+OpDNode::MetaEval( const DerivTable* dtables[], const int ndtables, 
+		   const Field *avail, const int navail, 
+		   const Field *cantuse, const int ncantuse ) const
 {
     DerivNode	*l = 0, *r = 0;
 
-    if ((l = left->MetaEval( dlist, avail, navail, cantuse, ncantuse )) != 0 &&
-	(r = right->MetaEval( dlist, avail, navail, cantuse, ncantuse )) != 0)
+    if ((l = left->MetaEval( dtables, ndtables, avail, navail, 
+			     cantuse, ncantuse )) != 0 &&
+	(r = right->MetaEval( dtables, ndtables, avail, navail, 
+			      cantuse, ncantuse )) != 0)
 	return( new OpDNode( oper, l, r ) );
     else
     {
@@ -218,21 +264,21 @@ OpDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail,
 
 
 void
-OpDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+OpDNode::Calculate( const Field flds[], const int nflds, const int ncalc, 
 		    const double* dataptrs[], double* out_data, 
 		    const double badval, ResultCache *rcache ) const
 {
-    double* leftdp = new double[ndata];
-    double* rightdp = new double[ndata];
+    double* leftdp = new double[ncalc];
+    double* rightdp = new double[ncalc];
 //
 // First evaluate the left and right operands
 //
-    left->Eval( flds, nflds, ndata, dataptrs, leftdp, badval, rcache );
-    right->Eval( flds, nflds, ndata, dataptrs, rightdp, badval, rcache );
+    left->Eval( flds, nflds, ncalc, dataptrs, leftdp, badval, rcache );
+    right->Eval( flds, nflds, ncalc, dataptrs, rightdp, badval, rcache );
 //
 // Operate!
 //
-    for (int i = 0; i < ndata; i++)
+    for (int i = 0; i < ncalc; i++)
     {
 	double	lval = leftdp[i];
 	double	rval = rightdp[i];
@@ -310,8 +356,9 @@ RawFldDNode::FieldList( int* nflds ) const
 
 
 DerivNode*
-RawFldDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-		       const Field *cantuse, int ncantuse ) const
+RawFldDNode::MetaEval( const DerivTable* dtables[], const int ndtables, 
+		       const Field *avail, const int navail, 
+		       const Field *cantuse, const int ncantuse ) const
 {
     DerivNode	*dtree = 0;
     double	slope, intercept;
@@ -360,14 +407,27 @@ RawFldDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail,
 
     newcantuse[ncantuse] = *fld;
 //
-// Loop through the possible derivations
+// For each derivation list...
 //
-    const DerivNode	*deriv;
+    DerivNode	*deriv;
 	
-    for (i = 0; (deriv = dlist->NthDerivation( *fld, i )) != 0; i++)
+    for (int tbl = 0; tbl < ndtables; tbl++)
     {
-	if ((dtree = deriv->MetaEval( dlist, avail, navail, newcantuse, 
-				      ncantuse + 1 )) != 0)
+    //
+    // For each derivation in the table that matches our field, try to MetaEval
+    // the derivation.  If the MetaEval succeeds, we have a good derivation!
+    //
+	for (i = 0; (deriv = dtables[tbl]->NthDerivation( *fld, i )) != 0; i++)
+	{
+	    dtree = deriv->MetaEval( dtables, ndtables, avail, navail, 
+				     newcantuse, ncantuse + 1 );
+	    delete deriv;
+	
+	    if (dtree)
+		break;
+	}
+
+	if (dtree)
 	    break;
     }
 
@@ -377,7 +437,7 @@ RawFldDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail,
 
 
 void
-RawFldDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+RawFldDNode::Calculate( const Field flds[], const int nflds, const int ncalc, 
 			const double* dataptrs[], double* out_data, 
 			const double badval, ResultCache *rcache ) const
 {
@@ -389,13 +449,13 @@ RawFldDNode::Calculate( const Field flds[], const int nflds, const int ndata,
 	if (flds[f] != *fld)
 	    continue;
 	
-	memmove (out_data, dataptrs[f], ndata * sizeof (double));
+	memmove (out_data, dataptrs[f], ncalc * sizeof (double));
 	return;
     }
 //
 // Not there, so fill with badval
 //
-    for (int i = 0; i < ndata; i++)
+    for (int i = 0; i < ncalc; i++)
 	out_data[i] = badval;
 }
 
@@ -610,8 +670,9 @@ FuncDNode::FieldList( int* nflds ) const
 
 
 DerivNode*
-FuncDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-		     const Field *cantuse, int ncantuse ) const
+FuncDNode::MetaEval( const DerivTable* dtables[], const int ndtables, 
+		     const Field *avail, const int navail, 
+		     const Field *cantuse, const int ncantuse ) const
 {
     DerivNode	*a[4];
 
@@ -625,8 +686,8 @@ FuncDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail,
     // Get the meta-eval of each arg.  If any of the meta-eval's fails,
     // delete the saved stuff and return NULL.
     //
-	if (! (a[i] = arg[i]->MetaEval( dlist, avail, navail, cantuse, 
-					ncantuse )))
+	if (! (a[i] = arg[i]->MetaEval( dtables, ndtables, avail, navail, 
+					cantuse, ncantuse )))
 	{
 	    for (int k = 0; k < i; k++)
 		delete a[k];
@@ -641,7 +702,7 @@ FuncDNode::MetaEval( DerivTable *dlist, const Field *avail, int navail,
 
 
 void
-FuncDNode::Calculate( const Field flds[], const int nflds, const int ndata, 
+FuncDNode::Calculate( const Field flds[], const int nflds, const int ncalc, 
 		      const double* dataptrs[], double* out_data, 
 		      const double badval, ResultCache *rcache ) const
 {
@@ -652,8 +713,8 @@ FuncDNode::Calculate( const Field flds[], const int nflds, const int ndata,
 //
     for (a = 0; a < funcinfo->nargs; a++)
     {
-	arg_dp[a] = new double[ndata];
-	arg[a]->Eval( flds, nflds, ndata, dataptrs, arg_dp[a], badval, 
+	arg_dp[a] = new double[ncalc];
+	arg[a]->Eval( flds, nflds, ncalc, dataptrs, arg_dp[a], badval, 
 		      rcache );
     }
 //
@@ -662,20 +723,20 @@ FuncDNode::Calculate( const Field flds[], const int nflds, const int ndata,
     switch (funcinfo->nargs)
     {
       case 0:
-	funcinfo->func( out_data, badval, ndata );
+	funcinfo->func( out_data, badval, ncalc );
 	break;
       case 1:
-	funcinfo->func( out_data, badval, ndata, arg_dp[0] );
+	funcinfo->func( out_data, badval, ncalc, arg_dp[0] );
 	break;
       case 2:
-	funcinfo->func( out_data, badval, ndata, arg_dp[0], arg_dp[1] );
+	funcinfo->func( out_data, badval, ncalc, arg_dp[0], arg_dp[1] );
 	break;
       case 3:
-	funcinfo->func( out_data, badval, ndata, arg_dp[0], arg_dp[1], 
+	funcinfo->func( out_data, badval, ncalc, arg_dp[0], arg_dp[1], 
 			arg_dp[2] );
 	break;
       case 4:
-	funcinfo->func( out_data, badval, ndata, arg_dp[0], arg_dp[1], 
+	funcinfo->func( out_data, badval, ncalc, arg_dp[0], arg_dp[1], 
 			arg_dp[2], arg_dp[3] );
 	break;
     }

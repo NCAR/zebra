@@ -1,4 +1,6 @@
 /*
+ * Zebra global default derivations.
+ *
  * Most of the derivations are extracted from Paul Herzegh's "Formulation 
  * of Output Parameters for PAM II CMF Data" (FOPPCD) memo dated 18 March 1988.
  */
@@ -10,7 +12,7 @@
 _c_p_[][J/(kg K)] = 1005.7;	/* specific heat of dry air at constant
 				   pressure */
 
-_E_3_[][mb] = 6.1078;		/* saturation vapor pressure over a plane
+_E_3_[][hPa] = 6.1078;		/* saturation vapor pressure over a plane
 				   surface of water at 0 C */
 
 _T_3_[][K] = 273.15;		/* Temperature of triple point of water */
@@ -33,54 +35,54 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 [L_c][J/kg] = 2.500e6 - 2369 * ([T][K] - 273);
 
 /*
- * Mixing ratio (g/kg) from vapor pressure (mb) and pressure (mb)
+ * Mixing ratio (g/kg) from vapor pressure (hPa) and pressure (hPa)
  * Ref: Note 2 of FOPPCD
  */
-[w][g/kg] = 1000 * _epsilon_ * ([e][mb] / ([P][mb] - [e][mb]));
+[w][g/kg] = 1000 * _epsilon_ * ([e][hPa] / ([P][hPa] - [e][hPa]));
 
 /*
- * Vapor pressure (mb) from relative humidity (%) and saturation vapor 
- * pressure (mb)
+ * Vapor pressure (hPa) from relative humidity (%) and saturation vapor 
+ * pressure (hPa)
  * Ref: definition of relative humidity
  */
-[e][mb] = 0.01 * [rh][%] * [e_sw][mb];
+[e][hPa] = 0.01 * [rh][%] * [e_sw][hPa];
 
 /*
- * Vapor pressure (mb) from pressure (mb), temperature (K), and wet bulb 
+ * Vapor pressure (hPa) from pressure (hPa), temperature (K), and wet bulb 
  * temperature (K)
  * Ref: Note 3 of FOPPCD
  *
- * For this we calculate saturation vapor pressure (mb) at T = T_wet
+ * For this we calculate saturation vapor pressure (hPa) at T = T_wet
  * Ref: Note 6 of FOPPCD
  */
-[e][mb] = e_sw ([T_wet][K]) - [P][mb] * ([T][K] - [T_wet][K]) * 
+[e][hPa] = e_sw ([T_wet][K]) - [P][hPa] * ([T][K] - [T_wet][K]) * 
 	(0.00066 * (0.6859 + 0.00115 * [T_wet][K]));
 
 /*
  * Relative humidity
  */
-[rh][%] = 100.0 * [e][mb] / [e_sw][mb];
+[rh][%] = 100.0 * [e][hPa] / [e_sw][hPa];
 
 /*
- * Virtual temperature, from temperature (K), vapor pressure (mb), and 
- * pressure (mb)
+ * Virtual temperature, from temperature (K), vapor pressure (hPa), and 
+ * pressure (hPa)
  * Ref: Note 4 of FOPPCD
  */
-[T_v][K] = [T][K] / (1 - ([e][mb] / [P][mb]) * (1 - _epsilon_));
+[T_v][K] = [T][K] / (1 - ([e][hPa] / [P][hPa]) * (1 - _epsilon_));
 
 /*
- * Dew point temperature (K) from vapor pressure (mb)
+ * Dew point temperature (K) from vapor pressure (hPa)
  * Ref: Note 5 of FOPPCD
  */
-[T_d][K] = _T_3_ + (237.3 * ln ([e][mb] / _E_3_)) /
-	(17.2694 - ln ([e][mb] / _E_3_));
+[T_d][K] = _T_3_ + (237.3 * ln ([e][hPa] / _E_3_)) /
+	(17.2694 - ln ([e][hPa] / _E_3_));
 
 /*
- * Saturation vapor pressure over a plane surface of water (mb), from 
+ * Saturation vapor pressure over a plane surface of water (hPa), from 
  * temperature (K).  We use our convenient (and fast) built-in for this.
  * Ref: Note 6 of FOPPCD
  */
-[e_sw][mb] = e_sw ([T][K]);
+[e_sw][hPa] = e_sw ([T][K]);
 
 /*
  * Temperature of the lifting condensation level (K), from temperature (K),
@@ -90,11 +92,11 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 [T_L][K] = 1 / ((1 / ([T_d][K] - 56)) + (ln ([T][K] / [T_d][K]) / 800)) + 56;
 
 /*
- * Potential temperature (K), from temperature (K), pressure (mb), and
+ * Potential temperature (K), from temperature (K), pressure (hPa), and
  * mixing ratio (g/kg)
  * Ref: Note 8 of FOPPCD
  */
-[theta][K] = [T][K] * pow ((1000 / [P][mb]), 
+[theta][K] = [T][K] * pow ((1000 / [P][hPa]), 
 			   (_R_d_ / _c_p_) * (1 - 0.00028 * [w][g/kg]));
 
 /*
@@ -109,7 +111,7 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 /*
  * Use the t_wet built-in to calculate wet bulb temperature from T, P, and rh
  */
-[T_wet][K] = t_wet( [T][K], [P][mb], [rh][%] );
+[T_wet][K] = t_wet( [T][K], [P][hPa], [rh][%] );
 
 /*
  * wspd, wdir -> uwind, vwind derivations

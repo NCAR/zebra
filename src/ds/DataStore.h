@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.43 1997-07-01 23:59:42 granger Exp $
+ * $Id: DataStore.h,v 3.44 1997-11-21 20:36:17 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -29,6 +29,11 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+# ifdef __cplusplus
+extern "C" 
+{
+# endif
 
 /*
  * Possible data organizations.
@@ -448,6 +453,8 @@ void		dc_RemoveADE FP ((DataChunk *, DataClassP, int));
 void		dc_DestroyADE FP ((DataChunk *dc));
 void		dc_FreeAllADE FP ((DataChunk *dc));
 void		dc_CopyADE FP ((DataChunk *target, DataChunk *dc));
+void		dc_CopyClassADE FP ((DataChunk *dest, DataChunk *src,
+				     DataClassP classp));
 void		dc_StatsADE FP ((DataChunk *dc, int *count, int *len));
 
 /*
@@ -569,6 +576,8 @@ Location *	dc_BndGet FP((DataChunk *, int, int *));
 void		dc_SetupFields FP((DataChunk *, int, FieldId *));
 int		dc_ClearFields FP((DataChunk *dc));
 void		dc_AddFields FP((DataChunk *dc, int nfield, FieldId *fields));
+void		dc_ChangeFld FP((DataChunk *dc, FieldId oldfid, 
+				 FieldId newfid));
 #ifdef CFG_DC_OLDFIELDS
 void		dc_SetupUniformFields FP((DataChunk *, int, int,
 					  FieldId *, int));
@@ -646,7 +655,12 @@ const char	*dc_PrintValue FP((void *ptr, DC_ElemType type));
 int		dc_CompareElement FP((DC_Element *e, DC_Element *f, 
 				      DC_ElemType type));
 int		dc_CompareValue FP((void *e, void *f, DC_ElemType type));
+int		dc_ConvertLongDouble FP((LongDouble *ld, void *ptr, 
+					 DC_ElemType type));
+int		dc_ConvertDouble FP((double *d, void *ptr, DC_ElemType type));
 int		dc_ConvertFloat FP((float *f, void *ptr, DC_ElemType type));
+int		dc_LongDoubleToType FP((void *ptr, DC_ElemType type, 
+					LongDouble ld));
 void *		dc_DefaultBadval FP((DC_ElemType type));
 
 /*
@@ -886,6 +900,7 @@ PlatformId *	ds_GatherPlatforms FP ((char *regexp, int *nplat,
 					int alphabet, int subs));
 PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat, 
 					int alphabet, int subs));
+PlatformId	ds_LookupParent FP ((PlatformId pid));
 PlatformId *	ds_LookupSubplatforms FP ((PlatformId parent, int *nsubplat));
 bool		ds_Store FP ((DataChunk *dc, int newfile, 
 			      dsDetail *details, int ndetail));
@@ -1027,5 +1042,27 @@ const char *	ds_InstanceDirName FP ((InstanceDir id));
 const char *	ds_InheritDirName FP ((InheritDir id));
 const char *	ds_FTypeName FP ((FileType ft));
 const char *	ds_OrgName FP ((DataOrganization org));
+
+/*
+ * Field derivation interface
+ */
+
+typedef void* DerivMethod;
+
+void		ds_DerivInit (void);
+DerivMethod	ds_GetDerivation (PlatformId pid, FieldId wantid, 
+				  FieldId raw_ids[], int nraw);
+FieldId*	ds_DerivNeededFields (DerivMethod der, int *nneed);
+int		ds_DerivIsAlias (DerivMethod der);
+void		ds_DoDerivation (DerivMethod der, FieldId fids[], int nflds, 
+				 int ndata, double* dptrs[], double results[], 
+				 double badval);
+int		ds_IsDerivable (PlatformId pid, FieldId wantid, 
+				FieldId* raw_ids, int nraw);
+void		ds_DestroyDeriv (DerivMethod der);
+
+# ifdef __cplusplus
+} // end of extern "C"
+# endif
 
 # endif	/* !__zebra_DataStore_h_ */

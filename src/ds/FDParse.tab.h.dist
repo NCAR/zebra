@@ -1,0 +1,16 @@
+typedef union {
+	char	str[128];
+	double	val;
+	Field*	fld;
+	DerivNode*	dnode;
+} YYSTYPE;
+#define	NAME	258
+#define	BSTRING	259
+#define	DOUBLE	260
+#define	EQ	261
+#define	NE	262
+#define	LE	263
+#define	GE	264
+
+
+extern YYSTYPE FDlval;

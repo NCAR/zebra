@@ -108,7 +108,6 @@ const char *name;
 			msg_ELog (EF_PROBLEM, "needed plat unknown: '%s'", 
 				  name);
 		}
-		TestPlatforms[i].platid = pid;
 	}
 	else if (TestPlatforms[i].platid == NoPlatform)
 	{

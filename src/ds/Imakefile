@@ -2,16 +2,16 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.60 1997-07-25 21:40:58 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.61 1997-11-21 20:36:34 burghart Exp $"
 
-DEPLIBS=$(LIBZEBRA)
+DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
 /* SYSLIBS= $(LIBMPROF) */
 
 DMNSYSLIBS=$(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
-DMNLIBS=$(LIBZEBRA) $(LIBRDSS) $(XLIBS) $(LIBNETCDF) $(LIBHDF)
+DMNLIBS=$(ZLIBS) $(XLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS)
 SYSLIBS=$(LIBREGEXP) $(LIBMATH)
-LIBS=$(LIBZEBRA) $(LIBNETCDF) $(LIBHDF)
+LIBS=$(ZLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS)
 
 DEBUGGER = xgdb
 #ifdef DebugFlag
@@ -19,55 +19,72 @@ DEBUG = -DDEBUG -DNoBuffer -DDEBUGGER="\"$(DEBUGGER)\""
 #endif
 DEFINES = $(DEBUG) /* -DNCSYNC_FIXED */
 
-/* 
- * DSOBJS, DSSRCS = Daemon-specific object modules 
- */
-DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
-DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
 
+/*
+ * Data File Access modules
+ */
 DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zebra.o DFA_HDF.o DFA_Grads.o \
           DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o Raster.o DFA_None.o
 DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
           DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c Raster.c DFA_None.c
 
 /* 
- * DSLIBOBJS, DSLIBSRCS = normal DS library code 
+ * DCOBJS, DCSRCS =  data chunk modules 
  */
-DSLIBOBJS = Appl.o DFA_Appl.o SA_Appl.o C_Appl.o ingest.o GetList.o \
-	Fields.o d_Notify.o Platforms.o $(DFAOBJS) 
-DSLIBSRCS = Appl.c DFA_Appl.c SA_Appl.c C_Appl.c ingest.c GetList.c \
-	Fields.c d_Notify.c Platforms.c $(DFASRCS)
+DCOBJS = DataChunk.o DataAttr.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
+	 dc_MetData.o dc_MetAttr.o dc_RGrid.o dc_Scalar.o dc_Transp.o \
+	 dc_TrAttr.o dc_Attr.o dc_Location.o dc_NSpace.o dc_Process.o \
+	 dc_Elements.o dc_ADE.o dc_All.o Details.o
+DCSRCS = DataChunk.c DataAttr.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
+	 dc_MetData.c dc_MetAttr.c dc_RGrid.c dc_Scalar.c dc_Transp.c \
+	 dc_TrAttr.c dc_Attr.c dc_Location.c dc_NSpace.c dc_Process.c \
+	 dc_Elements.c dc_ADE.c dc_All.c Details.c
 
 /*
  * Modules shared between client library and daemon
  */
-SHAREDOBJS = d_Notify.o Fields.o Platforms.o $(DFAOBJS)
+SHAREDOBJS = $(DFAOBJS) $(DCOBJS) d_Notify.o Platforms.o ds_fields.o Field.o
+SHAREDSRCS = $(DFASRCS) $(DCSRCS) d_Notify.c Platforms.c
+SHAREDSRCS_CXX = ds_fields.cc Field.cc
+
 
 /* 
- * DCOBJS, DCSRCS =  data chunk modules 
+ * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
-DCOBJS = DataChunk.o DataAttr.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
-	dc_MetData.o dc_MetAttr.o dc_RGrid.o dc_Scalar.o dc_Transp.o \
-	dc_TrAttr.o dc_Attr.o dc_Location.o dc_NSpace.o dc_Process.o \
-	dc_Elements.o dc_ADE.o dc_All.o Details.o
-DCSRCS = DataChunk.c DataAttr.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
-	dc_MetData.c dc_MetAttr.c dc_RGrid.c dc_Scalar.c dc_Transp.c \
-	dc_TrAttr.c dc_Attr.c dc_Location.c dc_NSpace.c dc_Process.c \
-	dc_Elements.c dc_ADE.c dc_All.c Details.c
+DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
+DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
+
+/* 
+ * DSLIBOBJS, DSLIBSRCS = normal DS library code 
+ */
+DSLIBOBJS = Appl.o DFA_Appl.o SA_Appl.o C_Appl.o ingest.o GetList.o \
+	    ds_Derive.o DerivNode.o DerivTable.o FDScan.o FDParse.tab.o \
+	    $(SHAREDOBJS) 
+DSLIBSRCS = Appl.c DFA_Appl.c SA_Appl.c C_Appl.c ingest.c GetList.c \
+	    $(SHAREDSRCS)
+DSLIBSRCS_CXX = ds_Derive.cc DerivNode.cc DerivTable.cc FDScan.cc \
+	        FDParse.tab.cc $(SHAREDSRCS_CXX)
+
 
 UTILSRCS = rfdump.c zfdump.c GRIBdump.c bfdump.c
 
 /*
- * For debugging and testing
+ * Text file of default derivation definitions
+ */
+DERIVDEF = Derivations
+
+/*
+ * For debugging and testing.  Note that T_HDF is a standalone program, 
+ * so there's no T_HDF.o in TESTOBJS.
  */
 TESTSRCS = aline.c apple.c T_HDF.c \
-           T_NSpace.c T_Scalar.c T_Grids.c T_Attr.c T_Transparent.c \
-           T_MetData.c T_ZNF.c T_Utils.c T_DataStore.c \
-           T_NetCDF.c T_Appl.c T_DataFormat.c T_DataChunk.c T_Fields.c
+	   T_Appl.c T_Attr.c T_DataChunk.c T_DataFormat.c T_DataStore.c \
+	   T_Derivations.c T_Fields.c T_Grids.c T_MetData.c T_NetCDF.c \
+	   T_NSpace.c T_Scalar.c T_Transparent.c T_Utils.c T_ZNF.c
 
-TESTOBJS = T_NSpace.o T_Scalar.o T_Grids.o T_Attr.o T_Transparent.o \
-           T_MetData.o T_ZNF.o T_Utils.o T_DataStore.o T_Fields.o \
-           T_NetCDF.o T_Appl.o T_DataFormat.o T_DataChunk.o
+TESTOBJS = T_Appl.o T_Attr.o T_DataChunk.o T_DataFormat.o T_DataStore.o \
+	   T_Derivations.o T_Fields.o T_Grids.o T_MetData.o T_NetCDF.o \
+	   T_NSpace.o T_Scalar.o T_Transparent.o T_Utils.o T_ZNF.o
 
 /*
  * The complete set of modules for linking test programs.  Some test
@@ -79,22 +96,28 @@ TESTMODS = $(TESTOBJS) ./libZebraDS.a
  * All of the sources in this directory, for the make depend.
  */
 SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
+SRCS_CXX = $(DSLIBSRCS_CXX)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
-		  GRIB.h Appl.h DataFormat.h Platforms.h apple.h GetList.h
+		  GRIB.h Appl.h DataFormat.h Platforms.h apple.h GetList.h \
+		  DerivNode.h DerivTable.h Field.h
 
-HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
+HEADERS = DataStore.h DataChunk.h ingest.h ds_fields.h
 
 DSCONFIGS = perm.config aline.config apple.config
 
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(TESTSRCS) \
-            $(HEADERS) Daemon.state hdflook.c $(DSCONFIGS) dbgstart.csh
+            $(HEADERS) Daemon.state hdflook.c $(DSCONFIGS) dbgstart.csh \
+	    $(DERIVDEF)
 
 DEPEND_DEFINES=$(HDFDEFINES) $(HDFINCLUDES) $(NETCDFINCLUDES) $(RDSSINCLUDES)
 
-DMNOBJS = $(DSOBJS) $(SHAREDOBJS) $(DCOBJS)
-CompleteProgramTarget(dsDaemon,$(DMNOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
+/*
+ * The daemon
+ */
+DMNOBJS = $(DSOBJS) $(SHAREDOBJS)
+CccProgramTarget(dsDaemon,$(DMNOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
 
 SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
 
@@ -103,12 +126,14 @@ UILoadFileTarget(dsDaemon.lf,Daemon.state)
 /*
  * Make the library.
  */
-NormalLibraryTarget (ZebraDS, $(DSLIBOBJS) $(DCOBJS))
+NormalLibraryTarget (ZebraDS, $(DSLIBOBJS))
 SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
 SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
 SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
+SpecialCplusplusObjectRule(Fields.o,Fields.cc,$(UDUNITSINCLUDES))
 
 InstallLibrary (ZebraDS, $(LIBDIR))
+InstallNonExecFile ($(DERIVDEF), $(LIBDIR))
 
 install::
 	(cd $(LIBDIR); $(RM) libZebDS.a; $(LN) libZebraDS.a libZebDS.a)
@@ -124,11 +149,26 @@ CompleteProgramTarget (rfdump,$(RFDOBJS),$(LIBZEBRA),$(LIBZEBRA),/**/)
 
 TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), /**/)
 
-ZFOBJS = zfdump.o Fields.o $(DCOBJS)
-CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS),$(LIBZEBRA),$(LIBREGEXP))
+ZFOBJS = zfdump.o ./libZebraDS.a
+CccProgramTarget (zfdump,$(ZFOBJS),$(DEPLIBS),$(LIBS),$(LIBREGEXP) $(LIBMATH))
 
 GDOBJS = GRIBdump.o GRIB.o
 CompleteProgramTarget(GRIBdump,$(GDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))
+
+/* 
+ * Special stuff for the field derivation flex scanner/bison parser code.  The
+ * depend:: target assures that FDScan.cc and FDParse.tab.cc get built before 
+ * we generate the dependency list. 
+ */
+FDScan.cc: FDScan.flex
+	flex -t -PFD FDScan.flex > FDScan.cc
+
+FDParse.tab.h: FDParse.tab.cc
+FDParse.tab.cc: FDParse.bison
+	bison -p FD -d --file-prefix=FDParse FDParse.bison
+	$(MV) FDParse.tab.c FDParse.tab.cc
+
+depend:: FDScan.cc FDParse.tab.cc
 
 /*
  * Test routines.
@@ -139,7 +179,7 @@ SpecialObjectRule (hdflook.o, hdflook.c, $(HDFINCLUDES))
 #endif
 
 APOBJS = apple.o $(TESTMODS)
-TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccTestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 #ifdef notdef
 TestProgramTarget (nctime, nctime.o, /*DEPLIBS*/, $(LIBNETCDF), /**/)
@@ -181,7 +221,7 @@ FORCE:
 #endif
 
 ALOBJS = aline.o ./libZebraDS.a
-TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccTestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 test:: dbgstart
 
@@ -243,6 +283,7 @@ test.apple: test.apple.only test.close
 #define TEST_ENV \
 	-@ZEBRA_SOCKET=$(SOCKET); export ZEBRA_SOCKET; \ @@\
 	DSDUMP=$(DSDUMP); export DSDUMP; \ @@\
+	ZEB_PROJECT=$(TESTPROJ); export ZEB_PROJECT; \ @@\
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
 
 
@@ -294,11 +335,13 @@ clean::
  */
 saber_lib:
 	#setopt ansi
-	#load $(CFLAGS) -I/usr/local/include $(DSLIBSRCS) $(DCOBJS)
+	#load $(CFLAGS) -I/usr/local/include $(DSLIBOBJS) $(DCOBJS)
 	#load -Bstatic $(LIBS) $(LIBGCC)
 
 ZebraMakeDepend()
+
 CcDependTarget($(SRCS))
+CccDependTarget($(SRCS_CXX))
 CcDependTarget($(TESTSRCS))
 
 LintTarget()

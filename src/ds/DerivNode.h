@@ -16,7 +16,7 @@ class ResultCache;	// defined in and used in DerivNode.cc
 // Abstract class DerivNode, of which there are four instantiable types:
 // ConstDNode, OpDNode, RawFldDNode, and FuncDNode.
 //
-// Public member functions:
+// DerivNode public methods:
 //
 //	const char* ClassId( void ) const
 //
@@ -45,43 +45,124 @@ class ResultCache;	// defined in and used in DerivNode.cc
 //		be returned if the list is empty.
 //
 //
-//	DerivNode* MetaEval( const Field* avail, int navail, 
-//			     const Field* cantuse = 0, int ncantuse = 0 ) const
+//	DerivNode* MetaEval( const DerivTable* tables[], const int ntables,
+//			     const Field* avail, const int navail, 
+//			     const Field* cantuse = 0, 
+//			     const int ncantuse = 0 ) const
 //
-//		Return a pointer to a new DerivNode equivalent to yourself, 
-//		but having only RawFldDNodes of fields from the "avail" list 
-//		and ConstDNodes as leaf nodes.  I.e., return a DerivNode which
-//		can be successfully Eval'ed if given the listed available 
-//		fields.  If this isn't possible, return 0. It is the caller's 
-//		responsibility to delete the returned pointer.
+//		Return a pointer to a new DerivNode equivalent to yourself,
+//		but having only RawFldDNodes of fields from the "avail"
+//		list and ConstDNodes as leaf nodes.  I.e., return a
+//		DerivNode which can be successfully Eval'ed if given the
+//		listed available fields.  If this isn't possible, return
+//		0. It is the caller's responsibility to delete the returned
+//		pointer.  Derivations from the given tables may be used,
+//		and the tables will be searched in the order given.  
+//		Derivations using fields in the cantuse list will be 
+//		disregarded.
 //
 //
 //	void Eval( const Field flds[], const int nflds, const int ndata, 
 //		   const double* dataptrs[], double* out_data, 
 //		   double badval, ResultCache *rcache = 0 ) const
 //
-//		Perform the derivation: flds and nflds are a list and 
-//		count of raw fields; ndata is the number of data points; 
-//		dataptrs are pointers to data arrays for each of the raw 
-//		fields; out_data is the array to which the results are to be 
+//		Perform the derivation: flds and nflds are a list and count
+//		of raw fields; ndata is the number of data points; dataptrs
+//		are pointers to data arrays for each of the raw fields;
+//		out_data is the array to which the results are to be
 //		written; badval is the bad data flag, both for the incoming
-//		data and to be used for the results; rcache is a cache of
-//		intermediate results, which if non-zero is searched to 
-//		see if an equivalent of this node has already been calculated,
-//		and to which our results are added if we have to calculate them
-//		ourselves.
+//		data and to be used for the results; rcache (optional) is a
+//		cache of intermediate results, which if non-zero is
+//		searched to see if an equivalent of this node has already
+//		been calculated, and to which our results are added if we
+//		have to calculate them ourselves.
 //
 //
-// Private member functions:
+//	int operator ==( const DerivNode& d )
 //
-//	void Calculate( const Field flds[], const int nflds, const int ndata, 
+//		Return non-zero iff DerivNode d is equivalent to this node.
+//
+//	
+// ConstDNode public methods:
+//
+//	ConstDNode( double v )
+//
+//		Create a ConstDNode (constant DerivNode) representing the 
+//		constant value v.
+//
+//	double Value( void )
+//
+//		Return the node's value.
+//
+//
+// OpDNode public methods:
+//
+//	OpDNode( const char* op,  DerivNode* l, DerivNode* r )
+//
+//		Create an OpDNode (operator DerivNode): op is an operator
+//		from the list "+", "-", "*", "/", "%"; l and r are pointers
+//		to DerivNodes for the left and right operands, and BECOME
+//		THE PROPERTY OF THE CREATED OPDNODE, hence should not be
+//		deleted.
+//
+//	const char* Oper( void ) const
+//
+//		Return the operator string.
+//
+//
+//	const DerivNode& Left( void ) const
+//	const DerivNode& Right( void ) const
+//
+//		Return a reference to the left or right operand DerivNode,
+//		respectively.
+//
+//
+// RawFldDNode public methods:
+//
+//	RawFldDNode( Field* f )
+//	RawFldDNode( const Field& f )
+//	RawFldDNode( const RawFldDNode& n )
+//
+//		Create a RawFldDNode, with f as the field needed (or copying
+//		the field from RawFldDNode n, in the last interface).
+//
+//
+//	const Field& Fld( void ) const
+//
+//		Return a reference to the node's field.
+//
+//
+// FuncDNode public methods:
+//
+//	FuncDNode( const char* funcname, DerivNode* a0 = 0, DerivNode* a1 = 0, 
+//		   DerivNode* a2 = 0, DerivNode* a3 = 0 )
+//
+//		Create a FuncDNode: funcname is the name of the function to
+//		be called; a0-a3 are up to four DerivNode arguments to be
+//		passed to the function.
+//
+//	FuncDNode( const FuncDNode& n )
+//
+//		Create a FuncDNode which is a copy of n.
+//
+//	const char* FuncName( void ) const
+//
+//		Return the name of the node's function.
+//
+//	const DerivNode& Arg( int which ) const
+//
+//		Return a reference to the node's which'th function argument.
+//
+//
+// DerivNode private methods:
+//
+//		
+//	void Calculate( const Field flds[], const int nflds, const int ncalc, 
 //			const double* dataptrs[], double* out_data, 
 //			const double badval, ResultCache *rcache ) const
 //
 //		Private function to perform the guts of evaluation specific to
-//		a derived class if Eval() doesn't find the necessary results
-//		already in the cache.
-//
+//		a derived class.
 //
 
 class DerivNode;
@@ -97,12 +178,14 @@ public:
     virtual ostream& PutTo( ostream& s ) const = 0;
     virtual DerivNode* Copy( void ) const = 0;
     virtual Field* FieldList( int* nflds ) const = 0;
-    virtual DerivNode* MetaEval( DerivTable *dlist, const Field* avail, 
-				 int navail, const Field* cantuse = 0, 
-				 int ncantuse = 0 ) const = 0;
+    virtual DerivNode* MetaEval( const DerivTable* dtables[], 
+				 const int ndtables,
+				 const Field* avail, const int navail, 
+				 const Field* cantuse = 0, 
+				 const int ncantuse = 0 ) const = 0;
     void Eval( const Field flds[], const int nflds, const int ndata, 
-	       const double* dataptrs[], double* out_data, 
-	       const double badval, ResultCache *rcache = 0 ) const;
+	       const double* dataptrs[], double* out_data, const double badval,
+	       ResultCache *rcache = 0 ) const;
     virtual int operator ==( const DerivNode& d ) const = 0;
 private:
     virtual void Calculate( const Field flds[], const int nflds, 
@@ -124,8 +207,10 @@ public:
     ostream& PutTo( ostream& s ) const;
     DerivNode* Copy ( void ) const { return new ConstDNode( val ); }
     Field* FieldList( int* nflds ) const { *nflds = 0; return 0; };
-    DerivNode* MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-			 const Field *cantuse = 0, int ncantuse = 0 ) const;
+    DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables,
+			 const Field *avail, const int navail, 
+			 const Field *cantuse = 0, 
+			 const int ncantuse = 0 ) const;
     void Calculate( const Field flds[], const int nflds, const int ndata, 
 		    const double* dataptrs[], double* out_data, 
 		    const double badval, ResultCache *rcache ) const;
@@ -156,8 +241,10 @@ public:
     ostream& PutTo( ostream& s ) const;
     DerivNode* Copy( void ) const { return new OpDNode( *this ); }
     Field* FieldList( int* nflds ) const;
-    DerivNode* MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-			 const Field *cantuse = 0, int ncantuse = 0 ) const;
+    DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables, 
+			 const Field *avail, const int navail, 
+			 const Field *cantuse = 0, 
+			 const int ncantuse = 0 ) const;
     void Calculate( const Field flds[], const int nflds, const int ndata, 
 		    const double* dataptrs[], double* out_data, 
 		    const double badval, ResultCache *rcache ) const;
@@ -189,8 +276,10 @@ public:
     ostream& PutTo( ostream& s ) const;
     DerivNode* Copy( void ) const { return new RawFldDNode( *this ); }
     Field* FieldList( int* nflds ) const;
-    DerivNode* MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-			 const Field *cantuse = 0, int ncantuse = 0 ) const;
+    DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables,
+			 const Field *avail, const int navail, 
+			 const Field *cantuse = 0, 
+			 const int ncantuse = 0 ) const;
     void Calculate( const Field flds[], const int nflds, const int ndata, 
 		    const double* dataptrs[], double* out_data, 
 		    const double badval, ResultCache *rcache ) const;
@@ -223,8 +312,10 @@ public:
     ostream& PutTo( ostream& s ) const;
     DerivNode* Copy( void ) const { return new FuncDNode( *this ); }
     Field* FieldList( int* nflds ) const;
-    DerivNode* MetaEval( DerivTable *dlist, const Field *avail, int navail, 
-			 const Field *cantuse = 0, int ncantuse = 0 ) const;
+    DerivNode* MetaEval( const DerivTable* dtables[], const int ndtables,
+			 const Field *avail, const int navail, 
+			 const Field *cantuse = 0, 
+			 const int ncantuse = 0 ) const;
     void Calculate( const Field flds[], const int nflds, const int ndata, 
 		    const double* dataptrs[], double* out_data, 
 		    const double badval, ResultCache *rcache ) const;

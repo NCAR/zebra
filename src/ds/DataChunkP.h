@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.13 1997-02-14 07:14:45 granger Exp $ */
+/* $Id: DataChunkP.h,v 1.14 1997-11-21 20:36:15 burghart Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -151,8 +151,12 @@ typedef struct _BoundaryDataChunkPart
 /* 
  * MD_HASH_SIZE is defined next to DC_MaxField, in DataStore.h, 
  * since it depends on DC_MaxField
+ * 
+ * HASH_FIELD_ID NOTE: FieldIds are now pointers, and assuming that they're 
+ * aligned on 4-byte boundaries, we shift away those lower two bits that will 
+ * always be zero.
  */
-# define HASH_FIELD_ID(fid)	((fid)&(MD_HASH_SIZE-1))
+# define HASH_FIELD_ID(fid)	(((int)(fid)>>2)&(MD_HASH_SIZE-1))
 # define HASH_SIZE		MD_HASH_SIZE
 
 
@@ -167,7 +171,7 @@ typedef struct _FldInfo
 	DC_ElemType	fi_Types[DC_MaxField];	/* field element types	 */
 	int		fi_Sizes[DC_MaxField];	/* field sizes, if fixed */
 	int		fi_Offset[DC_MaxField];	/* offsets into sample	 */
-	FieldId		fi_HashIndex[HASH_SIZE];
+	int		fi_HashIndex[HASH_SIZE];
 	bool		fi_BlockChanges;	/* block changes, esp types */
 	bool		fi_Uniform;		/* Uniform length fields */
 	bool		fi_UniformOrg;		/* Uniform elems/sample	 */
@@ -191,6 +195,7 @@ typedef struct _MetDataChunk
  * Macros for fast access by subclasses
  */
 #define dc_IndexType(dc,idx) (FIP(dc)->fi_Types[(idx)])
+#define dc_FieldId(dc,idx) (FIP(dc)->fi_Fields[(idx)])
 
 /* ----------------------------------------------------------------------- */
 /* Scalar */

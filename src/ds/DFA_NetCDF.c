@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.60 1997-06-30 21:27:29 ishikawa Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.61 1997-11-21 20:36:10 burghart Exp $")
 
 # include <netcdf.h>
 
@@ -84,7 +84,7 @@ typedef struct _nctag
 					/*     RGrid z spacing		*/
 	float		*nc_alts;	/* Alts for 3dgrid and nspace	*/ 
 	int 		nc_nalts;	/* Number of available altitudes*/
-	int		nc_altvar;	/* Varid of source of altitudes	*/
+	FieldId		nc_altvar;	/* Varid of source of altitudes	*/
 } NCTag;
 
 
@@ -288,6 +288,7 @@ static char *	dnc_GetStringAtt FP ((int cdfid, int varid, char *att_name,
 static int	dnc_ReadGlobalAtts FP ((DataChunk *, NCTag *));
 static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
 static int	dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
+static FieldId	dnc_GetFieldByName FP ((NCTag *tag, char *fname));
 static void	strtolower FP ((char *c));
 
 /*
@@ -301,6 +302,7 @@ static void	strtolower FP ((char *c));
 #define VATT_LONGNAME	"long_name"	/* description of variable */
 #define VATT_UNITS	"units"		/* units of variable	   */
 #define VATT_MISSING	"missing_value" /* bad value		   */
+#define VATT_FTYPE	"field_type"	/* field type, for derivations */
 
 
 static inline double
@@ -617,7 +619,7 @@ int write;
 	tag->nc_subplats = (PlatformId *) NULL;
 	tag->nc_subindex = (int *) NULL;
 	tag->nc_nalts = 0;
-	tag->nc_altvar = -1;
+	tag->nc_altvar = BadField;
 	tag->nc_FMap = 0;
 /*
  * Deal with the time and field information.
@@ -712,7 +714,8 @@ NCTag *tag;
 	int ndim, nvar, natt, rdim, fld;
 	char *cp = FldBuf;
 	char longname[256];	/* anything bigger we'll just ignore */
-	char units[256];
+	char units[128];
+	char typename[128];
 /*
  * Do an inquire to see how many vars there are.
  */
@@ -735,11 +738,15 @@ NCTag *tag;
 		ncvarinq (tag->nc_id, fld, cp, &type, &ndim, dims, &natt);
 		sprintf (longname, cp);
 		sprintf (units, "unknown");
+		sprintf (typename, "");
+		
 		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_LONGNAME, 
-					longname, 256);
+					longname, sizeof(longname));
 		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_UNITS, 
-					units, 256);
-		tag->nc_FMap[fld] = F_DeclareField (cp, longname, units);
+					units, sizeof(units));
+		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_FTYPE, 
+					typename, sizeof(typename));
+		tag->nc_FMap[fld] = F_Field (cp, typename, longname, units);
 	}
 	return (TRUE);
 }
@@ -1885,17 +1892,18 @@ FieldId *fids;
 			continue;
 		for (j = 0; j < ndims; ++j)
 		{
-			/*
-			 * Look up this dimension name as a field.  If the
-			 * name is not known then it cannot be a variable
-			 * in this file, so we can ignore it.  Otherwise,
-			 * see if the field has a corresponding varid, which
-			 * would mean this dimension is a coordinate variable.
-			 * If so, add the dimension name's field id to the
-			 * list of variables to define, unless that field id
-			 * is already in the list.
-			 */
-			fid = F_Declared(names[j]);
+		/*
+		 * Try to find a field in this file with the same name as
+		 * the dimension.  If the name is not known then it cannot
+		 * be a variable in this file, so we can ignore it.
+		 * Otherwise, see if the field has a corresponding varid,
+		 * which would mean this dimension is a coordinate
+		 * variable.  If so, add the dimension name's field id to
+		 * the list of variables to define, unless that field id is
+		 * already in the list. 
+		 */
+			fid = dnc_GetFieldByName (tag, names[j]);
+		    
 			if ((fid != BadField) 
 			    && (dnc_GetFieldVar (tag, fid) >= 0)
 			    && (dc_GetFieldIndex (dc, fid) < 0))
@@ -2360,11 +2368,12 @@ int ndetail;
 	int varid;
 	int sbegin = dc_GetNSample (dc);
 	int dim, ndim, is_static;
-	int altid, altindex, dindex;
+	int altindex, dindex;
 	int nfield;
+	FieldId altid;
 	FieldId *fids = dc_GetFields (dc, &nfield);
 
-	altid = -1;
+	altid = BadField;
 	altindex = dnc_AltIndex (tag, details, ndetail);
 	if (altindex >= 0)
 		altid = F_Lookup ("altitude");
@@ -2378,8 +2387,8 @@ int ndetail;
 	{
 		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
 		{
-			msg_ELog (EF_DEBUG, "netcdf: missing field %d %s", 
-				  fids[field], 
+			msg_ELog (EF_DEBUG, "netcdf: missing field %s %s", 
+				  F_GetFullName (fids[field]), 
 				  "will be filled with bad values");
 		}
 		/*
@@ -2443,8 +2452,8 @@ int ndetail;
 		{
 			if (varid >= 0)
 				msg_ELog (EF_PROBLEM, 
-				  "dnc_ReadNSpace, error on field %i", 
-				  fids[field]);
+				  "dnc_ReadNSpace, error on field %s", 
+				  F_GetFullName(fids[field]));
 			if (! is_static)
 				dc_NSAddMissing (dc, tag->nc_times + begin,
 						 sbegin, nsamp, fids[field]);
@@ -2952,7 +2961,7 @@ int offset;
 		tag->nc_alts = NULL;
 		tag->nc_nalts = 0;
 		tag->nc_altUnits = DEF_ALT_UNITS;
-		tag->nc_altvar = -1;
+		tag->nc_altvar = BadField;
 	}
 /*
  * Now try to build an array of altitudes for this field.  Find the
@@ -3242,6 +3251,9 @@ int *dims;
 		attr = F_GetUnits(fids[var]);
 		(void) ncattput (tag->nc_id, varid, VATT_UNITS,
 				NC_CHAR, strlen(attr)+1, attr);
+		attr = F_GetTypeName(fids[var]);
+		(void) ncattput (tag->nc_id, varid, VATT_FTYPE,
+				NC_CHAR, strlen(attr)+1, attr);
 	/*
 	 * Add a missing_value attribute for this field, but only if one
 	 * was set specifically for this field, and only if the attribute
@@ -3372,7 +3384,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.60 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.61 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -4163,6 +4175,26 @@ FieldId *flist;
 		(*nfld)++;
 	}
 	return (TRUE);
+}
+
+
+
+static FieldId
+dnc_GetFieldByName (NCTag *tag, char *fname)
+/*
+ * Find a field with the given "fname" in this file, returning its FieldId.
+ * Only the field name is used; units, description, etc., are ignored.
+ */
+{
+    int f;
+
+    for (f = 0; f < tag->nc_nVar; f++)
+    {
+	if (! strcmp (fname, F_GetName (tag->nc_FMap[f])))
+	    return (tag->nc_FMap[f]);
+    }
+
+    return (BadField);
 }
 
 

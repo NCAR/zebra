@@ -25,17 +25,31 @@
 # include "Field.h"
 # include "DerivNode.h"
 
+//
+// Public methods for DerivTable:
+//
+//	void AddDerivation( const Field& fld, DerivNode *root )
+//
+//		Add the given derivation 'root' for Field 'fld'.  The pointer 
+//		'root' becomes the property of the DerivTable, and should not
+//		be deleted by the caller.
+//
+//
+//	DerivNode* NthDerivation( const Field& fld, const int n ) const
+//
+//		If it exists, return the 'n'th derivation in the list that 
+//		can yield 'fld', otherwise 0.  We return a copy that must be 
+//		deleted by the caller.
+//
+
+
 class DerivTable
 {
 public:
     DerivTable( void );
     ~DerivTable( void );
-//
-// When AddDerivation() is called, the passed DerivNode becomes the property
-// of the DerivTable
-//
     void AddDerivation( const Field& fld, DerivNode* root );
-    const DerivNode* NthDerivation( Field& fld, int n );
+    DerivNode* NthDerivation( const Field& fld, const int n ) const;
 private:
     Field*	flds;		// list of derivable fields
     DerivNode** root_nodes;	// list of associated derivation trees

@@ -700,7 +700,7 @@ ZebTime *now;
 		errors += TX_ClearAll(EF_PROBLEM);
 
 		/* test field limit */
-		did = F_Lookup("dimn12");
+		did = F_DeclareField ("dimn12", "Dimension", "none");
 		TX_ExpectMany (EF_PROBLEM, TRUE, 2, "DefineVar.*no more room");
 		for (i = 0; i < DC_MaxField + 2; ++i)
 		{
@@ -1264,10 +1264,10 @@ ZebTime *when;
 {
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	DataChunk *dc;
-	int dims[ DC_MaxDimension ];
+	FieldId dims[ DC_MaxDimension ];
 	int i, xid;
 	char buf[128];
-	FieldId power, gate, angle, fid;
+	FieldId power, gate, angle, fid, ht_p;
 	FieldId dfields[ DC_MaxField ];	/* dynamic field id's */
 	FieldId *fields;
 	int nfield;
@@ -1297,16 +1297,16 @@ ZebTime *when;
 	dc_NSDefineDimension (dc, angle, 10);
 	dc_NSDefineVariable (dc, angle, 1, &angle, TRUE);
 
-	fid = F_DeclareField ("height_p", "Array of heights for each power",
+	ht_p = F_DeclareField ("height_p", "Array of heights for each power",
 			      "km");
 	dims[0] = gate;
 	dims[1] = power;
-	dc_NSDefineVariable (dc, fid, 2, dims, TRUE);
-	dc_SetFieldAttr (dc, fid, "resolution", "0.01");
-	dc_SetFieldAttr (dc, fid, "field_index", "1");
+	dc_NSDefineVariable (dc, ht_p, 2, dims, TRUE);
+	dc_SetFieldAttr (dc, ht_p, "resolution", "0.01");
+	dc_SetFieldAttr (dc, ht_p, "field_index", "1");
 	dims[2] = angle;
 	nfield = 0;
-	dfields[nfield++] = F_Lookup ("height_p");
+	dfields[nfield++] = ht_p;
 	msg_ELog (EF_TEST, "defining %d dynamic fields", DC_MaxField - 4);
 	for (i = 0; i < DC_MaxField - 4; ++i)
 	{
@@ -1321,7 +1321,7 @@ ZebTime *when;
 	dc_NSAddStatic (dc, power, test_data);
 	dc_NSAddStatic (dc, gate, test_data);
 	dc_NSAddStatic (dc, angle, test_data);
-	dc_NSAddStatic (dc, F_Lookup ("height_p"), test_data);
+	dc_NSAddStatic (dc, ht_p, test_data);
 
 	for (i = 1; i < nfield; ++i)
 	{

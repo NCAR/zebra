@@ -79,7 +79,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.11 1997-08-07 19:51:13 ishikawa Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.12 1997-11-21 20:36:06 burghart Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -1070,7 +1070,7 @@ FieldId fid;
 		if (ftype == DFNT_CHAR)
 		{
 			((char *)values)[isize] = '\0';
-			if (fid < 0)
+			if (fid == BadField)
 				dc_SetGlobalAttrArray (dc, vsname, 
 						       DCT_String, 1, values);
 			else
@@ -1079,7 +1079,7 @@ FieldId fid;
 		}
 		else
 		{
-			if (fid < 0)
+			if (fid == BadField)
 				dc_SetGlobalAttrArray (dc, vsname, 
 				       dh_ElemType (ftype), count, values);
 			else
@@ -1102,7 +1102,7 @@ Htag *tag;
  * Read the global attributes from the global vgroup
  */
 {
-	dh_ReadVgroupAtts (dc, tag, tag->h_vgid, /*fid*/ -1);
+	dh_ReadVgroupAtts (dc, tag, tag->h_vgid, BadField);
 }
 
 

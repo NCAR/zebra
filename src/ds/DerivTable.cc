@@ -78,23 +78,42 @@ DerivTable::AddDerivation( const Field& f, DerivNode* dnode )
 
 
 
-const DerivNode*
-DerivTable::NthDerivation( Field& f, int n )
+DerivNode*
+DerivTable::NthDerivation( const Field& f, const int n ) const
 //
 // If it exists, return the nth derivation that can yield f, otherwise 0.
+// We return a copy that must be deleted by the caller.
 //
 {
-    int	which = 0;
+    int	which = 0, i;
+    double slope, intercept;
 
-    for (int i = 0; i < nderiv; i++)
+    for (i = 0; i < nderiv; i++)
     {
-	if (flds[i].CanYield( f ))
+	if (flds[i].CanYield( f, &slope, &intercept ))
 	{
-	    if (which == n)
-		return root_nodes[i];
-	    else
+	    if (which < n)
 		which++;
+	    else
+		break;
 	}
     }
-    return 0;
+//
+// We failed if we got to the end of our list of derivations
+//
+    if (i == nderiv)
+	return 0;
+//
+// We have the nth derivation, so apply the slope and intercept if necessary
+// and return
+//
+    DerivNode *dtree = root_nodes[i]->Copy();
+    
+    if (slope != 1.0)
+	dtree = new OpDNode( "*", new ConstDNode( slope ), dtree );
+
+    if (intercept != 0.0)
+	dtree = new OpDNode( "+", new ConstDNode( intercept ), dtree );
+
+    return dtree;
 }

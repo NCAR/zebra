@@ -1,6 +1,6 @@
 //
 // The Zebra data store field class
-// $Id: Field.h,v 3.2 1997-09-24 15:12:40 burghart Exp $
+// $Id: Field.h,v 3.3 1997-11-21 20:36:31 burghart Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research
@@ -25,11 +25,8 @@
 
 # include <stdlib.h>
 # include <iostream.h>
-extern "C"
-{
-# include <udunits.h>
-}
 
+class utUnit;
 class Field;
 
 //
@@ -47,11 +44,12 @@ public:
 	   const char* funits = 0, const char* fdesc = 0 );
 // use our assignment operator for copying
     Field( const Field& src ) { ud_units = 0; *this = src; };
-    ~Field( void ) { delete ud_units; };
+    ~Field( void );
     inline const char* Name( void ) const { return (name); }
     inline const char* TypeName( void ) const { return (type); }
     inline const char* Desc( void ) const { return (desc); }
     inline const char* Units( void ) const { return (units); }
+    const char* FullName( void ) const;
     char CanYield( const Field &wanted, double *slope = 0, 
 		   double *intercept = 0) const;
     ostream& PutTo( ostream& s ) const;  

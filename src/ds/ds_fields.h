@@ -1,7 +1,9 @@
 /*
- * Fields module stuff.
+ * Fields module stuff.  Don't #include this file in your code, though.  
+ * Include DataStore.h instead, since they are interdependent and DataStore.h
+ * includes this file.
  *
- * $Id: ds_fields.h,v 1.6 1996-11-21 22:20:25 granger Exp $
+ * $Id: ds_fields.h,v 1.7 1997-11-21 20:37:01 burghart Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -24,22 +26,44 @@
 # ifndef __DS_FIELDS_H__
 # define __DS_FIELDS_H__
 
+# ifdef __cplusplus
+extern "C" 
+{
+# endif /* __cplusplus */
+
 /*
  * The basic field ID type.
  */
-typedef int FieldId;
+typedef void* FieldId;
 
-# define BadField -1
 
-void	F_Init FP((void));
-void	F_Closure FP((void));
-void 	F_Reset FP((void));
-FieldId	F_Lookup FP((const char *));
-FieldId F_DeclareField FP((const char *, const char *, const char *));
-FieldId F_Declared FP((const char *name));
-FieldId F_Alias FP((const char *, const char *));
-char *	F_GetName FP((FieldId));
-char *	F_GetUnits FP((FieldId));
-char *	F_GetDesc FP((FieldId));
+# define BadField ((FieldId)0)
+
+void	F_Init (void);
+void	F_Closure (void);
+void 	F_Reset (void);
+FieldId	F_Lookup (const char *name);
+FieldId F_DeclareField (const char *name, const char *desc, const char *units);
+FieldId F_Field (const char *name, const char* type, const char *desc, 
+		 const char *units);
+FieldId F_Declared (const char *name);
+FieldId F_Alias (const char *name, const char *alias);
+char*	F_GetName (FieldId id);
+char*	F_GetUnits (FieldId id);
+char*	F_GetDesc (FieldId id);
+char*	F_GetTypeName (FieldId id);
+char*	F_GetFullName (FieldId id);
+
+
+# ifdef __cplusplus
+
+// and one function for those who can deal with class Field
+
+class Field;
+FieldId F_FieldId( const Field& f );
+
+} // end of extern "C"
+
+# endif
 
 # endif /* __DS_FIELDS_H__ */

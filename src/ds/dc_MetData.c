@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.22 1997-02-12 08:55:08 granger Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.23 1997-11-21 20:36:52 burghart Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -237,7 +237,26 @@ FieldId *fields;
 
 
 
+void
+dc_ChangeFld (DataChunk *dc, FieldId oldfid, FieldId newfid)
+/*
+ * Change the field with FieldId 'oldfid' to have FieldId 'newfid'.
+ */
+{
+    int idx;
+    FldInfo *finfo = FIP(dc);
 
+    if ((idx = dc_GetIndex (finfo, oldfid)) >= 0)
+    {
+	finfo->fi_Fields[idx] = newfid;
+	dc_ClearHash (finfo);
+	dc_BuildIndexHash (finfo, 0, finfo->fi_NField);
+    }
+}
+
+
+
+    
 #ifdef CFG_DC_OLDFIELDS	/* --------------------------------------- */
 void
 dc_SetupUniformFields (dc, nsamples, nfield, fields, size)
@@ -1195,7 +1214,8 @@ int len;
 	type = dc_Type (dc, fid);
 	if (type == DCT_Unknown)
 	{
-		msg_ELog (EF_PROBLEM, "attempt to fill unknown field %d", fid);
+		msg_ELog (EF_PROBLEM, "attempt to fill unknown field %s", 
+			  F_GetFullName (fid));
 		return (0);
 	}
 	ptr = dc_FindFieldBadval (dc, fid);
@@ -1282,8 +1302,8 @@ int *len;
  */
 	if ((findex = dc_GetIndex (finfo, field)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Attempt to get field %d not in finfo",
-				field);
+		msg_ELog (EF_PROBLEM, "Attempt to get field %s not in finfo",
+			  F_GetFullName (field));
 		return (NULL);
 	}
 /*
@@ -1360,7 +1380,7 @@ int *len;
 	{
 		if (len) len[f] = 0;
 		fdata[f] = NULL;
-		if ((fields[f] < 0) ||
+		if ((fields[f] == BadField) ||
 		    (findex = dc_GetIndex (finfo, fields[f])) < 0)
 			continue;
 		/*

@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.9 1997-06-17 06:20:50 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.10 1997-11-21 20:36:48 burghart Exp $")
 
 
 /*
@@ -338,6 +338,7 @@ int *natts;
 # define PK_F_NAME	"z-field-name"
 # define PK_F_DESC	"z-field-desc"
 # define PK_F_UNITS	"z-field-units"
+# define PK_F_TYPE	"z-field-type"
 
 /*
  * The base value for private field attribute id's, to which the field
@@ -696,6 +697,8 @@ dc_StoreFieldDefs (DataChunk *dc)
 				       DCT_String, 1, F_GetDesc(fids[i]));
 		dcp_SetFieldAttrArray (dc, fids[i], PK_F_UNITS,
 				       DCT_String, 1, F_GetUnits(fids[i]));
+		dcp_SetFieldAttrArray (dc, fids[i], PK_F_TYPE,
+				       DCT_String, 1, F_GetTypeName(fids[i]));
 	}
 }
 
@@ -707,7 +710,7 @@ dc_RestoreFieldDef (DataChunk *dc, int i)
  * Define an id for the field in this datachunk with index i.
  */
 {
-	char *name, *desc, *units;
+	char *name, *desc, *units, *type;
 	FieldId fid = BadField;
 
 	name = dca_GetAttrArray (dc, DCP_MetData, i+PF_BASE,
@@ -716,14 +719,17 @@ dc_RestoreFieldDef (DataChunk *dc, int i)
 				 PK_F_DESC, NULL, NULL);
 	units = dca_GetAttrArray (dc, DCP_MetData, i+PF_BASE,
 				  PK_F_UNITS, NULL, NULL);
-	if (! name || ! desc || ! units)
+	type = dca_GetAttrArray (dc, DCP_MetData, i+PF_BASE, 
+				 PK_F_TYPE, NULL, NULL);
+
+	if (! name || ! desc || ! units || ! type)
 	{
-		msg_ELog (EF_PROBLEM, "%s for field index %i", 
-			  "missing private defn atts", i);
+		msg_ELog (EF_PROBLEM,
+			  "Missing private defn atts for field index %i", i);
 	}
 	else
 	{
-		fid = F_DeclareField (name, desc, units);
+		fid = F_Field (name, type, desc, units);
 	}
 	return (fid);
 }
