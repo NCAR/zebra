@@ -1,10 +1,12 @@
 global
 	axis-bottom-space:	0.05
 	hgrid:		200
+	icon-left-menu:	xsect-global-left
 	left-endpoint:	-50.0,0.0
 	pd-name:	xsect-template
 	plot-mode:	real-time
 	plot-type:	xsect
+	require:	xsect
 	right-endpoint:	50.0,0.0
 	vgrid:		150
 	xsect-limit-proc:	adj_xsect_limits
