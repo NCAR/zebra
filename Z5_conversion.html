@@ -2,7 +2,7 @@
 <html>
 <head>
    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-   <meta name="GENERATOR" content="Mozilla/4.6 [en] (X11; U; Linux 2.0.36 i686) [Netscape]">
+   <meta name="GENERATOR" content="Mozilla/4.6 [en] (X11; I; Linux 2.2.5-15 i686) [Netscape]">
 </head>
 <body>
 
@@ -246,11 +246,12 @@ which will crate an alias that applies only to <tt>myplat</tt>.
 Display Manager</h2>
 One small change is recommended for display manager control files <tt>dm.config</tt>
 and <tt>IconBar</tt>.&nbsp; Some of these files set the variable <tt>ui$icon_directory</tt>;
-often this is done in IconBar with a line like:
+often this is done in <tt>IconBar</tt> with a line like:
 <blockquote><tt>set ui$bitmap_directory concat(c$libdir, "/icons")</tt></blockquote>
-It is recommended instead to use the variable ui$bitmap_path, which can
-give a number of directories to search for icons and bitmaps, and to set
-this variable in dm.config (rather than IconBar) as follows:
+It is recommended instead to use the variable <tt>ui$bitmap_path</tt>,
+which can give a number of directories to search for icons and bitmaps,
+and to set this variable in <tt>dm.config</tt> (rather than <tt>IconBar</tt>)
+as follows:
 <blockquote><tt>set ui$bitmap_path concat3("./icons,",c$libdir, "/icons")</tt></blockquote>
 This will make the display manager look for icons first in the project's
 <tt>icons</tt>
