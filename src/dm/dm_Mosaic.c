@@ -14,6 +14,7 @@
 # include "dm.h"
 # include "dm_vars.h"
 
+# define URL_LEN (2 * CFG_FILEPATH_LEN)
 
 /*
  * When Mosaic is running, we keep it's PID here.
@@ -33,7 +34,7 @@ char *url;
  * Get a help window going with this URL.
  */
 {
-	char realurl[CFG_FILEPATH_LEN];
+	char realurl[ URL_LEN ];
 /*
  * Figure out what we are really looking at.
  */
@@ -72,8 +73,8 @@ char *url, *realurl;
  * Locate this URL and turn it into a full path name.
  */
 {
-	char temp[CFG_FILEPATH_LEN];
-	char section[CFG_FILEPATH_LEN];
+	char temp[ URL_LEN ];
+	char section[ URL_LEN ];
 	char *c, *sharp;
 /*
  * If this is some sort of network URL we don't mess with it.
@@ -111,6 +112,13 @@ char *url, *realurl;
 		strcat (realurl, "#");
 		strcat (realurl, section);
 	}
+/*
+ * The full URL includes file and localhost, so that the URL is
+ * found locally rather than at any current remote server.
+ */
+	sprintf (temp, "file://localhost%s%s", 
+		 (realurl[0] == '/') ? "" : "/", realurl);
+	strcpy (realurl, temp);
 	return (TRUE);
 }
 
