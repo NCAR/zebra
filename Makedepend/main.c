@@ -5,7 +5,6 @@
 #ifdef hpux
 #define sigvec sigvector
 #endif /* hpux */
-
 #ifndef X_NOT_POSIX
 #ifndef _POSIX_SOURCE
 #define _POSIX_SOURCE
@@ -267,7 +266,9 @@ main(argc, argv)
 	sigemptyset(&sig_act.sa_mask);
 	sigaddset(&sig_act.sa_mask, SIGINT);
 	sigaddset(&sig_act.sa_mask, SIGQUIT);
+#ifndef __sgi
 	sigaddset(&sig_act.sa_mask, SIGBUS);
+#endif
 	sigaddset(&sig_act.sa_mask, SIGILL);
 	sigaddset(&sig_act.sa_mask, SIGSEGV);
 	sigaddset(&sig_act.sa_mask, SIGHUP);
@@ -288,7 +289,9 @@ main(argc, argv)
 	sigaction(SIGINT, &sig_act, (struct sigaction *)0);
 	sigaction(SIGQUIT, &sig_act, (struct sigaction *)0);
 	sigaction(SIGILL, &sig_act, (struct sigaction *)0);
+#ifndef __sgi
 	sigaction(SIGBUS, &sig_act, (struct sigaction *)0);
+#endif
 	sigaction(SIGSEGV, &sig_act, (struct sigaction *)0);
 	sigaction(SIGSYS, &sig_act, (struct sigaction *)0);
 #endif /* USGISH */
