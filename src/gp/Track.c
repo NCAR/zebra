@@ -1,7 +1,6 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.8 1991-11-22 20:52:44 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,24 +37,18 @@ static char *rcsid = "$Id: Track.c,v 2.8 1991-11-22 20:52:44 kris Exp $";
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
+MAKE_RCSID ("$Id: Track.c,v 2.9 1991-12-05 22:50:59 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
-
-extern Pixel White;	/* XXX */
 
 
 /*
  * Forwards.
  */
-# ifdef __STDC__
-	static bool tr_CCSetup (char *, char *, char *, char *, XColor **,
-		int *, float *, float *, XColor *, float *, float *);
-	static void tr_GetArrowParams (char *, char *, float *, int *, int *,
-			int *, char *, XColor *, char *, char *, char *);
-# else
-	static bool tr_CCSetup ();
-	static void tr_GetArrowParams ();
-# endif
+static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
+		int *, float *, float *, XColor *, float *, float *));
+static void tr_GetArrowParams FP((char *, char *, float *, int *, int *,
+		int *, char *, XColor *, char *, char *, char *));
 
 # define BADVAL -32768
 
