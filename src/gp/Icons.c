@@ -65,7 +65,7 @@ struct IconList
 };
 static struct IconList *AvailIcons = NULL; /* Which icons are available	*/
 static struct IconList *UsedIcons = NULL; /* Which are in use		*/
-static struct IconList *AvailPos = NULL; /* Which position icons are available*/
+static struct IconList *AvailPos = NULL; /*Which position icons are available*/
 static struct IconList *UsedPos = NULL;	/* Which position icons are in use*/
 
 /*
@@ -78,18 +78,11 @@ static stbl IconTable = 0;
 /*
  * Forwards.
  */
-# ifdef __STDC__
-	static Pixmap I_GetIcon (char *, int *, int *, int);
-	static struct IconList *I_PutIcon (Pixmap, int *, int, int);
-	static struct IconList *I_GetWidget (struct IconList **, 
-			struct IconList **);
-	static void I_MenuPopup (Widget, XEvent *);
-# else
-	static Pixmap I_GetIcon();
-	static struct IconList *I_PutIcon();
-	static struct IconList *I_GetWidget();
-	static void I_MenuPopup();
-# endif
+static Pixmap I_GetIcon FP ((char *, int *, int *, int));
+static struct IconList *I_PutIcon FP ((Pixmap, int *, int, int));
+static struct IconList *I_GetWidget FP ((struct IconList **,
+		struct IconList **));
+static void I_MenuPopup FP ((Widget, XEvent *, String *, Cardinal *));
 
 
 /*
@@ -432,11 +425,13 @@ struct IconList	**avail, **used;
 
 
 
-
+/* ARGSUSED */
 static void
-I_MenuPopup (w, ev)
+I_MenuPopup (w, ev, stringjunk, cardjunk)
 Widget w;
 XEvent *ev;
+String *stringjunk;
+Cardinal *cardjunk;
 /*
  * Deal with a button event.
  */
