@@ -13,7 +13,7 @@
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/SmeBSB.h>
 # include <X11/Xaw/SmeLine.h>
-# include <X11/Cardinals.h>
+# include <X11/Xaw/Cardinals.h>
 # include "defs.h"
 # include "../include/message.h"
 # include "../include/dm.h"
@@ -47,7 +47,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 1.2 1990-07-08 13:06:10 corbet Exp $\n";
+static char *Initmsg = "$Id: EventLogger.c,v 1.3 1990-08-20 20:43:05 corbet Exp $\n";
 
 /*
  * Our widgets.
