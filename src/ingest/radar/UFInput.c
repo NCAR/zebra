@@ -116,7 +116,7 @@ ScaleInfo	*scale;
  *	interleaved.
  */
 {
-	int	numfields = 0, i, j;
+	int	numfields = 0, i, j, rhozero;
 	float	londeg, latdeg, fcount;
 	int	status, rec_len, rec_len2;
 	short	raw_rec[BUFLEN];
@@ -306,9 +306,11 @@ ScaleInfo	*scale;
 	fhdr = fldhdr[0];
 	
 	Hk.gate_spacing = fhdr[4];		/* gate spacing (m) */
-	Hk.rhozero1 = fhdr[2];       		/* range to leading edge of */
-	Hk.rhozero2 = fhdr[3] - fhdr[4] / 2;	/* 1st gate = rhozero1 +    */
-						/* rhozero2/1000 (in km)    */
+
+	rhozero = 1000 * fhdr[2] + fhdr[3] - fhdr[4] / 2;
+	Hk.rhozero1 = rhozero / 1000;	/* range to leading edge of */
+	Hk.rhozero2 = rhozero % 1000;	/* 1st gate = rhozero1 +    */
+					/* rhozero2/1000 (in km)    */
 	numgates = Hk.gates_per_beam = fhdr[5];
 /*
  * Allocate data space
