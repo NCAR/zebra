@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.27 2003-05-22 22:41:00 burghart Exp $
+# $Id: zplotbatch,v 1.28 2004-07-13 22:27:26 burghart Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -222,7 +222,8 @@ while read when config windows; do
 	     zquery -t 15 $plot >/dev/null ; set -x ; \
 	     $convert $font -gravity southwest -fill black -box white \
 		-draw "text 20,20 ' REAL-TIME DATA, NOT CHECKED FOR QUALITY '"\
-		"${name}.xwd" "${name}.png" ; \
+		"${name}.xwd" "png:${name}.png.tmp" ; \
+	     /bin/mv -f "${name}.png.tmp" "${name}.png" ; \
 	     /bin/rm -f "${name}.xwd" ) &
 	    queryprocs="$queryprocs $plot"
 
