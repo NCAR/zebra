@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zeb startup script.
 #
-# $Id: startzeb.sh,v 1.4 1994-05-18 19:22:50 corbet Exp $
+# $Id: startzeb.sh,v 1.5 1994-06-29 20:34:46 case Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -17,7 +17,16 @@
 # Tweak some important variables.
 #
 	set path=($ZEB_TOPDIR/bin $path)
-	setenv XAPPLRESDIR $ZEB_TOPDIR/lib/resources
+
+# Make sure ZEB_TOPDIR/lib/resources gets included in the Resource Search path
+
+        if ( $?XUSERFILESEARCHPATH ) then
+                setenv XUSERFILESEARCHPATH \
+			${XUSERFILESEARCHPATH}:$ZEB_TOPDIR/lib/resources/%N
+        else
+                setenv XAPPLRESDIR $ZEB_TOPDIR/lib/resources
+        endif
+
 #
 # Make pointers to all of our executables so that somebody can
 # override them if desired.
@@ -96,7 +105,7 @@ ddir_again:
 # Set the color map to something that will hopefully make outlines
 # show up
 #
-	setenv HOST `hostname`
+	setenv HOST `uname -n`
 	tweakcolor red
 #
 # Clean up any old stuff that might be around.
