@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.55 1997-01-14 22:09:30 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.56 1997-02-18 22:22:04 granger Exp $"
 
 DEPLIBS=$(LIBZEBRA)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -64,13 +64,6 @@ TESTSRCS = aline.c apple.c T_HDF.c \
            T_NSpace.c T_Scalar.c T_Grids.c T_Attr.c T_Transparent.c \
            T_MetData.c T_ZNF.c T_Utils.c T_DataStore.c \
            T_NetCDF.c T_Appl.c T_DataFormat.c T_DataChunk.c T_Fields.c
-
-/*
- * Tests which do not include C source files, and so can be
- * included on makedepend command line.
- */
-TESTDEPS = aline.c apple.c T_NSpace.c T_Scalar.c T_Grids.c T_Attr.c \
-           T_Utils.c T_DataStore.c T_Fields.c
 
 TESTOBJS = T_NSpace.o T_Scalar.o T_Grids.o T_Attr.o T_Transparent.o \
            T_MetData.o T_ZNF.o T_Utils.o T_DataStore.o T_Fields.o \
@@ -303,25 +296,9 @@ saber_lib:
 	#load $(CFLAGS) -I/usr/local/include $(DSLIBSRCS) $(DCOBJS)
 	#load -Bstatic $(LIBS) $(LIBGCC)
 
-DependTarget()
-
-testdepend:
-	$(MAKE) depend SRCS='$(SRCS) $(TESTDEPS)'
-
-mft: Makefile testdepend
-
-/*
- * These object files include C source files, so we must hardcode their
- * dependencies on the corresponding objects, which in turn have their
- * header dependencies calculated by makedepend.
- */
-T_Appl.o: Appl.o apple.h
-T_DataFormat.o: DataFormat.o apple.h
-T_DataChunk.o: DataChunk.o apple.h
-T_MetData.o: dc_MetData.o apple.h
-T_NetCDF.o: DFA_NetCDF.o apple.h
-T_Transparent.o: dc_Transp.o apple.h
-T_ZNF.o: DFA_Zebra.o apple.h
+ZebraMakeDepend()
+CcDependTarget($(SRCS))
+CcDependTarget($(TESTSRCS))
 
 LintTarget()
 
