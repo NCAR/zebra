@@ -6,7 +6,7 @@
 /* SYS_LIBRARIES= -lXaw -lXmu $(XPMLIB) $(XTOOLLIB) $(XLIB)  */
 SYS_LIBRARIES= $(XLIBS)
 
-INCLUDES = -I.
+INCLUDES = -I. $(XINCLUDES)
 SRCS= LiteClueTest.c LiteClue.c
 OBJS= LiteClueTest.o LiteClue.o
 PROGRAM= LiteClueTest 
