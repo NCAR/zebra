@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.3 1996-11-19 07:13:15 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.4 1996-11-22 20:45:27 granger Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
@@ -88,8 +88,9 @@ char **argv;
 /*
  * Check args.
  */
-	len = strlen(argv[1]);
-	if ((argc < 2) || ((len > 1) && (!strncmp (argv[1], "-help", len))))
+	if ((argc < 2) || 
+	    (((len = strlen(argv[1])) > 1) && 
+	     (!strncmp (argv[1], "-help", len))))
 	{
 		usage (argv[0]);
 		exit (0);
