@@ -9,9 +9,13 @@
 # include "ui_error.h"
 # include "ui_globals.h"
 
+# if defined (aix) || defined (__osf__)	/* For DEC and IBM machines */
+# include <malloc.h>
+# else
 extern char *malloc ();
+# endif
 
-static char *rcsid = "$Id: ui_function.c,v 1.9 1993-02-24 21:00:46 corbet Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.10 1997-05-12 22:24:53 ishikawa Exp $";
 
 /*
  * These structures represent functions.
@@ -543,7 +547,11 @@ union usy_value	*argv, *retv;
  */
 {
 	int	i;
-	char *slash, *strrchr ();
+	char *slash;
+
+# indef aix			/* For IBM machines */ 
+	char *strrchr ();
+# endif
 
 	if (slash = strrchr (argv[0].us_v_ptr, '/'))
 		retv->us_v_ptr = usy_string (slash + 1);
