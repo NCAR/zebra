@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.51 1996-12-09 17:52:18 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.52 1996-12-19 23:35:13 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -231,7 +231,7 @@ TESTOUT = > /dev/null 2>&1
 #endif
 ALINE = aline -n 4 $(DEBUG_FLAG) -per 3 -inv $(INVENTORY)
 DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
-APPLE = apple -a -c 2 $(DEBUG_FLAG) | sed 's/^Will.*Tell: //'
+APPLE = apple -a -c 2 $(DEBUG_FLAG)
 
 test:: test.session test.aline.only test.apple.only test.close
 
@@ -245,12 +245,14 @@ test.apple: test.apple.only test.close
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
 
 
-test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
+test.session: test.close $(SOCKET)
+
+$(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	TEST_ENV
 	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET; \
 	set -x; \
-	$(MESSAGE) $(TESTOUT) ; \
+	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
