@@ -105,7 +105,7 @@ bool	update;
 /*
  * Break apart the platform names
  */
-	nplat = xs_CommaParse (platforms, pnames);
+	nplat = CommaParse (platforms, pnames);
 	if (nplat > 3)
 		nplat = 3;
 /*

@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  *
- * $Revision: 1.1 $ $Date: 1991-02-11 17:51:56 $ $Author: burghart $
+ * $Revision: 1.2 $ $Date: 1991-03-05 21:34:08 $ $Author: corbet $
  */
 # include <math.h>
 # include <ctype.h>
@@ -108,7 +108,7 @@ XRectangle	Clip, Unclip;
 void	xs_XSect (), xs_Background ();
 void	xs_TimeHeight (), xs_Spatial (), xs_ExtendTrace (), xs_PutData ();
 void	xs_DrawTrace (), xs_AddToLevel (), xs_BuildLimits ();
-int	xs_Pos (), xs_TimePos (), xs_ZIndex (), xs_CommaParse ();
+int	xs_Pos (), xs_TimePos (), xs_ZIndex ();
 
 
 
@@ -382,7 +382,7 @@ char	*platforms, *fldname;
 /*
  * Parse out platform names
  */
-	nplat = xs_CommaParse (platforms, pnames);
+	nplat = CommaParse (platforms, pnames);
 /*
  * Vertical grid spacing
  */
@@ -1056,7 +1056,7 @@ char	*c;
 	if (! ok)
 		return;
 
-	if ((nvals = xs_CommaParse (string, vals)) != 2)
+	if ((nvals = CommaParse (string, vals)) != 2)
 		msg_ELog (EF_PROBLEM, "Endpoints must be in x,y format");
 
 
@@ -1072,7 +1072,7 @@ char	*c;
 	if (! ok)
 		return;
 
-	if ((nvals = xs_CommaParse (string, vals)) != 2)
+	if ((nvals = CommaParse (string, vals)) != 2)
 		msg_ELog (EF_PROBLEM, "Endpoints must be in x,y format");
 
 
@@ -1487,49 +1487,4 @@ char	*name;
  * Set up to start a new trace
  */
 	Tracelen = 0;
-}
-
-
-
-
-int
-xs_CommaParse (string, substrings)
-char	*string, **substrings;
-/*
- * Parse comma-separated names from 'string' by putting NULLs in place of
- * the commas, and putting pointers to the beginning of each name into the
- * 'substrings' array.  Return the number of substrings in the string.
- */
-{
-	int	i = 0, nsubs = 0;
-
-	while (TRUE)
-	{
-	/*
-	 * Skip leading white space
-	 */
-		while (string[i] == ' ' || string[i] == '\11')
-			i++;
-
-		if (string[i] == '\0')
-			break;
-	/*
-	 * We're at the beginning of a substring
-	 */
-		substrings[nsubs++] = string + i;
-	/*
-	 * Skip characters until we hit a comma or the end of 'string'
-	 */
-		while (string[i] != ',' && string[i] != '\0')
-			i++;
-	/*
-	 * Replace a comma with a NULL or quit if we are at the end
-	 */
-		if (string[i] == ',')
-			string[i++] = '\0';
-		else
-			break;
-	}
-
-	return (nsubs);
 }
