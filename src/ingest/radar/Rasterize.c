@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.12 1995-09-20 20:45:37 burghart Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.13 1996-04-19 18:25:11 burghart Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -536,6 +536,14 @@ Beam beam;
  */
 	NextNewVol |= (ScanMode != hk->scan_mode) ||
 		(TrustVol && hk->vol_count != vol);
+
+	if (ScanMode != hk->scan_mode)
+		msg_ELog (EF_DEBUG, "Scan mode change: %d -> %d\n", ScanMode,
+			  hk->scan_mode);
+
+	if (TrustVol && hk->vol_count != vol)
+		msg_ELog (EF_DEBUG, "Volume count change: %d -> %d\n", vol,
+			  hk->vol_count);
 /*
  * Remember the info about this sweep, and get started.
  */
