@@ -1,5 +1,5 @@
 /*
- * $Id: tao_ingest.c,v 1.0 1993-02-02 17:29:20 granger Exp $
+ * $Id: tao_ingest.c,v 1.1 1993-05-18 20:24:22 granger Exp $
  *
  * Ingest TAO moorings data as an irregular grid
  *
@@ -27,7 +27,7 @@
 #include <copyright.h>
 
 #ifndef lint
-MAKE_RCSID("$Id: tao_ingest.c,v 1.0 1993-02-02 17:29:20 granger Exp $")
+MAKE_RCSID("$Id: tao_ingest.c,v 1.1 1993-05-18 20:24:22 granger Exp $")
 #endif
 
 # define NUMBER(arr)		((unsigned long)(sizeof(arr)/sizeof(arr[0])))
@@ -36,8 +36,6 @@ MAKE_RCSID("$Id: tao_ingest.c,v 1.0 1993-02-02 17:29:20 granger Exp $")
 # define FIRST_GUESS_SIZE	(14 * NUMBER(TaoFields))	/* 2 weeks worth    */
 # define STEP_SIZE		(14 * NUMBER(TaoFields))	/* Add two weeks    */
 # define DAYS(a,b)		(((b).zt_Sec - (a).zt_Sec)/(24 * 60 * 60))
-# define EF_DEVELOP		EF_DEBUG 	/* until ingest.c updates available */
-# define IngestRemoveOptions	RemoveOptions	/* " 				    */
 
 /*
  * Describe the TAO fields and units in static global arrays.  The names and
@@ -66,25 +64,26 @@ static void	GetLocation FP((Location *locn, const char *name));
 static void	DefineFields();
 static float    *ReadFileData FP((const char *filename, ZebTime *start, 
 				  ZebTime *end));
+static void 	ZebTimeFromJulian FP((ZebTime *zt, unsigned long jday));
 
 
 int main (argc, argv)
 	int argc;
 	char **argv;
 {
-	ZebTime *times;		/* Times of for daily samples from first to last    */
-	int ntimes;		/* Number of daily samples between first and last   */
-	ZebTime first, last;	/* Earliest and latest sample times among all plats */
-	ZebTime *begins, *ends;	/* Begin and end times of each platform's data	    */
-	int nsamples;		/* Number of samples, or pts, in the file 	    */
-	DataChunk *dc;   	/* The DataChunk we will be building 		    */
-	Location *locns;	/* Locations for each platform 			    */
-	PlatformId *pids;	/* Platform id of each subplatform		    */
-	int nplats;		/* Number of files (platforms) on command line	    */
-	char *plat;		/* Points to plat name from file path of datafile   */
-	float **platdata;	/* Arrays of float data read from each file	    */
-	PlatformId parent;	/* parent platform of all of the subplatforms	    */
-	float *fieldgrid;	/* Data for one grid, one field, in platform order  */
+	ZebTime *times;		/* Times of daily samples from first to last */
+	int ntimes;		/* Number daily samples bet first and last   */
+	ZebTime first, last;	/* Earliest/latest sample times among plats  */
+	ZebTime *begins, *ends;	/* Begin & end times of each platform's data */
+	int nsamples;		/* Number of samples, or pts, in the file    */
+	DataChunk *dc;   	/* The DataChunk we will be building 	     */
+	Location *locns;	/* Locations for each platform 		     */
+	PlatformId *pids;	/* Platform id of each subplatform	     */
+	int nplats;		/* Number of files (plats) on command line   */
+	char *plat;		/* Pts to plat name in file path of datafile */
+	float **platdata;	/* Arrays of float data read from each file  */
+	PlatformId parent;	/* parent platform of all of the subplatforms*/
+	float *fieldgrid;	/* Data for 1 grid, 1 field, in plat order   */
 	int t, i, fld;
 	char echo[100];
 
@@ -133,11 +132,13 @@ int main (argc, argv)
 			exit(1);
 		}
 		GetLocation(&locns[i], plat);
-		IngestLog(EF_DEBUG, "Reading platform: %s, %3.0f lat, %3.0f lon", 
+		IngestLog(EF_DEBUG, 	
+			  "Reading platform: %s, %3.0f lat, %3.0f lon", 
 			  plat, locns[i].l_lat, locns[i].l_lon);
 	/*
 	 * Read this file.  Get its begin time, end time, and data.  Data is
-	 * stored as sample-major: t1: f1, f2, f3, ...; t2: f1, f2, f3, ...; ...
+	 * stored in sample-major order: 
+	 * t1: f1, f2, f3, ...; t2: f1, f2, f3, ...; ...
 	 */
 		platdata[i] = ReadFileData(argv[i+1], &begins[i], &ends[i]);
 	}
@@ -200,7 +201,8 @@ int main (argc, argv)
 		{
 			for (i = 0; i < nplats; ++i)
 			{
-				if (!platdata[i] || TC_Less(times[t],begins[i]) 
+				if (!platdata[i]
+				    || TC_Less(times[t],begins[i])
 				    || TC_Less(ends[i],times[t]))
 				{
 					fieldgrid[i] = BADVAL;
@@ -208,11 +210,12 @@ int main (argc, argv)
 				else
 				{
 					fieldgrid[i] = 
-						(platdata[i])[DAYS(begins[i],times[t])
-							      *NUMBER(TaoFields)+fld];
+					(platdata[i])[DAYS(begins[i],times[t])
+						      *NUMBER(TaoFields)+fld];
 				}
 			}
-			dc_IRAddGrid (dc, times+t, t, TaoFieldIds[fld], fieldgrid);
+			dc_IRAddGrid (dc, times+t, t, TaoFieldIds[fld], 
+				      fieldgrid);
 		}
 	}
 /*
@@ -227,6 +230,7 @@ int main (argc, argv)
 
 
 
+static void
 ZebTimeFromJulian(zt, jday)
 	ZebTime *zt;		/* where to store ZebTime */
 	unsigned long jday;	/* Julian day to convert  */
@@ -310,18 +314,18 @@ ReadFileData(filename, start, end)
 	FILE *infile;
 	float *data;
 	float val;
-	int i, fld;		/* counters				       */
-	unsigned long jday;	/* Julian day read for each line	       */
+	int i, fld;		/* counters				    */
+	unsigned long jday;	/* Julian day read for each line	    */
 	unsigned long jyesterday;
-	int ndata;		/* no. of floats available in data array       */
-	int nread;		/* no. floats actually read into data array    */
-	char echo[100];		/* feedback messages			       */
-	int code;		/* scanf return codes 			       */
+	int ndata;		/* no. of floats available in data array    */
+	int nread;		/* no. floats actually read into data array */
+	char echo[100];		/* feedback messages			    */
+	int code;		/* scanf return codes 			    */
 
 	/*
-	 * Open the file and start reading.  Start with an approximation of space
-	 * required for 'data' and realloc if necessary.  Be aware that files may
-	 * be empty, in which case we return NULL in *data
+	 * Open the file and start reading.  Start with an approximation of
+	 * space required for 'data' and realloc if necessary.  Be aware
+	 * that files may be empty, in which case we return NULL in *data
 	 */
 	infile = fopen(filename, "r");
 	if (!infile)
@@ -357,8 +361,9 @@ ReadFileData(filename, start, end)
 		}
 		/*
 		 * This date, if not the start date, should be one day from
-		 * the previous, else we fill in the skipped days with bad values.
-		 * Note this requires that the data lines at least be chronological.
+		 * the previous, else we fill in the skipped days with bad
+		 * values.  Note this requires that the data lines at least
+		 * be chronological.
 		 */
 		if (!nread)	/* first line */
 		{
@@ -369,7 +374,7 @@ ReadFileData(filename, start, end)
 			if (jday - jyesterday != 1)
 			{
 				IngestLog(EF_PROBLEM,
-				"%s: filling in %i missing days between %lu and %lu",
+			"%s: filling in %i missing days between %lu and %lu",
 					  filename, (jday-jyesterday)-1, 
 					  jyesterday, jday);
 				data = (float *)
@@ -379,7 +384,8 @@ ReadFileData(filename, start, end)
 						sizeof(float));
 				for (i = 1; i < (jday - jyesterday); ++i)
 				{
-					for (fld = 0; fld < NUMBER(TaoFields); ++fld)
+					for (fld = 0; 
+					     fld < NUMBER(TaoFields); ++fld)
 						data[nread++] = BADVAL;
 				}
 			}
@@ -388,14 +394,14 @@ ReadFileData(filename, start, end)
 		jyesterday = jday;
 		TC_EncodeTime(end, TC_DateOnly, echo);
 		/*
-		 * We now have a date, try to read the fields from the rest of the 
-		 * line.  First we make sure we'll enough room for another line
-		 * of data.
+		 * We now have a date, try to read the fields from the rest
+		 * of the line.  First we make sure we'll enough room for
+		 * another line of data.
 		 */
 		if (nread + NUMBER(TaoFields) > ndata)
 		{
 			data = (float *)realloc(data, 
-						(ndata + STEP_SIZE) * sizeof(float));
+					(ndata + STEP_SIZE) * sizeof(float));
 			ndata += STEP_SIZE;
 			IngestLog(EF_DEBUG,"%s: increasing data array to %i",
 				  filename, ndata);
@@ -405,7 +411,7 @@ ReadFileData(filename, start, end)
 			if (fscanf(infile," %f ",&val) != 1)
 			{
 				IngestLog(EF_EMERGENCY,
-				  "%s: after %i read, expected field #%i not found",
+			  "%s: after %i read, expected field #%i not found",
 				  filename, nread, (fld+1));
 				exit(7);
 			}
@@ -432,7 +438,8 @@ ReadFileData(filename, start, end)
 	{
 		/* Reduce our space use to as little as we need */
 		data = (float *)realloc(data, nread * sizeof(float));
-		IngestLog(EF_DEBUG,"%s: %i values read, %i days @ %i fields/day", 
+		IngestLog(EF_DEBUG,
+			  "%s: %i values read, %i days @ %i fields/day", 
 			  filename, nread, nread/NUMBER(TaoFields), 
 			  NUMBER(TaoFields));
 	}
@@ -448,8 +455,8 @@ Usage(prog)
 {
 	printf ("Usage: %s [options] <platform> <datafile> ...\n",prog);
 	printf ("<platform> is the name of the irregular grid platform\n");
-	printf ("<datafile> names serve as the subplatform names and as the\n");
-	printf ("   platform's location, of the form deg{n|s}deg{e|w}\n");
+	printf ("<datafile> names serve as the subplatform names and as\n");
+	printf ("   the platform's location, of the form deg{n|s}deg{e|w}\n");
 	IngestUsage();
 }
 
