@@ -40,7 +40,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.16 1993-05-13 15:03:49 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.17 1993-05-13 17:35:27 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -77,7 +77,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.16 1993-05-13 15:03:49 granger Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.17 1993-05-13 17:35:27 granger Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -102,8 +102,16 @@ bool Override = TRUE;
 /*
  * Currently active entry from timestamp periods menu
  */
-# define DEFAULT_PERIOD 	300 	/* 5 minutes */
+#ifdef notdef
+#define DEFAULT_PERIOD 	300 	/* 5 minutes */
+bool TimestampEnabled = FALSE;	/* false until timer started */
+#endif
+
+#define DEFAULT_PERIOD 	0 	/* must start out disabled */
+int TSSecs = -1;
 Widget TimestampEntry = NULL;
+bool TimestampEnabled = TRUE;	/* must assume timer is around already, */
+   /* but we won't try anything until the user explicitly requests it	*/
 
 static String Resources[] = 
 {
@@ -159,7 +167,6 @@ char **argv;
 	Arg args[20];
 	Widget w, label;
 	int xevent (), msg_event (), clearbutton (), wm (), n;
-	int ts_secs = -1;
 	char *fname;
 /*
  * Initialize.
@@ -190,10 +197,12 @@ char **argv;
  */
 	if (getenv ("EVENT_MASK"))
 		Emask = atoi (getenv ("EVENT_MASK"));
+#ifdef notdef
 	if (getenv ("EVENT_TIMESTAMP"))
-		ts_secs = atoi (getenv ("EVENT_TIMESTAMP"));
+		TSSecs = atoi (getenv ("EVENT_TIMESTAMP"));
 	else
-		ts_secs = DEFAULT_PERIOD;
+#endif
+		TSSecs = DEFAULT_PERIOD;
 /*
  * Get set up with the toolkit.
  */
@@ -276,7 +285,7 @@ char **argv;
 /*
  * The timestamp interval button
  */
-	w = MakeTimestampButton (w, ts_secs);
+	w = MakeTimestampButton (w, TSSecs);
 /*
  * Now the big, hairy, text widget.
  */
@@ -305,12 +314,8 @@ char **argv;
 	msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
 	reconfig (625, 600, 500, 150);
 /*
- * Now we start our timestamp callbacks and wait.
+ * Now we wait.
  */
-	if (! TimestampEntry)
-		TimestampSetup (ts_secs);
-	else
-		XtCallCallbacks (TimestampEntry, XtNcallback, 0);
 	sync ();
 	xevent ();
 	msg_await ();
@@ -407,6 +412,12 @@ int deflt;
 			TimestampEntry = entry;
 		XtAddCallback (entry, XtNcallback, 
 			       TimestampCallback, (XtPointer)periods[i]);
+	/*
+	 * If this is the default, and the default is 0, then it's ok
+	 * to call the callback to draw the checkmark
+	 */
+		if ((periods[i] == 0) && (deflt == 0))
+			XtCallCallbacks (TimestampEntry, XtNcallback, 0);
 	}
 	return (button);
 }
@@ -976,6 +987,20 @@ char *name;
  */
 	v.us_v_ptr = (char *) pinfo;
 	usy_s_symbol (ProcTable, name, SYMT_POINTER, &v);
+/*
+ * Check for the timer process, so that we know we can start counting
+ * our timestamp period.
+ */
+	if (!strcmp (name, TIMER_PROC_NAME))
+	{
+		TimestampEnabled = TRUE;
+#ifdef notdef
+		if (! TimestampEntry)
+			TimestampSetup (TSSecs);
+		else
+			XtCallCallbacks (TimestampEntry, XtNcallback, 0);
+#endif
+	}		
 }
 
 
@@ -991,6 +1016,16 @@ char *name;
 	int type;
 	SValue v;
 	ProcInfo *pinfo;
+/*
+ * See if it was the timer that died, if so disable future period changes.
+ * Do it before the symbol-table lookup, as its highly likely that we
+ * never received the client connect message for the timer.
+ */
+	if (! strcmp (name, TIMER_PROC_NAME))
+	{
+		TimestampEnabled = FALSE;
+		TimestampSetup(0);		/* disable and reset slot */
+	}
 /*
  * Look up this process.
  */
@@ -1081,11 +1116,17 @@ int period;		/* timestamp interval, in seconds, 0 to disable */
 	static slot = -1;
 	ZebTime t;
 
+	if (! TimestampEnabled)
+	{
+		TSSecs = period;
+		slot = -1;
+		return;
+	}
 	if (slot >= 0)
 	{
 		tl_Cancel (slot);
-		slot = -1;
 	}
+	slot = -1;
 /*
  * Set up our timestamp, start timestamp on multiple of the period
  */
