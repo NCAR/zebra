@@ -21,13 +21,16 @@
  */
 
 # include <unistd.h>
+# include <stdio.h>
+# include <string.h>
+
 # include "defs.h"
 # include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.16 1994-11-29 14:28:16 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.17 1995-02-10 01:01:04 granger Exp $")
 
 
 /*
@@ -123,7 +126,9 @@ dt_InitTables ()
 	for (i = 1; i < DFTableSize; i++)
 	{
 		DFTable[i].df_FLink = i + 1;
+#ifdef DF_USE
 		DFTable[i].df_use = 0;
+#endif
 	}
 	DFTable[DFTableSize - 1].df_FLink = 0;
 }
@@ -149,16 +154,14 @@ const char *superclass;
 /*
  * If this class already exists, return it.
  */
-	if (pc = dt_FindClass (name))
+	if ((pc = dt_FindClass (name)) != NULL)
 	{
 		msg_ELog (EF_INFO, "WARNING: platform class '%s' redefined",
 			  name);
 		return (pc);
 	}
 /*
- * If the class table is full, expand it.  UGLINESS: we need to go 
- * and reset all of the platform name entries in the symbol table since
- * they are pointers into the old array.
+ * If the class table is full, expand it.
  */
 	if (NClass >= CTableSize)
 		dt_ExpandClassTable (CTableGrow);
@@ -262,7 +265,10 @@ static void
 dt_ExpandClassTable(growth)
 int growth;
 /*
- * Expand class table by 'growth' entries
+ * Expand class table by 'growth' entries.  UGLINESS: we need to go 
+ * and reset all of the platform name entries in the symbol table since
+ * they are pointers into the old array.  Expects the current number of
+ * classes to be in NClass.
  */
 {
 	int i;
@@ -313,7 +319,7 @@ PlatformInstance *p;
 	do
 	{
 		usy_s_symbol (Platforms, cp, SYMT_POINTER, &v);
-		if (cp = strchr (cp, '/'))
+		if ((cp = strchr (cp, '/')) != 0)
 			cp++;
 	}
 	while (cp);
@@ -329,7 +335,6 @@ char *name;
  */
 {
 	PlatformInstance *new;
-	int i;
 /*
  * Make sure we're initialized.
  */
@@ -338,7 +343,7 @@ char *name;
 /*
  * See if this guy already exists, and if so prepare it for re-conditioning
  */
-	if (new = dt_FindInstance (name))
+	if ((new = dt_FindInstance (name)))
 	{
 		msg_ELog (EF_INFO, "WARNING: platform '%s' redefined", name);
 		dt_EraseSubPlats (new);
@@ -346,9 +351,7 @@ char *name;
 		return (new);
 	}
 /*
- * If the platform table is full, expand it.  UGLINESS: we need to go 
- * and reset all of the platform name entries in the symbol table since
- * they are pointers into the old array.
+ * If the platform table is full, expand it.
  */
 	if (NPlatform >= PTableSize)
 		dt_ExpandPlatformTable (PTableGrow);
@@ -402,7 +405,10 @@ static void
 dt_ExpandPlatformTable (growth)
 int growth;
 /*
- * Grow the platform table by 'growth' entries
+ * Grow the platform table by 'growth' entries.  UGLINESS: we need to go 
+ * and reset all of the platform name entries in the symbol table since
+ * they are pointers into the old array.  Expects NPlatform to hold the
+ * current number of valid platforms.
  */
 {
 	int i;
@@ -497,28 +503,10 @@ const char *name;	/* The name to be instantiated	*/
  * Actually instantiate the given class from the platform instance 
  * structure, adjusting default directories and adding subplats.
  * If this is an instance from a 'platform' command, the name of the
- * class and the instance will be identical.  Fail if an instance with
- * this name already exists.
+ * class and the instance will be identical. 
  *
- * If neither samedir, subdir, nor a directory has been specified in the
- * class, then the instance gets the usual default: a subdirectory of 
- * DataDir.
- *
- * If the class specifies subdir, the instance directory is a subdir of the
- * class directory (DataDir/<class name> unless the class has a directory).
- *
- * If the class specified samedir, the instance directory is the same 
- * directory as the class (DataDir/<class name> unless the class has a 
- * valid directory).
- *
- * Platforms being instantiated via 'platform', whose class has the same
- * name, will have samedir set by default, so that the instance will
- * automatically be where it has always been.
- *
- * We must be careful here since any addition of a platform, including 
- * subplatforms, will move our pointers out from under us.  Hence the
- * reason platforms are handled by ID.  Class pointers should be o.k. since
- * we are not adding any classes here.
+ * This code must be re-entrant!  It may be called recursively to instantiate
+ * subplatforms defined in the platform's class.
  */
 {
 	PlatformInstance *new;
@@ -537,7 +525,7 @@ const char *name;	/* The name to be instantiated	*/
 	{
 	/*
 	 * Keep a count of the number of platforms in the top level of the 
-	 * heirarchy since we have a limit on those
+	 * hierarchy since we have a limit on those
 	 */
 		if (++n_top_plats > MAXPLAT)
 		{
@@ -583,7 +571,8 @@ const char *name;	/* The name to be instantiated	*/
 		new->dp_parent = parent;
 	/*
 	 * If the parent platform is a composite, then the subplat must be a
-	 * subplatform (in the historic sense)
+	 * subplatform (in the historic sense).  In any case, add a reference
+	 * to this child to the parent.
 	 */
 		if (pi_Composite (PTable + parent))
 		{
@@ -621,6 +610,17 @@ const char *defname;	/* Defined name, doesn't include parent if a subplat */
 /* 
  * Determine our instance directory given our directory instance flags.
  * Otherwise we do the default of using a subdirectory of datadir.
+ *
+ * If the class specifies subdir, the instance directory is a subdir of the
+ * class directory (DataDir/<class name> unless the class has a directory).
+ *
+ * If the class specified samedir, the instance directory is the same 
+ * directory as the class (DataDir/<class name> unless the class has a 
+ * valid directory).
+ *
+ * Platforms being instantiated via 'platform', whose class has the same
+ * name, will have samedir set by default, so that the instance will
+ * automatically be where it has always been.
  */
 {
 	char newdir[512];
@@ -799,7 +799,7 @@ const char *name;		/* Name of subplat instance		*/
  * by the parent name.
  */
 	sprintf (iname, "%s/%s", (PTable + parent)->dp_name, name);
-	if (sub = dt_FindInstance (iname))
+	if ((sub = dt_FindInstance (iname)))
 	{
 		msg_ELog (EF_PROBLEM, "subplatform '%s' already exists",
 			  sub->dp_name);
@@ -828,7 +828,6 @@ PlatformId newid;
 {
 	int i;
 	PlatformClass *spc;
-	PlatformInstance *sub;
 
 	if (Debug && pc->dpc_nsubplats)
 	{
@@ -1064,7 +1063,7 @@ dt_NewFile ()
  */
 {
 	DataFile *ret;
-	int avail, i, nsize;
+	int i, nsize;
 /*
  * If the free list is empty, it means we have to expand the table.
  */
@@ -1084,7 +1083,9 @@ dt_NewFile ()
 		for (i = DFTableSize; i < nsize; i++)
 		{
 			DFTable[i].df_FLink = i + 1;
+#ifdef DF_USE
 			DFTable[i].df_use = 0;
+#endif
 		}
 		DFTable[nsize - 1].df_FLink = 0;
 		DFTableSize = nsize;
@@ -1122,6 +1123,30 @@ int dfi;
  */
 {
 	DataFile *df = DFTable + dfi;
+/*
+ * Remove the entry from the chain, free it, and we are done.
+ */
+	dt_CutDFE (p, dfi);
+	dt_FreeDFE (df);
+}
+
+
+
+void
+dt_CutDFE (p, dfi)
+PlatformInstance *p;
+int dfi;
+/*
+ * Remove this entry from the given platform chain but don't free it.
+ * Send CacheInvalidate messages for all DFE's whose links we change.  This
+ * is why it is IMPORTANT to do all deletions from the DF chain through
+ * this function.  The notification of the removed DFE is presumably sent
+ * separately in a DataGone message (if the DFE is actually being removed).
+ * If the DFE is being re-sorted, its CacheInvalidate must be sent elsewhere
+ * also.
+ */
+{
+	DataFile *df = DFTable + dfi;
 
 	ClearLocks (p);
 /*
@@ -1149,12 +1174,7 @@ int dfi;
 		DFTable[df->df_FLink].df_BLink = df->df_BLink;
 		CacheInvalidate ( df->df_FLink );
 	}
-/*
- * The entry is now out of the chain.  Free it and we are done.
- */
-	dt_FreeDFE (df);
 }
-
 
 
 
@@ -1220,7 +1240,8 @@ int *link;
 	/*
 	 * Fix the adjoining links.
 	 */
-		if (df->df_BLink = chain->df_BLink)
+		df->df_BLink = chain->df_BLink;
+		if (chain->df_BLink)
 		{
 			DFTable[chain->df_BLink].df_FLink = df - DFTable;
 			CacheInvalidate (chain->df_BLink);
@@ -1251,13 +1272,15 @@ void
 dt_AddToPlatform (p, df, local)
 PlatformInstance *p;
 DataFile *df;
-bool local;
+int local;
 /*
- * Add this data file to the given platform.
+ * Add a new data file to the given platform.
  */
 {
 	df->df_platform = p - PTable;
+#ifdef DF_USE
 	df->df_use++;
+#endif
 	/* df->df_flags = DFF_Seen; */
 	ClearLocks (p);
 	if (local)
@@ -1265,6 +1288,48 @@ bool local;
 	else
 		dt_IPAdd (df, &p->dp_RemoteData);
 }
+
+
+
+
+void
+dt_SortDFE (p, df, local)
+PlatformInstance *p;
+DataFile *df;
+int local;
+/*
+ * Move an existing data file to its correct spot in the chain while
+ * disturbing as little as possible (as few CacheInvalidates as possible).
+ */
+{
+	int ok;
+	DataFile *next, *prev;
+
+	ClearLocks (p);
+/*
+ * First see if the file entry is still o.k. where it is
+ */
+	prev = DFTable + df->df_FLink;
+	next = DFTable + df->df_BLink;
+	ok = ((!df->df_FLink) || TC_Less (prev->df_end, df->df_begin));
+	ok = ok && ((!df->df_BLink) || TC_Less (df->df_end, next->df_begin));
+	if (!ok)
+	{
+		int dfi = df - DFTable;
+	/*
+	 * Bummer, we have to move the file entry.  Just take it out of the
+	 * chain altogether and then re-add it.  These functions will take
+	 * care of invalidating caches for changed links for all files but
+	 * the re-sorted DFE.
+	 */
+		dt_CutDFE (p, dfi);
+		if (local)
+			dt_IPAdd (df, &p->dp_LocalData);
+		else
+			dt_IPAdd (df, &p->dp_RemoteData);
+	}
+}
+
 
 
 
