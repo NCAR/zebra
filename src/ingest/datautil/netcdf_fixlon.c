@@ -19,10 +19,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: netcdf_fixlon.c,v 1.1 1993-11-19 14:51:05 burghart Exp $ */
+/* $Id: netcdf_fixlon.c,v 1.2 1994-02-02 19:14:26 burghart Exp $ */
 # include <netcdf.h>
 
-main (int argc, char **argv)
+main (argc, argv)
+int	argc;
+char	**argv;
 {
 	long	i, cdfid, lonid, nplat, start = 0;
 	float	*lons;
