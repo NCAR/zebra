@@ -1,7 +1,6 @@
 /*
  * Handle plot window annotation.
  */
-static char *rcsid = "$Id: Annotate.c,v 2.7 1992-06-24 22:13:04 pai Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,13 +20,14 @@ static char *rcsid = "$Id: Annotate.c,v 2.7 1992-06-24 22:13:04 pai Exp $";
  */
 # include <X11/Intrinsic.h>
 # include <math.h>
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/message.h"
+# include <defs.h>
+# include <pd.h>
+# include <message.h>
 # include "GraphProc.h"
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
+MAKE_RCSID ("$Id: Annotate.c,v 2.8 1992-07-22 21:11:01 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -53,39 +53,21 @@ static int	SA_first;
 static int	Ncomps;		/* How many components		*/
 
 
-# ifdef __STDC__
-	static void An_Divider (int, int, int);
-	void An_AddAnnotProc (void (*)(), char *, char *, int, int, int, int);
-	void An_DoSideAnnot ();
-	static void An_AllocSpace ();
-	static int An_ReduceOptionals (int, int);
-	static void An_ReduceSpace (int, int);
-	static void An_IncreaseSpace (int, int, int);
-	void An_ColorString (char *, char *, int, int, int);
-	void An_ColorBar (char *, char *, int, int, int);
-	void An_ColorNumber (char *, char *, int, int, int);
-	void An_ColorVector (char *, char *, int, int, int);
-	void An_BarbLegend (char *, char *, int, int, int);
-	int An_GetLeft ();
-	void An_GetSideParams (char *, float *, int *);
-	void An_GetTopParams (XColor *, int *);
-# else
-	static void An_Divider ();
-	void An_AddAnnotProc ();
-	void An_DoSideAnnot ();
-	static void An_AllocSpace ();
-	static int An_ReduceOptionals ();
-	static void An_ReduceSpace ();
-	static void An_IncreaseSpace ();
-	void An_ColorString ();
-	void An_ColorBar ();
-	void An_ColorNumber ();
-	void An_ColorVector ();
-	void An_BarbLegend ();
-	int An_GetLeft ();
-	void An_GetSideParams ();
-	void An_GetTopParams ();
-# endif
+static void An_Divider FP ((int, int, int));
+void An_AddAnnotProc FP ((void (*)(), char *, char *, int, int, int, int));
+void An_DoSideAnnot FP ((void));
+static void An_AllocSpace FP ((void));
+static int An_ReduceOptionals FP ((int, int));
+static void An_ReduceSpace FP ((int, int));
+static void An_IncreaseSpace FP ((int, int, int));
+void An_ColorString FP ((char *, char *, int, int, int));
+void An_ColorBar FP ((char *, char *, int, int, int));
+void An_ColorNumber FP ((char *, char *, int, int, int));
+void An_ColorVector FP ((char *, char *, int, int, int));
+void An_BarbLegend FP ((char *, char *, int, int, int));
+int An_GetLeft FP ((void));
+void An_GetSideParams FP ((char *, float *, int *));
+void An_GetTopParams FP ((XColor *, int *));
 
 
 void
@@ -789,7 +771,7 @@ int datalen, begin, space;
 	for (i = 0; i < ncolors; i += limit)
 	{
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
-			colors[i].pixel);
+			colors[ncolors - i - 1].pixel);
 		XFillRectangle (XtDisplay (Graphics), 
 			GWFrame (Graphics), AnGcontext, left, 
 			(int) begin, 10, barHeight);
