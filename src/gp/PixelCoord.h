@@ -64,7 +64,9 @@
  *	right corner are (ux1,uy1).
  */
 
+# include "LayoutControl.h"
 
+#ifdef notdef
 /*
  * Plotting space.  We leave an area for annotation on all sides
  */
@@ -72,14 +74,47 @@
 # define F_X1 0.85
 # define F_Y0 0.05
 # define F_Y1 0.90
+#endif
 
+# define F_X0 FX0
+# define F_X1 FX1
+# define F_Y0 FY0
+# define F_Y1 FY1
+
+#ifdef notdef
+extern float FX0, FX1, FY0, FY1;
+#endif
+
+#ifdef notdef
+# define LEGENDSPACE	((int) (0.15 * GWWidth (Graphics)))
+# define ANNOTATESPACE	((int) (0.1 * GWHeight (Graphics)))
+# define ICONSPACE	50
+#endif
+
+# define LEGENDSPACE	0.15
+# define ANNOTATESPACE	0.1
+# define ICONSPACE	50
+
+
+#ifdef notdef
 /*
  * Space reserved for icons, and resultant usable plot height, both in pixels
  */
 extern int IconSpace;
-# define ICONSPACE	50
 # define USABLE_HEIGHT	(GWHeight (Graphics) - IconSpace)
+#endif
+# define USABLE_HEIGHT	(GWHeight (Graphics))
 
+# define IXPIX(ux)	LC_XPIX((ux),Xlo,Xhi)
+# define IYPIX(uy)	LC_YPIX((uy),Ylo,Yhi)
+
+# define XPIX(ux)	((short) IXPIX(ux))
+# define YPIX(uy)	((short) IYPIX(uy))
+
+# define XUSER(xp)	LC_XUSER((xp),Xlo,Xhi)
+# define YUSER(yp)	LC_YUSER((yp),Ylo,Yhi)
+
+#ifdef notdef
 /*
  * User coordinate to pixel coordinate macros.  The I- prefixed macros
  * return an int instead of casting to short.  Some algorithms need
@@ -102,3 +137,5 @@ extern int IconSpace;
 
 # define YUSER(yp)	(((USABLE_HEIGHT-(yp)-1) / (float)(USABLE_HEIGHT) - \
 				F_Y0) * (Yhi - Ylo)/(F_Y1 - F_Y0) + Ylo)
+#endif
+
