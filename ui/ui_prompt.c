@@ -13,8 +13,9 @@
 # include "ui_globals.h"
 # include "ui_commands.h"
 # include "ui_expr.h"
+# include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_prompt.c,v 1.4 1989-06-05 16:05:25 corbet Exp $";
+static char *Rcsid = "$Id: ui_prompt.c,v 1.5 1990-04-26 12:14:23 corbet Exp $";
 
 void ui_pr_cc ();	/* Keyboard interrupt handler.	*/
 
@@ -556,6 +557,7 @@ struct ui_command *cmds;
 # endif
 	union usy_value v;
 	char *helpfile = (char *) NULL;
+	stbl dest = Ui_variable_table;
 /*
  * Check for exotic types, which are handled separately.
  */
@@ -604,7 +606,9 @@ struct ui_command *cmds;
 /*
  * Finally, define a symbol with the result.
  */
-	usy_s_symbol (Ui_variable_table, UPTR (cmds[0]),
+	if (Cs->cs_arg_table && usy_defined (Cs->cs_arg_table, UPTR (*cmds)))
+		dest = Cs->cs_arg_table;
+	usy_s_symbol (dest, UPTR (cmds[0]),
 		UKEY (cmds[1]) == UIC_REAL ? SYMT_FLOAT : SYMT_INT, &v);
 }
 
@@ -620,6 +624,7 @@ struct ui_command *cmds;
 	int i;
 	date def;
 	union usy_value v;
+	stbl dest = Ui_variable_table;
 	char *helpfile = (char *) NULL;
 	
 	pmu_g_now (&def.ds_yymmdd, &def.ds_hhmmss); /* get default default */
@@ -645,7 +650,9 @@ struct ui_command *cmds;
 /*
  * Finally, define a symbol with the result.
  */
-	usy_s_symbol (Ui_variable_table, UPTR (cmds[0]), SYMT_DATE, &v);
+	if (Cs->cs_arg_table && usy_defined (Cs->cs_arg_table, UPTR (*cmds)))
+		dest = Cs->cs_arg_table;
+	usy_s_symbol (dest, UPTR (cmds[0]), SYMT_DATE, &v);
 }
 
 
@@ -662,6 +669,7 @@ struct ui_command *cmds;
 	char *def = (char *) NULL, answer[200];
 	union usy_value v;
 	char *helpfile = (char *) NULL;
+	stbl dest = Ui_variable_table;
 /*
  * Pass through the optional parts of the command.
  */
@@ -670,7 +678,12 @@ struct ui_command *cmds;
 		switch (UKEY (cmds[i]))
 		{
 		   case UIC_DEFAULT:
-		   	def = UPTR (cmds[++i]);
+		   	i++;
+			if (cmds[i].uc_vptype != SYMT_STRING)
+				ui_cl_error (TRUE, cmds[i].uc_col,
+				  	"Default must be a STRING type");
+		   	def = UPTR (cmds[i]);
+			uip_dequote (def);
 			break;
 		   case UIC_HELPFILE:
 		   	helpfile = UPTR (cmds[++i]);
@@ -685,7 +698,9 @@ struct ui_command *cmds;
  * Finally, define a symbol with the result.
  */
 	v.us_v_ptr = answer;
-	usy_s_symbol (Ui_variable_table, UPTR (cmds[0]), SYMT_STRING, &v);
+	if (Cs->cs_arg_table && usy_defined (Cs->cs_arg_table, UPTR (*cmds)))
+		dest = Cs->cs_arg_table;
+	usy_s_symbol (dest, UPTR (cmds[0]), SYMT_STRING, &v);
 }
 
 
@@ -702,6 +717,7 @@ struct ui_command *cmds;
 	bool def = FALSE;
 	union usy_value v;
 	char *helpfile = (char *) NULL;
+	stbl dest = Ui_variable_table;
 /*
  * Pass through the optional parts of the command.
  */
@@ -726,5 +742,7 @@ struct ui_command *cmds;
  * Finally, define a symbol with the result.
  */
 	v.us_v_int = (ans == UIC_YES);
-	usy_s_symbol (Ui_variable_table, UPTR (cmds[0]), SYMT_BOOL, &v);
+	if (Cs->cs_arg_table && usy_defined (Cs->cs_arg_table, UPTR (*cmds)))
+		dest = Cs->cs_arg_table;
+	usy_s_symbol (dest, UPTR (cmds[0]), SYMT_BOOL, &v);
 }
