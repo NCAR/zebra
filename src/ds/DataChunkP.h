@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.1 1991-11-16 01:18:54 corbet Exp $ */
+/* $Id: DataChunkP.h,v 1.2 1991-12-04 23:45:41 corbet Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -26,7 +26,7 @@
  */
 # define RAW_DC_METHODS \
 	char		*dcm_Name;		/* Class name		*/ \
-	DataChunkClass	dcm_Parent;		/* Parent class		*/ \
+	DataClass	dcm_Parent;		/* Parent class		*/ \
 	DataChunk	*(*dcm_Create)();	/* Create one of these	*/ \
 	void		(*dcm_Destroy)();	/* Get rid of it again	*/ \
 	void		(*dcm_AddData)();	/* Add data		*/ \
@@ -48,14 +48,13 @@ typedef struct _RawDCClass
  * Internally useful routines.
  */
 # ifdef __STDC__
-	bool		dc_ReqSubClassOf (DataChunkClass, DataChunkClass,
-				char *);
-	DataChunkClass	dc_GetSuperClass (DataChunkClass);
-	void		dc_AddADE (DataChunk *, DataPointer, DataChunkClass,
+	bool		dc_ReqSubClassOf (DataClass, DataClass, char *);
+	DataClass	dc_GetSuperClass (DataClass);
+	void		dc_AddADE (DataChunk *, DataPtr, DataClass,
 				int, int, int);
-	DataPointer	dc_FindADE (DataChunk *, DataChunkClass, int, int *);
-	void		dc_ChangeADE (DataChunk *, DataPointer, DataChunkClass,
+	DataPtr		dc_FindADE (DataChunk *, DataClass, int, int *);
+	void		dc_ChangeADE (DataChunk *, DataPtr, DataClass,
 				int, int);
-	void		dc_RemoveADE (DataChunk *, DataChunkClass, int);
+	void		dc_RemoveADE (DataChunk *, DataClass, int);
 # else
 # endif
