@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 1.2 1991-06-05 16:07:27 corbet Exp $ */
+/* $Id: NetXfr.h,v 1.3 1991-06-06 03:48:31 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -65,6 +65,7 @@ typedef struct _DataBCChunk
 	int		dh_Offset;	/* Offset for this memory	*/
 	int		dh_Size;	/* Size of the chunk		*/
 	int		dh_DataSize;	/* Total data array size	*/
+	int		dh_ID;		/* Sender ID			*/
 	short		dh_NChunk;	/* Total number of chunks	*/
 	short		dh_Chunk;	/* Number of this chunk		*/
 	struct _DataBCChunk *dh_Next;	/* For making queues		*/
@@ -77,6 +78,7 @@ typedef struct _DataBCChunk
 typedef struct _DataOffsets
 {
 	NetMsgType	dh_MsgType;	/* == NMT_DataOffsets		*/
+	int		dh_DataSeq;	/* Sequence number		*/
 	int		dh_Offsets[MAXFIELD];	/* The actual offsets	*/
 } DataOffsets;
 
@@ -88,3 +90,28 @@ typedef struct _DataTemplate
 	NetMsgType	dh_MsgType;	/* == NMT_DataDone		*/
 	int		dh_DataSeq;	/* Sequence number		*/
 } DataTemplate;
+
+
+/*
+ * Global vars.
+ */
+extern int Seq, Pid;
+extern int BCastSave, BCInitialWait, BCRetransWait, BCRetransMax;
+extern int Broadcast;
+
+
+/*
+ * Global routines.
+ */
+# ifdef __STDC__
+	void BCastSetup (struct ui_command *);
+	int BCastHandler (int, char *, int);
+	void DoBCast (PlatformId, DataObject *);
+	void ReceiveSetup (int);
+	void SendOut (PlatformId, void *, int);
+# else
+	void BCastSetup ();
+	int BCastHandler ();
+	void DoBCast ();
+	void ReceiveSetup ();
+# endif

@@ -25,10 +25,27 @@ typedef struct _DataRecip
 DataRecip *Recipients[MAXPLAT];
 char *PlatName[MAXPLAT];
 
-static int Seq = 0;
-static int Broadcast = 0, Port = 0;
-static long Addr = 0;
-static int Pid;			/* Our process id		*/
+/*
+ * The current sequence number.
+ */
+int Seq = 0;
+
+/*
+ * Are we broadcasting?
+ */
+int Broadcast = 0;
+int Pid;			/* Our process id		*/
+
+/*
+ * Broadcast retransmit parameters.
+ */
+int BCastSave = 20;	/* How long we save broadcasted data so that we
+			 * can service rebroadcast requests. 		*/
+int BCInitialWait = 2;	/* How long we wait for missing broadcast packets
+			 * before requesting the first retransmit. 	*/
+int BCRetransWait = 5;	/* How long before we timeout a retransmit	*/
+int BCRetransMax = 2;	/* How many times we will ask for a retransmit
+			 * before we lose our patience			*/
 
 /*
  * The queue of broadcast packets awaiting everything else.
@@ -63,18 +80,13 @@ InProgress *IPList = 0;
 	static void Run (void);
 	static void DataAvailable (PlatformId, int, time *, int);
 	static int NXMessage (Message *);
-	static void SendOut (PlatformId, void *, int);
 	static void SendChunk (PlatformId, void *, int, int, int);
 	static DataObject *GetData (PlatformId, time *, int);
 	static void NewData (DataHdr *);
 	InProgress *FindIP (int);
 	static void ContData (DataContinue *);
 	static void Done (int);
-	static void BCastSetup (struct ui_command *);
-	static int BCastHandler (int, char *, int);
-	static void DoBCast (PlatformId, DataObject *);
 	static void FinishIP (InProgress *);
-	static void ReceiveSetup (int);
 	static void IncOffsets (DataOffsets *);
 	static void UnknownBCast (DataBCChunk *, int);
 	static void FindQueued (int);
@@ -86,18 +98,13 @@ InProgress *IPList = 0;
 	static void Run ();
 	static void DataAvailable ();
 	static int NXMessage ();
-	static void SendOut ();
 	static void SendChunk ();
 	static DataObject *GetData ();
 	static void NewData ();
 	InProgress *FindIP ();
 	static void ContData ();
 	static void Done ();
-	static void BCastSetup ();
-	static int BCastHandler ();
-	static void DoBCast ();
 	static void FinishIP ();
-	static void ReceiveSetup ();
 	static void IncOffsets ();
 	static void UnknownBCast ();
 	static void FindQueued ();
@@ -125,6 +132,7 @@ char **argv;
 {
 	char cmd[128];
 	SValue v;
+	stbl vtable;
 	int i;
 /*
  * Hook into the user interface.  Only go interactive if they didn't
@@ -139,6 +147,14 @@ char **argv;
 	}
 	else
 		ui_init ("NetXfr.lf", TRUE, FALSE);
+/*
+ * Set up indirect variables so that the user can do some tweaking.
+ */
+	vtable = usy_g_stbl ("ui$variable_table");
+	usy_c_indirect (vtable, "sequence", &Seq, SYMT_INT, 0);
+	usy_c_indirect (vtable, "bcastsave", &BCastSave, SYMT_INT, 0);
+	usy_c_indirect (vtable, "initialwait", &BCInitialWait, SYMT_INT, 0);
+	usy_c_indirect (vtable, "maxretrans", &BCRetransMax, SYMT_INT, 0);
 /*
  * Hook into the message system.
  */
@@ -268,51 +284,6 @@ struct ui_command *cmds;
 
 
 static void
-BCastSetup (cmds)
-struct ui_command *cmds;
-/*
- * Get set up to do broadcasting.
- */
-{
-	int a, b, c, d;
-/*
- * Figure out params.
- */
-	if (sscanf (UPTR (*cmds), "%d.%d.%d.%d", &a, &b, &c, &d) != 4)
-	{
-		msg_ELog (EF_EMERGENCY, "Bad broadcast addr '%s'",UPTR(*cmds));
-		exit (1);
-	}
-	Addr = d + (c << 8) + (b << 16) + (a << 24);
-	Port = UINT (cmds[1]);
-/*
- * Now hook into msg.
- */
-	if ((Broadcast = msg_BCSetup (Addr, Port, BCastHandler)) < 0)
-	{
-		msg_ELog (EF_EMERGENCY, "BCSetup failure");
-		exit (1);
-	}
-}
-
-
-
-static void
-ReceiveSetup (port)
-int port;
-/*
- * Set up to receive bcast info.
- */
-{
-	if (msg_BCSetup (0, port, BCastHandler) < 0)
-		msg_ELog (EF_PROBLEM, "Unable to setup BCast on port %d",port);
-}
-
-
-
-
-
-static void
 DataAvailable (plat, junk, t, ns)
 PlatformId plat;
 int junk;
@@ -417,7 +388,7 @@ int ns;
 
 
 
-static void
+void
 SendOut (plat, stuff, len)
 PlatformId plat;
 void *stuff;
@@ -472,76 +443,6 @@ int offset, len, flags;
  */
 	SendOut (plat, buf, len + sizeof (DataContinue) - 1);
 }
-
-
-
-
-static void
-DoBCast (plat, dobj)
-PlatformId plat;
-DataObject *dobj;
-/*
- * Broadcast this data to the world.
- */
-{
-	DataBCChunk *chunk;
-	DataOffsets offsets;
-	int fld, nchunk;
-	char *cdata = (char *) dobj->do_data;
-/*
- * Send out the offsets first, through normal channels.  Note that this
- * assumes that the data arrays are allocated in one big chunk.
- */
-	for (fld = 0; fld < dobj->do_nfield; fld++)
-		offsets.dh_Offsets[fld] = dobj->do_data[fld]-dobj->do_data[0];
-	offsets.dh_MsgType = NMT_DataOffsets;
-	offsets.dh_DataSeq = Seq;
-	SendOut (plat, &offsets, sizeof (offsets));
-/*
- * Allocate memory for our chunk, and figure out how much we can do in
- * each packet.  The point here is to create packets that won't get fragmented
- * on the ethernet on their way out.
- *
- * IP header = 20 bytes.  UDP = 8 bytes.
- */
-# define CBYTES (1500 - 28)
-
-	chunk = (DataBCChunk *) malloc (CBYTES);
-	chunk->dh_Size = CBYTES - sizeof (DataBCChunk) + 1;
-/*
- * Fill in other static info in the chunk.
- */
-	chunk->dh_MsgType = NMT_DataBCast;
-	chunk->dh_DataSeq = Seq;
-	chunk->dh_Offset = 0;
-	chunk->dh_DataSize = dobj->do_nbyte;
-	chunk->dh_NChunk = (dobj->do_nbyte + chunk->dh_Size -1)/chunk->dh_Size;
-	chunk->dh_Chunk = 0;
-	chunk->dh_ID = Pid;
-	msg_ELog (EF_DEBUG, "BCast in %d chunks of %d", chunk->dh_NChunk,
-		chunk->dh_Size);
-/*
- * Now we blast them out.
- */
-	for (; chunk->dh_Chunk < chunk->dh_NChunk - 1; (chunk->dh_Chunk)++)
-	{
-		memcpy (chunk->dh_data, cdata, chunk->dh_Size);
-		msg_BCast (Broadcast, chunk, CBYTES);
-		cdata += chunk->dh_Size;
-		chunk->dh_Offset += chunk->dh_Size;
-	}
-/*
- * Don't forget the last one.
- */
-	chunk->dh_Size = dobj->do_nbyte - chunk->dh_Offset;
-	memcpy (chunk->dh_data, cdata, chunk->dh_Size);
-	msg_BCast (Broadcast, chunk, CBYTES);
-/*
- * Free up and we're done.
- */
-	free (chunk);
-}
-
 
 
 
@@ -695,7 +596,7 @@ DataHdr *hdr;
 {
 	InProgress *ip = ALLOC (InProgress);
 
-	msg_ELog (EF_DEBUG, "Begin data %s, seq %d, t %d %06d",
+	msg_ELog (EF_INFO, "Begin data %s, seq %d, t %d %06d",
 		hdr->dh_Platform, hdr->dh_DataSeq,
 		hdr->dh_DObj.do_end.ds_yymmdd, hdr->dh_DObj.do_end.ds_hhmmss);
 /*
@@ -713,6 +614,7 @@ DataHdr *hdr;
 	*ip->ip_DObj = hdr->dh_DObj;
 	ip->ip_DObj->do_id = ip->ip_Plat;
 	ip->ip_Arrived = 0;
+	ip->ip_Done = FALSE;
 /*
  * Add it to the list
  */
@@ -762,8 +664,10 @@ int seq;
 	for (ip = IPList; ip; ip = ip->ip_Next)
 		if (ip->ip_Seq == seq)
 			break;
+# ifdef notdef	/* Silence! */
 	if (! ip)
 		msg_ELog (EF_PROBLEM, "Unknown IP sequence %d", seq);
+# endif
 	return (ip);
 }
 
@@ -799,7 +703,7 @@ DataContinue *cont;
 
 
 
-static int
+int
 BCastHandler (port, data, len)
 int port, len;
 char *data;
@@ -822,6 +726,8 @@ char *data;
  * Look for this IP.  If we don't find it, we need to go to some more effort
  * to decide what the hell to do with this thing.
  */
+	msg_ELog (EF_INFO, "BC pkt %d, %d at %d", chunk->dh_Chunk,
+		chunk->dh_Size, chunk->dh_Offset);
 	if (! (ip = FindIP (chunk->dh_DataSeq)))
 	{
 		UnknownBCast (chunk, len);
@@ -830,8 +736,6 @@ char *data;
 /*
  * If this is the first broadcast packet, do some setup.
  */
-	msg_ELog (EF_DEBUG, "BC pkt %d, %d at %d", chunk->dh_Chunk,
-		chunk->dh_Size, chunk->dh_Offset);
 	if (! ip->ip_Arrived)
 	{
 	/*
@@ -888,9 +792,10 @@ int len;
 /*
  * Otherwise we enqueue it, waiting for the header info to arrive.
  */
-	msg_ELog (EF_DEBUG, "Enqueue BC seq %d ch %d/%d", chunk->dh_DataSeq,
+	msg_ELog (EF_INFO, "Enqueue BC seq %d ch %d/%d", chunk->dh_DataSeq,
 		chunk->dh_Chunk, chunk->dh_NChunk);
 	new = (DataBCChunk *) malloc (len);
+	memcpy (new, chunk, len);
 	new->dh_Next = BCQueue;
 	BCQueue = new;
 }
@@ -963,7 +868,7 @@ int seq;
  * Otherwise just mark as "done" and hope it comes in eventually.
  * Set a timeout eventually.
  */
-	msg_ELog (EF_DEBUG, "IP DONE, but %d segs missing",
+	msg_ELog (EF_INFO, "IP DONE, but %d segs missing",
 		ip->ip_NBExpect - ip->ip_NBCast);
 	ip->ip_Done = TRUE;
 }
@@ -991,7 +896,7 @@ InProgress *ip;
  * Throw this data into the data store.  FIGURE OUT WHAT TO DO ABOUT
  * NEWFILE!!!!
  */
-	msg_ELog (EF_DEBUG, "Store sequence %d", ip->ip_Seq);
+	msg_ELog (EF_INFO, "Store sequence %d", ip->ip_Seq);
 	ds_PutData (ip->ip_DObj, FALSE);
 /*
  * Clear this entry out of the inprogress list.
