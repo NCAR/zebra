@@ -23,10 +23,9 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.22 1995-11-20 20:23:03 granger Exp $")
+RCSID ("$Id: dc_Transp.c,v 1.23 1996-11-19 09:51:59 granger Exp $")
 
 /*
  * TODO:
@@ -35,78 +34,54 @@ MAKE_RCSID ("$Id: dc_Transp.c,v 1.22 1995-11-20 20:23:03 granger Exp $")
  *	Location frob
  */
 
-static DataChunk 	*Dc_TrCreate FP((DataClass));
-static void 		dc_TrDump FP((DataChunk *));
-/*
- * The basic methods structure.
- */
-# define SUPERCLASS DCC_Raw
+#define ATP(dc) (&((TranspDataChunk *)(dc))->transpart)
 
-RawDCClass TranspMethods =
+/*
+ * AuxData codes.
+ */
+# define ST_PLATFORMS	0	/* Optional platform list		*/
+# define ST_LOCATIONS	1	/* Locations for mobile plats		*/
+# define ST_SUBSAMPLES	2	/* Sub-sample index for each sample 	*/
+# define ST_SUBOFFSETS	3	/* Time offset of each sub-sample	*/
+# define ST_NUM_ADE	TR_NUM_SUBTYPES	/* Num of ADE in shortcut array	*/
+
+# define ST_SAMPLES	5	/* The dynamic array of sample offsets	*/
+# define ST_TIMEINDEX	6	/* An array to index samples by time	*/
+
+/*
+ * Class method prototypes
+ */
+static DataChunk 	*tr_Create FP((DataChunk *dc));
+static void	 	tr_Destroy FP((DataChunk *dc));
+static void 		tr_Dump FP((DataChunk *));
+static void 		tr_Serialize FP((DataChunk *));
+static void 		tr_Localize FP((DataChunk *));
+static void		tr_ClearPointers FP((AuxTrans *tp));
+
+
+RawClass TranspMethods =
 {
+	DCID_Transparent,
 	"Transparent",
-	SUPERCLASS,		/* Superclass			*/
+	(DataClassP) &RawMethods,/* Superclass			*/
 	1,			/* Depth, Raw = 0		*/
-	Dc_TrCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
-	dc_TrDump,		/* Dump				*/
+	tr_Create,
+	tr_Destroy,
+	0,			/* Add				*/
+	tr_Dump,		/* Dump				*/
+
+	tr_Serialize,
+	tr_Localize,
+
+	sizeof (TranspDataChunk)
 };
 
-
-/*
- * Structures for keeping track of sampling information in transparent
- * data objects.
- *
- * The following is used to keep track on one sample.  This can become
- * inefficient for large data chunks containing lots of small samples,
- * such as a day's worth of PAM data.  If that becomes a problem, this
- * will have to become smarter.
- */
-typedef struct _TransSample
-{
-	ZebTime	ats_Time;	/* Time of this sample		*/
-	int	ats_Offset;	/* Offset into data array	*/
-	int	ats_Len;	/* Length of this sample	*/
-} TransSample;
-
-/*
- * The actual AuxData structure which deals in samples is this:
- */
-typedef struct _AuxTrans
-{
-	unsigned short at_NSample;	/* Number of samples in this DC	 */
-	unsigned short at_NSampAlloc;	/* Space allocated for this many */
-	unsigned short at_HintNSample;	/* estimated # of samples to store */
-	unsigned short at_HintSampSize;	/* estimate of a single sample's size*/
-	unsigned short at_HintUseAvgs;	/* use average sample size as needed */
-	unsigned short at_SampOverhead;	/* sample size overhead of subclasses*/
-	unsigned short at_SampDataSize;	/* hint for size of data in a sample */
-	long at_NextOffset;		/* Next offset into buffered raw data,
-					   equals dc_DataLen if no buffer */
-	AltUnitType at_LocAltUnits;	/* Altitude units for Locations */
-	Location at_SLoc;		/* Location for static platforms */
-	unsigned short at_NSubSample;	/* Number of possible subdivisions */
-	TransSample at_Samples[1];	/* Description of each sample	 */
-} AuxTrans;
-
+DataClassP DCP_Transparent = (DataClassP)&TranspMethods;
 
 /*
  * This is the limit imposed by using unsigned short's to count samples
  */
 const unsigned short MaxSamples = 65535;
-
-/*
- * AuxData codes.
- */
-# define ST_SAMPLES	1	/* Sample locations and sizes.		*/
-# define ST_PLATFORMS	2	/* Optional platform list		*/
-# define ST_LOCATIONS	3	/* Locations for mobile plats		*/
-# define ST_SUBSAMPLES	4	/* Sub-sample index for each sample 	*/
-# define ST_SUBOFFSETS	5	/* Time offset of each sub-sample	*/
-/* XXX Make sure any others are less than ST_ATTR! */
-# define ST_ATTR	1000	/* Per-sample attributes		*/
-
 
 /*
  * Local routines.
@@ -116,8 +91,6 @@ static void		dc_MorePlats FP((DataChunk *, int));
 static void		dc_MoreLocs FP((DataChunk *, int));
 static AuxTrans * 	dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
 static int		dc_TrMoreData FP ((DataChunk *, AuxTrans *, int));
-static int		dc_PrintSaAttr FP ((char *key, void *value, int nval,
-					    DC_ElemType type, void *arg));
 static int		dc_TrCompareSamples ();
 static int		dc_TrGrowthHint FP((DataChunk *dc, AuxTrans *tp, int));
 static int		dc_AvgSampleSize FP((DataChunk *dc, AuxTrans *tp));
@@ -125,44 +98,35 @@ static int		dc_SampleReserve FP((DataChunk *dc, AuxTrans *, int));
 
 
 
-static DataChunk *
-Dc_TrCreate (class)
-DataClass class;
-/*
- * Create an transparent data object.
- */
+static void
+tr_SetADE (dc, subtype, data, len)
+DataChunk *dc;
+int subtype;
+DataPtr data;
+int len;
 {
-	DataChunk *dc;
-	AuxTrans *tp;
-/*
- * Start by creating a superclass data object.
- */
-	dc = DC_ClassCreate (SUPERCLASS);
-/*
- * Allocate an initial AuxData structure with space to hold one sample.
- * It might be better, in the long run, to hold off on this until somebody
- * starts adding data.
- */
-	tp = ALLOC (AuxTrans);
-	tp->at_NSample = 0;
-	tp->at_NSubSample = 0;
-	tp->at_NSampAlloc = 1;
-	tp->at_HintNSample = 0;
-	tp->at_HintSampSize = 0;
-	tp->at_HintUseAvgs = 1;		/* Always default to trying averages */
-	tp->at_SampOverhead = 0;
-	tp->at_SampDataSize = 0;
-	tp->at_NextOffset = dc->dc_DataLen;	/* where our data will start */
-	tp->at_LocAltUnits = CFG_ALTITUDE_UNITS; /* default to km MSL */
-	dc_AddADE (dc, (DataPtr) tp, DCC_Transparent, ST_SAMPLES,
-			sizeof (AuxTrans), TRUE);
-/*
- * Done.
- */
-	dc->dc_Class = class;
-	return (dc);
+	AuxTrans *tp = ATP(dc);
+	TransADE *ade = &tp->at_ade[subtype];
+
+	ade->ta_len = len;
+	ade->ta_data = data;
 }
 
+	
+
+static DataPtr 
+tr_FindADE (dc, subtype, len)
+DataChunk *dc;
+int subtype;
+int *len;
+{
+	AuxTrans *tp = ATP(dc);
+	TransADE *ade = &tp->at_ade[subtype];
+
+	if (len)
+		*len = ade->ta_len;
+	return (ade->ta_data);
+}
 
 
 
@@ -178,14 +142,12 @@ DataChunk *dc;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "GetNSample"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "GetNSample"))
 		return (0);
 /*
- * Find our data and return the info.
+ * Return the info from our instance part.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return (0);
+	tp = ATP(dc);
 	return (tp->at_NSample);
 }
 
@@ -205,14 +167,12 @@ DataChunk *dc;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_Transparent, "GetNSubSample"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "GetNSubSample"))
 		return (0);
 /*
  * Find our data and return the info.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return (0);
+	tp = ATP(dc);
 	return (tp->at_NSubSample);
 }
 
@@ -246,11 +206,9 @@ bool decrease;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "HintNSamples"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "HintNSamples"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	if (nsample >= 0 && 
 	    (decrease || ((unsigned short) nsample > tp->at_HintNSample)))
 		tp->at_HintNSample = nsample;
@@ -287,11 +245,9 @@ bool override;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "HintSampSize"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "HintSampSize"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	if ((sampsize >= 0) && (tp->at_SampDataSize == 0 || override))
 	{
 		tp->at_SampDataSize = sampsize;
@@ -317,11 +273,9 @@ bool decrease;
 {
 	AuxTrans *tp;
 
-	if (! dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"HintMoreSamples"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "HintMoreSamples"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	if (nsample > 0 && 
 	    (decrease || (tp->at_HintNSample < 
 			  tp->at_NSample + (unsigned) nsample)))
@@ -348,11 +302,9 @@ int size;
 {
 	AuxTrans *tp;
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"HintSmplOverhead"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "HintSmplOverhead"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	if (size >= 0)
 	{
 		tp->at_SampOverhead += size;
@@ -373,11 +325,9 @@ bool use;
 {
 	AuxTrans *tp;
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"HintUseAverages"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "HintUseAverages"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	tp->at_HintUseAvgs = use;
 }
 
@@ -400,11 +350,9 @@ int nnew;     /* minimum number of samples to add to this chunk, 0 is valid */
 {
 	AuxTrans *tp;
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"NSamplesGrowth"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "NSamplesGrowth"))
 		return (0);
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return (nnew);
+	tp = ATP(dc);
 	return (dc_TrGrowthHint (dc, tp, nnew));
 }
 
@@ -442,11 +390,9 @@ Location *loc;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "SetStaticLoc"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "SetStaticLoc"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	tp->at_SLoc = *loc;
 }
 
@@ -468,27 +414,27 @@ Location *loc;
 
 
 
-void
+Location *
 dc_SetMLoc (dc, begin, nsamp, loc)
 DataChunk *dc;
 int begin;
 int nsamp;
 Location *loc;
 /*
- * Set the locations for a series of samples.  The locations are in the array
- * pointed to by 'loc'.
+ * Set the locations for a series of samples.  The locations are in the
+ * array pointed to by 'loc'.  If 'loc' is NULL, allocate the space for the
+ * locations only.  Returns a pointer to the array of locations.
  */
 {
 	AuxTrans *tp;
 	Location *loclist;
+	int i;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "SetLoc"))
-		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "SetMLoc"))
+		return (NULL);
+	tp = ATP(dc);
 /*
  * The sample has to exist first.
  */
@@ -496,13 +442,13 @@ Location *loc;
 	{
 		msg_ELog (EF_PROBLEM, "Try to set loc on sample %d of %d",
 			  begin, tp->at_NSample);
-		return;
+		return (NULL);
 	}
 /*
  * Look for the sample list; if it does not yet exist, create it, using a hint
  * on the number of samples, if possible.
  */
-	loclist = (Location *) dc_FindADE (dc, DCC_Transparent,ST_LOCATIONS,0);
+	loclist = (Location *) tr_FindADE (dc, ST_LOCATIONS, 0);
 	if (loclist == NULL)
 	{
 		int nloc, len;
@@ -510,14 +456,19 @@ Location *loc;
 		nloc = dc_TrGrowthHint (dc, tp, 0);
 		len = nloc * sizeof (Location);
 		loclist = (Location *) malloc(len);
-		memset (loclist, 0, len);
-		dc_AddADE (dc, loclist, DCC_Transparent, ST_LOCATIONS, 
-				len, TRUE);
+		tr_SetADE (dc, ST_LOCATIONS, loclist, len);
+		for (i = 0; i < begin; ++i)
+			loclist[i] = tp->at_SLoc;
+		for (i = begin+nsamp; i < nloc; ++i)
+			loclist[i] = tp->at_SLoc;
 	}
 /*
- * Now we just store the location.
+ * Now we just store the locations.
  */
-	memcpy ((char *)(loclist+begin), (char *)loc, nsamp*sizeof(Location));
+	if (loc)
+		memcpy ((char *)(loclist+begin), (char *)loc, 
+			nsamp*sizeof(Location));
+	return (loclist + begin);
 }
 
 
@@ -545,17 +496,12 @@ char *method;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, method))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, method))
 		return NULL;
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "%s: Missing ST_SAMPLES!", method);
-		return NULL;
-	}
+	tp = ATP(dc);
 /*
  * If we're at the limit of samples we can count, c'est la vie
  */
@@ -644,7 +590,7 @@ int len;
 	reserve = dc_SampleReserve (dc, tp, len);
 	offset = dc_TrMoreData (dc, tp, reserve);
 /*
- * Fill the thing in, and we are done.
+ * Fill the thing in, and we're done.
  */
 	ns = tp->at_NSample++;
 	tp->at_Samples[ns].ats_Time = *t;
@@ -730,14 +676,9 @@ int len;
 	AuxTrans *tp;
 	int offset;
 
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "StaticSpace"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "StaticSpace"))
 		return 0;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return 0;
-	}
+	tp = ATP(dc);
 	if (tp->at_NSample > 0)
 	{
 		msg_ELog (EF_PROBLEM, 
@@ -746,7 +687,7 @@ int len;
 		return 0;
 	}
 	offset = tp->at_NextOffset;
-	Dc_RawAdd (dc, len);
+	dc_RawAdd (dc, len);
 	tp->at_NextOffset = dc->dc_DataLen;
 	return (offset);
 }
@@ -779,14 +720,9 @@ ZebTime *offsets;
 	ZebTime *subs;
 	int len;
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"DefineSubSamples"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "DefineSubSamples"))
 		return NULL;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return (NULL);
-	}
+	tp = ATP(dc);
 	if (tp->at_NSubSample > 0)
 	{
 		msg_ELog (EF_PROBLEM, "Sub-samples already defined!");
@@ -804,8 +740,7 @@ ZebTime *offsets;
 	len = nsubs * sizeof(ZebTime);
 	subs = (ZebTime *) malloc( len );
 	memcpy (subs, offsets, len);
-	dc_AddADE (dc, subs, DCC_Transparent, ST_SUBOFFSETS, 
-		   len, TRUE);
+	tr_SetADE (dc, ST_SUBOFFSETS, subs, len);
 	return (subs);
 }
 
@@ -825,14 +760,9 @@ int *nsubs;
 
 	if (nsubs)
 		*nsubs = 0;
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"ListSubSamples"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "ListSubSamples"))
 		return (NULL);
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-					     (int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return (NULL);
-	}
+	tp = ATP(dc);
 	if (tp->at_NSubSample == 0)
 		return (NULL);
 /*
@@ -840,8 +770,7 @@ int *nsubs;
  */
 	if (nsubs)
 		*nsubs = tp->at_NSubSample;
-	subs = (ZebTime *) dc_FindADE (dc, DCC_Transparent, 
-				       ST_SUBOFFSETS, (int *)NULL);
+	subs = (ZebTime *) tr_FindADE (dc, ST_SUBOFFSETS, NULL);
 	return (subs);
 }
 
@@ -863,14 +792,9 @@ int subsample;
 	AuxTrans *tp;
 	int *indices;
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"SetSubSample"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "SetSubSample"))
 		return ;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return ;
-	}
+	tp = ATP(dc);
 	if (sample < 0 || sample >= (unsigned) tp->at_NSample)
 	{
 		msg_ELog (EF_PROBLEM, 
@@ -890,8 +814,7 @@ int subsample;
 	}
 	if (tp->at_NSubSample == 1)	/* handle the simple case */
 		return ;
-	indices = (int *) dc_FindADE (dc, DCC_Transparent, ST_SUBSAMPLES,
-				      (int *) NULL);
+	indices = (int *) tr_FindADE (dc, ST_SUBSAMPLES, NULL);
 	if (indices == NULL)
 	{
 		int nind, len;
@@ -904,8 +827,7 @@ int subsample;
 		len = nind * sizeof (int);
 		indices = (int *) malloc(len);
 		memset (indices, 0, len);
-		dc_AddADE (dc, indices, DCC_Transparent, ST_SUBSAMPLES, 
-			   len, TRUE);
+		tr_SetADE (dc, ST_SUBSAMPLES, indices, len);
 	}
 	indices[sample] = subsample;
 }
@@ -927,14 +849,9 @@ ZebTime *when;
 	int *indices;
 	int subsample;
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"GetSubSample"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "GetSubSample"))
 		return (0);
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return (0);
-	}
+	tp = ATP(dc);
 	if (tp->at_NSubSample == 0)
 	{
 		msg_ELog (EF_PROBLEM, "GetSubSample: No sub-samples defined");
@@ -948,16 +865,14 @@ ZebTime *when;
 	}
 	indices = NULL;
 	if (tp->at_NSubSample > 1)
-		indices = (int *) dc_FindADE (dc, DCC_Transparent, 
-					      ST_SUBSAMPLES, (int *) NULL);
+		indices = (int *) tr_FindADE (dc, ST_SUBSAMPLES, NULL);
 	if (indices)
 		subsample = indices[sample];
 	else
 		subsample = 0;
 	if (when)
 	{
-		offsets = (ZebTime *) dc_FindADE (dc, DCC_Transparent, 
-						  ST_SUBOFFSETS, (int *)NULL);
+		offsets = (ZebTime *) tr_FindADE (dc, ST_SUBOFFSETS, NULL);
 		*when = offsets[subsample];
 	}
 	return (subsample);
@@ -1041,10 +956,9 @@ ZebTime *valid;
 		return ;
 	}
 
-	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"SetValidTime"))
+	if (!dc_ReqSubClass (dc, DCP_Transparent, "SetValidTime"))
 		return ;
-	subs = (ZebTime *) dc_FindADE (dc, DCC_Transparent, ST_SUBOFFSETS,
-				       &nsubs);
+	subs = (ZebTime *) tr_FindADE (dc, ST_SUBOFFSETS, &nsubs);
 	nsubs /= sizeof(ZebTime);
 	for (i = 0; i < nsubs; ++i)
 	{
@@ -1074,7 +988,6 @@ int n;
  */
 {
 	int nnew, len;
-	AuxTrans *newtp;
 /*
  * If we have a hint greater than the current number of samples, use it
  * to determine the new number.  Otherwise, rely on the growth function.
@@ -1084,18 +997,25 @@ int n;
 	else
 		nnew = tp->at_NSampAlloc + 2*n;
 /*
- * Allocate a new set of data, adjust it, and tweak the accounting.
+ * Allocate a new set of samples, adjust it, and tweak the accounting.
  */
-	len = sizeof (AuxTrans) + (nnew - 1)*sizeof (TransSample);
-	newtp = (AuxTrans *) realloc (tp, len);
-	newtp->at_NSampAlloc = nnew;
-	dc_ChangeADE (dc, (DataPtr) newtp, DCC_Transparent, ST_SAMPLES, len);
+	len = nnew * sizeof (TransSample);
+	if (tp->at_Samples)
+		tp->at_Samples = (TransSample *) realloc (tp->at_Samples, len);
+	else
+		tp->at_Samples = (TransSample *) malloc (len);
+	tp->at_NSampAlloc = nnew;
+	if (! tp->at_Samples)
+	{
+		msg_ELog (EF_EMERGENCY, 
+			  "could not allocate memory for %d samples", nnew);
+	}
 /*
  * Make sure there is platform and location space too.
  */
 	dc_MorePlats (dc, nnew);
 	dc_MoreLocs (dc, nnew);
-	return (newtp);
+	return (tp);
 }
 
 
@@ -1114,8 +1034,7 @@ int n;
 /*
  * Get the current list.  If it doesn't exist, there is no work to do.
  */
-	if ((list = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
-						ST_PLATFORMS, &old)) == NULL)
+	if ((list = (PlatformId *)tr_FindADE (dc, ST_PLATFORMS, &old)) == NULL)
 		return;
 /*
  * Make the list bigger, and default the entries to the base platform.
@@ -1126,8 +1045,7 @@ int n;
 		list = (PlatformId *) realloc (list, n*sizeof (PlatformId));
 		for (samp = old; samp < n; samp++)
 			list[samp] = dc->dc_Platform;
-		dc_ChangeADE (dc, (DataPtr) list, DCC_Transparent, 
-			      ST_PLATFORMS, n*sizeof (PlatformId));
+		tr_SetADE (dc, ST_PLATFORMS, list, n*sizeof (PlatformId));
 	}
 }
 
@@ -1143,13 +1061,14 @@ int n;
  * Make sure we have space to store this many locations.
  */
 {
+	AuxTrans *tp = ATP(dc);
 	Location *locs;
 	int old;
+	int i;
 /*
  * Get the current list.  If it doesn't exist, there is no work to do.
  */
-	if ((locs = (Location *) dc_FindADE (dc, DCC_Transparent,
-					     ST_LOCATIONS, &old)) == NULL)
+	if ((locs = (Location *) tr_FindADE (dc, ST_LOCATIONS, &old)) == NULL)
 		return;
 /*
  * Make the list bigger.
@@ -1158,9 +1077,13 @@ int n;
 	if (old < n)
 	{
 		locs = (Location *) realloc (locs, n*sizeof (Location));
-		dc_ChangeADE (dc, (DataPtr) locs, DCC_Transparent, 
-			      ST_LOCATIONS, n*sizeof (Location));
+		tr_SetADE (dc, ST_LOCATIONS, locs, n*sizeof (Location));
 	}
+/*
+ * Default the new locations to the static location.
+ */
+	for (i = old; i < n; ++i)
+		locs[i] = tp->at_SLoc;
 }
 
 
@@ -1258,7 +1181,7 @@ int len;
 		if (add < offset + len - dc->dc_DataLen)
 			add = offset + len - dc->dc_DataLen;
 		if (add > 0)
-			Dc_RawAdd (dc, add);
+			dc_RawAdd (dc, add);
 	}
 /*
  * Since only the next len bytes will be used, advance NextOffset by len.
@@ -1282,17 +1205,12 @@ ZebTime *t;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Set time"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "Set time"))
 		return (FALSE);
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return (FALSE);
-	}
+	tp = ATP(dc);
 /*
  * Make sure the sample exists.  If so, return the info.
  */
@@ -1317,17 +1235,12 @@ ZebTime *t;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get time"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "Get time"))
 		return (FALSE);
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return (FALSE);
-	}
+	tp = ATP(dc);
 /*
  * Make sure the sample exists.  If so, return the info.
  */
@@ -1358,17 +1271,12 @@ int sample, *len;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Get sample"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "Get sample"))
 		return (NULL);
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return (NULL);
-	}
+	tp = ATP(dc);
 /*
  * Make sure the sample exists.  If so, return the info.
  */
@@ -1380,6 +1288,20 @@ int sample, *len;
 			tp->at_Samples[sample].ats_Offset));
 }
 
+
+
+#ifdef notdef
+int *
+dc_SampleTimeIndex (dc)
+DataChunk *dc;
+/*
+ * Create a chronological index to this datachunk 
+ */
+{
+
+
+}
+#endif
 
 
 
@@ -1404,17 +1326,12 @@ DataChunk *dc;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Sort samples"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "Sort samples"))
 		return ;
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return ;
-	}
+	tp = ATP(dc);
 /*
  * If there are 1 or fewer samples, don't bother
  */
@@ -1423,8 +1340,7 @@ DataChunk *dc;
 /*
  * If there is no platform list, then just sort the at_Samples array
  */
-	list = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
-					  ST_PLATFORMS, NULL);
+	list = (PlatformId *) tr_FindADE (dc, ST_PLATFORMS, NULL);
 	if (!list)
 	{
 #ifdef SVR4
@@ -1489,104 +1405,6 @@ const void *a2;
 
 
 
-static void
-dc_TrDump (dc)
-DataChunk *dc;
-/*
- * Dump out this data chunk.
- */
-{
-	AuxTrans *tp;
-	unsigned short i;
-	char atime[40];
-	PlatformId *list;
-/*
- * The obligatory class check.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "Transp Dump"))
-		return;
-/*
- * Find our data.
- */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return;
-	}
-	list = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
-					  ST_PLATFORMS, NULL);
-/*
- * Go for it.
- */
-	printf ("TRANSPARENT class, ");
-	printf ("%d samples, %d allocated, next off %ld, ",
-		tp->at_NSample, tp->at_NSampAlloc, tp->at_NextOffset);
-	printf ("use avg: %s\n", tp->at_HintUseAvgs ? "true" : "false");
-	printf ("Hints: nsamples %d, sample size %d, avg %d, ",
-		tp->at_HintNSample, tp->at_HintSampSize, 
-		dc_AvgSampleSize (dc, tp));
-	printf ("data %d, subclass %d\n",
-		tp->at_SampDataSize, tp->at_SampOverhead);
-	for (i = 0; i < tp->at_NSample; i++)
-	{
-	/*
-	 * Put out time and size info.
-	 */
-		TransSample *ts = tp->at_Samples + i;
-		TC_EncodeTime (&ts->ats_Time, TC_Full, atime);
-		printf ("\t%2d at %s, len %d offset %d", i,
-			atime, ts->ats_Len, ts->ats_Offset);
-		if (list)
-			printf (", plat '%s'", ds_PlatformName (list[i]));
-		printf ("\n");
-	/*
-	 * Print any sample attributes
-	 */
-		dc_ProcSampleAttrArrays (dc, i, NULL, dc_PrintSaAttr, NULL);
-	}
-}
-
-
-
-
-
-static int
-dc_PrintSaAttr (key, value, nval, type, arg)
-char *key;
-void *value;
-int nval;
-DC_ElemType type;
-void *arg;
-/*
- * Print out an attribute value.
- */
-{
-	int i;
-	DC_Element e;
-
-	if (nval && (type == DCT_String))
-	{
-		printf ("\t\t%s --> '%s'\n", key, (char *)value);
-		return (0);
-	}
-	printf ("\t\t%s --> ", key);
-	for (i = 0; i < nval; ++i)
-	{
-		dc_AssignElement (&e, value, type);
-		printf ("%s%s", dc_PrintElement (&e, type),
-			(i == nval - 1) ? "\n" : ", ");
-		value = (char *)value + dc_SizeOfType (type);
-	}
-	if (nval == 0)
-		printf ("\n");
-	return (0);
-}
-
-
-
-
-
 void
 dc_SetPlat (dc, sample, plat)
 DataChunk *dc;
@@ -1601,7 +1419,7 @@ PlatformId plat;
 /*
  * Checking.
  */
-	if (! dc_IsSubClassOf (dc->dc_Class, DCC_Transparent))
+	if (! dc_IsSubClass (dc->dc_ClassP, DCP_Transparent))
 	{
 		msg_ELog (EF_PROBLEM, "Tried to get NSample of class %d",
 				dc->dc_Class);
@@ -1621,8 +1439,7 @@ PlatformId plat;
  * Retrieve the platform list.  If it does not exist, then we need to
  * create one.
  */
-	if ((pids = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
-						ST_PLATFORMS, &len)) == NULL)
+	if ((pids = (PlatformId *)tr_FindADE (dc, ST_PLATFORMS, &len)) == NULL)
 		pids = dc_MakePlats (dc);
 /*
  * Now we just store the value.
@@ -1645,12 +1462,7 @@ DataChunk *dc;
 	int samp, nsamp;
 	AuxTrans *tp;
 
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return NULL;
-	}
+	tp = ATP(dc);
 /*
  * Find out if any hints available to suggest how many platforms to allocate
  */
@@ -1665,8 +1477,7 @@ DataChunk *dc;
 /*
  * Add it to the data chunk.
  */
-	dc_AddADE (dc, (DataPtr) list, DCC_Transparent, ST_PLATFORMS,
-		nsamp*sizeof (PlatformId), TRUE);
+	tr_SetADE (dc, ST_PLATFORMS, list, nsamp*sizeof (PlatformId));
 	return (list);
 }
 
@@ -1686,10 +1497,10 @@ int sample;
 /*
  * Checking.
  */
-	if (! dc_IsSubClassOf (dc->dc_Class, DCC_Transparent))
+	if (! dc_IsSubClass (dc->dc_ClassP, DCP_Transparent))
 	{
 		msg_ELog (EF_PROBLEM, "Tried to get NSample of class %d",
-				dc->dc_Class);
+			  dc->dc_Class);
 		return (0);
 	}
 	if (sample < 0 || sample >= dc_GetNSample (dc))
@@ -1698,8 +1509,7 @@ int sample;
  * Fetch the platformID list.  If it doesn't exist, then everything is
  * owned by the base platform.
  */
-	if ((list = (PlatformId *) dc_FindADE (dc, DCC_Transparent,
-						ST_PLATFORMS, NULL)) == NULL)
+	if ((list = (PlatformId *)tr_FindADE (dc, ST_PLATFORMS, NULL)) == NULL)
 		return (dc->dc_Platform);
 	return list[sample];
 }
@@ -1723,23 +1533,17 @@ Location *loc;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, "GetLoc"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "GetLoc"))
 		return;
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return;
-	}
+	tp = ATP(dc);
 /*
  * Look for the location list.  If it is not there, we return the static
  * location.
  */
-	if (! (locs = (Location *) dc_FindADE (dc, DCC_Transparent,
-			ST_LOCATIONS, (int *) 0)))
+	if (! (locs = (Location *) tr_FindADE (dc, ST_LOCATIONS, (int *) 0)))
 	{
 		*loc = tp->at_SLoc;
 		return;
@@ -1763,6 +1567,50 @@ Location *loc;
 
 
 
+Location *
+dc_GetMLoc (dc, sample, nsample)
+DataChunk *dc;
+int sample;
+int nsample;
+/*
+ * Return a pointer to the array of locations for these samples.
+ */
+{
+	Location *locs;
+	AuxTrans *tp;
+/*
+ * The obligatory class check.
+ */
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "GetMLoc"))
+		return (NULL);
+	tp = ATP(dc);
+/*
+ * Make sure the sample range is not bogus.
+ */
+	if (sample < 0 || sample+nsample > (unsigned) tp->at_NSample)
+	{
+		msg_ELog (EF_PROBLEM, "Try to GetMLoc on sample %d of %d",
+			  sample, tp->at_NSample);
+		return (NULL);
+	}
+/*
+ * Look for the location list.  If it is not there, create one and fill it
+ * with the static location.
+ */
+	if (! (locs = (Location *) tr_FindADE (dc, ST_LOCATIONS, (int *) 0)))
+	{
+		/* allocates and fills locs out of range with static locn */
+		locs = dc_SetMLoc (dc, 0, 0, NULL);
+	}
+/*
+ * Return the info.
+ */
+	return (locs+sample);
+}
+
+
+
+
 
 void
 dc_AdjustSample (dc, sample, newsize)
@@ -1780,17 +1628,12 @@ int sample, newsize;
 /*
  * The obligatory class check.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"Adjust sample"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent,"Adjust sample"))
 		return;
 /*
  * Find our data.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return;
-	}
+	tp = ATP(dc);
 /*
  * Make sure the sample exists.
  */
@@ -1869,17 +1712,9 @@ int size;
 /*
  * Sanity Claus.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class,DCC_Transparent,"AddMoreSamples"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "AddMoreSamples"))
 		return;
-/*
- * Find our data.
- */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-	{
-		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return;
-	}
+	tp = ATP(dc);
 /*
  * Store our parameters as hints for future reference, esp the sample size, but
  * only if they are nonzero.  Don't let nsample hint become smaller.
@@ -1911,207 +1746,6 @@ int size;
 
 
 
-
-void
-dc_SetSampleAttrArray (dc, sample, key, type, nval, values)
-DataChunk *dc;
-int sample;
-char *key;
-DC_ElemType type;
-int nval;
-void *values;
-{
-	if (! dc_ReqSubClassOf(dc->dc_Class,
-			       DCC_Transparent, "SetSampleAttrArray"))
-		return;
-	dca_AddAttrArray (dc, DCC_Transparent, ST_ATTR + sample, 
-			  key, type, nval, values);
-}
-
-
-
-
-void *
-dc_GetSampleAttrArray (dc, sample, key, type, nval)
-DataChunk *dc;
-int sample;
-char *key;
-DC_ElemType *type;
-int *nval;
-{
-	void *values;
-
-	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_Transparent,
-			       "GetSampleAttrArray"))
-		return NULL;
-	if ((values = dca_GetAttrArray (dc, DCC_Transparent, ST_ATTR + sample, 
-					key, type, nval)))
-		return (values);
-	return (dc_GetGlobalAttrArray (dc, key, type, nval));
-}
-
-
-
-
-int
-dc_ProcSampleAttrArrays (dc, sample, pattern, func, arg)
-DataChunk *dc;
-int sample;
-char *pattern;
-int (*func) (/* char *key, void *vals, int nval, DC_ElemType, void *arg */);
-void *arg;
-{
-	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_Transparent,
-			       "ProcSampleAttrArrays"))
-		return (0);
-	return (dca_ProcAttrArrays (dc, DCC_Transparent, ST_ATTR + sample,
-				    pattern, func, arg));
-}
-
-
-
-
-int
-dc_GetNSampleAttrs (dc, sample)
-DataChunk *dc;
-int sample;
-{
-	if (! dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"GetNSampleAttrs"))
-		return (0);
-	return (dca_GetNAttrs (dc, DCC_Transparent, ST_ATTR + sample));
-}
-
-
-
-
-void
-dc_SetSampleAttr (dc, sample, key, value)
-DataChunk *dc;
-int sample;
-char *key, *value;
-/*
- * Add a per-sample attribute to this data chunk.
- */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"SetSampleAttr"))
-		return;
-	dca_AddAttr (dc, DCC_Transparent, ST_ATTR + sample, key, value);
-}
-
-
-
-void
-dc_RemoveSampleAttr (dc, sample, key)
-DataChunk *dc;
-int sample;
-char *key;
-/*
- * Remvoe a per-sample attribute from this data chunk.
- */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, 
-				DCC_Transparent, "RemoveSampleAttr"))
-		return;
-	dca_RemoveAttr (dc, DCC_Transparent, ST_ATTR + sample, key);
-}
-
-
-
-
-char *
-dc_GetSampleAttr (dc, sample, key)
-DataChunk *dc;
-int sample;
-char *key;
-/*
- * Look up a per-sample attribute.
- */
-{
-	char *value;
-
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
-		return(NULL);
-	if ((value = dca_GetAttr (dc, DCC_Transparent, ST_ATTR + sample, key)))
-		return (value);
-	return (dc_GetGlobalAttr (dc, key));
-}
-
-
-
-
-void *
-dc_GetSaAttrBlock (dc, sample, len)
-DataChunk *dc;
-int sample, *len;
-/*
- * Get the per-sample attributes out as an opaque chunk.
- */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,
-				"GetSaAttrBlock"))
-		return(NULL);
-	return (dca_GetBlock (dc, DCC_Transparent, ST_ATTR + sample, len));
-}
-
-
-
-void
-dc_SetSaAttrBlock (dc, sample, block, len)
-DataChunk *dc;
-void *block;
-int sample, len;
-/*
- * Store a per-sample attribute block back.
- */
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,
-				"SetSaAttrBlock"))
-		return;
-	dca_PutBlock (dc, DCC_Transparent, ST_ATTR + sample, block, len);
-}
-
-
-
-
-char **
-dc_GetSampleAttrList(dc, sample, pattern, values, natts)
-DataChunk *dc;
-int sample;
-char *pattern;
-void **values[];
-int *natts;
-{
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,
-				"GetSampleAttrList"))
-		return (NULL);
-	return(dca_GetAttrList(dc, DCC_Transparent, ST_ATTR + sample,
-			       pattern, values, natts));
-}
-
-
-
-char **
-dc_GetSampleAttrKeys (dc, sample, natts)
-DataChunk *dc;
-int sample;
-int *natts;
-{
-/*
- * Returns a list of keys for the sample attributes for this sample.
- * Also puts into natt the number of global attributes for this dc.
- * The returned array of attribute keys is only valid until the next call
- * of any of the Get*AttrList or Get*AttrKeys functions.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,
-				"GetSampleAttrKeys"))
-		return (NULL);
-	return(dca_GetAttrList(dc, DCC_Transparent, ST_ATTR + sample,
-			       NULL, NULL, natts));
-}
-
- 
-
-
 AltUnitType
 dc_GetLocAltUnits (dc)
 DataChunk *dc;
@@ -2123,15 +1757,12 @@ DataChunk *dc;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, 
-				"GetLocAltUnits"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "GetLocAltUnits"))
 		return (0);
 /*
  * Find our data and return the info.
  */
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return (0);
+	tp = ATP(dc);
 	return (tp->at_LocAltUnits);
 }
 
@@ -2151,11 +1782,191 @@ AltUnitType units;
 /*
  * Checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent, 
-				"SetLocAltUnits"))
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "SetLocAltUnits"))
 		return;
-	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
-				(int *) 0)))
-		return;
+	tp = ATP(dc);
 	tp->at_LocAltUnits = units;
 }
+
+
+/* -------------------------------------------------------------------- */
+/* Transparent class methods						*/
+/* -------------------------------------------------------------------- */
+
+
+static DataChunk *
+tr_Create (dc)
+DataChunk *dc;
+/*
+ * Create a transparent data object.
+ */
+{
+	AuxTrans *tp;
+
+	tp = ATP(dc);
+	tp->at_NSample = 0;
+	tp->at_Samples = NULL;
+	tp->at_NSubSample = 0;
+	tp->at_NSampAlloc = 0;
+	tp->at_HintNSample = 0;
+	tp->at_HintSampSize = 0;
+	tp->at_HintUseAvgs = 1;		/* Always default to trying averages */
+	tp->at_SampOverhead = 0;
+	tp->at_SampDataSize = 0;
+	tp->at_NextOffset = dc->dc_DataLen;	/* where our data will start */
+	tp->at_LocAltUnits = CFG_ALTITUDE_UNITS; /* default to km MSL */
+	tp->at_SLoc.l_lat = 0.0;
+	tp->at_SLoc.l_lon = 0.0;
+	tp->at_SLoc.l_alt = 0.0;
+	tr_ClearPointers (tp);
+	return (dc);
+}
+
+
+
+
+static void
+tr_Destroy (dc)
+DataChunk *dc;
+/*
+ * Prepare this datachunk for destruction.
+ */
+{
+	AuxTrans *tp = ATP(dc);
+	int i;
+
+	for (i = 0; i < ST_NUM_ADE; ++i)
+	{
+		if (tp->at_ade[i].ta_data)
+		{
+			free (tp->at_ade[i].ta_data);
+			tp->at_ade[i].ta_data = NULL;
+		}
+	}
+	if (tp->at_Samples)
+		free (tp->at_Samples);
+	tp->at_Samples = NULL;
+}
+	
+
+
+
+static void
+tr_Dump (dc)
+DataChunk *dc;
+/*
+ * Dump out this data chunk.
+ */
+{
+	AuxTrans *tp;
+	unsigned short i;
+	char atime[40];
+	PlatformId *list;
+/*
+ * The obligatory class check.
+ */
+	if (! dc_ReqSubClass (dc, DCP_Transparent, "Transp Dump"))
+		return;
+/*
+ * Find our data.
+ */
+	tp = ATP(dc);
+	list = (PlatformId *) tr_FindADE (dc, ST_PLATFORMS, NULL);
+/*
+ * Go for it.
+ */
+	printf ("TRANSPARENT class, ");
+	printf ("%d samples, %d allocated, next off %ld, ",
+		tp->at_NSample, tp->at_NSampAlloc, tp->at_NextOffset);
+	printf ("use avg: %s\n", tp->at_HintUseAvgs ? "true" : "false");
+	printf ("Hints: nsamples %d, sample size %d, avg %d, ",
+		tp->at_HintNSample, tp->at_HintSampSize, 
+		dc_AvgSampleSize (dc, tp));
+	printf ("data %d, subclass %d\n",
+		tp->at_SampDataSize, tp->at_SampOverhead);
+	for (i = 0; i < tp->at_NSample; i++)
+	{
+	/*
+	 * Put out time and size info.
+	 */
+		TransSample *ts = tp->at_Samples + i;
+		TC_EncodeTime (&ts->ats_Time, TC_Full, atime);
+		printf ("%2d at %s, len %d offset %d", i,
+			atime, ts->ats_Len, ts->ats_Offset);
+		if (list)
+			printf (", plat '%s'", ds_PlatformName (list[i]));
+		printf ("\n");
+	/*
+	 * Print any sample attributes
+	 */
+		dc_ProcSampleAttrArrays(dc, i, NULL, dca_PrintAttrArray, "\n");
+	}
+}
+
+
+
+
+static void
+tr_Serialize (dc)
+DataChunk *dc;
+{
+	AuxTrans *tp = ATP (dc);
+	int i;
+/*
+ * Add the ADEs proper.  We ask that the
+ * ADEs not be automatically freed, since we will do that ourself
+ * in our destroy method.
+ */
+	for (i = 0; i < ST_NUM_ADE; ++i)
+	{
+		if (tp->at_ade[i].ta_data && tp->at_ade[i].ta_len > 0)
+			dc_AddADE (dc, tp->at_ade[i].ta_data, DCP_Transparent,
+				   i, tp->at_ade[i].ta_len, FALSE);
+	}
+	dc_AddADE (dc, tp->at_Samples, DCP_Transparent, ST_SAMPLES,
+		   tp->at_NSampAlloc * sizeof(TransSample), FALSE);
+}
+
+
+
+static void
+tr_ClearPointers (tp)
+AuxTrans *tp;
+{
+	int i;
+
+	for (i = 0; i < ST_NUM_ADE; ++i)
+	{
+		tp->at_ade[i].ta_data = NULL;
+		tp->at_ade[i].ta_len = 0;
+	}
+	tp->at_Samples = NULL;
+}
+
+
+
+static void
+tr_Localize (dc)
+DataChunk *dc;
+/*
+ * Find any and all of our ADEs and insert their pointers into our
+ * instance structure.
+ */
+{
+	AuxTrans *tp = ATP (dc);
+	DataPtr data;
+	int len;
+	int i;
+
+	for (i = 0; i < ST_NUM_ADE; ++i)
+	{
+		data = dc_FindADE (dc, DCP_Transparent, i, &len);
+		tr_SetADE (dc, i, data, len);
+	}
+	data = dc_FindADE (dc, DCP_Transparent, ST_SAMPLES, &len);
+	tp->at_Samples = (TransSample *) data;
+	tp->at_NSampAlloc = len;
+}
+
+
+
