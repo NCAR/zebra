@@ -16,8 +16,12 @@ p_xytrace
 	axis-l-grid-intensity:	0
 	axis-r-grid-intensity:	0
 	representation-style:	line
-	require:		xytrace
+	require:		xytrace, simple-color
 	icon:			tseries
 	icon-middle-menu:	FieldMenu
 	icon-right-menu:	xytrace-right
 	field-select-command:	xytrace-field
+	posicon-left-menu:	xy-an-left
+	posicon-middle-menu:	FieldMenu
+	posicon-right-menu:	simple-color
+	color-tweaker:		xytrace-color
