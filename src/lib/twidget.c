@@ -75,7 +75,7 @@ static int ControlAll = TRUE;
 static int (*Tw_Callback) () = 0;
 
 static Widget tw_WCreate ();
-static int tw_WCallback ();
+static void tw_WCallback ();
 static void finish_arrow (), datebutton ();
 static void ChangeMonth (), ChangeDay (), ChangeYear (); 
 static void ChangeHour (), ChangeMin ();
@@ -303,7 +303,7 @@ XtAppContext appc;
 	XtSetArg (args[4], XtNstate, True);
 	left = XtCreateManagedWidget ("rt", toggleWidgetClass, f, args, 5);
 	XtOverrideTranslations (left, ttable);
-	XtAddCallback (left, XtNcallback, tw_WCallback, RealTime);
+	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) RealTime);
 
 	XtSetArg (args[0], XtNlabel, "History");
 	XtSetArg (args[1], XtNfromHoriz, left);
@@ -312,7 +312,7 @@ XtAppContext appc;
 	XtSetArg (args[4], XtNborderWidth, 0);
 	left = XtCreateManagedWidget ("history", toggleWidgetClass, f, args,5);
 	XtOverrideTranslations (left, ttable);
-	XtAddCallback (left, XtNcallback, tw_WCallback, History);
+	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) History);
 /*
  * Time skipping stuff.
  */
@@ -456,7 +456,7 @@ XtPointer change, junk;
 }
 
 
-static int
+static void
 tw_WCallback (w, mode, value)
 Widget w;
 enum pmode mode;
