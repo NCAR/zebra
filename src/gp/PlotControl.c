@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.8 1991-06-14 20:55:31 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.9 1991-07-01 13:45:36 corbet Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -404,9 +404,12 @@ time *t;
 	char rep[40];
 	int reroute;
 /*
- * Look at times and components.
+ * Look at times and components.  Florida change: Use the current time
+ * for the plot, instead of the data time -- that way things like boundaries
+ * plot right.
  */
-	PlotTime = *t;
+	/* PlotTime = *t; */
+	tl_GetTime (&PlotTime);
 	comps = pd_CompList (Pd);
 	msg_ELog (EF_DEBUG, "Data available on %s (c: sd) at %d %d", 
 		ds_PlatformName (pid), comps[index], t->ds_yymmdd,
