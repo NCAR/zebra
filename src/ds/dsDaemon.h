@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.18 1995-02-10 01:18:34 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.19 1995-04-17 22:36:54 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -220,7 +220,8 @@ PlatformInstance *pi;
 	  NULL : (PTable + pi->dp_parent)); }
 
 /*
- * A bunch of boolean tests for class flags
+ * A bunch of boolean tests for class flags, which happen to be
+ * copied into the instances also and thus can ge tested there.
  */
 static inline int pi_Subplatform (pi)
 PlatformInstance *pi;
@@ -246,6 +247,17 @@ static inline int pi_Daysplit (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_SPLIT); }
 
+static inline int pi_Model (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_MODEL); }
+
+static inline int pi_Virtual (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_VIRTUAL); }
+
+/*
+ * Actual instance-specific flags
+ */
 static inline int pi_Dirty (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_DIRTY); }
