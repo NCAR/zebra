@@ -42,7 +42,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.22 1993-12-27 18:23:40 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.23 1994-01-03 08:09:02 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.22 1993-12-27 18:23:40 corbet Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.23 1994-01-03 08:09:02 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -175,6 +175,8 @@ char Log_path[320];		/* File path of log file		*/
 bool Log_enabled = FALSE;	/* Whether actively logging to the file	*/
 int Log_mask = DEFAULT_MASK;	/* Event mask for the log file		*/
 
+bool Windows = TRUE;		/* Create X Window display		*/
+
 /*
  * Is there somebody out there interested in our problems?  If so, this
  * is their name.
@@ -220,11 +222,13 @@ static void Wait FP ((void));
 
 
 #define USAGE \
-"EventLogger [-h] [-j secs] [-o|-w] [-f logfile] [-m eventmask] [-l filemask]\
+"EventLogger [-h]\n\
+EventLogger [-n|-o|-w] [-j secs] [-f logfile] [-m eventmask] [-l filemask]\
  [mom]\n\
    -h\tPrint this usage message\n\
    -j\tLog a fortune once in a while (0 defaults to 5 minutes)\n\
      \tThe fortune command must be in your path.\n\
+   -n\tNon-windowed, non-interactive EventLogger\n\
    -o\tOverride redirect---give display manager control\n\
    -w\tNo override redirect---gives window manager control\n\
    -f\tSpecify a file to which log messages will be written\n\
@@ -284,8 +288,8 @@ const char *flags;
 
 
 static void
-GetOptions (argc, argv)
-int argc;
+GetOptions (rargc, argv)
+int *rargc;
 char *argv[];
 /*
  * Process command-line options and environment variables to establish
@@ -294,14 +298,38 @@ char *argv[];
  * do not conflict with the standard Xt options.
  */
 {
-	extern int optind, opterr;
-	extern char *optarg;
 	bool dmask_set = FALSE, lmask_set = FALSE;
+	char *optarg;
+	int argc = *rargc;
+	int i, j;
+	int opt;
 	char c;
 
 	Log_path[0] = '\0';
-	while ((c = getopt(argc, argv, "hj:owf:m:l:")) != -1)
+	i = 1;
+	while (i < argc)
 	{
+		opt = 0;
+		optarg = NULL;
+		if (argv[i][0] == '-')
+			c = argv[i][1];
+		else
+		{
+			++i;
+			continue;
+		}
+		if (strchr ("jfml", c))
+		{
+			opt = 1;
+			if (i+1 < argc)
+				optarg = argv[i+1];
+			if (!optarg)
+			{
+				printf ("option '%c' requires argument\n", c);
+				printf ("%s", USAGE);
+				exit (1);
+			}
+		}
 		switch (c)
 		{
 		   case 'h':
@@ -312,6 +340,9 @@ char *argv[];
 			FortuneWait = atoi(optarg);
 			if (FortuneWait <= 0)
 				FortuneWait = FORTUNE_WAIT;
+			break;
+		   case 'n':
+			Windows = FALSE;
 			break;
 		   case 'o':
 			Override = TRUE;
@@ -334,17 +365,14 @@ char *argv[];
 				Log_mask = StringToMask (optarg);
 			lmask_set = TRUE;
 			break;
-		   case '?':
-			printf ("%s", USAGE);
-			exit (1);
 		}
+		/*
+		 * Now finally remove the option
+		 */
+		for (j = i; j < argc; ++j)
+			argv[j] = argv[j + 1 + opt];
+		argc -= 1 + opt;
 	}
-
-	/*
-	 * If there is an argument left, it's somebody to send problems to.
-	 */
-	if (optind < argc)
-		Mother = argv[optind];
 
 	/*
 	 * Try to initialize missing options from the environment,
@@ -402,6 +430,7 @@ char *argv[];
 		else
 			Log_enabled = TRUE;
 	}
+	*rargc = argc;
 }
 
 
@@ -425,15 +454,29 @@ char **argv;
 {
 	char buf[128];
 /*
- * Get set up with the toolkit, removing it's options first.
- */
-	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
-		Resources, NULL, 0);
-	CreateBitmaps();
-/*
  * Retrieve our command line options and initialize parameters accordingly
  */
-	GetOptions (argc, argv);
+	GetOptions (&argc, argv);
+/*
+ * Get set up with the toolkit and parse its options
+ */
+	if (Windows)
+	{
+		Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, 
+				       &argc, argv, Resources, NULL, 0);
+		CreateBitmaps();
+	}
+/*
+ * If there's one argument left, it's somebody to send problems to.
+ */
+	if (argc == 2)
+		Mother = argv[1];
+	else if (argc > 2)
+	{
+		printf ("%s: Too many arguments\n", argv[0]);
+		printf ("%s", USAGE);
+		exit (1);
+	}
 /*
  * Initialize UI.
  */
@@ -450,7 +493,8 @@ char **argv;
 /*
  * Create the EventLogger toplevel shell and widgets
  */
-	CreateEventLogger();
+	if (Windows)
+		CreateEventLogger();
 	AppendToLogFile (Initmsg);
 /*
  * Join the client event and event logger groups.
@@ -460,8 +504,11 @@ char **argv;
 /*
  * Tell msglib about our X connection.
  */
-	msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
-	reconfig (625, 600, 500, 150);
+	if (Windows)
+	{
+		msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
+		reconfig (625, 600, 500, 150);
+	}
 /*
  * Log a message about our log file, if there is one
  */
@@ -488,9 +535,12 @@ Wait()
 	int count;
 	int code;
 
-	sync ();
-	xevent ();
-	if (!TellFortune)
+	if (Windows)
+	{
+		sync ();
+		xevent ();
+	}
+	if (!TellFortune || !Windows)
 		msg_await ();
 	else
 	{
@@ -1126,7 +1176,8 @@ struct message *msg;
  */
 	else if (msg->m_proto == MT_DISPLAYMGR)
 	{
-		dm_msg (msg->m_data);
+		if (Windows)
+			dm_msg (msg->m_data);
 	}
 /*
  * If it's an extended message, do something with it.
@@ -1140,6 +1191,11 @@ struct message *msg;
 /*
  * Everything else is assumed to be a message handler event.
  */	
+	else if (msg->m_proto != MT_MESSAGE)
+	{
+		sprintf (mb, "Unexpected protocol %d", msg->m_proto);
+		LogMessage (EF_PROBLEM, "EventLogger", mb);
+	}
 	else switch (client->mh_type)
 	{
 	   case MH_CLIENT:
@@ -1147,18 +1203,18 @@ struct message *msg;
 		{
 		   case MH_CE_CONNECT:
 			NewProc (client->mh_client);
-		   	sprintf (mb,"Connect on %d", msg->m_seq);
+		   	sprintf (mb, "Connect on %d", msg->m_seq);
 			break;
 		   case MH_CE_DISCONNECT:
 			DeadProc (client->mh_client);
-		   	sprintf (mb,"Disconnect on %d", msg->m_seq);
+		   	sprintf (mb, "Disconnect on %d", msg->m_seq);
 			break;
 		   case MH_CE_JOIN:
-		   	sprintf (mb,"Group %s joined on %d",
+		   	sprintf (mb, "Group %s joined on %d",
 				client->mh_group, msg->m_seq);
 			break;
 		   case MH_CE_QUIT:
-		   	sprintf (mb,"Group %s quit on %d",
+		   	sprintf (mb, "Group %s quit on %d",
 				client->mh_group, msg->m_seq);
 			break;
 		}
@@ -1181,7 +1237,7 @@ struct message *msg;
 	 * anything.  But if there is X interface stuff to be done, it
 	 * needs to be done ASAP, for the user's sake.
 	 */
-	/* xevent (); */
+	/* if (Windows) xevent (); */
 	return (0);
 }
 
@@ -1250,7 +1306,7 @@ char *text;
 	 */
 	if ((flag & Log_mask) || PassDebug (flag, from))
 		AppendToLogFile (msg);
-	if ((flag & Display_mask) || PassDebug (flag, from))
+	if (Windows && ((flag & Display_mask) || PassDebug (flag, from)))
 		AppendToDisplay (msg);
 }
 
@@ -1270,7 +1326,8 @@ char *msg;
 
 	fmt = FormatMessage ('-', from, msg);
 	AppendToLogFile (fmt);
-	AppendToDisplay (fmt);
+	if (Windows)
+		AppendToDisplay (fmt);
 }
 
 
@@ -1652,18 +1709,24 @@ char *name;
 	Arg args[4];
 	int n;
 	SValue v;
+
+	pinfo->pi_enabled = FALSE;
+	strcpy (pinfo->pi_name, name);
 /*
  * Create the widget for this process.
  */
-	n = 0;
-	XtSetArg (args[n], XtNleftBitmap, None);		n++;
-	XtSetArg (args[n], XtNleftMargin, check_width + 7);	n++;
-	pinfo->pi_menu = XtCreateManagedWidget (name, smeBSBObjectClass,
-		ProcMenu, args, n);
-	pinfo->pi_enabled = FALSE;
-	strcpy (pinfo->pi_name, name);
-	XtAddCallback (pinfo->pi_menu, XtNcallback, ToggleProc,
-		(XtPointer) pinfo->pi_name);
+	if (Windows)
+	{
+		n = 0;
+		XtSetArg (args[n], XtNleftBitmap, None);		n++;
+		XtSetArg (args[n], XtNleftMargin, check_width + 7);	n++;
+		pinfo->pi_menu = XtCreateManagedWidget (name, 
+				smeBSBObjectClass, ProcMenu, args, n);
+		XtAddCallback (pinfo->pi_menu, XtNcallback, ToggleProc,
+			       (XtPointer) pinfo->pi_name);
+	}
+	else
+		pinfo->pi_menu = FALSE;
 /*
  * Add the symbol table entry, and we're done.
  */
@@ -1717,7 +1780,8 @@ char *name;
  * Free up everything.
  */
 	pinfo = (ProcInfo *) v.us_v_ptr;
-	XtDestroyWidget (pinfo->pi_menu);
+	if (Windows)
+		XtDestroyWidget (pinfo->pi_menu);
 	free (v.us_v_ptr);
 	usy_z_symbol (ProcTable, name);
 }
@@ -1843,7 +1907,8 @@ void *param;
 	TC_EncodeTime (t, TC_Full, buf + strlen(buf));
 	msg = FormatMessage ('T', EL_NAME, buf);
 	AppendToLogFile (msg);
-	AppendToDisplay (msg);
+	if (Windows)
+		AppendToDisplay (msg);
 }
 
 
