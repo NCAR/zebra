@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.14 1993-04-20 20:30:01 burghart Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.15 1993-06-17 23:11:04 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -350,10 +350,6 @@ bool	update;
 	    }
 	    if (strcmp (style, "barb") == 0 )
 	    {	
-                sprintf (datalabel, "%s %s %d", "m/sec", tadefcolor,  
-			(int) vecScale);
-                An_AddAnnotProc (An_BarbLegend, c, datalabel,
-                	strlen (datalabel) + 1, 100, FALSE, FALSE);
                 doKnot = strcmp( barbtype, "knots" ) == 0 ? 1 :0;
                 sprintf (datalabel, "%s %s %d", barbtype,
                                 tadefcolor,  (int)vecScale);
