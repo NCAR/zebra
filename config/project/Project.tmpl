@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.68 1997-12-09 16:46:02 burghart Exp $
+XCOMM $Id: Project.tmpl,v 1.69 1998-04-27 21:36:49 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -243,6 +243,10 @@ XCOMM -----------------------------------------------------------------------
 #define HasHDF NO
 #endif
 
+# ifndef HasSweepFiles
+# define HasSweepFiles NO
+# endif
+
 /*
  * If we're supposed to be building the part of RDSS we need, define
  * symbols appropriately.  We must be able to define RDSSDir, RDSSLibDir,
@@ -345,6 +349,16 @@ XCOMM -----------------------------------------------------------------------
 #   define UDUnitsIncludes -I$(UDUNITSINCDIR)
 #endif
 
+# ifndef SweepFileIncDir
+#    define SweepFileIncDir /**/
+#    ifndef SweepFileIncludes
+#	define SweepFileIncludes /**/
+#    endif
+# else
+#    ifndef SweepFileIncludes
+#	define SweepFileIncludes -I$(SWEEPFILEINCDIR)
+#    endif
+# endif
 /*
  * For RDSS, the default include directory will be RDSSDir/include, unless
  * we're building RDSS ourselves in which case we leave it blank.  An RDSS
@@ -457,6 +471,17 @@ XCOMM -----------------------------------------------------------------------
 #else
 #   ifndef ProjLibrary
 #      define ProjLibrary -L$(PROJLIBDIR) LoaderLibPrefix -lproj
+#   endif
+#endif
+
+#ifndef SweepFileLibDir
+#   define SweepFileLibDir /**/
+#   ifndef SweepFileLibrary
+#      define SweepFileLibrary LoaderLibPrefix -lddm
+#   endif
+#else
+#   ifndef SweepFileLibrary
+#      define SweepFileLibrary -L$(SWEEPFILELIBDIR) LoaderLibPrefix -lddm
 #   endif
 #endif
 
@@ -665,6 +690,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define HDFDefines /**/
 #endif
 
+# if HasSweepFiles
+# define SWFDefines -DSWEEPFILE_INTERFACE
+# else
+# define SWFDefines /**/
+# endif
+
 #if BuildXHelp	/* we'll only support if we're told we're building it */
 #define XHelpDefines -DSUPPORT_XHELP
 #else
@@ -859,6 +890,9 @@ CXX_DEPEND_OPTION = -M
 #if HasHDF
         HDFINCDIR = HDFIncDir
 #endif
+# if HasSweepFiles
+  SWEEPFILEINCDIR = SweepFileIncDir
+# endif
           XINCDIR = XIncDir
 
 /*
@@ -884,6 +918,9 @@ CXX_DEPEND_OPTION = -M
 #if HasHDF
       HDFINCLUDES = HDFIncludes
 #endif
+# if HasSweepFiles
+      SWFINCLUDES = SweepFileIncludes
+# endif
    CONFIGINCLUDES =
 
 /* 
@@ -913,6 +950,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
        SHMDEFINES = ShmDefines
      XHELPDEFINES = XHelpDefines
        HDFDEFINES = HDFDefines
+       SWFDEFINES = SWFDefines
 /*
  * For RDSS source which needs to know to compile X windows support
  */
@@ -961,6 +999,9 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 #if HasHDF
         HDFLIBDIR = HDFLibDir
 #endif
+# if HasSweepFiles
+  SWEEPFILELIBDIR = SweepFileLibDir
+# endif
           XLIBDIR = XLibDir
 
 /*
@@ -981,6 +1022,9 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 #if HasHDF
            LIBHDF = HDFLibrary
 #endif
+# if HasSweepFiles
+           LIBSWF = SweepFileLibrary
+# endif
           LIBPCAP = PCAPLibrary
             FLIBS = FortranLibraries
           LIBRDSS = RDSSLibrary
@@ -1007,9 +1051,9 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  * to make it easier to add and remove formats down the road.  Likewise,
  * programs only needing protocol access and not file access can use DSLIBS.
  */
-            ZLIBS = $(LIBZEBRA) $(LIBRDSS)
-          DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS)
-           DSLIBS = $(LIBZEBRADS) $(LIBUDUNITS)
+           ZLIBS = $(LIBZEBRA) $(LIBRDSS)
+         DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
+          DSLIBS = $(LIBZEBRADS) $(LIBUDUNITS)
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since

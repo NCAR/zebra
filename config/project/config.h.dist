@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.54 1997-10-16 22:58:51 burghart Exp $
+XCOMM $Id: config.h.dist,v 1.55 1998-04-27 21:36:51 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -433,6 +433,19 @@ XCOMM -----------------------------------------------------------------------
 #define HDFLibDir /usr/local/lib
 
 /*
+ * Zebra can now cope with radar sweepfiles as well.  Unless you have
+ * the needed libraries, and you know that you want to use this capability,
+ * your best bet is to leave it disabled.
+ *
+ * If enabled, use SweepFileIncDir to say where the dorade library
+ * includes live, and SweepFileLibrary to specify the library itself
+ * (or SweepFileLibDir to just give the directory).
+ */
+# define HasSweepFiles NO
+# define SweepFileIncDir /scr/lucy/spol/include
+# define SweepFileLibrary /scr/lucy/spol/ddutils/ddmlib.a
+
+/*
  * During linking, the linker must be told where to find the libraries 
  * for the various packages which Zebra requires.  The locations of these
  * libraries can be defined in the following parameters.  All of these
@@ -803,6 +816,12 @@ XCOMM -----------------------------------------------------------------------
  * ALL of these definitions will be ignored and none of these plots will
  * be built.  Again, it is rare that anyone would want or need to define
  * any of these to NO.
+ *
+ * The one possible exception is POLAR, which enables the "polar"
+ * representation and contours of polar data.  This is probably not useful
+ * to the bulk of people out there.  Polar plots currently only work from
+ * sweepfile data, so you will need to have enabled sweepfile access as
+ * well.
  */
 # if C_PT_CAP
 #	define C_CAP_OVERLAY	YES	/* Overlays			*/
@@ -810,6 +829,7 @@ XCOMM -----------------------------------------------------------------------
 # 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
 #	define C_CAP_RASTER	YES	/* Raster plots			*/
 #	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
+# 	define C_CAP_POLAR	NO	/* Plots of polar data		*/
 # endif
 /*------------------------------------------------------------------------*/
 
@@ -1036,6 +1056,7 @@ XCOMM -----------------------------------------------------------------------
 # 	define C_CAP_LIGHTNING	NO	/* Lightning location		*/
 #	define C_CAP_RASTER	NO	/* Raster plots			*/
 #	define C_CAP_TRACKS	NO	/* Track plots			*/
+# 	define C_CAP_POLAR	NO	/* Plots of polar data		*/
 # endif
 
 /*
