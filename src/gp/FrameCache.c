@@ -22,12 +22,12 @@
 # include <errno.h>
 # include <fcntl.h>
 # include <ui.h>
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.3 1991-12-05 17:33:25 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.4 1992-05-27 16:36:16 kris Exp $")
 
 # define BFLEN 500
 # define FLEN 1024
@@ -41,7 +41,7 @@ MAKE_RCSID ("$Id: FrameCache.c,v 2.3 1991-12-05 17:33:25 corbet Exp $")
  */
 static struct FrameCache
 {
-	time	fc_time;	/* The time of this entry		*/
+	ZebTime	fc_time;	/* The time of this entry		*/
 	char	fc_base[BFLEN];	/* Base field				*/
 	char	fc_fields[FLEN]; /* Other fields			*/
 	float	fc_alt;		/* Altitude (for now) of this frame	*/
@@ -73,8 +73,24 @@ static int BytesPerLine;	/*  Holds the correct number of bytes per*/
 				/*   line when shm is not possible       */
 static int Lru = 0;
 
-void fc_PrintCache();
-int fc_GetFreeFile(), fc_GetFreePixmap();
+/*
+ * Our routines.
+ */
+void		fc_InvalidateCache FP ((void));
+void		fc_CreateFrameFile FP ((void));
+void		fc_AddFrame FP ((ZebTime *, int));
+int		fc_LookupFrame FP ((ZebTime *));
+int		fc_GetFrame FP ((void));
+void		fc_MarkFrames FP ((ZebTime *, int));
+void		fc_UnMarkFrames FP ((void));
+static int	fc_FileToPixmap FP ((int, int));
+static int	fc_PixmapToFile FP ((int));
+void		fc_PrintCache FP ((void));
+static int	fc_GetFreeFile FP ((void)); 
+static int	fc_GetFreeFrame FP ((void)); 
+static int	fc_GetFreePixmap FP ((void));
+void		fc_SetNumFrames FP ((int));
+char		*fc_GetInfo FP ((int));
 
 
 void
@@ -139,7 +155,7 @@ void fc_CreateFrameFile()
 
 void
 fc_AddFrame (when, number)
-time *when;
+ZebTime *when;
 int number;
 /*
  * Add this frame to the cache.  <number> is the pixmap index of this frame.
@@ -148,7 +164,7 @@ int number;
 	char **complist;
 	int findex, i;
 	char platform[BFLEN], field[BFLEN];
-	
+	time uitime;
 /*
  * Sanity checking.
  */
@@ -207,15 +223,16 @@ int number;
 	FCache[findex].fc_index = number;
 	FCache[findex].fc_inmem = TRUE;
 	FreePixmaps[number] = findex;
+	TC_ZtToUI (when, &uitime);
 	sprintf(FCache[findex].fc_info, "%-15s%-11s%-12s%2d:%02d\n", 
 		complist[1], platform, FCache[findex].fc_base, 
-		when->ds_hhmmss/10000, (when->ds_hhmmss/100)%100);  
+		uitime.ds_hhmmss/10000, (uitime.ds_hhmmss/100)%100);  
 }
 
 
 int
 fc_LookupFrame (when)
-time *when;
+ZebTime *when;
 /*
  * Try to find a cache entry that matches PD at this time and return its
  * pixmap index.
@@ -225,7 +242,6 @@ time *when;
 	float alt;
 	char **complist, base[BFLEN], field[BFLEN], fieldlist[FLEN];
 	char platform[BFLEN];
-
 /*
  * Get the base field from the PD.
  */
@@ -264,8 +280,8 @@ time *when;
  */
 	for (i = 0; i < MaxFrames; i++)
 		if (FCache[i].fc_valid && 
-		    FCache[i].fc_time.ds_yymmdd == when->ds_yymmdd &&
-		    FCache[i].fc_time.ds_hhmmss == when->ds_hhmmss &&
+		    FCache[i].fc_time.zt_Sec == when->zt_Sec &&
+		    FCache[i].fc_time.zt_MicroSec == when->zt_MicroSec &&
 		    FCache[i].fc_alt >= (alt - 0.1) &&
 		    FCache[i].fc_alt <= (alt + 0.1) &&
 		    ! strcmp (FCache[i].fc_base, base) &&
@@ -298,7 +314,7 @@ fc_GetFrame ()
 
 void
 fc_MarkFrames (times, ntime)
-time *times;
+ZebTime *times;
 int ntime;
 /*
  * Go through and mark all frames that match one of these times to be kept.
@@ -349,8 +365,8 @@ int ntime;
 
 		fc->fc_keep = FALSE;
 		for (t = 0; fc->fc_valid && t < ntime; t++)
-			if (fc->fc_time.ds_yymmdd == times[t].ds_yymmdd &&
-			    fc->fc_time.ds_hhmmss == times[t].ds_hhmmss &&
+			if (fc->fc_time.zt_Sec == times[t].zt_Sec &&
+			    fc->fc_time.zt_MicroSec == times[t].zt_MicroSec &&
 			    fc->fc_alt == alt && 
 			    ! strcmp (fc->fc_base, base) &&
 			    ! strcmp (fc->fc_fields, fieldlist))
@@ -363,7 +379,7 @@ int ntime;
 
 
 void
-fc_UnMarkFrames()
+fc_UnMarkFrames ()
 /*
  * When the frames are no longer needed make fc_keep FALSE so that their
  * pixmaps can be reused.
@@ -378,8 +394,8 @@ fc_UnMarkFrames()
 }
 
 
-int
-fc_FileToPixmap(frame, pixmap)
+static int
+fc_FileToPixmap (frame, pixmap)
 int frame, pixmap;  
 /*
  *  <frame> is the FCache index of a frame which is currently in FrameFile   
@@ -389,7 +405,7 @@ int frame, pixmap;
  */
 {
 	XImage *image = 0;
-	int	i, framesize;
+	int	framesize;
 
 	msg_ELog(EF_DEBUG, "Moving frame %d to pixmap %d.", frame, pixmap);
 /*
@@ -478,8 +494,8 @@ int frame, pixmap;
 }
 
 
-int
-fc_PixmapToFile(frame)
+static int
+fc_PixmapToFile (frame)
 int frame;  
 /*
  *  <frame> is the FCache index of a frame currently contained in a pixmap in 
@@ -564,8 +580,8 @@ int frame;
 }
 
 
-int
-fc_GetFreePixmap()
+static int
+fc_GetFreePixmap ()
 /*
  *  Return the index of a pixmap that contains no data.  Move data
  *  in a pixmap to the FrameFile if necessary.  This pixmap is not
@@ -599,14 +615,14 @@ fc_GetFreePixmap()
 	}
 	
 	i = (kframe >= 0) ? kframe : minframe;
-	if(! fc_PixmapToFile(FreePixmaps[i]));
+	if (! fc_PixmapToFile (FreePixmaps[i]))
 		FCache[FreePixmaps[i]].fc_valid = FALSE;
 	return(i);
 }
 
 	
-int
-fc_GetFreeFrame()
+static int
+fc_GetFreeFrame ()
 /*
  *  Return the index of an entry in the FCache that contains no data.  
  *  Remove invalid or old data from the cache if necessary.  This
@@ -642,7 +658,7 @@ fc_GetFreeFrame()
 
 
 void
-fc_SetNumFrames(n)
+fc_SetNumFrames (n)
 int n;
 /*
  *  Update the FreePixmaps table whenever the FrameCount changes.
@@ -651,12 +667,12 @@ int n;
 	int i;
 
 	for(i = 0; i < n; i++)
-		if(FreePixmaps[i] == InvalidEntry)
+		if (FreePixmaps[i] == InvalidEntry)
 			FreePixmaps[i] = FREE;
 	for(i = n; i < MaxFrames; i++)
 	{
-		if(FreePixmaps[i] >= 0)
-			if(! fc_PixmapToFile(FreePixmaps[i]));
+		if (FreePixmaps[i] >= 0)
+			if(! fc_PixmapToFile (FreePixmaps[i]))
 				FCache[FreePixmaps[i]].fc_valid = FALSE;
 		FreePixmaps[i] = InvalidEntry;
 	}
@@ -664,7 +680,7 @@ int n;
 
 
 void
-fc_PrintCache()
+fc_PrintCache ()
 /*
  *  Print out the contents of the cache.
  */
@@ -682,7 +698,7 @@ for(i = 0; i < MaxFrames; i++)
 
 
 char *
-fc_GetInfo(index)
+fc_GetInfo (index)
 int index;
 /*
  *  index is the pixmap index.  Get the FCache index and return the
@@ -698,7 +714,7 @@ int index;
 	if(findex == FREE || findex == InvalidEntry)
 	{
 		msg_ELog(EF_PROBLEM, "Can't get info for pixmap %d.", index);
-		return;
+		return (NULL);
 	}
 
 /*
@@ -708,8 +724,8 @@ int index;
 }
 	
 
-int
-fc_GetFreeFile()
+static int
+fc_GetFreeFile ()
 /*
  *  Return an offset into the file that contains invalid data. 
  */

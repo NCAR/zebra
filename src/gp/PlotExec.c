@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.9 1992-03-26 20:14:24 kris Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.10 1992-05-27 16:44:58 kris Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -226,16 +226,17 @@ char	*component;
  */
 {
 	char	plt[30];
-	int	i;
 	Boolean	global;
-	time 	cachetime;
+	ZebTime	cachetime;
+	time	temptime;
 /*
  * Check now for an abort condition
  */
 	if (Abort)
 	{
+		TC_ZtToUI (&PlotTime, &temptime);
 		msg_ELog (EF_INFO, "%d %06d %s plot aborted!",
-			PlotTime.ds_yymmdd, PlotTime.ds_hhmmss, component);
+			temptime.ds_yymmdd, temptime.ds_hhmmss, component);
 		return;
 	}
 /*
@@ -335,16 +336,17 @@ char	*component;
 
 void
 px_GlobalPlot (cachetime)
-time *cachetime;
+ZebTime *cachetime;
 /*
  * Perform a global update.
  */
 {
-	float orig_alt,tascale;
+	float orig_alt = Alt, tascale;
 	char **comps, datestring[40], rep[30], tadefcolor[30];
 	int i;
 	Pixel timecolor;
 	XColor xc;
+	time temptime;
 /*
  * Choose the drawing frame and clear it out
  */
@@ -387,7 +389,8 @@ time *cachetime;
  * Annotate with the date and time
  */
 	An_ResetAnnot (Ncomps);
-	ud_format_date (datestring, (date *)(&PlotTime), UDF_FULL);
+	TC_ZtToUI (&PlotTime, &temptime);
+	ud_format_date (datestring, (date *)(&temptime), UDF_FULL);
 	strcat (datestring, "  ");
 	if (PlotMode == History)
 	{
@@ -529,15 +532,20 @@ px_GetCoords ()
 
 void
 px_FixPlotTime (t)
-time *t;
+ZebTime	*t;
 /*
  * Roll back the plot time to the nearest multiple of the trigger time.
  */
 {
-	char trigger[40], **comps;
-	int itrigger, seconds, i;
-	time latest, avail;
+	char	trigger[40], **comps;
+	int	itrigger, seconds, i;
+	time	temptime,latest, avail;
+	ZebTime	ztavail;
 	PlatformId pid;
+/*
+ * Convert ZebTime to UI time.
+ */
+	TC_ZtToUI (t, &temptime);
 /*
  * If the global trigger is time based, we just roll back to that time.
  */
@@ -545,13 +553,14 @@ time *t;
 		return;
 	if (itrigger = pc_TimeTrigger (trigger))
 	{
-		seconds = (PlotTime.ds_hhmmss/10000)*60*60 +
-			  ((PlotTime.ds_hhmmss/100) % 100)*60 +
-			  (PlotTime.ds_hhmmss % 100);
+		seconds = (temptime.ds_hhmmss/10000)*60*60 +
+			  ((temptime.ds_hhmmss/100) % 100)*60 +
+			  (temptime.ds_hhmmss % 100);
 		seconds -= seconds % itrigger;
-		t->ds_hhmmss = (seconds/3600)*10000 + ((seconds/60) % 60)*100 +
-					seconds % 60;
-		t->ds_yymmdd = PlotTime.ds_yymmdd;
+		temptime.ds_hhmmss = (seconds/3600)*10000 + 
+			((seconds/60) % 60)*100 + seconds % 60;
+		temptime.ds_yymmdd = temptime.ds_yymmdd;
+		TC_UIToZt (&temptime, t);
 		return;
 	}
 /*
@@ -572,8 +581,9 @@ time *t;
 	/*
 	 * Find the most recent time.
 	 */
-	 	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &avail))
+	 	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &ztavail))
 			continue;
+		TC_ZtToUI (&ztavail, &avail);
 		if (DLE (latest, avail))
 			latest = avail;
 	}
@@ -582,9 +592,9 @@ time *t;
  * as it was.
  */
 	if (latest.ds_yymmdd > 800101)	/* still pretty early */
-		*t = latest;
+		TC_UIToZt (&latest, t);
 	else
-		*t = PlotTime;
+		TC_UIToZt (&temptime, t);
 }
 
 

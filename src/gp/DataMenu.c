@@ -31,7 +31,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.7 1991-12-07 18:03:13 kris Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.8 1992-05-27 16:40:26 kris Exp $")
 
 
 /*
@@ -39,7 +39,7 @@ MAKE_RCSID ("$Id: DataMenu.c,v 2.7 1991-12-07 18:03:13 kris Exp $")
  */
 # define MAXENTRY 20
 static Widget Menu, Entries[MAXENTRY];
-static time Times[MAXENTRY];
+static ZebTime Times[MAXENTRY];
 static char EPlats[40][MAXENTRY];
 static int NManaged;
 
@@ -47,21 +47,12 @@ static stbl VTable;
 
 static char IComp[60];
 
-# ifdef __STDC__
-	static void EntryCallback (Widget, XtPointer, XtPointer);
-	static void PopupCallback (Widget, XtPointer, XtPointer);
-	static int SetupPlats (void);
-	static int FunkyPlat (char *);
-	static int AddPlatform (char *, int, time *);
-	static void ToRealTime (Widget, XtPointer, XtPointer);
-# else
-	static void EntryCallback ();
-	static void PopupCallback ();
-	static int SetupPlats ();
-	static int FunkyPlat ();
-	static int AddPlatform ();
-	static void ToRealTime ();
-# endif
+static void EntryCallback FP ((Widget, XtPointer, XtPointer));
+static void PopupCallback FP ((Widget, XtPointer, XtPointer));
+static int SetupPlats FP ((void));
+static int FunkyPlat FP ((char *));
+static int AddPlatform FP ((char *, int, ZebTime *));
+static void ToRealTime FP ((Widget, XtPointer, XtPointer));
 
 
 
@@ -123,10 +114,10 @@ XtPointer xwhich, junk;
  * One of the entries has been selected.
  */
 {
-	SValue v;
-	int type, which = (int) xwhich;
+	int which = (int) xwhich;
 	char cbuf[200];
 	char *qual;
+	time uitime;
 /*
  * Here we just put together the command and go.  Start by searching for
  * a command to execute.
@@ -148,7 +139,8 @@ XtPointer xwhich, junk;
 	strcat (cbuf, " ");
 	strcpy (cbuf + strlen (cbuf), EPlats[which]);
 	strcat (cbuf, " ");
-	ud_format_date (cbuf + strlen (cbuf), Times + which, UDF_FULL);
+	TC_ZtToUI (Times + which, &uitime);
+	ud_format_date (cbuf + strlen (cbuf), &uitime, UDF_FULL);
 
 	msg_ELog (EF_DEBUG, "DAvail cmd '%s'", cbuf);
 	ui_perform (cbuf);
@@ -169,6 +161,7 @@ XtPointer junk, junk1;
 	int nentry, i;
 	Arg args[2];
 	char string[80];
+	time uitime;
 /*
  * Get the platforms set.
  */
@@ -182,7 +175,8 @@ XtPointer junk, junk1;
 	 * Add the text.
 	 */
 		sprintf (string, "%-15s ", EPlats[i]);
-		ud_format_date (string + 15, Times + i, UDF_FULL);
+		TC_ZtToUI (Times + i, &uitime);
+		ud_format_date (string + 15, &uitime, UDF_FULL);
 		XtSetArg (args[0], XtNlabel, string);
 		XtSetValues (Entries[i], args, 1);
 	/*
@@ -215,7 +209,7 @@ SetupPlats ()
 	char platform[80], *plats[MAXENTRY], adjust_str[40];
 	SValue v;
 	int type, nplat, nentry = 0, plat, adjust, dsadjust;
-	time t;
+	ZebTime t;
 /*
  * See which is our component and platform.
  */
@@ -244,12 +238,15 @@ SetupPlats ()
 				adjust_str);
 			adjust = 600;
 		}
+# ifdef notdef
 		dsadjust = (adjust/3600)*10000 + ((adjust/60) % 60)*100 +
 			adjust % 60;
 		pmu_dadd (&t.ds_yymmdd, &t.ds_hhmmss, dsadjust);
+# endif
+		t.zt_Sec += adjust;
 	}
 	else
-		tl_GetTime (&t);
+		tl_Time (&t);
 	for (plat = 0; plat < nplat; plat++)
 		nentry = AddPlatform (plats[plat], nentry, &t);
 	return (nentry);
@@ -276,14 +273,14 @@ char *s;
 
 static int 
 AddPlatform (plat, nsofar, t)
-char *plat;
-int nsofar;
-time *t;
+char	*plat;
+int	nsofar;
+ZebTime *t;
 /*
  * Try to add stuff from this plat.
  */
 {
-	time dtimes[MAXENTRY];
+	ZebTime dtimes[MAXENTRY];
 	PlatformId pid = ds_LookupPlatform (plat);
 	int dt, ntime, i, ent;
 	char *attr = NULL, cattr[200];
@@ -293,7 +290,7 @@ time *t;
 	if (pid == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "Bad platform %s", plat);
-		return;
+		return (NULL);
 	}
 /*
  * Check out filter attributes.
@@ -317,7 +314,7 @@ time *t;
 	 * which is before this time.
 	 */
 	 	for (; ent < nsofar; ent++)
-			if (DLT (Times[ent], dtimes[dt]))
+			if (Times[ent].zt_Sec < dtimes[dt].zt_Sec)
 				break;
 
 		if (ent == MAXENTRY)

@@ -26,7 +26,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.3 1992-01-29 22:32:16 barrett Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.4 1992-05-27 16:46:38 kris Exp $")
 
 
 
@@ -35,7 +35,7 @@ MAKE_RCSID ("$Id: Utilities.c,v 2.3 1992-01-29 22:32:16 barrett Exp $")
 int
 GetLocation (platform, t, loc)
 char *platform;
-time *t;
+ZebTime *t;
 Location *loc;
 /*
  * Find out where this platform is at this time.
@@ -196,7 +196,7 @@ int width;
 int
 AgeCheck (comp, t)
 char *comp;
-time *t;
+ZebTime *t;
 /*
  * If this component has an age limit, enforce it.  Return FALSE if the
  * given time is too old, relative to the plot time.
@@ -224,7 +224,7 @@ time *t;
 /*
  * Now see how close we are.
  */
-	return ((TC_FccToSys (&PlotTime) - TC_FccToSys (t)) <= seconds);
+	return ((PlotTime.zt_Sec - t->zt_Sec) <= seconds);
 }
 
 long

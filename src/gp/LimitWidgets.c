@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.7 1992-04-13 17:22:58 barrett Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.8 1992-05-27 16:42:42 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1262,7 +1262,6 @@ XtAppContext actx;
  * Actually create the overlay status widget.
  */
 {
-	Widget form;
 	Arg args[10];
 	int n;
 /*
@@ -1339,24 +1338,35 @@ lw_LoadStatus ()
 void
 lw_TimeStatus (comp, t)
 char *comp;
-time *t;
+ZebTime *t;
 /*
  * Add a status line.
  */
 {
 	char *cp = OvStatus + strlen (OvStatus);
 	char plat[40], fld[40];
+	time uitime;
+
+/*
+ * Convert from ZebTime to UI time.
+ */
+	TC_ZtToUI (t, &uitime);
 
 	strcpy (plat, "--");
-
+/*
+ * Retrieve all necessary data.
+ */
 	pd_Retrieve (Pd, comp, "platform", plat, SYMT_STRING);
 	if (! pd_Retrieve (Pd, comp, "field", fld, SYMT_STRING) &&
 	    ! pd_Retrieve (Pd, comp, "color-code-field", fld, SYMT_STRING) &&
 	    ! pd_Retrieve (Pd, comp, "arrow-type", fld, SYMT_STRING))
 		strcpy (fld, " ");
+/*
+ * Put together the text.
+ */
 	sprintf (cp, "%-15s%-11s%-12s%2d:%02d:%02d\n", comp, plat, fld,
-		t->ds_hhmmss/10000, (t->ds_hhmmss/100) % 100,
-		t->ds_hhmmss % 100);
+		uitime.ds_hhmmss/10000, (uitime.ds_hhmmss/100) % 100,
+		uitime.ds_hhmmss % 100);
 }
 
 
@@ -1468,10 +1478,7 @@ struct ui_command	*cmds;
 		else
 		{
 			pnames[i] += 8;
-			msg_ELog (EF_DEBUG, "number %s", pnames[i]);
 			sta = atoi (pnames[i]);
-			msg_ELog (EF_DEBUG, "Station %d is already set.",
-				--sta);
 			XtSetArg (args[0], XtNstate, True);
 			XtSetValues (Sw_Swidgets[sta], args, 1);
 			Sw_Sset[sta] = TRUE;

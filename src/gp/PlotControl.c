@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.8 1992-04-24 17:51:35 granger Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.9 1992-05-27 16:44:23 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,11 +23,11 @@ static char *rcsid = "$Id: PlotControl.c,v 2.8 1992-04-24 17:51:35 granger Exp $
 # include <ctype.h>
 # include <X11/Intrinsic.h>
 # include "GraphicsW.h"
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/timer.h"
-# include "../include/pd.h"
-# include "../include/DataStore.h"
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <pd.h>
+# include <DataStore.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
 
@@ -219,7 +219,7 @@ pc_PlotHandler ()
 		}
 	}
 	else
-		tl_GetTime (&PlotTime);
+		tl_Time (&PlotTime);
 /*
  * If we're in post processing mode assign PostProcTime to something.
  */
@@ -412,7 +412,7 @@ char *comp;
  * Deal with a timer alarm.
  */
 {
-	PlotTime = *t;
+	TC_UIToZt (t, &PlotTime);
 	msg_ELog (EF_DEBUG, "Plot alarm at %d %d", t->ds_yymmdd, t->ds_hhmmss);
 	Eq_AddEvent (PDisplay, pc_Plot, comp, 1 + strlen (comp),
 		(strcmp (comp, "global") ? Bounce : Override));
@@ -441,7 +441,7 @@ time *t;
  * plot right.
  */
 	/* PlotTime = *t; */
-	tl_GetTime (&PlotTime);
+	tl_Time (&PlotTime);
 	comps = pd_CompList (Pd);
 	msg_ELog (EF_DEBUG, "Data available on %s (c: %s) at %d %d", 
 		ds_PlatformName (pid), comps[index], t->ds_yymmdd,
@@ -660,8 +660,6 @@ pc_NextFrame ()
  * Display the next frame
  */
 {
-	int index;
-
 	DisplayFrame++;
 	DisplayFrame %= FrameCount;
 	GWDisplayFrame (Graphics, DisplayFrame);

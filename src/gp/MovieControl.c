@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.6 1991-11-22 20:53:38 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.7 1992-05-27 16:43:19 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,13 +29,13 @@ static char *rcsid = "$Id: MovieControl.c,v 2.6 1991-11-22 20:53:38 kris Exp $";
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Scrollbar.h>
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
-# include "../include/timer.h"
-# include "../include/DataStore.h"
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
+# include <timer.h>
+# include <DataStore.h>
+# include <GraphicsW.h>
 # include "GraphProc.h"
-# include "GraphicsW.h"
 # include "EventQueue.h"
 # include <ui_date.h>
 
@@ -54,7 +54,7 @@ static Widget 	WEndt, WMinutes, WFrate, WFskip;
 /*
  * The actual movie control parameters.
  */
-static time 	Mtimes[NCACHE];	/* The time of each frame	*/
+static ZebTime 	Mtimes[NCACHE];		/* The time of each frame	*/
 static int 	MovieSlot = -1;
 static int 	Nframes = 0;		/* Number of frames in the movie*/
 static int 	TimeSkip = 1;		/* Minutes between frames	*/
@@ -63,7 +63,7 @@ static int 	OldFrameCount = 0;		/* FrameCount before movie  	*/
 static bool 	Now;			/* Should endtime track realtime*/
 static bool 	ReGenFrame = FALSE;
 static bool 	Notification = FALSE;
-static time 	NotTime;
+static ZebTime 	NotTime;
 static char	EndTime[ATSLEN];
 static int 	CurrentFrame;
 static int 	DisplayedFrame;
@@ -84,51 +84,27 @@ static char PGComp[FLEN];		/* Component which wants pregen.*/
 /*
  * Forward definitions.
  */
-# ifdef __STDC__
-	static Widget mc_MWCreate (int, Widget, XtAppContext);
-	static bool mc_SetupParams (void);
-	static void mc_SetStatus (char *);
-	static bool mc_GetFrameTimes (time *, int);
-	static void mc_ReGetFrameTimes (time *);
-	void mc_MovieRun ();
-	void mc_MovieStop ();
-	void mc_MovieRT ();
-	void mc_ResetFrameCount (void);
-	static void mc_GenFrames (void);
-	static void mc_DoNextFrame (int *);
-	static void mc_NextFrame (void);
-	static void mc_SetIndicator (int);
-	static void mc_ScrollCB (Widget, XtPointer, XtPointer);
-	static void mc_Jump (Widget, XtPointer, XtPointer);
-	static void mc_GenNFrame (int *);
-	static void mc_ReGenFrames(void);
-	static void mc_ReGenFramesDS(void);
-	static void mc_SetupPreGen(void);
-	static int mc_FixTime(int);
-	static void mc_Notification(PlatformId, int, time *);
-# else
-	static bool mc_SetupParams ();
-	static void mc_SetStatus ();
-	static bool mc_GetFrameTimes ();
-	static void mc_ReGetFrameTimes ();
-	static Widget mc_MWCreate ();
-	void mc_MovieRun ();
-	void mc_MovieStop ();
-	void mc_MovieRT ();
-	void mc_ResetFrameCount ();
-	static void mc_GenFrames ();
-	static void mc_NextFrame ();
-	static void mc_DoNextFrame ();
-	static void mc_SetIndicator ();
-	static void mc_ScrollCB ();
-	static void mc_Jump ();
-	static void mc_GenNFrame ();
-	static void mc_ReGenFrames();
-	static void mc_ReGenFramesDS();
-	static void mc_SetupPreGen();
-	static int mc_FixTime();
-	static void mc_Notification();
-# endif
+static Widget	mc_MWCreate FP ((int, Widget, XtAppContext));
+static bool	mc_SetupParams FP ((void));
+static void	mc_SetStatus FP ((char *));
+static bool	mc_GetFrameTimes FP ((ZebTime *, int));
+static void	mc_ReGetFrameTimes FP ((ZebTime *));
+void		mc_MovieRun FP (());
+void		mc_MovieStop FP (());
+void		mc_MovieRT FP (());
+void		mc_ResetFrameCount FP ((void));
+static void	mc_GenFrames FP ((void));
+static void	mc_DoNextFrame FP ((int *));
+static void	mc_NextFrame FP ((void));
+static void	mc_SetIndicator FP ((int));
+static void	mc_ScrollCB FP ((Widget, XtPointer, XtPointer));
+static void	mc_Jump FP ((Widget, XtPointer, XtPointer));
+static void	mc_GenNFrame FP ((int *));
+static void	mc_ReGenFrames FP ((void));
+static void	mc_ReGenFramesDS FP ((void));
+static void	mc_SetupPreGen FP ((void));
+static ZebTime	mc_FixTime FP ((ZebTime));
+static void	mc_Notification FP ((PlatformId, int, ZebTime *));
 
 
 void
@@ -151,7 +127,7 @@ mc_LoadParams ()
  * Load the movie params from the PD.
  */
 {
-	time t;
+	ZebTime t;
 
 	if (! pda_Search (Pd, "global", "movie-minutes", NULL, Minutes, 
 			SYMT_STRING))
@@ -159,8 +135,8 @@ mc_LoadParams ()
 	if (! pda_Search (Pd, "global", "movie-end-time", NULL, Endt, 
 			SYMT_STRING))
 	{
-		tl_GetTime (&t);
-		ud_format_date (Endt, &t, UDF_FULL);
+		tl_Time (&t);
+		TC_EncodeTime (&t, TC_Full, Endt);
 	}
 	if (! pda_Search (Pd, "global", "frame-rate", NULL, Frate,SYMT_STRING))
 		strcpy (Frate, "2");
@@ -181,7 +157,6 @@ XtAppContext appc;
 	Widget form, w, above, label;
 	Arg args[20];
 	int n;
-	time t;
 /*
  * Load some defaults.
  */
@@ -483,11 +458,11 @@ mc_SetupParams ()
  */
 {
 	int minutes;
-	time t, t1;
+	time temptime;
+	ZebTime t, t1, zt;
 	union usy_value v;
 	char trigger[200];
 	PlatformId pid;
-	char fskipk[ATSLEN], string[ATSLEN];
 /*
  * Figure out what is in the control widget now.
  */
@@ -495,13 +470,14 @@ mc_SetupParams ()
 	{
 		if (PostProcMode)
 		{
-			ud_format_date (EndTime, &PostProcTime, UDF_FULL);
-			v.us_v_date = PostProcTime;
+			TC_EncodeTime (&PostProcTime, TC_Full, EndTime);
+			TC_ZtToUI (&PostProcTime, &temptime);
+			v.us_v_date = temptime;
 		}
 		else
 		{
 			Now = TRUE;
-			tl_GetTime(&t);
+			tl_Time (&t);
 			pda_Search(Pd, "global", "trigger", 0, trigger, 
 				SYMT_STRING);
 			if((pid = ds_LookupPlatform(trigger)) != BadPlatform)
@@ -512,14 +488,16 @@ mc_SetupParams ()
 				    return(FALSE);
 				}
 				ReGenFrame = FALSE;
-				ud_format_date(EndTime, &t1, UDF_FULL);
-				v.us_v_date = t1;
+				TC_EncodeTime (&t1, TC_Full, EndTime);
+				TC_ZtToUI (&t1, &temptime);
+				v.us_v_date = temptime;
 			}
 			else	 
 			{
 				ReGenFrame = TRUE;
-				ud_format_date(EndTime, &t, UDF_FULL);
-				v.us_v_date = t;
+				TC_EncodeTime (&t, TC_Full, EndTime);
+				TC_ZtToUI (&t, &temptime);
+				v.us_v_date = temptime;
 			}
 		}
 	}
@@ -567,7 +545,8 @@ mc_SetupParams ()
 /*
  * Now calculate our frame times.
  */
-	if (! mc_GetFrameTimes (&v.us_v_date, minutes))
+	TC_UIToZt (&v.us_v_date, &zt);
+	if (! mc_GetFrameTimes (&zt, minutes))
 	{
 		mc_SetStatus ("Unable to get frame times.");
 		return (FALSE);
@@ -619,7 +598,7 @@ int *which;
  * Generate the WHICHth movie frame.
  */
 {
-	char msg[50], **complist;
+	char msg[50];
 	int next;
 	float sec;
 /*
@@ -674,18 +653,18 @@ int *which;
 
 static bool
 mc_GetFrameTimes (end, minutes)
-time *end;
-int minutes;
+ZebTime	*end;
+int	minutes;
 /*
  * Calculate the frame times for this movie.
  */
 {
 	int incr, f;
-	time t;
+	ZebTime t;
 /*
  * Now fix up the end time.
  */
-	end->ds_hhmmss = mc_FixTime(end->ds_hhmmss);
+	*end = mc_FixTime (*end);
 /*
  * Figure out how many frames we have.
  */
@@ -698,12 +677,12 @@ int minutes;
 /*
  * Go through and figure out each frame time.
  */
-	incr = TimeSkip * 100;
+	incr = TimeSkip * 60;
 	t = *end;
 	for (f = Nframes - 1; f >= 0; f--)
 	{
 		Mtimes[f] = t;
-		pmu_dsub (&t.ds_yymmdd, &t.ds_hhmmss, incr);
+		t.zt_Sec -= incr;
 	}
 	return (TRUE);
 }
@@ -711,7 +690,7 @@ int minutes;
 
 static void
 mc_ReGetFrameTimes (end)
-time *end;
+ZebTime *end;
 /*
  * Calculate the frame times for this movie.
  */
@@ -720,7 +699,7 @@ time *end;
 /*
  * Now fix up the end time.
  */
-	end->ds_hhmmss = mc_FixTime(end->ds_hhmmss);
+	*end = mc_FixTime (*end);
 /*
  * Go through and figure out each frame time.
  */
@@ -732,21 +711,15 @@ time *end;
 }
 
 
-static int
-mc_FixTime(hhmmss)
-int hhmmss;
+static ZebTime
+mc_FixTime(zt)
+ZebTime zt;
 {
 /*
  * Fix up the time.
  */
-	int seconds;
-
-	seconds = (hhmmss/10000) * 60 * 60 + ((hhmmss/100) % 100) * 60 + 
-		  (hhmmss % 100);
-	seconds -= seconds % 60;
-	seconds = (seconds/3600)*10000 + ((seconds/60) % 60)*100 +
-				seconds % 60;
-	return(seconds);
+	zt.zt_Sec -= zt.zt_Sec % 60;
+	return (zt);
 }
 
 
@@ -1063,20 +1036,20 @@ mc_ReGenFrames()
 /*
  *  When the end time is 'now' used to regenerate frames as the time changes.
  */
-	time t, endtime, diff;
-	union usy_value v;
-	int minutes;
+	time	tmp;
+	ZebTime t, endtime;
+	int minutes, diff;
 	float sec;
 /*
  *  See if enough time has elapsed.
  */
-	tl_GetTime(&t);
-	t.ds_hhmmss = mc_FixTime(t.ds_hhmmss);
-	uit_parse_date(EndTime[0] == ' ' ? EndTime + 1 : EndTime,
-			&endtime, FALSE);
-	endtime.ds_hhmmss = mc_FixTime(endtime.ds_hhmmss);
-	ud_sub_date(&t, &endtime, &diff);
-	if(diff.ds_hhmmss < (TimeSkip * 100))  
+	tl_Time (&t);
+	t = mc_FixTime (t);
+	uit_parse_date (EndTime[0] == ' ' ? EndTime + 1 : EndTime, &tmp, FALSE);
+	TC_UIToZt (&tmp, &endtime);
+	endtime = mc_FixTime(endtime);
+	diff = t.zt_Sec - endtime.zt_Sec;
+	if (diff < (TimeSkip * 60))
 		return;
 /*
  *  Cancel all timer events and event queue entries related to the movies.
@@ -1091,7 +1064,7 @@ mc_ReGenFrames()
 /*
  *  Convert stuff into the format we want.
  */
-	ud_format_date(EndTime, &t, UDF_FULL);
+	TC_EncodeTime (&t, TC_Full, EndTime);
 	if(! sscanf (Minutes, "%d", &minutes))
 	{
 		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
@@ -1101,7 +1074,7 @@ mc_ReGenFrames()
  *  Get the new frame times based on this new end time and start regenerating
  *  the frames.
  */
-	mc_ReGetFrameTimes(&t);
+	mc_ReGetFrameTimes (&t);
 	DisplayedFrame = CurrentFrame = 0;
 	sec = 1.0/(float) Rate;
 	MovieSlot = tl_AddRelativeEvent(mc_NextFrame, 0, (int) (sec*INCFRAC),
@@ -1178,36 +1151,37 @@ static void
 mc_Notification(pid, global, t)
 PlatformId pid;
 int global;
-time *t;
+ZebTime *t;
 {
+	time tmp;
 /*
  *  When the end time is 'now' used to regenerate frames as new data 
  *  becomes available.
  */
-
 	Notification = TRUE;
 	NotTime = *t;
+	TC_ZtToUI (t, &tmp);
 	msg_ELog(EF_DEBUG, "Data available on %s at %d %d.", 
-		ds_PlatformName(pid), t->ds_yymmdd, t->ds_hhmmss);
+		ds_PlatformName(pid), tmp.ds_yymmdd, tmp.ds_hhmmss);
 }
 
 
 static void
 mc_ReGenFramesDS()
 {
-	time endtime, diff;
-	int minutes;
+	time tmp;
+	ZebTime endtime;
+	int minutes, diff;
 	float sec;
 /*
  *  See if enough time has elapsed.
  */
-	NotTime.ds_hhmmss = mc_FixTime(NotTime.ds_hhmmss);
-	uit_parse_date (EndTime[0] == ' ' ? EndTime + 1 : EndTime,
-			&endtime, FALSE);
-	endtime.ds_hhmmss = mc_FixTime(endtime.ds_hhmmss);
-	ud_sub_date(&NotTime, &endtime, &diff);
-	if((diff.ds_hhmmss < (TimeSkip * 100 * DAPERCENT)) ||
-	   (diff.ds_yymmdd < 0))
+	NotTime = mc_FixTime (NotTime);
+	uit_parse_date (EndTime[0] == ' ' ? EndTime + 1 : EndTime, &tmp, FALSE);
+	TC_UIToZt (&tmp, &endtime);
+	endtime = mc_FixTime (endtime);
+	diff = NotTime.zt_Sec - endtime.zt_Sec;
+	if ((diff < TimeSkip * 60 * DAPERCENT) || (diff < 0)) 
 		return;
 
 /*
@@ -1223,7 +1197,8 @@ mc_ReGenFramesDS()
 /*
  *  Get the current time and convert it into the format we want.
  */
-	ud_format_date(EndTime, &NotTime, UDF_FULL);
+	TC_ZtToUI (&NotTime, &tmp);
+	TC_EncodeTime (&NotTime, TC_Full, EndTime);
 	if(! sscanf (Minutes, "%d", &minutes))
 	{
 		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
