@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.28 1994-04-15 21:26:51 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.29 1994-05-02 20:51:30 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -409,9 +409,12 @@ ZebTime *time;
 	if (dotime)
 	{
 		strcat (label, "|");
-		TC_EncodeTime (time, TC_Full, timelabel);
+		TC_EncodeTime (time, TC_DateOnly, timelabel);
 		strcat (label, timelabel);
-		nline++;
+		strcat (label, "| ");
+		TC_EncodeTime (time, TC_TimeOnly, timelabel);
+		strcat (label, timelabel);
+		nline += 2;
 	}
 /*
  * Store up the annotation request and we're set.
