@@ -1,0 +1,58 @@
+/*
+ *		Copyright (C) 1996 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 1996-12-30 17:26:45 burghart Exp $"
+
+#define IHaveSubdirs
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+LIBS = $(ZLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+FIPSLIB = fips123/libfips123.a
+
+SUBDIRS = fips123
+
+SRCS = cbd2zebra.c DEMextract.c dlg2zebra.c drawmap.c extractmap.c \
+	mapfilter.c sdtsdump.c tablet.c 
+
+DISTFILES = Imakefile $(SRCS) README DEM_records.txt dlg_sdts.ps.gz
+
+/*
+ * Make the FIPS123 library now, since we'll need it for later targets
+ */
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+InstallLibSubdirs($(SUBDIRS))
+DistfilesSubdirs($(SUBDIRS))
+
+CompleteProgramTarget(cbd2zebra,cbd2zebra.o,,,)
+CompleteProgramTarget(DEMextract,DEMextract.o,,$(LIBNETCDF),$(SYSLIBS))
+CompleteProgramTarget(dlg2zebra,dlg2zebra.o,$(FIPSLIB),$(FIPSLIB),)
+# ifdef SunArchitecture
+	CompleteProgramTarget(drawmap,drawmap.o tablet.o,$(DEPLIBS),
+			      $(LIBS) $(XLIBS),$(SYSLIBS))
+# endif
+CompleteProgramTarget(extractmap,extractmap.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(mapfilter,mapfilter.o,,,)
+CompleteProgramTarget(sdtsdump,sdtsdump.o,$(FIPSLIB),$(FIPSLIB),)
+
+DependTarget()
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+
