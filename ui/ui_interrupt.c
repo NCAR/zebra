@@ -1,5 +1,5 @@
 /* 2/87 jc */
-/* $Id: ui_interrupt.c,v 1.3 1989-04-30 16:35:17 corbet Exp $ */
+/* $Id: ui_interrupt.c,v 1.4 1989-07-27 09:41:27 corbet Exp $ */
 /*
  * Interrupt handling.
  */
@@ -73,12 +73,21 @@ uii_cc_handler ()
  */
 {
 	int hndl;
+
+# ifdef BSD
 /*
- * Immediately re-establish this handler.
+ * Under BSD, we should go ahead and unblock interrupts, in case one of
+ * the handlers longjmps out from under us.
  */
-# ifdef UNIX
-	signal (SIGINT, uii_cc_handler);
-# else
+	int mask = sigblock (0);
+	mask &= ~(sigmask (SIGINT));
+	sigsetmask (mask);
+# endif
+/* Careful of what SYSV may need here.... */
+# ifdef VMS
+/*
+ * VMS handlers need to be reestablished each time.
+ */
  	tty_setint (uii_cc_handler);
 # endif
 /*
