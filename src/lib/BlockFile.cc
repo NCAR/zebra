@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.11 1998-06-05 20:12:27 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.12 1998-08-27 22:44:27 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -55,13 +55,13 @@ void BlockFile::init ()
 	header = 0;
 	freelist = 0;
 	journal = 0;
-	log = Logger::For ("BlockFile");
+	//log = Logger::For ("BlockFile");
 	rbuf = new SerialBuffer;
 	wbuf = new SerialBuffer;
 
 	memset (&(this->stats), 0, sizeof(this->stats));
 
-	log->Debug ("Initialized");
+	log.Debug ("Initialized");
 }
 
 
@@ -72,7 +72,7 @@ void BlockFile::init ()
 /*
  * The default constructor and intializer
  */
-BlockFile::BlockFile ()
+BlockFile::BlockFile () : log("BlockFile")
 {
 	init ();
 }
@@ -80,7 +80,7 @@ BlockFile::BlockFile ()
 
 
 BlockFile::BlockFile (const char *path, int app_magic = 0, 
-		      int flags = BF_NONE)
+		      int flags = BF_NONE) : log("BlockFile")
 {
 	init ();
 	Open (path, app_magic, flags);
@@ -107,14 +107,17 @@ int
 BlockFile::Open (const char *path, unsigned long app_magic = 0, 
 		 int flags = BF_NONE)
 {
+	Format fmt("Open(%s,%0x,%i)");
+	EnterBlock eb(log, fmt % path % app_magic % flags);
 	if (fp)			// Close any currently open file
 		Close();
 
 	int create = 0;		// non-zero when we're creating a new file
 	status = COULD_NOT_OPEN;
 
-	log->Debug (Printf("%s file: %s", (flags & BF_CREATE) ? "Creating" :
-			   "Opening", path));
+	log && log.Debug (Format("%s file: %s") %
+			  ((flags & BF_CREATE) ? "Creating" : "Opening") %
+			  path);
 
 	// Initialize path
 	this->path = (char *) malloc (strlen(path)+1);
@@ -135,6 +138,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	fp = fopen (path, create ? "w+" : "r+");
 	if (! fp)
 	{
+		log.System (Format("opening %s") % path);
 		this->errno = ::errno;
 		Unlock ();
 		::free (this->path);
@@ -143,6 +147,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 		return (status);
 	}
 	status = OK;
+	log.Extend (path);
 
 	// Allocate space for the header
 	header = new BlockFileHeader (*this, app_magic);
@@ -237,10 +242,11 @@ BlockFile::getHeader (Block *b, unsigned long *app_magic)
 int
 BlockFile::Close ()
 {
+	EnterBlock eb(log,"Close()");
 	// Release file-specific resources
 	if (fp)
 	{
-		log->Debug (Printf("Closing '%s'", path ? path : "<no file>"));
+		// log.Info (Format("Closing '%s'") % path);
 		WriteSync ();	// should be no-op unless we're exclusive
 		fclose (fp);
 		fp = 0;
@@ -265,6 +271,7 @@ BlockFile::Close ()
 		::free (path);
 		path = 0;
 	}
+	log.Declare ("BlockFile");
 	status = NOT_OPEN;
 	return (status);
 }
@@ -276,7 +283,7 @@ BlockFile::ReadLock ()
 {
 	if (lock++ == 0)
 	{
-		log->Debug (Printf("Read locking '%s'", path));
+		log.Debug ("read lock");
 		if (header)
 			header->readSync ();
 	}
@@ -289,7 +296,7 @@ BlockFile::WriteLock ()
 {
 	if (lock++ == 0)
 	{
-		log->Debug (Printf("Write locking '%s'", path));
+		log.Debug ("write lock");
 		if (header)
 			header->readSync ();
 	}
@@ -306,7 +313,7 @@ BlockFile::Unlock ()
 		if (writelock && header)
 			WriteSync ();
 		writelock = 0;
-		log->Debug (Printf("Unlocked '%s'", path));
+		log.Debug ("unlock");
 	}
 	--lock;
 }
@@ -320,7 +327,7 @@ void
 BlockFile::WriteSync (int force)
 {
 	WriteLock ();
-	log->Debug (Printf("WriteSync '%s'", path));
+	log.Debug ("WriteSync");
 	journal->writeSync (force);
 	freelist->writeSync (force);
 	header->writeSync (force);
@@ -336,7 +343,7 @@ BlockFile::WriteSync (int force)
 void
 BlockFile::ReadSync ()
 {
-	log->Debug (Printf("ReadSync '%s'", path));
+	log.Debug ("ReadSync");
 	ReadLock ();
 	freelist->readSync ();
 	journal->readSync ();
@@ -351,13 +358,15 @@ BlockFile::ReadSync ()
  */
 BlockFile::~BlockFile ()
 {
-	log->Debug ("Destructor()");
+	log.Debug ("Destructor()");
 	Close();
+#if 0
 	if (log)
 	{
 		delete log;
 		log = 0;
 	}
+#endif
 	if (rbuf)
 	{
 		delete rbuf;
@@ -411,20 +420,25 @@ BlockFile::DumpHeader (ostream& out)
 
 
 
-// Reads the block into the serial buffer and returns the buffer
+// Reads the block into the serial buffer and returns the buffer.
+// The length can be zero, in which case the current read buffer
+// is just returned.
 SerialBuffer *
 BlockFile::readBuffer (BlkOffset addr, BlkSize length)
 {
-	ReadLock ();
-	rbuf->Seek (0);
-	rbuf->Need (length);
-	read (rbuf->getBuffer(), addr, length);
-	Unlock ();
+	if (length > 0)
+	{
+		ReadLock ();
+		rbuf->Seek (0);
+		rbuf->Need (length);
+		read (rbuf->getBuffer(), addr, length);
+		Unlock ();
+	}
 	return (rbuf);
 }
 
 
-// Returns a serial buffer with enough space for the given length
+// Returns a serial buffer with enough space for the given length.
 SerialBuffer *
 BlockFile::writeBuffer (BlkSize length)
 {
@@ -549,8 +563,8 @@ BlockFile::alloc (BlkSize size, BlkSize *actual)
 	// Finally return the address
 	if (actual)
 		*actual = actual_len; // - header->prefix_length;
-	log->Debug (Printf("Allocated %d bytes @ offset %d for request of %d", 
-			   actual_len, addr, size));
+	log.Debug (Format("allocated %lu @ %lu for request of %lu")
+		   % actual_len % addr % size);
 	return (addr);
 }
 
@@ -560,7 +574,7 @@ BlockFile::alloc (BlkSize size, BlkSize *actual)
 void
 BlockFile::free (BlkOffset addr, BlkSize len)
 {
-	log->Debug (Printf("Free block @ %d of size %d", addr, len));
+	log.Debug (Format("free block @ %lu of size %lu") % addr % len);
 
 	// Add the block to the free list.
 	freelist->Free (addr, len);
@@ -579,7 +593,7 @@ BlockFile::append (BlkSize size)
 	header->bf_length += size;
 	header->mark ();
 	// seek (header->bf_length);
-	log->Debug (Printf("Appending block %d bytes @ %d (eof)", size, off));
+	log.Debug (Format("append block %lu bytes @ %lu (eof)") % size % off);
 	return (off);
 }
 
@@ -590,7 +604,7 @@ BlockFile::recover (BlkOffset off)
 	header->bf_length = off;
 	header->mark();
 	ftruncate (fileno (fp), header->bf_length);
-	log->Debug (Printf("Truncated to %d", off));
+	log.Debug (Format("truncated to %lu") % off);
 }
 
 
@@ -604,6 +618,7 @@ BlockFile::write (BlkOffset block, void *buf, BlkSize len)
 	stats.bytes_writ += len;
 	if (fwrite ((char *)buf, (size_t)len, 1, fp) != 1)
 	{
+		log.System (Format("write len %lu at %lu") % len % block);
 		this->errno = ::errno;
 		this->status = WRITE_FAILED;
 	}
@@ -629,6 +644,7 @@ BlockFile::read (void *buf, BlkOffset block, BlkSize size)
 	seek (block);
 	if (fread ((char *)buf, (size_t)size, 1, fp) != 1)
 	{
+		log.System (Format("read len %lu at %lu") % size % block);
 		this->errno = ::errno;
 		this->status = READ_FAILED;
 	}

@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.10 1998-06-05 19:33:23 granger Exp $
+ * $Id: BlockFile.hh,v 1.11 1998-08-27 22:44:28 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -29,7 +29,8 @@ typedef unsigned long BlkSize;
 typedef unsigned long BlkVersion;
 
 
-class Logger;
+//class Logger;
+#include "Logger.hh"
 class FreeList;
 class Journal;
 class BlockFileHeader;
@@ -66,9 +67,16 @@ public:
 		WRONG_APP_MAGIC = 9
 	};
 	
-	// Constructors
+	// ----- Constructors -----
 
+	// Create a BlockFile object without any corresponding file.
+	//
 	BlockFile ();
+
+	// Open a BlockFile at the given path.  With no flags, an existing
+	// file is opened or a new file is created.  Pass BF_CREATE to
+	// explicitly re-create an existing file.
+	//
 	BlockFile (const char *path, int app_magic = 0, int flags = 0);
 
 	// Destructor
@@ -137,7 +145,8 @@ public:
 
 private:
 
-	Logger *log;
+	//Logger *log;
+	Sender log;
 
 	// In-memory structures
 
