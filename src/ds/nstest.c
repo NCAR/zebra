@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.5 1993-09-01 14:35:16 granger Exp $
+ * $Id: nstest.c,v 1.6 1993-09-02 07:56:33 granger Exp $
  */
 
 #include <defs.h>
@@ -20,7 +20,8 @@ struct message *msg;
 /* #define ZNF_TESTING */
 #define SCALAR
 #define BLOCKS
-#define DELETE_OBS	/* test observation deletes */
+#define TRANSP
+/* #define DELETE_OBS */	/* test observation deletes */
 /* #define NSPACE */
 /* #define ds_StoreBlocks ds_Store */
 
@@ -31,9 +32,10 @@ static float test_data[10000];
 #include <sys/time.h>
 #include <sys/timeb.h>
 
+#ifdef notdef
+
 #include "/zeb/src/ds/dsPrivate.h"
 
-#ifdef notdef
 /*
  * Test of observation delete kludge
  */
@@ -78,19 +80,37 @@ main (argc, argv)
 	unsigned long size;
 	float *retrieve;
 	PlatformId plat_id;
+	PlatformId t_delete_id;
+	dsDetail ra_details[1];
+	dsDetail *details;
+	int ndetail;
 
-#ifdef ZNF_TESTING
+#ifdef CLOSURE
+	ra_details[0].dd_Name = DD_FORCE_CLOSURE;
+	details = ra_details;
+	ndetail = 1;
+#else
+	details = NULL;
+	ndetail = 0;
+#endif
+
 	usy_init();
 	F_Init();
-	msg_connect (msg_handler, "ZNF Block Test");
-	ds_Initialize();
+	if (!msg_connect (msg_handler, "Test") ||
+	    !ds_Initialize())
+	{
+		printf ("Cannot connect nor initialize DS!");
+		exit(1);
+	}
 
+#ifdef ZNF_TESTING
 	/* Call znf free block testing routine */
 	if (argc < 2)
 		zn_TestFreeBlocks ("test.znf");
 	else
 		zn_TestFreeBlocks (argv[2]);
-	return;
+	fflush (stdout);
+	fflush (stderr);
 #endif /* ZNF_TESTING */
 
 	ftime(&tp);
@@ -102,13 +122,18 @@ main (argc, argv)
 	for (i = 0; i < sizeof(test_data)/sizeof(test_data[0]); ++i)
 		test_data[i] = i;
 
-#ifndef ZNF_TESTING
-	usy_init();
-	F_Init();
-	msg_connect (msg_handler, "Test");
-	ds_Initialize();
 	plat_id = ds_LookupPlatform("t_nspace");
-#endif
+
+#ifdef TRANSP /* quick test of transparent chunks in ZNF files */
+	{
+		char *data = "Transparent chunk holding text\n";
+		dc = dc_CreateDC (DCC_Transparent);
+		dc->dc_Platform = ds_LookupPlatform ("t_transparent");
+		dc_AddSample (dc, &when, data, strlen(data)+1);
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		dc_DestroyDC(dc);
+	}
+#endif /* TRANSP */
 
 #if defined(SCALAR)	/* Use only scalar chunks, for testing znf */
 	{
@@ -117,24 +142,12 @@ main (argc, argv)
 		int fld;
 		int i;
 		static Location loc = { 40.0, -160.0, 5280.0 };
-		dsDetail details[1];
-		int ndetail;
 
-#ifdef DELETE_OBS
-		/*
-		 * Here's an idea: use a platform whose maxsamples=1 to
-		 * create a bunch of observations, each of which contains
-		 * only one sample.  Then test out dsdelete and ds_DeleteObs
-		 * on that platform.
-		 */
-		plat_id = ds_LookupPlatform("t_deletes");
-#else
-		plat_id = ds_LookupPlatform("t_scalar");
-		msg_ELog (EF_INFO, "t_scalar: 4 fields, 5 samples");
-#endif
 		/*
 		 * First a real simple test
 		 */
+		msg_ELog (EF_INFO, "t_scalar: 4 fields, 5 samples");
+		plat_id = ds_LookupPlatform("t_scalar");
 		dc = dc_CreateDC (DCC_Scalar);
 		dc->dc_Platform = plat_id;
 		fids[0] = F_DeclareField ("scalar","Test field", "none");
@@ -160,48 +173,63 @@ main (argc, argv)
 		dc_SetSampleAttr (dc, 0, "key", "first sample");
 		dc_SetSampleAttr (dc, 3, "sample_number", "3");
 		dc_SetSampleAttr (dc, 2, "median", "middle");
-		details[0].dd_Name = DD_FORCE_CLOSURE;
-		ndetail = 1;
-		ds_StoreBlocks (dc, TRUE, NULL, 0);
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
 #ifdef DELETE_OBS
+		/*
+		 * Here's an idea: use a platform whose maxsamples=1 to
+		 * create a bunch of observations, each of which contains
+		 * only one sample.  Then test out dsdelete and ds_DeleteObs
+		 * on that platform.
+		 */
+		t_delete_id = ds_LookupPlatform("t_deletes");
+		dc->dc_Platform = t_delete_id;
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		system("dsdump t_deletes");
+		fflush (stdout);
+		fflush (stderr);
 		printf ("Deleting even-second obs with DeleteObs\n");
 		when = begin;
 		for (i = 0; i < 10; ++i)
 		{
 			if (when.zt_Sec % 2 == 0)
-				ds_DeleteObs (plat_id, &when);
+				ds_DeleteObs (t_delete_id, &when);
 			++when.zt_Sec;
 		}
 		printf ("Finished deleting with DeleteObs\n");
+		fflush (stdout);
+		fflush (stderr);
 		system("dsdump t_deletes");	
+		fflush (stdout);
+		fflush (stderr);
 		printf ("Trying to do the same deletes again.\n");
 		when = begin;
 		for (i = 0; i < 10; ++i)
 		{
 			if (when.zt_Sec % 2 == 0)
-				ds_DeleteObs (plat_id, &when);
+				ds_DeleteObs (t_delete_id, &when);
 			++when.zt_Sec;
 		}
 		printf ("Storing the DataChunk again...\n");
-		ds_StoreBlocks (dc, TRUE, NULL, 0);
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		printf ("Test extremes: time earlier than all obs,\n");
 		when.zt_Sec = begin.zt_Sec - 3600*24;
-		ds_DeleteObs (plat_id, &when);
+		ds_DeleteObs (t_delete_id, &when);
 		printf ("Time later than all obs,\n");
 		when.zt_Sec = begin.zt_Sec + 3600*12;
-		ds_DeleteObs (plat_id, &when);
+		ds_DeleteObs (t_delete_id, &when);
 		printf ("Using DeleteObs to delete all files...\n");
 		when = begin;
 		for (i = 0; i < 10; ++i)
 		{
-			ds_DeleteObs (plat_id, &when);
+			ds_DeleteObs (t_delete_id, &when);
 			++when.zt_Sec;
 		}
+		fflush (stdout);
+		fflush (stderr);
 		system("dsdump t_deletes");
+		fflush (stdout);
+		fflush (stderr);
 		printf ("Done deletes test.  Should be 0 files left.\n");
-		dc_DestroyDC (dc);
-		return (0);
 #endif
 		dc_DestroyDC (dc);
 
