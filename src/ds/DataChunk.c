@@ -25,19 +25,20 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 1.3 1991-12-27 21:24:54 corbet Exp $")
 
+/*
+ * ADE Codes for the raw data object.
+ */
+# define ST_GLOBATTR	3822
 
 /*
  * The class methods structure for the raw class.
  */
-# ifdef __STDC__
-	DataChunk *Dc_RawCreate (DataClass);
-	void Dc_RawDestroy (DataChunk *);
-	void Dc_RawDump (DataChunk *);
-# else
-	/* ....later.....*/
-# endif
+DataChunk *Dc_RawCreate FP((DataClass));
+void Dc_RawDestroy FP((DataChunk *));
+void Dc_RawDump FP((DataChunk *));
+
 
 RawDCClass RawMethods =
 {
@@ -509,6 +510,20 @@ int len;
 
 
 
+
+static int
+dc_PrintAttr (key, value)
+char *key, *value;
+/*
+ * Print out an attribute value.
+ */
+{
+	printf ("\t%s --> %s\n", key, value);
+	return (0);
+}
+
+
+
 void
 Dc_RawDump (dc)
 DataChunk *dc;
@@ -519,4 +534,52 @@ DataChunk *dc;
 	printf ("RAW class, class = '%s', platform %d, data len %d\n",
 		ClassTable[dc->dc_Class]->dcm_Name, dc->dc_Platform,
 		dc->dc_DataLen);
+	printf ("Global attributes:\n");
+	dc_ProcessAttrs (dc, NULL, dc_PrintAttr);
+}
+
+
+
+
+
+void
+dc_SetGlobalAttr (dc, key, value)
+DataChunk *dc;
+char *key, *value;
+/*
+ * Store a global attribute into this data chunk.
+ */
+{
+	dca_AddAttr (dc, DCC_Raw, ST_GLOBATTR, key, value);
+}
+
+
+
+
+char *
+dc_GetGlobalAttr (dc, key)
+DataChunk *dc;
+char *key;
+/*
+ * Look up a global attribute.
+ */
+{
+	return (dca_GetAttr (dc, DCC_Raw, ST_GLOBATTR, key));
+}
+
+
+
+
+
+int
+dc_ProcessAttrs (dc, pattern, func)
+DataChunk *dc;
+char *pattern;
+int (*func) ();
+/*
+ * Go through and look at a bunch of attributes.  If PATTERN is non-null,
+ * it is a regular expression used to filter out things.
+ */
+{
+	return (dca_ProcAttrs (dc, DCC_Raw, ST_GLOBATTR, pattern, func));
 }
