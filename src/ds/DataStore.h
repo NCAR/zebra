@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.44 1997-11-21 20:36:17 burghart Exp $
+ * $Id: DataStore.h,v 3.45 1998-04-27 21:41:01 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -50,7 +50,8 @@ typedef enum {
         Org1dGrid       = 8,
 	OrgTransparent  = 9,
 	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zebra */
-	OrgNSpace	= 11
+	OrgNSpace	= 11,
+	OrgPolar	= 12	/* Raw radar data */
 } DataOrganization;
 
 /*
@@ -68,7 +69,8 @@ typedef enum {
 	FTGRIBSfc = 6,	/* GRIB surface grids only */
 	FTGrads = 7,
 	FTGradsModel = 8, /* Grads Model format */
-	FTHDF = 9
+	FTHDF = 9,
+	FTSweepFile = 10,	/* Radar sweep files */
 	/* ... */
 } FileType;
 
@@ -299,6 +301,10 @@ typedef union _DC_Element {
  *
  * The numbers are used to find class method structures, and should not
  * be changed.
+ *
+ * BAD EXPERIENCE OF THE DAY.  If you add a new class here, don't overlook
+ * the fact that you also need to add an entry to ClassTable in dc_All.c,
+ * and a methods declaration in DataChunkP.h.
  */
 typedef enum _DataClassID
 {
@@ -313,7 +319,7 @@ typedef enum _DataClassID
 	DCID_Image	= 8,
 	DCID_Location	= 9,
 	DCID_NSpace	= 10,
-	/* DCID_Text 	= 11, */
+	DCID_Polar	= 11,
 	DCID_OutOfBounds
 } DataClassID;
 
@@ -341,6 +347,7 @@ typedef struct _RawClass *DataClassP;
 #define DCC_Image DCID_Image
 #define DCC_Location DCID_Location
 #define DCC_NSpace DCID_NSpace
+# define DCC_Polar DCID_Polar
 
 extern DataClassP DCP_None;
 extern DataClassP DCP_Raw;
@@ -353,6 +360,7 @@ extern DataClassP DCP_RGrid;
 extern DataClassP DCP_Image;
 extern DataClassP DCP_Location;
 extern DataClassP DCP_NSpace;
+extern DataClassP DCP_Polar;
 
 /*
  * For the moment, data arrays are typeless.
@@ -403,6 +411,30 @@ typedef RawDataChunk DataChunk;
 # define DC_MaxField		MAXFIELD    /* MetData -- max # of fields   */
 # define DC_MaxDimension	CFG_DC_MAXDIMN /* Max number of dimensions  */
 # define DC_MaxDimName		CFG_DIMNAME_LEN /* Max name length, incl \0 */
+
+/*
+ * The sweep and beam info structures used by DCC_Polar.
+ */
+typedef struct _SweepInfo
+{
+	int	si_NBeam;	/* How many beams in this sweep	*/
+	float	si_FixedAngle;	/* Fixed scan angle		*/
+	ScanMode si_Mode;	/* Scan mode			*/
+} SweepInfo;
+
+typedef struct _PolarBeam
+{
+	FieldId pb_Fid;		/* Which field is here		*/
+	ScanMode pb_ScanMode;	/* Scan mode			*/
+	float pb_Azimuth;	
+	float pb_Elevation;
+	float pb_RotAngle;	/* Rotation angle		*/
+	float pb_FixedAngle;	/* Non-rotating angle		*/;
+	int pb_NGates;
+	float pb_R0;		/* Range to first gate		*/
+	float pb_GateSpacing;	/* Spaceing	       		*/
+	float *pb_Data;
+} PolarBeam;
 
 /* 
  * HEY YOU!  READ THIS IF YOU CHANGE THE DEFINITION OF 'DC_MaxField':
@@ -716,6 +748,19 @@ void		dc_ImgAddMissing FP ((DataChunk *dc, int sample,
 				      RGrid *rg, ZebTime *t, int len));
 unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
 				    RGrid *, int *, ScaleInfo *));
+
+/*
+ * The polar class.
+ */
+typedef PolarBeam *(*dcpGetFunc) (DataChunk *, int, int, int, FieldId,
+			FieldId, int, float);
+void		dcp_Setup FP ((DataChunk *, int, FieldId *, dcpGetFunc));
+void		dcp_AddSweep FP ((DataChunk *, ZebTime *, Location *, int,
+			float, ScanMode, int, int));
+int		dcp_GetSweepInfo FP ((DataChunk *, int, SweepInfo *));
+PolarBeam *	dcp_GetBeam FP ((DataChunk *, int, int, FieldId, FieldId,
+			int, float));
+void		dcp_FreeBeam FP ((PolarBeam *beam));
 
 /*-------------------------------------------------------------------------
  * The NSpace class

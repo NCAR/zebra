@@ -17,10 +17,14 @@
  */
 
 /*
- * $Id: DataFormat.h,v 3.4 1997-06-30 21:46:39 ishikawa Exp $
+ * $Id: DataFormat.h,v 3.5 1998-04-27 21:41:00 corbet Exp $
  */
 #ifndef _zebra_dataformat_h_
 #define _zebra_dataformat_h_
+
+# ifdef __cplusplus
+extern "C" {
+# endif
 
 #define N_COC(ra) (sizeof(ra)/sizeof((ra)[0]))
 
@@ -407,6 +411,12 @@ int dfa_SyncFile FP ((OpenFile *ofp));
 M_QueryTime (fmt_QueryNotCompiled);
 M_OpenFile (fmt_OpenNotCompiled);
 M_CreateFile (fmt_CreateNotCompiled);
+
+
+# ifdef __cplusplus
+}; // extern "C"
+# endif
+
 
 #endif /* ndef _zebra_dataformat_h_ */
 

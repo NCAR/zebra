@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.21 1997-06-30 21:45:24 ishikawa Exp $
+! $Id: Daemon.state,v 2.22 1998-04-27 21:40:58 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -382,6 +382,9 @@ define state file-type
 	input 'hdf' 9
 	      	next ust$no_more
 	endinput
+	input 'sweepfile' 10
+		next ust$no_more
+	endinput	      
 enddef
 
 
@@ -423,6 +426,9 @@ define state organization
 		next ust$no_more
 	endinput
 	input 'nspace' 11
+		next ust$no_more
+	endinput
+	input 'polar' 12
 		next ust$no_more
 	endinput
 enddef
@@ -542,7 +548,7 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.21 1997-06-30 21:45:24 ishikawa Exp $'
+	local _id '$Id: Daemon.state,v 2.22 1998-04-27 21:40:58 corbet Exp $'
 
 	start
 	done

@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.6 1997-07-01 23:59:40 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.7 1998-04-27 21:40:59 corbet Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -61,6 +61,7 @@ extern DataFormat *gribSfcFormat;
 extern DataFormat *gradsFormat;
 extern DataFormat *gradsmodelFormat;
 extern DataFormat *hdfFormat;
+extern DataFormat *sweepfileFormat;
 
 /*
  * And here is the format table.  Indexing into this table is done through
@@ -77,7 +78,8 @@ static DataFormat **Formats[] =
 	&gribSfcFormat,
 	&gradsFormat,
 	&gradsmodelFormat,
-	&hdfFormat
+	&hdfFormat,
+	&sweepfileFormat,
 };
 
 static const int NumFormats = (sizeof(Formats)/sizeof(Formats[0]));
@@ -1061,8 +1063,18 @@ char *name;
  * See if this file name is consistent with this file type.
  */
 {
-	char *dot;
-
+	char *dot, *ext = FMTP(type)->f_ext;
+/*
+ * First hack of the day...a, um, certain file format puts its extension
+ * at the beginning instead of the end.  Have a look for a ^ in the
+ * match string, and test it directly at the beginning if it's there.
+ * No "|" notation for now.
+ */
+	if (ext && ext[0] == '^' && !strncmp (ext + 1, name, strlen (ext + 1)))
+		return (TRUE);
+/*
+ * Nope, the usual scheme applies.
+ */
 	dot = strrchr (name, '.');
 	return (dot && (dot != name) && dfa_MatchExt (type, dot));
 }
@@ -1083,6 +1095,16 @@ char *file;
 		return (-1);
 	for (fmt = 0; fmt < NumFormats; fmt++)
 	{
+	/*
+	 * Perform the kludgy front-end check here too.
+	 */
+		char *ext = FMTP(fmt)->f_ext;
+		if (ext && ext[0] == '^' &&
+				! strncmp (ext + 1, file, strlen (ext + 1)))
+			return (fmt);
+	/*
+	 * Otherwise check the extension.
+	 */
 		if (dfa_MatchExt (fmt, dot))
 			return (fmt);
 	}

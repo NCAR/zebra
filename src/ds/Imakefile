@@ -2,16 +2,20 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.64 1997-12-19 15:39:50 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.65 1998-04-27 21:41:02 corbet Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
 /* SYSLIBS= $(LIBMPROF) */
 
+/*
+ * Defines for the sweepfile stuff.
+ */
+
 DMNSYSLIBS=$(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
-DMNLIBS=$(ZLIBS) $(XLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS)
+DMNLIBS=$(ZLIBS) $(XLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
 SYSLIBS=$(LIBREGEXP) $(LIBMATH)
-LIBS=$(ZLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS)
+LIBS=$(ZLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
 
 DEBUGGER = xgdb
 #ifdef DebugFlag
@@ -24,9 +28,11 @@ DEFINES = $(DEBUG) /* -DNCSYNC_FIXED */
  * Data File Access modules
  */
 DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zebra.o DFA_HDF.o DFA_Grads.o \
-          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o Raster.o DFA_None.o
+          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o Raster.o DFA_None.o \
+          DFA_SweepFile.o
 DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
-          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c Raster.c DFA_None.c
+          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c Raster.c DFA_None.c \
+	  DFA_SweepFile.cc
 
 /* 
  * DCOBJS, DCSRCS =  data chunk modules 
@@ -34,11 +40,11 @@ DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
 DCOBJS = DataChunk.o DataAttr.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
 	 dc_MetData.o dc_MetAttr.o dc_RGrid.o dc_Scalar.o dc_Transp.o \
 	 dc_TrAttr.o dc_Attr.o dc_Location.o dc_NSpace.o dc_Process.o \
-	 dc_Elements.o dc_ADE.o dc_All.o Details.o
+	 dc_Elements.o dc_ADE.o dc_All.o Details.o dc_Polar.o
 DCSRCS = DataChunk.c DataAttr.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	 dc_MetData.c dc_MetAttr.c dc_RGrid.c dc_Scalar.c dc_Transp.c \
 	 dc_TrAttr.c dc_Attr.c dc_Location.c dc_NSpace.c dc_Process.c \
-	 dc_Elements.c dc_ADE.c dc_All.c Details.c
+	 dc_Elements.c dc_ADE.c dc_All.c Details.c dc_Polar.c
 
 /*
  * Modules shared between client library and daemon
@@ -123,6 +129,9 @@ SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
+TPOBJS = tpolar.o $(DSLIBOBJS)
+CccProgramTarget(tpolar,$(TPOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
+
 /*
  * Make the library.
  */
@@ -131,6 +140,8 @@ SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
 SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
 SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
 SpecialCplusplusObjectRule(Fields.o,Fields.cc,$(UDUNITSINCLUDES))
+SpecialCplusplusObjectRule(DFA_SweepFile.o,DFA_SweepFile.cc,\
+		$(SWFDEFINES) $(SWFINCLUDES))
 
 InstallLibrary (ZebraDS, $(LIBDIR))
 InstallNonExecFile ($(DERIVDEF), $(LIBDIR))
@@ -173,6 +184,7 @@ FDParse.tab.cc: FDParse.bison
 	$(CP) -f $@ $@.dist
 
 depend:: FDScan.cc FDParse.tab.cc
+
 
 /*
  * Test routines.

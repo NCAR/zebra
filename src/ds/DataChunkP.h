@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.14 1997-11-21 20:36:15 burghart Exp $ */
+/* $Id: DataChunkP.h,v 1.15 1998-04-27 21:40:58 corbet Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -50,6 +50,7 @@ extern RawClass RGridMethods;
 extern RawClass ImageMethods;
 extern RawClass LocationMethods;
 extern RawClass NSpaceMethods;
+extern RawClass PolarMethods;
 
 /*
  * Method inheritance is marked with this guy.

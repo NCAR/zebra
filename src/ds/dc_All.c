@@ -13,7 +13,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID("$Id: dc_All.c,v 3.2 1996-12-06 00:40:31 granger Exp $")
+RCSID("$Id: dc_All.c,v 3.3 1998-04-27 21:41:04 corbet Exp $")
 
 static RawClass *ClassTable[] =
 {
@@ -28,6 +28,7 @@ static RawClass *ClassTable[] =
 	&ImageMethods,		/* DCC_Image		*/
 	&LocationMethods,	/* DCC_Location		*/
 	&NSpaceMethods,		/* DCC_NSpace		*/
+	&PolarMethods,		/* DCC_Polar		*/
 };
 
 
