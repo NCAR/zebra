@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.24 1991-02-19 17:41:11 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.25 1991-02-20 20:46:26 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
