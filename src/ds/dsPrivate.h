@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 1.4 1991-04-04 22:52:58 corbet Exp $
+ * $Id: dsPrivate.h,v 1.5 1991-04-11 22:03:23 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -129,6 +129,7 @@ enum dsp_Types
 	 dpt_CancelAck,			/* Acknowledge cancel		*/
 	dpt_DeleteData,			/* DANGER remove data		*/
 	dpt_DataGone,			/* Data deletion announcement	*/
+	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
 };
 # define DSP_FLEN	256		/* File name length		*/
 
