@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: control.c,v 1.9 1989-12-27 11:11:07 burghart Exp $ */
+/* $Id: control.c,v 1.10 1990-03-29 10:51:01 wyngaard Exp $ */
 /*
  * The upper level, control routines for the graphics package.
  */
@@ -175,9 +175,11 @@ ws csta;
  *		out hardcopy devices with segments, but I don't think this
  *		is likely to be a problem.
  */
+# ifdef notdef
 	if (wstn->ws_dev->gd_flags & GDF_HARDCOPY)
 		(*wstn->ws_dev->gd_clear) (wstn->ws_tag);
-	else if ((wstn->ws_dev->gd_flags & GDF_SEGMENT) &&
+# endif
+	if ((wstn->ws_dev->gd_flags & GDF_SEGMENT) &&
 			(mod == 1) && lastadd)
 	 	(*wstn->ws_dev->gd_flush_nr) (wstn->ws_tag);
 	else
@@ -1494,6 +1496,23 @@ float x0, y0, x1, y1;
 	if ((dev->gd_flags & GDF_VP) == 0)
 		return (GE_DEVICE_UNABLE);
 	return ((*dev->gd_viewport) (ov->ov_ws->ws_tag, dx0, dy0, dx1, dy1));
+}
+
+
+
+
+
+G_print (cstn)
+ws cstn;
+/*
+ * Hardware print screen
+ */
+{
+	struct workstation *wstn = (struct workstation *) cstn;
+	struct device *dev = wstn->ws_dev;
+
+	if (dev->gd_print)
+		(*dev->gd_print) (wstn->ws_tag);
 }
 
 
