@@ -46,7 +46,7 @@
 # include "GraphProc.h"
 # include "FieldMenu.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.24 2000-12-01 23:13:11 granger Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.25 2001-04-24 23:42:25 granger Exp $")
 
 /*
  * Establish a single interface style for dynamic field selection
@@ -330,6 +330,11 @@ fm_SetupEntries (fm_Context *fmc, struct fm_Callback *callbacks,
 	    strcpy (cbuf, fmc->pextras[i]);
 	XtSetArg (args[0], XtNlabel, cbuf);
 	XtSetArg (args[1], XtNleftBitmap, None);
+	if (!fmc->fentry && !strcmp (fmc->fcurrent, fmc->pextras[i]))
+	{
+	    XtSetArg (args[1], XtNleftBitmap, Star);
+	    fmc->fentry = entries[nentry];
+	}
 	XtSetValues (entries[nentry], args, 2);
 
 	callbacks[nentry].fid = BadField;
