@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.19 1998-02-26 21:19:02 burghart Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.20 2001-01-08 22:12:02 granger Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -567,6 +567,14 @@ char *name;
 # endif
 
 
+static Widget uw_popup_menubutton;
+
+Widget uw_get_menubutton()
+{
+	return uw_popup_menubutton;
+}
+
+
 static void
 uw_mb_cb (w, action, junk)
 Widget w;
@@ -575,7 +583,18 @@ XtPointer action, junk;
  * The menubar callback.
  */
 {
+	/* Set the pixmap context for this callback, which we get from 
+	 * the menubutton through which we were called. */
+	Widget shell, button;
+	uw_popup_menubutton = 0;
+	if ((shell = XtParent(w)) &&
+	    (button = XtParent(shell)) &&
+	    XtIsSubclass (button, menuButtonWidgetClass))
+	{
+		uw_popup_menubutton = button;
+	}
 	ui_perform (action);
+	uw_popup_menubutton = 0;
 }
 
 
