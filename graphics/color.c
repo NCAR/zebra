@@ -159,7 +159,7 @@ gc_transtable ()
 # ifdef VMS
 		strcpy (fname, "ds:[rdss.graphics]rgb.txt");
 # else
-		strcpy (fname, "/usr/local/src/X/rgb/rgb.txt");
+		strcpy (fname, "/usr/local/lib/X11/rgb.txt");
 # endif
 
 /*
