@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.42 1995-03-03 23:17:23 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.43 1995-04-05 20:55:20 burghart Exp $")
 #endif
 
 #include <netcdf.h>
@@ -342,7 +342,11 @@ int *nsamp;
  * Look up the time array.
  */
 	ncinquire (id, &ndim, &nvar, &natt, &rdim);
+	if (rdim < 0)
+		rdim = ncdimid (id, "time");
+
 	ncdiminq (id, rdim, (char *) 0, &maxrec);
+
 	if (((tvar = ncvarid (id, "time_offset")) < 0) && 
 	    ((tvar = ncvarid (id, "time")) < 0))
 	{
@@ -3132,7 +3136,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.42 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.43 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
