@@ -53,6 +53,8 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 
 #endif /* BeforeVendorCF */
 
+/* ----------------------------------------------------------------------- */
+
 #ifdef AfterVendorCF
 
 #ifndef CCOptions
@@ -110,5 +112,24 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 */
 
 #define HasSentinel	NO	/* bug in Imake.rules Sentinel rules */
+
+/*
+ * This sequence taken from Imake.tmpl; we just want to use the other
+ * install script.
+ */
+#ifndef InstallCmd		/* hack should be in project */
+#if SystemV || SystemV4
+#ifdef UseInstalled		/* assume BINDIR in path */
+#define InstallCmd install.sh
+#else
+#define InstallCmd $(SHELL) $(CONFIGSRC)/util/install.sh
+#endif
+#else
+#define InstallCmd install
+#endif
+#endif
+#ifndef InstallFlags
+#define InstallFlags -c
+#endif
 
 #endif /* AfterVendorCF */
