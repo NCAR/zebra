@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.8 1991-10-28 17:21:39 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.9 1991-11-04 17:51:58 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -884,7 +884,6 @@ char *comp, *param, *value;
 /*
  * Do the change.
  */
-	reset_limits(comp, param, value);
 	pd_Store (Pd, comp, param, value, SYMT_STRING);
 /*
  * Now reset things.
@@ -895,66 +894,6 @@ char *comp, *param, *value;
  * We'll also eventually want to ship the PD back to DM.
  */
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
-}
-
-
-reset_limits(comp, param, value)
-char *comp, *param, *value;
-/*
- *  If the field changes and the representation is 'track', any type of
- *  contour or 'raster', reset some plot description parameters to the
- *  defaults of the new field.
- */
-{
-	char rep[40], par[40];
-	float center, step, minval, maxval;
-
-	if(strcmp(param, "field") == 0)
-	{
-		pd_Retrieve(Pd, comp, "representation", rep, SYMT_STRING);
-		if(strcmp(rep, "track") == 0)
-		{
-			sprintf(par, "%s-track-center", value);
-			pda_Search(Pd, comp, par, 0, (char *) &center,
-				SYMT_FLOAT);
-			pd_Store(Pd, comp, "track-center", (char *) &center,
-				SYMT_FLOAT);
-			sprintf(par, "%s-track-step", value);
-			pda_Search(Pd, comp, par, 0, (char *) &step,
-				SYMT_FLOAT);
-			pd_Store(Pd, comp, "track-step", (char *) &step,
-				SYMT_FLOAT);
-		}
-		if((strcmp(rep, "contour") == 0) ||
-		   (strcmp(rep, "line-contour") == 0) ||
-		   (strcmp(rep, "filled-contour") == 0))
-		{
-			sprintf(par, "%s-contour-center", value);
-			pda_Search(Pd, comp, par, 0, (char *) &center,
-				SYMT_FLOAT);
-			pd_Store(Pd, comp, "contour-center", (char *) &center,
-				SYMT_FLOAT);
-			sprintf(par, "%s-contour-step", value);
-			pda_Search(Pd, comp, par, 0, (char *) &step,
-				SYMT_FLOAT);
-			pd_Store(Pd, comp, "contour-step", (char *) &step,
-				SYMT_FLOAT);
-		}
-		if(strcmp(rep, "raster") == 0) 
-		{
-			sprintf(par, "%s-minval", value);
-			pda_Search(Pd, comp, par, 0, (char *) &minval,
-				SYMT_FLOAT);
-			pd_Store(Pd, comp, "minval", (char *) &minval,
-				SYMT_FLOAT);
-			sprintf(par, "%s-maxval", value);
-			pda_Search(Pd, comp, par, 0, (char *) &maxval,
-				SYMT_FLOAT);
-			pd_Store(Pd, comp, "maxval", (char *) &maxval,
-				SYMT_FLOAT);
-		}
-
-	}
 }
 
 
