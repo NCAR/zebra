@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.5 1992-08-10 18:09:16 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.6 1992-10-01 17:48:34 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -302,10 +302,54 @@ void
 lc_SetUserCoord( xmin, xmax, ymin,ymax)
 DataValPtr xmin,xmax,ymin,ymax;
 {
-	UX0 = *xmin;
-	UX1 = *xmax;
-	UY0 = *ymin;
-	UY1 = *ymax;
+    switch ( xmin->type )
+    {
+	case 't':
+	case 'i':
+	case 'f':
+	case 'd':
+	    UX0 = *xmin;
+	break;
+	default:
+	    fprintf ( stderr, "\rBad value for User Coordinate xmin\n" );
+	break;
+    }
+    switch ( xmax->type )
+    {
+	case 't':
+	case 'i':
+	case 'f':
+	case 'd':
+	    UX1 = *xmax;
+	break;
+	default:
+	    fprintf ( stderr, "\rBad value for User Coordinate xmax\n" );
+	break;
+    }
+    switch ( ymin->type )
+    {
+	case 't':
+	case 'i':
+	case 'f':
+	case 'd':
+	    UY0 = *ymin;
+	break;
+	default:
+	    fprintf ( stderr, "\rBad value for User Coordinate ymin\n" );
+	break;
+    }
+    switch ( ymax->type )
+    {
+	case 't':
+	case 'i':
+	case 'f':
+	case 'd':
+	    UY1 = *ymax;
+	break;
+	default:
+	    fprintf ( stderr, "\rBad value for User Coordinate ymax\n" );
+	break;
+    }
 }
 
 void
@@ -422,7 +466,7 @@ unsigned short mode;
 	    uy = (float)user_y->val.f;
 	break;
 	default:
-	    fprintf ( stdout, "\rdevY: bad coordinate type\n");
+	    fprintf ( stderr, "\rdevY: bad coordinate type: #%c#\n", user_y->type );
     }
     switch ( CurrentTrans )
     {
@@ -480,7 +524,7 @@ unsigned short mode;
 	    ux = user_x->val.f;
 	break;
 	default:
-	    fprintf ( stdout, "\rdevX: bad coordinate type\n");
+	    fprintf ( stderr, "\rdevX: bad coordinate type: #%c#\n", user_x->type );
     }
     switch ( CurrentTrans )
     {
