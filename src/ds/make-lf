@@ -1,0 +1,4 @@
+! $Id: make-lf,v 1.1 1991-12-20 20:24:35 kris Exp $
+read Daemon.state
+set ui$pager_mode false
+save dsDaemon.lf all

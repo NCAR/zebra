@@ -1,0 +1,4 @@
+! $Id: make-nx-lf,v 1.1 1991-12-20 20:24:50 kris Exp $
+read NetXfr.state
+set ui$pager_mode false
+save NetXfr.lf all
