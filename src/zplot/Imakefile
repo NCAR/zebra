@@ -4,7 +4,8 @@
 
 SCRIPTS = zplotbatch class2ascii dfsince disclaim ftpplots \
           issclass logimages zplotlast sendclass ztsplit \
-          zconfig zplotd zplotloop plotindex zplotnow sumplot
+          zconfig zplotd zplotloop plotindex zplotnow sumplot \
+          convert2gif
 
 DISTFILES = Imakefile $(SCRIPTS) proj_env
 

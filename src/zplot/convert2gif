@@ -1,0 +1,21 @@
+#! /bin/sh
+#
+
+if [ $# -ne 1 ]; then
+    echo "Usage: convert2gif <directory>"
+    exit 1
+fi
+
+cd $1
+find . -name "*.png" | while read png; do
+
+    # convert the png only if a more recent gif does not already exist
+    dir=`dirname $png`
+    image=`basename $png .png`
+    destimage="$dir/$image.gif"
+    /bin/test $destimage -nt $png || \
+	(set -x; convert $png $destimage) 1>&2
+
+done
+
+
