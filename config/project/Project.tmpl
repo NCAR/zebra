@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.49 1996-12-10 21:28:32 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.50 1997-01-06 21:23:11 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -198,6 +198,9 @@ XCOMM -----------------------------------------------------------------------
 #endif
 #ifndef DistributeDataUtil
 #define DistributeDataUtil 	YES
+#endif
+#ifndef DistributeMapUtil
+#define DistributeMapUtil 	YES
 #endif
 #ifndef DistributeRealtimeDataStoreTools
 #define DistributeRealtimeDataStoreTools YES
@@ -625,6 +628,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifndef BuildDataUtilities
 #define BuildDataUtilities NO
 #endif
+#ifndef BuildMapUtilities
+#define BuildMapUtilities UseGcc	/* need ANSI C for this stuff */
+#endif
 
 #ifndef BuildClassIngest
 #define BuildClassIngest YES
@@ -948,6 +954,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 #else
 .cc.o:
 	$(CXX) $(CXXFLAGS) $(DEFINES) -c $<
+
 #endif
 
 /*
