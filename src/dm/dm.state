@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.19 1994-05-19 19:59:13 granger Exp $
+! $Id: dm.state,v 1.20 1994-05-21 05:19:38 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -552,6 +552,12 @@ define state dm-nw-pd
 	input 'forcepd' 31
 		next dm-nw-params
 	endinput
+	input 'rename' 70
+		next dm-nw-params
+	endinput
+	input 'reuse' 71
+		next dm-nw-params
+	endinput
 enddef
 
 define state dm-nw-params
@@ -562,6 +568,12 @@ define state dm-nw-params
 		next dm-nw-bmap
 	endinput
 	input 'forcepd' 31
+		next dm-nw-params
+	endinput
+	input 'rename' 70
+		next dm-nw-params
+	endinput
+	input 'reuse' 71
 		next dm-nw-params
 	endinput
 enddef

@@ -1,13 +1,12 @@
-! $Id: DisplayMgr.ad,v 1.7 1994-05-09 21:07:09 corbet Exp $
+! $Id: DisplayMgr.ad,v 1.8 1994-05-21 05:19:34 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
 ! Do not modify this file if it is the installed copy in lib/resources!!!
 !
-*allowShellResize:	true
+*allowShellResize:	True
 *input:		True
 dm.time.form.background: gray90
-dm.iconbar.form.background: cadetblue
 dm.?.form.Background:	gray95
 *time.Form.Form.horizDistance:	4
 *time.Form.Form.vertDistance:	5
@@ -41,8 +40,16 @@ dm.?.form.Background:	gray95
 	<Key>+:		kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char() \n\
 	<Key>:		no-op()
+*Form.background: 	cadetblue
+*form.background: 	cadetblue
+dm.iconbar.form.background: cadetblue
+*iconbar*Form*right:	chainRight
+*iconbar*Form*left:	chainLeft
+*iconbar*Form*top:	chainTop
+*iconbar*Form*bottom:	chainBottom
 *iconbar.vertDistance:	2
 *iconbar.horizDistance:	2
+*iconbar*Form*resizable: False
 *iconbar*MenuButton.foreground:	yellow
 *iconbar*MenuButton.background: MidnightBlue
 *iconbar*MenuButton.translations: \
@@ -60,4 +67,3 @@ dm.?.form.Background:	gray95
 *UIForm*Label.background: gray95
 *UIForm*MenuButton*borderColor: red
 *UIForm*MenuButton*background: Gray90
-*UIForm*Title*font: -adobe-times-bold-r-*-*-18-*-*-*-*-*-*-*

@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.41 1994-05-19 19:59:10 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.42 1994-05-21 05:19:35 granger Exp $")
 
 
 /*
@@ -534,6 +534,11 @@ char *who;
 	ForceRestart (who);
 	usy_z_symbol (Current, who);	/* So it won't really restart */
 /*
+ * Now that this window is no longer with us, take it out of the will.
+ * If other configurations want this window, they'll have to restart it.
+ */
+	usy_z_symbol (Windows, who);
+/*
  * Pass through the configuration and find this window.
  */
 	for (i = 0; i < cfg->c_nwin; i++)
@@ -549,7 +554,8 @@ char *who;
  * do about the plot description.  If the same PD is referenced in other
  * invocations of this window, problems could result.  So we just drop it.
  */
-	for (; i < --cfg->c_nwin; i++)
+	--cfg->c_nwin;
+	for (; i < cfg->c_nwin; i++)
 		cfg->c_wins[i] = cfg->c_wins[i + 1];
 }
 
@@ -738,6 +744,21 @@ struct dm_msg *dmsg;
 		config_win (win);
 		break;
 	/*
+	 * A client sending along its window ID after its already said
+	 * hello and been configured.
+	 */
+	   case DM_WINDOW:
+		dmh = (struct dm_hello *) dmsg;   	
+		if (! (win = lookup_win (from, TRUE)))
+		{
+			msg_ELog(EF_PROBLEM,"Weird: window id from '%s'",from);
+			return;
+		}
+		msg_ELog (EF_DEBUG, "Window ID received from '%s' win %x", 
+			  from, dmh->dmm_win);
+		win->cfw_win = dmh->dmm_win;
+		break;
+	/*
 	 * A button report
 	 */
 	   case DM_EVENT:
@@ -783,7 +804,7 @@ struct dm_msg *dmsg;
 
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Funky DMSG type %d from %s\n",
-			dmsg->dmm_type, from);
+			  dmsg->dmm_type, from);
 	}
 }
 

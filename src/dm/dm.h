@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.8 1994-05-19 19:59:12 granger Exp $ */
+/* $Id: dm.h,v 2.9 1994-05-21 05:19:37 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -39,9 +39,6 @@
 # define DM_DEFAULTS	8	/* New defaults table		*/
 # define DM_HISTORY	9	/* History mode			*/
 # define DM_REALTIME	10	/* Real time mode		*/
-# define DM_EVBIND	11	/* Event binding change		*/
-# define DM_PARCHANGE	12	/* Individual PD parameter change */
-# define DM_WBOUNDS	13	/* Window bounds request/reply	*/
 
 /*
  * Color table stuff.
@@ -51,7 +48,16 @@
 # define DM_NOTABLE	13	/* Failed color table request	*/
 # define DM_TABLE	14	/* Color table information	*/
 
-# define DM_DIAL	15	/* Dial event			*/
+/*
+ * The rest of the protocol
+ */
+# define DM_EVBIND	15	/* Event binding change		*/
+# define DM_PARCHANGE	16	/* Individual PD parameter change */
+# define DM_WBOUNDS	17	/* Window bounds request/reply	*/
+# define DM_WINDOW	18	/* Informing DM of window ID	*/
+# define DM_DIAL	19	/* Dial event			*/
+# define DM_GEOMETRY	20	/* DM asking for geometry	*/
+# define DM_R_GEOMETRY	21	/* Reply to geometry query	*/
 
 /*
  * The string returned by PickWin() when an invalid window is chosen
@@ -70,16 +76,16 @@
 #define SAVED_EXT	".dc"
 
 /*
- * The message structure sent out by the display manager.
+ * Message structure sent display manager.
+ * The geometry exchanged by display manager and clients uses types
+ * DM_R_GEOMETRY and DM_GEOMETRY.
  */
 struct dm_msg
 {
 	int	dmm_type;		/* the type of this message	*/
-	int	dmm_x, dmm_y;		/* New window location		*/
-	int	dmm_dx, dmm_dy;		/* New window size		*/
+	int	dmm_x, dmm_y;		/* Window location		*/
+	int	dmm_dx, dmm_dy;		/* Window size			*/
 };
-
-
 
 /*
  * Hello message to be received from dm clients.
@@ -99,7 +105,6 @@ struct dm_pdchange
 	int	dmm_pdlen;		/* RPD length			*/
 	char	dmm_pdesc[1];		/* New pd			*/
 };
-
 
 /*
  * Space for DM event data

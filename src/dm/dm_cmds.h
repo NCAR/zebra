@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.7 1994-05-19 19:59:14 granger Exp $ */
+/* $Id: dm_cmds.h,v 2.8 1994-05-21 05:19:40 granger Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -81,3 +81,8 @@
  * Feedback
  */
 # define DMC_SHOWPD	60
+/*
+ * More newwindow optional keywords
+ */
+# define DMC_RENAME	70
+# define DMC_REUSE	71

@@ -22,6 +22,8 @@
 # include <unistd.h>
 # include <fcntl.h>
 # include <X11/Intrinsic.h>
+# include <X11/StringDefs.h>
+# include <X11/Shell.h>
 
 # include <ui.h>
 # include <ui_error.h>
@@ -29,13 +31,16 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.11 1994-05-19 19:59:16 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.12 1994-05-21 05:19:41 granger Exp $")
 
 
 /*
  * Our local stuff.
  */
 static void UpdateConfig FP ((struct config *));
+static void GetGeometry FP ((struct cf_window *win, Position *x, Position *y,
+			     Dimension *width, Dimension *height));
+static int  AwaitGeometry FP((Message *msg, struct dm_msg *ret));
 static void SavePD FP ((FILE *, char *, struct cf_window *));
 static bool ResolveLinks FP ((struct config *, struct ui_command *));
 static bool DisplayWindow FP ((struct cf_window *));
@@ -43,6 +48,7 @@ static void SetupExec FP ((struct cf_window *));
 static void PutConfig FP ((struct config *));
 static void RunProgram FP ((char *, char **));
 static int  SaveParameter FP ((char *name, char *value, FILE *fp));
+static Widget UWShell FP ((char *name));
 
 
 
@@ -146,7 +152,6 @@ char *name;
 
 
 
-
 static void 
 UpdateConfig (cfg)
 struct config *cfg;
@@ -155,54 +160,109 @@ struct config *cfg;
  * weren't looking.
  */
 {
-	Window root, realwin, qwin, *children;
-	int win, junk;
-	unsigned int bw, depth, nchild;
+	Widget shell;
+	Dimension width, height;
+	Position x, y;
+	int win;
+	Arg args[5];
+	int n;
 /*
- * Go through and query each window.
+ * Find the current geometry of each window and widget.
  */
 	for (win = 0; win < cfg->c_nwin; win++)
 	{
 		struct cf_window *wp = cfg->c_wins + win;
 	/*
-	 * Find the window to query.  Maybe it's a widget.
+	 * If this is a widget, we can get the shell geometry directly.
 	 */
 	 	if (wp->cfw_flags & CF_WIDGET)
 		{
-			Widget tmp = uw_IWWidget (wp->cfw_name);
-			realwin = XtWindow (XtParent (XtParent (tmp)));
-			XQueryTree (Dm_Display, realwin, &root, &qwin,
-				&children, &nchild);
-			XFree (children);
+			shell = UWShell (wp->cfw_name);
+
+			n = 0;
+			XtSetArg (args[n], XtNx, (XtArgVal)&x);	n++;
+			XtSetArg (args[n], XtNy, (XtArgVal)&y);	n++;
+			XtSetArg (args[n], XtNwidth, &width);	n++;
+			XtSetArg (args[n], XtNheight, &height);	n++;
+			XtGetValues (shell, args, n);
 		}
 	/*
-	 * Otherwise it's a window -- lets query it.
+	 * Otherwise it's a client with a window, and we need to ask directly.
 	 */
 		else if (wp->cfw_win)
 		{
-			XQueryTree (Dm_Display, wp->cfw_win, &root, &qwin,
-				&children, &nchild);
-			realwin = wp->cfw_win;
-			XFree (children);
+			GetGeometry (wp, &x, &y, &width, &height);
 		}
-		else
-			continue;
+
 	/*
-	 * Get the info.  The positioning comes from the parent window while
-	 * the size comes from the real window.
+	 * Record our latest geometry info
 	 */
-		XGetGeometry (Dm_Display, qwin, &root, &wp->cfw_x,
-			&wp->cfw_y, (unsigned int *) &junk,
-			(unsigned int *) &junk, &bw, &depth);
-		wp->cfw_x += bw;
-		wp->cfw_y += bw;
-		XGetGeometry (Dm_Display, realwin, &root, &junk,
-			&junk, (unsigned int *) &wp->cfw_dx,
-			(unsigned int *) &wp->cfw_dy, &bw, &depth);
+		wp->cfw_x = x;
+		wp->cfw_y = y;
+		wp->cfw_dx = width;
+		wp->cfw_dy = height;
+
+		if (wp->cfw_flags & CF_WIDGET)
+		{
+		/*
+		 * Sync UI geometry with what's actually on the screen
+		 */
+			uw_SetGeometry (wp->cfw_name, wp->cfw_x, wp->cfw_y,
+					wp->cfw_dx, wp->cfw_dy);
+		}
 	}
 }
 
 
+
+
+static void
+GetGeometry (win, x, y, width, height)
+struct cf_window *win;
+Position *x, *y;
+Dimension *width, *height;
+/*
+ * Request the geometry info from this window.
+ */
+{
+	struct dm_msg msg;
+/*
+ * Fill in the message structure.
+ */
+ 	msg.dmm_type = DM_GEOMETRY;
+/*
+ * Ship it out and wait for the response.
+ */
+	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, (char *) &msg,
+		sizeof (struct dm_msg));
+
+	msg_Search (MT_DISPLAYMGR, AwaitGeometry, &msg);
+	*x = msg.dmm_x;
+	*y = msg.dmm_y;
+	*width = msg.dmm_dx;
+	*height = msg.dmm_dy;
+}
+
+
+
+static int
+AwaitGeometry (msg, ret)
+Message *msg;
+struct dm_msg *ret;
+{
+	struct dm_msg *dmm = (struct dm_msg *) msg->m_data;
+
+	if (dmm->dmm_type == DM_R_GEOMETRY)
+	{
+		*ret = *dmm;
+		return (MSG_DONE);
+	}
+	/*
+	 * There's no telling how re-entrant this code is, so
+	 * just leave everything else on the queue for the moment
+	 */
+	return (MSG_ENQUEUE);
+}
 
 
 
@@ -300,7 +360,6 @@ struct config *cfg;
 	stbl old_table;
 	bool new;
 	char cfg_sname[MAXNAME];
-	SValue v;
 /*
  * Get a new symbol table for this display config.
  */
@@ -414,6 +473,7 @@ struct ui_command *cmds;
 
 
 
+/*ARGSUSED*/
 disp_suspend (name, type, v, junk)
 char *name;
 int type, junk;
@@ -452,7 +512,6 @@ struct cf_window *win;
  */
 {
 	union usy_value v;
-	int i;
 /*
  * Create the symbol table entry for this process.
  */
@@ -505,7 +564,7 @@ char *program, **args;
  * Exec this program with the given arguments.
  */
 {
-	char *path, *colon, abs_prog[128];
+	char abs_prog[128];
 	char *strchr ();
 /*
  * Close some relevant FD's first.
@@ -593,6 +652,25 @@ struct cf_window *win;
 
 
 
+static Widget
+UWShell (name)
+char *name;
+/*
+ * Return the top-level shell widget for this UI widget
+ */
+{
+	Widget shell = uw_IWWidget (name);
+
+	/*
+	 * Duh.  Need to use wmShellWidgetClass instead of shellWidgetClass
+	 * since menubars use simplemenu, which is a subclass of the override
+	 * shell class.
+	 */
+	while (shell && !XtIsSubclass (shell, wmShellWidgetClass))
+		shell = XtParent(shell);
+	return (shell);
+}
+
 
 
 static bool
@@ -611,9 +689,13 @@ struct cf_window *wp;
 	if (wp->cfw_flags & CF_WIDGET)
 	{
 		uw_ForceOverride (wp->cfw_name);
+	/*
+	 * First pop it up, and then move it, so that olwm gets its act
+	 * together.
+	 */
+		uw_popup (wp->cfw_name);
 		uw_SetGeometry (wp->cfw_name, wp->cfw_x, wp->cfw_y,
 			wp->cfw_dx, wp->cfw_dy);
-		uw_popup (wp->cfw_name);
 	}
 /*
  * Otherwise it's a graphics window.  If it does not yet exist, we
@@ -639,7 +721,7 @@ struct cf_window *wp;
 		config_win (wp);
 	}
 /*
- * Add it to the new config table, and remove it from the old.
+ * Add it to the current config table
  */
 	v.us_v_ptr = (char *) wp;
 	usy_s_symbol (Current, wp->cfw_name, SYMT_POINTER, &v);
@@ -650,55 +732,117 @@ struct cf_window *wp;
 
 
 
-
 void
 NewWindow (cmds)
 struct ui_command *cmds;
 /*
- * Add a window to this display configuration.
+ * Add a window to this display configuration.  If rename not specified,
+ * the window name must be unique for this configuration, else we fail.
+ * If rename is specified, we'll generate a unique name here.
+ *
+ * If reuse keyword present, use the existing (suspended) window as is
+ * rather than resetting it.
  */
 {
 	struct config *cfg = LookupConfig (Cur_config);
 	struct cf_window *newwin;
+	struct cf_window *exist;
+	bool rename = FALSE, reuse = FALSE;
 	int i, type;
 	SValue v;
-	char *name = UPTR (*cmds);
+	char *name;
+	char newname[256];
+	struct ui_command *cmd;
 /*
- * Make sure there isn't already a window by the name they want.
+ * Check our arguments for optional keywords
  */
-	for (i = 0; i < cfg->c_nwin; i++)
-		if (! strcmp (name, cfg->c_wins[i].cfw_name))
-		{
-			msg_ELog (EF_PROBLEM, "Duplicate window %s", name);
-			ui_error ("Window %s already exists", name);
-		}
+	for (cmd = cmds; cmd->uc_ctype != UTT_END; cmd++)
+	{
+		if (cmd->uc_ctype != UTT_KW)
+			continue;
+	 	else if (UKEY (*cmd) == DMC_RENAME)
+			rename = TRUE;
+	 	else if (UKEY (*cmd) == DMC_REUSE)
+			reuse = TRUE;
+	}
 /*
- * Add this window to the config.
+ * Unless we've been specifically asked to generate a unique name, 
+ * make sure there isn't already a window by the name they want.
+ */
+	name = (char *) UPTR (*cmds);
+	if (!rename && lookup_win (name, TRUE /*current only*/))
+	{
+		msg_ELog (EF_PROBLEM, "Duplicate window %s", name);
+		ui_error ("Window %s already exists", name);
+	}
+/*
+ * So we either have a unique window name, or it's time come up with one.
+ */
+	strcpy (newname, name);
+	i = 0;
+	while (rename && lookup_win (newname, TRUE))
+		sprintf (newname, "%s%d", name, ++i);
+/*
+ * See if a window with the new name exists elsewhere.
+ */
+	exist = lookup_win (newname, FALSE);
+/*
+ * Where we'll put our new window in the current config
  */
 	newwin = cfg->c_wins + cfg->c_nwin++;
 /*
- * Tweak the parameters.
+ * If we're supposed to re-use a suspended window as is, copy it.
+ * Otherwise, we initialize it.  The plot description is always reset;
+ * to re-use an existing window's current pd (as opposed to its defined pd),
+ * forcepd should be false.
  */
-	strcpy (newwin->cfw_name, name);
-	SetupExec (newwin);
-	newwin->cfw_win = 0;
-	newwin->cfw_x = newwin->cfw_y = 200;	/* pick something... */
-	newwin->cfw_dx = newwin->cfw_dy = 400;
+	if (reuse && exist)
+	{
+		memcpy (newwin, exist, sizeof(struct cf_window));
+	}
+	else
+	{
+		strcpy (newwin->cfw_name, newname);
+		SetupExec (newwin);
+		newwin->cfw_win = 0;
+		newwin->cfw_x = newwin->cfw_y = 200;	/* pick something... */
+		newwin->cfw_dx = newwin->cfw_dy = 400;
+		strcpy (newwin->cfw_desc, "template");
+		newwin->cfw_bmap = Default_map;
+		newwin->cfw_flags = newwin->cfw_ncroak = 0;
+		newwin->cfw_forcepd = 0;
+		newwin->cfw_tmpforce = newwin->cfw_nongraph = 0;
+	}
 	newwin->cfw_pd = 0;
-	strcpy (newwin->cfw_desc, "template");
-	newwin->cfw_bmap = Default_map;
-	newwin->cfw_flags = newwin->cfw_ncroak = newwin->cfw_forcepd = 0;
-	newwin->cfw_tmpforce = newwin->cfw_nongraph = 0;
+
+	if (reuse)
+	{
+		msg_ELog (EF_INFO, "window %s not found for re-use", newname);
+	}
 /*
  * Now pass through the rest of the parameters.
  */
-	for (cmds++; cmds->uc_ctype != UTT_END; cmds++)
+	for (++cmds; cmds->uc_ctype != UTT_END; cmds++)
 	{
 	/*
 	 * Just a string parameter initially means a plot description.
+	 * Ignore it if we're re-using an existing window.
 	 */
 		if (cmds->uc_ctype == UTT_VALUE)
-			strcpy (newwin->cfw_desc, UPTR (*cmds));
+		{
+			if (!reuse || !exist)
+				strcpy (newwin->cfw_desc, UPTR (*cmds));
+		}
+	/*
+	 * Or they could be giving a button map.
+	 */
+	 	else if (UKEY (*cmds) == DMC_BUTTONMAP)
+		{
+			if (! usy_g_symbol (Bmaps, UPTR (cmds[1]), &type, &v))
+				ui_error ("Bad button map %s", UPTR (cmds[1]));
+			newwin->cfw_bmap = (ButtonMap *) v.us_v_ptr;
+			cmds++;
+		}
 	/*
 	 * Maybe this is a nongraphic window.
 	 */
@@ -713,16 +857,9 @@ struct ui_command *cmds;
 	 	else if (UKEY (*cmds) == DMC_FORCEPD)
 			newwin->cfw_forcepd = TRUE;
 	/*
-	 * Or they could be giving a button map.
+	 * The rest we've handled already
 	 */
-	 	else if (UKEY (*cmds) == DMC_BUTTONMAP)
-		{
-			if (! usy_g_symbol (Bmaps, UPTR (cmds[1]), &type, &v))
-				ui_error ("Bad button map %s", UPTR (cmds[1]));
-			newwin->cfw_bmap = (ButtonMap *) v.us_v_ptr;
-			cmds++;
-		}
-		else
+	 	else if (UKEY(*cmds) != DMC_REUSE && UKEY(*cmds) != DMC_RENAME)
 			ui_warning ("Weird kw %d", UKEY (*cmds));
 	}
 /*
