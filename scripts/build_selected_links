@@ -15,7 +15,6 @@ def is_a_directory(file):
 
 def setup(
 	baseDir, 	# base directory - e.g., /scr/data/spol
-	subsetBaseDir,	# base directory to hold links to subsetted data
 	subsetPlatforms,# platforms to be subsetted, e.g.,
 			# ('particles', 'spol')
 	):
@@ -26,11 +25,6 @@ def setup(
     #
     baseContents = os.listdir(baseDir)
 
-    #
-    # Make sure the subsetBaseDir exists.  This directory will hold links
-    # to directories in baseDir.
-    #
-    safeMkdir(subsetBaseDir)
     
     #
     # Make the directories under baseDir to hold the data subsets for 
@@ -46,26 +40,6 @@ def setup(
 	else:
 	    safeMkdir(os.path.join(baseDir, subsetDir))
 
-    #
-    # Set up the subset directory so that it has links to the directories
-    # in the base directory.  The directories for subsetted platforms
-    # will link to <name>_subset in the base directory, e.g., if "spol" is
-    # a subsetted platform, the link created will be:
-    #    <subsetBaseDir>/spol -> <baseDir>/spol_subset.
-    #
-    for file in baseContents:
-        fullName = os.path.join(baseDir, file)
-	if not is_a_directory(fullName):
-		continue
-
-        linkName = os.path.join(subsetBaseDir, file)
-	if not os.path.exists(linkName):
-		if file in subsetPlatforms:
-			# ln -s <baseDir>/<file>_subset <subsetBaseDir>/<file>
-			os.symlink(fullName + "_subset", linkName)
-		else:
-			# ln -s <baseDir>/<file> <subsetBaseDir>/<file>
-			os.symlink(fullName, linkName)
 
 
 def build_selected_links(
@@ -134,10 +108,9 @@ def mainFunc():
 	pf.close()
 
     baseDir = '/scr/data/spol'
-    subsetBaseDir = '/scr/data/spol_subset'
     subsetPlatforms = ('particles', 'spol')
 
-    setup(baseDir, subsetBaseDir, subsetPlatforms)
+    setup(baseDir,  subsetPlatforms)
 
     cnt = 0
     saveFrequency = 10
