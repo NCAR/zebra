@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.9 1998-06-05 19:35:25 granger Exp $
+/* $Id: BlockObject.hh,v 1.10 1998-08-27 22:42:56 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -292,9 +292,19 @@ public:
 	virtual void read ()
 	{
 		// Read a serial buffer from the block file for our block,
-		// then decode ourselves from it
+		// then decode ourselves from it.
 		SerialBuffer *sbuf;
 		sbuf = bf->readBuffer (block.offset, block.length);
+
+		// As a special case, if we only know our offset because the
+		// length is zero, use our encodedSize() to gauge our buffer
+		// size.  Hence fixed-length objects can avoid needing to
+		// explicitly setting their length.
+		if (block.length == 0)
+		{
+			block.length = encodedSize (*sbuf);
+			sbuf = bf->readBuffer (block.offset, block.length);
+		}
 		decode (*sbuf);
 	}
 
@@ -324,7 +334,15 @@ public:
 	int decode (SerialBuffer &buf);
 	long encodedSize (SerialBuffer &buf);
 
-	virtual void translate (SerialStream &ss) = 0;
+	// Subclasses should override this method, but we can be translated
+	// to a SerialStream also, in which case we keep permanent track of
+	// our allocated length so the subclass does not need to.  Just
+	// call this method from the subclass translate() implementation.
+	//
+	virtual void translate (SerialStream &ss)
+	{
+		ss << block.length;
+	}
 
 	virtual ~TranslateBlock ()
 	{ }
