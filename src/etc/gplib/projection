@@ -42,3 +42,9 @@ procedure ChangeProj proj string
 		parameter global projection #proj
 	endif
 endprocedure
+
+!
+! Force this menu on the left button.  Ugly, but it makes all those
+! old configurations work.
+!
+parameter global proj-topannot-left-menu projection
