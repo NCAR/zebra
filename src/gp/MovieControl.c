@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.10 1992-11-03 16:24:21 burghart Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.11 1993-03-02 23:09:06 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -547,10 +547,7 @@ mc_SetupParams ()
  */
 	TC_UIToZt (&v.us_v_date, &zt);
 	if (! mc_GetFrameTimes (&zt, minutes))
-	{
-		mc_SetStatus ("Unable to get frame times.");
 		return (FALSE);
-	}
 	return (TRUE);
 }
 
@@ -661,6 +658,7 @@ int	minutes;
 {
 	int incr, f;
 	ZebTime t;
+	char msg[60];
 /*
  * Now fix up the end time.
  */
@@ -671,7 +669,9 @@ int	minutes;
 	Nframes = minutes/TimeSkip + 1;
 	if (Nframes > MaxFrames)
 	{
-		mc_SetStatus ("Too many frames.");
+		sprintf(msg,"Too many frames (%i), maximum is %i",
+			Nframes, MaxFrames);
+		mc_SetStatus (msg);
 		return (FALSE);
 	}
 /*
@@ -719,6 +719,8 @@ ZebTime zt;
  * Fix up the time.
  */
 	zt.zt_Sec -= zt.zt_Sec % 60;
+	zt.zt_Sec += 60;
+	zt.zt_MicroSec = 0;
 	return (zt);
 }
 
