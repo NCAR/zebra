@@ -1,7 +1,7 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: AltControl.c,v 2.2 1992-05-27 16:39:12 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,10 +29,10 @@ static char *rcsid = "$Id: AltControl.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/Scrollbar.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
-# include "../include/DataStore.h"
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
+# include <DataStore.h>
 # include "GraphProc.h"
 
 
@@ -125,11 +125,11 @@ float *alts;
  * Find the list of available radar space altitudes.
  */
 {
-	time stimes[MAXALT], otimes[2];
-	PlatformId pid;
-	Location locs[MAXALT];
-	char cattr[200], *attr = NULL;
-	int i, nalt, ntime;
+	ZebTime	stimes[MAXALT], otimes[2];
+	PlatformId	pid;
+	Location	locs[MAXALT];
+	char	cattr[200], *attr = NULL;
+	int	i, nalt, ntime;
 /*
  * Find our platform first.
  */
