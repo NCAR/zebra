@@ -11,7 +11,7 @@
 ! Nothing other than "define state" and its inferiors should appear here.
 ! IF YOU CHANGE THIS FILE, MAKE SURE IT WILL GET THROUGH uib!
 !
-! $Id: ui.state,v 1.2 1992-01-30 21:08:10 corbet Exp $
+! $Id: ui.state,v 1.3 1992-05-06 15:54:31 corbet Exp $
 
 !
 ! Kludge needed to get the state definitions read in with the bootstrap
@@ -1196,8 +1196,23 @@ define state ust$in_form
 	input 'endform' -93
 		next ust$no_more
 	endinput
+	input 'enddef' -93
+		next ust$no_more
+	endinput
 	input 'pulldown' -97
 		next ust$form_entry_name
+	endinput
+	input 'noheader' -82
+		next ust$no_more
+	endinput
+	input 'override' -75
+		next ust$no_more
+	endinput
+	input 'location' -83
+		next ust$fp-2-ints
+	endinput
+	input 'size' -84
+		next ust$fp-2-ints
 	endinput
 enddef
 
