@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.4 1992-04-21 16:30:14 granger Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.5 1992-08-10 16:31:50 burghart Exp $";
 
 
 # define MAXENTRY 100
@@ -223,6 +223,7 @@ struct ui_command *cmds;
 	 * Now they can also give us a popup command.
 	 */
 	   case UIC_POPUP:
+		fw->fw_NEntry--;
 	   	strcpy (fw->fw_PopupCmd, UPTR (cmds[1]));
 		return (TRUE);
 
