@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.28 1993-03-25 20:22:08 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.29 1993-04-22 03:31:06 burghart Exp $")
 
 
 /*
@@ -180,10 +180,14 @@ bool	update;
 		Tadefclr.pixel);
 /*
  * Side annotation (color bar)
+ * (We have to subtract half a step from the center value that goes to 
+ * An_ColorBar to make it label things correctly based on the plot that
+ * comes out of CAP_Contour)
  */
 	if (Sashow)
 	{
-		sprintf (data, "%s %s %f %f", fname, ctable, center, step); 
+		sprintf (data, "%s %s %f %f", fname, ctable, center - step / 2,
+			 step); 
 		An_AddAnnotProc (An_ColorBar, c, data, strlen (data),
 			75, TRUE, FALSE);
 	}
