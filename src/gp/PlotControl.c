@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.7 1991-05-03 21:27:13 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.8 1991-06-14 20:55:31 kris Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -149,6 +149,11 @@ pc_PlotHandler ()
 	FrameCount = 1;
 	pda_Search (Pd, "global", "time-frames", 0, (char *)(&FrameCount), 
 		SYMT_INT);
+	pda_Search (Pd, "global", "max-frames", 0, (char *)(&MaxFrames), 
+		SYMT_INT);
+	if ((MaxFrames <= 0) || (MaxFrames > NCACHE))
+		MaxFrames = NCACHE;
+	msg_ELog (EF_DEBUG, "Setting MaxFrames to %d.", MaxFrames);
 	/* 
 	 * Add stuff here to get more frames for spatial depth
 	 * and multiple base fields. . .
