@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.23 1995-01-19 18:52:39 granger Exp $
+XCOMM $Id: config.h.dist,v 1.24 1995-03-28 22:48:48 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -129,7 +129,7 @@ XCOMM -----------------------------------------------------------------------
  */
 # define	BuildIngestScheduler	YES	/* Sun only	 	*/
 # define	BuildClassIngest	YES
-# define	BuildRadarIngest	YES	/* Sun only		*/
+# define	BuildRadarIngest	YES	/* Sun only, see PCAP below*/
 # define	BuildSLGrabber		YES	/* Sun only		*/
 # define	BuildNowradIngest	YES
 # define	BuildProfsIngest	YES
@@ -482,6 +482,15 @@ XCOMM -----------------------------------------------------------------------
 
 # define MathLibrary	-lm
 # define TermcapLibrary -ltermcap
+
+/*
+ * Building the radar ingestor now requires the PCAP library from
+ * ftp.ee.lbl.gov.  If you want this module be sure that the symbol
+ * below is set such that the linker will find the library; if you're
+ * not using the radar ingestor (99.9% of all Zebra users), you can ignore
+ * all this.
+ */
+# define PCAPLibrary 	-lpcap
 
 /*========================================================================
  * Distribution Options
