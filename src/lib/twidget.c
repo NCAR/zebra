@@ -21,6 +21,7 @@
  */
 
 # include <sys/types.h>
+# include <string.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
@@ -44,13 +45,13 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.16 1995-07-10 09:16:38 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.17 1995-08-10 18:45:23 granger Exp $")
 
 
-# define LABELWIDTH	60
+# define LABELWIDTH	65
 
 # define TW_NAME	"time"
-# define ALL_WINDOWS "All Windows"
+# define ALL_WINDOWS	"All Windows"
 
 /*
  * Date/time button action codes.
@@ -82,26 +83,42 @@ static Widget HT_Text = NULL;
 
 static Widget TW_WindowMenu = NULL;
 
-/*
- * Global stuff
- */
+# define LAST_VISITED	"last visited"
+# define MAX_VISITED	5
+static ZebTime Visited[MAX_VISITED];
+static int NVisited = 0;
+
 static Widget Htext = NULL;
 static Widget Stext = NULL;
 static Widget RTToggle = NULL, HistoryToggle = NULL;
 
 /*
- * Histdate is the history date that appears in the window.  Maxdate is
- * the highest date we've ever seen, used to keep the date from being
- * moved into the future.  RTMode tells us what mode we have most
- * recently been put in.
+ * Histdate is the history date that appears in the window.  RTMode tells
+ * us what mode we have most recently been put in.
  */
 static ZebTime Histdate;
 static int RTMode = TRUE;
+static int AutoAdvance = FALSE;	/* advance time window in real-time mode */
 static char Ahistdate[80];
 static char Title[200];
 static int Tslot = -1;	/* Timeout slot		*/
-static int SkipMin = 5;
+
+struct SkipUnit { 
+	int su_scale;
+	char *su_string;
+	char *su_label;
+} TSUnits[] =
+{
+	{ 0, "none", "Invalid" },
+	{ 1, "secs", "Seconds" },
+	{ 60, "mins", "Minutes" },
+	{ 3600, "hrs", "Hours" },
+	{ 3600*24, "days", "Days" }
+};
+static int SkipSecs = 300; /* 5 minute default */
+static int TSScale = 60; /* Minutes by default */
 static char TSString[10];
+
 static char *ControlWindow = NULL;
 
 static int (*Tw_Callback) (/* enum pmode, ZebTime *, 
@@ -109,13 +126,15 @@ static int (*Tw_Callback) (/* enum pmode, ZebTime *,
 static void (*Tw_HelpCallback) (/* void */) = 0;
 static void (*Tw_PopupCallback) (/* void */) = 0;
 
+/*
+ * Private prototypes
+ */
 static Widget tw_WCreate ();
-static int tw_SyncTime FP((void));
+static int tw_SyncTime FP ((void));
+static void tw_NewTime FP ((ZebTime *zt, char *label));
+static void tw_ChangeTime FP ((ZebTime *zt, char *label));
 static void tw_WCallback ();
 static void enter_time FP ((Widget w, XEvent *, String *, Cardinal *));
-#ifdef notdef
-static void enter_hotlabel FP ((Widget w, XEvent *, String *, Cardinal *));
-#endif
 static void finish_arrow (), datebutton ();
 static void ChangeMonth (), ChangeDay (), ChangeYear (); 
 static void ChangeHour (), ChangeMin ();
@@ -132,11 +151,17 @@ static void tw_HTDeleteCallback FP ((Widget w, XtPointer client,
 				     XtPointer call));
 static void tw_HTSyncEntries FP ((Widget menu, int entry));
 static void tw_HTLabel FP ((char *label));
+static void tw_InsertHotTime FP ((ZebTime *zt, char *label));
 static Widget tw_HTCreateMenu FP ((Widget parent, char *title,
 				   char *menuname, void (*callback)()));
 static Widget tw_CreateWindowMenu FP ((Widget parent, char *title,
 				       char *name, Widget button));
 static void tw_WindowCallback FP ((Widget w, XtPointer client, XtPointer));
+static Widget tw_SkipMenu FP ((Widget parent, char *title, char *name,
+			       void (*callback)()));
+static void tw_SkipMenuCallback FP ((Widget w, XtPointer client, XtPointer));
+static void tw_Visited FP ((ZebTime *zt));
+static void tw_AppendVisited FP ((ZebTime *zt));
 
 
 
@@ -153,6 +178,14 @@ tw_AddPopupCallback (callback)
 void (*callback) ();
 {
 	Tw_PopupCallback = callback;
+}
+
+
+void
+tw_AutoAdvance (on_off)
+int on_off;
+{
+	AutoAdvance = on_off;
 }
 
 
@@ -186,11 +219,30 @@ void
 tw_SetTime (zt)
 ZebTime *zt;
 /*
- * For setting the time from the outside.  If zt == NULL, the
+ * The entry point for setting the time from outside.  If zt == NULL, the
  * system time is used (as is the default at definition).
  */
 {
+	tw_NewTime (zt, NULL);
+}
+
+
+
+static void
+tw_NewTime (zt, label)
+ZebTime *zt;
+char *label;
+/*
+ * Set the mode and time, using 'label' in the message window.  If zt is
+ * NULL, go to real time.  If label is NULL, a default is supplied
+ * according to the new mode.  This is the sole access routine for changing
+ * the time and mode of the widget and updating the toggle buttons and text
+ * window.  All changes must go through here.
+ */
+{
+#ifdef notdef
 	int year, month, day, hour, minute, second;
+#endif
 	Arg true, false;
 
 	XtSetArg (true, XtNstate, True);
@@ -206,8 +258,13 @@ ZebTime *zt;
 		tl_Time (&Histdate);
 		RTMode = TRUE;
 	}
+	if (! label)
+		label = (zt) ? "History Mode" : "Real Time Mode";
+#ifdef notdef
 	TC_ZtSplit (&Histdate, &year, &month, &day, &hour, &minute, &second,0);
 	TC_ZtAssemble (&Histdate, year, month, day, hour, minute, 0, 0);
+#endif
+	Histdate.zt_MicroSec = 0;
 /*
  * If no zt we've gone into real time mode, else we've gone to history.
  * Reflect the change in the mode toggles and the time text, after checking
@@ -217,16 +274,38 @@ ZebTime *zt;
 	{
 		XtSetValues (RTToggle, &false, (Cardinal)1);
 		XtSetValues (HistoryToggle, &true, (Cardinal)1);
-		tw_HTLabel ("History Mode");
 	}
 	else if (RTToggle && HistoryToggle)
 	{
 		XtSetValues (HistoryToggle, &false, (Cardinal)1);
 		XtSetValues (RTToggle, &true, (Cardinal)1);
-		tw_HTLabel ("Real Time Mode");
 	}
-	set_dt ();
+	tw_HTLabel (label);
+	tw_Visited (&Histdate);
+/*
+ * Only update the time window to real-time when AutoAdvance enabled
+ */
+	if (! RTMode || AutoAdvance)
+		set_dt ();
 	uw_sync ();
+}
+
+
+
+static void
+tw_ChangeTime (zt, label)
+ZebTime *zt;
+char *label;
+/*
+ * Changing the time and/or mode from within, so we sync buttons and
+ * the text window and call the callback.
+ */
+{
+	tw_NewTime (zt, label);
+	if (Tw_Callback)
+		(*Tw_Callback) (RTMode ? RealTime : History,
+				&Histdate, (ControlWindow == NULL),
+				ControlWindow);
 }
 
 
@@ -266,9 +345,6 @@ XtAppContext appc;
 	static XtActionsRec actions[] = {
 			{"finishadj", finish_arrow},
 			{"enter-time", enter_time},
-#ifdef notdef
-			{"enter-hotlabel", enter_hotlabel}
-#endif
 	};
 	static char *atrans = "<Btn1Down>:	set()notify() \n\
 	           	       <Btn1Up>: 	finishadj()unset()";
@@ -330,7 +406,7 @@ XtAppContext appc;
 				       form, args, n);
 
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Control:");	n++;
+	XtSetArg (args[n], XtNlabel, "Choose target:");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
@@ -527,7 +603,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
 	left = XtCreateManagedWidget ("skip", labelWidgetClass, sform, args,n);
 
-	sprintf (TSString, "%d", SkipMin);
+	sprintf (TSString, "%d", SkipSecs/TSScale);
 	
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
@@ -545,14 +621,23 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
 	Stext = XtCreateManagedWidget ("stext", asciiTextWidgetClass,
 				       sform, args, n);
-
+/*
+ * The menu for the skip interval scale (i.e., units)
+ */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "min.");		n++;
+	XtSetArg (args[n], XtNlabel, TSUnits[2].su_string /* mins */); n++;
 	XtSetArg (args[n], XtNfromHoriz, Stext);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	left = XtCreateManagedWidget ("minutes", labelWidgetClass, sform, 
-				      args, n);
+	XtSetArg (args[n], XtNwidth, 50);		n++;
+	XtSetArg (args[n], XtNvertDistance, 5);		n++;
+	XtSetArg (args[n], XtNborderWidth, 1);		n++;
+	XtSetArg (args[n], XtNmenuName, "skipmenu");	++n;
+	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
+	menubutton = XtCreateManagedWidget ("skipscale",
+			    menuButtonWidgetClass, sform, args, n);
+	tw_SkipMenu (menubutton, "Skip Interval Units", "skipmenu", 
+		     tw_SkipMenuCallback);
+	left = menubutton;
 
 	skipbutton = LeftRightButtons (sform, TimeSkip, NULL);
 
@@ -727,16 +812,18 @@ static void
 TimeSkip (w, change, junk)
 Widget w;
 XtPointer change, junk;
+/*
+ * Inc/dec the current time by the current skip interval.  Automatically
+ * enters history mode, as would be expected, I think...
+ */
 {
 	long systime;
 
-	SkipMin = atoi (TSString);
+	SkipSecs = atoi (TSString) * TSScale;
 	systime = TC_ZtToSys (&Histdate);
-	TC_SysToZt (((int) change == 1) ? systime + SkipMin*60 :
-			systime - SkipMin*60, &Histdate);
-	set_dt ();
-	(*Tw_Callback) (History, &Histdate, (ControlWindow == NULL),
-			ControlWindow);
+	TC_SysToZt (((int) change == 1) ? systime + SkipSecs :
+			systime - SkipSecs, &Histdate);
+	tw_ChangeTime (&Histdate, NULL);
 }
 
 
@@ -835,14 +922,9 @@ XtPointer calldata;
 	if (! activate)
 		return;
 	if (mode == RealTime)
-		tw_HTLabel ("Real Time Mode");
-	else if (! tw_SyncTime())
-		return;
-	else
-		tw_HTLabel ("History Mode");
-	if (Tw_Callback)
-		(*Tw_Callback) (mode, &Histdate, (ControlWindow == NULL),
-				ControlWindow);
+		tw_ChangeTime (NULL, NULL);
+	else if (tw_SyncTime())
+		tw_ChangeTime (&Histdate, NULL);
 }
 
 
@@ -904,23 +986,6 @@ Cardinal *num_params;
 	tw_WCallback (w, (XtPointer) History, (XtPointer) True);
 }
 
-
-
-#ifdef notdef
-/*ARGSUSED*/
-static void
-enter_hotlabel (w, event, params, num_params)
-Widget w;
-XEvent *event;
-String *params;
-Cardinal *num_params;
-/*
- * Add the current description to the hot menu.
- */
-{
-	tw_HTAddCurrent (w, NULL, NULL);
-}
-#endif
 
 
 static void
@@ -1068,8 +1133,21 @@ void
 tw_AddHotTime (zt, label)
 ZebTime *zt;
 char *label;
+{
+	if (strstr (label, LAST_VISITED))
+		tw_AppendVisited (zt);
+	else
+		tw_InsertHotTime (zt, label);
+}
+
+
+
+static void
+tw_InsertHotTime (zt, label)
+ZebTime *zt;
+char *label;
 /*
- * Add this hot time to the list.  The label is truncated if necessary
+ * Insert this hot time into the list.  The label is truncated if necessary
  * to fit into the hot time structure.  Keep the list sorted in
  * reverse chronological order (most recent times first).
  * If the time already exists, then only the label is changed.
@@ -1212,11 +1290,7 @@ XtPointer call;
 	int which = (int) client;
 	HotTime *ht = HTimes + which;
 
-	tw_SetTime (&ht->ht_zt);
-	tw_HTLabel (ht->ht_label);
-	if (Tw_Callback)
-		(*Tw_Callback) (History, &ht->ht_zt, (ControlWindow == NULL),
-				ControlWindow);
+	tw_ChangeTime (&ht->ht_zt, ht->ht_label);
 }
 
 
@@ -1246,9 +1320,12 @@ char *label;
 	Arg args[10];
 	Cardinal narg;
 
-	narg = 0;
-	XtSetArg (args[narg], XtNstring, label);  ++narg;
-	XtSetValues (HT_Text, args, narg);
+	if (HT_Text)
+	{
+		narg = 0;
+		XtSetArg (args[narg], XtNstring, label);  ++narg;
+		XtSetValues (HT_Text, args, narg);
+	}
 }
 
 
@@ -1271,6 +1348,8 @@ int entry;
 	char label[64 + HT_LABEL_LEN];
 	int i;
 
+	if (! menu)	/* nothing to sync yet */
+		return;
 	narg = 0;
 	XtSetArg (args[narg], XtNnumChildren, &nchildren);  	++narg;
 	XtSetArg (args[narg], XtNchildren, &wlist);		++narg;
@@ -1290,7 +1369,7 @@ int entry;
 	for (i = 0; (i < NTimes) && (i < nchildren); ++i)
 	{
 		Widget w = wlist[i];
-		sprintf (label, "%-20s%s", 
+		sprintf (label, "%19s  %s", 
 			 TC_AscTime (&HTimes[i].ht_zt, TC_Full),
 			 HTimes[i].ht_label);
 		XtSetArg (args[0], XtNlabel, label);
@@ -1347,6 +1426,68 @@ void (*callback)();
 	return (menu);
 }
 
+
+
+static Widget
+tw_SkipMenu (parent, title, name, callback)
+Widget parent;
+char *title;
+char *name;
+void (*callback)();
+/*
+ * Create a menu for skip interval units.  We REQUIRE the parent to be
+ * the menu button whose label will change with the units.
+ */
+{
+	Arg args[10];
+	Cardinal narg;
+	Widget entry;
+	Widget menu;
+	int i;
+
+	narg = 0;
+	XtSetArg (args[narg], XtNlabel, title);	++narg;
+	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
+				   parent, args, narg);
+/*
+ * Line object to separate choices from title
+ */
+	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
+/*
+ * Create one entry for each unit.
+ */
+	for (i = 1; i < XtNumber(TSUnits); i++)
+	{
+		XtSetArg (args[0], XtNlabel, TSUnits[i].su_label);
+		narg = 1;
+		entry = XtCreateManagedWidget ("skipentry", smeBSBObjectClass,
+					       menu, args, narg);
+		XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
+			       callback, (XtPointer) i);
+	}
+	return (menu);
+}
+
+
+
+/* ARGSUSED */
+static void
+tw_SkipMenuCallback (w, client, call)
+Widget w;
+XtPointer client;
+XtPointer call;
+/*
+ * Change the units (scale) of the skip interval.
+ */
+{
+	int which = (int) client;
+	Widget button = XtParent(XtParent(w));
+	Arg arg;
+
+	TSScale = TSUnits[which].su_scale;
+	XtSetArg (arg, XtNlabel, TSUnits[which].su_string);
+	XtSetValues (button, &arg, (Cardinal) 1);
+}
 
 
 
@@ -1474,3 +1615,68 @@ char **names;
 	if ((i < nchildren) && XtIsManaged (wlist[i]))
 		XtUnmanageChildren (wlist + i, nchildren - i);
 }
+
+
+
+static void
+tw_Visited (zt)
+ZebTime *zt;
+/*
+ * Put this time at the front of the visited list.  If it has already
+ * been visited, then swap it with the first entry.
+ */
+{
+	int i, slot = -1;
+	char label[64];
+
+	/*
+	 * So first we need to remove the existing visited entries.
+	 */
+	for (i = 0; i < NVisited; ++i)
+	{
+		if (TC_Eq (Visited[i], *zt))
+			slot = i;
+		tw_DeleteHotTime (&Visited[i]);
+	}
+	/*
+	 * If this one existed, then only shift times down as far
+	 * as the existing slot, which gets overwritten.
+	 */
+	if ((slot < 0) && (NVisited < MAX_VISITED))
+		++NVisited;
+	if (slot < 0)
+		slot = NVisited - 1;
+	for (i = slot; i > 0; --i)
+		Visited[i] = Visited[i-1];
+	Visited[0] = *zt;
+	/*
+	 * Now add them back to the hot times list, but in reverse so that
+	 * more recently visited duplicates appear rather than older ones.
+	 */
+	for (i = NVisited - 1; i >= 0; --i)
+	{
+		sprintf (label, "#%d %s", i+1, LAST_VISITED);
+		tw_InsertHotTime (&Visited[i], label);
+	}
+}
+
+
+
+static void
+tw_AppendVisited (zt)
+ZebTime *zt;
+/*
+ * Append a previously-existing visited time to the end of the
+ * current visited list.
+ */
+{
+	char label[64];
+
+	if (NVisited == MAX_VISITED)
+		return;
+	Visited[NVisited] = *zt;
+	sprintf (label, "#%d %s", NVisited+1, LAST_VISITED);
+	tw_InsertHotTime (&Visited[NVisited], label);
+	++NVisited;
+}
+

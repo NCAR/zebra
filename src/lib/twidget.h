@@ -1,5 +1,5 @@
 /*
- * $Id: twidget.h,v 2.2 1995-04-27 14:54:49 granger Exp $
+ * $Id: twidget.h,v 2.3 1995-08-10 18:45:27 granger Exp $
  *
  * Separate include file for the time widget, since it is not required
  * by most programs which link with the Zebra library.
@@ -44,6 +44,7 @@ void	tw_SetWindowNames FP ((int nwin, char **names));
 void	tw_AddHelpCallback FP ((void (*callback) ()));
 void	tw_AddPopupCallback FP ((void (*callback) ()));
 void	tw_SetTime FP ((ZebTime *init_or_null)); /* null ==> use system time */
+void	tw_AutoAdvance FP ((int on_off));
 void 	tw_DialAdjust FP ((int, int));
 void	tw_DeleteHotTime FP ((ZebTime *zt));
 void	tw_AddHotTime FP ((ZebTime *zt, char *label));
