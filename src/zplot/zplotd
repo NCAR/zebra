@@ -28,7 +28,7 @@ chop $project;
 
 # The platforms which are plotted for each observation rather
 # than only the most recent
-%Observations = ("iss2/class", 1, "iss3/class", 1);
+%Observations = ("iss2/class", 1, "iss3/class", 1, "iss4/class", 1);
 
 %Plots = (
 	  "iss2/class", 	"iss2 class",
@@ -43,6 +43,7 @@ chop $project;
 	  );
 
 @Queue = ();
+@Targets = ();
 %Pending = ();		# Platforms already in queue
 %Displays = ();
 
@@ -85,15 +86,16 @@ while ($pattern = shift @ARGV)
 	}
 	next;
     }
-    $first = 1;
     foreach $platform (keys(%Plots))
     {
 	if ($platform =~ /$pattern/)
 	{
+	    $first = 1;
 	    if (! $Pending{$platform})
 	    {
 		$entry = join(' ', ($platform, "now", $Plots{$platform}));
 		push (@Queue, $entry);
+		push (@Targets, $platform);
 		$Pending{$platform} = 1;
 	    }
 	}
@@ -102,6 +104,9 @@ while ($pattern = shift @ARGV)
 print STDERR "Debug level = $debug\n" if $debug;
 print STDERR "Queueing: \n   ",
     join("\n   ",@Queue), "\n" unless (! $first);
+
+# The target platform plots default to all of them
+if (! @Targets) { @Targets = keys(%Plots); }
 
 # If we weren't told to get input elsewhere, then
 # just clear the queue and we're done
@@ -160,7 +165,7 @@ if ($since)
 elsif ($notice)
 {
     # Open a dsnotice session and read the output
-    $targets = join(' ',keys(%Plots));
+    $targets = join(' ',@Targets);
     print "Opening $zbin/dsnotice -dir $targets ...\n";
     open (DS, "$zbin/dsnotice -dir $targets 2>&1 |") || 
 	die "dsnotice: $!";
@@ -169,7 +174,7 @@ elsif ($fixtime)
 {
     # Get a list of platforms to plot with data within the given time
     # period.
-    $targets = join(' -e ',keys(%Plots));
+    $targets = join(' -e ',@Targets);
     print "Running $zbin/dsdump -l -p $fixbegin -p $fixend -e $targets...\n";
     open (DS, "$zbin/dsdump -l -p $fixbegin -p $fixend $targets |") ||
 	die "dsdump: $!";
