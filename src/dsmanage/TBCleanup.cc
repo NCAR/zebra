@@ -28,7 +28,7 @@
 # endif
 
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <unistd.h>
 # include "dsmanage.h"
 # include <defs.h>
@@ -57,7 +57,11 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.11 1999-03-01 02:03:53 burghart Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.12 2002-12-18 00:24:13 granger Exp $")
+
+using std::cerr;
+using std::cout;
+using std::endl;
 
 class DelSelect;
 

@@ -19,8 +19,7 @@
  * maintenance or updates for its software.
  */
 # include <stdio.h>
-# include <stream.h>
-// # include <memory.h>
+# include <iostream>
 # include <unistd.h>
 # include "dsmanage.h"
 # include "container.h"
@@ -39,7 +38,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.9 1999-03-01 02:03:54 burghart Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.10 2002-12-18 00:24:13 granger Exp $";
 //
 // Forwards.
 //

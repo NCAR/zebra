@@ -26,7 +26,7 @@
 # include <sys/sigevent.h>
 #endif
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <string>
 
 //
@@ -44,7 +44,7 @@
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.16 2001-08-27 20:00:17 granger Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.17 2002-12-18 00:24:13 granger Exp $");
 
 extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -94,7 +94,7 @@ MsgHandler (Message *msg)
                 struct mh_template *tmpl = (struct mh_template *) msg->m_data;
                 if (tmpl->mh_type == MH_SHUTDOWN)
 		{
-			cout << "dsmanage: message manager shutdown\n";
+		  	std::cout << "dsmanage: message manager shutdown\n";
                         exit (0);
 		}
         }

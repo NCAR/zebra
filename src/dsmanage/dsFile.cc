@@ -21,7 +21,7 @@
 # include <sys/stat.h>
 # include "dsFile.h"
 
-static char *rcsid = "$Id: dsFile.cc,v 1.2 1999-03-01 16:48:52 burghart Exp $";
+static char *rcsid = "$Id: dsFile.cc,v 1.3 2002-12-18 00:24:13 granger Exp $";
 
 
 dsFile::dsFile (const DataFile *df)
@@ -76,7 +76,7 @@ dsFile::size (void) const
 
     if (stat (name(), &buf) < 0)
     {
-	cerr << "Unable to stat file " << name() << "\n";
+	std::cerr << "Unable to stat file " << name() << "\n";
 	return 0;
     }
     else

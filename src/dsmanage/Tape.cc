@@ -20,15 +20,18 @@
  */
 
 # include <unistd.h>
-# include <stream.h>
+# include <iostream>
 # include <errno.h>
 # include "Tape.h"
 
-static char *rcsid = "$Id: Tape.cc,v 1.5 1996-01-02 21:22:13 granger Exp $";
+static char *rcsid = "$Id: Tape.cc,v 1.6 2002-12-18 00:24:13 granger Exp $";
 
 # ifdef NO_IOCTL_PROTO
 extern "C" { int ioctl(int, int, struct mtop *); }
 # endif
+
+using std::cerr;
+using std::cout;
 
 Tape::Tape (const char *drive, int write)
 //

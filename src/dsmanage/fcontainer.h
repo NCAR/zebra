@@ -134,7 +134,7 @@ void fContainer::zap (const int which)
 //
 	if (which < 0 || which >= nelem)
 	{
-		cerr << "NTH value " << which << " out of range\n";
+		std::cerr << "NTH value " << which << " out of range\n";
 		return;
 	}
 //

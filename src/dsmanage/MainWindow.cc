@@ -23,7 +23,7 @@
 # include <sys/sigevent.h>
 # endif
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <stdlib.h>
 # include <DataStore.h>
 
@@ -43,7 +43,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.11 1999-03-01 02:03:53 burghart Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.12 2002-12-18 00:24:13 granger Exp $";
 //
 // Externs.
 //
@@ -195,6 +195,6 @@ void ReallyDoIndex (const char *file)
 // Create the index in the given file.
 //
 {
-	cout << "Make index in " << file << ".\n";
+	std::cout << "Make index in " << file << ".\n";
 	MakeLocalIndex (file);
 }

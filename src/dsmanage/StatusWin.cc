@@ -20,7 +20,7 @@
  */
 
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <unistd.h>
 extern "C" 
 {
@@ -37,7 +37,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "StatusWin.h"
 
-static char *rcsid = "$Id: StatusWin.cc,v 1.6 1999-03-01 02:03:53 burghart Exp $";
+static char *rcsid = "$Id: StatusWin.cc,v 1.7 2002-12-18 00:24:13 granger Exp $";
 
 
 //

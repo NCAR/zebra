@@ -30,7 +30,7 @@
 
 //# include <sys/select.h>
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <fcntl.h>
 # include <errno.h>
 # include <unistd.h>
@@ -55,7 +55,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.16 2001-08-24 22:23:12 granger Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.17 2002-12-18 00:24:13 granger Exp $")
 
 
 //
@@ -70,6 +70,9 @@ const int SaveInterval = 50;
 char TapeBuffer[BufSize];
 char *TapeBlock = TapeBuffer;		// The current block
 int DataLen = -1;			// How much data actually read
+
+using std::cerr;
+using std::cout;
 
 struct TarHeader
 {

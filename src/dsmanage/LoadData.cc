@@ -28,7 +28,7 @@
 # endif
 
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <unistd.h>
 # include "dsmanage.h"
 # include <defs.h>
@@ -55,7 +55,9 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.17 1999-08-10 23:04:15 burghart Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.18 2002-12-18 00:24:12 granger Exp $")
+
+using std::cerr;
 
 class LoadSelect;
 

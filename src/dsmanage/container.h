@@ -46,7 +46,7 @@ public:
 
 
 
-template<class C> IContainer<C>::IContainer (int initial = 10)
+template<class C> IContainer<C>::IContainer (int initial)
 //
 // Create an IContainer.
 //

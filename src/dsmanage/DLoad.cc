@@ -28,7 +28,7 @@
 # undef _BSD_TYPES
 # endif
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <unistd.h>
 # include <fcntl.h>
 # include <sys/stat.h>
@@ -48,7 +48,11 @@ extern "C"
 # include "dsPlatform.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.16 1999-03-01 02:03:51 burghart Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.17 2002-12-18 00:24:12 granger Exp $")
+
+using std::cerr;
+using std::cout;
+using std::endl;
 
 //
 // Import from main.

@@ -26,13 +26,16 @@ extern "C"
 {
 #	include <defs.h>
 };
-# include <stream.h>
+# include <iostream>
 # include <stdio.h>
 # include "STable.h"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.12 2001-08-27 20:00:16 granger Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.13 2002-12-18 00:24:12 granger Exp $");
+
+using std::cerr;
+using std::cout;
 
 //
 // Internal structures
