@@ -230,6 +230,7 @@ main(argc, argv)
 #ifdef USE_CC_E
 	AddCppArg("-");
 #endif
+	AddCppArg ("-P");
 
 	Imakefile = FindImakefile(Imakefile);
 	if (Makefile)

@@ -8,9 +8,9 @@ XCOMM operating system:  OSName
 #define SystemV                YES
 #define Malloc0ReturnsNull     YES
 #ifdef hp9000s800
-#define OptimizedCDebugFlags   +O1
+#define OptimizedCDebugFlags   +O1 -DSVR4
 #else
-#define DefaultCCOptions       -Wc,-Nd4000,-Ns4100,-Ne700,-Np200,-Nw300
+#define DefaultCCOptions       -Wc,-Nd4000,-Ns4100,-Ne700,-Np200,-Nw300 -DSVR4
 #define PexCCOptions           -Wp,-H150000 -Wc,-Nd4000,-Ns8100,-Ne700,-Np200
 #define PexShmIPC              NO
 #define LintOpts               -ax -Nd4000 -Ns8000 -Ne700 -Np200 -Na25000
@@ -22,6 +22,8 @@ XCOMM operating system:  OSName
 #define HasVFork               YES
 #define RemoveTargetProgramByMoving YES
 #define ExpandManNames         YES
+
+# define SystemLibraries $(MATHLIB) $(TERMCAPLIB)
 
 #define BuildServer            NO
 #define NeedBerklib            BuildServer
