@@ -15,21 +15,18 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-05-13 20:14:40 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-07-01 20:27:39 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
 
-
-SUBDIRS = NetXfr LastData
-
+SUBDIRS = NetXfr LastData Archiver
 
 DISTFILES = Imakefile
-DISTSUBDIRS = NetXfr LastData
+DISTSUBDIRS = NetXfr LastData Archiver
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
 InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
-
