@@ -73,6 +73,12 @@ int size;
 		return;
 	if (NSbuf > 0)
 		free (Sbuf);
+/*
+ * Minimum size imposed here.  Experience shows we reach this size anyway,
+ * this way we avoid fragmenting the memory pool in the process.
+ */
+	if (size < 700000)
+		size = 700000;
 	Sbuf = (unsigned char *) malloc (size);
 	NSbuf = size;
 }
