@@ -11,23 +11,10 @@
 # include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
-/*
- * X11.3 backward compatibility.
- */
-# ifdef X11R3
-# include <X11/Box.h>
-# include <X11/Command.h>
-# include <X11/Form.h>
-# include <X11/Label.h>
-/* # include <X11/VPaned.h> */
-
-# else
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Label.h>
-/* # include <X11/Xaw/VPaned.h> */
-# endif
 
 # include "ui.h"
 # include "ui_param.h"
@@ -39,7 +26,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.17 1991-10-25 22:27:26 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.18 1992-01-30 21:12:02 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -59,6 +46,11 @@ static char Title_font_name[TITLE_FONT_LEN];/* Name of the label font	*/
  */
 static bool Save_all = 0;
 	
+/*
+ * A symbol table used to hold pixmaps.
+ */
+static stbl PixmapTable;
+static stbl FontTable;
 
 /*
  * Forward routines.
@@ -67,10 +59,27 @@ struct gen_widget *uw_list_def (), *uw_cm_def (), *uw_mb_def ();
 extern struct gen_widget *uw_DefIPU ();
 # ifdef __STDC__
 	Widget uw_MakeHeader (FrameWidget *, Widget);
+	static FrameWidget *uw_MakeInstance (FrameWidget *);
+	void uw_FPopup (Widget, XEvent *, String *, Cardinal *);
+	void uw_FBRet (Widget, XEvent *, String *, Cardinal *);
+	void uw_BringDown (FrameWidget *);
 # else
 	Widget uw_MakeHeader ();
+	static FrameWidget *uw_MakeInstance ();
+	void uw_FPopup ();
+	void uw_FBRet ();
+	void uw_BringDown ();
 # endif
 
+
+/*
+ * The custom translations that we use.
+ */
+static XtActionsRec UIActions[] =
+{
+	{ "UIFormPopup",	uw_FPopup	},
+	{ "UIBlankRet",		uw_FBRet	},
+};
 
 
 
@@ -86,6 +95,8 @@ uw_init ()
  */
 	Widget_table = usy_c_stbl ("ui$widget_table");
 	Widget_vars = usy_c_stbl ("ui$widget_vars");
+	PixmapTable = usy_c_stbl ("ui$pixmaps");
+	FontTable = usy_c_stbl ("ui$fonts");
 	v.us_v_ptr = (char *) Widget_vars;
 	usy_s_symbol (usy_g_stbl ("usym$master_table"), "w", SYMT_SYMBOL, &v);
 /*
@@ -141,7 +152,7 @@ XtAppContext *appc;
 	if (! Initialized)
 	{
 		Top = XtAppInitialize (&Appc, Appl_name, NULL, ZERO, Argc, 
-			Argv, Resources, NULL, ZERO);
+			Argv, (String *) Resources, NULL, ZERO);
 		Labelfont = XLoadQueryFont (XtDisplay (Top), Title_font_name);
 		Zapcursor = XCreateFontCursor (XtDisplay (Top), XC_pirate);
 		Initialized = TRUE;
@@ -152,6 +163,13 @@ XtAppContext *appc;
 	uw_sync ();
 	tty_watch (XConnectionNumber (XtDisplay (Top)), uw_xevent);
 	Active = TRUE;
+/*
+ * Add our actions.
+ */
+	XtAppAddActions (Appc, UIActions, TWO);
+	XtRegisterGrabAction (uw_FPopup, True,
+	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
+	XawSimpleMenuAddGlobalActions (Appc);
 /*
  * If we have a widget name as an argument, go ahead and put it up.
  */
@@ -204,11 +222,7 @@ union usy_value *v;
 {
 	struct frame_widget *fw = (struct frame_widget *) v->us_v_ptr;
 
-	if (fw->fw_type == WT_FRAME && fw->fw_flags & WF_POPPED)
-	{
-		XtPopdown (fw->fw_w);
-		fw->fw_flags &= ~WF_POPPED;
-	}
+	uw_BringDown (fw);
 	return (TRUE);
 }
 
@@ -309,7 +323,7 @@ struct ui_command *cmds;
 {
 	char *name = UPTR (cmds[0]), *title = UPTR (cmds[2]);
 	int type = UINT (cmds[1]);
-	struct gen_widget *gw;
+	struct gen_widget *gw, *uw_FormDef ();
 	struct frame_widget *frame;
 	bool noframe = FALSE;
 /*
@@ -352,6 +366,13 @@ struct ui_command *cmds;
 	   case WT_INTPOPUP:
 		gw = uw_DefIPU (name);
 		noframe = TRUE;
+		break;
+	/*
+	 * Forms.
+	 */
+	   case WT_FORM:
+	   	gw = uw_FormDef ();
+		frame->fw_flags |= WF_PROTOTYPE;
 		break;
 
 	   default:
@@ -549,6 +570,11 @@ char *name;
 	if (frame->fw_flags & WF_NOFRAME)
 		ui_error ("Widget '%s' can not be popped up directly", name);
 /*
+ * If this is a prototype widget, we need to get an instance instead.
+ */
+	if (frame->fw_flags & WF_PROTOTYPE)
+		frame = uw_MakeInstance (frame);
+/*
  * Make sure it has been created.
  */
  	if (! (frame->fw_flags & WF_CREATED))
@@ -583,6 +609,23 @@ char *name;
 	if (! gw)
 		ui_error ("Unknown widget: %s\n", name);
 /*
+ * Pull it down.
+ */
+	uw_BringDown (frame);
+}
+
+
+
+
+
+void
+uw_BringDown (frame)
+FrameWidget *frame;
+/*
+ * Insure that this frame is not on the screen.
+ */
+{
+/*
  * If the widget is not already on screen, we do nothing.
  */
  	if (! (frame->fw_flags & WF_POPPED))
@@ -593,6 +636,11 @@ char *name;
 	XtPopdown (frame->fw_w);
 	uw_sync ();
 	frame->fw_flags &= ~WF_POPPED;
+/*
+ * If it is an instance widget, we wipe it out.
+ */
+	if (frame->fw_flags & WF_INSTANCE)
+		uw_zap_widget (frame);
 }
 
 
@@ -637,7 +685,8 @@ char *name, *title;
 	w->fw_next = 0;
 	w->fw_create = 0;
 	w->fw_flags = 0;
-	w->fw_nchild = 0;
+	w->fw_ninst = w->fw_nchild = 0;
+	w->fw_inst = 0;
 	w->fw_x = w->fw_y = w->fw_width = w->fw_height = NotSpecified;
 	strcpy (w->fw_name, name);
 	strcpy (w->fw_title, title);
@@ -675,7 +724,7 @@ struct frame_widget *w;
 	}
 	if (w->fw_flags & WF_OVERRIDE)
 	{
-		XtSetArg (args[n], XtNoverrideRedirect, True);	n++;
+		XtSetArg (args[n], XtNtransient, True);	n++;
 	}
 	w->fw_w = XtCreatePopupShell (w->fw_name, topLevelShellWidgetClass,
 		Top, args, n);
@@ -935,22 +984,19 @@ union usy_value *v;
 	struct gen_widget *gw = (struct gen_widget *) v->us_v_ptr, *child;
 	struct frame_widget *frame;
 /*
- * If this is not a frame widget, forget it.
- */
- 	if (gw->gw_type != WT_FRAME)
-		return (TRUE);
-/*
  * See if we should really save this one.
  */
 	frame = (struct frame_widget *) gw;
 	if ((frame->fw_flags & WF_INIT && ! Save_all) ||
-			(frame->fw_flags & WF_INTERNAL) == 0)
+			(frame->fw_flags & WF_INTERNAL) == 0 ||
+			frame->fw_flags & WF_INSTANCE)
 		return (TRUE);
 /*
  * Put out the frame-specific stuff.
  */
 	ui_printf ("Saving widget '%s'\n", frame->fw_name);
 	bfput (lun, &gw->gw_type, sizeof (int));
+	bfput (lun, &frame->fw_flags, sizeof (int));
 	bfput (lun, frame->fw_name, strlen (frame->fw_name) + 1);
 	bfput (lun, frame->fw_title, strlen (frame->fw_title) + 1);
 /*
@@ -969,6 +1015,12 @@ union usy_value *v;
 			break;
 		   case WT_MENUBAR:
 		   	uw_SaveMenubar (lun, (struct menubar_widget *) child);
+			break;
+		   case WT_INTPOPUP:
+		   	uw_SavePulldown (lun, child);
+			break;
+		   case WT_FORM:
+		   	uw_FSave (lun, child);
 			break;
 		   default:
 		   	ui_warning("Unknown widget type %d\n", child->gw_type);
@@ -1015,7 +1067,7 @@ int lun, init;
  * Restore some widgets from the file.
  */
 {
-	int type;
+	int type, flags;
 	char name[MAXTITLE], title[MAXTITLE];
 	struct frame_widget *frame = 0;
 	struct gen_widget *gw, *uw_l_list (), *uw_l_cmenu ();
@@ -1043,9 +1095,11 @@ int lun, init;
 		   /*
 		    * Grab the info, and make a new frame out of it.
 		    */
+			bfget (lun, &flags, sizeof (int));
 			bfget (lun, name, MAXTITLE);
 			bfget (lun, title, MAXTITLE);
 			frame = uw_make_frame (name, title);
+			frame->fw_flags = flags & ~(WF_CREATED | WF_POPPED);
 			if (init)
 				frame->fw_flags |= WF_INIT;
 			break;
@@ -1068,6 +1122,20 @@ int lun, init;
 		 */
 		   case WT_MENUBAR:
 		   	gw = uw_LoadMenubar (lun);
+			uw_add_child (frame, gw);
+			break;
+		/*
+		 * Internal popups.
+		 */
+		   case WT_INTPOPUP:
+		   	gw = (GenWidget *) uw_LoadPulldown (lun);
+			uw_add_child (frame, gw);
+			break;
+		/*
+		 * Forms.
+		 */
+		   case WT_FORM:
+		   	gw = (GenWidget *) uw_FLoad (lun);
 			uw_add_child (frame, gw);
 			break;
 		/*
@@ -1143,7 +1211,7 @@ struct frame_widget *frame;
 /*
  * Clean up the frame widgets.
  */
-	if (frame->fw_flags & WF_CREATED)
+	if (frame->fw_flags & WF_CREATED && ! (frame->fw_flags & WF_NOFRAME))
 	{
 	 	XtDestroyWidget (frame->fw_form);
 		XtDestroyWidget (frame->fw_w);
@@ -1220,12 +1288,14 @@ char *name;
 {
 	struct gen_widget *gw = uw_g_widget (name);
 	struct frame_widget *frame = (struct frame_widget *) gw;
+# ifdef notdef
 /*
  * Make sure this is the right type of widget.
  */
 	if ((frame->fw_flags & WF_NOFRAME) == 0)
 		ui_error ("(APPL BUG): uw_IWRealize on non-int widget %s", 
 			name);
+# endif
 /*
  * Do it.
  */
@@ -1404,5 +1474,143 @@ char *name;
 		XtSetValues (fw->fw_w, args, 1);
 	}
 }
+
+
+
+
+static FrameWidget *
+uw_MakeInstance (fw)
+FrameWidget *fw;
+/*
+ * Turn a prototype widget into an actual instance.
+ */
+{
+	FrameWidget *inst;
+	GenWidget *child;
+	char NewName[60];
+
+# ifdef notdef  /* For now don't do this, alas. */
+/*
+ * Search the list of already-instantiated widgets to see if there are
+ * any which are not on the screen.
+ */
+	for (inst = fw->fw_inst; inst; inst = inst->fw_inst)
+		if (! (inst->fw_flags & WF_POPPED))
+			return (inst);
+# endif
+/*
+ * Nope, we need to make one.  (KLUDGE) assuming only one child for the 
+ * moment; eventually we probably need to follow the chain.
+ */
+	sprintf (NewName, "%s.%d", fw->fw_name, fw->fw_ninst++);
+	inst = uw_make_frame (NewName, fw->fw_title);
+	child = (*fw->fw_next->gw_clone) (fw->fw_next, inst);
+	uw_add_child (inst, child);
+	uw_wdef (inst);
+/*
+ * Add this instantiation to the list and return it.
+ */
+	inst->fw_flags &= ~WF_PROTOTYPE;
+	inst->fw_flags |= WF_INSTANCE; /* Necessary? */
+# ifdef notdef
+	inst->fw_inst = fw->fw_inst;
+	fw->fw_inst = inst;
+# endif
+	return (inst);
+}
+
+
+
+
+
+
+
+Pixmap
+uw_GetPixmap (name)
+char *name;
+/*
+ * Try to pull in this file as a pixmap.
+ */
+{
+	Pixmap ret;
+	unsigned int w, h;
+	int xh, yh, type;
+	SValue v;
+	char fname[120];
+/*
+ * See if we already have this one.
+ */
+	if (usy_g_symbol (PixmapTable, name, &type, &v))
+		return ((Pixmap) v.us_v_ptr);
+/*
+ * If they've defined ui$bitmap_directory, we'll use it.
+ */
+	if (! usy_g_symbol (Ui_variable_table, "ui$bitmap_directory",&type,&v)
+			|| name[0] == '/')
+		strcpy (fname, name);
+	else if (type != SYMT_STRING)
+	{
+		ui_warning ("ui$bitmap_directory is not a string -- ignored");
+		strcpy (fname, name);
+	}
+	else
+	{
+		strcpy (fname, v.us_v_ptr);
+		strcat (fname, "/");
+		strcat (fname, name);
+	}
+/*
+ * Now try to pull in the file.
+ */
+	if (XReadBitmapFile (XtDisplay (Top), RootWindow (XtDisplay (Top), 0),
+		fname, &w, &h, &ret, &xh, &yh) == BitmapSuccess)
+	{
+		v.us_v_ptr = (char *) ret;
+		usy_s_symbol (PixmapTable, name, SYMT_POINTER, &v);
+		return (ret);
+	}
+	return (NULL);
+}
+
+
+
+
+XFontStruct *
+uw_GetFont (name)
+char *name;
+/*
+ * Try to locate a font by this name.
+ */
+{
+	int type;
+	SValue v;
+	XFontStruct *f;
+/*
+ * See if we've already found it.
+ */
+	if (usy_g_symbol (FontTable, name, &type, &v))
+		return ((XFontStruct *) v.us_v_ptr);
+/*
+ * Look it up.
+ */
+	if (! (f = XLoadQueryFont (XtDisplay (Top), name)))
+	{
+		ui_warning ("Unable to load font %s", name);
+		return (0);
+	}
+/*
+ * Remember it and return.
+ */
+	v.us_v_ptr = (char *) f;
+	usy_s_symbol (FontTable, name, SYMT_POINTER, &v);
+	return (f);
+}
+		
+
+
+
+
+
+
 
 # endif /* XSUPPORT */

@@ -1,4 +1,4 @@
-/* $Id: ui_window.h,v 1.5 1990-09-17 10:28:52 corbet Exp $ */
+/* $Id: ui_window.h,v 1.6 1992-01-30 21:12:02 corbet Exp $ */
 /*
  * Definitions for windowing code.
  */
@@ -14,6 +14,7 @@
 # define WT_APPL	5	/* Application-defined widget	*/
 # define WT_INTPOPUP	6	/* Internal popup menu		*/
 # define WT_MENUBUTTON	7	/* A popup menu button (+ menu)	*/
+# define WT_FORM	8	/* Form fillin			*/
 
 /*
  * An entry in a mapping table, which is used to map selector variable
@@ -68,16 +69,17 @@ stbl Widget_vars;	/* Variables used by commands and such  */
  * The "generic" widget, which contains the fields that every widget 
  * structure must have.
  */
-struct gen_widget
+typedef struct gen_widget
 {
 	int gw_type;		/* The type of this widget		*/
 	struct gen_widget *gw_next;	/* The next widget in the chain */
 	void (*gw_create)();	/* The routine to create this thing	*/
 	void (*gw_popup) ();	/* Routine to be called on popups	*/
 	void (*gw_destroy) ();	/* The destroy method			*/
+	struct gen_widget *(*gw_clone) (); /* Clone method 		*/
 	struct frame_widget *gw_frame;	/* The associated frame		*/
 	Widget gw_w;		/* The actual X widget			*/
-};
+} GenWidget;
 
 /*
  * The "frame" which is the outermost structure for all ui widgets.
@@ -89,6 +91,7 @@ typedef struct frame_widget
 	void (*fw_create)();	/* The routine to create this thing	*/
 	void (*fw_popup) ();	/* Popup routine			*/
 	void (*fw_destroy) ();	/* The destroy method			*/
+	GenWidget *(*fw_clone) ();/* Clone method (prototypes)		*/
 	struct frame_widget *fw_frame;	/* The associated frame		*/
 	Widget fw_w;		/* The actual popup widget structure	*/
 	/* -- end of gen_widget stuff */
@@ -101,6 +104,8 @@ typedef struct frame_widget
 	Widget fw_vp;		/* The internal vpaned widget		*/
 	Widget fw_form;		/* The internal form widget		*/
 	Widget fw_bottom;	/* Last widget on the stack.		*/
+	struct frame_widget *fw_inst;	/* Instantiations		*/
+	int fw_ninst;		/* Number of instantiations.		*/
 } FrameWidget;
 
 /*
@@ -113,6 +118,8 @@ typedef struct frame_widget
 # define WF_OVERRIDE	0x0010	/* This is an OVERRIDE widget		*/
 # define WF_NOFRAME	0x0020	/* Do not add a frame to this widget	*/
 # define WF_NOHEADER	0x0040	/* No title header or zap button	*/
+# define WF_PROTOTYPE	0x0080	/* This is a prototype widget		*/
+# define WF_INSTANCE	0x0100	/* Instantiation of a prototype		*/
 
 /*
  * The default value for geometry is to let the window manager deal with it.
@@ -132,6 +139,9 @@ static const int NotSpecified = -1;
 	char ** uw_nt_to_array (char *strings);
 	struct frame_widget *uw_make_frame (char *name, char *title);
 	void uw_DoFrameParam (FrameWidget *, struct ui_command *);
+	GenWidget *uw_g_widget (char *);
+	Pixmap uw_GetPixmap (char *);
+	XFontStruct *uw_GetFont (char *);
 # else
 	int uw_in_map ();
 	char *uw_LoadString ();
@@ -139,4 +149,7 @@ static const int NotSpecified = -1;
 	char ** uw_nt_to_array ();
 	struct frame_widget *uw_make_frame ();
 	void uw_DoFrameParam ();
+	GenWidget *uw_g_widget ();
+	Pixmap uw_GetPixmap ();
+	XFontStruct *uw_GetFont ();
 # endif
