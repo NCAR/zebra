@@ -5,7 +5,7 @@
 
 buttonmap basic
 	local	mb-s-left 'drawbox pushcoord'
-	local	mb-s-right 'ctrmove'
+	local	mb-s-right 'require ctrmove; ctrmove'
 	local	m	'popup movie'
 	local	r	'movie run'
 	local	s	'movie stop'
@@ -15,7 +15,7 @@ endmap
 
 buttonmap radar
 	local	mb-s-left 'drawbox pushcoord'
-	local	mb-s-right 'ctrmove'
+	local	mb-s-right 'require ctrmove; ctrmove'
 	local	mb-middle 'ChangeXSect'
 	local	mb-s-middle 'AllXSect'
 	local	mb-right 'toggle_radar'
@@ -48,7 +48,7 @@ endmap
 
 buttonmap big
 	local	mb-s-left 'drawbox pushcoord'
-	local	mb-s-right 'ctrmove'
+	local	mb-s-right 'require ctrmove; ctrmove'
 	local	mb-left	'getposition'
 	local	mb-middle 'ChangeXSect'
 	local	mb-right 'toggle_main'
