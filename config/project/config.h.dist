@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.27 1995-05-05 17:36:20 granger Exp $
+XCOMM $Id: config.h.dist,v 1.28 1995-05-25 00:01:37 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -99,16 +99,29 @@ XCOMM -----------------------------------------------------------------------
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
 # define DataDir	/zeb/data
-# define RDSSDir	/rdss
 
 /*
- * If the UseInstalledZeb symbol is YES, Zebra executables will link with
+ * If RDSS is already installed on the system elsewhere, define the RDSSDir
+ * symbol to the top directory of the RDSS distribution tree.  Otherwise,
+ * if you have a Zebra distribution which includes the needed RDSS
+ * libraries, define the symbol BuildRDSS to YES.  If BuildRDSS is YES,
+ * ignore all of the other RDSS include and library definitions which are
+ * asked for further on in this file. 
+ */
+# define BuildRDSS	NO
+
+# if !BuildRDSS
+#  define RDSSDir	/rdss
+# endif
+
+/*
+ * If the UseInstalledZebra symbol is YES, Zebra executables will link with
  * the installed libraries instead of the libraries built in the source 
  * directories.  Sometimes it is more convenient to link with the source.
  * If you don't understand or don't care about the difference, leave this
  * as YES.
  */
-# define UseInstalledZeb	YES
+# define UseInstalledZebra	YES
 
 /*=======================================================================*/
 
@@ -228,13 +241,11 @@ XCOMM -----------------------------------------------------------------------
  */
 
 /*
- * Using Open Windows?  Define UseOpenWindows to YES, and be sure to 
- * define OpenWindowsVersion to the correct version number, either 2 or 3.
+ * Using Open Windows?  Then define UseOpenWindows to YES.
  * If the home directory of OpenWindows is not the default /usr/openwin,
  * then define OpenWinHome to the correct directory.
  */
 # define UseOpenWindows 	NO	
-# define OpenWindowsVersion 	3
 # define OpenWinHome		/usr/openwin
 
 /*
@@ -288,20 +299,29 @@ XCOMM -----------------------------------------------------------------------
  * the full path of uic, including the executable name, in the symbol
  * UicCmd.  The default value is just 'uic'.
  */
+# if !BuildRDSS
 /* # define UicCmd /rdss/bin/uic */
+# endif
 
 /*
- * If you wish to compile dsmanage and tapeindex, you need to specify
- * a C++ compiler, like Sun's CC or GNU's g++.  If you defined UseGcc
- * to YES above, g++ will be used for the C++ compiler.  Otherwise the
- * default is CC.  To define a different C++ compiler, define
- * CccCompiler to the name of the compiler.  If the compiler requires
- * any special library options, define them in CccLibs.  The C debug
- * flags and options (defined below) will be passed to the C++
- * compiler as well.  Options specific to the C++ compiler should
- * be defined in CccOptions.
+ * If you wish to compile dsmanage and tapeindex, you need to specify a C++
+ * compiler, like Sun's CC or GNU's g++.  If you defined UseGcc to YES
+ * above, g++ will be used for the C++ compiler.  Otherwise the default is
+ * CC.  To define a different C++ compiler, define CplusplusCmd to the name
+ * of the compiler.  If the compiler requires any special library options,
+ * define them in CplusplusSpecialOptions.  The C debug flags and options
+ * (defined below) will be passed to the C++ compiler as well.  Options
+ * specific to the C++ compiler should be defined in CplusplusOptions. 
+ * At the moment, the only C++ code in this distribution is in the dsmanage
+ * and tapeindex programs, and so far those programs only compile under the
+ * GNU g++ compiler.
  */
-#define CccOptions
+/*
+#define HasCplusplus YES
+#define CplusplusCmd CC
+#define CplusplusOptions
+#define CplusplusSpecialOptions
+*/
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -319,22 +339,19 @@ XCOMM -----------------------------------------------------------------------
 /*
  * To change other compiler command line options, such as required by your
  * compiler (floating point stuff, etc.), or optimization flags, define
- * CCOptions and FortOptions.  The default is optimization, -O.
+ * CCOptions and FortOptions.  The default is optimization, -O.  If you change
+ * the definition on HP-UX, you must include the +ppu option.
  *
  * HP-UX: Do NOT turn on the ANSI ("-Aa") option with the HP native compiler,
  *	  or you will encounter more weirdness than you ever wished to deal
- *	  with.  You must also provide the "+ppu" fortran option or you will
- *	  get undefined externals when you link the graphics process.
+ *	  with.  If you override the default for FortOptions, you must also
+ *	  provide the "+ppu" option or you will get undefined externals when
+ *	  you link the graphics process.  Ordinarily the default will suffice.
  *
  */
-# define CCOptions -O
+/* # define CCOptions -O */
 
-#ifdef HPArchitecture
-# define FortOptions -O +ppu
-#else
-# define FortOptions -O
-#endif
-/* # define FortOptions -O +ppu */	/* HPUX version */
+/* # define FortOptions -O +ppu */
 
 /*
  * During compilation, Zebra's source files must be able to find lots
@@ -394,8 +411,10 @@ XCOMM -----------------------------------------------------------------------
 /* # define XLibDir /local/X11R5/lib */
 /* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
+# if !BuildRDSS
 /* # define RDSSLibDir /rdss/lib */		/* common RDSS installation */
 /* # define RDSSLibDir /usr/local/lib */	/* not needed with gcc */
+# endif
 
 /* # define NetCDFLibDir /usr/local/lib */	/* not needed with gcc */
 
@@ -469,14 +488,22 @@ XCOMM -----------------------------------------------------------------------
 /*
  * FORTRAN libraries tend to be very system-specific.  Define this
  * parameter to be the command-line options necessary to link with
- * the FORTRAN libraries on your system.
+ * the FORTRAN libraries on your system.  If not using g77 or Suns,
+ * the defaults below are probably fine.  Otherwise, uncomment the
+ * g77 example definition below, or choose the correct definition
+ * from among the examples for Sun architectures.
  *
  * Fortran libraries are needed to build the graphics process.  
  */
 
+/* G77 -- may also have to give -L if not linking with gcc */
+/* # define FortranLibraries -lf2c */
+
+#ifndef FortranLibraries
+#ifdef SunArchitecture /* SunOS and Solaris */
 /* 
  * Default: SunOS 4 with Fortran SC1.x (comment or remove this definition 
- * if you use a different one)
+ * if you use another one of the Sun definitions instead.)
  */
 # define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
 
@@ -497,14 +524,20 @@ XCOMM -----------------------------------------------------------------------
 /* # define FortranLibraries -L/opt/SUNWspro/SC3.0.1/lib \
 		-lF77 -lV77 -lM77 -lsunmath */
 
-/* HP-UX */
-/* # define FortranLibraries -lU77 -lf -lisamstub */
+#else
+#ifdef HPArchitecture /* HP-UX */
 
-/* IRIX 5.x */
-/* # define FortranLibraries -lF77 -lI77 -lisam */
+# define FortranLibraries -lU77 -lf -lisamstub
 
-/* G77 -- may also have to give -L if not linking with gcc */
-/* # define FortranLibraries -lf2c */
+#else
+#ifdef SGIArchitecture /* IRIX 5.x */
+
+# define FortranLibraries -lF77 -lI77 -U77 -lisam
+
+#endif /* SGI */
+#endif /* !HP */
+#endif /* !Sun */
+#endif /* !FortranLibraries */
 
 /*
  * Some of Zebra's routines require the terminal capability library,
