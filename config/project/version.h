@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 1.10 1996-02-07 16:48:07 granger Exp $
+ * $Id: version.h,v 1.11 1996-08-22 17:33:45 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -166,9 +166,13 @@ static const char rcs_author[] = id ;
 
 #if !defined(lint) && !defined(LINT) && !defined(SABER)
 
+/*
+ * The following is mostly redundant when RCSID is used, so leave it out.
+ */
+#ifdef notdef
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.10 1996-02-07 16:48:07 granger Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.11 1996-08-22 17:33:45 granger Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
 #ifdef __GNUC__
@@ -177,6 +181,7 @@ static const char *use_V_rcs_id = (0, use_V_rcs_id, V_rcs_id);
 static const char *use_V_compileid = (0, use_V_compileid, V_compileid);
 #endif
 #endif /* __STDC__ */
+#endif /* notdef */
 
 /*
  * Hand edit this line until it can be done automatically.  One possibility
