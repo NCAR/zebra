@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.4 1996-11-22 20:45:27 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.5 1996-11-22 20:56:49 granger Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
@@ -58,7 +58,8 @@ Message *msg;
 	{
 	   case MT_MESSAGE:
 	   	tmpl = (struct mh_template *) msg->m_data;
-		if (tmpl->mh_type == MH_DIE)
+		if ((tmpl->mh_type == MH_DIE) || 
+		    (tmpl->mh_type == MH_SHUTDOWN))
 		{
 			exit (0);
 		}
