@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.66 1997-10-09 20:31:58 ishikawa Exp $
+XCOMM $Id: Project.tmpl,v 1.67 1997-10-16 22:51:55 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -223,9 +223,6 @@ XCOMM -----------------------------------------------------------------------
 #ifndef DistributeRealtimeDataStoreTools
 #define DistributeRealtimeDataStoreTools YES
 #endif
-#ifndef DistributeDataManager
-#define DistributeDataManager	YES
-#endif
 #ifndef DistributeXHelp
 #define DistributeXHelp		YES
 #endif
@@ -340,6 +337,14 @@ XCOMM -----------------------------------------------------------------------
 #      define ProjIncludes -I$(PROJINCDIR)
 #   endif
 #endif
+
+#ifndef UDUnitsIncDir
+#   define UDUnitsIncDir /usr/local/include
+#endif
+#ifndef UDUnitsIncludes
+#   define UDUnitsIncludes -I$(UDUNITSINCDIR)
+#endif
+
 /*
  * For RDSS, the default include directory will be RDSSDir/include, unless
  * we're building RDSS ourselves in which case we leave it blank.  An RDSS
@@ -424,6 +429,17 @@ XCOMM -----------------------------------------------------------------------
 #else
 #   ifndef HDFLibrary
 #      define HDFLibrary -L$(HDFLIBDIR) LoaderLibPrefix -ldf
+#   endif
+#endif
+
+#ifndef UDUnitsLibDir
+#   define UDUnitsLibDir /**/
+#   ifndef UDUnitsLibrary
+#      define UDUnitsLibrary LoaderLibPrefix -ludunits
+#   endif
+#else
+#   ifndef UDUnitsLibrary
+#      define UDUnitsLibrary -L$(UDUNITSLIBDIR) LoaderLibPrefix -ludunits
 #   endif
 #endif
 
@@ -665,9 +681,6 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifndef BuildOptimizer
 #define BuildOptimizer NO
 #endif
-#ifndef BuildDataManager
-#define BuildDataManager NO	/* since it requires C++ */
-#endif
 #ifndef BuildDataUtilities
 #define BuildDataUtilities NO
 #endif
@@ -837,6 +850,7 @@ XCOMM -----------------------------------------------------------------------
  */
        RDSSINCDIR = RDSSIncDir
      NETCDFINCDIR = NetCDFIncDir
+    UDUNITSINCDIR = UDUnitsIncDir
 # if MapProjections
        PROJINCDIR = ProjIncDir
 # endif
@@ -860,6 +874,7 @@ XCOMM -----------------------------------------------------------------------
      RDSSINCLUDES = RDSSIncludes
         XINCLUDES = XIncludes
    NETCDFINCLUDES = NetCDFIncludes
+  UDUNITSINCLUDES = UDUnitsIncludes
 # if MapProjections
      PROJINCLUDES = ProjIncludes
 # endif
@@ -937,6 +952,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  */
        RDSSLIBDIR = RDSSLibDir
      NETCDFLIBDIR = NetCDFLibDir
+    UDUNITSLIBDIR = UDUnitsLibDir
 # if MapProjections
        PROJLIBDIR = ProjLibDir
 # endif
@@ -956,6 +972,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
            LIBZEB = $(LIBZEBRA)
          LIBZEBDS = $(LIBZEBRADS)
         LIBNETCDF = NetCDFLibrary
+       LIBUDUNITS = UDUnitsLibrary
 # if MapProjections
           LIBPROJ = ProjLibrary
 # endif
@@ -989,8 +1006,8 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  * programs only needing protocol access and not file access can use DSLIBS.
  */
             ZLIBS = $(LIBZEBRA) $(LIBRDSS)
-          DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF)
-           DSLIBS = $(LIBZEBRADS)
+          DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS)
+           DSLIBS = $(LIBZEBRADS) $(LIBUDUNITS)
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
