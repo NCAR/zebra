@@ -37,7 +37,7 @@
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.8 1991-12-07 18:00:40 kris Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.9 1991-12-30 20:48:22 corbet Exp $")
 
 
 
@@ -73,13 +73,24 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.8 1991-12-07 18:00:40 kris Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.9 1991-12-30 20:48:22 corbet Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
+
+/*
+ * Special info to enable debugging logging on selected clients only.
+ */
+stbl ProcTable;		/* Keep track of all processes */
+typedef struct _ProcInfo
+{
+	char	pi_name[40];	/* Process name		*/
+	Widget	pi_menu;	/* The menu entry	*/
+	bool	pi_enabled;	/* Is debugging enabled? */
+} ProcInfo;
 
 /*
  * Our widgets.
  */
-Widget Top, Text, Shell, Form, Wm;
+Widget Top, Text, Shell, Form, Wm, ProcMenu;
 XtAppContext Appc;
 bool Visible = FALSE;
 bool Override = TRUE;
@@ -108,9 +119,23 @@ Pixmap Check;
 
 FILE *Log_file = (FILE *) 0;
 
+/*
+ * Is there somebody out there interested in our problems?  If so, this
+ * is their name.
+ */
 char *Mother = 0;
 
+/*
+ * Forwards.
+ */
 void	SendToMother FP((struct msg_elog *, char *));
+void	MakeDbgButton FP ((Widget));
+void	NewProc FP ((char *));
+void	DeadProc FP ((char *));
+void	ToggleProc FP ((Widget, XtPointer, XtPointer));
+int	SendDbgMask FP ((char *, int, SValue *, long));
+int	PassDebug FP ((int, char *));
+
 
 
 
@@ -122,6 +147,11 @@ char **argv;
 	Widget w, label;
 	int xevent (), msg_event (), clearbutton (), wm (), n;
 	char *fname;
+/*
+ * Initialize.
+ */
+	usy_init ();
+	ProcTable = usy_c_stbl ("ProcTable");
 /*
  * Hook into the message system.
  */
@@ -221,6 +251,10 @@ char **argv;
 		Form, args, 7);
 	add_popup (w);
 /*
+ * The debug button.
+ */
+	MakeDbgButton (w);
+/*
  * Now the big, hairy, text widget.
  */
 	XtSetArg (args[0], XtNresize, XawtextResizeNever);
@@ -256,6 +290,41 @@ char **argv;
 }
 
 
+
+
+
+void
+MakeDbgButton (left)
+Widget left;
+/*
+ * Create the menu button to control debugging.
+ */
+{
+	Widget button;
+	Arg args[5];
+	int n;
+/*
+ * Create the menu button to start with.
+ */
+	n = 0;
+	XtSetArg (args[0], XtNfromHoriz, left);		n++;
+	XtSetArg (args[1], XtNfromVert, NULL);		n++;
+	XtSetArg (args[2], XtNtop, XtChainTop);		n++;
+	XtSetArg (args[3], XtNbottom, XtChainTop);	n++;
+	XtSetArg (args[4], XtNleft, XtChainLeft);	n++;
+	XtSetArg (args[5], XtNright, XtChainLeft);	n++;
+	XtSetArg (args[6], XtNmenuName, "Processes");	n++;
+	button = XtCreateManagedWidget ("Debug ->", menuButtonWidgetClass,
+		Form, args, n);
+/*
+ * The menu that goes with it.
+ */
+	ProcMenu = XtCreatePopupShell ("Processes", simpleMenuWidgetClass,
+		Top, NULL, ZERO);
+/*
+ * The actual entries will be created as the connect notifications arrive.
+ */
+}
 
 
 
@@ -385,7 +454,8 @@ struct message *msg;
 	/*
 	 * If this is in our mask, we log it.
 	 */
-		else if (Emask & el->el_flag || Emask == 0)
+		else if (Emask & el->el_flag || Emask == 0 ||
+				PassDebug (el->el_flag, msg->m_from))
 		{
 			for (i = 0; EMap[i].em_flag; i++)
 				if (EMap[i].em_flag & el->el_flag)
@@ -419,9 +489,11 @@ struct message *msg;
 	   	switch (client->mh_evtype)
 		{
 		   case MH_CE_CONNECT:
+			NewProc (client->mh_client);
 		   	sprintf (mb,"Connect on %d", msg->m_seq);
 			break;
 		   case MH_CE_DISCONNECT:
+			DeadProc (client->mh_client);
 		   	sprintf (mb,"Disconnect on %d", msg->m_seq);
 			break;
 		   case MH_CE_JOIN:
@@ -566,7 +638,13 @@ struct dm_msg *dmsg;
 			XtPopdown (Shell);
 		}
 		break;
- 
+ 	/*
+	 * DM currently sends a defaults table, which does us very 
+	 * little good.
+	 */
+	   case DM_DEFAULTS:
+		break;
+
 	   default:
 	   	do_log ('P', "DM", "Funky DM message");
 	}
@@ -658,11 +736,39 @@ SendEMask ()
  */
 {
 	int flag;
-
+/*
+ * Broadcast out the default mask to everybody.
+ */
 	flag = Emask | EF_SETMASK;
 	msg_send ("Everybody", MT_ELOG, TRUE, &flag, sizeof (flag));
+/*
+ * Now go through and fix up any processes for which debugging has been
+ * requested.
+ */
+	usy_search (ProcTable, SendDbgMask, 0, FALSE, 0);
 }
 
+
+
+
+
+int 
+SendDbgMask (proc, type, v, junk)
+char *proc;
+int type;
+SValue *v;
+long junk;
+/*
+ * Maybe send out a debug-enabled event mask to this process.
+ */
+{
+	int flag = Emask | EF_SETMASK | EF_DEBUG;
+	ProcInfo *pinfo = (ProcInfo *) v->us_v_ptr;
+
+	if (pinfo->pi_enabled)
+		msg_send (proc, MT_ELOG, FALSE, &flag, sizeof (flag));
+	return (TRUE);
+}
 
 
 
@@ -690,4 +796,131 @@ char *from;
 	sprintf (line, " %c %s %s", code, from, el->el_text);
 	msg_send ("Event Logger@data-store", MT_LOG, FALSE, line,
 			strlen (line) + 1);
+}
+
+
+
+
+
+void
+NewProc (name)
+char *name;
+/*
+ * Deal with a new process.
+ */
+{
+	ProcInfo *pinfo = ALLOC (ProcInfo);
+	Arg args[4];
+	int n;
+	SValue v;
+/*
+ * Create the widget for this process.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNleftBitmap, None);		n++;
+	XtSetArg (args[n], XtNleftMargin, check_width + 7);	n++;
+	pinfo->pi_menu = XtCreateManagedWidget (name, smeBSBObjectClass,
+		ProcMenu, args, n);
+	pinfo->pi_enabled = FALSE;
+	strcpy (pinfo->pi_name, name);
+	XtAddCallback (pinfo->pi_menu, XtNcallback, ToggleProc,
+		(XtPointer) pinfo->pi_name);
+/*
+ * Add the symbol table entry, and we're done.
+ */
+	v.us_v_ptr = (char *) pinfo;
+	usy_s_symbol (ProcTable, name, SYMT_POINTER, &v);
+}
+
+
+
+
+void
+DeadProc (name)
+char *name;
+/*
+ * This process is gone.
+ */
+{
+	int type;
+	SValue v;
+	ProcInfo *pinfo;
+/*
+ * Look up this process.
+ */
+	if (! usy_g_symbol (ProcTable, name, &type, &v))
+		return;
+/*
+ * Free up everything.
+ */
+	pinfo = (ProcInfo *) v.us_v_ptr;
+	XtDestroyWidget (pinfo->pi_menu);
+	free (v.us_v_ptr);
+	usy_z_symbol (ProcTable, name);
+}
+
+
+
+
+
+void
+ToggleProc (w, proc, xpinfo)
+Widget w;
+XtPointer proc, xpinfo;
+/*
+ * Toggle logging for this process.
+ */
+{
+	Arg args[2];
+	ProcInfo *pinfo;
+	SValue v;
+	int type;
+/*
+ * Look up this process.
+ */
+	if (! usy_g_symbol (ProcTable, (char *) proc, &type, &v))
+	{
+		printf ("Proc '%s' not in ProcInfo!\n", proc);
+		return;
+	}
+/*
+ * Toggle the debug flag and tweak the widget.
+ */
+	pinfo = (ProcInfo *) v.us_v_ptr;
+	pinfo->pi_enabled = ! pinfo->pi_enabled;
+	XtSetArg (args[0], XtNleftBitmap, pinfo->pi_enabled ? Check : None);
+	XtSetValues (w, args, 1);
+/*
+ * Tweak this process's event mask.
+ */
+	SendEMask ();
+}
+
+
+
+
+
+int
+PassDebug (flag, name)
+int flag;
+char *name;
+/*
+ * Return TRUE if this is a debug message that should be logged even though
+ * they are disabled in general.
+ */
+{
+	SValue v;
+	int type;
+	ProcInfo *pinfo;
+/*
+ * If this is not a debug message, or we have not heard of this process,
+ * then we say no.
+ */
+	if ((flag & EF_DEBUG) == 0 || ! usy_g_symbol (ProcTable,name,&type,&v))
+		return (FALSE);
+/*
+ * Otherwise we need to see what the data structure says.
+ */
+	pinfo = (ProcInfo *) v.us_v_ptr;
+	return (pinfo->pi_enabled);
 }
