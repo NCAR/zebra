@@ -30,7 +30,7 @@
 # include <defs.h>
 # include <map.h>
 
-RCSID("$Id: Overlay.c,v 2.64 1999-03-01 02:04:26 burghart Exp $")
+RCSID("$Id: Overlay.c,v 2.65 1999-11-01 20:30:14 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -244,7 +244,9 @@ zbool update;
 /*
  * Invoke it.
  */
+	ResetGC();
 	(*Ov_table[i].ot_func) (comp, update);
+	ResetGC();
 }
 
 
@@ -738,7 +740,9 @@ zbool update;
  * Restore the GC
  */
 	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
+#ifdef notdef /* done in ov_CAPOverlay for all overlay functions now */
 	ResetGC ();
+#endif
 }
 
 
@@ -1528,7 +1532,9 @@ int update;
 /*
  * Clean up.
  */
+#ifdef notdef /* done in ov_CAPOverlay for all overlay functions now */
 	ResetGC ();
+#endif
 }
 
 
@@ -1725,7 +1731,9 @@ int update;
 		free (expids);
 	free (times);
 	free (locs);   	
+#ifdef notdef /* done in ov_CAPOverlay for all overlay functions now */
 	ResetGC ();
+#endif
 }
 
 
