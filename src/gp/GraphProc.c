@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.29 1991-03-22 16:02:28 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.30 1991-04-12 21:51:45 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -120,7 +120,6 @@ GPShutDown ()
 			GWZapShmPixmap(Graphics, i);
 # endif
 	sprintf(filename, "%s/%s%dFrameFile", FrameFilePath, Ourname, getpid());
-	msg_ELog(EF_DEBUG, "Getting rid of %s.", filename);
 	unlink(filename);
 	exit (0);
 }
@@ -189,7 +188,7 @@ finish_setup ()
 		{ "ue_el",		Ue_el		},
 		{ "ue_motion",		Ue_MotionEvent	},
 	};
-	int type[4], pd_defined (), pd_param ();
+	int type[5], pd_defined (), pd_param (), pd_paramsearch();
 	char *initfile, perf[80];
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
@@ -252,8 +251,9 @@ finish_setup ()
 /*
  * Command line functions.
  */
-	type[0] = type[1] = type[2] = type[3] = SYMT_STRING;
+	type[0] = type[1] = type[2] = type[3] = type[4] = SYMT_STRING;
 	uf_def_function ("pd_param", 3, type, pd_param);
+	uf_def_function ("pd_paramsearch", 4, type, pd_paramsearch);
 	uf_def_function ("pd_defined", 2, type, pd_defined);
 /*
  * Redirect UI output.
@@ -838,6 +838,7 @@ char *comp, *param, *value;
 /*
  * Do the change.
  */
+	reset_limits(comp, param, value);
 	pd_Store (Pd, comp, param, value, SYMT_STRING);
 /*
  * Now reset things.
@@ -851,7 +852,64 @@ char *comp, *param, *value;
 }
 
 
+reset_limits(comp, param, value)
+char *comp, *param, *value;
+/*
+ *  If the field changes and the representation is 'track', any type of
+ *  contour or 'raster', reset some plot description parameters to the
+ *  defaults of the new field.
+ */
+{
+	char rep[40], par[40];
+	float center, step, minval, maxval;
 
+	if(strcmp(param, "field") == 0)
+	{
+		pd_Retrieve(Pd, comp, "representation", rep, SYMT_STRING);
+		if(strcmp(rep, "track") == 0)
+		{
+			sprintf(par, "%s-track-center", value);
+			pda_Search(Pd, comp, par, 0, (char *) &center,
+				SYMT_FLOAT);
+			pd_Store(Pd, comp, "track-center", (char *) &center,
+				SYMT_FLOAT);
+			sprintf(par, "%s-track-step", value);
+			pda_Search(Pd, comp, par, 0, (char *) &step,
+				SYMT_FLOAT);
+			pd_Store(Pd, comp, "track-step", (char *) &step,
+				SYMT_FLOAT);
+		}
+		if((strcmp(rep, "contour") == 0) ||
+		   (strcmp(rep, "line-contour") == 0) ||
+		   (strcmp(rep, "filled-contour") == 0))
+		{
+			sprintf(par, "%s-contour-center", value);
+			pda_Search(Pd, comp, par, 0, (char *) &center,
+				SYMT_FLOAT);
+			pd_Store(Pd, comp, "contour-center", (char *) &center,
+				SYMT_FLOAT);
+			sprintf(par, "%s-contour-step", value);
+			pda_Search(Pd, comp, par, 0, (char *) &step,
+				SYMT_FLOAT);
+			pd_Store(Pd, comp, "contour-step", (char *) &step,
+				SYMT_FLOAT);
+		}
+		if(strcmp(rep, "raster") == 0) 
+		{
+			sprintf(par, "%s-minval", value);
+			pda_Search(Pd, comp, par, 0, (char *) &minval,
+				SYMT_FLOAT);
+			pd_Store(Pd, comp, "minval", (char *) &minval,
+				SYMT_FLOAT);
+			sprintf(par, "%s-maxval", value);
+			pda_Search(Pd, comp, par, 0, (char *) &maxval,
+				SYMT_FLOAT);
+			pd_Store(Pd, comp, "maxval", (char *) &maxval,
+				SYMT_FLOAT);
+		}
+
+	}
+}
 
 
 ChangeDefaults (dmp)
@@ -1063,6 +1121,36 @@ union usy_value *argv, *retv;
 		retv->us_v_ptr = usy_string ("Bad type");
 	else if (! pd_Retrieve (Pd, argv[0].us_v_ptr, argv[1].us_v_ptr, 
 			tmp, type))
+		retv->us_v_ptr = usy_string ("(Undefined)");
+	else if (type == SYMT_STRING)
+		retv->us_v_ptr = usy_string (tmp);
+	else
+	{
+		*rett = type;
+		memcpy (retv, tmp, sizeof (date));	/* XXX */
+	}
+}
+	
+pd_paramsearch (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * The pd_paramsearch command line function.
+ *
+ *	pd_paramsearch (comp, param, qual, type)
+ */
+{
+	char tmp[500];
+	int type = uit_int_type (argv[3].us_v_ptr);
+	plot_description defpd;
+
+	*rett = SYMT_STRING;
+	if (! Pd)
+		retv->us_v_ptr = usy_string ("No PD");
+	else if (type == SYMT_UNDEFINED)
+		retv->us_v_ptr = usy_string ("Bad type");
+	else if (! pda_Search (Pd, argv[0].us_v_ptr, argv[1].us_v_ptr,
+			argv[2].us_v_ptr, tmp, type))
 		retv->us_v_ptr = usy_string ("(Undefined)");
 	else if (type == SYMT_STRING)
 		retv->us_v_ptr = usy_string (tmp);
