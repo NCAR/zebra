@@ -1,4 +1,4 @@
-! $Id: dataskip,v 1.2 2001-06-19 22:17:17 granger Exp $
+! $Id: dataskip,v 1.3 2001-11-09 23:31:18 granger Exp $
 !
 ! Generic submenu for setting data-skip parameter, known to be shared
 ! at least between skewt and xywind.  Try to keep the two versions
@@ -10,6 +10,9 @@ define widget data-skip-menu intmenu 'skip data points'
 	title 'Data skip interval'
 	line
 	entry 'Plot every point' \
+		'parameter #icon_component data-skip "0"' \
+		(PDParam (icon_component,"data-skip") = "0")
+	entry 'Every other point' \
 		'parameter #icon_component data-skip "1"' \
 		(PDParam (icon_component,"data-skip") = "1")
 	entry 'Every 5th point' \
@@ -37,6 +40,9 @@ define widget skewt-data-skip intmenu 'skip data points'
 	title 'Data skip interval'
 	line
 	entry 'Plot every point' \
+		'parameter #icon_component data-skip "0"' \
+		(PDParam (icon_component,"data-skip") = "0")
+	entry 'Every other point' \
 		'parameter #icon_component data-skip "1"' \
 		(PDParam (icon_component,"data-skip") = "1")
 	entry 'Every 5th point' \
