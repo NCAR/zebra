@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.37 1994-10-11 16:26:24 corbet Exp $";
+	"$Id: Overlay.c,v 2.38 1994-11-17 07:36:57 granger Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -732,10 +732,15 @@ bool update;
  */
 	ct_GetColorByName (color, &xc);
 	XSetForeground (disp, Gcontext, xc.pixel);
-	if (pda_Search (Pd, comp, "line-width", "map", (char *) &lwidth,
-			SYMT_INT))
-		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
-			CapButt, JoinMiter);
+/*
+ * Use a line-width if we got it, zero otherwise.  Set our attributes whether
+ * we found a parameter or not.
+ */
+	if (! pda_Search (Pd, comp, "line-width", "map", (char *) &lwidth, 
+			  SYMT_INT))
+		lwidth = 0;
+	XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
+			    CapButt, JoinMiter);
 /*
  * Load up the map file.
  */
@@ -746,11 +751,43 @@ bool update;
  */
 	SetClip (FALSE);
 	ov_DrawMap (points);
+/*
+ * Restore the GC
+ */
 	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 	ResetGC ();
 }
 
 
+static int
+ov_Intersects (x0, y0, x1, y1)
+float x0, y0, x1, y1;
+/*
+ * Return non-zero if the line (x0, y0) <-> (x1, y1) intersects the plot's
+ * grid in the kilometer domain.
+ */
+{
+	float m;
+	int set;
+	int intersects;
+#	define XOR(a,b) ((!(a) && (b)) || ((a) && !(b)))
+
+	if (fabs (x1 - x0) < 0.0001)
+	{
+		return ((Xlo <= x0) && (x0 <= Xhi));
+	}
+	m = (y1 - y0) / (x1 - x0);
+	/*
+	 * The line intersects the region if at least one of the corners
+	 * is in the set { (x,y): y < m * (x - x0) + y0 } 
+	 * while one other is not.
+	 */
+	set = (Ylo <= (m * (Xlo - x0) + y0));
+	intersects = XOR((Ylo <= (m * (Xhi - x0) + y0)), set);
+	intersects |= XOR((Yhi <= (m * (Xlo - x0) + y0)), set);
+	intersects |= XOR((Yhi <= (m * (Xhi - x0) + y0)), set);
+	return (intersects);
+}
 
 
 static void
@@ -778,10 +815,34 @@ const MapPoints * points;
 		 */
 		 	pts[xp].x = XPIX (points->mp_x[pt]);
 			pts[xp].y = YPIX (points->mp_y[pt]);
+			++xp;
+		/*
+		 * Lest we get some bogus pixel coords when we're zoomed
+		 * really close, don't draw segments which don't intersect
+		 * the user coordinates.
+		 */
+			if ((xp >= 2 && ! ov_Intersects (points->mp_x[pt - 1],
+	                        points->mp_y[pt - 1], points->mp_x[pt], 
+				points->mp_y[pt])))
+			{
+			/*
+			 * Skip this segment.  Draw what we've got and start
+			 * over with the next point.
+			 */
+				if (xp >= 3)
+				{
+					XDrawLines (XtDisplay (Graphics),
+					    GWFrame (Graphics), Gcontext, pts, 
+					    xp - 1, CoordModeOrigin);
+				}
+				pts[0] = pts[xp - 1];
+				xp = 1;
+
+			}
 		/*
 		 * If we've filled our array, shove it out.
 		 */
-		 	if (++xp >= MAXPLSEG)
+		 	else if (xp >= MAXPLSEG)
 			{
 				XDrawLines (XtDisplay (Graphics),
 					GWFrame (Graphics), Gcontext, pts, xp,
