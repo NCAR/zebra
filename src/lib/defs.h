@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.39 1998-04-23 15:55:03 granger Exp $ */
+/* $Id: defs.h,v 2.40 1998-04-27 21:56:18 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -86,6 +86,25 @@ typedef enum
 	TC_Full,		/* The whole works		*/
 	TC_FullUSec		/* Full with microseconds	*/
 } TimePrintFormat;
+
+/*
+ * For lack of a better place, I define scan modes here.
+ */
+typedef enum
+{
+	SM_CAL = 0,
+	SM_PPI = 1,
+	SM_COP = 2,
+	SM_RHI = 3,
+	SM_VER = 4,
+	SM_TAR = 5,
+	SM_MAN = 6,
+	SM_IDL = 7,
+	SM_SUR = 8,
+	SM_AIR = 9,
+	SM_HOR = 10
+} ScanMode;
+
 
 /*
  * Functions.
