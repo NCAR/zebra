@@ -1,7 +1,7 @@
 /*
  * Maintenance of the data tables.
  */
-static char *rcsid = "$Id: d_DataTables.c,v 1.3 1991-02-26 19:10:25 corbet Exp $";
+static char *rcsid = "$Id: d_DataTables.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -161,6 +161,7 @@ dt_FinishTables ()
 				ShmHeader->sm_nPlatform*sizeof (Platform);
 	space = SHM_SIZE - ShmHeader->sm_DTOffset;
 	ShmHeader->sm_nDataTable = space/sizeof (DataFile);
+	ShmHeader->sm_nDTEUsed = 0;
 	msg_ELog (EF_DEBUG, "%d bytes left for %d DataFile entries",
 		space, ShmHeader->sm_nDataTable);
 	DFTable = (DataFile *) (ShmSegment + ShmHeader->sm_DTOffset);
@@ -206,6 +207,7 @@ dt_NewFile ()
 	ret = DFTable + ShmHeader->sm_DTFreeList;
 	ShmHeader->sm_DTFreeList = ret->df_FLink;
 	ShmUnlock ();
+	(ShmHeader->sm_nDTEUsed)++;
 /*
  * Give it back to them.
  */
@@ -227,6 +229,7 @@ DataFile *df;
  */
 {
 	ShmLock ();
+	(ShmHeader->sm_nDTEUsed)--;
 	df->df_FLink = ShmHeader->sm_DTFreeList;
 	ShmHeader->sm_DTFreeList = df - DFTable;
 	ShmUnlock ();

@@ -31,6 +31,12 @@ main ()
 	for (i = 0; i < SHeader->sm_nPlatform; i++)
 		dump_platform (PTable + i);
 	dsm_ShmUnlock ();
+	exit (0);
+
+
+
+
+
 /*
  * Try a data get.
  */
@@ -99,7 +105,8 @@ static struct fname
 	{	DPF_COMPOSITE,	"composite"	},
 	{	DPF_DISCRETE,	"discrete"	},
 	{	DPF_REGULAR,	"regular"	},
-	{	DPF_SUBPLATFORM, "subplatform"	}
+	{	DPF_SUBPLATFORM, "subplatform"	},
+	{	DPF_REMOTE,	"remote-dir"	},
 };
 
 # define NFLAG (sizeof (Flags)/sizeof (struct fname))
@@ -121,7 +128,11 @@ Platform *p;
 			ui_printf ("%s ", Flags[i].name);
 	ui_printf (")\n");
 	if (! (p->dp_flags & DPF_SUBPLATFORM))
+	{
 		dumpchain ("L", p->dp_LocalData);
+		if (p->dp_flags & DPF_REMOTE)
+			dumpchain ("R", p->dp_RemoteData);
+	}
 }
 
 

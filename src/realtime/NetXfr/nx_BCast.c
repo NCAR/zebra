@@ -1,7 +1,7 @@
 /*
  * Handling of broadcast stuff.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 1.6 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
@@ -136,7 +136,7 @@ DataObject *dobj;
 	tx_BCast *bcp;
 	DataBCChunk template;
 	DataOffsets offsets;
-	int fld, nchunk, nsent;
+	int fld, nchunk, nsent, bfld;
 	char *cdata = (char *) dobj->do_data[0];
 /*
  * Set up to output this sequence.
@@ -162,17 +162,18 @@ DataObject *dobj;
 	template.dh_Size = MAXDATA;
 	template.dh_Chunk = 0;
 	template.dh_ID = Pid;
-	msg_ELog (EF_DEBUG, "BCast in %d chunks of %d", template.dh_NChunk,
+	msg_ELog (DbEL, "BCast in %d chunks of %d", template.dh_NChunk,
 		template.dh_Size);
 /*
  * Now we blast them out.
  */
+ 	nsent = 0;
 	if (dobj->do_org == OrgImage)
 		nsent = BCastRLE (bcp, &template, cdata, dobj->do_nbyte);
 	else
 		nsent = BCastPlain (bcp, &template, cdata, dobj->do_nbyte);
-	msg_ELog (EF_INFO, "%d packets calc, %d sent", template.dh_NChunk,
-		nsent);
+	msg_ELog (DbEL, "%d packets calc, %d sent seq %d",
+		template.dh_NChunk, nsent, Seq);
 	bcp->txb_NChunk = nsent;
 /*
  * Add the timeout that will eventually cause all this to go away.
@@ -211,8 +212,14 @@ int nbyte;
 	/*
 	 * Encode some data into it.
 	 */
+# ifdef notdef
 		ninpack = RLEncode ((unsigned char *) cdata, chunk,
 					nbyte - nbsent);
+# endif
+		RL_Encode ((unsigned char *) cdata,
+			(unsigned char *) chunk->dh_data, 
+			nbyte - nbsent, chunk->dh_Size, &ninpack,
+			&chunk->dh_Size);
 		nbsent += ninpack;
 		template->dh_Offset += ninpack;
 		cdata += ninpack;
@@ -229,7 +236,7 @@ int nbyte;
 		if ((npacket % BCBurst) == 1)
 			Delay ();
 	}
-	msg_ELog (EF_INFO, "RLE, %d by -> %d, %d%%", nbyte, cmplen,
+	msg_ELog (DbEL, "RLE, %d by -> %d, %d%%", nbyte, cmplen,
 		((int) (100.0 * cmplen)/nbyte));
 	return (npacket);
 }
@@ -238,87 +245,6 @@ int nbyte;
 
 
 
-static int
-RLEncode (data, chunk, max)
-unsigned char *data;
-DataBCChunk *chunk;
-int max;
-/*
- * Actually run length encode a packet full of data.
- */
-{
-	int count, inlit = FALSE, ninpack = 0, pcount = 0;
-	unsigned char *runbegin, *cdest = (unsigned char *)chunk->dh_data, *cp;
-
-	while (ninpack < max && pcount < chunk->dh_Size)
-	{
-	/*
-	 * If we are doing literal stuff and this would be the last byte,
-	 * we just finish it out.
-	 */
-	 	if (inlit && pcount == chunk->dh_Size - 1)
-		{
-			*cdest = *data;
-			if ((*runbegin = cdest - runbegin) == 128)
-				*runbegin = 0;
-			return (ninpack + 1);
-		}
-	/*
-	 * If there is only one byte left, and we're not in literal
-	 * we have no room to start anything.
-	 */
-	 	else if (! inlit && pcount == chunk->dh_Size - 1)
-		{
-			chunk->dh_Size--;
-			return (ninpack);
-		}
-	/*
-	 * Otherwise figure out if we can do a run from here.
-	 */
-	 	for (count = 0; count <= 128 && (count + ninpack) < max &&
-					data[count] == data[0]; count++)
-			;
-		count--;
-	/*
-	 * If there's enough of the same stuff here to do a run, put it in.
-	 */
-		if (count > 2)
-		{
-			if (inlit)
-				*runbegin = cdest - runbegin - 1;
-			inlit = FALSE;
-			*cdest++ = 0x80 | (count == 128 ? 0 : count);
-			*cdest++ = *data;
-			data += count;
-			pcount += 2; ninpack += count;
-		}
-	/*
-	 * If no run, but in literal, make sure we've not filled it.
-	 */
-	 	else if (inlit && cdest - runbegin == 128)
-		{
-			*runbegin = 0;
-			*cdest++ = *data++;
-			pcount++; ninpack++; inlit = FALSE;
-		}
-	/*
-	 * Otherwise we just add to the literal run, starting it if need be.
-	 */
-	 	else
-		{
-			if (! inlit)
-			{
-				runbegin = cdest++;
-				inlit = TRUE;
-				pcount++;
-			}
-			*cdest++ = *data++;
-			pcount++; ninpack++;
-		}
-	}
-	chunk->dh_Size = pcount;
-	return (ninpack);
-}
 
 
 static int 
@@ -563,6 +489,7 @@ void *junk;
 	tx_BCast *bcp;
 	DataRetransRq *req;
 	int nretrans = 0;
+	static int ngripe = 0;
 /*
  * Deal with each entry on the list.
  */
@@ -578,8 +505,17 @@ void *junk;
 	 * send out the chunk.
 	 */
 	 	if (bcp = FindBCP (req->dh_DataSeq))
+		{
+			if (req->dh_Chunk > bcp->txb_NChunk)
+			{
+				if (ngripe++ < 10)
+					msg_ELog (EF_PROBLEM, "Bad retr %d %d",
+						req->dh_DataSeq,req->dh_Chunk);
+				continue;
+			}
 			msg_BCast (BCastChannel,bcp->txb_Chunks[req->dh_Chunk],
 					 CBYTES);
+		}
 	/*
 	 * Free up this entry.
 	 */

@@ -1,7 +1,7 @@
 /*
  * Dump out a raster file.
  */
-static char *rcsid = "$Id: rfdump.c,v 1.1 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: rfdump.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 
 # include <defs.h>
@@ -44,8 +44,9 @@ char **argv;
 /*
  * Print it.
  */
-	printf ("Header magic = 0x%x, platform '%s'\n", hdr.rf_Magic,
-		hdr.rf_Platform);
+	printf ("Header magic = 0x%x, platform '%s' %s\n", hdr.rf_Magic,
+		hdr.rf_Platform,
+		hdr.rf_Flags & RFF_COMPRESS ? "compressed" : "not compressed");
 	printf ("Currently %d of max %d samples, with %d fields\n", 
 		hdr.rf_NSample, hdr.rf_MaxSample, hdr.rf_NField);
 	for (fld = 0; fld < hdr.rf_NField; fld++)
@@ -64,10 +65,19 @@ char **argv;
  * Dump it out.
  */
 	for (i = 0; i < hdr.rf_NSample; i++)
+	{
+		char attr[200];
 		printf ("%2d: %d %06d at %8d, (%dx%d) space %.2f, L %.2f %.2f %.2f\n", i,
 			toc[i].rft_Time.ds_yymmdd, toc[i].rft_Time.ds_hhmmss,
-			toc[i].rft_Offset, toc[i].rft_Rg.rg_nX,
+			toc[i].rft_Offset[0], toc[i].rft_Rg.rg_nX,
 			toc[i].rft_Rg.rg_nY, toc[i].rft_Rg.rg_Xspacing,
 			toc[i].rft_Origin.l_lat, toc[i].rft_Origin.l_lon,
 			toc[i].rft_Origin.l_alt);
+		if (toc[i].rft_AttrLen > 0)
+		{
+			lseek (fd, toc[i].rft_AttrOffset, 0);
+			read (fd, attr, toc[i].rft_AttrLen);
+			printf ("\tAttributes: '%s'\n", attr);
+		}
+	}
 }

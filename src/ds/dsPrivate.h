@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 1.6 1991-06-14 22:17:36 corbet Exp $
+ * $Id: dsPrivate.h,v 2.0 1991-07-18 22:53:23 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -13,6 +13,7 @@ typedef enum {
 	FTNetCDF = 0,
 	FTBoundary = 1,
 	FTRaster = 2,
+	FTCmpRaster = 3,
 	/* ... */
 } FileType;
 
@@ -27,9 +28,10 @@ struct ds_ShmHeader
 	int	sm_PTOffset;		/* Offset to platform table	*/
 	int	sm_DTOffset;		/* Offset to the data table	*/
 	int	sm_nDataTable;		/* How many data table entries	*/
+	int	sm_nDTEUsed;		/* How many used		*/
 	int	sm_DTFreeList;		/* First free entry		*/
 };
-# define SHM_MAGIC	0x102390
+# define SHM_MAGIC	0x71491	/* Change for incompatible changes */
 
 
 
@@ -42,6 +44,7 @@ typedef struct ds_Platform
 	char	dp_name[NAMELEN];	/* The full name of this platform */
 	char	dp_class[NAMELEN];	/* The class of the platform	*/
 	char	dp_dir[NAMELEN];	/* File directory		*/
+	char	dp_rdir[NAMELEN];	/* Remote file directory	*/
 	int	dp_parent;		/* Hierarchy backpointer	*/
 	DataOrganization dp_org;	/* Native data organization	*/
 	FileType dp_ftype;		/* File type			*/
@@ -58,7 +61,7 @@ typedef struct ds_Platform
 # define DPF_DISCRETE	0x0004		/* "Continuous" data?		*/
 # define DPF_REGULAR	0x0008		/* Regularly-spaced (time) samples? */
 # define DPF_SUBPLATFORM 0x010		/* This is a sub platform	*/
-
+# define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
 /*
  * Macro to return the right data list for a platform.
  */
@@ -90,7 +93,7 @@ typedef struct ds_DataFile
  * The size of the shared memory segment, and the pointer which will locate
  * it in each process.
  */
-# define SHM_SIZE 32768
+# define SHM_SIZE 65536*4
 char *ShmSegment;
 struct ds_ShmHeader *ShmHeader;
 # define DS_KEY 0x072161
@@ -130,6 +133,10 @@ enum dsp_Types
 	dpt_DeleteData,			/* DANGER remove data		*/
 	dpt_DataGone,			/* Data deletion announcement	*/
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
+/*
+ * Cross-machine broadcast notifications.
+ */
+	dpt_BCDataGone,			/* Data zapped			*/
 };
 # define DSP_FLEN	256		/* File name length		*/
 
@@ -216,3 +223,18 @@ struct dsp_Notify
 	time dsp_when;			/* The lastest time for data	*/
 };
 
+
+
+
+/*
+ * Broadcast network notification.  For the moment, I have been lazy and
+ * only implemented DataGone.  The assumption here is that network access
+ * is of interest for older data, so this is the stuff that will be 
+ * relevant to remote machines.
+ */
+struct dsp_BCDataGone
+{
+	enum dsp_Types dsp_type;	/* == dpt_BCDataGone		*/
+	char dsp_Plat[60];		/* Platform name		*/
+	char dsp_File[DSP_FLEN];	/* The file -- sans directory	*/
+};

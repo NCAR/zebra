@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 1.5 1991-06-14 22:17:36 corbet Exp $
+ * $Id: DataStore.h,v 2.0 1991-07-18 22:53:23 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -17,6 +17,7 @@ typedef enum {
 	OrgImage	= 4,
 	OrgOutline	= 5,
 	Org3dGrid	= 6,
+	OrgCmpImage	= 7,
 } DataOrganization;
 
 /*
@@ -57,6 +58,15 @@ typedef struct _RGrid
 	int	rg_nX, rg_nY, rg_nZ;	/* Dimensions			*/
 } RGrid;
 
+/*
+ * Boundaries are organized around these.
+ */
+typedef struct _BndDesc
+{
+	PlatformId	bd_pid;		/* Id for this boundary		*/
+	int		bd_begin;	/* Begin offset			*/
+	int		bd_npoint;	/* Number of points		*/
+} BndDesc;
 
 /*
  * For raster image datasets, we have this info.
@@ -74,8 +84,9 @@ typedef union _Dunion
 {
 	IRGrid	d_irgrid;
 	RGrid	d_rgrid;
-	int	*d_length;		/* Outline length		*/
+	/* int	*d_length;		/* Outline length		*/
 	RastImg d_img;			/* Image description		*/
+	BndDesc	*d_bnd;			/* Boundary description		*/
 } Dunion;
 
 
@@ -99,12 +110,14 @@ typedef struct _DataObject
 	char		*do_fields[MAXFIELD];	/* The fields		*/
 	int		do_flags;	/* Flags			*/
 	float		do_badval;	/* Bad value flag		*/
+	char		*do_attr;	/* The table			*/
 } DataObject;
 
 # define DOF_FREEDATA		0x0001	/* Free data[0]			*/
 # define DOF_FREEALLDATA	0x0002	/* Free data for each field	*/
 # define DOF_FREEALOC		0x0004	/* Free location array		*/
 # define DOF_FREETIME		0x0008	/* Free times array		*/
+# define DOF_FREEATTR		0x0010	/* Free the attributes		*/
 
 /*
  * The name of the daemon, as known to the message system.
@@ -142,6 +155,8 @@ typedef enum
 	int		ds_GetObsSamples (PlatformId, time *, time *,
 					Location *, int);
 	int		ds_GetFields (PlatformId, time *, int *, char **);
+	int		ds_GetObsTimes (PlatformId, time *, time *, int,
+				char *);
 # else
 	int		ds_Initialize ();
 	PlatformId	ds_LookupPlatform ();
@@ -157,6 +172,7 @@ typedef enum
 	int		ds_DataTimes ();
 	int		ds_GetObsSamples ();
 	int		ds_GetFields ();
+	int		ds_GetObsTimes ();
 # endif
 
 

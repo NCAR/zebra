@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 1.6 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -47,6 +47,12 @@ typedef struct _nctag
 # define UNKNOWN	-2
 static int SPMap[MAXPLAT] = { 0 };
 static bool SPMapInited = FALSE;
+
+/*
+ * We also maintain a subplatform list for IRGrid platforms, which 
+ * ends up in the ir_subplats field of the data object eventually.
+ */
+static PlatformId *SubPlats[MAXPLAT] = { 0 };
 
 /*
  * We use this buffer for field queries.
@@ -267,8 +273,6 @@ NCTag *tag;
  * OK, assume this is going to work.  Allocate the space we need.
  */
 	tag->nc_locs = (Location *) malloc (tag->nc_nPlat * sizeof (Location));
-	tag->nc_subplats = (PlatformId *)
-			malloc (tag->nc_nPlat*sizeof (PlatformId));
 	pos = (float *) malloc (tag->nc_nPlat * sizeof (float));
 /*
  * Now we go through and grab each piece of the location.
@@ -294,6 +298,7 @@ NCTag *tag;
  */
 	if (! dnc_BuildPMap (tag))
 		return (FALSE);
+	tag->nc_subplats = SubPlats[tag->nc_plat];
 /*
  * All done.
  */
@@ -345,6 +350,8 @@ NCTag *tag;
  * someday be smart and look at the length dimension, but for now I'll
  * assume that 10 will always work.
  */
+	tag->nc_subplats = SubPlats[tag->nc_plat] =
+		(PlatformId *) malloc (tag->nc_nPlat*sizeof (PlatformId));
  	for (i = 0; i < tag->nc_nPlat; i++)
 	{
 	/*
@@ -363,7 +370,7 @@ NCTag *tag;
 	 */
 	 	sprintf (fullname, "%s/%s", base, name);
 		if ((plat = ds_LookupPlatform (fullname)) == BadPlatform)
-			msg_ELog (EF_INFO, "Platform %s unknown", fullname);
+			msg_ELog (EF_INFO, "NC Platform %s unknown", fullname);
 		else
 			SPMap[plat] = i;
 		tag->nc_subplats[i] = plat;
@@ -709,10 +716,8 @@ GetList *gp;
  * Send through the subplatforms if needed.
  */
 	if (dobj->do_org == OrgIRGrid && dobj->do_desc.d_irgrid.ir_subplats)
-	{
 		memcpy (dobj->do_desc.d_irgrid.ir_subplats, tag->nc_subplats,
 				tag->nc_nPlat * sizeof (PlatformId));
-	}
 }
 
 
@@ -1493,14 +1498,6 @@ DataObject *dobj;
 		ncvarput1 (tag->nc_id, valt, &plat, &tag->nc_locs[plat].l_alt);
 	}
 /*
- * Sigh.  We really ought to put this into the tag structure while
- * we are at it.
- */
-	tag->nc_subplats = (PlatformId *)
-			malloc (tag->nc_nPlat*sizeof (PlatformId));
-	memcpy (tag->nc_subplats, irg->ir_subplats,
-			tag->nc_nPlat*sizeof (PlatformId));
-/*
  * If necessary, we'll work on the platform map as well.
  */
 	if (! SPMapInited)
@@ -1515,6 +1512,14 @@ DataObject *dobj;
 			SPMap[irg->ir_subplats[plat]] = plat;
 		SPMap[dobj->do_id] = BASEDONE;
 	}
+/*
+ * Sigh.  We really ought to put this into the tag structure while
+ * we are at it.
+ */
+	SubPlats[tag->nc_plat] = tag->nc_subplats = (PlatformId *)
+			malloc (tag->nc_nPlat*sizeof (PlatformId));
+	memcpy (tag->nc_subplats, irg->ir_subplats,
+			tag->nc_nPlat*sizeof (PlatformId));
 }
 
 

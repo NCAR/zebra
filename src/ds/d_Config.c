@@ -1,7 +1,7 @@
 /*
  * UI routines for dealing with the configuration process.
  */
-static char *rcsid = "$Id: d_Config.c,v 1.3 1991-02-26 19:10:03 corbet Exp $";
+static char *rcsid = "$Id: d_Config.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -10,6 +10,7 @@ static char *rcsid = "$Id: d_Config.c,v 1.3 1991-02-26 19:10:03 corbet Exp $";
 # include "dsDaemon.h"
 # include "commands.h"
 # include <ui_error.h>
+
 
 
 
@@ -147,6 +148,16 @@ struct ui_command *cmds;
 	 */
 	   case DK_DIRECTORY:
 	   	strcpy (plat->dp_dir, UPTR (cmds[1]));
+		break;
+	/*
+	 * Where remote data lives.
+	 */
+	   case DK_REMOTE:
+		if (! DisableRemote)
+		{
+		   	strcpy (plat->dp_rdir, UPTR (cmds[1]));
+			plat->dp_flags |= DPF_REMOTE;
+		}
 		break;
 	}
 	return (TRUE);

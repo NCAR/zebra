@@ -1,7 +1,7 @@
 /*
  * Packet grabber code and interface.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 1.2 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: nx_PktGrabber.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -86,11 +86,13 @@ int port;
  * First, make sure that everything has been set up.
  */
 	if (! Seg)
+	{
 		CreateChild ();
+		sleep (3);
+	}
 /*
  * Now we fire off a message telling them to connect to this port.
  */
-	sleep (5);
 	np.dh_MsgType = NMT_NewPort;
 	np.dh_Port = port;
 	msg_send (CHILDNAME, MT_NETXFR, FALSE, &np, sizeof (np));
@@ -300,7 +302,7 @@ Message *msg;
 	 * Connection requests.
 	 */
 	   case NMT_NewPort:
-		msg_ELog (EF_INFO, "Opening port %d", ((NewPort *) tm)->dh_Port);
+		msg_ELog(EF_INFO,"Opening port %d", ((NewPort *) tm)->dh_Port);
 	   	ReceiveSetup (((NewPort *) tm)->dh_Port);
 		break;
 	}

@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 1.1 1990-11-02 08:58:15 corbet Exp $ */
+/* $Id: dsDaemon.h,v 2.0 1991-07-18 22:53:23 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -12,6 +12,13 @@ DataFile *DFTable;
  * The default data directory.
  */
 char DefDataDir[80];
+
+
+/*
+ * This is a kludge to make it easier to keep a uniform init file.  If this
+ * flag is set, no remote directories will be accessed.
+ */
+extern int DisableRemote;
 
 
 # ifdef __STDC__

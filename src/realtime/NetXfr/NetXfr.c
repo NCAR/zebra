@@ -6,6 +6,7 @@ static char *rcsid = "$Id";
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
+# include <signal.h>
 # include "DataStore.h"
 # include "NetXfr.h"
 
@@ -45,6 +46,7 @@ int Seq = 0;
 
 static int PrintUnk = 5;
 
+int DbEL = EF_DEBUG;
 /*
  * Are we broadcasting?
  */
@@ -121,6 +123,7 @@ InProgress *IPList = 0;
 	static void ProcessPolled (void);
 	static void RLEDecode (unsigned char *, unsigned char *, int);
 	static void ScanIP (void);
+	static void SendDObj (DataObject *, int);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -145,6 +148,7 @@ InProgress *IPList = 0;
 	static void ProcessPolled ();
 	static void RLEDecode ();
 	static void ScanIP ();
+	static void SendDObj (DataObject *, int);
 # endif
 
 /*
@@ -156,11 +160,28 @@ InProgress *IPList = 0;
 # define NXC_GET	4
 # define NXC_BROADCAST	5
 # define NXC_RECEIVE	6
+# define NXC_DIRIMAGE	7
 
 /*
  * Return the offset of a data object field.
  */
 # define DOFFSET(field) ((int) &(((DataObject *) 0)->field))
+
+static char *CFile;
+
+void UglyDeath ()
+/*
+ * Kludge to keep operations going when things die.
+ */
+{
+	msg_ELog (EF_EMERGENCY, "NETXFR SEG FAULT RESTART\007");
+	close (msg_get_fd ());
+	ShutdownSeg ();
+	execl ("/fcc/bin/NetXfr", CFile, (char *) 0);
+	exit (99);
+}
+
+
 
 
 main (argc, argv)
@@ -171,6 +192,7 @@ char **argv;
 	SValue v;
 	stbl vtable;
 	int i;
+	time t;
 /*
  * Hook into the user interface.  Only go interactive if they didn't
  * give us a file on the command line.
@@ -184,6 +206,11 @@ char **argv;
 	}
 	else
 		ui_init ("/fcc/lib/NetXfr.lf", TRUE, FALSE);
+/*
+ * Debug level for certain things.
+ */
+	if (getenv ("NXDEBUG"))
+		DbEL = EF_INFO;
 /*
  * Set up indirect variables so that the user can do some tweaking.
  */
@@ -200,6 +227,12 @@ char **argv;
 	msg_connect (Incoming, OURNAME);
 	msg_AddProtoHandler (MT_NETXFR, NXMessage);
 /*
+ * Try to do something reasonable to get a unique starting sequence number.
+ */
+	tl_GetTime (&t);
+	Seq = getpid () * (t.ds_hhmmss % 100);
+	msg_ELog (EF_INFO, "Starting seq %d", Seq);
+/*
  * Initialize the data store.
  */
 	ds_Initialize ();
@@ -208,6 +241,14 @@ char **argv;
  */
 	for (i = 0; i < MAXPLAT; i++)
 		Recipients[i] = 0;
+/*
+ * Kludgery.
+ */
+# ifdef notdef
+	CFile = argv[1];
+	signal (SIGSEGV, UglyDeath);
+	signal (SIGBUS, UglyDeath);
+# endif
 /*
  * Start reading commands.
  */
@@ -272,6 +313,12 @@ struct ui_command *cmds;
 	   case NXC_RECEIVE:
 	   	DoReceive (UINT (cmds[1]));
 		break;
+	/*
+	 * Direct image data out of the rasterizer.
+	 */
+	   case NXC_DIRIMAGE:
+	   	DirImage (UINT (cmds[1]));
+		break;
 	}
 	return (TRUE);
 }
@@ -311,7 +358,10 @@ struct ui_command *cmds;
 	for (cmds++; cmds->uc_ctype != UTT_END; cmds++)
 	{
 		dp = ALLOC (DataRecip);
-		strcpy (dp->dr_Recip, UPTR (*cmds));
+		if (strchr (UPTR (*cmds), '@'))
+			strcpy (dp->dr_Recip, UPTR (*cmds));
+		else
+			sprintf (dp->dr_Recip, "NetXfr@%s", UPTR (*cmds));
 		dp->dr_Next = Recipients[plat];
 		Recipients[plat] = dp;
 	}
@@ -336,11 +386,8 @@ int ns;
  */
 {
 	DataObject *dobj;
-	DataHdr dhdr;
-	DataDone done;
-	int i;
-	RastImg *rip;
 	time otimes;
+	int newfile;
 	Location loc;
 /*
  * First thing we need to do is to get this data.
@@ -350,14 +397,38 @@ int ns;
 /*
  * For now, we handle the "newfile" problem by getting the first in
  * the list of obs samples, and seeing if it matches our time.
+ *
+ * Eventually do this with attributes?
  */
-	dhdr.dh_NewFile = 
+	newfile = 
 		(ds_GetObsSamples (plat, t, &otimes, &loc, 1) > 0) &&
 			otimes.ds_yymmdd == dobj->do_begin.ds_yymmdd &&
 			otimes.ds_hhmmss == dobj->do_begin.ds_hhmmss;
+	SendDObj (dobj, newfile);
+	ds_FreeDataObject (dobj);
+}
+
+
+
+
+
+void
+SendDObj (dobj, newfile)
+DataObject *dobj;
+int newfile;
+/*
+ * Ship out  a chunk of data.
+ */
+{
+	DataHdr dhdr;
+	DataDone done;
+	int i, naloc;
+	RastImg *rip;
+	PlatformId plat = dobj->do_id;
 /*
  * Create and send out the data header.
  */
+	dhdr.dh_NewFile = newfile;
 	dhdr.dh_MsgType = NMT_DataHdr;
 	dhdr.dh_DataSeq = ++Seq;
 	strcpy (dhdr.dh_Platform, PlatName[plat]);
@@ -366,15 +437,29 @@ int ns;
 	dhdr.dh_BCRLE = Broadcast && dobj->do_org == OrgImage;
 	SendOut (plat, &dhdr, sizeof (dhdr));
 /*
- * Send out the various pieces.
+ * Send out the times.
  */
 	SendChunk (plat, dobj->do_times, DOFFSET (do_times),
 		dobj->do_npoint*sizeof (time), DOF_FREETIME);
+/*
+ * Send out locations where called for.  Just how many there are is
+ * a bit obnoxious to find out when we're dealing with outlines.
+ */
+# ifdef notdef
 	if (dobj->do_aloc)
+	{
+		if (dobj->do_org == OrgOutline)
+		{
+			naloc = 0;
+			for (i = 0; i < dobj->do_npoint; i++)
+				naloc += dobj->do_desc.d_bnd[i].bd_npoint;
+		}
+		else
+# endif
+			naloc = dobj->do_npoint;
 		SendChunk (plat, dobj->do_aloc, DOFFSET (do_aloc),
-			(dobj->do_org == OrgOutline) ?
-			*dobj->do_desc.d_length*sizeof (Location) :
-			dobj->do_npoint*sizeof (Location), DOF_FREEALOC);
+			naloc*sizeof (Location), DOF_FREEALOC);
+	/* } */
 /*
  * Send per-field stuff.
  */
@@ -384,8 +469,15 @@ int ns;
 			strlen (dobj->do_fields[i]) + 1, 0);
 		if (! Broadcast)
 			SendChunk (plat, dobj->do_data[i], DOFFSET(do_data[i]),
-				dobj->do_nbyte, DOF_FREEALLDATA);
+				dobj->do_nbyte/dobj->do_nfield,
+				DOF_FREEALLDATA);
 	}
+/*
+ * The attribute table.
+ */
+	if (dobj->do_attr)
+		SendChunk (plat, dobj->do_attr, DOFFSET (do_attr),
+				strlen (dobj->do_attr) + 1, DOF_FREEATTR);
 /*
  * Now per-organization stuff.
  */
@@ -395,13 +487,13 @@ int ns;
 	 * Irgrids -- pid and location for the subplatforms.
 	 */
 	   case OrgIRGrid:
-	   	SendChunk (plat, dobj->do_desc.d_irgrid.ir_loc,
-			DOFFSET (do_desc.d_irgrid.ir_loc),
-			dobj->do_desc.d_irgrid.ir_npoint*sizeof (Location), 0);
 	   	SendChunk (plat, dobj->do_desc.d_irgrid.ir_subplats,
 			DOFFSET (do_desc.d_irgrid.ir_subplats),
 			dobj->do_desc.d_irgrid.ir_npoint*sizeof (PlatformId),
 			0);
+	   	SendChunk (plat, dobj->do_desc.d_irgrid.ir_loc,
+			DOFFSET (do_desc.d_irgrid.ir_loc),
+			dobj->do_desc.d_irgrid.ir_npoint*sizeof (Location), 0);
 		break;
 	/*
 	 * Images have lots of rgrid structures, and scaling too.
@@ -420,8 +512,8 @@ int ns;
 	 * many of these there are.
 	 */
 	   case OrgOutline:
-	   	SendChunk (plat, dobj->do_desc.d_length, 
-			DOFFSET (do_desc.d_length), sizeof (int), 0);
+	   	SendChunk (plat, dobj->do_desc.d_bnd, 
+			DOFFSET (do_desc.d_bnd), sizeof (BndDesc), 0);
 		break;
 	}
 /*
@@ -435,7 +527,6 @@ int ns;
 	done.dh_MsgType = NMT_DataDone;
 	done.dh_DataSeq = Seq;
 	SendOut (plat, &done, sizeof (done));
-	ds_FreeDataObject (dobj);
 }
 
 
@@ -569,16 +660,19 @@ Message *msg;
  * Deal with an incoming message.
  */
 {
-	struct mh_template *tmpl;
+	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
 
 	switch (msg->m_proto)
 	{
 	   case MT_MESSAGE:
-	   	tmpl = (struct mh_template *) msg->m_data;
 		if (tmpl->mh_type == MH_DIE)
 			Die ();
 		else
 			msg_ELog (EF_PROBLEM, "Weird MH msg %d",tmpl->mh_type);
+		break;
+
+	   case MT_IMAGEXFR:
+		DirImageAvail (tmpl->mh_type);
 		break;
 
 	   default:
@@ -667,9 +761,18 @@ DataHdr *hdr;
 {
 	InProgress *ip = ALLOC (InProgress);
 
-	msg_ELog (EF_INFO, "Begin data %s from %s, seq %d, t %d %06d",
+	msg_ELog (DbEL, "Begin data %s from %s, seq %d, t %d %06d",
 		hdr->dh_Platform, from, hdr->dh_DataSeq,
 		hdr->dh_DObj.do_end.ds_yymmdd, hdr->dh_DObj.do_end.ds_hhmmss);
+/*
+ * Sanity check.
+ */
+	if (FindIP (hdr->dh_DataSeq))
+	{
+		msg_ELog (EF_EMERGENCY, "DUP seq number %d from %s", 
+			hdr->dh_DataSeq, from);
+		return;
+	}
 /*
  * Fill in our IP structure.
  */
@@ -689,6 +792,14 @@ DataHdr *hdr;
 	ip->ip_Age = 0;
 	ip->ip_NewFile = hdr->dh_NewFile;
 	strcpy (ip->ip_Source, from);
+# ifdef BUGHACK
+	ip->ip_DObj->do_times = ALLOC (time);
+	tl_GetTime (ip->ip_DObj->do_times);
+# endif
+/*
+ * Weird bug tracking.
+ */
+	ip->ip_DObj->do_desc.d_irgrid.ir_subplats = 0;
 /*
  * Add it to the list
  */
@@ -765,7 +876,7 @@ ScanIP ()
 		chunk = last->dh_Next;
 	}
 	if (nzapped)
-		msg_ELog (EF_INFO, "%d old bc chunks zapped %d left", nzapped, 
+		msg_ELog (EF_DEBUG,"%d old bc chunks zapped %d left", nzapped, 
 			nleft);
 }
 
@@ -894,13 +1005,17 @@ char *data;
 	if (! ip->ip_Arrived)
 	{
 	/*
-	 * Set up some stuff.
+	 * Set up some stuff.  Kludgy, ugly, dishonest +50000 until the RLE
+	 * bug gets fixed.
 	 */
 		ip->ip_Arrived = malloc (chunk->dh_NChunk);
 		memset (ip->ip_Arrived, 0, chunk->dh_NChunk);
 		ip->ip_NBCast = 0;
 		ip->ip_NBExpect = chunk->dh_NChunk;
+# ifdef notdef
 		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize + 50000);
+# endif
+		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize);
 		ip->ip_DObj->do_flags &= ~DOF_FREEALLDATA;
 		ip->ip_DObj->do_flags |= DOF_FREEDATA;
 	}
@@ -910,7 +1025,7 @@ char *data;
 	ip->ip_Arrived[chunk->dh_Chunk] = 1;
 	ip->ip_NBCast++;
 	if (ip->ip_RLE)
-		RLEDecode (chunk->dh_Offset +
+		RL_Decode (chunk->dh_Offset +
 				((unsigned char *) ip->ip_DObj->do_data[0]),
 				(unsigned char *) chunk->dh_data,
 				chunk->dh_Size);
@@ -1016,13 +1131,9 @@ int len;
  */
 	if (Broadcast && chunk->dh_ID == Pid &&
 				ABS (chunk->dh_DataSeq - Seq) < 5)
-	{
-		msg_ELog (EF_DEBUG, "Drop own BC pkt, seq %d",
-				chunk->dh_DataSeq);
 		return;
-	}
 	if (PrintUnk-- > 0)
-		msg_ELog (EF_INFO, "Unk queued, seq %d", chunk->dh_DataSeq);
+		msg_ELog (EF_DEBUG, "Unk queued, seq %d", chunk->dh_DataSeq);
 /*
  * Otherwise we enqueue it, waiting for the header info to arrive.  Use the
  * ID Flag for scanning, now that the above check is done.
@@ -1088,9 +1199,15 @@ DataDone *done;
 /*
  * Make sure we know about this sequence.
  */
-	PrintUnk = 5;
 	if (! ip)
 		return;
+/*
+ * If this is an IRGRID dobj, and the subplatform list is missing, then
+ * we gripe mightily.
+ */
+	if (ip->ip_DObj->do_org == OrgIRGrid && 
+			! ip->ip_DObj->do_desc.d_irgrid.ir_subplats)
+		msg_ELog (EF_PROBLEM, "Missing subplatform list");
 /*
  * If we have all of the data, we can finish this thing out now.
  */
@@ -1103,11 +1220,19 @@ DataDone *done;
 /*
  * Otherwise, we wait a little longer before complaining.
  */
-	msg_ELog (EF_INFO, "IP DONE, but %d segs missing",
-		ip->ip_NBExpect - ip->ip_NBCast);
-	ip->ip_Done = TRUE;
-	ip->ip_TReq = tl_AddRelativeEvent (Timeout, (void *) ip->ip_Seq, 
+	msg_ELog (EF_INFO, "IP %d DONE, but %d segs (of %d) missing",
+		ip->ip_Seq, ip->ip_NBExpect - ip->ip_NBCast, ip->ip_NBExpect);
+	if (ip->ip_NBExpect - ip->ip_NBCast > 120)
+	{
+		msg_ELog (EF_INFO, "I give up on %d", ip->ip_Seq);
+		ZapIP (ip);
+	}
+	else
+	{
+		ip->ip_Done = TRUE;
+		ip->ip_TReq = tl_AddRelativeEvent (Timeout,(void *)ip->ip_Seq, 
 			BCInitialWait*INCFRAC, 0);
+	}
 }
 
 
@@ -1210,7 +1335,7 @@ InProgress *ip;
 /*
  * Throw this data into the data store.
  */
-	msg_ELog (EF_INFO, "Store sequence %d", ip->ip_Seq);
+	msg_ELog (DbEL, "Store sequence %d", ip->ip_Seq);
 	ds_PutData (ip->ip_DObj, ip->ip_NewFile);
 	ZapIP (ip);
 }
@@ -1227,6 +1352,7 @@ InProgress *ip;
 /*
  * Free up dynamic storage.
  */
+	/* ip->ip_DObj->do_flags &= ~DOF_FREETIME; */
 	ds_FreeDataObject (ip->ip_DObj);
 	if (ip->ip_Arrived)
 		free (ip->ip_Arrived);

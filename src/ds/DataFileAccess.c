@@ -5,7 +5,7 @@
  * of the data store be format-independent.  We push most of the real work
  * down to the format-specific stuff.
  */
-static char *rcsid = "$Id: DataFileAccess.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: DataFileAccess.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 
 # include "../include/defs.h"
@@ -85,10 +85,11 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.5 1991-06-14 22:17:36 corbet Exp
  *
  *	Return the location and size info for this grid.
  *
- * f_DataTimes (index, time, which, n, dest)
+ * f_DataTimes (index, time, which, n, dest, attrs)
  * int index, n;
  * time *time, *dest;
  * TimeSpec which;
+ * char *attrs;
  *
  * 	Return a list of times for which data is available.
  *
@@ -133,6 +134,16 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.5 1991-06-14 22:17:36 corbet Exp
  *	Return a list of available fields in this platform.  "NFLD" starts
  * 	as the max the caller can accept; should be returned as the number
  *	of fields actually returned.
+ *
+ * char *
+ * f_GetAttrs (dfile, time, len)
+ * int dfile, *len;
+ * time *time;
+ *
+ *	Get the attributes from the file for this time.  Returns a
+ *	piece of dynamically allocated memory (whose length comes back
+ *	in *len) containing the attribute table.  Return NULL if it
+ *	can't be done.
  */
 
 struct DataFormat
@@ -155,6 +166,7 @@ struct DataFormat
 	int (*f_PutData) ();		/* Put data to a file		*/
 	int (*f_GetObsSamples) ();	/* Get observation samples	*/
 	int (*f_GetFields) ();		/* Get fields			*/
+	char *(*f_GetAttrs) ();		/* Get attributes		*/
 };
 
 
@@ -175,6 +187,7 @@ extern int drf_OpenFile (), drf_CloseFile (), drf_QueryTime (), drf_PutData ();
 extern int drf_MakeFileName (), drf_CreateFile (), drf_Sync (), drf_Setup ();
 extern int drf_GetData (), drf_DataTimes (), drf_GetObsSamples ();
 extern int drf_GetFields ();
+extern char *drf_GetAttrs ();
 # define ___ 0
 
 /*
@@ -203,6 +216,7 @@ struct DataFormat Formats[] =
 	dnc_PutData,			/* Write to file		*/
 	___,				/* Get observation samples	*/
 	dnc_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
     },
     {
 	"Boundary",	".bf",
@@ -221,6 +235,7 @@ struct DataFormat Formats[] =
 	bf_PutData,			/* Write to file		*/
 	___,				/* Get observation samples	*/
 	bf_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
     },
     {
     	"Raster",	".rf",
@@ -239,6 +254,26 @@ struct DataFormat Formats[] =
 	drf_PutData,			/* Write to file		*/
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
+	drf_GetAttrs,			/* Get Attributes		*/
+    },
+    {
+    	"CmpRaster",	".rf",
+	drf_QueryTime,			/* Query times			*/
+	drf_Setup,			/* setup			*/
+	drf_OpenFile,			/* Open				*/
+	drf_CloseFile,			/* Close			*/
+	drf_Sync,			/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	drf_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	___,				/* Get RGrid info		*/
+	drf_DataTimes,			/* Get data times		*/
+	drf_MakeFileName,		/* Make file name		*/
+	drf_CreateFile,			/* Create a new file		*/
+	drf_PutData,			/* Write to file		*/
+	drf_GetObsSamples,		/* Get observation samples	*/
+	drf_GetFields,			/* Get fields			*/
+	drf_GetAttrs,			/* Get Attributes		*/
     }
 
 };
@@ -351,6 +386,24 @@ char **flist;
 	return (Formats[ft].f_GetFields ?
 		((*Formats[ft].f_GetFields) (dfile, t, nfld, flist)) : 0);
 }
+
+
+
+
+char *
+dfa_GetAttr (dfile, t, len)
+int dfile, *len;
+time *t;
+/*
+ * Get the attributes for this time if we can.
+ */
+{
+	FileType ft = DFTable[dfile].df_ftype;
+
+	return (Formats[ft].f_GetAttrs ?
+		(*Formats[ft].f_GetAttrs) (dfile, t, len) : 0);
+}
+
 
 
 

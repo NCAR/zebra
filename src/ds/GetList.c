@@ -1,7 +1,7 @@
 /*
  * Figure out how to do the data access.
  */
-static char *rcsid = "$Id: GetList.c,v 1.3 1991-02-26 19:08:07 corbet Exp $";
+static char *rcsid = "$Id: GetList.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -119,7 +119,7 @@ DataObject *dobj;
  */
 	dsm_ShmLock ();
 	if (! dgl_DoList (LOCALDATA (*p), list))
-		/* dgl_DoList (REMOTEDATA (*p), list) */ ;
+		dgl_DoList (REMOTEDATA (*p), list);
 	dsm_ShmUnlock ();
 /*
  * Remove any unsatisfied segments, and return the rest.
@@ -401,7 +401,7 @@ int begin, *end;
  * It appears that there is a problem.  See now if there is any hope at all
  * of salvaging part of the data.
  */
-	if (DLT (dobj->do_times[dobj->do_npoint - 1], dp->df_end))
+	if (DLE (dobj->do_times[dobj->do_npoint - 1], dp->df_end))
 	{
 		*end = dobj->do_npoint;
 		return (TRUE);

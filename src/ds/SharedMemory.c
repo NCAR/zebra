@@ -1,7 +1,7 @@
 /*
  * Application library interface to the shared memory segment.
  */
-static char *rcsid = "$Id: SharedMemory.c,v 1.1 1990-11-02 08:56:20 corbet Exp $";
+static char *rcsid = "$Id: SharedMemory.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -89,8 +89,9 @@ dsm_Dump ()
 		Semaphore);
 	ui_printf ("\t%d platforms at %d (0x%x)\n", SHeader->sm_nPlatform,
 		SHeader->sm_PTOffset, PTable);
-	ui_printf ("\t%d DTE's at %d (0x%x)\n", SHeader->sm_nDataTable,
-		SHeader->sm_DTOffset, DFTable);
+	ui_printf ("\t%d DTE's at %d (0x%x), %d used\n",
+		SHeader->sm_nDataTable, SHeader->sm_DTOffset, DFTable,
+		SHeader->sm_nDTEUsed);
 	ui_printf ("\tSemaphores: READ %d WRITE %d\n",
 		semctl (Semaphore, S_READ, GETVAL, 0),
 		semctl (Semaphore, S_WRITE, GETVAL, 0));

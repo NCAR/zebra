@@ -1,7 +1,7 @@
 /*
  * Data store file deletion utility.  Be careful out there.
  */
-static char *rcsid = "$Id: dsdelete.c,v 1.1 1991-02-26 19:13:22 corbet Exp $";
+static char *rcsid = "$Id: dsdelete.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"

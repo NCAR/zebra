@@ -65,6 +65,7 @@ typedef struct _GetList
 	bool	dfa_CreateFile (int, DataObject *);
 	void	dfa_PutData (int, DataObject *, int, int);
 	void	dfa_NoteRevision (int);
+	char	*dfa_GetAttr (int, time *, int *);
 # else
 	int 	dsm_Init ();
 	void	dsm_ShmLock ();
@@ -82,4 +83,5 @@ typedef struct _GetList
 	bool	dfa_CreateFile ();
 	void	dfa_PutData ();
 	void	dfa_NoteRevision ();
+	char	*dfa_GetAttr ();
 # endif
