@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1993-07-01 20:14:54 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1993-08-10 20:44:11 case Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -38,7 +38,7 @@ SUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
  * file-by-file.  The idea is that these will not usually be built, so
  * they won't need Makefiles, cleaning, or a specific distfiles target.
  */
-OTHERSUBDIRS = fest_p3_c130 precip ssmi trmm_rain trmm_sonde gmsISCCP
+OTHERSUBDIRS = dap fest_p3_c130 precip ssmi trmm_rain trmm_sonde gmsISCCP
 
 DISTFILES = Imakefile $(OTHERSUBDIRS)
 DISTSUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
