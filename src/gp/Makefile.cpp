@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.11 1992-03-04 22:13:52 kris Exp $ */
+/* $Id: Makefile.cpp,v 1.12 1992-04-28 14:26:51 kris Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -58,7 +58,7 @@ all:	gp
 saber:	$(OBJS)
 	# setopt ansi
 	# load $(CFLAGS) GraphProc.o
-	# load $(CFLAGS) $(OBJS) -Bstatic $(LIBS) /locallib/gcc-gnulib
+	# load $(CFLAGS) $(OBJS) -Bstatic $(LIBS) "/usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a"
 	# link
 
 install:	gp graphproc.lf include
