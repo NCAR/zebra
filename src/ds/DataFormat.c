@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.12 2000-04-10 20:00:00 burghart Exp $")
+RCSID ("$Id: DataFormat.c,v 3.13 2000-11-17 18:40:19 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -217,19 +217,23 @@ int
 dfa_GetFields (const DataFile *df, const ZebraTime *t, int *nfld, 
 	       FieldId *flist)
 /*
- * Return the available fields.
+ * Return the available fields.  Enforce the policy that nfld is set
+ * on return, setting it to zero if anything fails along the way.
  */
 {
 	OpenFile *ofp;
+	int r = 0;
 
 	if ((ofp = dfa_OpenFile (df, 0)) && ofp->of_fmt->f_GetFields)
 	{	
 		int sample = dfa_TimeIndex (ofp, t, 0);
 		if (sample < 0)
 			sample = 0;
-		return ((*ofp->of_fmt->f_GetFields)(ofp, sample, nfld, flist));
+		r = (*ofp->of_fmt->f_GetFields)(ofp, sample, nfld, flist);
 	}
-	return (0);
+	if (! r)
+	    *nfld = 0;
+	return (r);
 }
 
 
