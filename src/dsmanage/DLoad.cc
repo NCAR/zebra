@@ -38,7 +38,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.7 1994-11-19 00:30:53 burghart Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.8 1995-01-26 00:24:37 burghart Exp $")
 
 //
 // Import from main.
@@ -321,6 +321,7 @@ void ProcessTarFile (Tape &, const TarHeader *, PlatformIndex &);
 int DecodeNum (const char *);
 static int TarEOF (TarHeader *tp);
 void ExtractPlat (const char *, char *);
+void ExtractDirPlat (const char *, char *);
 static void SkipTarFile (Tape &tape, TarHeader *tp);
 static int FileWanted (const char *, const char *, const PlatformIndex *);
 static int ExtractTapeFile (Tape &tape, char *plat, TarHeader *tp);
@@ -376,9 +377,14 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 		if (TarEOF (tp))
 			continue;
 	//
-	// See if this is a file we want or not.
+	// See if this is a file we want or not.  KLUGE: If the first platform
+	// name we extract isn't good, try to build a platform name from the
+	// directory path portion of the filename.
 	//
 		ExtractPlat (tp->th_name, plat);
+		if (! index->files (plat))
+			ExtractDirPlat (tp->th_name, plat);
+			
 		if (! FileWanted (plat, tp->th_name, index))
 		{
 			cout << "Skip " << tp->th_name << ".\n";
@@ -488,38 +494,54 @@ ExtractPlat (const char *file, char *plat)
 			nperiod++;
 	strncpy (plat, begin, end - begin + 1);
 	plat[end - begin + 1] = '\0';
-//
-// Some serious ugliness to make things work for toga/coare.  No more
-// slashes in names!
-//
-	if (! strncmp (plat, "kapinga", 7))
-		InsertSlash (plat, 7);
-	else if (! strncmp (plat, "kavieng", 7))
-		InsertSlash (plat, 7);
-	else if (! strncmp (plat, "nauru", 5) ||
-		 ! strncmp (plat, "manus", 5))
-		InsertSlash (plat, 5);
-	else if (! strncmp (plat, "sci1", 4) ||
-		 ! strncmp (plat, "exp3", 4))
-		InsertSlash (plat, 4);
 }
 
 
 
 
-
-static void
-InsertSlash (char *string, const int where)
+void
+ExtractDirPlat (const char *file, char *plat)
 //
-// Put a slash into this string.
+// Try to build a platform name using the last two directories in "file"'s 
+// path.  This is a klugy means to get around platform names that have 
+// (exactly) one slash in them and the slash is removed when file names are
+// built.  (E.g., platform "rass/kapinga" may have a file named something
+// like "./rass/kapinga/rasskapinga.930201.000000".  ExtractPlat() above will
+// return "rasskapinga" as the platform name.  ExtractDirPlat() will return
+// "rass/kapinga")
 //
 {
-	char kludgebuf[200];
+	int	slash, nslash, len;
+	const char	*begin, *end, *c;
+//
+// Grab the last two directories from "file"'s path
+//
+	nslash = 0;
+	begin = end = file;
 
-	strncpy (kludgebuf, string, where);
-	strcpy (kludgebuf + where, "/");
-	strcat (kludgebuf, string + where);
-	strcpy (string, kludgebuf);
+	for (c = file + strlen (file); c >= file; c--)
+	{
+		if (*c != '/')
+			continue;
+		
+		nslash++;
+
+		if (nslash == 1)
+			end = c - 1;
+		else if (nslash == 3)
+		{
+			begin = c + 1;
+			break;
+		}
+	}
+//
+// Return what we got
+//
+	len = end - begin + 1;
+	strncpy (plat, begin, len);
+	plat[len] = '\0';
+	
+	return;
 }
 
 
