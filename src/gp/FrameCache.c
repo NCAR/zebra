@@ -22,13 +22,14 @@
 # include <errno.h>
 # include <fcntl.h>
 # include <ui.h>
+# include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.7 1992-11-02 22:02:19 burghart Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.8 1992-12-23 18:43:22 kris Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -163,12 +164,11 @@ fc_InvalidateCache ()
 	for (i = 0; i < FrameCount; i++)
 		FreePixmaps[i] = FREE;
 /*
- *  Create the FrameFile and open it for read/writing.
+ *  Re-create the FrameFile and open it for read/writing.
  */
-	if(FrameFileFlag)
+	if (FrameFile >= 0)
 	{
-		if (FrameFile >= 0)
-			close (FrameFile);
+		close (FrameFile);
 		if ((FrameFile = open (FileName, O_RDWR | O_CREAT |O_TRUNC, 
 			PMODE)) < 0)
 			msg_ELog (EF_PROBLEM, "Can't open %s (%d).", FileName, 
@@ -178,20 +178,38 @@ fc_InvalidateCache ()
 }
 
 
-void fc_CreateFrameFile()
+void fc_CreateFrameFile ()
+/*
+ *  Put together FileName and create the FrameFile for the first time.
+ */
 {
 /*
- *  Create the FrameFile.
+ * Are we doing a FrameFile at all?  If not, don't do anything here.
+ */
+	if (! FrameFileFlag)
+		return;
+/*
+ * Make sure a FrameFile doesn't already exist.
  */
 	if (FrameFile < 0)
 	{
+	/*
+	 * Put together the FileName.
+	 */
 		sprintf (FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
-			getpid());
+			getpid ());
 		msg_ELog (EF_DEBUG, "FrameFile:  %s.", FileName);
+	/*
+	 * Open it.
+	 */
 		if ((FrameFile = open (FileName, O_RDWR | O_CREAT | O_TRUNC, 
 			PMODE)) < 0)
 			msg_ELog (EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
+	/*
+	 * Unlink so that if we die unexpectedly, the FrameFile will
+	 * go away.
+	 */
 		unlink (FileName);
 	}
 }
@@ -527,6 +545,11 @@ int frame, pixmap;
 
 	msg_ELog(EF_DEBUG, "Moving frame %d to pixmap %d.", frame, pixmap);
 /*
+ * Does a FrameFile even exist?
+ */
+	if (! FrameFileFlag)
+		return (FALSE);
+/*
  *  Update important FrameFile values.
  */
 # ifdef SHM
@@ -543,10 +566,9 @@ int frame, pixmap;
 	 	{
 	 		msg_ELog(EF_PROBLEM,"Can't allocate space for image.");
 			XDestroyImage (image);
-	 		return(FALSE);
+	 		return (FALSE);
 	 	}
 	}
-
 /*
  *  Make sure pixmap to be swapped into is available.
  */
@@ -622,7 +644,11 @@ int frame;
 {
 	XImage *image = 0;
 	int framesize, offset;
-
+/*
+ * Does a FrameFile even exist?
+ */
+	if (! FrameFileFlag)
+		return (FALSE);
 /*
  *  Update important FrameFile values.
  */

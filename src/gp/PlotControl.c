@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.16 1992-12-11 21:04:38 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.17 1992-12-23 18:44:32 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -32,27 +32,15 @@ static char *rcsid = "$Id: PlotControl.c,v 2.16 1992-12-11 21:04:38 corbet Exp $
 # include "EventQueue.h"
 
 
-# ifdef __STDC__
-	int pc_TimeTrigger (char *);
-	void pc_TriggerGlobal();
-	static void pc_SetTimeTrigger (int, char *);
-	static void pc_PlotAlarm (time *, char *);
-	static void pc_FrameAlarm ();
-	static void pc_Plot (char *);
-	static void pc_NextFrame ();
-	static void pc_Notification (PlatformId, int, time *);
-	static void pc_DoTrigger (char *, char *, int);
-# else
-	int pc_TimeTrigger ();
-	void pc_TriggerGlobal();
-	static void pc_SetTimeTrigger ();
-	static void pc_PlotAlarm ();
-	static void pc_FrameAlarm ();
-	static void pc_Plot ();
-	static void pc_NextFrame ();
-	static void pc_Notification ();
-	static void pc_DoTrigger ();
-# endif
+int		pc_TimeTrigger FP ((char *));
+void		pc_TriggerGlobal FP (());
+static void	pc_SetTimeTrigger FP ((int, char *));
+static void	pc_PlotAlarm FP ((time *, char *));
+static void	pc_FrameAlarm FP (());
+static void	pc_Plot FP ((char *));
+static void	pc_NextFrame FP (());
+static void	pc_Notification FP ((PlatformId, int, time *));
+static void	pc_DoTrigger FP ((char *, char *, int));
 
 
 /*
@@ -161,15 +149,19 @@ pc_PlotHandler ()
 	msg_ELog(EF_DEBUG, "Post processing mode: %s", PostProcMode ? "TRUE" : 
 		"FALSE");
 /*
- * Get the path to the FrameFile from the plot description.
+ * If a FrameFile doesn't already exist...
+ * Get the path to the FrameFile from the plot description and
+ * create it.
  */
-	if(! FrameFileFlag)
+	if (! FrameFileFlag)
 	{
-		if(! pda_Search (Pd, "global", "file-path", NULL, 
+		if (pda_Search (Pd, "global", "file-path", NULL, 
 			FrameFilePath, SYMT_STRING))
-			strcpy(FrameFilePath, "/dt/tmp");
-		FrameFileFlag = TRUE;
-		fc_CreateFrameFile();
+		{
+			FrameFileFlag = TRUE;
+			fc_CreateFrameFile();
+		}
+		else msg_ELog (EF_DEBUG, "No FrameFile.");
 	}
 /*
  * Figure out how many pixmaps we need the graphics widget to have.
