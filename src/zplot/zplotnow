@@ -1,7 +1,7 @@
 #! /bin/sh
 
 if [ "$1" = "-h" ]; then
-    echo "Usage: $0 [h1 h2 ...]"
+    echo "Usage: $0 [h1 h2 ...] [-- <zplotd options>]"
     echo "Generate plots for any data since and before the current"
     echo "plot hour.  If no arguments, uses the value of"
     echo "PLOT_HOURS from the project configuration."
@@ -14,16 +14,17 @@ zplotdargs=""
 opthours=""
 justecho=0
 echo=""
-for opt in $* END; do
-    case $opt in
-    END) break ;;
+while [ $# -ne 0 ]; do
+    case $1 in
     -x) justecho=1 ; echo=echo
 	;;
-    -*) zplotdargs="$zplotdargs $opt"
+    --) shift; zplotdargs="$zplotdargs $*"
+        break
 	;;
-    *)  opthours="$opthours $opt"
+    *)  opthours="$opthours $1"
 	;;
     esac
+    shift
 done
 set skip $opthours
 shift
