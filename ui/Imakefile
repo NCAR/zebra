@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.19 2002-07-12 00:30:30 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.20 2004-10-25 23:28:59 burghart Exp $"
 
 /*
  * This Imakefile is now here only for builds via Zebra.  If Zebra gets
@@ -44,7 +44,9 @@ UI_LF = $(UI_LIBDIR)/$(LOADFILE)
  */
 INCLUDES = $(XINCLUDES) -I. -I./LiteClue
 LIBS = $(LIBRDSS) $(XLIBS)
-DEPLIBS = $(LIBRDSSUTIL)
+
+LIBRDSSUI = librdssui.a
+DEPLIBS = $(LIBRDSS)
 
 UIDIR = -DUIDIR=\"$(UI_LIBDIR)\"
 
