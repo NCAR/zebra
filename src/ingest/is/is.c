@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.13 1992-07-06 18:18:08 issadmin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.14 1992-08-28 23:36:00 barrett Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -32,6 +32,7 @@ static char    *rcsid = "$Id: is.c,v 1.13 1992-07-06 18:18:08 issadmin Exp $";
 #include <fcntl.h>
 #include <sys/errno.h>
 
+#include <config.h>
 #include <ui.h>
 #include <ui_error.h>
 #include <dirent.h>
@@ -63,6 +64,7 @@ extern char    *sys_errlist[];
 
 stbl            Configs;	/* will hold all configurations, accesable by
 				 * config name */
+stbl		Groups;		/* will hold configuration groups */
 char           *redirect = "none";	/* where to redirect stdout and
 					 * stderr when an ingest process is
 					 * spawned */
@@ -93,7 +95,7 @@ main(argc, argv)
 	 * Get the interface set up.
 	 */
 
-	fixdir_t("ISLOADFILE", "/iss/bin", "is.lf", loadfile, ".lf");
+	fixdir_t("ISLOADFILE", LIBDIR, "is.lf", loadfile, ".lf");
 	ui_init(loadfile, TRUE, FALSE);
 	ui_setup("is", &argc, argv, (char *) 0);
 
@@ -101,6 +103,7 @@ main(argc, argv)
 	 * Create our symbol tables.
 	 */
 	Configs = usy_c_stbl("Configurations");
+	Groups = usy_c_stbl("Groups");
 
 	/*
 	 * Indirect variables.
@@ -171,6 +174,10 @@ is_initial(arg, cmds)
 
 	case ISC_REDIRECT:
 		is_redirect(cmds + 1);
+		break;
+
+	case ISC_GROUP:
+		is_group(cmds + 1);
 		break;
 
 	default:
@@ -266,19 +273,31 @@ is_start(cmds)
 	int             start_cfg();
 
 	int             type;
+	int		i;
+	struct NList *g = NEW(struct NList);
 
 	switch (cmds[0].uc_ctype) {
 
 	case UTT_VALUE:
 		/*
-		 * must be a configuration name, so look it up and do the
-		 * buisness
+		 * must be a configuration or group name, so look it up and do 
+		 * the business
 		 */
 		if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
-			start_cfg(UPTR(cmds[0]), type,
-				  &v, FALSE);
+			start_cfg(UPTR(cmds[0]), type, &v, FALSE);
+		else if (usy_g_symbol(Groups, UPTR(cmds[0]), &type, &v))
+		{
+		    g = (struct NList *)v.us_v_ptr;
+		    for ( i = 0; i < g->n; i++)
+		    {
+		        if (usy_g_symbol(Configs, g->list[i], &type, &v))
+			    start_cfg(g->list[i], type, &v, FALSE);
+			else
+			    ui_error("Unknown configuration %s\n", g->list[i]);
+		    }
+		}
 		else
-			ui_error("Unknown configuration %s\n", UPTR(cmds[0]));
+			ui_error("Unknown configuration or group %s\n", UPTR(cmds[0]));
 		break;
 
 	case UTT_KW:
@@ -343,6 +362,8 @@ is_stop(cmds)
 	int             stop();
 
 	int             type;
+	int		i;
+	struct NList *g = NEW(struct NList);
 
 	/*
 	 * parse the stop command
@@ -352,14 +373,24 @@ is_stop(cmds)
 
 	case UTT_VALUE:
 		/*
-		 * must be a configuration name, so look it up and do the
-		 * buisness
+		 * must be a configuration or group name, so look it up and do 
+		 * the business
 		 */
 		if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
-			stop(UPTR(cmds[0]), type,
-			     &v, FALSE);
+			stop(UPTR(cmds[0]), type, &v, FALSE);
+		else if (usy_g_symbol(Groups, UPTR(cmds[0]), &type, &v))
+		{
+		    g = (struct NList *)v.us_v_ptr;
+		    for ( i = 0; i < g->n; i++)
+		    {
+		        if (usy_g_symbol(Configs, g->list[i], &type, &v))
+			    stop(g->list[i], type, &v, FALSE);
+			else
+			    ui_error("Unknown configuration %s\n", g->list[i]);
+		    }
+		}
 		else
-			ui_error("Unknown configuration %s\n", UPTR(cmds[0]));
+			ui_error("Unknown configuration or group %s\n", UPTR(cmds[0]));
 		break;
 
 	case UTT_KW:
@@ -408,6 +439,43 @@ stop(name, type, v, all)
 	cfg->rollover = FALSE;
 	cfg->ingest_file[0] = 0;
 	cfg->timer_slot = -1;
+}
+
+is_group(cmds)
+	struct ui_command *cmds;
+/*
+ * Collect several configurations into a group
+ */
+{
+	
+	union usy_value v;
+	int             i;
+	char		gname[64];
+	int             type;
+
+	/* allocate a new group */
+	struct NList *g = NEW(struct NList);
+
+	/* get the group name */
+	strcpy ( gname, UPTR(cmds[0]) );
+	cmds++;
+
+	/* get the configuration names */
+	g->n = 0;
+	while ( cmds->uc_ctype != UTT_END && g->n < MAXGC )
+	{
+	    if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
+	    {
+		    g->list[g->n] =(char*)calloc( 1, strlen(UPTR(cmds[0])) + 1);
+		    strcpy ( g->list[g->n], UPTR(cmds[0]) );
+		    g->n = g->n + 1;
+	    }
+	    else
+	        ui_error("Unknown configuration %s -- ignored\n", UPTR(cmds[0]) );
+	    cmds++;
+	}
+	v.us_v_ptr = (char *) g;
+	usy_s_symbol(Groups, gname, SYMT_POINTER, &v);
 }
 
 is_config(cmds)
@@ -597,6 +665,8 @@ is_list(cmds)
 	int             list_cfg();
 
 	union usy_value v;
+	struct NList	*g = NULL;
+	int		i;
 
 	int             type;
 
@@ -608,14 +678,24 @@ is_list(cmds)
 
 	case UTT_VALUE:
 		/*
-		 * must be a configuration name, so look it up and do the
-		 * buisness
+		 * must be a configuration or group name, so look it up and do 
+		 * the business
 		 */
 		if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
-			list_cfg(UPTR(cmds[0]), type,
-				 &v, FALSE);
+			list_cfg(UPTR(cmds[0]), type, &v, FALSE);
+		else if (usy_g_symbol(Groups, UPTR(cmds[0]), &type, &v))
+		{
+		    g = (struct NList *)v.us_v_ptr;
+		    for ( i = 0; i < g->n; i++)
+		    {
+		        if (usy_g_symbol(Configs, g->list[i], &type, &v))
+			    list_cfg(g->list[i], type, &v, FALSE);
+			else
+			    ui_error("Unknown configuration %s\n", g->list[i]);
+		    }
+		}
 		else
-			ui_error("Unknown configuration %s\n", UPTR(cmds[0]));
+			ui_error("Unknown configuration or group %s\n", UPTR(cmds[0]));
 		break;
 
 	case UTT_KW:

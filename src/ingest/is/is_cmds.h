@@ -1,4 +1,4 @@
-/* $Id: is_cmds.h,v 1.5 1991-12-11 20:38:55 martin Exp $ */
+/* $Id: is_cmds.h,v 1.6 1992-08-28 23:36:16 barrett Exp $ */
 /*
  * Keyword numbers for ingest scheduler commands.
  */
@@ -41,3 +41,4 @@
 #define ISC_REDIRECT   21
 #define ISC_NONE       22
 #define ISC_TERM       23
+#define ISC_GROUP      24

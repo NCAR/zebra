@@ -1,4 +1,4 @@
-! $Id: is.state,v 1.4 1991-12-11 20:38:32 martin Exp $
+! $Id: is.state,v 1.5 1992-08-28 23:35:45 barrett Exp $
 !
 ! Command definition for the display manager.
 !
@@ -39,8 +39,26 @@ define state is-initial
 	input 'redirect' 21
 		next redirect-arg
 	endinput
+	input 'group' 24
+		next group-name
+	endinput
 	input 'shutdown' 19
 		next ust$no_more
+	endinput
+enddef
+
+define state group-name
+	input string 
+		next group-list
+	endinput
+enddef
+
+define state group-list
+	input string
+		next group-list
+	endinput
+	input EOS
+		done
 	endinput
 enddef
 
