@@ -1,7 +1,7 @@
 /*
  * Bitmap handling
  */
-static char *rcsid = "$Id: Bitmaps.c,v 1.3 1993-11-05 21:43:46 granger Exp $";
+static char *rcsid = "$Id: Bitmaps.c,v 1.4 1993-11-15 21:35:14 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,6 +23,7 @@ static char *rcsid = "$Id: Bitmaps.c,v 1.3 1993-11-05 21:43:46 granger Exp $";
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
+# include <defs.h>
 # include "bitmaps.h"
 
 void bm_BuildBitmaps ();
