@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.12 1996-12-03 07:08:20 granger Exp $
+ * $Id: aline.c,v 3.13 1996-12-03 22:05:20 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -552,8 +552,10 @@ main (argc, argv)
 #endif
 	while (NNotifies < nconsumers)
 		msg_poll (1);
-	err += Produce(nconsumers);
-	return(err);
+	err += Produce (nconsumers);
+	ds_ForceClosure ();
+	msg_disconnect ();
+	return (err);
 }
 
 
@@ -652,7 +654,7 @@ int nconsumers;
 		newfile = ((i == 0) || 
 			   (!LinkPlatforms && ((i % NEWFILE) == 0)));
 		msg_ELog (EF_DEBUG, "storing inventory %d of %d",
-			  i, Inventory);
+			  i+1, Inventory);
 		if (! ds_StoreBlocks (dc, newfile, details, ndetail))
 			++err;
 		dc_DestroyDC (dc);

@@ -26,7 +26,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.9 1996-12-03 06:57:44 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.10 1996-12-03 22:05:22 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -121,9 +121,14 @@ struct dsp_NotifyRequest *req;
  */
 	if (Copies)
 	{
-		strcpy (((char *) req) + sizeof (*req), from);
-		msg_send (CopyProc, MT_DATASTORE, FALSE, req,
-			  sizeof (*req) + strlen (from) + 1);
+		char buf[sizeof (struct dsp_NotifyRequest) + MAX_NAME_LEN + 1];
+		struct dsp_NotifyRequest *copy;
+
+		copy = (struct dsp_NotifyRequest *) buf;
+		*copy = *req;
+		strcpy (((char *) copy) + sizeof (*copy), from);
+		msg_send (CopyProc, MT_DATASTORE, FALSE, copy,
+			  sizeof (*copy) + strlen (from) + 1);
 	}
 }
 
@@ -196,7 +201,7 @@ char *proc;
  */
 	if (Copies)
 	{
-		char buf[256];
+		char buf[sizeof(struct dsp_Template) + MAX_NAME_LEN + 1];
 		struct dsp_Template *dt = (struct dsp_Template *) buf;
 
 		dt->dsp_type = dpt_CancelNotify;
