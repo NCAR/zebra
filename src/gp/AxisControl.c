@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.16 1993-12-01 16:53:11 burghart Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.17 1993-12-22 01:16:44 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -41,7 +41,7 @@ static char *rcsid = "$Id: AxisControl.c,v 1.16 1993-12-01 16:53:11 burghart Exp
 /*
  * Convenient scratch string
  */
-char	Scratch[200];
+static char	Scratch[200];
 
 /*
  * How much space (in pixels) have we used on each side so far
@@ -55,7 +55,7 @@ static void	ac_GetAxisDescriptors FP ((char*, AxisSide, int*, float*,
 					   float*, char*, char*, float*));
 static void	ac_FormatLabel FP ((DataValPtr, char*, char*));
 static void	ac_DrawAxis FP ((char*, AxisSide));
-static int	ac_LabelInfo FP ((DataValPtr, DataValPtr, float, float,
+static int	ac_LabelInfo FP ((DataValPtr, DataValPtr, double, double,
 				  DataValPtr, int*, int*));
 static double	ac_AutoTicInterval FP ((DataValPtr, DataValPtr));
 static void	ac_GetLabel FP ((char *, int, char *));

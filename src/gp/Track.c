@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.27 1993-10-28 20:28:42 burghart Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.28 1993-12-22 01:17:02 corbet Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -58,11 +58,11 @@ static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
 		char *, bool *, char *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
-		char *, float, float, float, char *, bool));
+		char *, double, double, double, char *, bool));
 static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable));
 static void tr_DoTimeAnnot FP((Drawable, int, int, char *, char *, double, 
 		XColor, ZebTime, double rot, int justify));
-static float tr_FigureRot FP ((float, float, float, float, int *));
+static float tr_FigureRot FP ((double, double, double, double, int *));
 static int tr_LocateAnnot FP ((DataChunk *dc, int sample,
 			       ZebTime *a_time, int *x, int *y, 
 			       float *rot, int *justify));

@@ -1,7 +1,7 @@
 /*
  * Data insertion widget.
  */
-static char *rcsid = "$Id: InsertWidget.c,v 1.2 1992-11-03 16:20:42 burghart Exp $";
+static char *rcsid = "$Id: InsertWidget.c,v 1.3 1993-12-22 01:16:48 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -2274,7 +2274,7 @@ XtPointer	yesno, junk;
 	 */
 		if ((int) yesno == YES)
 		{
-			if (*YesRoutines[Mode][Type])
+			if (YesRoutines[Mode][Type])
 				(*YesRoutines[Mode][Type]) ();
 			Step++;
 		}

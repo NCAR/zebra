@@ -153,7 +153,7 @@ extern void	lc_GetTime FP ((UItime *, time_t));
 extern void	lc_DecrData FP ((DataValPtr, double));
 extern void	lc_IncrData FP ((DataValPtr, double));
 extern int	lc_CompareData FP ((DataValPtr, DataValPtr));
-extern void	lc_Zoom FP ((float, float, float, float));
+extern void	lc_Zoom FP ((double, double, double, double));
 extern int	lc_UnZoom FP ((int));
 extern int	devY FP ((DataValPtr));
 extern int	devX FP ((DataValPtr));

@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.14 1993-10-28 20:28:46 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.15 1993-12-22 01:17:07 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -53,7 +53,7 @@ static char *rcsid = "$Id: XSection.c,v 2.14 1993-10-28 20:28:46 burghart Exp $"
 /*
  * Scratch string for building annotations, etc.
  */
-char	Scratch[128];
+static char	Scratch[128];
 
 /*
  * Action to take when we hit a bad sounding

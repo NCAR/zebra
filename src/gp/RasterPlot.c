@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.9 1993-12-14 03:25:24 granger Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.10 1993-12-22 01:17:00 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -86,12 +86,12 @@ void RasterPlot FP ((Widget w, Drawable d, float *array,
 		     int xdim, int ydim,
 		     int xlo, int ylo, int xhi, int yhi));
 void RP_Init FP ((XColor *colors, int count, XColor c_outrange,
-		  XRectangle clip, float dmin, float dmax, 
-		  Boolean highlight, float hvalue, XColor hcolor,
-		  float hrange));
+		  XRectangle clip, double dmin, double dmax, 
+		  Boolean highlight, double hvalue, XColor hcolor,
+		  double hrange));
 void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
 			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
-			  float scale, float bias));
+			  double scale, double bias));
 void RasterXIPlot FP ((Widget w, Drawable d, float *array, 
 		       int xdim, int ydim, 
 		       int xlo, int ylo, int xhi, int yhi,
@@ -109,8 +109,8 @@ static void RP_FPRasterize FP((
 	unsigned char *ximp,
 	int width, int height, 
 	unsigned int *colgrid, 
-	float row, float icol, 
-	float rowinc, float colinc,
+	double row, double icol, 
+	double rowinc, double colinc,
 	int xdim, 
 	int pad));
 
@@ -118,8 +118,8 @@ static void RP_IRasterize FP((
 	unsigned char *ximp,
 	int width, int height, 
 	unsigned int *colgrid, 
-	float row, float icol, 
-	float rowinc, float colinc,
+	double row, double icol, 
+	double rowinc, double colinc,
 	int xdim, 
 	int pad));
 
@@ -129,8 +129,8 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   int width, int height,
 				   unsigned char *grid,
 				   unsigned char *cmap,
-				   float row, float icol, 
-				   float rowinc, float colinc,
+				   double row, double icol, 
+				   double rowinc, double colinc,
 				   int xdim, int pad));
 
 /* static bool RP_ShmPossible FP ((Display *disp)); */

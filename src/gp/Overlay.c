@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.31 1993-11-11 20:02:47 burghart Exp $";
+	"$Id: Overlay.c,v 2.32 1993-12-22 01:16:57 corbet Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -176,13 +176,13 @@ static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
 			int *, bool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
-			double, float, double, double));
+			double, double, double, double));
 static void 	ov_LLSolidGrid FP ((int, int, int, int, double, double,
-				    double, float));
+				    double, double));
 static void	ov_TicGrid FP ((int, int, int, int, double, double,
-			double, float, int, double, double));
+			double, double, int, double, double));
 static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
-				double, float, int));
+				double, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 
