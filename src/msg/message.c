@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.25 1995-04-25 16:24:34 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.26 1995-04-25 20:21:20 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -1403,7 +1403,10 @@ int fd;
 	/*
 	 * Set up for the rest.
 	 */
-		msg->m_data = malloc (msg->m_len);
+		if (msg->m_len > 0)
+			msg->m_data = malloc (msg->m_len);
+		else
+			msg->m_data = NULL;
 		cp->c_inprog = TRUE;
 		cp->c_nread = 0;
 	/*
@@ -1417,8 +1420,9 @@ int fd;
 /*
  * Pull in the message text.
  */
-	cp->c_nread += msg_netread (fd, msg->m_data + cp->c_nread,
-				    msg->m_len - cp->c_nread);
+	if (msg->m_len > 0)
+		cp->c_nread += msg_netread (fd, msg->m_data + cp->c_nread,
+					    msg->m_len - cp->c_nread);
 	if (cp->c_nread >= msg->m_len)
 	{
 		cp->c_inprog = FALSE;
