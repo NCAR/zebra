@@ -20,7 +20,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Daemon.c,v 2.3 1991-12-17 19:52:01 kris Exp $";
 
 # include <sys/types.h>
 # include <sys/vfs.h>
@@ -35,55 +34,33 @@ static char *rcsid = "$Id: Daemon.c,v 2.3 1991-12-17 19:52:01 kris Exp $";
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
+MAKE_RCSID ("$Id: Daemon.c,v 2.4 1992-03-18 21:11:51 corbet Exp $")
 
 
 
 /*
  * Local forwards.
  */
-# ifdef __STDC__
-	static int msg_Handler (struct message *);
-	static int ui_Handler (int, struct ui_command *);
-	void Shutdown (void);
-	static void DataScan (void);
-	static void ScanDirectory (Platform *, int);
-	static void ScanFile (Platform *, char *, char *, int);
-	static void mh_message (struct message *);
-	static void ds_message (char *, struct dsp_Template *);
-	static void dp_NewFile (char *, struct dsp_CreateFile *);
-	static void dp_AbortNewFile (struct dsp_AbortNewFile *);
-	static void dp_UpdateFile (struct dsp_UpdateFile *);
-	static void dp_DeleteData (Platform *, int);
-	static void ZapDF (DataFile *);
-	static void SetUpEvery (struct ui_command *);
-	static void ExecEvery (time *, int);
-	static void Truncate (struct ui_command *);
-	static int FreeSpace (int, SValue *, int *, SValue *, int *);
-	static int BCHandler (int, char *, int);
-	static void BCSetup (char *, int);
-	static void RemDataGone (struct dsp_BCDataGone *);
-# else
-	static int msg_Handler ();
-	static int ui_Handler ();
-	void Shutdown ();
-	static void DataScan ();
-	static void ScanDirectory ();
-	static void ScanFile ();
-	static void mh_message ();
-	static void ds_message ();
-	static void dp_NewFile ();
-	static void dp_AbortNewFile ();
-	static void dp_UpdateFile ();
-	static void dp_DeleteData ();
-	static void ZapDF ();
-	static void SetUpEvery ();
-	static void ExecEvery ();
-	static void Truncate ();
-	static int FreeSpace ();
-	static int BCHandler ();
-	static void BCSetup ();
-	static void RemDataGone ();
-# endif
+static int 	msg_Handler FP ((struct message *));
+static int	ui_Handler FP ((int, struct ui_command *));
+void		Shutdown FP ((void));
+static void	DataScan FP ((void));
+static void	ScanDirectory FP ((Platform *, int));
+static void	ScanFile FP ((Platform *, char *, char *, int));
+static void	mh_message FP ((struct message *));
+static void	ds_message FP ((char *, struct dsp_Template *));
+static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
+static void	dp_AbortNewFile FP ((struct dsp_AbortNewFile *));
+static void	dp_UpdateFile FP ((struct dsp_UpdateFile *));
+static void	dp_DeleteData FP ((Platform *, int));
+static void	ZapDF FP ((DataFile *));
+static void	SetUpEvery FP ((struct ui_command *));
+static void	ExecEvery FP ((time *, int));
+static void	Truncate FP ((struct ui_command *));
+static int	FreeSpace FP ((int, SValue *, int *, SValue *, int *));
+static int	BCHandler FP ((int, char *, int));
+static void	BCSetup FP ((char *, int));
+static void	RemDataGone FP ((struct dsp_BCDataGone *));
 
 /*
  * Broadcast stuff.
@@ -520,6 +497,8 @@ struct dsp_Template *dt;
  * Deal with an incoming data store protocol message.
  */
 {
+	struct dsp_MarkArchived *dma;
+
 	switch (dt->dsp_type)
 	{
 	/*
@@ -560,6 +539,13 @@ struct dsp_Template *dt;
 
 	   case dpt_CopyNotifyReq:
 	   	dap_Copy (from);
+		break;
+	/*
+	 * A file is archived.
+	 */
+	   case dpt_MarkArchived:
+	   	dma = (struct dsp_MarkArchived *) dt;
+		DFTable[dma->dsp_FileIndex].df_archived = TRUE;
 		break;
 	/*
 	 * Chaos.
