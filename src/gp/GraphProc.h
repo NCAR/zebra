@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.37 1994-05-20 20:04:27 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.38 1994-05-25 14:42:56 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -204,6 +204,7 @@ extern void mc_Dial FP ((int));
 
 /* Model widget */
 extern void mw_ParamChange FP ((char *));
+extern void mw_Update FP ((void));
 
 /* Icons */
 extern void I_DoIcons FP ((void));
