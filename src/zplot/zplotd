@@ -69,7 +69,7 @@ while ($pattern = shift @ARGV)
 	print "read stdin in the format of dsnotice update lines.\n";
 	exit 0;
     }
-    if ($pattern =~ /^-d(\d*)/)
+    if ($pattern ne "-dequeue" && $pattern =~ /^-d(\d*)/)
     {
 	if ($1) 
 	{
