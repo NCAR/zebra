@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.19 1994-05-05 19:51:21 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.20 1994-05-18 19:19:20 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -204,7 +204,11 @@ char **argv;
 	Inet_table = usy_c_stbl ("Inet_table");
 	InetGripeTable = usy_c_stbl ("InetGripeTable");
 	InetAvoidTable = usy_c_stbl ("InetAvoidTable");
+/*
+ * Signals 
+ */
 	signal (SIGPIPE, (void *)psig);
+	signal (SIGHUP, SIG_IGN);
 /*
  * Get our inet port.  Do so even if we are not opening a listening
  * socket, since we may want to connect outbound.
@@ -223,13 +227,17 @@ char **argv;
 	}
 	strcpy (Hostname, host);
 /*
+ * OK initial setup is complete.  Back off into daemon mode...
+ */
+	if (fork ())
+		exit (0);	/* Parent goes away */
+/*
  * Set up our select stuff.
  */
 	FD_ZERO (&Allfds);
 	FD_SET (M_un_socket, &Allfds);
 	if (M_in_socket >= 0)
 		FD_SET (M_in_socket, &Allfds);
-/*	printf ("Master message socket: %d\n", M_un_socket); */
 /*
  * Now it's loop time.
  */
@@ -1044,9 +1052,13 @@ ReallyDie ()
 /*
  * Clear out our sockets and quit.
  */
+	shutdown (M_un_socket, 2);
 	close (M_un_socket);
 	if (M_in_socket >= 0)
+	{
+		shutdown (M_in_socket, 2);
 		close (M_in_socket);
+	}
 	for (i = 0; i < 64; i++)
 		if (Fd_map[i])
 			close (i);
@@ -1190,7 +1202,14 @@ Message *msg;
 	   case MH_CQREPLY:
 	   	route (fd, msg);
 		break;
-
+	/*
+	 * Client messages must have come off an inet connection.  Just
+	 * forward them on.
+	 */
+	    case MH_CLIENT:
+		broadcast (msg, Fd_map[fd]);
+		break;
+		
 	   default:
 		send_log ("Funky MESSAGE type: %d\n", tm->mh_type);
 		break;
@@ -1767,8 +1786,12 @@ struct connection *conp;
 {
 	struct message msg;
 	struct mh_client cl;
-
-	if (Dying)
+	int i;
+/*
+ * Don't announce the demise of internet connections, though there is some
+ * info here that might be useful...
+ */
+	if (conp->c_inet)
 		return;
 /*
  * Fill in our message.
@@ -1780,14 +1803,26 @@ struct connection *conp;
 	msg.m_flags = MF_BROADCAST;
 	msg.m_len = sizeof (cl);
 	msg.m_data = (char *) &cl;
-	strcpy (cl.mh_client, conp->c_name);
 	cl.mh_type = MH_CLIENT;
 	cl.mh_evtype = MH_CE_DISCONNECT;
 	cl.mh_inet = conp->c_inet;
 /*
- * Broadcast it.
+ * Send it out over any network connections we may have.
  */
- 	broadcast (&msg, conp);
+	strcpy (cl.mh_client, conp->c_name);
+	strcat (cl.mh_client, "@");
+	strcat (cl.mh_client, Hostname);
+	for (i = 4; i < Nfd; i++)
+		if (Fd_map[i] && Fd_map[i]->c_inet)
+			send_msg (Fd_map[i], &msg);
+/*
+ * Also broadcast it locally, if we're not in the process of shutting down.
+ */
+	if (! Dying)
+	{
+		strcpy (cl.mh_client, conp->c_name);
+		broadcast (&msg, conp);
+	}
 }
 
 
