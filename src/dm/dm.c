@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.23 1993-02-23 19:41:12 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.24 1993-03-02 20:05:08 corbet Exp $")
 
 
 /*
@@ -721,6 +721,11 @@ char *window, *pdesc;
 	strcpy (win->cfw_desc, pdesc);
 	win->cfw_pd = pd_CopyPD (pd);
 	send_pd (win);
+/*
+ * If we are shoving times down their throats, send the history time too.
+ */
+	if (ForceHistory && HistoryMode)
+		SetTimeMode (win->cfw_name, TRUE, &HistoryTime);
 }
 
 
