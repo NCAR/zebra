@@ -1,12 +1,14 @@
 /*
- * $Id: DataStore.h,v 3.14 1993-09-14 17:58:26 granger Exp $
+ * $Id: DataStore.h,v 3.15 1993-11-30 02:08:19 granger Exp $
  *
  * Public data store definitions.
  */
 
-# ifndef _DATACHUNK_H_
-# define _DATACHUNK_H_
+# ifndef __zeb_DataStore_h_
+# define __zeb_DataStore_h_
+
 # include "ds_fields.h"
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -469,4 +471,4 @@ void		ds_GetFileInfo FP ((int, DataFileInfo *));
 void		ds_LockPlatform FP ((PlatformId));
 void		ds_UnlockPlatform FP ((PlatformId));
 
-# endif  /* _DATACHUNK_H_ */
+# endif	/* !__zeb_DataStore_h_ */
