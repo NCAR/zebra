@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.4 1991-01-09 16:31:17 burghart Exp $
+! $Id: GraphProc.state,v 1.5 1991-02-07 16:25:02 corbet Exp $
 !
 ! State entries for the graphics process.
 !
@@ -38,6 +38,9 @@ define state initial
 	endinput
 	input 'sendendpoints' 15
 		next ust$no_more
+	endinput
+	input 'activate' 16
+		next act-widget
 	endinput
 enddef
 
@@ -150,6 +153,38 @@ define state dm-command
 		next ust$no_more
 	endinput
 enddef
+
+
+!
+! Popup limit widgets.  These types should agree with the enum definition
+! in LimitWidgets.c, or things will not work very well.
+!
+define state act-widget
+	input 'singlefloat' 0
+		next act-comp
+	endinput
+enddef
+
+define state act-comp
+	input string
+		lowercase
+		next act-sf-param
+	endinput
+enddef
+
+define state act-sf-param
+	input string
+		lowercase
+		next act-sf-label
+	endinput
+enddef
+
+define state act-sf-label
+	input string
+		next ust$final_real
+	endinput
+enddef
+
 
 
 !
