@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.24 1993-03-05 16:11:05 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.25 1993-03-16 23:45:41 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -352,7 +352,6 @@ ZebTime *cachetime;
 	char **comps, datestring[40], rep[30], tadefcolor[30];
 	int i;
 	Pixel timecolor;
-	XColor xc;
 	time temptime;
 /*
  * Choose the drawing frame and clear it out
@@ -383,7 +382,7 @@ ZebTime *cachetime;
 			strcpy(tadefcolor, "white");
 	if(! ct_GetColorByName(tadefcolor, &Tadefclr))
 	{
-		msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
+		msg_ELog(EF_PROBLEM, "Can't get top annotation color: '%s'.",
 			tadefcolor);
 		strcpy(tadefcolor, "white");
 		ct_GetColorByName(tadefcolor, &Tadefclr);
@@ -401,11 +400,32 @@ ZebTime *cachetime;
 	strcat (datestring, "  ");
 	if (PlotMode == History)
 	{
-		ct_GetColorByName ("red", &xc);
+	/*
+	 * Use "history-color" for time annotation on history mode plots
+	 * (default to yellow)
+	 */
+		char	hcolor[30];
+		XColor xc;
+
+		if (pd_Retrieve (Pd, "global", "history-color", hcolor, 
+			SYMT_STRING))
+		{
+			if (! ct_GetColorByName (hcolor, &xc))
+			{
+				msg_ELog (EF_PROBLEM, 
+					"Can't get history color '%s'", 
+					hcolor);
+				ct_GetColorByName ("yellow", &xc);
+			}
+		}
+		else
+			ct_GetColorByName ("yellow", &xc);
+
 		timecolor = xc.pixel;
 	}
 	else
 		timecolor = Tadefclr.pixel;
+
 	An_TopAnnot (datestring, timecolor);
 /*
  * If there is an initialization routine, call it now.
