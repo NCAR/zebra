@@ -6,6 +6,8 @@
 #include "T_BTree.hh"
 #include "BTreeFile.cc"
 
+using namespace std;
+
 template class BTree<ZTime,DataFileCore>;
 template class BTreeFile<ZTime,DataFileCore>;
 

@@ -53,6 +53,11 @@ public:
 		(dfc_inode == dfc.dfc_inode) &&
 		(dfc_nsample == dfc.dfc_nsample));
     }
+
+    bool operator != (const DataFileCore &dfc) const
+    {
+	return ! operator== (dfc);
+    }
 };
 
 SERIAL_STREAMABLE( DataFileCore );

@@ -17,10 +17,12 @@
 #include <time.h>	// Need time() to seed srand()
 #include <string>
 
+using namespace std;
+
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.30 2000-12-05 23:25:24 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.31 2002-01-03 08:33:21 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;

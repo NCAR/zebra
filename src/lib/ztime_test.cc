@@ -9,6 +9,8 @@
 #include "ZTime.h"
 #undef inline
 
+using std::string;
+
 int check (const char *test, bool cond, int line = 0)
 {
     if (! cond)
