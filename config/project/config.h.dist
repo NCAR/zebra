@@ -18,22 +18,22 @@
 
  * Some symbols are not YES or NO but actually directory names or commands.
  * If a Symbol is not defined in this file, it will be assigned a default
- * definition in the Zebra template file, Zeb.tmpl, in this directory.
+ * definition in the Zebra template file, Project.tmpl, in this directory.
  * Most of the defaults are mentioned in this file and there are
  * instructions for how to change many of the configuration parameters.
  * However, many more parameters exist.  If you think it necessary to
  * change some other parameters, such as when porting to a new platform,
- * look in the Zeb.tmpl file for all of the available parameters and their
- * defaults.  Also see Zeb-Imake.doc in this directory.  When in doubt
- * about a parameter, try the default first and then adjust it if it
- * doesn't work.
+ * look in the Project.tmpl file for all of the available parameters and
+ * their defaults.  Also see the Imake chapter of the Zebra Developer's
+ * Guide.  When in doubt about a parameter, try the default first and then
+ * adjust it if it doesn't work.
  */
 
 /*============================== Don't change anything in this section ==*/
 /*_/////////////////////////////////////////////////////////////////////-*/
 
-# ifndef _zeb_config_h_		/* protect against multiple inclusion */
-# define _zeb_config_h_
+# ifndef _zebra_config_h_	/* protect against multiple inclusion */
+# define _zebra_config_h_
 
 /*
  * Required when being included from a source file
@@ -48,8 +48,8 @@
 # ifdef MAKING_MAKEFILE
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
-XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.38 1996-01-25 01:03:10 granger Exp $
+XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
+XCOMM $Id: config.h.dist,v 1.39 1996-02-06 18:35:26 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -84,10 +84,11 @@ XCOMM -----------------------------------------------------------------------
  * CHECK THE FOLLOWING DEFINITIONS:
  * 
  * This section defines the directories in which Zebra files live.  These
- * are set-up for a default Zebra installation under /zeb, with the bin and
- * lib directories in /zeb/bin and /zeb/lib.  If you would like to change
- * the destination for Zebra, edit the definitions below.  The definitions
- * should be absolute paths and they should NOT be enclosed in quotes.
+ * are set-up for a default Zebra installation under /zebra, with the bin
+ * and lib directories in /zebra/bin and /zebra/lib.  If you would like to
+ * change the destination for Zebra, edit the definitions below.  The
+ * definitions should be absolute paths and they should NOT be enclosed in
+ * quotes.
  * 
  * PLEASE NOTE:
  * Files will be installed into the LibDir, BinDir, and BaseDir/include
@@ -98,7 +99,7 @@ XCOMM -----------------------------------------------------------------------
  * erase the contents of BinDir so that programs which are no longer used
  * are not left taking up space.  */
 
-# define BaseDir	/zeb
+# define BaseDir	/zebra
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
 
@@ -110,7 +111,7 @@ XCOMM -----------------------------------------------------------------------
  * ignore all of the other RDSS include and library definitions which are
  * asked for further on in this file. 
  */
-# define BuildRDSS	NO
+# define BuildRDSS	YES
 
 # if !BuildRDSS
 #  define RDSSDir	/rdss
@@ -657,18 +658,18 @@ XCOMM -----------------------------------------------------------------------
  * distribution are being compiled, other symbols control which parts
  * belong to the distribution:
  *
- * DistributeIngest	If YES, zeb/src/ingest is expected to be in the
+ * DistributeIngest	If YES, zebra/src/ingest is expected to be in the
  *			distribution, and all of its files and directories
  *			will be included in any distfiles operations.
  *
- * DistributeOptimzer	If YES, zeb/src/Optimizer is expected to be in the
+ * DistributeOptimzer	If YES, zebra/src/Optimizer is expected to be in the
  *			distribution tree.
  *
- * DistributeDataUtils	YES when the zeb/src/datautil directory is part 
+ * DistributeDataUtils	YES when the zebra/src/datautil directory is part 
  *			of the distribution.
  *
- * DistributeXHelp	If YES, the makefile in zeb/src tries to build
- *			and install in zeb/src/xhelp.  Otherwise, the
+ * DistributeXHelp	If YES, the makefile in zebra/src tries to build
+ *			and install in zebra/src/xhelp.  Otherwise, the
  *			xhelp directory can be removed without harm.  Use
  *			this to build distributions which will always
  *			use the Mosaic help interface.
@@ -704,7 +705,7 @@ XCOMM -----------------------------------------------------------------------
 
 /* Any of the distribution symbols which are not defined default to YES.
  * Questions about any of this can go to granger@ncar.ucar.edu
- * Also see 'zeb/imake/Zeb-Imake.doc'.
+ * Also see the chapter on Imake in the Zebra Developer's Guide.
  */
 
 /*========================================================================*/
@@ -1020,4 +1021,4 @@ XCOMM -----------------------------------------------------------------------
 # define HaveEmacs NO
 # define EmacsPath emacs
 
-# endif /* ! _zeb_config_h_ */
+# endif /* ! _zebra_config_h_ */
