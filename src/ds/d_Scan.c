@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.11 1994-03-04 21:31:38 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.12 1994-03-31 23:04:22 corbet Exp $")
 
 
 /*
@@ -323,7 +323,7 @@ DataFile *df;
 	 */
 	if (StatRevisions)
 	{
-		return (rev == df->df_rev);
+		return (rev != df->df_rev);
 	}
 	/*
 	 * Otherwise, compare the stat revision to the time of the last scan.
