@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.27 1993-04-09 17:36:09 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.28 1993-04-20 20:25:14 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -180,6 +180,7 @@ static void _UncompiledFunction() {};
 	extern void	ts_Plot();
 # endif
 # if C_PT_XYGRAPH
+	extern void	xy_Init ();
 	extern void	xy_Graph();
 	extern void	xy_Wind();
 	extern void	xy_Contour();
@@ -840,11 +841,13 @@ px_Init ()
 	Plot_routines[PT_TSERIES][RT_TSERIES] = UNCOMPILED_FUNCTION;
 # endif
 # if C_PT_XYGRAPH
+	Plot_routines[PT_XYGRAPH][RT_INIT] = xy_Init;
 	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = xy_Graph;	
 	Plot_routines[PT_XYGRAPH][RT_WIND] = xy_Wind;	
 	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = xy_Contour;	
 	Plot_routines[PT_XYGRAPH][RT_OBS] = xy_Observation;	
 # else
+	Plot_routines[PT_XYGRAPH][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XYGRAPH][RT_WIND] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = UNCOMPILED_FUNCTION;
