@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.6 1992-12-18 09:05:12 granger Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.7 1992-12-22 17:35:53 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -489,7 +489,7 @@ Display *dpy;
 
 
 
-void
+static void
 RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
 		xdim, pad)
 unsigned char	*ximp;
