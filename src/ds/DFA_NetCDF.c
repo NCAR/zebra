@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.46 1995-04-26 14:36:21 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.47 1995-05-02 21:23:48 corbet Exp $")
 #endif
 
 #include <netcdf.h>
@@ -1000,9 +1000,10 @@ int pdim;
 	 * Read the name of this platform.
 	 */
 		start[0] = i;
-		if ((vtype == NC_CHAR &&
-		    ncvarget (tag->nc_id, name_id, start, count, name) < 0) ||
-		    (ncvarget (tag->nc_id, name_id, start, count, value) < 0))
+		if (((vtype == NC_CHAR) ?
+			ncvarget (tag->nc_id, name_id, start, count, name) :
+		        ncvarget (tag->nc_id, name_id, start, count, value))
+				< 0)
 		{
 			msg_ELog (EF_PROBLEM,
 			       "Error %d reading subplat %d from %s", ncerr,
@@ -3653,7 +3654,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.46 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.47 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
