@@ -1,3 +1,13 @@
+Sun Nov 20 15:42:00 1994  Gary Granger  <granger@narnia>
+
+	* dm: fix pickwin to agree with documentation; change recent pd
+	  commands to pdstore, pdwrite, and pdshow
+
+	* dm: newpd and exchange commands check for string expressions
+	  rather than crashing dm when args are not quoted; list cmd takes
+	  optional single config name; list_cfg tolerant of nongraphic and
+	  widget windows
+
 Thu Nov 17 15:18:04 1994  Chris Burghart  (burghart@fuggles)
 
 	* Merge of ModelCD_branch.  See log messages below.
@@ -96,8 +106,7 @@ Fri Sep 23 19:59:21 1994  Gary Granger  (granger@kodiak)
 ======== end of ModelCD_branch log ==========================================
 ============================================================================
 
-
-Thu Nov  3 13:54:30 1994  Gary Granger  <granger@steam.atd.ucar.edu>
+Thu Nov  3 13:54:30 1994  Gary Granger  <granger@steam>
 
 	* library: define default directories on compile command line,
 	  eliminating the quoted versions from config.h, and forcing all
