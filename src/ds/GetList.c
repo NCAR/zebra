@@ -20,13 +20,14 @@
  * maintenance or updates for its software.
  */
 
-# include "defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "GetList.h"
 # include "dslib.h"
 
-RCSID("$Id: GetList.c,v 3.10 1995-08-31 09:38:06 granger Exp $")
+RCSID("$Id: GetList.c,v 3.11 1996-11-19 08:17:44 granger Exp $")
 
 /*
  * Getlist lookaside list.
@@ -60,9 +61,6 @@ dgl_GetEntry ()
 		ret = ALLOC (GetList);
 
 	ret->gl_flags = 0;
-	ret->gl_npoint = 0;
-	ret->gl_nsample = 0;
-	ret->gl_sindex = 0;
 	return (ret);
 }
 
@@ -128,20 +126,20 @@ ZebTime *begin, *end;
  */
 {
 	GetList *list, *l, *zap;
-	ClientPlatform p;
 /*
  * Make an initial, unsatisfied entry.
  */
 	list = dgl_GetEntry ();
-	list->gl_begin = *begin;
-	list->gl_end = *end;
-	list->gl_next = NULL;
 	list->gl_flags = 0;
+	list->gl_begin = *begin;	/* times are initially inclusive */
+	list->gl_flags |= GLF_BEG_INCL;
+	list->gl_end = *end;
+	list->gl_flags |= GLF_END_INCL;
+	list->gl_next = NULL;
 /*
  * Now try to satisfy it against the platform lists.
  */
 	ds_LockPlatform (pid);
-	ds_GetPlatStruct (pid, &p, TRUE);
 	if (! dgl_DoList (ds_FindDF (pid, end, 0), list))
 		dgl_DoList (ds_FindDF (pid, end, 1), list);
 	ds_UnlockPlatform (pid);
@@ -266,12 +264,17 @@ DataFile *dp;
  * it ends after that time.
  */
 	if  (TC_Less (dp->df_begin, gp->gl_begin))
-		return (TC_LessEq (gp->gl_begin, dp->df_end));
+		return ((gp->gl_flags & GLF_BEG_INCL) ?
+			TC_LessEq (gp->gl_begin, dp->df_end) :
+			TC_Less (gp->gl_begin, dp->df_end));
 /*
- * Otherwise overlap iff the data begins before the desired end time.
+ * Otherwise overlap iff the data begins before the desired end time,
+ * or if the end time is inclusive, at the end time.
  */
 	else
-		return (TC_LessEq (dp->df_begin, gp->gl_end));
+		return ((gp->gl_flags & GLF_END_INCL) ? 
+			TC_LessEq (dp->df_begin, gp->gl_end) : 
+			TC_Less (dp->df_begin, gp->gl_end));
 }
 
 
@@ -306,8 +309,10 @@ int *complete, dfindex;
 	/*
 	 * Now fix up the times and move past the unsatisfiable piece.
 	 */
-	 	gp->gl_begin = dp->df_end;	/* + 1? */
+	 	gp->gl_begin = dp->df_end;
+		gp->gl_flags &= ~GLF_BEG_INCL;
 		new->gl_end = dp->df_end;
+		new->gl_flags |= GLF_END_INCL;
 		gp = new;
 	}
 /*
@@ -328,12 +333,9 @@ int *complete, dfindex;
 	new->gl_next = gp->gl_next;
 	gp->gl_next = new;
 	gp->gl_begin = dp->df_begin;
-/*
- * Fix up the new entry and work from there.
- */
+	gp->gl_flags |= GLF_BEG_INCL;
+	new->gl_end = dp->df_begin;
+	new->gl_flags &= ~GLF_END_INCL;
 	new->gl_flags &= ~GLF_SATISFIED;
-	new->gl_end = dp->df_begin;		/* - 1? */
-	/* pmu_dsub (&new->gl_end.ds_yymmdd, &new->gl_end.ds_hhmmss, 1); */
-	TC_SysToZt (TC_ZtToSys (&new->gl_end) - 1, &new->gl_end);
 	return (new);
 }
