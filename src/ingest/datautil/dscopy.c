@@ -25,7 +25,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.9 1998-10-28 21:20:20 corbet Exp $")
+MAKE_RCSID ("$Id: dscopy.c,v 1.10 1999-06-15 16:48:25 burghart Exp $")
 
 
 # define MAX_TIMES 10000
@@ -311,7 +311,6 @@ ZebTime *t;
 	static ZebTime times[MAX_TIMES];
 	Location locs[MAX_TIMES];
 	int nsample, samp, fld;
-	char *sname = ds_PlatformName (Source);
 	DataChunk *dc;
 	char atime[40];
 
@@ -341,7 +340,11 @@ ZebTime *t;
 			Fids, NField, 0, 0);
 		dc->dc_Platform = Dest;
 		if (samp == 0)
-			dc_SetGlobalAttr (dc, "copied_from", sname);
+		{
+		    char sname[80];
+		    strcpy (sname, ds_PlatformName (Source));
+		    dc_SetGlobalAttr (dc, "copied_from", sname);
+		}
 # ifdef notdef
 		ui_printf ("Samp %3d: %.2f\n", samp,
 			dc_GetScalar (dc, 0, Fids[0]));

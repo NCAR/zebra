@@ -32,7 +32,6 @@ static void MakeCDF FP ((char *name, ZebTime *zt, int nx, int ny, int nz));
 static void MoveData FP ((int level, int fld, float *grid, int nx, int ny));
 
 
-void
 main (argc, argv)
 int argc;
 char **argv;
