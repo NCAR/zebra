@@ -1,12 +1,19 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.28 2004-07-13 22:27:26 burghart Exp $
+# $Id: zplotbatch,v 1.29 2004-07-16 03:16:18 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
 
 # Set to 'echo' to debug rather than actually dump images
 echo=
+errors=""
+
+problem()
+{
+    echo "***" $*
+    errors="$errors($*)"
+}
 
 # Path to Xvfb, -pn allows server to start even when all sockets (eg unix
 # socket) cannot be setup for listening.  unix socket fails when another
@@ -147,7 +154,11 @@ fi
 
 images=''
 lastconfig=''
-now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
+now=`zquery timer`
+if [ $? -ne 0 ]; then
+    problem "Failed to get current time!"
+else
+now=`echo $now | egrep 'Current time' | sed -e 's/^.*is //'`
 echo "Current time: $now"
 
 # Begin looping over the plots we're supposed to make
@@ -157,14 +168,20 @@ while read when config windows; do
 
     if [ x$config != x$lastconfig ]; then
 	(set -x; zrun $DM "display $config")
+	if [ $? -ne 0 ]; then
+	    problem "Error changing display config with zrun."
+	    continue
+	fi
 	sleep 2
 	lastconfig="$config";
     fi
     if [ $when = "now" ]; then
-    	(set -x; zrun $DM "realtime all")
 	when=$now
-    else
-    	(set -x; zrun $DM "history all $when")
+    fi
+    (set -x; zrun $DM "history all $when")
+    if [ $? -ne 0 ]; then
+	problem "Failed to set time: $when"
+	continue
     fi
     # We only wait long enough to presume that the windows have received
     # their display and time change events.  The imgdump below will be
@@ -174,6 +191,10 @@ while read when config windows; do
 
     # Get a list of the graphics processes appearing in this display
     procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
+    if [ -z "$procs" ]; then
+	problem "Failed to discover any graphics processes."
+	continue
+    fi
     echo "Processes: $procs"
 
     # For each process, tell it to dump its plot
@@ -198,15 +219,22 @@ while read when config windows; do
 	# zquery returns a line like this:
 	# Graphics process surfrad, window 'surfrad' DOWN ...
 	qwin=`zquery $plot | head -1`
-	if echo "$qwin" | egrep DOWN >/dev/null ; then
+	if echo "$qwin" | egrep 'Graphics process.*UP' >/dev/null ; then
+	    true
+	else
 	    continue
 	fi
 	win=`echo "$qwin" | sed -e "s/^[^']*'//" -e "s/'.*//" `
-	echo "Process $plot active and displaying window $win."
 
 	# If we have specific targets, skip this window if it's not one of them
 	if test "$windows" = "" || echo "$windows" | egrep -s "$win"; then
 
+	    wtime=`zquery $plot | egrep 'plot-time:' | sed 's/^.*plot-time:[^0-9]*//'`
+	    echo "Process $plot active, displaying window $win at $wtime."
+	    if [ "`ztsplit $wtime`" != "`ztsplit $when`" ]; then
+		problem "Plot failed to get the correct time!  Skipping."
+		continue
+	    fi
 	    name="$subspool/${base}${win}"
 	    /bin/rm -f "${name}.xwd" "${name}.png"
 
@@ -244,6 +272,8 @@ while read when config windows; do
     echo "Window dumps finished."
 
 done
+fi
+# End of 'if zquery timer successful'
 
 if [ -f "$temp" ]; then
     rm -f $temp
@@ -271,4 +301,10 @@ echo Images: `(for img in $images DONE ; do
 		fi
 	       done) | sort`
 
+if [ -n "$errors" ]; then
+    echo "*** Problems ***"
+    echo $errors
+    exit 1
+fi
+echo "No problems."
 exit 0
