@@ -15,7 +15,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.4 1995-06-29 21:29:30 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.5 1995-08-10 18:49:32 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
@@ -24,6 +24,7 @@ RCSID ("$Id: dm_time.c,v 2.4 1995-06-29 21:29:30 granger Exp $")
  */
 static bool ForceHistory = FALSE;
 static bool HistoryMode = FALSE;
+static bool AutoAdvance = FALSE;
 static ZebTime HistoryTime;
 static char TimeFile[TIME_FILE_LEN];
 
@@ -41,6 +42,21 @@ static void dt_WriteTimeFile FP ((void));
 static void dt_ReadTimeFile FP ((void));
 
 
+/*ARGSUSED*/
+static int
+dt_AutoAdvance (symbol, arg, op, oldtype, oldvalue, newtype, newvalue)
+char *symbol;
+int arg, op;
+int oldtype;
+union usy_value *oldvalue;
+int newtype;
+union usy_value *newvalue;
+{
+	tw_AutoAdvance (newvalue->us_v_int);
+	return (0);
+}
+
+
 void
 dt_Init ()
 {
@@ -48,6 +64,8 @@ dt_Init ()
 	
 	TimeFile[0] = 0;
 	usy_c_indirect (vtable, "forcehistory", &ForceHistory, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "autoadvance", &AutoAdvance, SYMT_BOOL, 0);
+	usy_daemon (vtable, "autoadvance", SOP_WRITE, dt_AutoAdvance, NULL);
 	usy_c_indirect (vtable, "timefile", TimeFile, SYMT_STRING, 
 			TIME_FILE_LEN);
 	tw_DefTimeWidget (dt_TWCallback, "System Time Control");
@@ -142,6 +160,7 @@ dt_TWPopupCallback ()
 	tw_AddHTAddCallback (dt_WriteTimeFile);
 	tw_AddHTDeleteCallback (dt_WriteTimeFile);
 	dt_SetWindowNames ();
+	tw_AutoAdvance (AutoAdvance);
 	/*
 	 * We only want to be called back the first time.
 	 */
