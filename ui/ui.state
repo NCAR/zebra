@@ -11,7 +11,7 @@
 ! Nothing other than "define state" and its inferiors should appear here.
 ! IF YOU CHANGE THIS FILE, MAKE SURE IT WILL GET THROUGH uib!
 !
-! $Id: ui.state,v 1.1 1992-01-28 21:41:18 corbet Exp $
+! $Id: ui.state,v 1.2 1992-01-30 21:08:10 corbet Exp $
 
 !
 ! Kludge needed to get the state definitions read in with the bootstrap
@@ -880,6 +880,9 @@ define state ust$widget_type
 	input 'intmenu' 6
 		next ust$final_unmunged_string
 	endinput
+	input 'form' 8
+		next ust$final_unmunged_string
+	endinput
 	input other
 		reject
 		message 'Unknown widget type'
@@ -1165,5 +1168,107 @@ enddef
 define state ust$fp-2-ints
 	input integer
 		next ust$final_int
+	endinput
+enddef
+
+
+
+
+! 
+! Stuff for definition of forms.
+!
+define state ust$in_form
+	input 'popup' -68
+		next ust$final_unmunged_string
+	endinput
+	input 'label' -87
+		next ust$form_entry_name
+	endinput
+	input 'blank' -95
+		next ust$form_entry_name
+	endinput
+	input 'button' -94
+		next ust$form_entry_name
+	endinput
+	input 'newline' -92
+		next ust$no_more
+	endinput
+	input 'endform' -93
+		next ust$no_more
+	endinput
+	input 'pulldown' -97
+		next ust$form_entry_name
+	endinput
+enddef
+
+define state ust$form_entry_name
+	input string
+		next ust$form_entry_text
+	endinput
+enddef
+
+define state ust$form_entry_text
+	input string
+		next ust$form_entry_params
+	endinput
+	input 'variable' -88
+		next ust$form_text_string
+	endinput
+	input 'bitmap' -80
+		next ust$form_text_string
+	endinput
+enddef
+
+define state ust$form_text_string
+	input string
+		next ust$form_entry_params
+	endinput
+enddef
+
+
+define state ust$form_entry_params
+	input 'width' -89
+		next ust$form_entry_width
+	endinput
+	input 'font' -90
+		next ust$form_entry_string
+	endinput
+	input 'color' -91
+		next ust$form_entry_string
+	endinput
+	input 'command' -26
+		next ust$form_entry_string
+	endinput
+	input 'menu' -50
+		next ust$form_entry_string
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+define state ust$form_entry_width
+	input integer
+		next ust$form_entry_params
+	endinput
+enddef
+
+define state ust$form_entry_string
+	input string
+		next ust$form_entry_params
+	endinput
+enddef
+
+
+
+define state ust$ft_widget
+	input string
+		next ust$ft_entry
+	endinput
+enddef
+
+define state ust$ft_entry
+	input string
+		next ust$final_unmunged_string
 	endinput
 enddef

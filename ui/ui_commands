@@ -8,7 +8,7 @@
 !               <all of your other stuff>
 !       enddef
 !
-! $Id: ui_commands,v 1.1 1992-01-29 00:28:47 corbet Exp $
+! $Id: ui_commands,v 1.2 1992-01-30 21:09:01 corbet Exp $
 !
         input 'define' -1
                 next ust$define_what
@@ -123,4 +123,7 @@
 	endinput
 	input 'local' -79
 		next ust$set_what
+	endinput
+	input 'formtext' -96
+		next ust$ft_widget
 	endinput
