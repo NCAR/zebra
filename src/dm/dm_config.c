@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.21 1995-04-27 15:11:06 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.22 1995-05-05 22:43:58 granger Exp $")
 
 /*
  * Exported variables
@@ -906,8 +906,8 @@ char *name;
  * higher priority for another (yet-to-be-assigned) window in the config.
  */
 {
+	static Process *queue[4] = { 0, 0, 0, 0 }; /* static else cc gripes */
 	Process *proc, **pp;
-	Process *queue[4] = { 0, 0, 0, 0 };
 	int i, n;
 
 	/* 1. */
@@ -1023,7 +1023,7 @@ char *name;
 
 
 
-void
+static void
 dg_AssignWindow (proc, wp)
 Process *proc;
 struct cf_window *wp;

@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.60 1995-04-27 15:11:03 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.61 1995-05-05 22:43:55 granger Exp $")
 
 
 /*
@@ -243,9 +243,9 @@ char *msgname;
 		 * Message mgr tables don't like :'s or long names
 		 * so replace : with - and shorten host names.
 		 */
-		if ((number = strchr (display, ':')))
+		if ((number = (char *)strchr (display, ':')))
 			*number++ = 0;
-		if ((period = strchr (display, '.')))
+		if ((period = (char *)strchr (display, '.')))
 			*period = 0;
 		sprintf (buf, "%s-%s", display[0] ? display : "unix", 
 			 number ? number : "0.0");
