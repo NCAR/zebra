@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.30 1992-09-23 18:25:24 case Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.31 1993-01-21 21:37:27 case Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -449,7 +449,6 @@ int color, ltype, npt, *data;
 		xp[pt].x += tag->x_xres;
  	XDrawLines (tag->x_display, tag->x_sw[3], tag->x_gc, xp, npt,
 		CoordModeOrigin);
-        tag->x_zoomok = FALSE;
 	relvm (xp);
 }
 
