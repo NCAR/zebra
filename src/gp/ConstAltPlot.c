@@ -1,7 +1,11 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.1 1991-08-07 19:58:05 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.2 1991-09-12 19:26:15 corbet Exp $";
+
+# include <config.h>
+# if C_PT_CAP
+
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -1005,3 +1009,7 @@ float alt;
 		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
 		string, 0.0, TOPANNOTHEIGHT, JustifyRight, JustifyBottom);
 }
+
+
+
+# endif  /* C_PT_CAP */
