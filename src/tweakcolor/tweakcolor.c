@@ -2,7 +2,7 @@
  * Attempt to allocate all color cells and set them to a bright
  * color, so that xoring stuff is more visible.
  */
-static char *rcsid="$Id: tweakcolor.c,v 1.1 1992-01-28 17:41:16 corbet Exp $";
+static char *rcsid="$Id: tweakcolor.c,v 1.2 1992-06-04 20:07:52 burghart Exp $";
 
 # include <X11/Xlib.h>
 
@@ -12,7 +12,7 @@ main (argc, argv)
 int argc; 
 char **argv;
 {
-	char *cname = (argc > 1) ? argv[1] : "red";
+	char *cname = (argc > 1) ? argv[1] : "yellow";
 	XColor exact, screen;
 	Display *disp;
 	Colormap cmap;
@@ -27,14 +27,9 @@ char **argv;
 		exit (1);
 	}
 /*
- * Look up our color.
+ * Get the default colormap
  */
 	cmap = DefaultColormap (disp, DefaultScreen (disp));
-	if (! XLookupColor (disp, cmap, cname, &exact, &screen))
-	{
-		printf ("Color '%s' unknown\n", cname);
-		XLookupColor (disp, cmap, "red", &exact, &screen);
-	}
 /*
  * Now we just allocate colors as long as we get away with it.
  */
@@ -42,8 +37,9 @@ char **argv;
 	{
 		if (! XAllocColorCells (disp, cmap, False, NULL, 0, &pix, 1))
 			break;
-		screen.pixel = pix;
-		XStoreColor (disp, cmap, &screen);
+
+		XStoreNamedColor (disp, cmap, cname, pix, 
+			DoRed | DoGreen | DoBlue);
 	}
 	printf ("%d colors tweaked\n", ncolor);
 	XCloseDisplay (disp);
