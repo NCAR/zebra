@@ -45,10 +45,10 @@
 # include <timer.h>
 # include <config.h>
 # include "DataStore.h"
-# include "dsPrivate.h"
-# include "dslib.h"
+# include "dsPrivate.h"  /* Needed for MarkArchived call */
+/* # include "dslib.h" */
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.19 1992-12-03 04:31:07 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.20 1993-04-26 16:32:00 corbet Exp $")
 
 /*
  * Issues:
@@ -283,7 +283,7 @@ static void	RequestWrite FP((int finish));
 static void	DoTheWriteThing FP((int finish));
 static void	SaveFiles FP ((int));
 static void	LoadFileList FP ((void));
-static void	DumpPlatform FP ((Platform *, int));
+static void	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
 static int	RunTar FP ((char *));
 static void	UpdateList FP ((void));
 static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
@@ -1130,7 +1130,8 @@ int all;
  * Pass through the list of stuff and save files to the tape.
  */
 {
-	int plat;
+	int plat, nplat = ds_GetNPlat ();
+	PlatformInfo pi;
 
 	/*
 	 * The tar command, less the file names
@@ -1141,10 +1142,11 @@ int all;
 	 * Pass through the platform table and dump things.
 	 */
 	SetStatus (FALSE, "Scanning platforms");
-	for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
+	for (plat = 0; plat < nplat; plat++)
 	{
-		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
-			DumpPlatform (PTable + plat, all);
+		ds_GetPlatInfo (plat, &pi);
+		if (! pi.pl_SubPlatform)
+			DumpPlatform (plat, &pi, all);
 	}
 
 	/*
@@ -1192,8 +1194,9 @@ int all;
 
 
 static void
-DumpPlatform (p, all)
-Platform *p;
+DumpPlatform (pid, pi, all)
+PlatformId pid;
+PlatformInfo *pi;
 int all;
 /*
  * Dump out any files from this platform by appending each file name onto
@@ -1203,11 +1206,12 @@ int all;
 	ZebTime last, dumptime;
 	SValue v;
 	int type, findex;
-
+	DataSrcInfo dsi;
+	DataFileInfo dfi;
 /*
  * Find the last time this thing was dumped.
  */
-	if (usy_g_symbol (DumpedTable, p->dp_name, &type, &v))
+	if (usy_g_symbol (DumpedTable, pi->pl_Name, &type, &v))
 		TC_UIToZt (&(v.us_v_date), &last);
 	else
 		last.zt_Sec = last.zt_MicroSec = 0;
@@ -1216,25 +1220,27 @@ int all;
  * assumption that it is still being written to (unless we've been told
  * to do them all.
  */
-	if ((findex = p->dp_LocalData) == 0 || 
-			(! all && (findex = DFTable[findex].df_FLink) == 0) ||
-			TC_LessEq (DFTable[findex].df_end, last))
+	ds_GetDataSource (pid, 0, &dsi);
+	ds_GetFileInfo (findex = dsi.dsrc_FFile, &dfi);
+	if (findex == 0 || 
+			(! all && (findex = dfi.dfi_Next) == 0) ||
+			TC_LessEq (dfi.dfi_End, last))
 		return;		/* Nothing to dump */
-	dumptime = DFTable[findex].df_end;
+	dumptime = dfi.dfi_End;
 /*
  * Now go through and do it.
  */
-	while (findex && TC_Less (last, DFTable[findex].df_end))
+	while (findex && TC_Less (last, dfi.dfi_End))
 	{
-		char *fname = DFTable[findex].df_name;
+		char *fname = dfi.dfi_Name;
 	/*
 	 * Fix up the file name and add it to our big tar command.
 	 */
 		if (! strncmp (fname, DATADIR, strlen (DATADIR)))
 			fname += (strlen (DATADIR) + 1);
 		msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
-		strcat (Tarbuf, p->dp_dir); /* 8/92 jc dir now not in ... */
-		strcat (Tarbuf, "/");	    /* ...the datafile struct.	  */
+		strcat (Tarbuf, dsi.dsrc_Where);
+		strcat (Tarbuf, "/");
 		strcat (Tarbuf, fname);
 		strcat (Tarbuf, " ");
 	/*
@@ -1245,13 +1251,14 @@ int all;
 	 * archived flag, when picking files to write.
 	 */
 	 	SendMA (findex);
-		findex = DFTable[findex].df_FLink;
+		if ((findex = dfi.dfi_Next) > 0)
+			ds_GetFileInfo (findex, &dfi);
 	}
 /*
  * Record the new time.
  */
 	TC_ZtToUI (&dumptime, &(v.us_v_date));
-	usy_s_symbol (DumpedTable, p->dp_name, SYMT_DATE, &v);
+	usy_s_symbol (DumpedTable, pi->pl_Name, SYMT_DATE, &v);
 }
 
 
@@ -1679,24 +1686,27 @@ int junk;
  * Update this platform.
  */
 {
-	int dfi;
+	int index;
 	ZebTime ftime;
 	PlatformId pid = ds_LookupPlatform (sym);
+	DataSrcInfo dsi;
+	DataFileInfo dfi;
 /*
  * Plow through the file entries, marking everything that we have written 
  * out.
  */
 	TC_UIToZt (&(v->us_v_date), &ftime);
 
-	for (dfi = LOCALDATA (PTable[pid]); dfi; dfi = DFTable[dfi].df_FLink)
+	ds_GetDataSource (pid, 0, &dsi);
+	for (index = dsi.dsrc_FFile; index; index = dfi.dfi_Next)
 	{
 	/*
 	 * If this file is already marked, or hasn't been done, move on.  
 	 * Otherwise send the notification.
 	 */
-	 	if (TC_LessEq (DFTable[dfi].df_end, ftime) &&
-				(DFTable[dfi].df_flags & DFF_Archived) == 0)
-			SendMA (dfi);
+		ds_GetFileInfo (index, &dfi);
+	 	if (TC_LessEq (dfi.dfi_End, ftime) && ! dfi.dfi_Archived)
+			SendMA (index);
 	}
 	return (TRUE);
 }
