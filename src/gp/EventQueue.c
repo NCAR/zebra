@@ -1,7 +1,7 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 2.3 1992-07-30 23:48:27 granger Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 2.4 1993-10-25 19:11:00 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -98,9 +98,11 @@ EQoverride override;
 	if (override == Override)
 		Eq_ZapProc (pri, proc);
 	else if (override == Bounce)
+	{
 		for (ent = P_queue[pri]; ent; ent = ent->pqe_next)
 			if (ent->pqe_proc == proc)
 				return;
+	}
         else if ( override == OverrideQ )
                 Eq_ZapQProc ( pri, proc, data, len );
 /*
