@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.6 1993-04-30 23:17:41 granger Exp $
+/**/# $Id: Project.tmpl,v 1.7 1993-05-26 19:11:57 corbet Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -236,7 +236,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #ifndef ZebLibrary
-#define ZebLibrary LoaderLibPrefix $(LIBDIR)/libzeb.a
+#define ZebLibrary LoaderLibPrefix $(LIBDIR)/libZeb.a
+#endif
+
+# ifndef ZebDSLibrary
+#define ZebDSLibrary LoaderLibPrefix $(LIBDIR)/libZebDS.a
 #endif
 
 #ifndef FortranLibraries
@@ -475,6 +479,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  * be included in the default value of DEPLIBS).
  */
            LIBZEB = ZebLibrary
+	 LIBZEBDS = ZebDSLibrary
         LIBNETCDF = NetCDFLibrary
             FLIBS = FortranLibraries
           LIBRDSS = RDSSLibrary
