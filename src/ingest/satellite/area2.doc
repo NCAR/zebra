@@ -1,0 +1,2070 @@
+      Copyright 1996 Space Science and Engineering Center (SSEC)
+                 University of Wisconsin - Madison
+                        All Rights Reserved
+
+Permission is granted to make and distribute verbatim copies of this
+document, provided the copyright notice and this permission are
+preserved on all copies.
+
+SSEC makes no warranty of any kind with regard to the software or
+accompanying documentation, including but not limited to the implied
+warranties of merchantability and fitness for a particular purpose. SSEC
+does not indemnify any infringement of copyright, patent, or trademark
+through use or modification of this software.
+
+Mention of any commercial company or product in this document does not
+constitute an endorsement by SSEC. Many of the designations used by
+manufacturers and sellers to distinguish their products are claimed as
+trademarks. Where those designations appear in this document, and SSEC
+was aware of the trademark claim, the designations are printed in caps
+or initial caps.
+
+The information in this document is subject to change without notice.
+Considerable effort has been expended to make this document accurate and
+complete, but SSEC cannot assume responsibility for inaccuracies,
+omissions, manufacturers' claims or their representations.
+
+---------------------------------------------------------------------
+
+Storing Satellite Imagery 
+in McIDAS Data Structures
+
+Preliminary Issue
+December 1995
+
+Space Science and Engineering Center
+University of Wisconsin - Madison
+1225 West Dayton Street
+Madison, WI 53706
+
+
+
+
+
+Additional signal transmission reference materials:
+  METEOSAT High Resolution Image Dissemination, 
+1992, EUMETSAT.
+  Operations Ground Equipment, Internal 
+Specification, DRL 504-02-1 Part 1, Specification No 
+E007020, released February 9, 1994, Space 
+Systems/Loral, 3825 Fabian Way, Palo Alto, CA, 
+94303-4604.
+
+
+Introduction
+
+Satellite imagery is collected by instruments on 
+geostationary or earth orbiting satellites. These 
+instruments make a series of parallel scans over a section 
+of the earth. Ingestors collect and store the scanned data 
+in area files. In addition to the image data, area files 
+include information about the image's geography and 
+physical characteristics, and modifications to the data.
+This document describes the structure of McIDAS area 
+files and how image data is stored and accessed. Since 
+this is a only a reference document, no information is 
+provided about how to manipulate data in the structures 
+described. If you plan to build area structures, it is 
+important that you are familiar with the data structure 
+formats described here and the signal transmission 
+formats described in the reference documents on page 2.
+Currently, this document contains information about 
+METEOSAT PDUS, GVAR and GOES-7 data structure 
+formats only. Future revisions will include other 
+satellites.
+This document includes the following information:
+  a description of McIDAS area file components 
+including the Area Directory and image data
+  descriptions of area file characteristics specific to 
+METEOSAT, GVAR and GOES-7 satellites
+
+
+
+
+Area File Description
+In McIDAS, satellite imagery data and supplemental 
+information are stored on disk in data structures called 
+areas. Each area is a binary file containing all the 
+information necessary to display and navigate the image. 
+Area files are named AREAnnnn, where nnnn is a four-
+digit number between 0000 and 9999. This number is 
+referred to as the area file number. For example, 
+AREA0013 is the name of the file that contains area 13.
+Complete images are often too large to be stored 
+completely in an area file. An area may be a geographic 
+portion of the image or a subset produced by sampling or 
+averaging the image data. Any point in the area can be 
+described with image coordinates, its position in the full 
+satellite image, or with area coordinates, its position in 
+the area or subset of the image.
+
+Area files consists of six sections, or blocks:
+  The Area Directory block describes the area data 
+and the image from which the area was created. It 
+also contains pointers used for locating other blocks 
+and data in the file.
+  The Auxiliary (AUX) block contains information 
+created by the user such as histograms or long 
+comments.
+  The Navigation (NAV) block contains information 
+used to associate earth coordinates with the image 
+pixels.
+  The Calibration (CAL) block contains information 
+that relates sensor data to meaningful physical units 
+such as temperature, albedo or visible brightness.
+  The Digital Data (DATA) block contains the actual 
+data values for the image.
+  The Comment Records (AUDIT) block documents 
+modifications to the file data.
+
+
+Area Directory Block
+The first 256 bytes of every area file are the Area 
+Directory block for the image. The Area Directory 
+describes the kind of data in the area and contains 
+pointers used for locating the remaining blocks and other 
+subsets of data in the file. It also contains information 
+about the image from which the area was created.
+The data in the Area Directory is stored as 32-bit (4-byte) 
+twos complement binary integers or as ASCII character 
+data. The directory is divided in 64 words. Each word is 
+described below. Some words are satellite specific. See 
+the next section for specific satellites. All byte offsets are 
+zero-based.
+
+Word
+Description
+
+W1 
+contains zeros if the record is valid
+
+W2 
+area format: always 4 (as of June 1985)
+
+W3 
+sensor source number; see Appendix A
+
+W4 
+nominal start date; scheduled date for image 
+data collection; YYDDD
+
+W5 
+nominal start time; scheduled time for image 
+data collection; HHMMSS UTC
+
+W6
+image line coordinate of area line 0, element 0 
+
+W7 
+image element coordinate of area line 0, 
+element 0 
+
+W8 
+not used
+
+W9 
+number of lines in the area        
+
+W10 
+number of elements in each line           
+
+W11 
+number of bytes per element (1, 2 or 4)         
+
+W12 
+line resolution; number of image lines between 
+consecutive area lines
+
+W13 
+element resolution; number of image elements 
+between consecutive area elements
+
+W14 
+maximum number of bands per line of the area
+
+W15 
+length of the DATA block line prefix, in bytes; 
+sum of W49, W50, W51 (+ 4 if W36 validity 
+code is present)                  
+
+W16 
+McIDAS user project number under which the 
+area was created                     
+
+W17 
+actual ingest date; date the area was created; 
+provided by the ingesting computer; YYDDD 
+
+
+
+
+W18 
+actual ingest time; time the area was created; 
+provided by the ingesting computer; HHMMSS
+
+W19 
+32-bit filter band map for multichannel 
+images; if a bit is set, data exists for the band; 
+band 1 is the least significant byte (rightmost)
+
+W20-24 
+satellite specific information                      
+
+W25-32 
+memo; 32 ASCII characters available for 
+comments     
+
+W33 
+area file number; last four digits of the file 
+name
+
+W34 
+byte offset to the start of the area file’s DATA 
+block
+
+W35 
+byte offset to the start of the area file’s NAV 
+block
+
+W36 
+validity code; contains zeros if this area does 
+not have validity codes; if these bytes are non-
+zero, they must match the first four bytes of 
+each DATA block line prefix or the line’s data 
+is ignored; this word is usually constructed 
+from the date and time of the Area Directory 
+creation; DDDHHMMSS
+
+W37-45 
+satellite specific
+
+W46
+actual image start date; date the ingestor 
+begins receiving image data; YYDDD
+
+W47
+actual image start time; time the ingestor 
+begins receiving image data; HHMMSS
+
+W48
+actual starting scan line; the first scan line 
+received by the ingestor
+
+W49 
+length of the DATA block line prefix 
+documentation region, in bytes       
+
+W50 
+length of the DATA block line prefix 
+calibration region, in bytes        
+
+W51 
+length of the DATA block line prefix level map 
+region, in bytes         
+
+W52 
+image source type; for example, VISR, VAS, 
+AAA, ERBE, AVHR
+
+W53 
+calibration type; units in which the digital data 
+is stored; for example, RAW, TEMP, BRIT
+
+W54-59
+internal use only; initialized to 0            
+
+W60  
+byte offset to the beginning of the area file’s 
+AUX block
+
+W61  
+length of the area file’s AUX block, in bytes
+
+W62
+not used
+
+W63 
+byte offset to the beginning of the area file’s 
+CAL block
+
+W64 
+number of comment records in the area file’s 
+AUDIT block 
+
+Auxiliary (AUX) Block
+This block contains information like histograms or long 
+comments created by the user to describe or explain the 
+area data. Word 60 of the Area Directory contains the 
+number of bytes from the beginning of the area file to the 
+beginning of the AUX block. Word 61 contains the total 
+number of bytes in the block. If the area file does not 
+contain an AUX block, Words 60 and 61 are both zero. 
+Ordinarily, when an image is first ingested there is no 
+AUX block in the area file.
+
+Navigation (NAV) Block
+This block contains the navigation data for the image. 
+This information is used to associate earth coordinates, 
+usually latitude and longitude, with the pixels of the 
+image. Word 35 of the Area Directory contains the 
+number of bytes from the beginning of the area file to the 
+beginning of the NAV block. If there is no navigation for 
+the image, Word 35 is zero. The NAV block's last byte is 
+the byte before the CAL block, pointed to in Area 
+Directory Word 63. If Word 63 is zero, the NAV block's 
+last byte is the byte before the DATA block, pointed to in 
+Word 34. The navigation block format varies with each 
+satellite. See the next section for specific satellites.
+
+Calibration (CAL) Block 
+This block contains the calibration data for the image. It 
+is present in the area file if the data must be calibrated 
+before it can be displayed. Calibration data is used to 
+relate the sensor data to meaningful physical units such 
+as temperature, albedo and visible brightness. Word 63 of 
+the Area Directory contains the number of bytes from the 
+beginning of the area file to the beginning of the CAL 
+block. If the area file does not contain a CAL block, Word 
+63 is zero. The CAL block's last byte is the byte before the 
+DATA block, pointed to in Area Directory Word 34. The 
+calibration block format varies with each satellite. See 
+the next section for specific satellites.
+
+
+Digital Data (DATA) Block
+This block contains the actual data values for the image. 
+These values are stored in the area file in a series of lines 
+and elements.
+
+Coordinate Systems
+Any point in an area can be described with image 
+coordinates, its position in the full satellite image, or 
+with area coordinates, its position in the area or subset of 
+the image.
+Regardless of the source, a satellite image is a sequence 
+of lines numbered from top to bottom. Each line is a 
+sequence of elements numbered across the line from left 
+to right. This line/element numbering scheme determines 
+the coordinates for each element, called the image 
+coordinates. The top line and leftmost element have 
+image coordinates (1,1). This coordinate system is defined 
+only by the satellite/camera combination and is 
+independent of how the data is stored.
+The data stored in an area file is also arranged in a 
+sequence of lines and elements, like the image from 
+which it was created. The line/element pair determines 
+the coordinates for the elements in the area, called the 
+area coordinates. The top line and leftmost element have 
+area coordinates (0,0).
+If entire satellite images could be stored in a single area, 
+there would be no point in distinguishing between image 
+and area coordinates. However, images are usually too 
+large to process efficiently in their entirety. For example, 
+a GOES VISSR image in the visible-light band contains 
+14568 lines with 15288 elements per line. This image 
+requires over 200 megabytes of storage. The data 
+actually stored in an area file is a subset of the image. An 
+area may be a geographic portion of an image, the USA 
+taken from a global image for example. 
+
+
+Resolution
+An area file may be produced from an image by sampling 
+or averaging the data. In the case of multiband images, 
+an area may include only a portion of the measured 
+spectral bands, so that each element contains fewer data 
+values than are contained in the original image.
+To map an area back to the original image the following 
+formulas are used: 
+	Image Line = UpperLeftLine + (Area Line * 
+	LineResolution)
+	Image Element = UpperLeftEle + (Area Element 
+	* ElementResolution)
+UpperLeftLine is the image line coordinate of the first 
+area line. UpperLeftEle is the image element coordinate 
+of the first area element.
+When LineResolution and ElementResolution are both 1, 
+the area is said to be at Resolution 1 or Full Visible 
+Resolution. If the area is at Resolution 4, every fourth 
+line and element of an image originally at Resolution 1 
+are included in the area. Resolutions are relative to full 
+resolution. The coverage of a pixel at full resolution will 
+vary with each satellite.
+
+Data Structure
+The DATA block may be viewed as a continuous stream 
+of bytes numbered from zero. The area data is arranged 
+line after line, first to last. If a line of data is missing, the 
+corresponding place in the data file must be either filled 
+with zeros or flagged using non-matching validity codes.
+
+ line prefix 1 line data 1 line prefix 2 line data 2 etc
+|_____________|___________|_____________|___________|___...
+0               byte numbers increase >>
+Figure 1. Area File DATA Block Structure
+
+Each line is divided into two parts: the line prefix and the 
+actual line data (image elements). See Figure 1 below. 
+The line prefix contains documentation about the image 
+and the particular line. 
+Although the size and content of the line prefix depend 
+on the image source type defined in Area Directory Word 
+52, each line in an area has the same prefix length. Area 
+Directory Word 15 contains the length of the prefix, in 
+bytes. If no line prefix exists, Word 15 is zero.
+
+
+The line prefix may contain any of the following regions. 
+The lengths of these regions, when present, are multiples 
+of four bytes. 
+  validity code
+  documentation
+  calibration
+  level map
+If present, the validity code is the first four bytes of the 
+line prefix. When this code is present, Area Directory 
+Word 36 contains a non-zero value. If the line prefix's 
+validity code does not match the value in Word 36, the 
+line is invalid and is ignored. 
+The documentation region contains information specific 
+to a particular satellite line (such as the VISSR IR 
+documentation). Area Directory Word 49 contains the 
+region's length, in bytes.
+The calibration region contains a set of calibration 
+coefficients for each band in the line. For example, AAA 
+Sounder images contain 13 bands per line, each with 8 
+bytes of calibration information. With an additional 12 
+bytes of information, an AAA Sounder calibration region 
+has 116 bytes. Calibration regions in a line prefix are 
+useful when coefficients change for individual bands 
+during the course of a transmission. Area Directory Word 
+50 contains the region's length, in bytes.
+The level map region contains a 1-byte entry for each 
+band/channel in the line. These are only meaningful if 
+they are greater than zero. For an image containing a 
+single band, the level map region is optional; for 
+multiband areas, it must be present. Area Directory 
+Word 51 contains the region's length, in bytes. 
+
+ validity code   documentation   calibration   level map    
+|______________|_______________|_____________|___________|
+0               byte numbers increase >>
+Figure 2. Area Line Prefix Structure
+
+
+Calculating Prefix, Line, and DATA Block Sizes
+Area Directory Word 34 contains the number of bytes 
+from the beginning of the area file to the beginning of the 
+DATA block. Each line in an area has the same length. 
+This length is a multiple of four bytes. The length of a 
+line prefix, line data section, or the entire DATA block 
+can be determined from information in the Area 
+Directory. Use the information and the formulas that 
+follow to calculate the sizes.
+
+Area Directory Information
+Word
+
+validity code length (valcode)
+4 bytes if W36 is not 0, 
+0 otherwise
+
+documentation length (doc)
+W49
+
+calibration length (cal)
+W50
+
+level map length (level)
+W51
+
+number of bands per line (nbands)
+W14
+
+number of elements per line (nele)
+W10
+
+number of bytes per element (nbytes)
+W11
+
+number of lines in the area (nlines)
+W9
+
+
+line prefix length = valcode (0 or 4) + doc + cal + level 
+line data section length = nbands*nele*nbytes
+line length = line prefix length + line data section length
+DATA block length = nlines * line length
+
+Comment Records (AUDIT) Block
+Comment records may be included in an area file. These 
+records are usually used to keep an audit trail of 
+modifications made to data in the file. Each comment 
+record is 80 ASCII characters. Area Directory Word 64 
+contains the number of comment records. Ordinarily, 
+when an image is first ingested there is no AUDIT block 
+in the area file.
+
+
+Satellite Specific Characteristics 
+of McIDAS Area Files
+
+Some aspects of McIDAS area files are satellite specific. 
+This section describes characteristics specific to the 
+following satellites:
+  METEOSAT PDUS
+  GVAR IMAGER
+  GVAR BLOCK 11
+  GVAR SOUNDER
+  GVAR VISSR
+  GOES-7
+Future revisions of this document will include other 
+satellites.
+
+METEOSAT PDUS
+Because METEOSAT PDUS images are remapped and 
+calibrated at the ground station before the stretched 
+signal is disseminated, the navigation and calibration 
+data sections are simpler. This data is eight bits and each 
+band is stored in a separate area file.
+For more information on METEOSAT labels and headers, 
+see the EUMETSAT document METEOSAT High 
+Resolution Image Dissemination.
+
+PDUS Area Directory Block
+
+Word
+Value and Description
+
+W14
+1; each band is stored separately
+
+W19
+band filter map values: 
+  0 for visible image
+  128 (eighth bit from right) for IR
+  512 (tenth bit from right) for WV
+
+
+
+
+W22
+MIEC absolute calibration band value (IR or 
+WV) from the calibration section of the 
+METEOSAT header; stored as scaled integer 
+xxxxx, value is .xxxxx
+
+W23
+space count corresponding to calibration value 
+from the calibration section of the METEOSAT 
+header; stored as scaled integer xxx, value is 
+xx.x
+
+W24
+1 or 2; physical sensor number from the 
+METEOSAT header
+
+W37
+line offset of the southeast corner of the area in 
+image coordinates; 16-bit value from the 
+METEOSAT header, right justified plus 1
+
+W38
+element offset of the southeast corner of the 
+area in image coordinates; 16-bit value from 
+the METEOSAT header, right justified plus 1
+
+W39
+satellite center longitude of rectification; 16-bit 
+value from the METEOSAT header and right 
+justified
+
+W44
+0
+
+W49
+24; length of the DATA block line prefix 
+documentation, in bytes
+
+W50
+0; length of the DATA block line prefix 
+calibration, in bytes
+
+W51
+0; length of the DATA block line prefix level 
+map, in bytes
+
+W52
+MSAT; image source type
+
+W53
+RAW; calibration type
+
+W54
+0 if data was ingested as sent (full resolution); 
+1 if data was sampled down (every other pixel); 
+VIS is sent as Resolution 1 in some images and 
+Resolution 2 in others
+
+W55
+bitmap indicating types of data included in the 
+original image; bits are numbered right to left 
+(least significant to most significant bit)
+  bit 0: 1 if VIS was included in 
+transmission, 0 if not
+  bit 1: 1 if IR was included in transmission, 
+0 if not
+  bit 2: 1 if WV included in transmission, 0 if 
+not
+  all other bits = 0
+
+
+
+PDUS DATA Block
+
+Line Prefix
+  Validity code: Optional but recommended to flag 
+missing data. Missing data cannot be simply omitted; 
+it must have zeros as placeholder data or a validity 
+code that does not match the value in Area Directory 
+Word 36.
+  Documentation: 24 bytes. This is a copy of the label 
+that arrives with every subframe. 
+  Calibration: 0 bytes. Not used.
+  Level map: 0 bytes. Not used. Each METEOSAT 
+band is stored in a separate area.
+
+Line Data 
+Each value is transmitted as eight bits and is stored west 
+to east and north to south in the area, the opposite of 
+how it is transmitted.
+
+PDUS NAV Block
+A PDUS navigation block is divided into 256 words:
+
+Word
+Value and Description
+
+W1
+MSAT; navigation type
+
+W2
+Julian day of this navigation, YYDDD
+
+W3
+time of this navigation, HHMMSS
+
+W4
+0; reference position for the telescope
+
+W5
+0; line number corresponding to the telescope 
+reference position
+
+W6
+1250; center scan line
+
+W7
+center longitude of rectification (west positive), 
+DDMMSS
+
+W8
+0; not used
+
+W9
+0; not used
+
+W10
+Julian day of this navigation, YYDDD
+
+W11-256
+0; not used
+
+
+PDUS CAL Block
+No calibration information is needed for PDUS.
+
+
+GVAR IMAGER
+The tables mentioned in the line prefix, line data, 
+calibration and navigation descriptions in this section are 
+from Operations Ground Equipment, Internal 
+Specification, DRL 504-02-1 Part 1, Specification No 
+E007020. This document describes data formatted by the 
+ground station and then retransmitted. It is referred to 
+in this document as the OGE.
+
+Imager Documentation (Block 0)
+The GVAR Imager documentation, Block 0, is 
+supplemental control information about an image, not 
+image data. Some of the information is also contained in 
+Imager sensor data. For each line of GVAR Imager 
+sensor data transmitted, one line of Block 0 
+documentation is transmitted and stored in a separate 
+area.
+Area Directory Block
+
+Word
+Value and Description
+
+W12
+8; line resolution
+
+W13
+1; element resolution
+
+W14
+1; number of bands 
+
+W19
+1; band number
+
+W25-32
+ordinarily contains the string RT IMGR DOC
+
+W49
+44; length of the DATA block line prefix 
+documentation region, in bytes
+
+W50
+0; length of the DATA block line prefix 
+calibration region, in bytes
+
+W51
+0; length of the DATA block line prefix level 
+map region, in bytes
+
+W52
+GVAR; image source type
+
+W53
+RAW; calibration type
+
+
+
+Line Prefix 
+  Validity Code: 4 bytes
+  Documentation: 44 bytes. The documentation region 
+consists of the following:
+- Block Header CRC: 2 bytes (OGE Table 3-5)
+- Scan Status: 4 bytes (OGE Table 3-6)
+- Year, Day, Time from Block 0: 8 bytes (OGE 
+Table 3-6)
+- Block Header: 30 bytes (OGE Table 3-5)
+The rest of the line is made up of 8040 bytes of 8-bit data. 
+(OGE Table 3-6)
+
+Imager Area Directory Block
+
+Word
+Value and Description
+
+W5
+1; size of the z-dimension
+
+W14
+1; number of bands requested
+
+W19
+band filter map; 1 for VIS; 2, 4, 8 or 16 for IR 
+bands; only one bit should be set
+
+W25-32
+RT IMGR IR; RT IMGR VIS if the band is 
+visible
+
+W49
+76; length of the DATA block line prefix 
+documentation region, in bytes
+
+W50
+0; length of the DATA block line prefix 
+calibration region, in bytes
+
+W51
+0; length of the DATA block line prefix level 
+map region, in bytes
+
+W52
+GVAR; image source type
+
+W53
+RAW; calibration type
+
+W55
+1
+
+
+
+Imager DATA Block
+GOES Variable Imager data is transmitted in five 
+spectral bands: VISIBLE (VIS) and four INFRARED (IR) 
+bands. An area contains only one of these five bands. 
+Area Directory Word 19 contains a band filter map 
+indicating the area file's band. 
+The highest resolution (lowest values of line and element 
+resolution in the Area Directory) possible for a visible 
+area is 1. The highest resolution for an IR area is 4 
+because longer wavelengths inherently have less 
+resolution. For a GVAR satellite, Resolution 1 means 
+approximately 1 km resolution at the satellite subpoint.
+Every element in a GOES-8 area contains one 10-bit 
+pixel representing raw data from the instrument. Each 
+pixel is stored as two bytes in the McIDAS area file. The 
+hardware shifts the data so that the 10 bits are formatted 
+as follows:
+| 0 | x | x | x | x | x | x | x | x | x | x | 0 | 0 | 0 | 0 | 0 |
+The x represents a data bit and the rest is 0-filled after 
+shifting.
+
+Line Prefix
+  Validity Code: 4 bytes
+  Documentation: 76 bytes. The documentation region 
+consists of the following:
+- Block Header CRC: 2 bytes. Last three bits only; 
+bit is set if Block Header copy is good. This data 
+is usually 00,07.
+- Scan Status: 4 bytes (OGE Table 3-6)
+- Year, Day, Time from Block 0: 8 bytes
+- Block Header: 30 bytes (OGE Table 3-5)
+- Additional Line Documentation: 32 bytes. 16 10-
+bit fields, right-justified. (OGE Table 3-7)
+The rest of the line consists of up to 41920 bytes of data. 
+Because it is 2-byte data, half that many pixels are 
+represented.
+
+
+Imager NAV Block
+Navigation blocks are divided into 640 words. Unless 
+otherwise noted, words are twos complement binary 
+integers. 
+This navigation information comes from Block 0 records. 
+Bytes designated R*4 in OGE Tables are in Gould 
+format. They must be scaled and then converted to 
+integers; or converted to Real on the machine doing the 
+decoding, scaled as designated below, and then converted 
+to integer.
+Word
+Value and Description
+
+W1
+GVAR; navigation type
+
+W2
+ASCII string; usually a letter followed by three 
+integers, for example, U001
+
+W3
+imager scan status; bits 0-15 are right justified, bit 
+15 is the least significant bit; IMC active flag is bit 
+8, counting from the least significant bit; 1=active; 
+see OGE Table 3-6, bytes 3-6
+
+W4-5
+0; not used
+
+W6-62
+see OGE Table 3-6, bytes 295-522
+
+W6
+reference longitude, rad * 10000000
+
+W7
+reference distance from nominal, km * 10000000
+
+W8
+reference latitude, rad * 10000000
+
+W9
+reference yaw, rad * 10000000
+
+W10
+reference attitude roll, rad * 10000000
+
+W11
+reference attitude pitch, rad * 10000000
+
+W12
+reference attitude yaw, rad * 10000000
+
+W13-14
+epoch date/time, BCD format
+
+W15
+delta from epoch time, minutes * 100
+
+W16
+image motion compensation roll, rad * 10000000
+
+W17
+image motion compensation pitch, rad * 10000000
+
+W18
+image motion compensation yaw, rad * 10000000
+
+W19-31
+longitude delta from reference values, rad * 
+10000000
+
+W32-42
+radial distance delta from reference values, rad * 
+10000000
+
+W43-51
+geocentric latitude delta values, no units * 
+10000000
+
+W52-60
+orbit yaw delta values, no units * 10000000
+
+W61
+daily solar rate, rad/min * 10000000
+
+W62
+exponential start time from epoch, minutes * 100
+
+W63-117
+roll attitude angle information; 
+see OGE Table 3-6, bytes 523-742
+
+W63
+exponential magnitude, rad * 10000000
+
+W64
+exponential time constant, minutes * 100
+
+W65
+mean attitude angle, rad * 10000000
+
+W66
+number of sinusoids/angles, no units
+
+W67
+magnitude of first order sinusoid, rad * 10000000
+
+W68
+phase angle of first order sinusoid, rad * 10000000
+
+   :
+
+W95
+magnitude of fifteenth sinusoid, rad * 10000000
+
+W96
+phase angle of fifteenth sinusoid, rad * 10000000
+
+W97
+number of monomial sinusoid, no units
+
+W98
+order of applicable sinusoid, no units
+
+W99
+order of first monomial sinusoid, no units
+
+W100
+magnitude of monomial sinusoid, rad * 10000000
+
+W101
+phase angle of monomial sinusoid, rad * 10000000
+
+W102
+angle from epoch at daily solar rate, rad * 10000000
+
+W103-107
+repeat of Words 98-102 for second monomial
+
+W108-112
+repeat of Words 98-102 for third monomial
+
+W113-117
+repeat of Words 98-102 for fourth monomial
+
+W118-127
+reserved
+
+W128
+MORE; 4-byte ASCII
+
+W129
+GVAR; 4-byte ASCII
+
+W130-239
+attitude angles
+
+W130-184
+repeat of Words 63-117 for pitch attitude angle;
+see OGE Table 3-6, bytes 743-962
+
+W185-239
+repeat of Words 63-117 for yaw attitude angle;
+see OGE Table 3-6, bytes 963-1182
+
+W240-255
+reserved
+
+W256
+MORE; 4-byte ASCII
+
+W257
+GVAR; 4-byte ASCII
+
+W258-367
+misalignment angles
+
+W258-312
+repeat of Words 63-117 for roll misalignment angle;
+see OGE Table 3-6, bytes 1183-1402
+
+W313-367
+repeat of Words 63-117 for pitch misalignment 
+angle; see OGE Table 3-6, bytes 1403-1622
+
+W368
+year and Julian day, YYDDD
+
+W369
+nominal start time of image, HHMMSS
+
+W370
+1; Imager/Sounder instrument flag; 1 = Imager, 
+2 = Sounder
+
+W371-379
+reserved
+
+W380
+instrument nadir, north/south cycles; 
+see OGE Table 3-6, byte 6305
+
+W381
+instrument nadir, east/west cycles; 
+see OGE Table 3-6, byte 6306
+
+W382
+instrument nadir, north/south increments; 
+see OGE Table 3-6, byte 6307-6308
+
+W383
+instrument nadir, east/west increments; 
+see OGE Table 3-6, byte 6309-6310
+
+W384
+MORE; 4-byte ASCII
+
+W385
+GVAR; 4-byte ASCII
+
+W386-511
+reserved
+
+W512
+MORE; 4-byte ASCII
+
+W513
+GVAR; 4-byte ASCII
+
+W514-640
+reserved
+
+
+Imager CAL Block
+There are two instruments on the GOES-8 through 
+GOES-12 series of satellites: the Sounder and the 
+Imager. Even sensor source numbers represent Imager 
+data and odd sensor source numbers represent Sounder 
+data. Area Directory Word 52 contains the image source 
+type:
+  GVAR for GVAR data as it is ingested (2 byte)
+  VISR for 1-byte visible or infrared imagery
+VISR data cannot be ingested; GVAR data can be 
+transformed to VISR with a McIDAS utility such as AA 
+or SENAA.
+
+Area Directory Word 53 contains the units in which the 
+data is stored:
+  RAW for 2-byte raw GVAR data
+  BRIT for 1-byte visible or infrared values
+Area Directory Word 14 contains the number of spectral 
+bands present in an Imager area. The filter band map in 
+Area Directory Word 19 describes the bands in an area. A 
+bit is set for each band appearing in the area. The 
+number of bands must match the value in Word 14.
+
+
+The Imager calibration block is made up of 128 words 
+(512 bytes). The data is in the Gould format.
+
+Word
+Value and Description
+
+W1-W8
+visible bias coefficients; one per detector (OGE Table 
+3-6, bytes 6399-6430)
+
+W9-W16
+visible first order gain coefficients; one per detector 
+(OGE Table 3-6, bytes 6431-6462)
+
+W17-W24
+visible second order gain coefficients; one per detector 
+(OGE Table 3-6, bytes 6463-6494)
+
+W25
+visible radiance to albedo conversion factor (OGE 
+Table 3-6, bytes 6495-6498)
+
+W26-W29
+det side 1 IR bias scaling factors; one per IR channel 
+(OGE Table 3-6: bytes 6667-6670 Ch 4, Side 1; bytes 
+6675-6679 Ch 5, Side 1; bytes 6683-6686 Ch 2, Side 1; 
+bytes 6691-6694 Ch 3, Side 1)
+
+W30-W33
+det side 2 IR bias scaling factors; one per IR channel 
+(OGE Table 3-6: bytes 6695-6698 Ch 4, Side 2; bytes 
+6703-6706 Ch 5, Side 2; bytes 6711-6714 Ch 2, Side 2; 
+bytes 6719-6722 Ch 3, Side 2)
+
+W34-W37
+det side 1 IR gain scaling factors; one per IR channel 
+(OGE Table 3-6: bytes 6723-6726 Ch 4, Side 1; bytes 
+6731-6734 Ch 5, Side 1; bytes 6739-6742 Ch 2, Side 1; 
+bytes 6747-6750 Ch 3, Side 1)
+
+W38-W41
+det side 2 IR gain scaling factors; one per IR channel 
+(OGE Table 3-6: bytes 6751-6753 Ch 4, Side 2; bytes 
+6759-6762 Ch 5, Side 2;bytes 6767-6770 Ch 2, Side 2; 
+bytes 6775-6778 Ch 3, Side 2)
+
+W42-W128
+0
+
+
+
+BLOCK 11
+Block 11 Holding areas contain data for Sounder images. 
+This data cannot be easily accessed. A decoder must 
+reformat the raw Block 11 data and place it in Sounder 
+image areas, where it is available for analysis and 
+display.
+
+Block 11 Holding Area Directory Block 
+
+Word
+Value and Description
+
+W11
+number of bytes per element; 1 or 2 depending 
+on the element size of the desired band; a 
+holding area cannot contain both 1- and 2-byte 
+data
+
+W14
+1; number of bands in the image
+
+W19
+block type filter; positions of set bits 
+correspond to the block types requested; the 
+least significant bit is the right hand bit; a 
+value of 787968 translates to 0c0600 hex with 
+bits set in positions 20, 19, 11 and 10
+
+W25-32
+ordinarily contains the string RT BK11 BYT1
+
+W49
+40; length of the DATA block line prefix 
+documentation region, in bytes
+
+W50
+0; length of the DATA block line prefix 
+calibration region, in bytes
+
+W51
+0; length of the DATA block line prefix level 
+map region, in bytes
+
+W52
+BK11; image source type
+
+W53
+RAW; calibration type
+
+
+
+Block 11 Holding Area DATA Block
+GVAR transmits 22 types of Block 11 data. This can be 
+6-, 8-, or 10-bit data. The user can specify any type to be 
+stored in a single holding area. Control fields in the line 
+prefix or the first portion of the data (called the SAD ID) 
+are used by post-processes, such as the Sounder decoder, 
+to determine the block type. Each DATA block line 
+consists of a single Block 11 sector (or block). All blocks 
+are 8040 bytes. Refer to the OGE, sections 3.3.7 - 3.3.7.14 
+for a detailed breakdown of the contents of each block 
+type.
+The 10-bit data is formatted as follows:
+| 0 | x | x | x | x | x | x | x | x | x | x | 0 | 0 | 0 | 0 | 0 |
+The x represents a data bit and the rest is zero-filled 
+after shifting.
+The 8-bit data is formatted as follows:
+| x | x | x | x | x | x | x | x |
+The 6-bit data is formatted as follows:
+| 0 | 0 | x | x | x | x | x | x |
+
+Line Prefix
+  Validity Code: 4 bytes
+  Documentation: 40 bytes. The documentation region 
+consists of the following:
+- Block Header CRC: 2 bytes (OGE Table 3-5)
+- Current Year, Day and Time from Block 0: 8 
+bytes (OGE Table 3-6)
+- Block Header: 30 bytes (OGE Table 3-5)
+The rest of the line consists of up to 8040 bytes of data, 
+depending on block type. 
+WARNING: The Block Header CRC field is overwritten 
+in the mainframe by a 2-byte counter. This is used to 
+check sequencing of the data flow.
+
+
+GVAR SOUNDER
+Sounder areas are decoded from Block 11 holding area 
+data.
+
+Sounder Area Directory Block
+
+Word
+Value and Description
+
+W12
+line resolution; 10 is the base resolution; if 
+lines are sampled or averaged, the resolution 
+is in multiples of 10.
+
+W13
+element resolution; 10 is the base resolution; 
+if pixels are sampled or averaged, the 
+resolution is in multiples of 10.
+
+W14
+19; number of bands
+
+W19
+54287; band filter map; translates to 0007ffff 
+hex; bits set for bands 1-19
+
+W25-32
+ordinarily contains the string PRIORITY 
+COMPLETED
+
+W49
+36; length of the DATA block line prefix 
+documentation region, in bytes
+
+W50
+0; length of the DATA block line prefix 
+calibration region, in bytes
+
+W51
+24; length of the DATA block line prefix level 
+map region, in bytes
+
+W52
+GVAR; image source type
+
+W53
+RAW; calibration type
+
+
+
+Decoded Sounder Area DATA Block 
+The GVAR Sounder Decoder reads Block 11 Holding 
+areas, which contain blocks of type 32 (20hex) and type 
+35 (23hex) as well as others. These blocks are 
+documented in OGE, section 3.3.7.2 and section 3.3.7.3. 
+Navigation and calibration data is read from type 32 
+blocks (Sounder documentation blocks). Sensor data is 
+read from type 35 blocks (Sounder scan data blocks) and 
+then reformatted and placed in the Sounder image area.
+All Sounder data fields are 13 bits and are placed in 2-
+byte (16-bit) fields. There are 23 bands of data for each 
+pixel in a Sounder scan data block. The pixels correspond 
+to a geographic area 11 pixels west-east and 4 pixels 
+north-south. For each image line, the decoder produces 
+11 sets of 23 interleaved fields of data.
+Bands 20-23 of this data are not displayable; they hold 
+the latitude and longitude of the first 19 bands. The 
+latitude and longitudes are 32-bit values. Since the 
+actual Sounder data is 16 bits, the latitude and longitude 
+values must be split in half to store them in the area 
+structure. Band 20 holds the two most significant bytes 
+and band 21 holds the two least significant bytes of the 
+latitude. Band 22 holds the two most significant bytes 
+and band 23 holds the two least significant bytes of the 
+longitude.
+These latitude and longitude values are in the Gould 
+floating point format. See OGE, section 3.5.4. For 
+example, if the latitude of a pixel is 100.1640625, the hex 
+representation is 42642A00; band 20 holds 4264, and 
+band 21 holds 2A00.
+No code is provided in this package to use these latitudes 
+and longitudes; they are included only for reference 
+purposes.
+There are four Sounder sensors: A through D. Each 
+DATA block line contains information from only one 
+sensor. The first line contains sensor A information, the 
+second line, sensor B, etc. This pattern is repeated for the 
+entire DATA block.
+
+
+Line Prefix
+  Validity Code: 4 bytes
+  Documentation: 36 bytes. The documentation region 
+consists of the following:
+- First 9 words of SAD Block ID: 9 bytes 
+(OGE Table 3-8)
+- Year, Day, Time of scan line start: 8 bytes 
+(OGE Table 3-11)
+- Sounder scan status: 2 bytes (OGE Table 3-11)
+- Number of Block 11 blocks in the scan: 2 bytes 
+(OGE Table 3-11)
+- O&A Location: 2 bytes. No longer used.
+- Detector status: 10 bytes (OGE Table 3-11)
+- Detector used in this area line: 1 byte
+- padding: 2 bytes
+  Level map; indicates band order for this line: 24 bytes
+The rest of the line is made up of the interleaved Sounder 
+data.
+
+Sounder Area NAV Block
+Navigation blocks are divided into 640 words. Unless 
+otherwise noted, words are twos complement binary 
+integers. 
+This navigation information comes from Block 11 records, 
+type 32. Bytes designated R*4 in the OGE Tables are in 
+Gould format in the holding areas. They must be scaled 
+and then converted to integers; or converted to Real on 
+the machine doing the decoding, scaled as designated 
+below, and then converted to integer.
+
+Word
+Value and Description
+
+W1
+GVAR; navigation type
+
+W2
+ASCII string; usually a letter followed by three 
+integers, for example, U001
+
+W3
+imager scan status; bits 0-15 are right justified, bit 
+15 is the least significant bit; IMC active flag is bit 
+8, counting from the least significant bit; 1=active; 
+see OGE Table 3-11, bytes 3-6
+
+W4-5
+0; not used
+
+W6-62
+see OGE Table 3-11, bytes 323-550
+
+W6
+reference longitude, rad * 10000000
+
+W7
+reference distance from nominal, km * 10000000
+
+W8
+reference latitude, rad * 10000000
+
+W9
+reference yaw, rad * 10000000
+
+W10
+reference attitude roll, rad * 10000000
+
+W11
+reference attitude pitch, rad * 10000000
+
+W12
+reference attitude yaw, rad * 10000000
+
+W13-14
+epoch date/time, BCD format
+
+W15
+delta from epoch time, minutes * 100
+
+W16
+image motion compensation roll, rad * 10000000
+
+W17
+image motion compensation pitch, rad * 10000000
+
+W18
+image motion compensation yaw, rad * 10000000
+
+W19-31
+longitude delta from reference values, rad * 
+10000000
+
+W32-42
+radial distance delta from reference values, rad * 
+10000000
+
+W43-51
+geocentric latitude delta values, no units * 
+10000000
+
+W52-60
+orbit yaw delta values, no units * 10000000
+
+W61
+daily solar rate, rad/min * 10000000
+
+W62
+exponential start time from epoch, minutes * 100
+
+W63-117
+roll attitude angle information; 
+see OGE Table 3-11, bytes 551-770
+
+W63
+exponential magnitude, rad * 10000000
+
+W64
+exponential time constant, minutes * 100
+
+W65
+mean attitude angle, rad * 10000000
+
+W66
+number of sinusoids/angles, no units
+
+W67
+magnitude of first order sinusoid, rad * 10000000
+
+W68
+phase angle of first order sinusoid, rad * 10000000
+
+   :
+
+W95
+magnitude of fifteenth sinusoid, rad * 10000000
+
+W96
+phase angle of fifteenth sinusoid, rad * 10000000
+
+W97
+number of monomial sinusoid, no units
+
+W98
+order of applicable sinusoid, no units
+
+W99
+order of first monomial sinusoid, no units
+
+W100
+magnitude of monomial sinusoid, rad * 10000000
+
+W101
+phase angle of monomial sinusoid, rad * 10000000
+
+W102
+angle from epoch at daily solar rate, rad * 10000000
+
+W103-107
+repeat of Words 98-102 for second monomial
+
+W108-112
+repeat of Words 98-102 for third monomial
+
+W113-117
+repeat of Words 98-102 for fourth monomial
+
+W118-127
+reserved
+
+W128
+MORE; 4-byte ASCII
+
+W129
+GVAR; 4-byte ASCII
+
+W130-239
+attitude angles see OGE Table 3-11, bytes 771-1210
+
+W130-184
+repeat of Words 63-117 for pitch attitude angle;
+see OGE Table 3-11, bytes 771-990
+
+W185-239
+repeat of Words 63-117 for yaw attitude angle;
+see OGE Table 3-11, bytes 991-1210
+
+W240-255
+reserved
+
+W256
+MORE; 4-byte ASCII
+
+W257
+GVAR; 4-byte ASCII
+
+W258-367
+misalignment angles
+
+W258-312
+repeat of Words 63-117 for roll misalignment angle;
+see OGE Table 3-11; bytes 1211-1430
+
+W313-367
+repeat of Words 63-117 for pitch misalignment 
+angle; see OGE Table 3-11; bytes 1431-1650
+
+W368
+year and Julian day, YYDDD
+
+W369
+nominal start time of the image, HHMMSS
+
+W370
+2; Imager/Sounder instrument flag; 1 = Imager, 
+2 = Sounder
+
+W371-379
+reserved
+
+W380
+instrument nadir, north/south cycles; 
+see OGE Table 3-6, byte 3005
+
+W381
+instrument nadir, east/west cycles; 
+see OGE Table 3-6, byte 3006
+
+W382
+instrument nadir, north/south increments; 
+see OGE Table 3-6, byte 3007-3008
+
+W383
+instrument nadir, east/west increments; 
+see OGE Table 3-6, byte 3009-3010
+
+W384
+MORE; 4-byte ASCII
+
+W385
+GVAR; 4-byte ASCII
+
+W386-511
+reserved
+
+W512
+MORE; 4-byte ASCII
+
+W513
+GVAR; 4-byte ASCII
+
+W514-640
+reserved
+
+
+
+Sounder Area CAL Block
+Sounder calibration blocks are made up of 128 words 
+(512 bytes):
+
+Word
+Value and Description
+
+W1-W4
+visible bias coefficients; one per detector 
+(OGE Table 3-11, bytes 3075-3090)
+
+W5-W8
+visible first order gain coefficients; one per detector 
+(OGE Table 3-11, bytes 3091-3106)
+
+W9-W12
+visible second order gain coefficients; one per 
+detector (OGE Table 3-11, bytes 3107-3122)
+
+W13
+visible radiance to albedo conversion factor (OGE 
+Table 3-11, bytes 3123-3126)
+
+W14-W31
+IR bias scaling factors; one per IR channel (OGE 
+Table 3-11, bytes 3127-3414)
+
+W32-W49
+IR gain scaling factors; one per IR channel (OGE 
+Table 3-11, bytes 3415-3702)
+
+W50-W128
+0
+
+
+GVAR VISSR
+
+Brightness to Temperature Conversion Algorithm
+The following description is for image source type VISR 
+from Area Directory Word 52. GVAR VISSR areas can be 
+made with the McIDAS commands AA and ARAGET.
+Every element in a VISSR area contains one 8-bit pixel, 
+representing raw data from the instrument. If the area 
+contains IR data, the observed temperature may be 
+calculated from the pixel value using the following 
+formulas:
+	T = 418 - B  (B>176 OR B=176)
+	T = 330 - (B / 2)  (B<176 OR B=176)
+T is the brightness temperature (degrees K). B is the 
+pixel value (0 to 255). For IR data, the highest pixel 
+values correspond to the coldest temperatures (space is 
+white).
+The line prefix in a VISSR area may be absent or it may 
+contain only the 4-byte validity code. The highest 
+resolution, lowest values of line and element resolution in 
+the Area Directory, possible for a visible area is 1. The 
+highest resolution for an IR area is 4 because longer 
+wavelengths inherently have less resolution. For a GOES 
+satellite, resolution 1 means approximately 1 km 
+resolution at the satellite subpoint.
+
+
+GOES-7
+
+GOES-7 Area NAV Block
+Unless otherwise noted, the words in the navigation 
+block are twos complement binary integers.
+
+Word
+Value and Description
+
+W1
+GOES; navigation type
+
+W2
+satellite ID, year, and Julian day, 
+SSYYDDD
+
+W3
+nominal start time of image, HHMMSS
+
+Orbit parameters
+
+W4
+1; orbit type
+
+W5
+epoch date (ETIMY), YYMMDD
+
+W6
+epoch time (ETIMH), HHMMSS
+
+W7
+semimajor axis (SEMIMA), Km * 100
+
+W8
+orbital eccentricity (ECCEN) * 100000
+
+W9
+orbital inclination (ORBINC), Deg * 1000
+
+W10
+mean anomaly (MEANA), Deg * 1000
+
+W11
+argument of perigee (PERIGEE), Deg * 
+1000
+
+W12
+right ascension of ascending node 
+(ASNODE), Deg * 1000
+
+Attitude parameters
+
+W13
+declination of satellite axis (DECLIN), 
+DDDMMSS (+ = NORTH)
+
+W14
+right ascension of satellite axis (RASCEN), 
+DDDMMSS
+
+W15
+picture center line number (PICLIN)
+
+Spin
+ 
+
+W16
+spin period (SPINP); the satellite period, in 
+microseconds, or the spin rate in 
+revolutions/minute.
+
+Frame geometry
+
+W17
+total sweep angle, line direction (DEGLIN), 
+DDDMMSS
+
+W18
+number of scan lines (LINTOT), NNLLLLL 
+where NN is number of sensors, LLLLL is 
+number of scans; total number of actual 
+lines is NN * LLLLL
+
+W19
+total sweep angle, element direction 
+(DEGELE), DDDMMSS
+
+W20
+number of elements in a scan line 
+(ELETOT)
+
+Camera geometry
+
+W21
+forward-leaning (PITCH), DDDMMSS
+
+W22
+sideways-leaning (YAW), DDDMMSS
+
+W23
+rotation (ROLL), DDDMMSS
+
+W24
+reserved
+
+W25
+east-west adjustment value (IAJUST), in 
+visible elements (+ or -)
+
+W26
+time computed by IAJUST from the first 
+valid landmark of the day (IAJTIM), 
+HHMMSS
+
+W27
+reserved
+
+W28
+angle between the VISSR and sun sensor 
+(ISEANG), DDDMMSS
+
+W29
+0; reserved for later implementation of 
+*SKEW*
+
+W30
+reserved
+
+Betas for this area
+
+W31
+scan line of first the beta
+
+W32
+time of first beta’s scan line (beginning), 
+HHMMSS
+
+W33
+time of first beta’s scan line (continued), 
+milliseconds * 10
+
+W34
+beta count 1
+
+W35
+scan line of second beta
+
+W36
+time of second beta’s scan line (beginning), 
+HHMMSS
+
+W37
+time of second beta’s scan line (continued), 
+milliseconds * 10
+
+W38
+beta count 2
+
+Gammas for this area
+
+W39
+gamma, element offset * 100; this is the 
+nominal offset at time zero of this day
+
+W40
+gamma-dot, element drift per hour * 100
+
+W41-120
+reserved
+
+W121-128
+memo; up to 32 ASCII characters of 
+comments
+
+Appendix A
+ Sensor Source Numbers
+Use this table to find the number used by McIDAS 
+software to identify sensors. 
+
+Number  Sensor Source 
+0   Non-Image Derived Data        
+2   Graphics               
+3   MDR Radar
+4   PDUS METEOSAT Visible
+5   PDUS METEOSAT Infrared
+6   PDUS METEOSAT Water Vapor
+7   Radar                
+8   Miscellaneous Aircraft Data (MAMS)  
+9   Raw METEOSAT
+12  GMS Visible prior to GMS-5
+13  GMS Infrared prior to GMS-5
+14  ATS 6 Visible            
+15  ATS 6 Infrared            
+16  SMS-1 Visible            
+17  SMS-1 Infrared            
+18  SMS-2 Visible            
+19  SMS-2 Infrared            
+20  GOES-1 Visible            
+21  GOES-1 Infrared           
+22  GOES-2 Visible            
+23  GOES-2 Infrared           
+24  GOES-3 Visible            
+25  GOES-3 Infrared           
+26  GOES-4 Visible (VAS)         
+27  GOES-4 Infrared and Water Vapor (VAS) 
+28  GOES-5 Visible            
+29  GOES-5 Infrared and Water Vapor (VAS) 
+30  GOES-6 Visible            
+31  GOES-6 Infrared           
+32  GOES-7 Visible            
+33  GOES-7 Infrared           
+41  TIROS-N (POES)               
+42  NOAA-6                
+43  NOAA-7                
+44  NOAA-8                
+45  NOAA-9          
+46-49   MARINER X Spacecraft         
+50  Hubble Space Telescope      
+54  METEOSAT-3           
+55  METEOSAT-4
+56  METEOSAT-5
+57  METEOSAT-6
+60  NOAA-10
+61  NOAA-11
+62  NOAA-12
+63  NOAA-13
+64  NOAA-14
+70  GOES-8 (Imager)
+71  GOES-8 (Sounder)
+72  GOES-9 (Imager)
+73  GOES-9 (Sounder)
+74  GOES-10 (Imager)
+75  GOES-10 (Sounder)
+76  GOES-11 (Imager)
+77  GOES-11 (Sounder)
+78  GOES-12 (Imager)
+79  GOES-12 (Sounder)
+80  ERBE
+82  GMS-4
+83  GMS-5
+84  GMS-6
+85  GMS-7
+87  DMSP F-8
+88  DMSP F-9
+89  DMSP F-10
+90  DMSP F-11
+91  DMSP F-12
+95  FY-1b                
+96  FY-1c                
+97  FY-1d                
+
+
+Appendix B
+GVAR Calibration Tables
+
+Imager Sensor Characteristics
+The IMAGER produces observation data for a given 
+spatial location in four different IR spectral bands and a 
+visible band. The characteristics of the Imager bands are 
+given below:
+
+
+Band No.
+
+Wavelength Range (um)
+
+Range of Measurement
+
+Meteorological Objective 
+And Maximum Temp. Range
+
+1 
+00.55   00.75 
+1.6 to 100 % albedo 
+Cloud Cover
+
+2 
+03.80   04.00 
+4 to 320 K    
+Night clouds (space - 340 K)
+
+3 
+06.50   07.00 
+4 to 320 K    
+Water vapor (space - 290 K)
+
+4 
+10.20   11.20 
+4 to 320 K    
+Surf Temp (space - 340 K)
+
+5 
+11.50   12.50 
+4 to 320 K    
+Sea surface temp and water 
+vapor (space - 335 K)
+
+
+
+
+Sounder Detector Characteristics
+The Sounder produces data for a given spatial location in 
+18 IR spectral bands and a visible band. The 
+characteristics of the Sounder bands are listed below:
+
+
+Band No.
+
+Central Wavelength (um)
+
+Wave No. (cm -1)
+
+Meteorological Objective And 
+Maximum Temp. Range
+
+Longwave
+
+1 
+14.71  
+680 
+Temperature (space - 280 K)
+
+2 
+14.37  
+696 
+Sounding (space - 280 K)
+
+3 
+14.06  
+711 
+Sounding (space - 290 K)
+
+4 
+13.64  
+733 
+Sounding (space - 310 K)
+
+5 
+13.37  
+748 
+Sounding (space - 320 K)
+
+6 
+12.66  
+790 
+Sounding (space - 330 K)
+
+7 
+12.02  
+832 
+Surface temp. (space - 340 K)
+
+Midwave
+
+8 
+11.03  
+907 
+Surface temp (space - 345 K)
+
+9 
+9.71  
+1030 
+Total ozone (space - 330 K)
+
+10 
+7.43  
+1345 
+Water vapor (space - 310 K)
+
+11 
+7.02  
+1425 
+Sounding (space - 295 K)
+
+12 
+6.51  
+1535 
+Sounding (space - 290 K)
+
+Shortwave
+
+13 
+4.57  
+2188 
+Temperature (space - 320 K)
+
+14 
+4.52 
+2210 
+Sounding   (space - 310 K)
+
+15 
+4.45  
+2248 
+Sounding   (space - 295 K)
+
+16 
+4.13  
+2420 
+Sounding   (space - 240 K)
+
+17 
+3.98  
+2513 
+Surface temp (space - 345 K)
+
+18 
+3.74  
+2671 
+Temperature (space - 345 K)
+
+Visible
+
+19 
+0.70  
+14367 
+Cloud cover
+
+
+The number of spectral bands present in Imager and 
+Sounder areas is contained in Area Directory Word 14. 
+The filter map in Word 19 describes the bands in an area. 
+A bit is set for each band in the area. The number of 
+bands must match the value in Word 14.
+
+
+
+
+Storing Satellite Imagery in McIDAS Data Structures
+Preliminary Issue 12/95
+
+

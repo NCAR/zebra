@@ -1,13 +1,16 @@
 /*
- * $Id: areadump.c,v 1.2 1995-09-19 21:55:36 burghart Exp $
+ * $Id: areadump.c,v 1.3 1997-03-11 19:39:12 granger Exp $
  */
 
 # include <stdio.h>
-# include "defs.h"
+
+# include <defs.h>
+# include <message.h>
+# include <DataStore.h>
+
+# include "Area.h"
 
 void DumpInfo();
-void GetFileTime();
-void swapfour();
 
 #define C_DATE		(1<<0)
 #define C_RESOLUTION	(1<<1)
@@ -17,9 +20,6 @@ void swapfour();
 #define C_NONE		(0)
 #define C_DEFAULT	(C_DATE | C_RESOLUTION)
 
-int	Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-int	LittleEndian;	/* Set to true when we have a LSB-first ordered file */
 
 
 
@@ -30,7 +30,7 @@ char *argv[];
 {
 	printf ("Usage: %s [-d] [-r] [-t] [-s] [-a] <area_file> ...\n", 
 		argv[0]);
-	printf ("Defaults to showing date and resolution, but the following\n");
+	printf ("Defaults to showing date and resolution; the following\n");
 	printf ("options can be combined to tailor output:\n");
 	printf (" -d  Display dates\n");
 	printf (" -r  Resolution info\n");
@@ -41,19 +41,14 @@ char *argv[];
 
 
 
+int
 main (argc, argv)
 int	argc;
 char	**argv;
 {
-	FILE	*infile;
-	char	*cvals;
-	int	*header, *nav_cod;
-	int	i, c, *ival;
-	ZebTime	zt;
-	char	buf[50];
-	int	code = C_NONE;
-
-	cvals = (char *) malloc (768 * sizeof (char));
+	int i;
+	AreaFile *af;
+	int code = C_NONE;
 
 	if (argc < 2)
 	{
@@ -61,6 +56,8 @@ char	**argv;
 		exit (1);
 	}
 
+	msg_connect (NULL, argv[0]);
+	msg_ELPrintMask (EF_ALL);
 	for (i = 1; i < argc; ++i)
 	{
 		if ((argv[i][0] == '-') && (strlen(argv[i]) == 2))
@@ -87,172 +84,67 @@ char	**argv;
 				usage (argc, argv);
 				exit(1);
 			}
-		} 
-		else if ((infile = fopen (argv[i], "r")) == 0)
-		{
-			perror(argv[i]);
 			continue;
-		}
-		else
-		{
-			fread (cvals, 1, 768, infile);  
-			/* 256 byte header + 512 byte nav codicil */
-			fclose (infile);
-			DumpInfo (argv[i], cvals, (!code)?(C_DEFAULT):(code));
-		}
+		} 
+		if (! (af = AddFile (NULL, argv[i], NULL)))
+			continue;
+
+		DumpInfo (af, (!code)?(C_DEFAULT):(code));
+		CloseAreaFile (af);
 	}
+	exit (0);
 }
 
 
 
 void
-DumpInfo(filename, cvals, code)
-	char *filename;
-	char *cvals;
-	int code;		/* Code detailing what to display */
+DumpInfo (af, code)
+AreaFile *af;
+int code;		/* Code detailing what to display */
 {
-	int *header = (int *)cvals;
-	int *nav_cod = header + 64;
-	char buf[50];
-	char source[5], *c;
-	char imtype[4];
-	ZebTime zt;
-	int Yres, Xres, Nbytes, Ny, Nx, Prefixlen, Linelen;
-	int i;
-/*
- * Figure out if this file is big-endian or little-endian.  The second word
- * of the area directory should always be 4, so we can test on that.
- */
-	LittleEndian = (header[1] != 4);
-	GetFileTime(header, &zt);
-/*
- * NOTE: We don't swap in those portions which contain text
- */
-	if (LittleEndian)
-	{
-		swapfour (header + 5, 15);
-		swapfour (header + 32, 19);
-	}
+	char imtype[5];
+	AreaImage area;
 
-	strncpy (imtype, nav_cod, 4);
-	imtype[4] = '\0';
-/*
- * Resolution (# of satellite units per image unit)
- */
-	Yres = header[11];
-	Xres = header[12];
-	Nbytes = header[10];
-/*
- * Image size (Nx x Ny), bytes per element and prefix length
- */
-	Ny = header[8];
-	Nx = header[9];
-	Prefixlen = header[14];
-
-	Linelen = Nx * Nbytes + Prefixlen;
-/*
- * Source name from header word 51 (convert to lower case and remove spaces)
- */
-	strncpy (source, header + 51, 4);
-	source[4] = '\0';
-	for (i = 0; i < 4; i++)
+	ReadArea (af, &area);
+	if (! ReadNavCod (af, NULL, imtype))
 	{
-		c = source + i;
-		if (*c == ' ')
-			*c = '\0';
-		else
-			*c = tolower (*c);
+		strcpy (imtype, "ERR");
 	}
 /*
  * Now show all this information we've gotten
  */
-	TC_EncodeTime(&zt, TC_Full, buf);
 	if (code & (C_DATE | C_RESOLUTION))
 	{
-		printf("%-20s %s",buf,filename);
-		printf("  X,Y Res: %i,%i km\n", Xres, Yres);
+		printf("%-20s %s", TC_AscTime (&af->when, TC_Full), af->name);
+		printf("  X,Y Res: %i,%i km\n", area.xres, area.yres);
 	}
 	if (code & C_IMAGE_TYPE)
 	{
 		printf("    Image type:      %-5s", imtype);
-		printf("%15s %-5s\n","Source:",source);
+		printf("%15s %-5s", "Source:", area.source);
+		printf("%25s\n", 
+		       (af->doswap ? "Swapping bytes":"No byte swap"));
 	}
 	if (code & C_IMAGE_SIZES)
 	{
-		printf("    Bytes/element:   %1i            ", Nbytes);
-		printf("Elements/line: %-4i\n",Nx);
-		printf("    Prefix length:   %-2i bytes     ",Prefixlen);
-		printf("Bytes/line:   %-5i   ",Linelen);
-		printf("Number lines: %-5i\n",Ny);
+		printf("    Bytes/element:   %1i            ", area.nbytes);
+		printf("Elements/line: %-4i\n", area.nx);
+		printf("    Prefix length:   %-2i bytes     ", area.prefixlen);
+		printf("Bytes/line:   %-5i   ", area.linelen);
+		printf("Number lines: %-5i\n", area.ny);
 	}
-}
-
-
-
-
-void
-GetFileTime (header, t)
-int	*header;
-ZebTime *t;
-/*
- * Print the time taken from the area file header
- */
-{
-	int	year, month, day, hour, minute, second;
-/*
- * Do the appropriate byte swapping.
- */
-	if (LittleEndian)
-		swapfour (header, 5);
-/*
- * Extract the date.
- */
-	year = header[3] / 1000;
-	if ((year % 4) == 0)
-		Mdays[2] = 29;	/* February has 29 days in leap years */
-
-	day = header[3] % 1000;
-	month = 1;
-	while (day > Mdays[month])
-		day -= Mdays[month++];
-	Mdays[2] = 28;		/* return to 28 days in case next file
-				 * is in a different year */
-/*
- * Time
- */
-	hour = header[4] / 10000;
-	minute = (header[4] / 100) % 100;
-	second = header[4] % 100;
-/*
- * Build a zeb time out of the pieces and we're done
- */
-	TC_ZtAssemble (t, year, month, day, hour, minute, second, 0);
-}
-
-
-
-
-void
-swapfour (array, count)
-
-int	*array, count;
-/*
- * Swap byte order (0123 -> 3210) for 'count' longwords in 'array'
- */
-{
-	int	i;
-	char	*bytes, swapped[4];
-
-	for (i = 0; i < count; i++)
+	if (code == C_ALL)
 	{
-		bytes = (char *) &(array[i]);
-		swapped[0] = bytes[3];
-		swapped[1] = bytes[2];
-		swapped[2] = bytes[1];
-		swapped[3] = bytes[0];
-		memcpy (bytes, swapped, 4);
+		printf("\nSatellite sensor source: %d\n", area.sss);
+		printf("Number of channels: %d\n", area.nchans);
+		printf("Byte offset to data block: %d\n", area.datablock);
+		printf("         navigation block: %d\n", area.navblock);
+		printf("        calibration block: %d\n", area.calblock);
+		printf("Calibration type: %s\n", area.caltype);
+		printf("Memo: %s\n", area.memo);
 	}
 }
+
 
 
 

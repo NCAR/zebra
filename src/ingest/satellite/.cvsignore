@@ -1,10 +1,11 @@
-Makefile
 GMSIngest
-SatIngest
-gvarIngest
 GriddedGOES
-testSatIngest
+Makefile
+Makefile.dep
+SatIngest
+SatIngest.lf
 area_dump
 areadump
-SatIngest.lf
+gvarIngest
 gvarIngest.lf
+testSatIngest

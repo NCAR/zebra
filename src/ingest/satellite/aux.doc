@@ -1,0 +1,401 @@
+
+
+
+                        McIDAS area file AUXiliary block
+
+
+1. Introduction 
+
+      The McIDAS area is a collection of data "blocks". These blocks
+   define the basic geometry of the data, its relationship in space
+   (navigation) and its transforms to physical units (calibration). Within
+   the McIDAS environment, these data are considered common to all remote
+   imaging platforms and therefore are included, in some manner, for all
+   McIDAS image data types.
+
+      Ancillary information not pertaining to navigation or calibration
+   can be stored in the auxiliary (AUX) block. Since the physical nature
+   of the ancillary data is highly variable, the AUX block is designed
+   to be flexible in terms of size and function. 
+
+      Each AUX block is a collection of one or more "entries". An entry is
+   logical collection of information stored as a variable length string of 
+   bytes. The contents of each entry are application specific and the AUX
+   block structure makes no assuptions about the type or size of stored
+   information. For example, an AUX block may consist of one entry         
+   containing parameters specific to the data type in general. Another 
+   entry may contain information pertaining to this particular area. Yet 
+   another may contain information relating this area file to others in
+   a collective data set.
+
+      The user identifies an entry within the AUX block by its "name". The
+   entry name is a variable length character array assigned by the user
+   when the entry is first created. Each name is unique within an area file.
+   The maximum length of an entry name is 4096 characters and may contain 
+   any printable character includding embedded blanks.             
+
+
+   
+2. I/O Routines 
+      To support the use of AUX blocks within the McIDAS environment, a set
+   of I/O routines has been developed. The routines allow the applications
+   level programmer access to the block. Routines to read, write, delete and
+   inspect AUX block entries are available. Each routine is designed to 
+   take advantage of internal file pointers which are the basis of this 
+   implementation. These routines dynamically modify the contents of the 
+   area file, taking care to assure the integrity of the original data set.
+   Should the modification process be interrupted prior to completion, the
+   original area file is left unchanged. 
+
+      Since each AUX block entry can be considered an independent entity,
+   it is essential to address the issue of byte order (big Endian vs.
+   little Endian). The area I/O layer is designed to recognize and, if 
+   necessary, convert area file blocks from one byte order to the another.
+   However, since an AUX block entry implies no predefined notion of 
+   structure, the byte order of each entry can not be assumed, and thus,
+   no byte conversion can be performed. The AUX block I/O layer does 
+   provide a mechanism to identify the byte order of a particular entry.
+   When reading an AUX block entry, the routine (AUXI) returns an INT*4
+   value which can be compared to a known constant. This 'MAGIC' number
+   (Hex04030201) is used to identify whether or not the byte order of
+   the returned AUX entry is in the machines native format. It is the
+   responsibility of the application programmer to check and, if necessary,
+   flip the bytes of any multi-byte field within an entry.
+
+2.1 AUXI (Read an Aux entry) 
+      Use the function AUXI to read an AUX entry from a McIDAS area. The 
+   user specifies the source area number (sarea), the name of the entry (name), 
+   and an array to hold the entry (array). If the specified entry exists within 
+   the area, array will return the contents of the entry. The size (in bytes) 
+   of the returned entry will always be less than or equal to the array size
+   passed to the function (nbyte). If the specified entry does not exist 
+   within the area, the number of bytes returned is set to 0. Byte order of 
+   the returned array can be checked by comparing the constant 04030201 Hex
+   to the return byte order (bytcod). If bytcod does not match this constant,
+   the user may have to flip the bytes in multi-byte fields within the entry.
+
+   INTEGER FUNCTION AUXI(sarea, name, nbyte, bytcod, array)
+   AUXI | read an AUXiliary entry from an area
+          Input:
+             sarea (Int*4) - source area number
+             name (Char*(*)) - name of entry
+             nbyte (Int*4) - size of the array (in bytes)
+ 
+          Output:
+             function value: -9 = source area does not exist
+                             -8 = directory read failure
+                             -7 = invlid entry name
+                             -6 = invalid name
+                             -5 = source file corrupt
+                              0 = no entry 
+                             >0 = #bytes of entry returned (1<=value<=nbyte)
+             bytcod (Int*4) - = 04030201Z->  if byte order is native
+             array (Char*(*)) - entry buffer (nbytes long) 
+ 
+	  Remarks:
+	     To obtain the size of an entry use AUXL
+
+    AUXI Example:
+
+    c--- byte order flip flag
+	 integer flip,YES,NO,MAGIC
+
+    c--- entry array
+	 integer*4 array(100)
+
+    c--- constants
+	 data MAGIC/'04030201'X/
+	 data YES/1/,NO/0/
+
+    c--- area number
+	 sarea = ikwp('AREA',1,100)
+
+    c--- entry name
+	 name = 'Name of the Desired Aux Entry'
+
+    c--- number of bytes in entry array 
+	 nbyte = 400
+
+    c--- read the aux block from the area
+	 istat = auxi(sarea, name, nbyte, bytcod, array)
+
+    c--- check return status
+	 if(istat .le. 0) then
+	    if(istat .eq. 0) then
+	       call edest(name//' does not exist in area=',area)
+            else
+	       call edest('AUXI failed --- error status =',istat)
+            endif
+	    return
+         endif
+
+    c--- check byte order
+	 flip = NO
+	 if(bytcod .ne. MAGIC) flip = YES
+
+2.2 AUXO (Write an AUX entry)
+      Use AUXO to create or modify an AUX block entry. The user supplies
+   the area number (sarea), the name of the entry (name), the size of the 
+   array (nbyte) and the array containing the entry (array). If an entry 
+   with the same name already exists within the area, the new entry will
+   replace the existing entry. If there is no existing entry with the 
+   same name, the new entry is inserted into the AUX block.
+ 
+   INTEGER FUNCTION AUXO(sarea, name, nbyte, array)
+   AUXO | write/modify AUXiliary entry to an area
+          Input:
+             sarea (Int*4) - source area number
+             name (Char*) - name of entry 
+             nbyte (Int*4) - byte length of entry buffer
+             array (Char*(*)) - entry buffer (nbytes long)
+
+          Output:
+             function value: -9 = source area does not exist
+                             -8 = directory read failure
+                             -7 = invalid entry name  
+                             -6 = destination file name too long
+                             -5 = source file corrupt 
+                             -4 = write failure
+                             -3 = delete failure
+                             -2 = rename failure
+                              0 = success
+
+           Remarks: 
+             AUXO will scan the list of existing AUX entries in the sarea
+	     to find a match. If a match is found, the new entry will 
+	     replace the existing entry. If no match is found, the new
+	     entry is added.
+
+    AUXO Example:
+
+    c--- entry array
+	 integer*4 array(100)
+
+    c--- area number
+	 sarea = ikwp('AREA',1,100)
+
+    c--- entry name
+	 name = 'Name of the Desired Aux Entry'
+
+    c--- number of bytes in entry array 
+	 nbyte = 400
+
+    c--- fill the array
+	 do 10 i=1,100
+    10   array(i) = i
+
+    c--- write the aux block to the area
+	 istat = auxo(sarea, name, nbyte, array)
+
+    c--- check return status
+	 if(istat .ne. 0) then
+	    call edest('AUXO Failed --- status=',istat)
+	    call edest('source area is unchanged',0)
+	    return
+         endif
+
+
+2.3 AUXD (delete an AUX block entry)
+      Use the function AUXD to delete an entry from the AUX block of
+   an area. The user specifies the area number (sarea) and the name of
+   the entry to delete (name). If the entry exists, it is removed from 
+   the area file.    
+
+   INTEGER FUNCTION AUXD(sarea, name)
+   AUXD | Delete AUXiliary entry from area
+          Input:
+            sarea (Int*4) - source area number
+            name (Char*(*)) - name of entry
+
+          Output:
+            function value: -9 = source area does not exist
+                            -8 = directory read failure
+                            -7 = invalid entry name
+                            -6 = destination name too long
+                            -5 = source file corrupt
+                            -4 = write failure
+                            -3 = delete failure 
+                            -2 = rename failure
+                            -1 = no aux block in area
+                             0 = success
+
+   AUXD Example:
+
+    c--- area number
+	 sarea = ikwp('AREA',1,100)
+
+    c--- entry name
+	 name = 'Name of the Desired Aux Entry'
+
+    c--- delete the entry from the AUX block
+	 istat = auxd(sarea, name)
+
+    c--- check return status
+	 if(istat .ne. 0) then
+	    call edest('AUXD failed --- status=',istat)
+	    call edest('source area is unchanged',0)
+	    return
+         endif
+
+   
+2.4 AUXL/AUXNXT (List entry(s) from the AUX block)
+      Use AUXL to return the byte position and size of an entry in
+   an AUX block. The user specifies the area number (sarea), the name
+   of the desired entry (name), and the size of the name field (namsiz).
+   AUXL scans the AUX block to match the specified name. If the entry is 
+   found, the absolute byte position of the entry within the area
+   (offset) and the number of bytes in the entry (nbytes) are returned.
+
+       If the user specifies a blank string in the name field, AUXL will
+   return the position and size of the first entry within the AUX block.
+   The name field will return the name of the entry trimmed, if necessary,
+   to the number of bytes specified by the namsiz field. Use AUXNXT to 
+   return the position and size of subsequent entries. Please note, AUXL
+   must be called prior to a call to AUXNXT. AUXL sets pointers to positions
+   within the area file that are used by AUXNXT.
+
+
+   INTEGER FUNCTION AUXL(sarea, namsiz, name, offset, nbyte)
+   AUXL | list the size and physical location of an AUXiliary entry  
+          Input:
+            sarea (Int*4) - source area number
+            namsiz (Int*4) - size of name field 
+            name (Char*(*)) - name of entry 
+
+          Output:
+            offset (Int*4) - byte offset of entry in area
+            nbyte (Int*4) - number of bytes in entry 
+            function value:-10 = called AUXNXT prior to AUXL initialization
+                            -9 = source file does not exist
+                            -8 = directory read failure
+                            -5 = source file corrupt
+                            -1 = no auxiliary block
+                             0 = success
+
+          Remarks: 
+	    If 'name' is specified as ' ' (blank string) the size of the
+            first AUX entry is returned. 
+
+
+   INTEGER FUNCTION AUXNXT(name, offset, nbyte)
+   AUXNXT | list the size of an AUXiliary entry 
+            Input:
+              name  - name of entry (blank string returns next entry) 
+
+            Output:
+              offset - offset to entry in area
+              nbyte - number of bytes in entry 
+              function value: -5 = source file corrupt
+                               0 = success
+
+            Remarks: 
+	      If 'name' is specified as ' ' (blank string) the size of the
+              next AUX entry is returned. AUXL must be called prior to call 
+	      to AUXNXT. AUXNXT is an ENTRY within AUXL.
+
+   AUXL/AUXNXT Example:
+
+    c--- size of the name array
+	 namsiz = 160
+
+    c--- area number
+	 sarea = ikwp('AREA',1,100)
+
+    c--- entry name (blank string)
+	 name = ' '
+
+    c--- list all the entries within the AUX block of sarea
+	 istat = auxl(sarea, namsiz, name, offset, nbyte)
+    1    if(istat .ne. 0) goto 10
+	  
+    c--- print the entry name, offset and size
+         coff = cfj(offset)
+	 csiz = cfj(nbyte)
+	 ctext = name(1:40)//' offset='//coff(6:12)//
+	*        ' size='//csiz
+	 call spout(ctext)
+
+    c--- check for another entry
+	 name = ' '
+	 istat = auxnxt(name, offset, nbyte)
+	 goto 1
+
+    10   continue
+         call spout('End list')
+
+
+
+3. Data Structure Description
+
+      The byte offset from the beginning of the source area file to the 
+   start of the AUX block is located in word# 60 of the area directory.
+   The number of entries within the block is given by area directory 
+   word# 61. A zero value for either word indicates that an AUX block does
+   not exist within the file.
+
+      Each entry is preceeded by a header block of four 4-byte integers. 
+   The first of these fields is the "MAGIC" number (Hex 04030201) used
+   to identify the byte order of entry. The following three, fields hold
+   the byte length of the entry, the byte length of the entry name, and 
+   the byte length of the data field. Please note that these values are
+   created and manipulated by the AUX I/O routines. This information is 
+   not available at the application level. 
+
+      Following the header block is a byte field containing the name of
+   the entry. The field is a bounded, variable length array of bytes. The
+   length of the field is given by the 3rd word of the entry header. The
+   maximum size of this field is 4096 bytes. The entry name is created by
+   the user and is the mechanism through which the entries are identified at 
+   the application level. Note that entry names may contain embedded blank 
+   characters. Each entry within an area has a unique name. Multiple entries
+   with the same name are not permitted.
+
+      The data field follows the entry name and contains the actual entry
+   written by the application. This field is considered a variable 
+   length array of bytes. Specifics of the internal structure are left to
+   the user.
+   
+      The area is modified by creating a copy of the existing data within a 
+   work file (AREAnnn.AUX). All existing portions of the original area are
+   copied to this work area. During the copy, the new entry is added at the 
+   appropriate location. When all the data has been transfered to the work 
+   area, the original area is deleted and the work area is renamed with the
+   name of the original area. During this operation, the file is locked to 
+   avoid any process from accessing/modifing the area. Please note that if 
+   this operation is interrupted prior to the rename, the original area is
+   left unaffected. 
+
+                   Sample AUX block containing N entries
+
+   FIELD     BYTES    DESCRIPTION
+   MAGIC       4      Hex '04030201'. This value is used to identify the 
+		      byte order of words within the entry
+   TOTAL       4      The total number of bytes in the entry (Header + 
+		      Name + Entry) rounded to 4 byte boundary
+   NAMLEM      4      The length of the entry name in bytes
+   ENTLEN      4      The length of the entry in bytes
+   NAME      NAMLEN   A text field holding the entry name   
+   ENTRY     ENTLEN   Auxiliary entry #1
+
+   MAGIC       4      Hex '04030201'. This value is used to identify the 
+		      byte order of words within the entry
+   TOTAL       4      The total number of bytes in the entry (Header + 
+		      Name + Entry) rounded to 4-byte boundary
+   NAMLEM      4      The length of the entry name in bytes
+   ENTLEN      4      The length of the entry in bytes
+   NAME      NAMLEN   A text field holding the entry name   
+   ENTRY     ENTLEN   Auxiliary entry #2
+
+			       .
+			       .
+			       .
+
+   MAGIC       4      Hex '04030201'. This value is used to identify the 
+		      byte order of words within the entry
+   TOTAL       4      The total number of bytes in the entry (Header + 
+		      Name + Entry) rounded to 4-byte boundary
+   NAMLEM      4      The length of the entry name in bytes
+   ENTLEN      4      The length of the entry in bytes
+   NAME      NAMLEN   A text field holding the entry name   
+   ENTRY     ENTLEN   Auxiliary entry #N
+
