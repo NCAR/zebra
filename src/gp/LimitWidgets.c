@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.13 1993-03-19 19:59:16 granger Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.14 1993-03-19 23:27:26 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -65,6 +65,7 @@ typedef enum {
 } WidgetType;
 # define N_WIDGET_TYPES 6	/* Keep this updated!	*/
 
+# define LW_FORM "LimitForm"	/* For keeping resource files manageable */
 
 /*
  * Widget queues -- this is how we keep track of which widgets are out
@@ -299,9 +300,9 @@ WidgetQueue *w;
  * Set the geometry of this widget to be near the pointer.
  * But make sure the whole widget is on the screen
  */
-	if ((x -= 500) < 0)
+	if ((x -= 50) < 0)
 		x = 0;
-	if ((y -= 100) < 0)
+	if ((y -= 10) < 0)
 		y = 0;
 # ifdef notdef
 /*
@@ -318,9 +319,9 @@ WidgetQueue *w;
 	swidth = XWidthOfScreen(XtScreen(Top));
 	sheight = XHeightOfScreen(XtScreen(Top));
 	if ((x + width) > swidth)
-		x =  swidth - width;
+		x = swidth - width;
 	if ((y + height) > sheight)
-		y = sheight -height;
+		y = sheight - height;
 	uw_SetGeometry (w->wq_name, x, y, 0, 0);
 /*
  * Now force it up on the screen.
@@ -371,12 +372,17 @@ XtAppContext actx;
 	n = 0;
  	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	form = XtCreateManagedWidget ("SingleString", formWidgetClass, parent,
+	form = XtCreateManagedWidget (LW_FORM, formWidgetClass, parent,
 		args, n);
 /*
  * Give our parent the same background, since we'll be its only child
  */
 	CopyBackground(form, parent);
+/*
+ * Install any accelerators that have been set in our resources in the
+ * the entire form.
+ */
+	XtInstallAllAccelerators (form, form);
 /*
  * The label to describe this string.
  */
@@ -418,7 +424,7 @@ XtAppContext actx;
 	XtAddCallback (w, XtNcallback, (XtCallbackProc) HelpCallback, 
 		(XtPointer) GP_HELP_LIMITS);
 /*
- * The "store global" button.
+ * The "store" button.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
@@ -428,19 +434,6 @@ XtAppContext actx;
 		args, n);
 	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_SSStore, 
 		(XtPointer) wq);
-# ifdef notdef
-/*
- * The "store local" button.
- */
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, w); n++;
-	XtSetArg (args[n], XtNfromVert, above); n++;
-	XtSetArg (args[n], XtNlabel, "Store local"); n++;
-	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
-		args, n);
-	/* XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieRun, 
-		(XtPointerr) 0); */
-# endif
 /*
  * The "cancel" button.
  */
@@ -476,12 +469,17 @@ XtAppContext actx;
 	n = 0;
  	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	form = XtCreateManagedWidget ("SingleInt", formWidgetClass, parent,
+	form = XtCreateManagedWidget (LW_FORM, formWidgetClass, parent,
 		args, n);
 /*
  * Give our parent the same background, since we'll be its only child
  */
 	CopyBackground(form, parent);
+/*
+ * Install any accelerators that have been set in our resources in the
+ * the entire form.
+ */
+	XtInstallAllAccelerators (form, form);
 /*
  * The label to describe this string.
  */
@@ -581,12 +579,17 @@ XtAppContext actx;
 	n = 0;
  	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	form = XtCreateManagedWidget ("SingleFloat", formWidgetClass, parent,
+	form = XtCreateManagedWidget (LW_FORM, formWidgetClass, parent,
 		args, n);
 /*
  * Give our parent the same background, since we'll be its only child
  */
 	CopyBackground(form, parent);
+/*
+ * Install any accelerators that have been set in our resources in the
+ * the entire form.
+ */
+	XtInstallAllAccelerators (form, form);
 /*
  * The label to describe this floating point quantity.
  */
@@ -686,12 +689,17 @@ XtAppContext actx;
 	n = 0;
  	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	form = XtCreateManagedWidget ("DoubleFloat", formWidgetClass, parent,
+	form = XtCreateManagedWidget (LW_FORM, formWidgetClass, parent,
 		args, n);
 /*
  * Give our parent the same background, since we'll be its only child
  */
 	CopyBackground(form, parent);
+/*
+ * Install any accelerators that have been set in our resources in the
+ * the entire form.
+ */
+	XtInstallAllAccelerators (form, form);
 /*
  * The label to describe the first floating point quantity.
  */
@@ -821,12 +829,17 @@ XtAppContext actx;
 	n = 0;
  	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	form = XtCreateManagedWidget ("TimeSeries", formWidgetClass, parent,
+	form = XtCreateManagedWidget (LW_FORM, formWidgetClass, parent,
 		args, n);
 /*
  * Give our parent the same background, since we'll be its only child
  */
 	CopyBackground(form, parent);
+/*
+ * Install any accelerators that have been set in our resources in the
+ * the entire form.
+ */
+	XtInstallAllAccelerators (form, form);
 /*
  * The label to describe the first floating point quantity.
  */
@@ -1475,9 +1488,18 @@ XtAppContext	appc;
 	n = 0;
 	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	form = XtCreateWidget ("stationform", formWidgetClass, parent,
+	form = XtCreateWidget (LW_FORM, formWidgetClass, parent,
 		args, n);
 	Sw_Form = form;
+/*
+ * Give our parent the same background, since we'll be its only child
+ */
+	CopyBackground(form, parent);
+/*
+ * Install any accelerators that have been set in our resources in the
+ * the entire form.
+ */
+	XtInstallAllAccelerators (form, form);
 /*
  * Make a box to hold the stations.
  */
