@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.8 1992-07-01 21:59:51 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.9 1992-11-02 22:06:51 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -598,13 +598,13 @@ int *which;
  * Generate the WHICHth movie frame.
  */
 {
-	char msg[50];
+	char msg[50], *info;
 	int next;
 	float sec;
 /*
  * Update the message.
  */
-	sprintf (msg, "Generating frames: %d/%d.", *which, Nframes);
+	sprintf (msg, "Generating frames: %d/%d.", *which + 1, Nframes);
 	mc_SetStatus (msg);
 /*
  * Do the frame.
@@ -616,7 +616,7 @@ int *which;
 	{
 		msg_ELog(EF_DEBUG, "Pregenerating %s.", Field2);
 		pd_Store(Pd, PGComp, "field", Field2, SYMT_STRING);
-		if(fc_LookupFrame(&PlotTime) < 0)
+		if(fc_LookupFrame(&PlotTime,&info) < 0)
 		{
 			px_GlobalPlot(&PlotTime);
 			An_DoSideAnnot ();
@@ -765,6 +765,7 @@ mc_MovieStop ()
 void
 mc_ResetFrameCount()
 {
+	char *info;
 	Arg args[2];
 	
 	if(OldFrameCount > 0)
@@ -772,13 +773,18 @@ mc_ResetFrameCount()
 		FrameCount = OldFrameCount;
 		fc_SetNumFrames(FrameCount);
 		px_FixPlotTime(&PlotTime);
-		DisplayFrame = DrawFrame = fc_LookupFrame(&PlotTime);
+		DisplayFrame = DrawFrame = fc_LookupFrame (&PlotTime, &info);
 		if(DisplayFrame < 0)
 			px_PlotExec("global");	
 		else
 		{
 			GWDrawInFrame(Graphics, DrawFrame);
 			GWDisplayFrame(Graphics, DisplayFrame);
+		/*
+		 * Update the overlay times widget
+		 */
+			lw_OvInit (info);
+			lw_LoadStatus ();
 		}
 		XtSetArg (args[0], XtNframeCount, FrameCount);
 		XtSetValues (Graphics, args, ONE);
