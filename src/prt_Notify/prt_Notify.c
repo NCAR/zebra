@@ -20,8 +20,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$ID$";
-
 #include <copyright.h>
 # include <defs.h>
 # include <message.h>
@@ -29,15 +27,18 @@ static char *rcsid = "$ID$";
 # include "DataStore.h"
 # include "dsPrivate.h"
 
+RCSID("$Id: prt_Notify.c,v 3.7 1995-04-20 20:19:17 granger Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
 static void MakeTimerRequest FP ((PlatformId));
 static void TimeToNotify FP ((ZebTime *, PlatformId));
 
+#ifdef notdef
 /* kludge to keep acc compiler happy - these vars are not used */
 PlatformClass    *CTable;
 PlatformInstance *PTable;
+#endif
 
 /*
  * Keep track of timer events.
@@ -45,6 +46,7 @@ PlatformInstance *PTable;
 static int TimeEvent[CFG_MAX_PLATFORMS];
 
 
+int
 main ()
 {
 	int i;
@@ -66,6 +68,7 @@ main ()
  * Now we just wait for something to happen.
  */
 	msg_await ();
+	return (0);
 }
 
 
@@ -154,7 +157,7 @@ struct dsp_Template *dmsg;
 	else if (dmsg->dsp_type == dpt_CancelNotify)
 	{
 		from = sizeof (*dmsg) + (char *) dmsg;
-		dap_Cancel (from, dmsg);
+		dap_Cancel (from);
 	}
 }
 
@@ -171,7 +174,6 @@ PlatformId pid;
  */
 {
 	ZebTime t[2], now;
-	char *pname = ds_PlatformName (pid);
 	int ntime;
 /*
  * If there is already a timer event on this PID, we assume we don't need

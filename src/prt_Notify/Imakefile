@@ -2,8 +2,8 @@
  * Imakefile for the data store dumper
  */
 
-SRCS = prt_Notify.c d_Notify.c
-OBJS = prt_Notify.o d_Notify.o
+SRCS = prt_Notify.c
+OBJS = prt_Notify.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
