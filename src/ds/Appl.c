@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 2.1 1991-07-22 19:38:44 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 2.2 1991-09-24 20:41:47 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -347,8 +347,9 @@ float sel, badflag;
  * of things.  Then return the data object.
  */
 	dgl_ReturnList (get);
-# ifdef notdef
 	if (dobj->do_org == OrgOutline)
+		dobj->do_npoint = 1;
+# ifdef notdef
 		dfa_FixBoundary (dobj);
 # endif
 	return (dobj);

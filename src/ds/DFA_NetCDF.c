@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 2.2 1991-07-22 19:42:44 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 2.3 1991-09-24 20:44:51 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -1543,6 +1543,8 @@ DataObject *dobj;
 {
 	NCTag *tag;
 	int start[4], count[4], vfield, field, doffset;
+	RGrid	*rg = &(dobj->do_desc.d_rgrid);
+	IRGrid	*irg = &(dobj->do_desc.d_irgrid);
 /*
  * Gotta open up the file before we do anything.
  */
@@ -1582,7 +1584,8 @@ DataObject *dobj;
 		doffset = begin * rg->rg_nX * rg->rg_nY;
 		break;
 	    case OrgOutline:
-		doffset = begin * *(dobj->do_desc.d_length);
+		/* doffset = begin * *(dobj->do_desc.d_length); */
+		doffset = 0;	/* XXXX */
 		break;
 	}
 /*
