@@ -56,7 +56,7 @@
 # include <Tabs.h>
 #endif
 
-RCSID ("$Id: GraphProc.c,v 2.78 2002-10-15 08:02:46 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.79 2005-01-16 18:02:03 granger Exp $")
 
 /*
  * Default resources.
@@ -1329,9 +1329,9 @@ struct dm_pdchange *dmp;
 	if (Pd)
 	{
 	        lc_UnZoom(Zlevel);
+		FreeColors (Pd);
 		pd_Release (Pd);
 		pc_CancelPlot ();
-		FreeColors (Pd);
 	}
 /*
  * Go ahead and recompile the PD now.
