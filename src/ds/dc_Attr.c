@@ -25,14 +25,10 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "ds_fields.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-# include <zl_regex.h> /* System-independent regex functions in Zeb library */
+# include <zl_regex.h> /* System-independent regex functions in Zebra lib */
 
-#ifndef lint
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.14 1996-01-23 04:23:55 granger Exp $")
-#endif
+RCSID ("$Id: dc_Attr.c,v 1.15 1996-11-19 09:31:23 granger Exp $")
 
 /*--------------------------------------------------------------------
  * Quick explanation of how attributes work now that they can have 
@@ -56,7 +52,7 @@ MAKE_RCSID ("$Id: dc_Attr.c,v 1.14 1996-01-23 04:23:55 granger Exp $")
 
 /*
  * The structure which makes up an attribute ADE.  NOTE: Since each
- * attribute must be aligned, aa_Data must be aligned withing the
+ * attribute must be aligned, aa_Data must be aligned within the
  * AttrADE structure.  Try to keep a multiple of 8 bytes between
  * aa_Data and the beginning of the structure.
  */
@@ -87,13 +83,16 @@ typedef struct _AttrRec
 /*
  * Local routines.
  */
+static int 	dca_VLen FP ((DC_ElemType type, int nval, void *values));
 static AttrRec	*dca_FindKey FP ((AttrADE *, char *));
 static void	dca_RemoveKey FP ((AttrADE *, char *));
 static AttrRec	*dca_FirstRec FP ((AttrADE *ade));
 static AttrRec	*dca_NextRec FP ((AttrADE *ade, AttrRec *rec));
-static AttrADE 	*dca_NewAttr FP ((DataChunk *dc, AttrADE *ade, DataClass class,
+static AttrADE 	*dca_NewAttr FP ((DataChunk *dc, AttrADE *ade, DataClassP,
 				  int code, int len, int *next));
-static AttrADE 	*dca_CreateADE FP ((DataChunk *dc, DataClass class, int code));
+static AttrADE 	*dca_CreateADE FP ((DataChunk *dc, DataClassP, int code));
+static char 	*dca_Diffs FP ((char *diffs, int *len, const char *c));
+static char 	*dca_DiffAttrRec FP ((char *diffs, int *len, AttrRec *rec));
 
 
 
@@ -101,7 +100,7 @@ static AttrADE 	*dca_CreateADE FP ((DataChunk *dc, DataClass class, int code));
 void
 dca_AddAttrArray (dc, class, code, key, type, nval, values)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *key;
 DC_ElemType type;
@@ -148,12 +147,7 @@ void *values;
 		nval = 0;
 		values = NULL;
 	}
-	if (type != DCT_String)
-		vlen = nval * dc_SizeOfType(type);
-	else if (values)
-		vlen = strlen((char *)values) + 1;
-	else
-		vlen = 0;
+	vlen = dca_VLen (type, nval, values);
 	len += vlen;
 	len += strlen(key) + 1;
 	ade = dca_NewAttr (dc, ade, class, code, len, &next);
@@ -179,7 +173,7 @@ void *values;
 void *
 dca_GetAttrArray (dc, class, code, key, vtype, nval)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *key;
 DC_ElemType *vtype;
@@ -211,7 +205,7 @@ int *nval;
 void
 dca_AddAttr (dc, class, code, key, value)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *key, *value;
 /*
@@ -227,7 +221,7 @@ char *key, *value;
 char *
 dca_GetAttr (dc, class, code, key)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *key;
 /*
@@ -256,7 +250,7 @@ char *key;
 void
 dca_RemoveAttr (dc, class, code, key)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *key;
 /*
@@ -287,11 +281,32 @@ char *key;
 
 
 
+static int
+dca_VLen (type, nval, values)
+DC_ElemType type;
+int nval;
+void *values;
+/*
+ * Return number of bytes into an attribute array of 'nval' values of 'type'
+ */
+{
+	int vlen;
+
+	if (type != DCT_String)
+		vlen = nval * dc_SizeOfType(type);
+	else if (values)
+		vlen = strlen((char *)values) + 1;
+	else
+		vlen = 0;
+	return (vlen);
+}
+
+
 
 static AttrADE *
 dca_CreateADE (dc, class, code)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 /*
  * Create the attribute ADE for this class and code, giving an initial
@@ -316,7 +331,7 @@ static AttrADE *
 dca_NewAttr (dc, ade, class, code, len, new)
 DataChunk *dc;
 AttrADE *ade;
-DataClass class;
+DataClassP class;
 int code;
 int len;
 int *new;
@@ -477,12 +492,172 @@ char *key;
 
 
 
+static char *
+dca_Diffs (diffs, len, c)
+char *diffs;
+int *len;
+const char *c;	/* string to append to diffs */
+/*
+ * Append as much of the string as possible.  Return a pointer to the
+ * end and the new length of the buffer.
+ */
+{
+	int clen;
+
+	clen = strlen (c);
+	clen = (clen >= *len) ? (*len - 1) : clen;
+	if (clen > 0)
+	{
+		strncpy (diffs, c, clen);
+		*len -= clen;
+		diffs += clen;
+		diffs[0] = 0;
+	}
+	return (diffs);
+}
+
+
+
+int
+dca_CmpAttrArrays (dc1, dc2, class, code, diffs, len)
+DataChunk *dc1;
+DataChunk *dc2;
+DataClassP class;
+int code;
+char *diffs;	/* buffer to copy diff lines into  */
+int len;	/* length of space in diffs string */
+/*
+ * Compare the attribute lists of the two datachunks.  For each key
+ * in dc1, look for the key in dc2 and compare the values of each.
+ * Note any keys that are in dc1 and not dc2, and likewise in dc2
+ * but not dc1.  Return non-zero if diffs found, zero if the attributes
+ * match.  Store a summary of the diffs in the 'diffs' buffer.
+ */
+{
+	AttrADE *ade1, *ade2;
+	AttrRec *rec, *found;
+	int ret;
+/*
+ * Look for our blocks.
+ */
+	ade1 = (AttrADE *) dc_FindADE (dc1, class, code, NULL);
+	ade2 = (AttrADE *) dc_FindADE (dc2, class, code, NULL);
+/*
+ * Go through all of the attributes now.
+ */
+	ret = 0;
+	diffs[0] = 0;
+	rec = (ade1) ? dca_FirstRec (ade1) : 0;
+	while (rec)
+	{
+	/*
+	 * Look for the key in the other datachunk
+	 */
+		found = (ade2) ? dca_FindKey (ade2, AR_KEY(rec)) : 0;
+		if (! found)
+		{
+			++ret;
+			diffs = dca_Diffs (diffs, &len, " - ");
+			diffs = dca_DiffAttrRec (diffs, &len, rec);
+		}
+		else
+		{
+		/*
+		 * Compare the value arrays: type, number, then values.
+		 * If any difference, show a diff of removing the first array
+		 * and adding the second.
+		 */
+			if (rec->ar_NValues != found->ar_NValues ||
+			    rec->ar_Type != found->ar_Type ||
+			    memcmp (AR_VALUES(rec), AR_VALUES(found),
+				    dca_VLen (rec->ar_Type, rec->ar_NValues,
+					      AR_VALUES(rec))))
+			{
+				/*
+				 * Must be differences, so report them
+				 */
+				++ret;
+				diffs = dca_Diffs (diffs, &len, " - ");
+				diffs = dca_DiffAttrRec (diffs, &len, rec);
+				diffs = dca_Diffs (diffs, &len, " + ");
+				diffs = dca_DiffAttrRec (diffs, &len, found);
+			}
+		}
+	/*
+	 * Move on to the next one.
+	 */
+		rec = dca_NextRec (ade1, rec);
+	}
+/*
+ * Now search the keys of the second datachunk and make sure they
+ * are in the first data chunk.  We can ignore any keys which we find
+ * in both since the diffs for those were reported above.
+ */
+	rec = (ade2) ? dca_FirstRec (ade2) : 0;
+	while (rec)
+	{
+	/*
+	 * Look for the key in the other datachunk
+	 */
+		if (! ade1 || ! dca_FindKey (ade1, AR_KEY(rec)))
+		{
+			++ret;
+			diffs = dca_Diffs (diffs, &len, " + ");
+			diffs = dca_DiffAttrRec (diffs, &len, rec);
+		}
+	/*
+	 * Move on to the next one.
+	 */
+		rec = dca_NextRec (ade2, rec);
+	}
+	return (ret);
+}
+
+
+
+static char *
+dca_DiffAttrRec (diffs, len, rec)
+char *diffs;
+int *len;
+AttrRec *rec;
+/*
+ * Print a field attribute array to a buffer.
+ */
+{
+	char *key = AR_KEY(rec);
+	void *value = AR_VALUES(rec);
+	int nval = rec->ar_NValues;
+	DC_ElemType type = rec->ar_Type;
+	int i;
+
+	if (nval && (type == DCT_String))
+	{
+		diffs = dca_Diffs (diffs, len, key);
+		diffs = dca_Diffs (diffs, len, "='");
+		diffs = dca_Diffs (diffs, len, value);
+		diffs = dca_Diffs (diffs, len, "';\n");
+		return (diffs);
+	}
+	diffs = dca_Diffs (diffs, len, key);
+	diffs = dca_Diffs (diffs, len, "=[");
+	for (i = 0; i < nval; ++i)
+	{
+		diffs = dca_Diffs (diffs, len, dc_PrintValue (value, type));
+		diffs = dca_Diffs (diffs, len, (i == nval - 1) ? "];\n" : ",");
+		value = (char *)value + dc_SizeOfType (type);
+	}
+	if (nval == 0)
+		diffs = dca_Diffs (diffs, len, "];\n");
+	return (diffs);
+}
+
+
 
 
 int
 dca_ProcAttrArrays (dc, class, code, pattern, func, arg)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *pattern;
 int (*func)(/* char *key, void *vals, int nval, DC_ElemType, void *arg */);
@@ -576,7 +751,7 @@ void *arg;
 int
 dca_ProcAttrs (dc, class, code, pattern, func)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *pattern;
 int (*func)();
@@ -594,7 +769,7 @@ int (*func)();
 void *
 dca_GetBlock (dc, class, code, len)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code, *len;
 /*
  * Pull out the attributes in one big chunk.
@@ -616,7 +791,7 @@ int code, *len;
 void
 dca_PutBlock (dc, class, code, block, len)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code, len;
 void *block;
 /*
@@ -663,7 +838,7 @@ void *block;
 int
 dca_GetNAttrs(dc, class, code)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 /*
  * Get number of attrs in a chunk
@@ -696,7 +871,7 @@ int code;
 char **
 dca_GetAttrList(dc, class, code, pattern, values, natts)
 DataChunk *dc;
-DataClass class;
+DataClassP class;
 int code;
 char *pattern;
 void **values[]; 	/* An array of void ptrs passed by reference */
@@ -782,5 +957,45 @@ int *natts;
 	if (! count)
 		return(NULL);
 	return (local_keys);
+}
+
+
+
+
+int
+dca_PrintAttrArray (key, value, nval, type, arg)
+char *key;
+void *value;
+int nval;
+DC_ElemType type;
+void *arg;
+/*
+ * Print out attribute arrays.  Suitable to be passed into a 
+ * dca_ProcAttrArrays function as the process routine.  The arg is
+ * a string to print after the array to separate it from any following
+ * arrays (e.g. carriage return for global or semicolon for fields).
+ */
+{
+	char *term = (char *)arg;
+	int i;
+
+	if (! term)
+		term = "\n";
+	if (nval && (type == DCT_String))
+	{
+		printf (" %s='%s'%s", key, (char *)value, term);
+		return (0);
+	}
+	printf (" %s=[", key);
+	for (i = 0; i < nval; ++i)
+	{
+		printf ("%s%s", dc_PrintValue (value, type),
+			(i == nval - 1) ? "]" : ",");
+		value = (char *)value + dc_SizeOfType (type);
+	}
+	if (nval == 0)
+		printf ("]");
+	printf ("%s", term);
+	return (0);
 }
 
