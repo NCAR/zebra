@@ -1,3 +1,22 @@
+Tue Nov 26 14:00:33 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* config.h: critical parameters have been reconciled between ARM
+	  and RDP.  Field name/desc/units lengths increased to ARM limit,
+	  platform name length decreased to save space while still longer
+	  than any name ever used, and filename length increased to at
+	  least ARM limit.  These changes, along with cleaner and
+	  non-automatic bad value handling mentioned below, should keep
+	  Zebra compatible between both ARM and RDP installations without
+	  recompiling.
+
+	* DataStore: netCDF i/o tries to closely match datachunk and file:
+	  all automatic attributes missing_value, units, and long_name,
+	  are only added to the file if non-existent in the datachunk;
+	  when reading, global and field bad value attributes are only set
+	  in the datachunk if they exist in the file; no filling occurs
+	  unless requesting a non-existent field or explicitly requested
+	  in the details
+
 Mon Nov 18 13:51:00 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* DataStore: return non-float data as float in dc_GetScalar()
