@@ -1,0 +1,92 @@
+#! /usr/local/bin/perl5
+#
+# $Id: plotindex,v 1.1 1999-10-21 20:07:10 granger Exp $
+#
+# Create an index.html file from a directory of plot images, so that
+# we can control the format and ensure the full file name appears
+# in the browser.
+#
+
+if ($#ARGV < 1)
+{
+    print "Usage: $0 <project> <date directory> [<date>]\n";
+    print "If no <date>, creates index.html in each of the date directories\n";
+    print "in <date directory>.  Otherwise creates only <date>/index.html\n";
+    exit 1;
+}
+
+$project = $ARGV[0];
+$datedir = $ARGV[1];
+$select = $ARGV[2];
+
+# Traverse the dates in the directory, creating an index.html for each
+# We actually create the an index.html for the directory in the previous
+# loop iteration, once we know what the "next" directory should be.
+$prev = "";
+$date = "";
+$next = "";
+foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
+{
+    next if ($f && (($f !~ /^\d+/) || ! -d "$datedir/$f"));
+    $next = $f;
+    if (! $date)
+    {
+	$date = $f;
+	next;
+    }
+    if (! $select || ($date eq $select))
+    {
+	&create_index;
+    }
+    $prev = $date;
+    $date = $f;
+}
+
+
+sub create_index
+{
+
+    $directory = "$datedir/$date";
+    print "Indexing $directory...\n";
+    open (HTML, "> $directory/index.html") || die "$directory/index.html: $!";
+
+print HTML "
+<HTML>
+ <HEAD>
+  <TITLE>Project $project plot images for $date</TITLE>
+ </HEAD>
+<BODY>
+<H1>$project plots for $date</H1>
+
+<a href=..>Parent directory</a>
+<HR>\n";
+
+# Now include the file names
+if ($prev)
+{
+    print HTML "<p><a href=\"../$prev/\">$prev</a></p>\n";
+}
+print HTML "<p>$date</p>\n";
+print HTML "<ul>\n";
+open (LS, "/bin/ls $directory |") || die "/bin/ls $directory failed: $!";
+while (<LS>)
+{
+    $file = $_;
+    chop $file;
+    next if ("$file" eq "index.html");
+    print HTML "<li><a href=\"$file\">$file</a>\n";
+}
+close LS;
+print HTML "</ul>\n";
+if ($next)
+{
+    print HTML "<p><a href=\"../$next/\">$next</a></p>\n";
+}
+
+print HTML "</BODY></HTML>\n";
+close HTML;
+
+}
+
+# end sub create_index
+
