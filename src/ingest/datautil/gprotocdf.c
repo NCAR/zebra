@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.1 1991-12-19 22:28:17 kris Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.2 1992-05-19 16:54:36 corbet Exp $")
 
 
 /*
@@ -51,6 +51,7 @@ int NField = 0;
 /*
  * Local Genpro stuff.
  */
+float Scales[MAXFLD];	/* Scaling for each field		*/
 int Foffsets[MAXFLD];	/* Offsets into the GP record		*/
 int AltOffset;		/* Altitude offset			*/
 int Gp_fd;		/* The genpro file FD			*/
@@ -61,6 +62,8 @@ time Gp_Begin;		/* Begin time				*/
 long Gp_Base;		/* Begin time as unix value		*/
 
 int Time_off = 6;	/* The time offset to use		*/
+typedef enum { tf_NCAR, tf_UW } TimeFmt;
+TimeFmt TFmt = tf_NCAR;
 /*
  * The data record buffer.
  */
@@ -137,18 +140,28 @@ int count;
 		strcpy (SrcFlds[i], fields[0]);
 		zapcase (SrcFlds[i]);
 		strcpy (DstFlds[i], fields[1]);
+		Scales[i] = 1000.0;	/* xxx */
 		fields += 2;
 		NField++;
 	}
 /*
  * Add the positioning fields.
  */
+# ifdef notdef
 	strcpy (SrcFlds[NField], "alat");
 	strcpy (DstFlds[NField++], "lat");
 	strcpy (SrcFlds[NField], "alon");
 	strcpy (DstFlds[NField++], "lon");
 	AltOffset = NField;
 	strcpy (SrcFlds[NField], "hgm");
+	strcpy (DstFlds[NField++], "alt");
+# endif
+	strcpy (SrcFlds[NField], "latg");	Scales[NField] = 10000.0;
+	strcpy (DstFlds[NField++], "lat");
+	strcpy (SrcFlds[NField], "long");	Scales[NField] = 10000.0;
+	strcpy (DstFlds[NField++], "lon");
+	AltOffset = NField;
+	strcpy (SrcFlds[NField], "altg");	Scales[NField] = 1000.0;
 	strcpy (DstFlds[NField++], "alt");
 }
 
@@ -200,6 +213,17 @@ char *file;
 	{
 		if (! get_rec (hbuf, HDR_LEN))
 			GiveUp ("No 'LOGBIT' line in the file!");
+	/*
+	 * 5/92 jc	While we're at it, let's look for a comment
+	 *		field and see if this is a UW tape; their
+	 *		time format is different, of course....:-(
+	 */
+	 	if (! strncmp (hbuf, "/COMMENT", 8) &&
+			! strncmp (hbuf + 12, "UW KING AIR", 11))
+		{
+			TFmt = tf_UW;
+			printf ("This is a UW Funky tape\n");
+		}
 		if (! strncmp (hbuf, " LOGBIT", 7))
 			break;
 	}
@@ -441,7 +465,11 @@ char *line;
  * Find the beginning of the units info.
  */
  	if (! (unit = strchr (line, '"')))
-		GiveUp ("Funky UNIT line: '%s'", line);
+	{
+		char cline[300];
+		sprintf (cline, "Funky UNIT line: '%s'", line);
+		GiveUp (cline);
+	}
 	unit++;
 	SKIP_WHITE (unit);
 	if (*unit == '"')	/* Empty units */
@@ -455,7 +483,7 @@ char *line;
 /*
  * Skip fields up to the offset field.
  */
- 	offset = uend + 1;
+ 	offset = uend;
 	for (i = 0; i < 4; i++)
 	 	if (! (offset = strchr (offset + 1, ',')))
 			GiveUp ("Funky UNIT line: '%s'", line);
@@ -523,13 +551,14 @@ DataRec ()
 }
 
 
-GiveUp (line)
-char *line;
+GiveUp (line, arg)
+char *line, *arg;
 /*
  * Print this line and quit.
  */
 {
-	printf ("%s\n", line);
+	printf (line, arg);
+	printf ("\n");
 	exit (1);
 }
 
@@ -545,6 +574,7 @@ Plow ()
 	int *ip, i;
 	time tv;
 	float toff, data;
+	static int nplow = 0;
 /*
  * Now work through the file.
  */
@@ -559,8 +589,14 @@ Plow ()
 	/*
 	 * Pull out the time.
 	 */
-		tv.ds_hhmmss = ((ip[0]/1000 - 1000) + Time_off)*10000 /*XXXX*/
-		      + (ip[1]/1000 - 1000)*100 + (ip[2]/1000) - 1000;
+		if (TFmt == tf_NCAR)
+			tv.ds_hhmmss = ((ip[0]/1000 - 1000) + Time_off)*10000 
+			      + (ip[1]/1000 - 1000)*100 + (ip[2]/1000) - 1000;
+		else
+		{
+			tv.ds_hhmmss = ip[1];
+			TC_SysToFcc (TC_FccToSys (&tv) + Time_off*3600, &tv);
+		}
 		toff = (float) (TC_FccToSys (&tv) - Gp_Base);
 		ncvarput1 (NFile, VTime, &NOut, &toff);
 	/*
@@ -568,12 +604,22 @@ Plow ()
 	 */
 	 	for (i = 0; i < NField; i++)
 		{
-			data = ip[Foffsets[i]]/1000.0 - 1000.0;
+			data = ip[Foffsets[i]]/Scales[i] - 1000.0;
 			if (i == AltOffset)
-				data /= 1000.0;		/* --> km */
+				data /= 1000.0;	/* m -> km */
 			ncvarput1 (NFile, VFields[i], &NOut, &data);
 		}
 		NOut++;
+# ifdef notdef
+	/*
+	 * Debuggery.
+	 */
+	 	if (++nplow > 500)
+		{
+			printf ("DEBUG EXIT -- SHOULD NOT BE HERE\n");
+			return;
+		}
+# endif
 	}
 }
 
