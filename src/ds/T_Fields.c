@@ -9,7 +9,7 @@
 
 #include "apple.h"
 
-RCSID("$Id: T_Fields.c,v 3.3 1997-07-01 23:59:45 granger Exp $")
+RCSID("$Id: T_Fields.c,v 3.4 1997-12-11 20:49:35 burghart Exp $")
 
 extern void F_Warnings (int);
 
@@ -29,15 +29,15 @@ T_FieldNames ()
 	 * we won't get any warnings.
 	 */
 	F_Warnings (1);
-	if ((F_Declared (name)) == BadField)
-	{
-		TX_Catch ("declare field 'thisname.*name longer than");
-		err += (F_DeclareField (name, longname, units) == BadField);
-		err += TX_Caught();
-		TX_Catch ("declare field 'xxx.*illegal characters");
-		err += (F_DeclareField ("xxx.&.xxx", "X", "X") == BadField);
-		err += TX_Caught();
-	}
+
+	TX_Catch ("declare field 'thisname.*name longer than");
+	err += (F_DeclareField (name, longname, units) == BadField);
+	err += TX_Caught();
+
+	TX_Catch ("declare field 'xxx.*illegal characters");
+	err += (F_DeclareField ("xxx.&.xxx", "X", "X") == BadField);
+	err += TX_Caught();
+
 	return (err);
 }
 
