@@ -2,6 +2,11 @@
 # include "ui_globals.h"
 # include "ui.h"
 
+# ifdef UNIX
+# ifndef LF
+# define LF "/locallib/ui.lf"
+# endif
+# endif
 
 /*
  * This string holds the initial state used by uic.  By changing it
@@ -29,7 +34,7 @@ main ()
 # ifdef CRAY
 	ui_init ("/RDSS/UI/ui.lf", TRUE, FALSE);
 # else
-	ui_init (loadfile ? loadfile : "/locallib/ui.lf", TRUE, FALSE);
+	ui_init (loadfile ? loadfile : LF, TRUE, FALSE);
 # endif
 # endif
 	ON_ERROR
