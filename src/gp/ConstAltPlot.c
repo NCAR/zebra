@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.70 1998-02-19 23:54:45 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.71 1998-02-20 00:08:11 burghart Exp $")
 
 
 /*
@@ -459,7 +459,7 @@ int *shifted;
         }
 	else if (!strcasecmp(fname, "divergence"))
 	{
-	    fid = F_Field (fname, 0, "vorticity", "1/s");
+	    fid = F_Field (fname, 0, "divergence", "1/s");
 	    if (! (dc = GetVorticity ( &zt, c, platform, fid, &xdim, &ydim, 
 				       &x0, &y0, &x1, &y1, &alt, shifted)))
 		return;
