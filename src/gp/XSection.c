@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.29 1995-08-03 21:00:35 corbet Exp $")
+RCSID ("$Id: XSection.c,v 2.30 1995-08-28 21:42:55 granger Exp $")
 
 /*
  * General definitions
@@ -2898,7 +2898,7 @@ float		*alts;
 	char	*dnames[DC_MaxDimension];
 	unsigned long	dsizes[DC_MaxDimension];
 	RGrid	rg;
-	unsigned long	nlats, nlons, nalts, dimsize;
+	unsigned long	nlats, nlons, nalts;
 	Location	location;
 	DataChunk	*rdc;
 	ZebTime		when;
@@ -2944,11 +2944,11 @@ float		*alts;
 	 */
 		else
 		{
-			if (dimsize != 1)
+			if (dsizes[i] != 1)
 			{
 				msg_ELog (EF_PROBLEM, 
 				    "xs_NSpaceToRGrid: dim '%s' too big (%d)",
-				    dnames[i], dimsize);
+				    dnames[i], dsizes[i]);
 				return (NULL);
 			}
 		}
@@ -3050,7 +3050,7 @@ float		*alts;
  * Get the altitudes and copy them into the user's array.
  */
 	dc_alts = (float *) dc_NSGetSample (dc, 0, alt_id, &nalts);
-	memcpy (alts, dc_alts, nalts * sizeof (float));
+	memcpy ((void *) alts, (void *) dc_alts, nalts * sizeof (float));
 /*
  * Our criteria have been met.  Let's build an RGrid data chunk.
  */
