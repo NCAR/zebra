@@ -26,14 +26,13 @@ extern "C"
 {
 #	include <defs.h>
 };
-# include "BoolKludge.h"
 # include <stream.h>
 # include <stdio.h>
 # include "STable.h"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.11 1999-03-01 02:03:52 burghart Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.12 2001-08-27 20:00:16 granger Exp $");
 
 //
 // Internal structures

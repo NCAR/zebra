@@ -8,7 +8,7 @@ SRCS = dsmanage.cc dsmWindows.cc dsFile.cc dsPlatform.cc Index.cc \
 
 HEADERS = dsFile.h dsPlatform.h Dialog.h Index.h STable.h StatusWin.h Tape.h \
 	fcontainer.h plcontainer.h container.h dsmWindows.h dsmanage.h \
-	Exceptions.h dsPlatform.h BoolKludge.h
+	Exceptions.h dsPlatform.h 
 
 DSMLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 TILIBS = $(DFALIBS) $(LIBZEBRA)

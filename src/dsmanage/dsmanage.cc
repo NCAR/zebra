@@ -37,16 +37,14 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-# include "BoolKludge.h"
 # include "STable.h"
-//# include "container.h"
 # include "dsmanage.h"
 # include "dsFile.h"
 # include "dsPlatform.h"
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.15 1999-03-01 02:03:54 burghart Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.16 2001-08-27 20:00:17 granger Exp $");
 
 extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
