@@ -1,4 +1,4 @@
-! $Id: dsdwidget.ad,v 1.1 1992-08-20 05:34:21 granger Exp $
+! $Id: dsdwidget.ad,v 1.2 1992-12-15 21:38:23 granger Exp $
 !
 ! Application defaults file for dsdwidget, from the DataStore directory
 !
@@ -12,10 +12,23 @@
 *viewport.right:	chainRight
 *viewport.top:		chainTop
 *viewport.allowVert:	true
-*top		chainTop
+*top:		chainTop
 *bottom:	chainTop
 *Box.orientation:	orientVertical
 *Box.vSpace:		1
 *die.foreground:	red
 *background:		gray90
 *Command.borderColor:	red
+
+! Constraints for the platform popup
+
+*displayForm.remove.left:	chainLeft
+*displayForm.remove.right:	chainLeft
+*displayForm.remove.top:	chainTop
+*displayForm.remove.bottom:	chainTop
+*displayForm.remove.resizable:	false
+*displayForm.display.left:	chainLeft
+*displayForm.display.right:	chainRight
+*displayForm.display.top:	chainTop
+*displayForm.display.bottom:	chainBottom
+*displayForm.display.resizable:	true
