@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.10 1993-06-24 20:36:22 barrett Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.11 1993-12-30 16:34:28 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -102,8 +102,9 @@ static bool	DoFeet = FALSE;
 void		sk_Skewt FP ((char *, int)); 
 static void	sk_Background FP (()); 
 static void	sk_Lift FP ((int, float*, float*, float*, double)); 
-static void	sk_Thermo FP ((char *, XColor,bool));
-static void	sk_Winds FP ((char *, XColor, int, int, bool,int));
+static void	sk_Thermo FP ((char *, char *, XColor, bool));
+static void	sk_Winds FP ((char *, char *, XColor, int, int, bool, bool, 
+			      int));
 static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
 static void	sk_DrawText FP ((char *, double, double, double, XColor, 
 				 double, int, int)); 
@@ -202,11 +203,8 @@ bool	update;
 /*
  * Plot every "skip" points
  */
-        if ( !pda_Search (Pd,c,"data-skip", "skewt",(char *) &skip, SYMT_INT))
-        {
-            skip = 1;
-        }
-
+	skip = 1;
+	pda_Search (Pd, c, "data-skip", "skewt", (char *) &skip, SYMT_INT);
 /*
  * Get the color table
  */
@@ -250,9 +248,9 @@ bool	update;
 	/*
 	 * Do the thermo bit, then the winds
 	 */
-		sk_Thermo (pnames[plat], color, (bool)(!update));
-		sk_Winds ((nwplat > 0) ? wpnames[plat] : pnames[plat],
-			  color, plat, nplat, (bool)((nwplat > 0)&&(!update)),
+		sk_Thermo (c, pnames[plat], color, update);
+		sk_Winds (c, (nwplat > 0) ? wpnames[plat] : pnames[plat],
+			  color, plat, nplat, (bool)(nwplat > 0), update, 
 			  skip);
 	}
 /*
@@ -707,17 +705,19 @@ ENDCATCH
 
 
 static void
-sk_Thermo (pname, color, annot)
-char	*pname;
+sk_Thermo (c, pname, color, update)
+char	*c, *pname;
 XColor	color;
-bool    annot;
+bool    update;
 /*
- * Plot the thermo data using the given platform name and color
+ * Plot the thermo data using the given component, platform name, and color.  
+ * The boolean "update" tells whether this is just an update of a previous
+ * plot.
  */
 {
 	float	*xt, *xd, *yt, *yd, *pres, *temp, *dp, badvalue;
 	float	y;
-	int	i, npts, good_d = 0, good_t = 0;
+	int	i, npts, nprev, good_d = 0, good_t = 0;
 	char	string[40];
 	FieldId	flist[3];
 	ZebTime	ptime;
@@ -726,8 +726,8 @@ bool    annot;
 /*
  * Add this platform to the annotation
  */
-        if ( annot ) 
-	    An_TopAnnot (pname, Tacmatch ? color.pixel : Tadefclr.pixel);
+        if (! update) 
+		An_TopAnnot (pname, Tacmatch ? color.pixel : Tadefclr.pixel);
 /*
  * Get the platform id and obtain a good data time
  */
@@ -747,6 +747,14 @@ bool    annot;
 		msg_ELog (EF_INFO, "No data for '%s' at %s", pname, tstring);
 		return;
 	}
+/*
+ * If this is an update, find out how many points we got last time
+ */
+	nprev = 0;
+	
+	if (update)
+		pda_Search (Pd, c, "skPrivate-thermo-npts", NULL, 
+			    (char *) &nprev, SYMT_INT);
 /*	
  * Build the field list
  */
@@ -762,29 +770,48 @@ bool    annot;
 		return;
 	}
 /*
- * Get the data from the chunk.
+ * Find the number of points in the observation, and stash it away
  */
 	badvalue = dc_GetBadval (dc);
 	npts = dc_GetNSample (dc);
-	
+
+	if (nprev > npts)
+	{
+	/*
+	 * We're starting a new sounding, so trigger a global update
+	 */
+		TriggerGlobal = TRUE;
+		nprev = npts = 0;
+	}
+		
+	pd_Store (Pd, c, "skPrivate-thermo-npts", (char *) &npts, SYMT_INT);
+/*
+ * Get the data from the chunk, skipping points we've already plotted (if any)
+ */
+	npts -= nprev;
+
 	pres = (float *) malloc (npts * sizeof (float));
 	temp = (float *) malloc (npts * sizeof (float));
 	dp = (float *) malloc (npts * sizeof (float));
-	
+
 	for (i = 0; i < npts; i++)
 	{
-		pres[i] = dc_GetScalar (dc, i, flist[0]);
-		temp[i] = dc_GetScalar (dc, i, flist[1]);
-		dp[i] = dc_GetScalar (dc, i, flist[2]);
+		pres[i] = dc_GetScalar (dc, i + nprev, flist[0]);
+		temp[i] = dc_GetScalar (dc, i + nprev, flist[1]);
+		dp[i] = dc_GetScalar (dc, i + nprev, flist[2]);
 	}
 
 	dc_DestroyDC (dc);
 /*
  * Put a line in the overlay times widget
  */
-	sprintf (string, "%-19.19s ", pname);
-	TC_EncodeTime (&ptime, TC_Full, string + 20);
-	lw_OvAddString (string);
+	if (! update)
+	{
+		sprintf (string, "%-19.19s ", pname);
+		TC_EncodeTime (&ptime, TC_Full, string + 20);
+		lw_OvAddString (string);
+	}
+	
 /*
  * Clip
  */
@@ -824,7 +851,8 @@ bool    annot;
 /*
  * Draw the lifted parcel lines
  */
-	sk_Lift (npts, pres, temp, dp, badvalue);
+	if (! update)
+		sk_Lift (npts, pres, temp, dp, badvalue);
 /*
  * Free the allocated space and return
  */
@@ -845,24 +873,27 @@ bool    annot;
 
 
 static void
-sk_Winds (pname, color, plot_ndx, nplots, annot, skip)
-char	*pname;
+sk_Winds (c, pname, color, plot_ndx, nplots, annot, update, skip)
+char	*c, *pname;
 XColor	color;
 int	plot_ndx, nplots;
-bool	annot;
+bool	annot, update;
 int	skip;
 /*
  * Plot sounding winds given:
+ *	c:	pd component
  *	pname:	the platform name
  *	color:	the color to use
  *	plot_ndx:	the index for this winds plot
  *	nplots:	the total number of winds plots
  *	annot:	write annotation for this plot?
+ *	update:	is this an update plot?
+ *	skip:	plot every skip'th point
  */
 {
 	float	xstart, xscale, yscale, xov[2], yov[2], badvalue;
 	float	*pres, *u, *v, wspd, wdir;
-	int	i, nfld, npts, ipts;
+	int	i, nfld, npts, nprev, ipts;
 	char	string[40];
 	bool	have_u, have_v, have_uv;
 	ZebTime	ptime;
@@ -872,7 +903,7 @@ int	skip;
 /*
  * Add this platform to the annotation
  */
-	if (annot)
+	if (annot && ! update)
 	{
 		sprintf (string, " (winds: %s)", pname);
 		An_TopAnnot (string, Tacmatch ? color.pixel : Tadefclr.pixel);
@@ -918,6 +949,13 @@ int	skip;
 	flist[1] = have_uv ? F_Lookup ("u_wind") : F_Lookup ("wspd");
 	flist[2] = have_uv ? F_Lookup ("v_wind") : F_Lookup ("wdir");
 /*
+ * If this is an update, find out how many points we got last time
+ */
+	nprev = 0;
+	if (update)
+		pda_Search (Pd, c, "skPrivate-wind-npts", NULL, 
+			    (char *) &nprev, SYMT_INT);
+/*
  * Get the data
  */
 	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, NULL, 0)))
@@ -927,10 +965,26 @@ int	skip;
 		return;
 	}
 /*
- * Get the data from the chunk, deriving u_wind and v_wind if necessary
+ * Find the number of points in the observation and stash it in the pd
  */
 	badvalue = dc_GetBadval (dc);
 	npts = dc_GetNSample (dc);
+
+	if (nprev > npts)
+	{
+	/*
+	 * We're starting a new sounding, so trigger a global update
+	 */
+		TriggerGlobal = TRUE;
+		nprev = npts = 0;
+	}
+		
+	pd_Store (Pd, c, "skPrivate-wind-npts", (char *) &npts, SYMT_INT);
+/*
+ * Get the data from the chunk, deriving u_wind and v_wind if necessary, 
+ * and skipping points we've already plotted (if any)
+ */
+	npts -= nprev;
 
 	pres = (float *) malloc (npts * sizeof (float));
 	u = (float *) malloc (npts * sizeof (float));
@@ -939,18 +993,20 @@ int	skip;
         ipts = 0;
 	for (i = 0; i < npts; i++)
 	{
-           if ( ((i+skip) % skip) ) continue;
-		pres[ipts] = dc_GetScalar (dc, i, flist[0]);
+		if ((i + nprev) % skip)
+			continue;
+
+		pres[ipts] = dc_GetScalar (dc, i + nprev, flist[0]);
 
 		if (have_uv)
 		{
-			u[ipts] = dc_GetScalar (dc, i, flist[1]);
-			v[ipts] = dc_GetScalar (dc, i, flist[2]);
+			u[ipts] = dc_GetScalar (dc, i + nprev, flist[1]);
+			v[ipts] = dc_GetScalar (dc, i + nprev, flist[2]);
 		}
 		else
 		{
-			wspd = dc_GetScalar (dc, i, flist[1]);
-			wdir = dc_GetScalar (dc, i, flist[2]);
+			wspd = dc_GetScalar (dc, i + nprev, flist[1]);
+			wdir = dc_GetScalar (dc, i + nprev, flist[2]);
 			u[ipts] = wspd == badvalue || wdir == badvalue ?
 				badvalue :
                                 wspd * cos (DEG_TO_RAD (270.0 - wdir));
@@ -966,7 +1022,7 @@ int	skip;
 /*
  * Put a line in the overlay times widget
  */
-	if (annot)
+	if (annot && ! update)
 	{
 		sprintf (string, "%-11.11s (winds) ", pname);
 		TC_EncodeTime (&ptime, TC_Full, string + 20);
@@ -1023,7 +1079,7 @@ int	skip;
 /*
  * Scaling annotation (draw for the first one only)
  */
-	if (plot_ndx == 0)
+	if (plot_ndx == 0 && ! update)
 	{
 		sk_DrawText ("WINDS PROFILE", 1.0 + 0.5 * (Xhi - 1.0), -0.01, 
 			0.0, Tadefclr, 0.025, JustifyCenter, JustifyTop);
