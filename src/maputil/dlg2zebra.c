@@ -33,6 +33,11 @@
 typedef char	boolean;
 
 /*
+ * Machine byte order
+ */
+boolean LittleEndian;
+
+/*
  * Might as well share these
  */
 char	Tag[128], LeadId[4], Data[32*1024];
@@ -279,7 +284,7 @@ void	die (char *format, ...);
 
 main (int argc, char *argv[])
 {
-    int c;
+    int c, order;
 
     while ((c = getopt (argc, argv, "scfr:wW")) != EOF)
     {
@@ -341,6 +346,14 @@ main (int argc, char *argv[])
 
     MapDir = argv[optind];
     State = argv[optind+1];
+    
+    /*
+     * Machine byte order
+     */
+    g123order (&order);
+    LittleEndian = (order == 0);
+    fprintf (stderr, "This machine is %sEndian...\n", 
+	     LittleEndian ? "Little" : "Big");
 
     /*
      * Load the necessary information
@@ -589,6 +602,13 @@ ReadLines (char *fname, char *type, LineInfo **lines, int *maxlines,
 	     */
 	    else if (! strcmp (Tag, "SADR"))
 	    {
+		if (LittleEndian)
+		{
+		    char c;
+		    c = Data[0]; Data[0] = Data[3]; Data[3] = c;
+		    c = Data[1]; Data[1] = Data[2]; Data[2] = c;
+		}
+		
 		val = (long *)Data;
 		
 		if (lon_is_next)
