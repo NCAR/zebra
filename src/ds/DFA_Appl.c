@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.15 1998-12-10 00:39:55 burghart Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.16 1998-12-10 21:38:10 burghart Exp $")
 
 /*
  * Local private prototypes.
@@ -655,6 +655,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
     derivs = (DerivMethod*) malloc (ndestflds * sizeof (DerivMethod));
     
     nextraflds = 0;
+    nraw = 0;
 
     for (df = 0; df < ndestflds; df++)
     {
