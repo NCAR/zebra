@@ -415,7 +415,7 @@ RawFldDNode::MetaEval( const DerivTable* dtables[], const int ndtables,
 // If the wanted field is in the list of fields we can't use, return 0
 //
     for (i = 0; i < ncantuse; i++)
-	if (cantuse[i].CanYield( *fld ))
+	if (cantuse[i] == *fld)
 	    return 0;
 //
 // We didn't find it among the available fields, so see if we can derive it
