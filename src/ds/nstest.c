@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.17 1995-05-16 21:31:02 granger Exp $
+ * $Id: nstest.c,v 1.18 1995-07-06 15:16:21 granger Exp $
  */
 
 /*
@@ -105,11 +105,10 @@ struct message *msg;
 /* #define ZNF_TESTING */
 #endif
 
-#ifdef notdef
+#define DAYSPLIT
 #define TIME_UNITS
 #define EXAMPLE_ONLY
 #define NSPACE_AERI
-
 #define AERI_TYPES
 #define ATTRIBUTES
 #define TRANSPARENT
@@ -126,11 +125,6 @@ struct message *msg;
 #define ATTRIBUTES
 #define NEXUS
 #define RGRID		/* test DC RGrid interface */
-#define DUMMY_FILES
-#define DATA_TIMES
-#define FETCH_GAP
-#endif
-
 #define DUMMY_FILES
 #define DATA_TIMES
 #define FETCH_GAP
@@ -170,7 +164,6 @@ struct TestPlatform {
 	PlatformId platid;
 } TestPlatforms[] = 
 {
-#ifdef notdef
 	{ "t_transparent", 500, "zeb", FALSE, "transparent" },
 	{ "t_scalar" }, 
 	{ "t_blocks" },
@@ -179,7 +172,7 @@ struct TestPlatform {
 	{ "t_1dgrid_cdf" },
 	{ "t_irgrid_znf" },
 	{ "t_1dgrid_znf" },
-#endif
+	{ "t_daysplit" },
 #ifdef DUMMY_FILES
 	{ "t_dummy_cdf" },
 	{ "t_dummy_znf" },
@@ -206,14 +199,12 @@ struct TestPlatform {
 	{ "t_aeri_types_cdf" },
 	{ "t_aeri_types_znf" },
 #endif
-#ifdef notdef
 	{ "t_virtual" },
 	{ "t_getfields_cdf" },
 	{ "t_getfields_znf" },
 	{ "t_nsvsc_scalar" },
 	{ "t_nsvsc_nspace" },
 	{ "t_fieldtypes" },
-#endif
 #ifdef ATTRIBUTES
 	{ "t_att_types_cdf" },
 #endif
@@ -469,8 +460,13 @@ main (argc, argv)
 	T_TimeUnits (&begin);
 #endif
 
+#ifdef DAYSPLIT
+	T_Daysplit (&begin);
+#endif
+
 	ds_ForceClosure();
 	
+	Announce ("Tests completed.");
 	return(0);
 }
 
@@ -1903,7 +1899,7 @@ bool addatts;		/* per-sample atts only 	*/
 T_Aeri()
 {
 	ZebTime begin, when;
-	char *pname = "Dsgpaeri1ch1.a1";
+	char *pname = "sgpaerich1C1.a1";
 	PlatformId pid = ds_LookupPlatform(pname);
 	FieldId fields[30];
 	float *retrieve;
@@ -1938,6 +1934,12 @@ T_Aeri()
 	dc = ds_FetchObs (pid, DCC_NSpace, &when,
 			  fields, n, NULL, 0);
 	printf("DataChunk returned by ds_Fetch():\n");
+	if (! dc)
+	{
+		printf ("NONE!\n");
+		msg_ELog (EF_PROBLEM, "Fetch of '%s' data failed.", pname);
+		return (1);
+	}
 	dc_DumpDC (dc);
 
 	for (i = 0; i < n; ++i)
@@ -1964,6 +1966,7 @@ T_Aeri()
 				   F_Lookup("thermistor0"), &len);
 	T_DumpData (retrieve, 5, len, "thermistor0");
 	dc_DestroyDC(dc);
+	return (0);
 }
 #endif /* NSPACE_AERI */
 
@@ -2124,7 +2127,7 @@ ZebTime *start;
 			ds_DeleteObs (t_delete_id, &when);
 		++when.zt_Sec;
 	}
-	Announce ("Finished deleting with DeleteObs\n");
+	Announce ("Finished deleting with DeleteObs");
 	fflush (stdout);
 	fflush (stderr);
 	system(cmd);	
@@ -2508,10 +2511,10 @@ makes the beauty of your eyes glow with irresistable radiance",
 	therm_id = F_DeclareField ("thermistor", "Thermistor", "C");
 	dc_NSDefineField (dc, therm_id, 0, 0, 0, FALSE);
 	process_id = F_DeclareField ("process", "Active process", "none");
-	dc_NSDefineField (dc, process_id, 2, process_dims, process_sizes, TRUE);
+	dc_NSDefineField(dc, process_id, 2, process_dims, process_sizes, TRUE);
 	bin_avg_id = F_DeclareField ("bin_avg_rad", "Bin average radiance",
 				     "mW/(m2 sr cm-1)");
-	dc_NSDefineField (dc, bin_avg_id, 1, process_dims, process_sizes, FALSE);
+	dc_NSDefineField (dc,bin_avg_id,1,process_dims,process_sizes,FALSE);
 
 	/*
 	 * Store error flag masks for each sample time
@@ -3007,4 +3010,89 @@ ZebTime *begin;
 }	
 
 #endif /* TIME_UNITS */
+
+
+#ifdef DAYSPLIT
+/*
+ * Test that datachunk samples on different days get correctly split
+ * into separate files.
+ */
+int
+T_Daysplit (begin)
+ZebTime *begin;
+{
+	ZebTime start, next;
+	DataChunk *dc;
+	char buf[128];
+	char *plat = "t_daysplit";
+	PlatformId pid;
+	int y1, y2, m1, m2, d1, d2;
+	ZebTime otimes[20];
+	int nobs = 0;
+	int n;
+#	define YEAR (365*24*3600)
+#	define DAY (24*3600)
+
+	sprintf (buf, "testing daysplit on platform '%s'", plat);
+	Announce (buf);
+	pid = ds_LookupPlatform (plat);
+	start = *begin;
+	TC_ZtSplit (&start, &y1, &m1, &d1, 0, 0, 0, 0);
+	y1 -= 2;
+	TC_ZtAssemble (&start, y1, m1, d1, 0, 0, 0, 0);
+	dc = T_SimpleScalarChunk (&start, YEAR, 2, 4, FALSE, FALSE);
+	nobs += 2;
+	dc->dc_Platform = pid;
+	ds_Store (dc, /*newfile*/FALSE, NULL, 0);
+	dc_DestroyDC (dc);
+
+	++y1;
+	++m1;
+	TC_ZtAssemble (&start, y1, m1, d1, 0, 0, 0, 0);
+	++m1;
+	TC_ZtAssemble (&next, y1, m1, d1, 0, 0, 0, 0);
+	dc = T_SimpleScalarChunk (&start, next.zt_Sec - start.zt_Sec,
+				  2, 4, FALSE, FALSE);
+	nobs += 2;
+	dc->dc_Platform = pid;
+	ds_StoreBlocks (dc, /*newfile*/FALSE, NULL, 0);
+	dc_DestroyDC (dc);
+
+	++m1;
+	TC_ZtAssemble (&start, y1, m1, d1, 0, 0, 0, 0);
+	++m1;
+	TC_ZtAssemble (&next, y1, m1, d1, 0, 0, 0, 0);
+	dc = T_SimpleScalarChunk (&start, next.zt_Sec - start.zt_Sec,
+				  2, 4, FALSE, FALSE);
+	nobs += 2;
+	dc->dc_Platform = pid;
+	ds_StoreBlocks (dc, /*newfile*/FALSE, NULL, 0);
+	dc_DestroyDC (dc);
+
+	m1 += 2;
+	TC_ZtAssemble (&start, y1, m1, d1, 0, 0, 0, 0);
+	dc = T_SimpleScalarChunk (&start, DAY, 5, 4, FALSE, FALSE);
+	nobs += 5;
+	dc->dc_Platform = pid;
+	ds_StoreBlocks (dc, /*newfile*/FALSE, NULL, 0);
+	dc_DestroyDC (dc);
+
+	/*
+	 * After all that, we should have exactly one observation for each
+	 * sample stored.
+	 */
+	msg_ELog (EF_INFO, "Checking for %d observations...", nobs);
+	tl_Time (&start);
+	n = ds_GetObsTimes (pid, &start, otimes, 20, NULL);
+	if (n != nobs)
+	{
+		msg_ELog (EF_PROBLEM, "Found %d observations, expected %d",
+			  n, nobs);
+		return (1);
+	}
+	msg_ELog (EF_INFO, "Passed.");
+	return (0);
+}
+#endif /* DAYSPLIT */
+
 
