@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.10 1997-06-10 20:32:40 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.11 1997-06-11 14:58:17 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -149,7 +149,7 @@ unsigned char	*buf;
  */
 	if (LittleEndian())
 	{
-	    cptr[0] = buf[3]; cptr[1] = buf[2]; 
+	    cptr[0] = buf[2]; cptr[1] = buf[1]; 
 	    cptr[2] = buf[0] & 0x7f;	/* drop the sign bit */
 	}
 	else
