@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFileP.hh,v 1.4 1997-12-13 00:24:27 granger Exp $
+ * $Id: BlockFileP.hh,v 1.5 1998-03-05 04:54:15 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
  * such as auxiliary block classes.
@@ -18,12 +18,6 @@
 const unsigned long BLOCK_FILE_MAGIC = 0xb10cf11e;	/* blocfile */
 const unsigned long BLOCK_FILE_VERSION = 0x00010000;	/* major/minor 1.0 */
 const unsigned long HEADER_SIZE = 256;
-
-#ifdef notdef
-#include "ZTime.hh"
-typedef ZebraTime BF_Time;
-SERIAL_XDR_OPERATOR(BF_Time, xdr_ZebraTime);
-#endif
 
 /* =============================
  * Our header structure, the root of the block file administration

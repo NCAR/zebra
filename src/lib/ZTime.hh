@@ -1,6 +1,6 @@
-// Some -*- C++ -*- goodies for dealing with zebtimes.
+// Some -*- C++ -*- goodies for dealing with ZebraTimes.
 //
-// $Id: ZTime.hh,v 1.1 1997-11-24 10:22:19 granger Exp $
+// $Id: ZTime.hh,v 1.2 1998-03-05 04:54:25 granger Exp $
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -30,15 +30,15 @@
 #include <zebra.h>
 
 /*
- * Subclass the ZebTime C struct and call it ZTime!
+ * Subclass the ZebraTime C struct and call it ZTime!
  * Then we can add some C++ methods to it.
  */
 
-struct ZTime : public ZebTime
+struct ZTime : public ZebraTime
 {
-	//static const ZebTime ALHPA = { 0, 0 };
-	//static const ZebTime OMEGA = { 0x7fffffff, 999999 };
-	//static const ZebTime NONE = { -1, -1 };
+	//static const ZebraTime ALHPA = { 0, 0 };
+	//static const ZebraTime OMEGA = { 0x7fffffff, 999999 };
+	//static const ZebraTime NONE = { -1, -1 };
 
 	/// Return as system time
 	inline long toSystem () const
@@ -153,6 +153,20 @@ struct ZTime : public ZebTime
 		return ZTime(zt_Sec + seconds, zt_MicroSec);
 	}
 
+	inline ZTime operator+ (const ZebraTime &add)
+	{
+		unsigned long msecs = zt_MicroSec + add.zt_MicroSec;
+		return ZTime(zt_Sec + add.zt_Sec + (msecs / 1000000),
+			     msecs % 1000000);
+	}
+
+	inline ZTime operator= (const ZebraTime &src)
+	{
+		zt_Sec = src.zt_Sec;
+		zt_MicroSec = src.zt_MicroSec;
+		return *this;
+	}
+
 	// Constructors
 
 	ZTime ()
@@ -161,7 +175,7 @@ struct ZTime : public ZebTime
 		zt_MicroSec = 0;
 	}
 
-	ZTime (ZebTime &zt)
+	ZTime (const ZebraTime &zt)
 	{
 		zt_Sec = zt.zt_Sec;
 		zt_MicroSec = zt.zt_MicroSec;
@@ -182,23 +196,27 @@ private:
 
 
 inline
-ostream & operator<< (ostream &out, const ZebTime &t)
+ostream & operator<< (ostream &out, const ZebraTime &t)
 {
 	out << TC_AscTime (&t, TC_Full);
 	return (out);
 }
 
 
+#ifdef notdef
+/* This shouldn't be necessary because of the above definition.
+ * In that case a ZTime should be cast to a ZebraTime. */
 inline
 ostream & operator<< (ostream &out, const ZTime &t)
 {
 	out << t.ascTime();
 	return (out);
 }
+#endif
 
 
 inline
-bool operator< (const ZebTime &t1, const ZebTime &t2)
+bool operator< (const ZebraTime &t1, const ZebraTime &t2)
 {
 	return (t1.zt_Sec < t2.zt_Sec ||
 		(t1.zt_Sec == t2.zt_Sec && t1.zt_MicroSec < t2.zt_MicroSec));
@@ -206,7 +224,7 @@ bool operator< (const ZebTime &t1, const ZebTime &t2)
 
 
 inline
-bool operator<= (const ZebTime &t1, const ZebTime &t2)
+bool operator<= (const ZebraTime &t1, const ZebraTime &t2)
 {
 	return (t1.zt_Sec < t2.zt_Sec ||
 		(t1.zt_Sec == t2.zt_Sec && t1.zt_MicroSec <= t2.zt_MicroSec));
@@ -214,7 +232,7 @@ bool operator<= (const ZebTime &t1, const ZebTime &t2)
 
 
 inline
-bool operator> (const ZebTime &t1, const ZebTime &t2)
+bool operator> (const ZebraTime &t1, const ZebraTime &t2)
 {
 	return (t1.zt_Sec > t2.zt_Sec ||
 		(t1.zt_Sec == t2.zt_Sec && t1.zt_MicroSec > t2.zt_MicroSec));
@@ -223,7 +241,7 @@ bool operator> (const ZebTime &t1, const ZebTime &t2)
 
 
 inline
-bool operator>= (const ZebTime &t1, const ZebTime &t2)
+bool operator>= (const ZebraTime &t1, const ZebraTime &t2)
 {
 	return (t1.zt_Sec > t2.zt_Sec ||
 		(t1.zt_Sec == t2.zt_Sec && t1.zt_MicroSec >= t2.zt_MicroSec));
@@ -232,7 +250,7 @@ bool operator>= (const ZebTime &t1, const ZebTime &t2)
 
 
 inline
-bool operator== (const ZebTime &t1, const ZebTime &t2)
+bool operator== (const ZebraTime &t1, const ZebraTime &t2)
 {
 	return ((t1.zt_Sec == t2.zt_Sec) && 
 		(t1.zt_MicroSec == t2.zt_MicroSec));

@@ -18,19 +18,22 @@
 
 #include <time.h>	// Need time() to seed srand()
 
-//#include "BlockFileP.hh"
-//#include "ZTime.hh"
+#include "SerialZTime.hh"
 #include "BTree.hh"
 
-#define ZTime long
-typedef BTree<ZTime,long> TimeTree;
+typedef BTree<ZTime,ZTime> TimeTree;
 
 #include <string>
 
 typedef BTree<string,string> StringTree;
 
+/*
+ * Choose the test_key type for the test trees.
+ */
 //typedef long test_key;
-typedef string test_key;
+//typedef string test_key;
+typedef ZTime test_key;
+
 typedef BTree<test_key,test_key> test_tree;
 
 static int Debug = 0;
