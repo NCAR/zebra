@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.45 1998-04-27 21:41:01 corbet Exp $
+ * $Id: DataStore.h,v 3.46 1998-04-30 14:14:08 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -429,7 +429,7 @@ typedef struct _PolarBeam
 	float pb_Azimuth;	
 	float pb_Elevation;
 	float pb_RotAngle;	/* Rotation angle		*/
-	float pb_FixedAngle;	/* Non-rotating angle		*/;
+	float pb_FixedAngle;	/* Non-rotating angle		*/
 	int pb_NGates;
 	float pb_R0;		/* Range to first gate		*/
 	float pb_GateSpacing;	/* Spaceing	       		*/
