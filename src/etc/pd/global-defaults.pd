@@ -1,4 +1,4 @@
-! $Id: global-defaults.pd,v 1.1 2000-06-07 20:34:52 granger Exp $
+! $Id: global-defaults.pd,v 1.2 2000-11-10 21:58:34 granger Exp $
 !
 ! This file contains default values for some plot description parameters.
 ! By default, this pd is loaded from the libray pd directory.  To use it,
@@ -133,6 +133,7 @@ defaults
 	max-frames:	30
 !
 ! Command to be executed out of the DataAvailable menu.
+! DefaultDataAvail is built-in.
 !
 	data-available-command:		DefaultDataAvail
 !
@@ -171,11 +172,3 @@ defaults
 	xsect-window:			all
 	xsect-component:		global
 
-truecolor
-!
-! RBand settings for displays with greater than 8-bit depth.
-! Use
-!      pddrop global-defaults truecolor defaults defaults
-! 
-        xorvalue:                       16777215
-        xor-line-width:                 3
