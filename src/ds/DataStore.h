@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.13 1993-09-02 08:20:43 granger Exp $
+ * $Id: DataStore.h,v 3.14 1993-09-14 17:58:26 granger Exp $
  *
  * Public data store definitions.
  */
@@ -441,6 +441,10 @@ int		ds_Initialize FP ((void));
 PlatformId	ds_LookupPlatform FP ((char *));
 char *		ds_PlatformName FP ((PlatformId));
 int		ds_IsMobile FP ((PlatformId));
+bool		ds_Store FP ((DataChunk *dc, bool newfile, 
+			      dsDetail *details, int ndetail));
+bool		ds_StoreBlocks FP ((DataChunk *dc, bool newfile,
+				    dsDetail *details, int ndetail));
 DataChunk *	ds_Fetch FP ((PlatformId, DataClass, ZebTime *, ZebTime *,
 			FieldId *, int, dsDetail *, int));
 DataChunk *	ds_FetchObs FP ((PlatformId, DataClass, ZebTime *, FieldId *,
