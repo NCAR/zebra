@@ -1,3 +1,31 @@
+Thu Feb  3 14:45:32 1994  Jonathan Corbet  (corbet@steam)
+
+	* Tagging version V4.0.
+
+Wed Feb  2 15:31:43 1994  Jonathan Corbet  (corbet@ale)
+
+	* config: config.h promises that if you're using openwin and you
+	  don't specify XIncDir that it will pick the open windows include
+	  directory, but it warn't so.
+
+	  Changed the strings /**/# to XCOMM, since the former produced an
+	  intolerable number of gripes from the solaris compiler.
+
+Tue Feb  1 13:44:06 1994  Jonathan Corbet  (corbet@ale)
+
+        * Dsmanage: some solaris tweaks so that free space gets calculated
+	  right.  Also it now looks for the ZEB_CDROM environment variable
+	  to find the CDROM, if any.
+
+Tue Feb  1 11:38:24 1994  Jonathan Corbet  (corbet@steam)
+
+	* Fixed a NASTY free-unallocated-memory bug in XYWind.c.  If it 
+	  weren't for TestCenter, I don't know how I would have found this
+	  one...
+
+	* Modified station plots so that the quadrant annotation (and thus 
+	  associated active areas) are always present.
+
 Thu Jan 27 09:37:04 1994  Chris Burghart  (burghart@trenco)
 
 	* GraphicsW.c: Test for X shared memory extension now calls 
