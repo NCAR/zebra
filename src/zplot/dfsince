@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: dfsince,v 1.1 1997-12-07 21:08:53 granger Exp $
+# $Id: dfsince,v 1.2 1998-01-28 01:21:47 granger Exp $
 #
 # Collect all the datafiles files more recent than a persistent timestamp.
 # Assumes zebra is already running.
@@ -36,6 +36,7 @@ close TS;
 open (DS, "dsdump -z -l |");
 while (<DS>)
 {
+    next if $_ =~ /remote/;
     ($platform, $file, $dir, $time, $nsample) = split(/\s+/,$_);
     if (! defined $Stamps{$platform})
     {
@@ -51,7 +52,7 @@ while (<DS>)
     }
     # New platform or more recent time found.
     # Dump all the files in this platform since the timestamp.
-    system ("dsdump $since -l -e $platform");
+    system ("dsdump $since -l -e $platform | egrep -v remote");
     $Stamps{$platform} = $time;
 }
 
