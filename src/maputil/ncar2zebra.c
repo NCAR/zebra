@@ -21,6 +21,7 @@ float	Usr_minlat, Usr_maxlat, Usr_minlon, Usr_maxlon;
 /*
  * U.S. map dataset
  */
+# define NCARMAP	"/local/lib/ncarg/database/ezmapdata"
 FILE	*MapFile;
 
 
@@ -44,10 +45,11 @@ main ()
 /*
  * Open our main dataset
  */
-	MapFile = fopen ("/local/lib/ncarg.3.2/database/ezmapdata", "r");
+	MapFile = fopen (NCARMAP, "r");
+
 	if (! MapFile)
 	{
-		printf ("Unable to open file '/locallib/ezmapdata'\n");
+		fprintf (stderr, "Unable to open file '%s'\n", NCARMAP);
 		exit (1);
 	}
 /*
