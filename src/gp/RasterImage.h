@@ -30,12 +30,15 @@ typedef struct _DestImage
 	int		di_bpl;		/* Bytes per scan line	*/
 	int		di_w, di_h;	/* Width and height	*/
 	int		di_needswap;	/* Need to swap bytes	*/
+	int		di_transparent; /* Attempting transparency */
 } DestImage;
   
 
 /*
  * Public routines.
  */
+extern DestImage *
+ri_CreateImage (int frame, int x, int y, int w, int h, int transparent);
 extern DestImage *ri_GetDestImage (int, int, int, int, int);
 extern DestImage *ri_MakeMemImage (int, int, void *, int, int);	
 extern void ri_ShipImage (DestImage *);

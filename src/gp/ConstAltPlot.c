@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.80 1999-03-01 02:04:20 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.81 1999-11-01 21:27:12 granger Exp $")
 
 
 /*
@@ -130,7 +130,7 @@ static int	CAP_PolarParams FP ((char *c, char *plat, PlatformId *pid,
 				int *project, int *tfill, int *legend));
 # endif
 void		CAP_LineContour FP ((char *, int));
-static void	CAP_Contour FP ((char *, contour_type, char **, char **, 
+static int	CAP_Contour FP ((char *, contour_type, char **, char **, 
 				 float *, float *, char **, int *));
 static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, FieldId, 
 			int *, int *, float *, float *, float *, float *, 
@@ -226,10 +226,18 @@ ZebTime *t;
 
 
 
+void
+CAP_Parameters (char *c)
+{
+	Sascale = 0.02;
+	pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT);
 
+	Ctlimit = 1;
+	pda_Search (Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT);
 
-
-
+	Sashow = TRUE;
+	pda_Search (Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
+}
 
 
 
@@ -362,7 +370,7 @@ zbool	update;
 
 
 
-static void
+static int
 CAP_Contour (c, type, rplat, rfldname, center, step, rctable, shifted)
 char	*c, **rplat, **rfldname, **rctable;
 contour_type	type;
@@ -410,16 +418,11 @@ int *shifted;
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
 	autoscale = CAP_AutoScale (c, "contour", platform, fname,
 				   center, step);
-/*
- * Bail on too old data, if requested
+/* ----------------
+ * Data time check moved until after all the parameters are loaded, since
+ * some of them will still be used even if no data are plotted.
+ * ----------------
  */
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "Unknown platform: %s", platform);
-		return;
-	}
-	if (! CAP_TimeCheck (c, pid))
-		return;
 /*
  * color coding info.
  */
@@ -462,10 +465,12 @@ int *shifted;
 	dt_SetBlankLabel(labelflag);
 
 	if (! ok)
-		return;
+		return (0);
 /* 
  * Get annotation information
  */
+	CAP_Parameters (c);
+#ifdef notdef
 	Sascale = 0.02;
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT);
 
@@ -474,6 +479,7 @@ int *shifted;
 
 	Sashow = TRUE;
 	pda_Search (Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
+#endif
 /*
  * Special stuff for line contours
  */
@@ -491,6 +497,16 @@ int *shifted;
 		if (!ct_LoadTable (ctable, &Colors, &Ncolors))
 			ct_LoadTable ("Contour", &Colors, &Ncolors);
 /*
+ * Bail on too old, or unknown, data, if requested
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform: %s", platform);
+		return (0);
+	}
+	if (! CAP_TimeCheck (c, pid))
+		return (0);
+/*
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
@@ -502,21 +518,21 @@ int *shifted;
 	    fid = F_Field (fname, 0, "vorticity", "1/s");
 	    if (! (dc = GetVorticity ( &zt, c, platform, fid, &xdim, &ydim, 
 				       &x0, &y0, &x1, &y1, &alt, shifted)))
-		return;
+		return (0);
         }
 	else if (!strcasecmp(fname, "divergence"))
 	{
 	    fid = F_Field (fname, 0, "divergence", "1/s");
 	    if (! (dc = GetVorticity ( &zt, c, platform, fid, &xdim, &ydim, 
 				       &x0, &y0, &x1, &y1, &alt, shifted)))
-		return;
+		return (0);
 	}
 	else
 	{
 	    fid = F_Lookup (fname);
 	    if (! (dc = ga_GetGrid (&zt, c, platform, fid, &xdim, &ydim, 
 				    &x0, &y0, &x1, &y1, &alt, shifted)))
-		return;
+		return (0);
 	}
 
 	rgrid = (float *)dc_RGGetGrid(dc, 0, fid, &loc, &rg, &len);
@@ -600,6 +616,7 @@ int *shifted;
  */
 	CAP_AddStatusLine (c, platform, fname, loc.l_alt, altunits, &zt);
 	free (grid);
+	return (1);
 }
 
 
@@ -1598,9 +1615,12 @@ zbool *do_vectors;
 /*
  * Get annotation information from the plot description
  */
+	CAP_Parameters (c);
+#ifdef notdef
 	if(! pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale,
 			 SYMT_FLOAT))
 		Sascale = 0.02;
+#endif
 /*
  * Figure out an arrow color.
  */
@@ -1744,16 +1764,14 @@ int datalen, begin, space;
 
 
 
-void
-CAP_Raster (c, update)
-char	*c;
-zbool	update;
+static void
+CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 /*
  * Execute a CAP raster plot, based on the given plot
  * description, specified conent, and plot time
  */
 {
-	char	fname[80], ctname[40], data[128], hcolor[40];
+	char	fname[80], ctname[40], hcolor[40];
 	char 	platform[PlatformListLen];
 	char	param[50], outrange[40];
 	int	xdim, ydim, slow;
@@ -1776,6 +1794,7 @@ zbool	update;
 	RGrid	rg;
 	FieldId	fid;
 	AltUnitType	altunits;
+	int transparent = 0;
 /*
  * Get necessary parameters from the plot description
  */
@@ -1798,14 +1817,19 @@ zbool	update;
 	if (! ok)
 		return;
 /*
- * An out of range color is nice, sometimes.
+ * An out of range color is nice, sometimes.  Rather than introduce a
+ * new parameter for transparency, we accept 'none' to mean "make the
+ * default out-of-range color (black) transparent".
  */
 	strcpy (outrange, "black");
 	pda_Search (Pd, c, "out-of-range-color", platform, outrange,
 		    SYMT_STRING);
-
-	if (! ct_GetColorByName (outrange, &xoutr))
-		ct_GetColorByName ("black", &xoutr);
+	if (! strcmp (outrange, "none"))
+	{
+	    transparent = 1;
+	}
+	if (transparent || ! ct_GetColorByName (outrange, &xoutr))
+	    ct_GetColorByName ("black", &xoutr);
 /*
  * Make sure the platform is other than bogus, and get its organization.
  */
@@ -1825,11 +1849,6 @@ zbool	update;
 		return;
 	}
 /*
- * Bail on too old data, if requested
- */
-	if (! CAP_TimeCheck (c, pid))
-		return;
-/*
  * Get info for highlighting and area.
  */
 	highlight = FALSE;
@@ -1847,13 +1866,12 @@ zbool	update;
 				SYMT_FLOAT))
 			hvalue = 0.0;
 	}
-/*
- * Get annotation information from the plot description
- */
+#ifdef notdef
 	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale,SYMT_FLOAT))
 		Sascale = 0.02;
 	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
 		Ctlimit = 1;
+#endif
 /*
  * Rasterization control.  This determines whether we use the polygon fill
  * (slow) or fancy integer (fast) method of rasterization.  The new-raster
@@ -1885,6 +1903,26 @@ zbool	update;
 	sprintf (param, "%s-nsteps", F_GetName (fid));
 	if (! pda_Search (Pd, c, param, "raster", CPTR (nsteps), SYMT_INT))
 		nsteps = Ncolors;
+/*
+ * Initialize our annotation data now in case we return early.
+ */
+	sprintf (topannot, "%s %s plot.", platform, px_FldDesc (fname));
+/*
+ * Side annotation (color bar)
+ */
+	if (highlight)
+		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
+			 px_FldDesc (fname), ctname, center, step, nsteps, 
+			 highlight, hvalue, hcolor, hrange);
+	else
+		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
+			 px_FldDesc (fname), ctname, center, step, nsteps, 
+			 highlight, 0.0, "null", 0.0);
+/*
+ * Bail on too old data, if requested
+ */
+	if (! CAP_TimeCheck (c, pid))
+		return;
 /*
  * Get the data (pass in plot time, get back actual data time)
  */
@@ -1944,6 +1982,7 @@ zbool	update;
 	ct_GetColorByName (hcolor, &xc);
 	RP_Init (Colors, Ncolors, xoutr, clip, min, max, highlight, hvalue, 
 		 xc, hrange);
+	RP_Transparent (transparent);
 	if (image)
 		RasterImagePlot (Graphics, DrawFrame, igrid, xdim,
 			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
@@ -1957,36 +1996,66 @@ zbool	update;
  * Free the data chunk.
  */
 	dc_DestroyDC (dc);
+	CAP_AddStatusLine (c, platform, fname, alt, altunits, &zt);
+/*
+ * Update annotations now that we know whether we shifted and now that
+ * our color bar may have been autoscaled to the data.
+ */
+	sprintf (topannot, "%s %s %s",
+		 platform, px_FldDesc (fname), 
+		 shifted ? " plot (SHIFTED).  " : " plot.  ");
+/*
+ * Side annotation (color bar)
+ */
+	if (highlight)
+		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
+			 px_FldDesc (fname), ctname, center, step, nsteps, 
+			 highlight, hvalue, hcolor, hrange);
+	else
+		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
+			 px_FldDesc (fname), ctname, center, step, nsteps, 
+			 highlight, 0.0, "null", 0.0);
+}
+
+
+
+void
+CAP_Raster (char *c, zbool update)
+{
+	char topannot[512];
+	char sideannot[512];
+
+	topannot[0] = 0;
+	sideannot[0] = 0;
+/*
+ * Get annotation information from the plot description
+ */
+	CAP_Parameters (c);
+/*
+ * The first part of CAP_Raster was moved into CAP_PlotRaster, to align
+ * with the CAP_Contour plots which show their top and side annotation
+ * even when no data can be plotted.
+ */
+	CAP_PlotRaster (c, update, topannot, sideannot);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
  */
 	if (update)
 		return;
-
-	CAP_AddStatusLine (c, platform, fname, alt, altunits, &zt);
 /*
- * Top annotation
+ * Now add any top or side annotation procedures
  */
-	An_TopAnnot (platform, Tadefclr.pixel);
-	An_TopAnnot (" ", Tadefclr.pixel);
-	An_TopAnnot (px_FldDesc (fname), Tadefclr.pixel);
-	An_TopAnnot (shifted ? " plot (SHIFTED).  " : " plot.  ", 
-		     Tadefclr.pixel);
-/*
- * Side annotation (color bar)
- */
-	if (highlight)
-		sprintf (data, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
-			 px_FldDesc (fname), ctname, center, step, nsteps, 
-			 highlight, hvalue, hcolor, hrange);
-	else
-		sprintf (data, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
-			 px_FldDesc (fname), ctname, center, step, nsteps, 
-			 highlight, 0.0, "null", 0.0);
-	An_AddAnnotProc (CAP_RasterSideAnnot, c, data, strlen (data), 
-			 140, TRUE, FALSE);
+	if (topannot[0])
+		An_TopAnnot (topannot, Tadefclr.pixel);
+	if (Sashow && sideannot[0])
+	{
+		An_AddAnnotProc (CAP_RasterSideAnnot, c, sideannot,
+				 strlen (sideannot), 
+				 140, TRUE, FALSE);
+	}
 }
+
 
 
 void

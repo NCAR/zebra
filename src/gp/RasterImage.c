@@ -19,7 +19,7 @@
 # endif
 
 
-RCSID ("$Id: RasterImage.c,v 2.5 1999-08-12 19:33:31 burghart Exp $");
+RCSID ("$Id: RasterImage.c,v 2.6 1999-11-01 21:27:13 granger Exp $");
 
 /*
  * Forwards.
@@ -88,6 +88,46 @@ ri_ShmWorks (DestImage *i)
 # endif /* SHM */
 
 
+static void
+ri_ClearBackground (DestImage *i)
+/*
+ * Fill the image with the background pixel
+ */
+{
+    int ix, iy;
+    XColor xc_bg;
+    Pixel bg;
+    unsigned char *dp;
+
+    XtVaGetValues (Graphics, XtNbackground, &xc_bg, NULL);
+    bg = xc_bg.pixel;
+    dp = i->di_image;
+
+    for (iy = 0; iy < i->di_h; iy++)
+    {
+	for (ix = 0; ix < i->di_w; ix++)
+	{
+	    unsigned short *sdp = (unsigned short*) dp;
+	    unsigned long *ldp = (unsigned long*) dp;
+		
+	    switch (i->di_bdepth)
+	    {
+	    case 1:
+		*dp = bg;
+		break;
+	    case 2:
+		*sdp = bg;
+		break;
+	    case 4:
+		*ldp = bg;
+		break;
+	    }
+
+	    dp += i->di_bdepth;
+	}
+    }
+}
+
 
 
 static void
@@ -96,48 +136,20 @@ ri_XImageSetup (DestImage *i)
  * Make this one work just using a normal XImage.
  */
 {
-	int ix, iy;
-	XColor xc_bg;
-	Pixel bg;
-	unsigned char *dp;
+	Display *display = XtDisplay (Graphics);
 
 	i->di_type = RI_XImage;
 	i->di_image = malloc (i->di_w * i->di_h * i->di_bdepth);
     /*
      * Fill the image with the background pixel
      */
-	XtVaGetValues (Graphics, XtNbackground, &xc_bg, NULL);
-	bg = xc_bg.pixel;
-	dp = i->di_image;
-
-	for (iy = 0; iy < i->di_h; iy++)
-	{
-	    for (ix = 0; ix < i->di_w; ix++)
-	    {
-		unsigned short *sdp = (unsigned short*) dp;
-		unsigned long *ldp = (unsigned long*) dp;
-		
-		switch (i->di_bdepth)
-		{
-		  case 1:
-		    *dp = bg;
-		    break;
-		  case 2:
-		    *sdp = bg;
-		    break;
-		  case 4:
-		    *ldp = bg;
-		    break;
-		}
-
-		dp += i->di_bdepth;
-	    }
-	}
+	if (! i->di_transparent)
+		ri_ClearBackground (i);
     /*
      * Make the XImage and finish up
      */
-	i->di_ximage = XCreateImage (XtDisplay (Graphics),
-			DefaultVisual (XtDisplay (Graphics),
+	i->di_ximage = XCreateImage (display,
+			DefaultVisual (display,
 				XScreenNumberOfScreen (XtScreen (Graphics))),
 			GWDepth (Graphics), ZPixmap, 0, i->di_image,
 			i->di_w, i->di_h, i->di_bdepth*8, 0);
@@ -145,6 +157,26 @@ ri_XImageSetup (DestImage *i)
 	i->di_ioffset = 0;
 	i->di_needswap = (i->di_bdepth > 1) &&
 		(ri_OurOrder () != i->di_ximage->byte_order);
+	/*
+	 * If attempting transparency, try to read the current background
+	 * into this image.
+	 */
+	if (i->di_transparent)
+	{
+		   if (! XGetSubImage (display, GWFrame (Graphics), 
+				       i->di_x, i->di_y, i->di_w, i->di_h, 
+				       AllPlanes, ZPixmap, i->di_ximage,
+				       0, 0))
+		   {
+			   msg_ELog (EF_PROBLEM, "getsubimage failed %s",
+				     "for raster transparency");
+		   }
+		   else
+		   {
+			   msg_ELog (EF_DEBUG, "raster transparency: %s",
+				     "background image copied");
+		   }
+	}
 }
 			
 				     
@@ -180,7 +212,7 @@ ri_MakeMemImage (int w, int h, void *image, int bdepth, int bpl)
 
 
 DestImage *
-ri_GetDestImage (int frame, int xdest, int ydest, int w, int h)
+ri_CreateImage (int frame, int xdest, int ydest, int w, int h, int transparent)
 /*
  * Get a destination image, using the best approach we can arrange.  xdest
  * and ydest are where the image will end up in the display once we're
@@ -194,6 +226,7 @@ ri_GetDestImage (int frame, int xdest, int ydest, int w, int h)
 /*
  * Fill in the common part of the destimage structure.
  */
+	ret->di_transparent = transparent;
 	ret->di_x = xdest;
 	ret->di_y = ydest;
 	ret->di_w = w;
@@ -201,10 +234,15 @@ ri_GetDestImage (int frame, int xdest, int ydest, int w, int h)
 	ret->di_frame = frame;
 	ret->di_bdepth = GWBDepth (Graphics);
 /*
- * Attempt to arrange this with a shared memory pixmap.
+ * Attempt to arrange this with a shared memory pixmap, in which case
+ * we will already hold the current background image (I think?) so
+ * transparency needs no special handling.
  */
 	if (ri_ShmWorks (ret))
+	{
+		msg_ELog (EF_DEBUG, "raster transparency: using shared image");
 		return (ret);
+	}
 /*
  * Otherwise it's ximage time.
  */
@@ -212,6 +250,21 @@ ri_GetDestImage (int frame, int xdest, int ydest, int w, int h)
 	return (ret);
 }
 
+
+
+DestImage *
+ri_GetDestImage (int frame, int xdest, int ydest, int w, int h)
+{
+    return ri_CreateImage (frame, xdest, ydest, w, h, 0);
+}
+
+
+
+DestImage *
+ri_GetTransparentImage (int frame, int xdest, int ydest, int w, int h)
+{
+    return ri_CreateImage (frame, xdest, ydest, w, h, 1);
+}
 
 
 

@@ -75,7 +75,7 @@
 # include "PixelCoord.h"
 # include "RasterImage.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.38 1999-03-01 02:04:28 burghart Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.39 1999-11-01 21:27:14 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -88,6 +88,7 @@ RCSID ("$Id: RasterPlot.c,v 2.38 1999-03-01 02:04:28 burghart Exp $")
  */
 static int	Ncolor;
 static XColor	*Colors, Color_outrange;
+static int	Transparent;
 
 /*
  * Highlight color stuff.
@@ -388,6 +389,16 @@ float	hrange;
 		HColor = hcolor;
 		HRange = hrange;
 	}
+
+	Transparent = 0;
+}
+
+
+
+void
+RP_Transparent (int enable)
+{
+	Transparent = enable;
 }
 
 
@@ -551,10 +562,6 @@ zbool	fast; /* not used any more */
  * corner elements, in pixel space.  Since they are the centers, we will 
  * actually plot half a grid width outside of these bounds on each side 
  * (neglecting clipping, which may reduce this).
- *
- * This stuff uses shared memory XImages, which made sense at the time,
- * but no longer does.  We should really go straight into the SHM pixmaps,
- * and cut out that copy.  Someday.
  */
 {
 	int		r_color, i, width, height;
@@ -618,7 +625,7 @@ zbool	fast; /* not used any more */
 /*
  * Get our ximage and do the rasterization.
  */
-	di = ri_GetDestImage (DrawFrame, xlo, yhi, width, height);
+	di = ri_CreateImage (DrawFrame, xlo, yhi, width, height, Transparent);
 	RP_IRasterize (di, colgrid, toprow, leftcol, rowinc, colinc, xdim);
 	ri_ShipImage (di);
 /*
@@ -647,71 +654,100 @@ float 		row, icol, rowinc, colinc;
 int		xdim;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
+ *
+ * We try to make out-of-range colors transparent when requested by
+ * testing against the actual out-of-range pixel value, which could
+ * also correspond to a normal color from the colorbar, and may not 
+ * be what was expected.  Oh well.  I also tried to keep the extra tests
+ * for transparency out of the usual loops, though an optimizer probably
+ * does a better job anyway and would keep the code simpler.
  */
 {
-	int i, j, icolinc;
+    int i, j, icolinc;
 # ifdef __STDC__
-	static int col;
-	static short *s_col;
+    static int col;
+    static short *s_col;
 # else
-	int col;
-	short *s_col;
+    int col;
+    short *s_col;
 # endif
-	unsigned short *simp;
-	unsigned long *limp;
-	const int bdepth = di->di_bdepth;
+    unsigned short *simp;
+    unsigned long *limp;
+    const int outrange = Color_outrange.pixel;
+    const int bdepth = di->di_bdepth;
 	
-	s_col = FF_OFFSET + (short *) &col;
-/*
- * Set up our integer values, which are simply the FP values scaled by 
- * 64K, so that the integer part is in the upper two bytes.  We then kludge
- * our way in with the short pointer to pull out the int part directly.
- */
-	icolinc = (int) (colinc * 65536);
-/*
- * Step through the data.
- */
-	for (i = 0; i < di->di_h; i++)
-	{
-		Pixel *cp = colgrid + ((int) row) * xdim;
-		unsigned char *ximp = (unsigned char*)di->di_image + 
-		    di->di_ioffset + i*di->di_bpl;
+    s_col = FF_OFFSET + (short *) &col;
+    /*
+     * Set up our integer values, which are simply the FP values scaled by 
+     * 64K, so that the integer part is in the upper two bytes.  We then kludge
+     * our way in with the short pointer to pull out the int part directly.
+     */
+    icolinc = (int) (colinc * 65536);
+    /*
+     * Step through the data.
+     */
+    for (i = 0; i < di->di_h; i++)
+    {
+	Pixel *cp = colgrid + ((int) row) * xdim;
+	unsigned char *ximp = (unsigned char*)di->di_image + 
+	    di->di_ioffset + i*di->di_bpl;
 
-		col = (int) (icol * 65536);
+	col = (int) (icol * 65536);
 	/*
 	 * Branch out based on our display depth.
 	 */
-		switch (bdepth)
+	switch (bdepth)
+	{
+	case 1:
+	    if (Transparent)
+		for (j = 0; j < di->di_w; j++, col += icolinc)
 		{
-		    case 1:
-			for (j = 0; j < di->di_w; j++)
-			{
-				*ximp++ = cp[*s_col];
-				col += icolinc;
-			}
-			break;
-		    case 2:
-			simp = (unsigned short *) ximp;
-			for (j = 0; j < di->di_w; j++)
-			{
-				*simp++ = cp[*s_col];
-				col += icolinc;
-			}
-			break;
-		    case 4:
-			limp = (unsigned long *) ximp;
-			for (j = 0; j < di->di_w; j++)
-			{
-				*limp++ = cp[*s_col];
-				col += icolinc;
-			}
-			break;
-		    default:
-			msg_ELog (EF_PROBLEM, "Bad bdepth %d", bdepth);
-			return;
+		    if (cp[*s_col] != outrange)
+			*ximp = cp[*s_col];
+		    ximp++;
 		}
-		row += rowinc;
+	    else
+		for (j = 0; j < di->di_w; j++, col += icolinc)
+		{
+		    *ximp++ = cp[*s_col];
+		}
+	    break;
+	case 2:
+	    simp = (unsigned short *) ximp;
+	    if (Transparent)
+		for (j = 0; j < di->di_w; j++, col += icolinc)
+		{
+		    if (cp[*s_col] != outrange)
+			*simp = cp[*s_col];
+		    simp++;
+		}
+	    else
+		for (j = 0; j < di->di_w; j++, col += icolinc)
+		{
+		    *simp++ = cp[*s_col];
+		}
+	    break;
+	case 4:
+	    limp = (unsigned long *) ximp;
+	    if (Transparent)
+		for (j = 0; j < di->di_w; j++, col += icolinc)
+		{
+		    if (cp[*s_col] != outrange)
+			*limp = cp[*s_col];
+		    limp++;
+		}
+	    else
+		for (j = 0; j < di->di_w; j++, col += icolinc)
+		{
+		    *limp++ = cp[*s_col];
+		}
+	    break;
+	default:
+	    msg_ELog (EF_PROBLEM, "Bad bdepth %d", bdepth);
+	    return;
 	}
+	row += rowinc;
+    }
 }
 
 
