@@ -28,7 +28,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-RCSID("$Id: dm_pick.c,v 2.15 1996-11-19 07:07:17 granger Exp $")
+RCSID("$Id: dm_pick.c,v 2.16 1997-04-15 00:38:20 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -153,7 +153,7 @@ struct wpick *wp;
 	Window root, parent, *children = NULL;
 	unsigned int nchild = 0;
 	
-	if (! (IsWidget (win)) && (proc->p_win != 0))
+	if (! (IsWidget (win)) && (proc) && (proc->p_win != 0))
 	{
 		msg_ELog (EF_DEBUG, "Window name = %s", win->cfw_name);
 		msg_ELog (EF_DEBUG, "Window id = %X", proc->p_win);
