@@ -32,10 +32,10 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.38 1995-01-18 00:56:36 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.39 1995-02-10 00:52:55 granger Exp $")
 #endif
 
-# include <netcdf.h>
+#include <netcdf.h>
 
 /*
  * Do we include units attribute for altitude
@@ -53,33 +53,29 @@ MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.38 1995-01-18 00:56:36 granger Exp $")
 /*
  * Location fields: standard attributes
  */
-#ifdef CFG_NC_ALTITUDE_UNITS
-#	define DEF_ALT_UNITS CFG_NC_ALTITUDE_UNITS
-#else
-#	define DEF_ALT_UNITS AU_kmMSL
-#endif
-#	define ALT_LONGNAME	"altitude"
-#	define LAT_UNITS	"degrees"
-#	define LAT_LONGNAME	"north latitude"
-#	define LON_UNITS	"degrees"
-#	define LON_LONGNAME	"east longitude"
+#define DEF_ALT_UNITS 	CFG_ALTITUDE_UNITS
+#define ALT_LONGNAME	"altitude"
+#define LAT_UNITS	"degrees"
+#define LAT_LONGNAME	"north latitude"
+#define LON_UNITS	"degrees"
+#define LON_LONGNAME	"east longitude"
 
 /*
  * Grid organizations: standard attributes
  */
-#	define X_UNITS		"km"
-#	define Y_UNITS		"km"
+#define X_UNITS		"km"
+#define Y_UNITS		"km"
 
-#	define X_LONGNAME	"grid spacing in west->east direction"
-#	define Y_LONGNAME	"grid spacing in south->north direction"
-#	define Z_LONGNAME	"grid spacing along vertical"
+#define X_LONGNAME	"grid spacing in west->east direction"
+#define Y_LONGNAME	"grid spacing in south->north direction"
+#define Z_LONGNAME	"grid spacing along vertical"
 
 /*
  * Do DataChunk attributes override default fields table attributes?
  */
-# ifndef CFG_NC_DCATTS_OVERRIDE
+#ifndef CFG_NC_DCATTS_OVERRIDE
 # define STRICT_FIELDS_TABLE_ATTS
-# endif
+#endif
 
 /*
  * Do we try to store, read, apply, and fill bad values?  If we don't fill
@@ -193,8 +189,10 @@ struct AttArg {
  */
 static void     dnc_NCError FP ((char *));
 static int      dnc_OFTimes FP ((NCTag *));
+static int	dnc_LoadFields FP ((NCTag *tag));
 static int      dnc_GetTimes FP ((NCTag *));
 static int      dnc_OFIRGrid FP ((NCTag *));
+static int	dnc_OFRGrid FP ((NCTag *tag));
 static int	dnc_OFRGridAlts FP ((NCTag *tag));
 static int	dnc_OFNSpaceAlts FP ((NCTag *tag));
 static int     	dnc_TimeIndex FP ((NCTag *, ZebTime *));
@@ -216,9 +214,9 @@ static void	dnc_NSpaceFinishSetup FP ((NCTag *tag, DataChunk *dc,
 					   dsDetail *details, int ndetail));
 static int 	dnc_ReadScalar FP((DataChunk *, NCTag *, long, long, FieldId *,
 				   int, double));
-static int 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
+static void 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double));
-static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
+static void 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
 static int	dnc_ReadNSpace FP((DataChunk *, NCTag *, long,
 			long, FieldId *, int, double, dsDetail *, int));
@@ -294,8 +292,24 @@ ZebTime *zt;
  * Turn this time into a suitable offset for this file.
  */
 {
-	return (zt->zt_Sec - tag->nc_base + (zt->zt_MicroSec/1000000.0));
+	return ((double)zt->zt_Sec - (double)tag->nc_base + 
+		((double)zt->zt_MicroSec * (1e-6)));
 }
+
+
+static inline void
+dnc_OffsetToZt (tag, offset, zt)
+NCTag *tag;
+double offset;
+ZebTime *zt;
+/*
+ * Convert the offset from basetime into a ZebTime
+ */
+{
+	zt->zt_Sec = tag->nc_base + (long)offset;
+	zt->zt_MicroSec = (1e+6) * (offset - (long)offset);
+}
+
 
 
 int
@@ -345,8 +359,8 @@ int *nsamp;
 	else
 		ncvarget1 (id, tvar, &index, &offset);
 
-	begin->zt_Sec = base + (int) offset;
-	begin->zt_MicroSec = (offset - (int)offset) * 10e+6;
+	begin->zt_Sec = base + (long)offset;
+	begin->zt_MicroSec = 1e+6 * (offset - (long)offset);
 
 	index = maxrec - 1;
 	if (dtype == NC_FLOAT)
@@ -357,8 +371,8 @@ int *nsamp;
 	else
 		ncvarget1 (id, tvar, &index, &offset);
 
-	end->zt_Sec = base + (int) offset;
-	end->zt_MicroSec = (offset - (int)offset) * 10e+6;
+	end->zt_Sec = base + (long)offset;
+	end->zt_MicroSec = 1e+6 * (offset - (long)offset);
 /*
  * Clean up and return.
  */
@@ -494,7 +508,7 @@ NCTag **rtag;
 
 
 
-int
+static int
 dnc_LoadFields (tag)
 NCTag *tag;
 /*
@@ -705,7 +719,7 @@ NCTag *tag;
 
 
 
-
+static int
 dnc_OFRGrid (tag)
 NCTag *tag;
 /*
@@ -768,6 +782,10 @@ NCTag *tag;
 		}
 		ncdiminq (tag->nc_id, d, (char *) 0,
 					(long *) &tag->nc_rgrid.rg_nX);
+		break;
+	   default:
+		/* silence warnings */
+		break;
 	}
 /*
  * Finally the grid spacings.
@@ -1254,7 +1272,7 @@ char *s;
 
 
 
-
+int
 dnc_CloseFile(tag)
 NCTag *tag;
 /*
@@ -1271,12 +1289,13 @@ NCTag *tag;
 	if (tag->nc_alts)
 		free (tag->nc_alts);
 	free(tag);
+	return (0);
 }
 
 
 
 
-
+int
 dnc_SyncFile (tag)
 NCTag *tag;
 /*
@@ -1294,7 +1313,8 @@ NCTag *tag;
 /*
  * Update to the file itself, then reload the times array.
  */
-	ncsync (tag->nc_id);
+	if (ncsync (tag->nc_id) < 0)
+		msg_ELog (EF_PROBLEM, "ncsync failed");
 	return (dnc_GetTimes (tag));
 }
 
@@ -1434,7 +1454,7 @@ FieldId *fields;
 {
 	int i;
 	int varid;
-	int ndims, natts, nsdims;
+	int ndims, natts;
 	nc_type vtype;
 	int dims[ MAX_VAR_DIMS ];
 	DC_ElemType types[ MAX_NC_VARS ];
@@ -2047,7 +2067,7 @@ int ndetail;
 #endif /* FILL_FIELDS */
 		}
 #ifdef APPLY_BADVALUE
-		else if (dc_Type (dc, fids[field]) == DCT_Float);
+		else if (dc_Type (dc, fids[field]) == DCT_Float)
 			dnc_ApplyBadval (tag, varid, dc, fids[field],
 					 badval, (float *)temp, size);
 #endif /* APPLY_BADVALUE */
@@ -2098,10 +2118,7 @@ long begin, nsamp;
 
 
 
-
-
-
-static int
+static void
 dnc_ReadIRGrid (dc, tag, begin, nsamp, fids, nfield, badval)
 DataChunk *dc;
 NCTag *tag;
@@ -2174,7 +2191,7 @@ float badval;
 
 
 
-static int
+static void
 dnc_ReadRGrid (dc, tag, begin, nsamp, fids, nfield, badval, dets, ndet)
 DataChunk *dc;
 NCTag *tag;
@@ -2207,6 +2224,10 @@ dsDetail *dets;
 	   	count[nc++] = tag->nc_rgrid.rg_nY;
 	   case Org1dGrid:
 	   	count[nc++] = tag->nc_rgrid.rg_nX;
+		break;
+	   default:
+		/* suppress warnings */
+		break;
 	}
 /*
  * Initialize rgrid info.
@@ -2372,12 +2393,7 @@ ZebTime *dest;
 	int i;
 
 	for (i = 0; i < nsamp; i++)
-	{
-		double t = tag->nc_times[begin + i];
-		dest->zt_Sec = tag->nc_base + (long) t;
-		dest->zt_MicroSec = (long) ((t - (int) t) * 10e+6);
-		dest++;
-	}
+		dnc_OffsetToZt (tag, tag->nc_times[begin + i], dest++);
 }
 
 
@@ -2593,8 +2609,9 @@ Location *loc;
 	NCTag *tag;
 
 	if ( ! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return;
+		return (FALSE);
 	memcpy (loc, tag->nc_locs, tag->nc_nPlat * sizeof (Location));
+	return (TRUE);
 }
 
 
@@ -2686,7 +2703,7 @@ TimeSpec which;
  */
 	if (! dfa_OpenFile (index, FALSE, (void *) &tag))
 		return (0);
-	offset = when->zt_Sec - tag->nc_base + when->zt_MicroSec/1000000.0;
+	offset = dnc_ZtToOffset (tag, when);
 /*
  * PATCH: since dnc_TimeIndex returns 0 no-matter what when
  * there is only one data point in the file and then there
@@ -2708,13 +2725,7 @@ TimeSpec which;
 	if (which == DsBefore)
 	{
 		for (i = 0; t >= 0 && i < n; i++)
-		{
-			dest->zt_Sec = tag->nc_base + (int) tag->nc_times[t];
-			dest->zt_MicroSec = 10e+6 * (tag->nc_times[t] -
-						     (int) tag->nc_times[t]);
-			dest++;
-			t--;
-		}
+			dnc_OffsetToZt (tag, tag->nc_times[t--], dest++);
 	}
 	else if (which == DsAfter)
 	{
@@ -2723,13 +2734,7 @@ TimeSpec which;
 		else if (tag->nc_times[t] < offset)
 			++t;
 		for (i = 0; t < tag->nc_ntime && i < n; i++)
-		{
-			dest->zt_Sec = tag->nc_base + (int) tag->nc_times[t];
-			dest->zt_MicroSec = 10e6 * (tag->nc_times[t] -
-						    (int) tag->nc_times[t]);
-			dest--;
-			t++;
-		}
+			dnc_OffsetToZt (tag, tag->nc_times[t++], dest--);
 	}
 	return (i);
 }
@@ -2738,6 +2743,7 @@ TimeSpec which;
 
 
 /* ARGSUSED */
+int
 dnc_MakeFileName (dir, platform, zt, dest)
 char *dir, *platform, *dest;
 ZebTime *zt;
@@ -2749,12 +2755,13 @@ ZebTime *zt;
 
 	TC_ZtToUI (zt, &t);
 #ifndef TEST_TIME_UNITS
-	sprintf (dest, "%s.%06d.%06d.cdf", platform, t.ds_yymmdd,
+	sprintf (dest, "%s.%06ld.%06ld.cdf", platform, t.ds_yymmdd,
 		t.ds_hhmmss);
 #else
-	sprintf (dest, "%s.%06d.%06d.cdf", "test", t.ds_yymmdd,
+	sprintf (dest, "%s.%06ld.%06ld.cdf", "test", t.ds_yymmdd,
 		t.ds_hhmmss);
 #endif
+	return (0);
 }
 
 
@@ -3073,7 +3080,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.38 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.39 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
@@ -3163,6 +3170,9 @@ int *ndim, *dims;
 					   tag->nc_nPlat);
 		(void) ncdimdef (tag->nc_id, "fldlen", 20);
 		break;
+	   default:
+		/* do nothing */
+		break;
 	}
 }
 
@@ -3205,6 +3215,11 @@ DataChunk *dc;
 	 */
 	   case OrgIRGrid:
 		dnc_CFIRGridVars (tag, dc);
+		break;
+	/*
+	 * Other orgs are not handled or need no more variables
+	 */
+	   default:
 		break;
 	}
 }
@@ -3436,7 +3451,7 @@ int *vlat, *vlon, *valt;
 
 
 
-
+int
 dnc_PutSample (dfile, dc, sample, wc)
 int dfile, sample;
 DataChunk *dc;
@@ -3498,9 +3513,15 @@ WriteCode wc;
 		else
 			data = dc_GetMData (dc, sample, fids[field], 0);
 	/*
-	 * Write it to the file.
+	 * Write it to the file, if we got anything
 	 */
-		if (dc->dc_Class == DCC_NSpace)
+		if (data == NULL)
+		{
+			msg_ELog (EF_PROBLEM, 
+			  "PutSample: no data for fld %s, sample %i",
+				  F_GetName (fids[field]), sample);
+		}
+		else if (dc->dc_Class == DCC_NSpace)
 		{
 			if (dnc_NSpaceVarPut (tag, dc, vfield, fids[field],
 					      start, count, ndim, data) < 0)
@@ -3752,6 +3773,19 @@ WriteCode wc;
 				mdatasize *= dc_SizeOf (dc, fids[field]);
 			}
 
+			/*
+			 * Abort if we couldn't get data
+			 */
+			if (mdata == NULL)
+			{
+				msg_ELog (EF_PROBLEM, 
+				  "PutBlock: no data for field %s, sample %i",
+				  F_GetName (fids[field]), sample + i);
+				if (data)
+					free (data);
+				return (0);
+			}
+				
 			if (! data)
 			{
 				datasize = nsample * mdatasize;
@@ -3785,7 +3819,8 @@ WriteCode wc;
 		else if (ncvarput (tag->nc_id, vfield, start, count, data) < 0)
 			dnc_NCError ("Data write");
 	}
-	free(data);
+	if (data)
+		free(data);
 /*
  * For mobile platforms, we need to store the location info too.
  */
@@ -3846,6 +3881,8 @@ int *ndim;
 	/*
 	 * Everything else takes care of itself.
 	 */
+	   default:
+		break;
 	}
 	*ndim = c;
 }
@@ -3905,7 +3942,7 @@ FieldId *flist;
  */
 	*nfld = 0;
 	if (!dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
+		return (FALSE);
 /*
  * Pass through the fields.
  */
