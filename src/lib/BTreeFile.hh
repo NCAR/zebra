@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.4 1998-08-27 22:51:46 granger Exp $
+ * $Id: BTreeFile.hh,v 1.5 1998-09-01 05:04:06 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -9,7 +9,6 @@
 
 #include "BTree.hh"
 #include "BlockObject.hh"
-//#include "BlockFactory.hh"
 #include "Logger.hh"
 
 template <class K, class T> class BlockNode;

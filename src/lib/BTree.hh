@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.12 1998-08-27 22:51:45 granger Exp $
+ * $Id: BTree.hh,v 1.13 1998-09-01 05:04:04 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -8,7 +8,6 @@
 #define _BTree_hh_
 
 #include <iostream.h>
-// #include "Factory.hh"		// Need the Node class
 
 // Reference to a node by some remote address and size, else by a pointer
 // to a cached copy in local memory.  In an entire tree, there is only one
@@ -47,7 +46,7 @@ class BTreeStats;
  * buffer.
  */
 
-template <class K, class T> /* , class Factory<K,T> */
+template <class K, class T>
 class BTree
 {
 public:
@@ -231,6 +230,7 @@ protected:
 	void setRoot (BTreeNode<K,T> *node);
 
 	/* ---------------- The pseudo factory interface ---------------- */
+
 	/*
 	 * Pseudo because we do not use a separate factory object, so I
 	 * suppose these follow the Factory Method pattern.  However,
@@ -240,8 +240,6 @@ protected:
 	 * needs some notification of read and write sync needs, and changes
 	 * in the root node.
 	 */
-
-	//NodeFactory<K,T> *factory;	// Reference to our node factory
 
 	virtual void enterWrite () {}
 	virtual void enterRead () {}

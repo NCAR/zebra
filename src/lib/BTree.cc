@@ -1,6 +1,9 @@
 /*
  * B-Tree base class implementation.
  */
+#ifndef BTREE_IMPLEMENTATION
+#define BTREE_IMPLEMENTATION
+
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -11,9 +14,9 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.14 1998-08-27 22:51:45 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.15 1998-09-01 05:04:02 granger Exp $")
 
-#include "Logger.hh"
+//#include "Logger.hh"
 #include "BTreeP.hh"
 
 
@@ -67,9 +70,6 @@ BTree<K,T>::serial (SerialStream &ss)
 template <class K, class T>
 BTree<K,T>::~BTree ()
 {
-	//release ();
-	//delete factory;
-
 	// Root will only be non-zero if we are non-empty, and if the
 	// subclass has not already taken care of freeing node memory
 	// for us.
@@ -206,7 +206,6 @@ BTree<K,T>::Check ()
 	int e = 0;
 	if (! Empty())
 	{
-		//cout << "Checking....";
 		e = root->check ();
 		if (e)
 		{
@@ -214,7 +213,6 @@ BTree<K,T>::Check ()
 			     << e << " errors:" << endl;
 			Print (cout);
 		}
-		//cout << endl;
 	}
 	leave ();
 	return (e);
@@ -356,56 +354,6 @@ BTree<K,T>::make (int depth)
 }
 
 
-#ifdef notdef
-template <class K, class T>
-void
-BTree<K,T>::release ()
-{
-	// For a heap tree we just erase ourself to give up our memory.
-	Erase ();
-}
-#endif
-
-#ifdef notdef
-/*
- * The default implementation of the btree "factory" interface for nodes.
- * Just pass the call on to the factory with this tree.
- */
-template <class K, class T>
-BTreeNode<K,T> *
-BTree<K,T>::get (Node &node, int depth)
-{
-	return factory->get (*this, node, depth);
-}
-
-
-template <class K, class T>
-BTreeNode<K,T> *
-BTree<K,T>::make (int depth)
-{
-	return factory->make (*this, depth);
-}
-
-
-#ifdef notdef
-template <class K, class T>
-void
-BTree<K,T>::destroy (BTreeNode<K,T> *node)
-{
-	factory->destroy (node);
-}
-#endif
-
-
-template <class K, class T>
-void
-BTree<K,T>::release ()
-{
-	factory->release (*this);
-}
-#endif
-
-
 /*================================================================
  * BTreeNode implementation
  *================================================================*/
@@ -493,4 +441,4 @@ BTreeNode<K,T>::erase ()
 
 
 
-
+#endif /*BTREE_IMPLEMENTATION*/

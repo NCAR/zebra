@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFileP.hh,v 1.6 1998-05-28 21:57:41 granger Exp $
+ * $Id: BlockFileP.hh,v 1.7 1998-09-01 05:04:11 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
  * such as auxiliary block classes.
@@ -90,14 +90,6 @@ struct BlockFileHeader : virtual public TranslateBlock
 		// Take note of a new revision in our block
 		block.revision = revision;
 	}
-
-#ifdef notdef
-	void newRev ()
-	{
-		// Take note of a new revision after reading
-		revision = block.revision;
-	}
-#endif
 
 	void mark (int _marked = 1)
 	{
