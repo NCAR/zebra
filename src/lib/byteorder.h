@@ -1,8 +1,9 @@
-/* $Id: byteorder.h,v 2.5 1997-06-10 18:58:34 burghart Exp $ */
+/* $Id: byteorder.h,v 2.6 1997-06-12 19:16:45 burghart Exp $ */
 /*
  * Byte order testing and swapping functions.  Two's complement is assumed
  * for all signed values.
  */
+# include "defs.h"	/* for "inline" handling only */
 
 /*
  * Boolean endianness tests
