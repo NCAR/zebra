@@ -57,10 +57,11 @@ EOF
 
 #
 # Go to the requested directory and keep watch for modified files,
-# running dsrescan when we find them.
+# running dsrescan when we find them.  cd to the directory on every
+# check, in case iop links in the directory path have changed.
 #
-cd $dir
 while (1)
+    cd $dir
     foreach file (`find . -newer $testfile -print`)
 	if ($file == ".") continue;
 	dsrescan -file $file $plat >& /dev/null
