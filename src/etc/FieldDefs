@@ -27,6 +27,7 @@ field	height		"height"			m
 field	wdir		"wind direction"		deg
 field	wspd		"wind speed"			m/sec
 field	trans		"transponder code"		none
+field	sst		"sea surface temperature"	"deg c"
 
 !
 ! Aliases exist to make the name of one field the equivalent to another.
