@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.54 1995-10-31 04:08:43 granger Exp $ */
+/* $Id: GraphProc.h,v 2.55 1996-11-19 07:20:39 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -52,10 +52,12 @@
  */
 extern bool Abort;
 
+#ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 /*
  * Keep the variable table around, since we use it at times.
  */
 extern stbl Vtable;
+#endif
 
 /*
  * Two plot descriptions are maintained in the graphics process -- the
@@ -213,10 +215,12 @@ extern void pc_PlotHandler FP ((void));
 extern void pc_ParamChange FP ((char *));
 extern int pc_TimeTrigger FP ((char *));
 extern void pc_TriggerGlobal FP ((void));
-extern void pc_PushCoords FP ((struct ui_command *cmds));
 extern void pc_PopCoords FP ((void));
 extern void pc_UnZoom FP ((void));
+#ifdef UI_H_SYMBOLS	/* dependent on ui.h */
+extern void pc_PushCoords FP ((struct ui_command *cmds));
 extern void pc_Zoom FP ((struct ui_command *cmds));
+#endif
 
 /* Plot executive modules. */
 extern void px_PlotExec FP ((char *));
@@ -330,7 +334,9 @@ extern char	*ot_GetString FP ((void));
 
 /* Limit widgets */
 extern void lw_InitWidgets FP ((void));
+#ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 extern void lw_ActivateWidget FP ((int type, struct ui_command *cmds));
+#endif
 
 /* Init functions */
 extern void InitFieldMenu FP ((void));
@@ -346,14 +352,18 @@ extern void pw_InitPos FP ((void));
 extern void pw_PosStatus FP ((void));
 
 /* Rubber bands */
+#ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 extern void rb_Box FP ((struct ui_command *cmds));
 extern void rb_Line FP ((struct ui_command *cmds));
 extern void rb_PolyLine FP ((struct ui_command *cmds));
+#endif
 
 /* Other stuff */
 extern void ChangePD FP ((struct dm_pdchange *dmp));
 extern void GPShutDown FP ((void));
+#ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 extern int dispatcher FP ((int junk, struct ui_command *cmds));
+#endif
 extern void parameter FP ((char *comp, char *param, char *value));
 extern int xtEvent FP ((int fd));
 extern int AgeCheck FP ((char *, char *, ZebTime *));
@@ -375,7 +385,9 @@ extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
 extern bool ClosestRHI FP ((char *c, PlatformId pid, double azimuth,
 			    ZebTime *dtime, float *angdiff));
 extern int GetLLSpacings FP ((DataChunk *, float *, float *));
+#ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 extern void ov_Feature FP ((struct ui_command *cmds));
+#endif
 
 # if defined(hpux) || defined(SVR4) || defined (linux)
 /* Defined in Utilities.c */
@@ -434,7 +446,8 @@ extern void GetWindData FP ((WindInfo *, float *, float *, double));
 		       int xlo, int ylo, int xhi, int yhi,
 		       int fast));
 	void ChangeCursor FP ((Widget w, Cursor cursor));
-/* Contouring. */
+
+/* Contouring */
 	extern void	CO_Init FP ((XColor *, int, int, XColor *, XRectangle,
 				int, double));
 	extern void	CO_InitMono FP ((XColor, XRectangle, int, double));
@@ -446,7 +459,8 @@ extern void GetWindData FP ((WindInfo *, float *, float *, double));
 	extern void	FC_Init FP ((XColor *, int, int, XColor *, XRectangle,
 				int, double));
 	extern void	FC_ProjSetup FP ((Location *, double, double));
-# ifdef SHM
-	void RP_ZapSHMImage FP ((Widget w));
-# endif /* SHM */
+
+/* Raster */
+	void RP_ZapShmImage FP ((Widget w));
+
 # endif /* _XtIntrinsic_h */
