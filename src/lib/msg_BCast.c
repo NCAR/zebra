@@ -1,7 +1,7 @@
 /*
  * Network broadcast code.
  */
-static char *rcsid = "$Id: msg_BCast.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
+static char *rcsid = "$Id: msg_BCast.c,v 2.2 1991-11-21 21:37:08 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -132,7 +132,7 @@ void *data;
 
 
 
-
+static int
 msg_BCHandler (fd)
 int fd;
 /*

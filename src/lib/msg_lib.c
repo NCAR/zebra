@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 2.2 1991-11-21 21:36:43 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -556,7 +556,7 @@ int type, broadcast, datalen;
  */
 {
 	struct message msg;
-	int nsent = 0;
+	int nsent = 0, len;
 /*
  * Put together the message structure.
  */
@@ -576,9 +576,9 @@ int type, broadcast, datalen;
  */
 	while (nsent < datalen)
 	{
-		int len = ((datalen - nsent) > DCHUNK) ? DCHUNK : 
+		len = ((datalen - nsent) > DCHUNK) ? DCHUNK : 
 				(datalen - nsent);
-		if (write (Msg_fd, data + nsent, len) < len)
+		if (write (Msg_fd, (char *) data + nsent, len) < len)
 			perror ("Message data write");
 		nsent += len;
 	}
