@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.14 1995-06-29 21:26:20 granger Exp $ */
+/* $Id: dm_cmds.h,v 2.15 2000-06-07 20:27:43 granger Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -58,6 +58,7 @@
 # define DMC_SHELL	38
 # define DMC_RESTART	39
 # define DMC_QUERY	90
+# define DMC_REQUIRE    126
 /*
  * Config editing and saving.
  */

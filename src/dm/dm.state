@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.29 1996-08-20 20:21:42 granger Exp $
+! $Id: dm.state,v 1.30 2000-06-07 20:27:43 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -149,6 +149,9 @@ define state initial
 	endinput
 	input 'query' 90
 		next ust$no_more
+	endinput
+	input 'require' 126
+		next ust$final_unmunged_string
 	endinput
 enddef
 
@@ -934,7 +937,7 @@ define state pd-value
 enddef
 
 procedure dm_state_id
-	local '$Id: dm.state,v 1.29 1996-08-20 20:21:42 granger Exp $'
+	local '$Id: dm.state,v 1.30 2000-06-07 20:27:43 granger Exp $'
 endprocedure
 
 set ui$initial_state "initial"

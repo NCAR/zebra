@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.71 2000-03-01 20:31:21 burghart Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.72 2000-06-07 20:27:43 granger Exp $")
 
 /*
  * Pick a help browser.
@@ -312,6 +312,10 @@ char *argv[];
 	ui_init (loadfile, TRUE, FALSE);
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
+	{ char rpath[CFG_FILEPATH_LEN];
+	sprintf (rpath, "%s/dmlib", GetLibDir());
+	SetRequirePath (rpath);
+	}
 	cp_SetupCmdProto ();
 	if (! TestMode)
 		ds_Initialize ();
@@ -647,6 +651,13 @@ struct ui_command *cmds;
 	 */
 	   case DMC_QUERY:
 		dg_Query (/* from ourselves */ NULL);
+		break;
+
+	/*
+	 * Deal with a require.
+	 */
+	   case DMC_REQUIRE:
+		Require (UPTR (cmds[1]));
 		break;
 
 	   default:
