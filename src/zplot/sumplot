@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.14 2002-01-14 21:23:27 granger Exp $
+# $Id: sumplot,v 1.15 2002-01-17 04:41:08 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -43,57 +43,18 @@ else
     htmlfile=$destdir/summary-$pattern.html
 fi
 
-(cat <<EOF
-<html><head><title>$project Plot Summary</title></head><body>
-<body bgcolor="#ffffff">
-
-<h1><IMG alt="National Center for Atmospheric Research" 
-     SRC="http://www.atd.ucar.edu/gif/ncar_ban_sml.gif">
-<br>
-<A HREF="http://www.atd.ucar.edu/welcome.html"><IMG valign=center alt="ATD..." 
-   SRC="http://www.atd.ucar.edu/gif/atd_ban_sml.gif"></a>
-$project Plot Summary
-</h1>
-EOF
+. libsumplot
+(sumplot_beginpage "$project Plot Summary"
 
 # Insert any text from standard input here
 cat
 
-echo "<hr><p>Click on an image to view the full-size plot.</p>"
-echo "<table border="0" cellspacing=2 cellpadding=2><tr>"
+echo "<hr>"
 
-i=0
 find $basedir/. -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
-    | sort | while read path ; do
+    | sort | sumplot_filltable "$destdir" "$brightness"
 
-    image=`basename $path`
-    destimage="$destdir/tn_$image"
-    /bin/test $destimage -nt $path || \
-	(set -x; convert -modulate $brightness -geometry 140x140 $path $destimage) 1>&2
-    echo '<td bgcolor="#f0f0f0">'
-    echo "<font size=-2><strong>$image<strong></font><br><a href=$path><img src=tn_$image></a>"
-    echo "</td>"
-    i=`expr $i + 1`
-    if [ $i -eq 4 ]; then
-    i=0
-    echo "</tr><tr>"
-    fi
-
-done
-
-echo "</tr></table>"
-echo "</p>"
-cat <<EOF
-<HR SIZE=6 NOSHADE ALIGN=LEFT>
-<FONT SIZE=1>&copy;
-NCAR/Atmospheric Technology Division<br>
-Email: <a href="mailto:granger@atd.ucar.edu">granger@atd.ucar.edu</a>
-<br><HR WIDTH="100%"><BR>
-<P><FONT SIZE=-2>
-Created `date`
-</FONT></p>
-EOF
-echo "</body></html>") > $htmlfile.$$
+sumplot_endpage) > $htmlfile.$$
 rm -f $htmlfile
 mv -f $htmlfile.$$ $htmlfile
 echo "Done generating $htmlfile"
@@ -104,20 +65,10 @@ echo "Done generating $htmlfile"
 number=4
 quickpartfile="$htmlfile.quick.part"
 (echo "<tr>"
-echo "<td align=center colspan=$number><p><strong><a href="$htmlfile">$project</a></strong></p></td></tr><tr>"
+echo "<td align=center colspan=$number><p><strong><a href="$htmlfile">$project</a></strong></p></td></tr>"
 find $basedir/. -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
-    | sort | tail -$number | while read path ; do
-
-    image=`basename $path`
-    destimage="$destdir/tn_$image"
-    /bin/test $destimage -nt $path || \
-	(set -x; convert -modulate $brightness -geometry 140x140 $path $destimage) 1>&2
-    echo '<td align=center bgcolor="#f0f0f0">'
-    echo "<font><strong>$image<strong></font><br><a href=$path><img src=tn_$image></a>"
-    echo "</td>"
-
-done
-echo "</tr>") > $quickpartfile.$$
+    | sort | tail -$number \
+    | sumplot_fillrows "$destdir" "$brightness" $number) > $quickpartfile.$$
 
 rm -f $quickpartfile
 mv -f $quickpartfile.$$ $quickpartfile
