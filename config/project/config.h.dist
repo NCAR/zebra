@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.34 1995-10-24 21:51:13 corbet Exp $
+XCOMM $Id: config.h.dist,v 1.35 1995-11-19 19:22:19 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -513,6 +513,9 @@ XCOMM -----------------------------------------------------------------------
 /*
  * If you have a nonstandard Fortran compiler (i.e. you "make" won't figure
  * it out automatically) set it here.  (This example for the GNU compiler).
+ * If you are compiling under Linux, the appropriate FORTRAN compiler and
+ * libraries are given defaults further down in this file, and you don't
+ * need to uncomment this definition.
  */
 /* # define FortranCompiler g77 */
 
@@ -525,6 +528,8 @@ XCOMM -----------------------------------------------------------------------
  * from among the examples for Sun architectures.
  *
  * Fortran libraries are needed to build the graphics process.  
+ * Similar to FortranCompiler, FortranLibraries has a default for
+ * Linux defined below.
  */
 
 /* G77 -- may also have to give -L if not linking with gcc */
@@ -565,6 +570,13 @@ XCOMM -----------------------------------------------------------------------
 
 # define FortranLibraries -lF77 -lI77 -U77 -lisam
 
+#else
+#ifdef LinuxArchitecture
+
+# define FortranCompiler g77
+# define FortranLibraries -lf2c
+
+#endif /* Linux */
 #endif /* SGI */
 #endif /* !HP */
 #endif /* !Sun */
