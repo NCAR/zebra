@@ -3,7 +3,7 @@
  * Tokenization.
  */
 # include <stdio.h>
-# include "ui_param.h"
+# include "ui.h"
 # include "ui_symbol.h"
 # include "ui_cstack.h"
 # include "ui_globals.h"
@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.14 1991-12-09 16:35:50 case Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.15 1992-01-29 21:45:52 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -1074,7 +1074,7 @@ bool fatal;
 	src->s_xp = 0;
 	src->s_type = IST_FILE; /* Do this now, in case it fails */
 	dsetdef ("[].");
-	if ((src->s_lun = dview (file)) == 0)
+	if ((src->s_lun = (LUN) dview (file)) == 0)
 	{
 		ucs_z_input (FALSE);
 		if (fatal)
