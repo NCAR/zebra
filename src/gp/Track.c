@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.5 1991-10-31 20:29:56 kris Exp $";
+static char *rcsid = "$Id: Track.c,v 2.6 1991-11-04 17:58:43 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -369,7 +369,7 @@ float *base, *incr, *center, *step;
  * Get everything set up to color-code a track.
  */
 {
-	char orc[20];
+	char orc[20], param1[50], param2[50];
 /*
  * Get the color table.
  */
@@ -387,9 +387,11 @@ float *base, *incr, *center, *step;
 /*
  * Get our color coding parameters.
  */
-	if (! pda_ReqSearch (Pd, comp, "track-center", ccfield, (char *)
-			center, SYMT_FLOAT) ||
-	    ! pda_ReqSearch (Pd, comp, "track-step", ccfield, (char *) step,
+	sprintf (param1, "%s-center", ccfield);
+	sprintf (param2, "%s-step", ccfield);
+	if (! pda_ReqSearch (Pd, comp, param1, "track", (char *) center, 
+			SYMT_FLOAT) ||
+	    ! pda_ReqSearch (Pd, comp, param2, "track", (char *) step,
 	    	SYMT_FLOAT))
 		return (FALSE);
 	if (! tr_GetParam (comp, "out-of-range-color", ccfield, orc,
