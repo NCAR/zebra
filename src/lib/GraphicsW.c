@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.8 1992-12-18 05:29:57 granger Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.9 1992-12-18 09:06:48 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -691,6 +691,8 @@ int p;
  	return(w->graphics.image[p]->bytes_per_line);
 }
 
+
+
 char *
 GWGetFrameAddr(w, p)
 GraphicsWidget w;
@@ -698,6 +700,7 @@ int p;
 {
  	return(w->graphics.frameaddr[p]);
 }
+
 
 
 int
@@ -708,16 +711,52 @@ GraphicsWidget w;
  */
 {
 	static int known = FALSE, possible;
-	int maj, min, sp;
-	
+
 	if(known)
 		return(possible);
+
 	known = TRUE;
-	possible = XShmQueryVersion(XtDisplay(w), &maj, &min, &sp);
-	possible = possible && sp;
-	msg_ELog(EF_DEBUG, "Shared memory: %s", possible ? "True" : "False");
-	return(possible);
+	{
+#		define HOSTLEN 50
+		int maj, min, sp;
+		char host[HOSTLEN];
+		Display *dpy = XtDisplay(w);
+		int n;
+		char *c;
+	/*
+	 * First see if the server even supports the extension
+	 */
+		possible = XShmQueryVersion(dpy, &maj, &min, &sp);
+		possible = possible && sp;
+		msg_ELog(EF_DEBUG, "XShmExt: %s supported by display %s",
+			 possible ? "IS" : "NOT", dpy->display_name);
+		if (!possible)
+			return(possible);
+	/*
+	 * Then check that server and client are on the same host, otherwise we
+	 * can't very well share memory, can we?  If the display name is
+	 * "unix:?.?" or ":?.?", we'll assume the server is local.  The whole
+	 * heuristic is rather flawed, but it should be accurate most of the time.
+	 */
+		n = (c = strchr(dpy->display_name, ':')) ? 
+			(int)(c - dpy->display_name) : strlen(dpy->display_name);
+		gethostname(host, HOSTLEN);
+		host[HOSTLEN - 1] = '\0';
+		if (!n || (!strncmp(dpy->display_name, "unix", n)))
+			possible = TRUE;
+		else if (n == strlen(host))
+			possible = !strncmp(host, dpy->display_name, n);
+		else
+			possible = FALSE;
+		msg_ELog(EF_DEBUG, 
+			 "XShmExt: %s, server %s, client at %s",
+			 possible ? "True" : "False",
+			 dpy->display_name, host);
+		return(possible);
+	}
 }
+
+
 
 
 Pixmap  
