@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID("$Id: ModelWidget.c,v 2.12 1999-07-20 15:21:40 burghart Exp $")
+RCSID("$Id: ModelWidget.c,v 2.13 1999-07-21 17:01:35 burghart Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -861,7 +861,7 @@ mw_GetFrameOffsets ()
  * plot description
  */
 {
-	int	i, f, n, insert_pos, offsets[20], noffsets;
+	int	i, f, n, insert_pos, offsets[NCACHE], noffsets;
 	char	**complist;
 	char	platform[PlatformListLen];
 	zbool	disabled;
