@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.18 1992-07-22 16:17:43 kris Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.19 1992-09-15 16:32:37 corbet Exp $")
 
 /*
  * Default resources.
@@ -281,6 +281,7 @@ finish_setup ()
 	pw_InitPos ();		/* Position Widget		*/
 	iw_Initialize ();	/* Data insertion widget	*/
 	aw_InitAnnot ();	/* Annotation widget		*/
+	pdm_Init ();		/* Plot description monitoring	*/
 /*
  * Tell DM that we're here.
  */
@@ -891,6 +892,7 @@ struct dm_pdchange *dmp;
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
+	pdm_ScheduleUpdate ();
 }
 
 
@@ -923,6 +925,7 @@ struct dm_parchange *dmp;
  */
 	par = dmp->dmm_param;
 	Eq_AddEvent (PDisplay, pc_ParamChange, par, 1 + strlen(par), Augment);
+	pdm_ScheduleUpdate ();
 }
 
 
@@ -957,7 +960,10 @@ char *comp, *param, *value;
  * We'll also eventually want to ship the PD back to DM.
  */
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
+	pdm_ScheduleUpdate ();
 }
+
+
 
 
 ChangeDefaults (dmp)

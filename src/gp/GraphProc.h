@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.15 1992-07-22 16:18:54 kris Exp $ */
+/* $Id: GraphProc.h,v 2.16 1992-09-15 16:32:37 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -194,6 +194,11 @@ extern void cvt_ToXY FP ((double, double, float *, float *));
 extern void cvt_ToLatLon FP ((double, double, float *, float *));
 extern void cvt_GetOrigin FP ((float *, float *));
 extern bool cvt_Origin FP ((double, double));
+
+/* PLot description monitor protocol */
+extern void pdm_Init FP ((void));
+extern void pdm_ScheduleUpdate FP ((void));
+extern void pdm_Finish FP ((void));
 
 /* Other stuff */
 extern int GetLocation FP ((char *, ZebTime *, Location *));
