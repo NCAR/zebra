@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.35 1996-03-12 02:23:38 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.36 1996-08-16 20:26:42 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -114,6 +114,7 @@ static struct mqueue *msg_NewMq FP ((struct message *));
 static void msg_RemQueue FP ((struct mqueue *));
 static void msg_AddQueue FP ((struct message *msg));
 static int msg_SrchAck FP ((struct message *, struct mh_ack *));
+static int msg_InterceptMask FP ((struct message *msg));
 static int msg_ELHandler FP ((struct message *));
 static int msg_PingHandler FP ((Message *));
 static int msg_QueryHandler FP ((Message *));
@@ -249,11 +250,14 @@ char *ident;
 	Query_Handler = msg_DefaultQH;
 /*
  * Looks we're going to succeed with the connection, so note as much
- * and re-initialize event logging masks.
+ * and re-initialize event logging masks.  Note that we leave the SendMask
+ * zero until we know an event logger is connected and it tells us which
+ * messages to send.
  */
 	NoConnection = 0;
 	PrintMask = 0x00;
-	SendMask = (EF_ALL & (~EF_DEVELOP));
+	/* SendMask = (EF_ALL & (~EF_DEVELOP)); */
+	SendMask = 0x00;
 	msg_SendPID ();
 /*
  * Now that everything's hunky-dory, see if we should operate in echo
@@ -666,6 +670,13 @@ int *ret;	/* return value of message handler, if called */
 		tm = (struct mh_template *) msg->m_data;
 		if (tm->mh_type == MH_SHUTDOWN)
 			ShuttingDown = TRUE;
+	}
+	/*
+	 * Intercept ELOG MASK messages before passing them on
+	 */
+	if ((msg->m_proto == MT_ELOG) && (msg->m_len > 0))
+	{
+		msg_InterceptMask (msg);
 	}
 	if (msg->m_proto >= 0 && msg->m_proto < MT_MAX_PROTO &&
 	    ProtoHandlers[msg->m_proto])
@@ -1217,13 +1228,28 @@ void *param;		/* the source of the echo */
 
 
 
+/* ARGSUSED */
 static int
 msg_ELHandler (msg)
 struct message *msg;
 /*
- * Intercept extended logger protocol messages and see if somebody is
- * trying to set the event mask.  Otherwise we pass them through the
- * default handler for compatibility.
+ * Since no clients will receive log messages (except for mask settings)
+ * without special arrangements, and few clients will even want log
+ * messages, and since mask settings are intercepted by the library before
+ * calling the proto handler, this handler does nothing.
+ */
+{
+	return (0);
+}
+
+
+
+static int
+msg_InterceptMask (msg)
+struct message *msg;
+/*
+ * Intercept extended logger protocol messages to keep track of
+ * the event mask we should use to send messages.  
  */
 {
 	struct msg_elog *el = (struct msg_elog *) msg->m_data;
@@ -1231,10 +1257,12 @@ struct message *msg;
 	if (el->el_flag & EF_SETMASK)
 	{
 		SendMask = el->el_flag & ~EF_SETMASK;
-		return (0);
 	}
-	else
-		return ((*Msg_handler) (msg));
+	else if (el->el_flag & EF_ORMASK)
+	{
+		SendMask |= (el->el_flag & ~EF_ORMASK);
+	}
+	return (0);
 }
 
 
@@ -1704,7 +1732,7 @@ struct msg_elog *el;
  */
 	if (! ShuttingDown && (el->el_flag & SendMask) && ! NoConnection)
 	{
-		msg_send (EVENT_LOGGER_NAME, MT_ELOG, 0, el,
+		msg_send (EVENT_LOGGER_GROUP, MT_ELOG, TRUE, el,
 			  sizeof (*el) + strlen (el->el_text));
 	}
 }
