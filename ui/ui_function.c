@@ -3,11 +3,13 @@
  * Function call handling.
  */
 # include <math.h>
+# include <string.h>
 # include "ui.h"
 # include "ui_expr.h"
 # include "ui_error.h"
 # include "ui_globals.h"
 
+static char *rcsid = "$Id: ui_function.c,v 1.4 1991-12-20 18:10:13 corbet Exp $";
 
 /*
  * These structures represent functions.
@@ -34,9 +36,9 @@ struct func
  * This table holds all of the functions known to us at compile-time.
  */
 int uf_sqrt (), uf_exp (), uf_defined (), uf_stbl (), uf_concat ();
-int uf_quote ();
+int uf_quote (), uf_within ();
 int uf_cos (), uf_sin (), uf_tan (), uf_contains (), uf_substring ();
-int uf_getenv ();
+int uf_getenv (), uf_noccur ();
 
 static struct func
 Func_tbl[] =
@@ -47,12 +49,15 @@ Func_tbl[] =
   { "defined",	1,	{ SYMT_STRING },		FF_HARD, uf_defined },
   { "exp",	1,	{ SYMT_FLOAT },			FF_HARD, uf_exp     },
   { "getenv",	1,	{ SYMT_STRING },		FF_HARD, uf_getenv  },
+  { "n_occur",	2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_noccur  },
   { "quote",	1,	{ SYMT_STRING },		FF_HARD, uf_quote   },
   { "sin",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sin     },
   { "sqrt",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sqrt    },
   { "substring", 2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_substring},
   { "symbol_table", 1,	{ SYMT_STRING },		FF_HARD, uf_stbl },
   { "tan",	1,	{ SYMT_FLOAT },			FF_HARD, uf_tan },
+  { "within",	3,	{ SYMT_FLOAT, SYMT_FLOAT, SYMT_FLOAT },
+  							FF_HARD, uf_within },
   { ___, 	___, 	___, 				___,	 ___	     }
 };
 
@@ -359,6 +364,25 @@ union usy_value *argv, *retv;
 
 
 
+uf_noccur (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * Count the number of occurrences of a character in a string.
+ */
+{
+	char *cp = argv[0].us_v_ptr;
+
+	*rett = SYMT_INT;
+	retv->us_v_int = (*cp == *argv[1].us_v_ptr) ? 1 : 0;
+	while (cp = strchr (cp + 1, *argv[1].us_v_ptr))
+		(retv->us_v_int)++;
+}
+	
+
+
+
+
 uf_contains (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -367,7 +391,7 @@ union usy_value *argv, *retv;
  */
 {
 	*rett = SYMT_BOOL;
-	retv->us_v_int = strchr (argv[0].us_v_ptr, *argv[1].us_v_ptr);
+	retv->us_v_int = (int) strchr (argv[0].us_v_ptr, *argv[1].us_v_ptr);
 }
 
 
@@ -390,7 +414,7 @@ uf_getenv (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
 /*
- * Quote a value as a single parameter.
+ * The cl function interface to getenv().
  */
 {
 	char *getenv (), *env;
@@ -399,4 +423,21 @@ union usy_value *argv, *retv;
 		retv->us_v_ptr = usy_string (env);
 	else
 		retv->us_v_ptr = usy_string ("UNDEFINED");
+}
+
+
+
+
+uf_within (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * within (a, b, tol)
+ *
+ * Return true iff a and b are within tol of each other.
+ */
+{
+	*rett = SYMT_BOOL;
+	retv->us_v_int = ABS (argv[0].us_v_float - argv[1].us_v_float) <=
+				argv[2].us_v_float;
 }
