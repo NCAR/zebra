@@ -2,13 +2,15 @@
  * Imakefile for the data store dumper
  */
 
-SRCS = dsdwidget.c
-OBJS = dsdwidget.o
+SRCS = dsdwidget.c xncdump.c
+OBJS = dsdwidget.o xncdump.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile dsdwidget.ad
 
-NormalProgramTarget(dsdwidget, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+NormalProgramTarget(dsdwidget, dsdwidget.o, $(DEPLIBS), $(LIBS), $(SYSLIBS))
+NormalProgramTarget(xncdump, xncdump.o, /**/, $(XLIBS), /**/)
+
 InstallAppDefaults(dsdwidget)
 DistfilesTarget($(DISTFILES))
 DependTarget()

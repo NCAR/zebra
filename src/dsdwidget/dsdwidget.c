@@ -20,8 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = 
-   "$Id: dsdwidget.c,v 1.20 1994-11-19 00:30:00 burghart Exp $";
+# include <string.h>
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -30,7 +29,7 @@ static char *rcsid =
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Viewport.h>
 # include <X11/Xaw/Label.h>
-# include <X11/Xaw/AsciiText.h>
+# include <X11/Xaw/List.h>
 # include <X11/Shell.h>
 
 # include <ui_param.h>
@@ -39,6 +38,8 @@ static char *rcsid =
 # include <message.h>
 # include <copyright.h>
 # include "DataStore.h"
+
+RCSID ("$Id: dsdwidget.c,v 1.21 1995-03-04 19:25:18 granger Exp $")
 
 
 # define MAXPLAT	1024
@@ -51,41 +52,70 @@ PlatformId PlatIds[MAXPLAT];
 Widget	Entry[MAXPLAT];
 int	NPlat = 0;
 
-char *RemoteName;
+char *RemoteName = NULL;
+
+struct dump_action {
+	char *ext;
+	char *cmd;
+} DumpActions[] = 
+{
+	{ ".cdf",	"xncdump" },
+	{ ".nc",	"xncdump" },
+	{ ".rf",	"rfdump" },
+	{ ".znf",	"zfdump -h" }
+};
+int NActions = XtNumber(DumpActions);
+
 /*
  * Data structures for widgets and their contents.
  */
 XtAppContext Appc;
-Widget	Top, Form, Viewport, Box;
-Widget	WDisplay, DispText;
-bool	DisplayUp = False;
+Widget	Top, Box;
 
 /*
- * Data file variables.
+ * Context structure for the datafile popup shells
  */
-FILE	*Fptr;
-char	Fname[30];
+struct df_context {
+	Widget	shell;		/* our popup shell */
+	Widget	list;		/* the list widget */
+	char 	**entries;	/* data file entries */
+	int	nent;		/* number of entries */
+	DataSrcInfo dsi[2];	/* data source info */
+	PlatformId pid;		/* our pid */
+};
+
+/*
+ * Translations for the list widget to make it look like commands
+ */
+static XtTranslations list_trans;
+static char *atrans = "<Btn1Down>:	Set() \n\
+           	       <Btn1Up>: 	Notify() Unset()";
 
 static void	AddPlatforms FP((char *re, int sort));
 static void	CreateDSDWidget FP((void));
 static void	Die FP((void));
-static void	DumpPlatform FP((int, PlatformInfo *));
-static void	DumpChains FP((char *, int));
 static void	GetTimes FP((int, PlatformInfo *, ZebTime *, ZebTime *));
 static void	SetEntry FP((int, ZebTime *, ZebTime *));
 static int	MsgHandler FP((Message *));
 static void	MsgInput ();
-static int	PopupDisplay FP((Widget, XtPointer, XtPointer));
-static void	Rescan FP((void));
-static Widget	CreateDisplayWidget FP((void));
-static void	PopdownDisplay FP((Widget, XtPointer, XtPointer));
+static void	Update FP((void));
+
+static void 	PopupDisplay FP((Widget w, XtPointer cdata, XtPointer call));
+static void	DumpPlatform FP((struct df_context *dfc, PlatformInfo *));
+static void	DumpChain FP((struct df_context *dfc, char *which, int start));
+static Widget	CreateDisplayWidget FP((Widget parent, struct df_context *dfc,
+					PlatformInfo *pi));
+static void	RescanCallback FP((Widget w, XtPointer, XtPointer));
+static void	ListCallback FP((Widget w, XtPointer, XtPointer));
+static void	QuitDisplay FP((Widget w, XtPointer, XtPointer));
+
 
 
 static void
 usage (prog)
 char *prog;
 {
-	printf("Usage: %s [-h] [-a] [-u] [-t <title>] [regexp ...] \n",
+	printf("Usage: %s [-h][-a][-u][-t <title>][-c <cmd>] [regexp ...] \n",
 	       prog);
 	printf("If a regular expression is present, only those platforms\n");
 	printf("whose names match the expression are displayed.  Any\n");
@@ -96,9 +126,11 @@ char *prog;
 	printf("   -a\tAlphabetize the platforms for each matching string.\n");
 	printf("   -u\tDon't alphabetize the platform names.\n");
 	printf("   -t\tSpecify a title for the window.\n");
+	printf("   -c\tCommand which accepts selected file names.\n");
 }
 
 
+int
 main (argc, argv)
 int	argc;
 char	**argv;
@@ -138,6 +170,18 @@ char	**argv;
 				exit (2);
 			}
 			break;
+#ifdef notdef
+		   case 'c':
+			if (optind + 1 < argc)
+				DumpCommand = argv[++optind];
+			else
+			{
+				printf ("-c option needs argument\n");
+				usage (argv[0]);
+				exit (2);
+			}
+			break;
+#endif
 		}
 		for (i = 1; i < argc - optind; ++i)
 			argv[i] = argv[i + optind];
@@ -166,23 +210,20 @@ char	**argv;
  */
 	Top = XtVaAppInitialize (&Appc, "dsdwidget", NULL, 0, &argc, argv,
                 NULL, XtNtitle, title, NULL);
+	list_trans = XtParseTranslationTable (atrans);
 /*
- * Create the data file.
- */
-	sprintf (Fname, "/tmp/dsdwidget%d", getpid ());
-	Fptr = fopen (Fname, "w");
-	fprintf (Fptr, "data file");
-	fclose (Fptr);
-/*
- * Make our widgets.
+ * Make our toplevel widget.
  */
 	CreateDSDWidget ();
-	CreateDisplayWidget ();
 /*
  * Add platform labels and times to our widget.
  */
 	if (! (RemoteName = getenv ("REMOTE_NAME")))
 		RemoteName = "Remote";
+#ifdef notdef
+	if (! DumpCommand)
+		DumpCommand = "ncdump -h";
+#endif
 	if (argc < 2)
 		AddPlatforms (NULL, sort);
 	for (optind = 1; optind < argc; ++optind)
@@ -199,6 +240,7 @@ char	**argv;
         XtAppAddInput (Appc, msg_get_fd (), (XtPointer) XtInputReadMask, 
 		(XtInputCallbackProc) MsgInput, (XtPointer) 0);
         XtAppMainLoop (Appc);
+	exit(0);
 }
 
 
@@ -241,6 +283,7 @@ XtInputId *morejunk;
 }
 
 
+
 static void
 Die ()
 /*
@@ -248,41 +291,9 @@ Die ()
  */
 {
         msg_ELog (EF_INFO, "Exiting.");
-	unlink (Fname);
         exit (0);
 }
 
-
-
-static void
-DumpPlatform (pid, pi)
-int pid;
-PlatformInfo *pi;
-{
-	DataSrcInfo dsi;
-/*
- * Open the data file.
- */	
-	Fptr = fopen (Fname, "w");
-/*
- * Write platform name and info to the file.
- */
-	fprintf (Fptr, "Platform '%s'\n", pi->pl_Name);
-/*
- * Write data times to the file.
- */
-	ds_GetDataSource (pid, 0, &dsi);
-	DumpChain ("Local", dsi.dsrc_FFile);
-	if (pi->pl_NDataSrc >= 2)
-	{
-		ds_GetDataSource (pid, 1, &dsi);
-		DumpChain (RemoteName, dsi.dsrc_FFile);
-	}
-/*
- * Close the data file.
- */
-	fclose (Fptr);
-}
 
 
 static void
@@ -345,34 +356,6 @@ ZebTime *begin, *end;
 }
 
 
-DumpChain (which, start)
-char *which;
-int start;
-/*
- * Dump out a datafile chain.
- */
-{
-	DataFileInfo dfi;
-	char abegin[20], aend[20];
-
-	while (start)
-	{
-		ds_GetFileInfo (start, &dfi);
-		TC_EncodeTime (&dfi.dfi_Begin, TC_Full, abegin);
-		fprintf (Fptr, "%-8s '%s' %s", which, dfi.dfi_Name, abegin);
-		if (dfi.dfi_NSample > 1)
-		{
-			TC_EncodeTime (&dfi.dfi_End, TC_Full, aend);
-			fprintf (Fptr, " -> %s [%hu]", aend, dfi.dfi_NSample);
-		}
-		fprintf (Fptr, "\n");
-		start = dfi.dfi_Next;
-	}
-}
-
-
-
-
 
 static void
 CreateDSDWidget ()
@@ -382,50 +365,70 @@ CreateDSDWidget ()
 {
         Arg args[5];
         int n;
-        Widget button, die;
+        Widget button, die, info;
+	Widget form, viewport;
 /*
  * Start with a form, of course.
  */
-        Form = XtCreateManagedWidget ("form", formWidgetClass, Top, NULL, 0);
+        form = XtCreateManagedWidget ("form", formWidgetClass, Top, NULL, 0);
 /*
- * Check the disk again button.
- */
-        n = 0;
-        XtSetArg (args[n], XtNlabel, "New Data?");		n++;
-        XtSetArg (args[n], XtNfromHoriz, NULL);                 n++;
-        XtSetArg (args[n], XtNfromVert, NULL);                  n++;
-        button = XtCreateManagedWidget ("rsdisk", commandWidgetClass,
-                        Form, args, n);
-        XtAddCallback (button, XtNcallback, (XtCallbackProc) Rescan, 0);
-/*
- * Also the die button.
+ * The die button.
  */
         n = 0;
         XtSetArg (args[n], XtNlabel, "Exit");                   n++;
-        XtSetArg (args[n], XtNfromHoriz, button);               n++;
+        XtSetArg (args[n], XtNfromHoriz, NULL);	                n++;
         XtSetArg (args[n], XtNfromVert, NULL);                  n++;
-        die = XtCreateManagedWidget ("die", commandWidgetClass, Form, args, n);
+        die = XtCreateManagedWidget ("die", commandWidgetClass, form, args, n);
         XtAddCallback (die, XtNcallback, (XtCallbackProc) Die, 
 		(XtPointer) 0);
+/*
+ * Button to update our information.
+ */
+        n = 0;
+        XtSetArg (args[n], XtNlabel, "Update");			n++;
+        XtSetArg (args[n], XtNfromHoriz, die);                  n++;
+        XtSetArg (args[n], XtNfromVert, NULL);                  n++;
+        button = XtCreateManagedWidget ("update", commandWidgetClass,
+					form, args, n);
+        XtAddCallback (button, XtNcallback, (XtCallbackProc)Update, 0);
+/*
+ * Button to request a global rescan of the data store
+ */
+        n = 0;
+        XtSetArg (args[n], XtNlabel, "Global Rescan");		n++;
+        XtSetArg (args[n], XtNfromHoriz, button);               n++;
+        XtSetArg (args[n], XtNfromVert, NULL);                  n++;
+        button = XtCreateManagedWidget ("rescan", commandWidgetClass,
+					form, args, n);
+        XtAddCallback (button, XtNcallback, (XtCallbackProc) RescanCallback, 
+		       (XtPointer) -1);
+/*
+ * Instructional label
+ */
+        n = 0;
+        XtSetArg (args[n], XtNfromHoriz, button);	n++;
+        XtSetArg (args[n], XtNfromVert, NULL);		n++;
+        info = XtCreateManagedWidget ("info", labelWidgetClass, form,
+				      args, n);
 /*
  * A big viewport.
  */
         n = 0;
         XtSetArg (args[n], XtNfromHoriz, NULL);         n++;
         XtSetArg (args[n], XtNfromVert, button);	n++;
-        Viewport = XtCreateManagedWidget ("viewport", viewportWidgetClass,
-                        Form, args, n);
+        viewport = XtCreateManagedWidget ("viewport", viewportWidgetClass,
+					  form, args, n);
 /*
  * ...with a box in it.
  */
         n = 0;
-        Box = XtCreateManagedWidget ("box", boxWidgetClass, Viewport, args, n);
+        Box = XtCreateManagedWidget ("box", boxWidgetClass, viewport, args, n);
 }
 
 
 
 static void
-Rescan ()
+Update ()
 /*
  * Plow through the platforms and refresh the file times and widget 
  * entries for each.
@@ -440,7 +443,7 @@ Rescan ()
 	{
 		ds_GetPlatInfo (PlatIds[i], &pi);
 		GetTimes (PlatIds[i], &pi, &begin, &end);
-		msg_ELog (EF_DEBUG, "Setting entry %d", i);
+		/* msg_ELog (EF_DEBUG, "Setting entry %d", i); */
 		SetEntry (i, &begin, &end);
 	}
 }
@@ -460,10 +463,10 @@ ZebTime *begin, *end;
 /*
  * Make the label.
  */
-	msg_ELog (EF_DEBUG, "Setting entry for %s", Names[index]);
+	/* msg_ELog (EF_DEBUG, "Setting entry for %s", Names[index]); */
 	if ((end->zt_Sec == 0) && (begin->zt_Sec == 0))
 	{
-		sprintf (label, "%-17s  -- None --         ", Names[index]);
+		sprintf (label, "%-25s  -- None --         ", Names[index]);
 	}
 	else 
 	{
@@ -533,106 +536,296 @@ bool sort;	/* true if we want them alphabetized 	*/
 
 
 
-static int 
-PopupDisplay (w, val, junk)
+/*ARGSUSED*/
+static void 
+PopupDisplay (w, cdata, call)
 Widget w;
-XtPointer val, junk;
+XtPointer cdata;
+XtPointer call;
 /*
- * Popup the window which display the full data for a platform.
+ * Popup the window which displays the data files for a platform.
  */
 {
-	int index = (int) val;
+	struct df_context *dfc = NEW (struct df_context);
 	PlatformInfo pi;
-	Arg arg;
+	
+	dfc->pid = (PlatformId) cdata;
+	dfc->entries = NULL;
+	dfc->nent = 0;
+	ds_GetPlatInfo (dfc->pid, &pi);
+	CreateDisplayWidget (Top, dfc, &pi);
 
-	if (! DisplayUp)
+	/*
+ 	 * Fill in the list widget.
+	 */
+	DumpPlatform (dfc, &pi);
+
+	/*
+	 * Popup the shell and forget about it.
+	 */
+	XtPopup (dfc->shell, XtGrabNone);	
+}
+
+
+
+static void
+DumpPlatform (dfc, pi)
+struct df_context *dfc;
+PlatformInfo *pi;
+/*
+ * Create list entries for all of this platform's datafiles
+ */
+{
+/*
+ * Give the list an initial allocation, and don't reallocate except
+ * when the number of entries crosses the granularity size.
+ */
+#	define GRAIN 25
+	dfc->entries = (char **) malloc (GRAIN * sizeof(char *));
+	dfc->nent = 0;
+/*
+ * Write data times to the list entries.
+ */
+	ds_GetDataSource (dfc->pid, 0, &dfc->dsi[0]);
+	DumpChain (dfc, "Local", dfc->dsi[0].dsrc_FFile);
+	if (pi->pl_NDataSrc >= 2)
 	{
-	/*
- 	 * Fill in the data file.
-	 */
-		ds_GetPlatInfo (index, &pi);
-		DumpPlatform (index, &pi);
-	/*
-	 * Tell the widget about the data file.
-	 */
-		XtSetArg (arg, XtNstring, Fname);
-		XtSetValues (DispText, &arg, 1);
-	/*
-	 * Force an update of the DispText widget.
-	 */
-		XawTextDisplay (DispText);
-	/*
-	 * Popup the window.
-	 */
-		XtPopup (WDisplay, XtGrabNone);	
-		DisplayUp = True;
+		ds_GetDataSource (dfc->pid, 1, &dfc->dsi[1]);
+		DumpChain (dfc, RemoteName, dfc->dsi[1].dsrc_FFile);
+	}
+/*
+ * All that remains is to tell the list widget about the entries.  If there
+ * were no data files, then tell the popup not to worry about it or its
+ * parent viewport.
+ */
+	if (dfc->nent)
+		XawListChange (dfc->list, dfc->entries, dfc->nent, 0, True);
+	else
+		XtUnmanageChild (XtParent (dfc->list));
+}
+
+
+
+static void
+DumpChain (dfc, which, start)
+struct df_context *dfc;
+char *which;
+int start;
+/*
+ * Dump out a datafile chain.
+ */
+{
+	DataFileInfo dfi;
+	char abegin[20], aend[20];
+	char dest[256];
+
+	while (start)
+	{
+		ds_GetFileInfo (start, &dfi);
+		TC_EncodeTime (&dfi.dfi_Begin, TC_Full, abegin);
+		sprintf (dest, "%-8s '%s' %s", which, dfi.dfi_Name, abegin);
+		if (dfi.dfi_NSample > 1)
+		{
+			TC_EncodeTime (&dfi.dfi_End, TC_Full, aend);
+			sprintf (dest+strlen(dest),
+				 " -> %s [%hu]", aend, dfi.dfi_NSample);
+		}
+		/*
+		 * Add this entry to the list
+		 */
+		++dfc->nent;
+		if (! (dfc->nent % GRAIN))
+			dfc->entries = (char **) 
+				realloc (dfc->entries,
+					 (dfc->nent + GRAIN) * sizeof(char *));
+		dfc->entries[ dfc->nent - 1 ] = usy_string (dest);
+		start = dfi.dfi_Next;
 	}
 }
 
 
+
+
 static Widget
-CreateDisplayWidget ()
+CreateDisplayWidget (parent, dfc, pi)
+Widget parent;
+struct df_context *dfc;
+PlatformInfo *pi;
 /*
  * Build a widget for displaying the full data for a platform.
  */
 {
         int     n;
         Arg     args[15];
-        Widget  form, w;
+        Widget  quit, title, rescan, info;
+	Widget 	form, popup;
+	Widget  viewport, list;
+	char 	label[256];
 /*
  * Create the popup widget shell and the form widget within it that holds
- * everything
+ * everything.
  */
         n = 0;
         XtSetArg (args[n], XtNresize, True); 	n++;
-        WDisplay = XtCreatePopupShell ("platform_data",
-                topLevelShellWidgetClass, Form, args, n);
+        popup = XtCreatePopupShell ("platform_data",
+                topLevelShellWidgetClass, parent, args, n);
 
         n = 0;
         XtSetArg (args[n], XtNborderWidth, 3); n++;
-        form = XtCreateManagedWidget ("displayForm", formWidgetClass, WDisplay,
-                args, n);
+        form = XtCreateManagedWidget ("displayForm", formWidgetClass, popup,
+				      args, n);
 /*
- * Button to remove widget
+ * Put platform info at top
  */
+	sprintf (label, "Platform '%s'", pi->pl_Name);
+	if (pi->pl_Mobile)
+		strcat (label, " [mobile]");
         n = 0;
         XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
         XtSetArg (args[n], XtNfromVert, NULL);		n++;
-        XtSetArg (args[n], XtNlabel, "Done");		n++;
-        w = XtCreateManagedWidget ("remove", commandWidgetClass, form,
-                args, n);
-        XtAddCallback (w, XtNcallback, PopdownDisplay, 0);
+        XtSetArg (args[n], XtNlabel, label);		n++;
+        title = XtCreateManagedWidget ("remove", labelWidgetClass, form,
+				       args, n);
 /*
- * AsciiText widget to hold the full data display. 
+ * Button to remove the popup
  */
         n = 0;
+        XtSetArg (args[n], XtNfromHoriz, title);	n++;
+        XtSetArg (args[n], XtNfromVert, NULL);		n++;
+        XtSetArg (args[n], XtNlabel, "Done");		n++;
+        quit = XtCreateManagedWidget ("quit", commandWidgetClass, form,
+				      args, n);
+        XtAddCallback (quit, XtNcallback, QuitDisplay, (XtPointer) dfc);
+/*
+ * Offer to rescan this platform.
+ */
+        n = 0;
+        XtSetArg (args[n], XtNfromHoriz, quit);		n++;
+        XtSetArg (args[n], XtNfromVert, NULL);		n++;
+        XtSetArg (args[n], XtNlabel, "Rescan");		n++;
+        rescan = XtCreateManagedWidget ("rescan", commandWidgetClass, form,
+					args, n);
+        XtAddCallback (rescan, XtNcallback, RescanCallback, 
+		       (XtPointer) dfc->pid);
+/*
+ * An informational label in the upper right
+ */
+        n = 0;
+        XtSetArg (args[n], XtNfromHoriz, rescan);	n++;
+        XtSetArg (args[n], XtNfromVert, NULL);		n++;
+        info = XtCreateManagedWidget ("info", labelWidgetClass, form,
+				      args, n);
+/*
+ * The list widget must be contained in a viewport since the list will
+ * likely be long.
+ */
+	n = 0;
         XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-        XtSetArg (args[n], XtNfromVert, w);		n++;
-        XtSetArg (args[n], XtNdisplayCaret, False);	n++;
-        XtSetArg (args[n], XtNscrollHorizontal, XawtextScrollWhenNeeded); n++;
-        XtSetArg (args[n], XtNscrollVertical, XawtextScrollWhenNeeded); n++;
-        XtSetArg (args[n], XtNwidth, 650);		n++;
-        XtSetArg (args[n], XtNheight, 200);		n++;
-        XtSetArg (args[n], XtNtype, XawAsciiFile);	n++;
-        XtSetArg (args[n], XtNeditType, XawtextRead);	n++;
-        XtSetArg (args[n], XtNstring, Fname);		n++;
-        DispText = XtCreateManagedWidget ("display", asciiTextWidgetClass,
-                form, args, n);
+        XtSetArg (args[n], XtNfromVert, title);		n++;
+	viewport = XtCreateManagedWidget ("viewport", viewportWidgetClass,
+					  form, args, n);
+/*
+ * Finally, insert the list widget which holds all of the data file entries
+ */
+	n = 0;
+        XtSetArg (args[n], XtNtranslations, list_trans); n++;
+        list = XtCreateManagedWidget ("list", listWidgetClass,
+				       viewport, args, n);
+	XtAddCallback (list, XtNcallback, ListCallback, (XtPointer) dfc);
+	dfc->list = list;
+	dfc->shell = popup;
+	return (popup);
 }
 
 
+
+/*ARGSUSED*/
 static void
-PopdownDisplay (w, junk1, junk2)
+RescanCallback (w, cdata, call_data)
+Widget w;
+XtPointer cdata;
+XtPointer call_data;
+{
+	int pid = (int) cdata;
+
+	ds_ForceRescan (pid, (pid < 0));
+}
+	
+
+
+/*ARGSUSED*/
+static void
+ListCallback (w, cdata, call_data)
 Widget          w;
-XtPointer       junk1, junk2;
+XtPointer       cdata;
+XtPointer	call_data;
+{
+	XawListReturnStruct *lrs = (XawListReturnStruct *) call_data;
+	struct df_context *dfc = (struct df_context *) cdata;
+	char cmd[1024];
+	char filename[512];
+	char src[32];
+	char ext[32];
+	char *period;
+	int dsindex;
+	int i;
 /*
- * Remove (pop down) the full display widget
+ * Parse the string for the file name and soure name.
+ */
+	if (sscanf (lrs->string, "%s '%[^' ]", src, filename) != 2)
+	{
+		msg_ELog (EF_INFO, "could not extract source and file names");
+		return;
+	}
+	msg_ELog (EF_DEBUG, "selected source: %s; file: %s", src, filename);
+	if (!strcmp (src, dfc->dsi[0].dsrc_Name))
+		dsindex = 0;
+	else
+		dsindex = 1;
+	ext[0] = 0;
+	if ((period = strrchr (filename, '.')))
+		strcpy (ext, period);
+/*
+ * Find the command to use for this extension
+ */
+	for (i = 0; i < NActions; ++i)
+	{
+		if (! strcmp (DumpActions[i].ext, ext))
+			break;
+	}
+	if (i >= NActions)
+	{
+		msg_ELog (EF_INFO, "no action for extension '%s'", ext);
+		return;
+	}
+	sprintf (cmd, "%s %s/%s &", DumpActions[i].cmd, 
+		 dfc->dsi[dsindex].dsrc_Where, filename);
+	msg_ELog (EF_DEBUG, "%s", cmd);
+	system (cmd);
+}
+
+
+
+
+/*ARGSUSED*/
+static void
+QuitDisplay (w, cdata, call_data)
+Widget          w;
+XtPointer       cdata;
+XtPointer	call_data;
+/*
+ * Remove (pop down) this display widget shell
  */
 {
-        if (DisplayUp)
-        {
-                XtPopdown (WDisplay);
-                DisplayUp = False;
-        }
+	struct df_context *dfc = (struct df_context *) cdata;
+	int i;
+
+	XtPopdown (dfc->shell);
+	XtDestroyWidget (dfc->shell);
+	for (i = 0; i < dfc->nent; ++i)
+		usy_rel_string (dfc->entries[i]);
+	if (dfc->entries)
+		free (dfc->entries);
+	free (dfc);
 }
 

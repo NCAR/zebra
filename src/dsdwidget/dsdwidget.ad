@@ -1,19 +1,16 @@
-! $Id: dsdwidget.ad,v 1.3 1994-06-29 20:27:47 case Exp $
+! $Id: dsdwidget.ad,v 1.4 1995-03-04 19:25:16 granger Exp $
 !
-! Application defaults file for dsdwidget, from the DataStore directory
-!
-! THIS FILE IS UNDER RCS CONTROL.  
-! DO NOT MODIFY THIS FILE IF IT IS THE INSTALLED COPY IN THE LIB DIRECTORY!
+! Application defaults file for dsdwidget
 !
 *font:  *-courier-bold-r-normal--12-*
 *viewport*font:	*-courier-bold-r-normal--12-*
-*viewport.width:	495
-*viewport.height:	200
-*viewport.bottom:	chainBottom
-*viewport.left:		chainLeft
-*viewport.right:	chainRight
-*viewport.top:		chainTop
-*viewport.allowVert:	true
+*form.viewport.width:	495
+*form.viewport.height:	200
+*form.viewport.bottom:	chainBottom
+*form.viewport.left:		chainLeft
+*form.viewport.right:	chainRight
+*form.viewport.top:		chainTop
+*form.viewport.allowVert:	true
 *top:		chainTop
 *bottom:	chainTop
 *Box.orientation:	orientVertical
@@ -21,6 +18,11 @@
 *die.foreground:	red
 *background:		gray90
 *Command.borderColor:	red
+*form.info.label:	Click on a platform to list files
+*form.info.horizDistance:	15
+*form.info.right:	chainRight
+*form.info.left:	chainRight
+*form.info.borderWidth:	0
 
 ! Constraints for the platform popup
 
@@ -29,9 +31,21 @@
 *displayForm.remove.top:	chainTop
 *displayForm.remove.bottom:	chainTop
 *displayForm.remove.resizable:	false
-*displayForm.display.left:	chainLeft
-*displayForm.display.right:	chainRight
-*displayForm.display.top:	chainTop
-*displayForm.display.bottom:	chainBottom
-*displayForm.display.resizable:	true
+*displayForm.viewport.height:	200
+*displayForm.viewport.left:	chainLeft
+*displayForm.viewport.right:	chainRight
+*displayForm.viewport.top:	chainTop
+*displayForm.viewport.bottom:	chainBottom
+*displayForm.viewport.resizable:	true
+*displayForm.viewport.allowVert:	true
+*displayForm.info.label:	Click on a file to view it
+*displayForm.info.resizable:	true
+*displayForm.info.horizDistance:	20
+*displayForm.info.borderWidth:		0
+*displayForm.info.left:			chainRight
+*displayForm.info.right:		chainRight
 *displayForm*font:	*-courier-bold-r-normal--12-*
+*displayForm*list.defaultColumns:	1
+*displayForm*list.forceColumns:		True
+*displayForm*list.verticalList:		True
+
