@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.24 1996-12-06 21:28:27 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.25 1997-06-26 17:35:54 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -22,6 +22,25 @@ XCOMM -----------------------------------------------------------------------
 #  endif
 # endif
 #endif
+
+# ifndef OSMajorVersion
+#  ifdef HPArchitecture			/* fuggles */
+#   define OSMajorVersion 10
+#  endif
+#  ifdef SGIArchitecture		/* saaz and iita */
+#   define OSMajorVersion 6
+#  endif
+#  ifdef LinuxArchitecture		/* linus */
+#   define OSMAjorVersion 2
+#  endif
+#  ifdef SunArchitecture
+#   ifdef SolarisArchitecture		/* steam and stout */
+#    define OSMajorVersion 5
+#   else
+#    define OSMajorVersion 4		/* narnia */
+#   endif
+#  endif
+# endif /* ! OSMajorVersion */
 
 /*
  * The symbol for doing builds for binary distributions.  This does not
@@ -74,15 +93,11 @@ XCOMM --- Auto-binary distribution
 #endif
 
 /*
- * Map projections are installed on all our machines, but only GCC and 
- * Solaris C compilers can compile the project.h include file.
+ * Map projections are installed on all our machines, and now that we're
+ * only supporting ANSI-capable compilers, project.h should be compilable.
  */
 #ifndef MapProjections
-# if UseGcc || defined(SolarisArchitecture)
-#   define MapProjections YES
-# else
-#   define MapProjections NO
-# endif
+# define MapProjections YES
 #endif
 
 #if MapProjections
@@ -102,7 +117,7 @@ XCOMM --- Auto-binary distribution
 /*
  * If a BaseDir is defined, use it to give defaults to BinDir and LibDir.
  * Otherwise BinDir and LibDir default to relative paths in Project.tmpl,
- * and BaseDir defaults to /zeb.
+ * and BaseDir defaults to /zebra.
  */
 #ifdef BaseDir
 # ifndef BinDir
@@ -219,11 +234,40 @@ XCOMM --- Deciding C compiler and options
 # define CDebugFlags -g
 #endif
 
+#ifdef HPArchitecture
+# define ExtraLoadOptions -Xlinker +vnocompatwarnings
+#endif
+
+#ifdef SGIArchitecture
+# if !UseGcc
+#  define CCOptions -32 -mips2
+   /* 
+    * Using IRIX X libraries produces warnings about multiple vendorShellClass
+    * symbols in Xaw and Xt.  Tell the linker to suppress that warning.
+    * Someday we may need to suppress warning 84, about libraries not being
+    * used to resolve any symbols.
+    */
+#  define ExtraLoadOptions -Wl,-woff,85
+# else
+   /*
+    * There might need to be linker options on the gcc command line if
+    * gcc is using the 6.x ld instead of /usr/lib/old_ld, since the 6.x ld
+    * will report the same warnings as are suppressed above for IRIX cc.
+    */
+# endif
+#endif
+
+
 XCOMM --- Deciding X, RDSS and netCDF library directories
 
 #if defined(HPArchitecture)
-# define XLibDir /usr/contrib/mitX11R5/lib	/* contrib for HP */
-# define XIncDir /usr/contrib/mitX11R5/include
+# if OSMajorVersion < 10
+#  define XLibDir /usr/contrib/mitX11R5/lib	/* contrib for HP */
+#  define XIncDir /usr/contrib/mitX11R5/include
+# else
+#  define XLibDir /usr/X11R6/lib
+#  define XIncDir /usr/X11R6/include
+# endif
 #endif /* HPArchitecture */
 
 #if defined(SGIArchitecture)
@@ -255,17 +299,18 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
         $(XLIBDIR)/libX11.a $(XLIBDIR)/libICE.a
 # endif
 # if defined(SGIArchitecture)	/* X11R6 */
-/* Leave SGI as default of shared X libraries since IRIX doesn't seem
- * to come with a static libX11.a
- */
-# ifdef notdef
-#  define XLibDir /usr/lib
-#  define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
+   /*
+    * Leave SGI as default of shared X libraries since IRIX doesn't seem
+    * to come with a static libX11.a
+    */
+#  ifdef notdef
+#   define XLibDir /usr/lib
+#   define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
 	$(XLIBDIR)/libXt.a $(XLIBDIR)/libSM.a $(XLIBDIR)/libXext.a \
         $(XLIBDIR)/libX11_s.a $(XLIBDIR)/libICE.a
+#  endif
 # endif
-# endif
-# if defined(HPArchitecture)	/* X11R5 */
+# if defined(HPArchitecture)
 #  define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
 	$(XLIBDIR)/libXt.a $(XLIBDIR)/libXext.a $(XLIBDIR)/libX11.a
 # endif
@@ -352,7 +397,13 @@ XCOMM --- Deciding FORTRAN library paths
 #endif /* SunArchitecture */
 
 #ifdef HPArchitecture
-# define FortranLibraries -lU77 -lf -lisamstub
+# if OSMajorVersion < 10
+#  define FortranLibraries -lU77 -lf -lisamstub
+# else
+#  define FortranCompiler g77
+#  define FortranLibraries -lf2c
+#  define FortOptions -O -funix-intrinsics-delete
+# endif
 #endif
 
 #ifdef SGIArchitecture
@@ -388,5 +439,11 @@ XCOMM --- Deciding FORTRAN library paths
 # endif
 #endif
 
+
+/*
+ * The vendor cf will likely try to redefine this, and we're through with
+ * it anyway.
+ */
+#undef OSMajorVersion
 
 XCOMM --- Finished with Build.tmpl
