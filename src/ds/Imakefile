@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.50 1996-12-06 00:33:00 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.51 1996-12-09 17:52:18 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -231,7 +231,7 @@ TESTOUT = > /dev/null 2>&1
 #endif
 ALINE = aline -n 4 $(DEBUG_FLAG) -per 3 -inv $(INVENTORY)
 DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
-APPLE = apple -a -c 2 $(DEBUG_FLAG)
+APPLE = apple -a -c 2 $(DEBUG_FLAG) | sed 's/^Will.*Tell: //'
 
 test:: test.session test.aline.only test.apple.only test.close
 
