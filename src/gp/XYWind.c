@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.2 1992-01-03 00:28:24 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.3 1992-01-10 19:18:40 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -75,6 +75,8 @@ bool	update;
 	int 	nPlotted=0;
 	char	platforms[80], tadefcolor[30];
 	char	ctname[20];
+	float   cstep;               /* interval for each step of color tables */
+	float	scaleSpeed;
 	char	dataNames[4][80];
 	char	*flist[4];
 	time	ptime;
@@ -172,6 +174,7 @@ bool	update;
  *		scaling factor
  * "sample-n" - sample every "n" data points.
  * "style" - "barb" or "vector"
+ * "step" - float, the size of the color table intervale
  */
 	if( !pda_Search (Pd,c,"vec-scale", NULL,(char *) &vecScale, SYMT_FLOAT))
 	{
@@ -184,6 +187,14 @@ bool	update;
 	if ( !pda_Search (Pd,c,"representation-style", NULL,(char *) &style, SYMT_STRING))
 	{
 	    strcpy(style, "vector" );
+	}
+	if( !pda_Search (Pd,c,"step", NULL,(char *) &cstep, SYMT_FLOAT))
+	{
+	  cstep = 5.0;
+	}
+	if( !pda_Search (Pd,c,"scale-speed", NULL,(char *) &scaleSpeed, SYMT_FLOAT))
+	{
+	  scaleSpeed = 25.0;
 	}
 /*
  * Allocate memory for data and attibutes
@@ -300,8 +311,8 @@ bool	update;
 
 	        if ( strcmp(style, "vector" ) == 0 )
 		{
-                    sprintf (datalabel, "%s %s %f %f %f", "50m/sec",
-                                        tadefcolor, 50.0, 0.0, vecScale);
+                    sprintf (datalabel, "%f5.1%s %s %f %f %f", scaleSpeed,
+			"m/sec", tadefcolor, scaleSpeed, 0.0, vecScale);
                     An_AddAnnotProc (An_ColorVector, c, datalabel,
                                 strlen(datalabel)+1, 30, FALSE, FALSE);
 		}
@@ -313,8 +324,8 @@ bool	update;
                                 strlen(datalabel)+1, 100, FALSE, FALSE);
 		}
                 sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec", ctname,
-                    Ncolors%2 ?(10.0*Ncolors)-10.0 :10.0*Ncolors, 
-		    20.0);
+                    Ncolors%2 ?(Ncolors*cstep*0.5)-cstep*0.5 :Ncolors*cstep*0.5, 
+		    cstep);
                 An_AddAnnotProc (An_ColorBar, c, datalabel,
                                 strlen(datalabel)+1, 75, TRUE, FALSE);
 	    }
@@ -560,14 +571,14 @@ bool	update;
 	            gp_WindBarb( xdata[plat],ydata[plat],
 			udata[plat],vdata[plat],
 			npts, angle, (int)vecScale, L_solid, 
-			Colors,Ncolors,20,xscalemode,yscalemode);
+			Colors,Ncolors,cstep,xscalemode,yscalemode);
 	        }
 	        else
 	        {
 	            gp_WindVector( xdata[plat],ydata[plat],
 			udata[plat],vdata[plat],
 			npts, angle, (double)vecScale, L_solid, 
-			Colors,Ncolors,20,xscalemode,yscalemode);
+			Colors,Ncolors,cstep,xscalemode,yscalemode);
 	        }
 
             }
