@@ -36,5 +36,6 @@ p_track
 	annot-time-color:	red
 	annot-time-scale:	10
 	active-icon:	true
-	posicon-middle-menu:	FieldMenu
+!	posicon-middle-menu:	FieldMenu
+	posicon-middle-menu:	tr-simple-send
 	posicon-right-menu:	track-right

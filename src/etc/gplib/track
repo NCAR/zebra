@@ -314,3 +314,20 @@ procedure tp-anncolor
 	popup form-color
 endprocedure
 
+
+
+!
+! Sending of fields without the field menu.
+!
+define widget tr-simple-send intmenu 'x'
+	title 'Display this platform elsewhere'
+	line
+	entry 'Display in other window' 'tr-sendout'
+endmenu
+
+
+procedure tr-sendout
+	local plat PDParam(icon_component, 'platform')
+	local cmd quote(concat3 ('PutScalar ', plat, ' tdry'))
+	dm #cmd
+endprocedure

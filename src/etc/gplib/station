@@ -116,14 +116,14 @@ procedure space-popup
 	local plat pd_param(icon_component,'platform','string')
 	formtext #f comp #icon_component
 !deal with whether filter is enabled
-	local enabled pd_paramsearch(icon_component,'spatial-filter','platform','string')
+	local enabled PDSearch(icon_component,'spatial-filter','platform')
 	if (enabled='true')
 		formtext #f SpaceEnable "Enabled"
 	else
 		formtext #f SpaceEnable "Disabled"
 	endif
 !deal with filter
-	local space pd_param(icon_component,'filter-resolution','string')
+	local space PDParam(icon_component,'filter-resolution')
 	if (space = '(Undefined)')
 		local space '50'
 	endif
@@ -146,3 +146,19 @@ procedure do_side_annot_size size string
 	parameter #icon_component sa-scale #size
 endprocedure
 
+
+!
+! A direct "display elsewhere" menu.
+!
+define widget station-send intmenu 'x'
+	title 'Display this station'
+	line
+	entry 'Display station in other window' 'SendStation'
+endmenu
+
+
+
+procedure SendStation
+	local cmd quote(concat3 ('putscalar ', icon_platform, ' tdry'))
+	dm #cmd
+endprocedure

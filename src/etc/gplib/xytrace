@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.3 1994-05-02 20:50:13 corbet Exp $
+! $Id: xytrace,v 1.4 1994-10-28 16:08:03 corbet Exp $
 
 define widget xysideannot intmenu ' '
 	title 'Side annotation size'
@@ -32,6 +32,8 @@ define widget xytrace-right intmenu 'x'
 	submenu 'Side annotation size' xysideannot
 	entry 'Show time in side annotation' 'ToggleBoolean time-annot' \
 		(PDParam (icon_component, 'time-annot') = 'true')
+	line
+	entry 'Add new field' xyaddfield
 endmenu
 
 procedure xyrep rep string
@@ -203,4 +205,11 @@ procedure xyta-ToggleMode
 	else
 		formtext #ui$form 'mode' 'manual'
 	endif
+endprocedure
+
+
+!
+! Get another field added on to this plot.
+!
+procedure xyaddfield
 endprocedure
