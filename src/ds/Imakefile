@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.79 2002-10-06 08:11:01 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.80 2002-10-21 08:30:53 granger Exp $"
 
 DEPLIBS=$(DEPZLIBS)
 
@@ -115,7 +115,7 @@ PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h  \
 		  DerivNode.h DerivTable.h Field.h
 
 HEADERS = DataChunk.h DataFiles.h DataStore.h DataTypes.h ds_fields.h \
-	ingest.h Platforms.h GRIB.h znfile.h RasterFile.h
+	ingest.h Platforms.h GRIB.h znfile.h RasterFile.h DFA_ncutil.c
 
 DSCONFIGS = perm.config aline.config apple.config
 
@@ -143,8 +143,10 @@ NormalLibraryTarget (ZebraDS,$(DSLIBOBJS))
 InstallLibrary (ZebraDS, $(LIBDIR))
 #endif
 
+NCDEPS=DFA_NetCDF.c DFA_ncutil.c
 SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
-SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
+SpecialObjectRule(DFA_NetCDF.o,$(NCDEPS),$(NETCDFINCLUDES))
+SpecialObjectRule(T_NetCDF.o,T_NetCDF.c $(NCDEPS),$(NETCDFINCLUDES))
 SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
 SpecialCplusplusObjectRule(Field.o,Field.cc,$(UDUNITSINCLUDES))
 SpecialCplusplusObjectRule(DFA_SweepFile.o,DFA_SweepFile.cc,$(SWFDEFINES) $(SWFINCLUDES))
