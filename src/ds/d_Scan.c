@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.22 1994-12-08 20:02:56 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.23 1994-12-11 16:25:19 corbet Exp $")
 
 
 /*
@@ -572,7 +572,7 @@ struct ui_command *cmd;
 	/*
 	 * Follow the chain.
 	 */
-	 	for (df = LOCALDATA (*p); DFTable[df].df_FLink;
+	 	for (df = LOCALDATA (*p); df && DFTable[df].df_FLink;
 					  df = DFTable[df].df_FLink)
 			; /* Scan to end of chain */
 		for (; df; df = DFTable[df].df_BLink)
