@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.7 1998-10-28 21:22:45 corbet Exp $ */
+/* $Id: timer.h,v 2.8 1999-12-17 17:40:42 granger Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -24,8 +24,20 @@
 #define __zeb_timer_h_
 
 /*
- * Possible client requests.
+ * The tm_time and tm_status structures are defined with different member
+ * names for C++, because "ANSI C++ forbids data members with the same name
+ * as the enclosing class".  Any C++ code will have to use the new names,
+ * but it should remain byte-compatible with the C-compiled timer library
+ * and timer client program.
  */
+
+# ifdef __cplusplus
+extern "C"
+{
+# endif
+
+/*
+ * Possible client requests.  */
 # define TR_TIME	1	/* What time is it?		*/
 # define TR_ABSOLUTE	2	/* Absolute alarm request	*/
 # define TR_RELATIVE	3	/* Relative alarm request	*/
@@ -60,11 +72,19 @@ struct tm_req
  * The basic time request answer.  All responses follow this template.
  */
 # define TRR_TIME	100
+# ifdef __cplusplus
+struct tm_time
+{
+	int	tm_type;	/* Answer type			*/
+	ZebTime	tm_zt;		/* The current time value	*/
+};
+# else
 struct tm_time
 {
 	int	tm_type;	/* Answer type			*/
 	ZebTime	tm_time;	/* The current time value	*/
 };
+# endif
 
 
 /*
@@ -104,12 +124,21 @@ struct tm_alarm
  * The status response.
  */
 # define TRR_STATUS	102
+# ifdef __cplusplus
+struct tm_status
+{
+	int	tm_type;	/* Answer type			*/
+	ZebTime	tm_time;	/* The current time value	*/
+	char	tm_stat[1];	/* Actual status -- as long as nec.	*/
+};
+# else
 struct tm_status
 {
 	int	tm_type;	/* Answer type			*/
 	ZebTime	tm_time;	/* The current time value	*/
 	char	tm_status[1];	/* Actual status -- as long as nec.	*/
 };
+# endif
 
 
 /*
@@ -159,5 +188,9 @@ int tl_AbsoluteReq FP ((void (*func) (), void *, ZebTime *, int));
 void tl_GetTime FP ((UItime *));
 int tl_AddRelativeEvent FP ((void (*func) (), void *, int, int));
 int tl_AddAbsoluteEvent FP ((void (*func) (), void *, UItime *, int));
+
+# ifdef __cplusplus
+}
+# endif
 
 #endif /* !__zeb_timer_h_ */
