@@ -1,5 +1,6 @@
 ! XHelp app defaults file specific to Zeb applications
 !
+*font:  *-courier-bold-r-normal--12-*
 XHelp*BorderColor:				MidnightBlue
 XHelp*Background:				CadetBlue
 XHelp*menuForm.background:			CadetBlue
@@ -60,6 +61,7 @@ XHelp*iconForm.filler1.foreground:		CadetBlue
 
 XHelp*textFile*background:			gray90
 XHelp*textFile*foreground:			MidnightBlue
+XHelp*textFile*font:	*courier-bold-r-normal--12*
 
 XHelp*titleLabel.background:			midnightblue
 XHelp*titleLabel.foreground:			white
