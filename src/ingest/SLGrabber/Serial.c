@@ -13,7 +13,7 @@
 # include "Serial.h"
 # include "Options.h"
 
-MAKE_RCSID("$Id: Serial.c,v 2.2 2000-07-21 08:39:28 granger Exp $")
+MAKE_RCSID("$Id: Serial.c,v 2.3 2000-07-23 06:32:22 granger Exp $")
 
 #define DEFAULT_TERM	"/dev/ttya"	/* Default port device	*/
 #define DEFAULT_SPEED	"9600"		/* Default baud rate	*/
@@ -75,7 +75,8 @@ SerialUsage ()
 	  DEFAULT_SPEED);
    printf("  -dial <ph#>   Phone number to dial [default is none]\n");
    printf("  -7            Clear high-order bit in text mode. [default off]\n");
-   printf("  -f <size>     Blocking factor in bytes.  Data will be sent\n");
+   printf("  -factor <size>\n"
+	  "                Blocking factor in bytes.  Data will be sent\n");
    printf("                to the consumer in blocks no larger than this\n");
    printf("                size, but possibly smaller. [%d]\n",
 	  DEFAULT_BLOCK);
@@ -108,7 +109,7 @@ SerialParseOptions (SerialConnection *sc, int *argc, char *argv[])
     { "-port", OptionArgument,
       "-lines",
       "-binary",
-      "-f",
+      "-factor",
       "-speed", OptionArgument,
       "-7",
       "-dial", OptionArgument,
@@ -119,7 +120,7 @@ SerialParseOptions (SerialConnection *sc, int *argc, char *argv[])
       0
     };
 
-    OptionSetup (argc, argv, options);
+    OptionSetupAbbrevs (argc, argv, options, 0 /* no abbreviations*/);
     while ((c = OptionNext()) >= 0)
     {
 	switch (c)

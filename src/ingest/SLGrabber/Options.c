@@ -1,4 +1,4 @@
-/* $Id: Options.c,v 2.1 2000-07-19 23:08:46 granger Exp $ */
+/* $Id: Options.c,v 2.2 2000-07-23 06:32:22 granger Exp $ */
 
 #include "Options.h"
 
@@ -7,6 +7,7 @@ static char **Argv;
 static const char **Options;
 static char *Arg;
 static int I;
+static int Abbreviations;
 
 char Option_Flag = '\0';
 
@@ -22,7 +23,25 @@ OptionSetup (int *argc, char *argv[], const char *options[])
     Options = options;
     Arg = 0;
     I = 0;
+    Abbreviations = 1;
 }
+
+
+/*
+ * Setup Options handling with a flag to set whether abbreviations
+ * are allowed or not.  Abbreviations default to on.  Non-zero 'abbrevs'
+ * implies abbreviations are accepted, zero implies the full option must
+ * match.
+ */
+void
+OptionSetupAbbrevs (int *argc, char *argv[], const char *options[], 
+		    int abbrevs)
+{
+    OptionSetup (argc, argv, options);
+    Abbreviations = abbrevs;
+}
+
+
 
 
 static void
@@ -58,20 +77,27 @@ OptionNext ()
 	    while (Options[o])
 	    {
 		if (Options[o] != OptionArgument &&
-		    strncmp (Argv[I], Options[o], len) == 0 &&
 		    (Options[o+1] != OptionArgument ||
 		     I+1 < *Argc))
 		{
-		    ret = Options[o][1];
-		    if (Options[o+1] == OptionArgument)
-		    {
-			Arg = Argv[I+1];
-			RemoveOptions (Argc, Argv, I, 2);
-		    }
+		    int equal;
+		    if (Abbreviations)
+			equal = (strncmp (Argv[I], Options[o], len) == 0);
 		    else
-			RemoveOptions (Argc, Argv, I, 1);
-		    --I;
-		    break;
+			equal = (strcmp (Argv[I], Options[o]) == 0);
+		    if (equal)
+		    {
+			ret = Options[o][1];
+			if (Options[o+1] == OptionArgument)
+			{
+			    Arg = Argv[I+1];
+			    RemoveOptions (Argc, Argv, I, 2);
+			}
+			else
+			    RemoveOptions (Argc, Argv, I, 1);
+			--I;
+			break;
+		    }
 		}
 		++o;
 	    }
