@@ -1,5 +1,5 @@
 /*
- * $Id: acqual.c,v 1.2 1992-12-09 23:17:02 granger Exp $
+ * $Id: acqual.c,v 1.3 1992-12-18 12:45:46 granger Exp $
  *
  * A quickly-written (hopefully) program to test aircraft netCDF files.  Tries to
  * verify several criteria:
@@ -156,24 +156,31 @@ GetBadValue(cdfid)
 	nc_type att_type;
 	long att_len;
 	char *att_val;
+	int opts;
 
 	UseBadValue = 0;
 	/* 
 	 * Query for the "bad_value_flag" global attribute
 	 */
-	ncattinq(cdfid, NC_GLOBAL, AttBadValue, &att_type, &att_len);
-	if (att_type != NC_CHAR)
+	opts = ncopts;
+	ncopts = 0;
+	if (ncattinq(cdfid, NC_GLOBAL, AttBadValue, &att_type, &att_len) < 0)
+		printf("%s attribute not found, not checking for bad values\n",
+			AttBadValue);
+	else if (att_type != NC_CHAR)
 		printf("%s attribute is not of type NC_CHAR, ignoring...\n",
 		       AttBadValue);
 	else
 	{
-		att_val = (char *)malloc(att_len); /* expects \0 to be in att_len */
+		att_val = (char *)malloc(att_len); /* expects \0 */
+		ncopts = opts;
 		ncattget(cdfid, NC_GLOBAL, AttBadValue, att_val);
 		UseBadValue = 1;
 		BadValue = (float)atof(att_val);
 		printf("Using %s = %f\n", AttBadValue, BadValue);
 		free(att_val);
 	}
+	ncopts = opts;
 }
 
 
