@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.3 1992-07-15 17:14:22 corbet Exp $
+ * $Id: dsPrivate.h,v 3.4 1992-08-06 16:39:50 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -82,6 +82,7 @@ typedef struct ds_Platform
 # define DPF_REGULAR	0x0008		/* Regularly-spaced (time) samples? */
 # define DPF_SUBPLATFORM 0x010		/* This is a sub platform	*/
 # define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
+# define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
 /*
  * Macro to return the right data list for a platform.
  */
@@ -113,6 +114,7 @@ typedef struct ds_DataFile
  */
 # define DFF_Archived	0x01		/* File has been archived	*/
 # define DFF_Seen	0x02		/* Seen during rescan		*/
+# define DFF_Remote	0x04		/* File in remote list		*/
 
 
 /*

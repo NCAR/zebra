@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.6 1992-07-22 16:53:01 corbet Exp $
+! $Id: Daemon.state,v 2.7 1992-08-06 16:40:33 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -95,6 +95,9 @@ define state in-platform
 	endinput
 	input 'remote' 16
 		next ust$final_unmunged_string
+	endinput
+	input 'daysplit' 19
+		next ust$no_more
 	endinput
 enddef
 

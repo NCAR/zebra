@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Config.c,v 2.2 1992-02-20 21:33:23 burghart Exp $";
+static char *rcsid = "$Id: d_Config.c,v 2.3 1992-08-06 16:39:50 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -175,6 +175,12 @@ struct ui_command *cmds;
 		   	strcpy (plat->dp_rdir, UPTR (cmds[1]));
 			plat->dp_flags |= DPF_REMOTE;
 		}
+		break;
+	/*
+	 * Split files across days.
+	 */
+	   case DK_DAYSPLIT:
+	   	plat->dp_flags |= DPF_SPLIT;
 		break;
 	}
 	return (TRUE);

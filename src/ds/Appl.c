@@ -25,7 +25,7 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.4 1992-07-15 17:12:51 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.5 1992-08-06 16:39:50 corbet Exp $")
 
 
 /*
@@ -867,6 +867,7 @@ WriteCode *wc;
 	int df = LOCALDATA (PTable[dc->dc_Platform]);
 	DataFile *dp;
 	ZebTime when, dftime;
+	Platform *plat = PTable + dc->dc_Platform;
 /*
  * Find the first file in the local list which begins before the time
  * of interest.
@@ -894,8 +895,9 @@ WriteCode *wc;
 	if (TC_Less (dp->df_end, when))
 	{
 		if (! newfile &&
-			 dp->df_nsample < PTable[dp->df_platform].dp_maxsamp &&
-			 ds_SameDay (&when, &dp->df_end) &&
+			 dp->df_nsample < plat->dp_maxsamp &&
+			 (! (plat->dp_flags & DPF_SPLIT) ||
+			 	ds_SameDay (&when, &dp->df_end)) &&
 			 (dp->df_flags & DFF_Archived) == 0)
 			*wc = wc_Append;
 		else
