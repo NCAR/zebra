@@ -15,7 +15,7 @@
 # include <mcidas_nav.h>
 # include "Area.h"
 
-RCSID("$Id: AreaIngest.c,v 1.5 1997-12-08 18:18:28 burghart Exp $")
+RCSID("$Id: AreaIngest.c,v 1.6 2003-01-29 22:22:21 burghart Exp $")
 
 
 static inline unsigned char
@@ -81,13 +81,13 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
 	inrange = 0;
   	for (j = 0; j < ag->gridY; j++)
   	{
+		lat = ag->maxlat - j * ag->latstep;
   		if (! ((j+1) % 20))
  			msg_ELog (EF_DEBUG, " ...line %d of %d, lat %.2f", 
 				  j + 1, ag->gridY, lat);
 		if (j % 25 == 0 && msg_Connected())
 			while (msg_poll(0) != MSG_TIMEOUT);
   
-		lat = ag->maxlat - j * ag->latstep;
 
 		for (i = 0; i < ag->gridX; i++)
 		{
@@ -275,11 +275,11 @@ AreaLimits (const AreaImage *area, AreaGrid *ag)
 
 
 void *
-DoFile (AreaFile *f, const char *spec, const AreaGrid *ag, unsigned char *map)
+DoFile (AreaFile *f, const AreaGrid *ag, unsigned char *map)
 /*
  * Read the area file, remapping into a grid and returning that
  * grid.  The caller is expected to free the grid when finished with it.
- * NULL is returned on failure.  We expect the image type named in 'spec'.
+ * NULL is returned on failure.
  */
 {
 	int	nav_cod[128 * MAXNAVCHUNKS];
@@ -294,16 +294,6 @@ DoFile (AreaFile *f, const char *spec, const AreaGrid *ag, unsigned char *map)
 	ReadArea (f, &Area);
 	if (! ReadNavCod (f, &Area, nav_cod, imtype))
 	{
-		return (NULL);
-	}
-/*
- * Verify that this is the expected image spec
- */
-	if (spec && strncmp (imtype, spec, 4))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "'%s' contains a '%s' image, not %s",
-			  f->name, imtype, spec);
 		return (NULL);
 	}
 /*

@@ -16,7 +16,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: AreaDS.c,v 1.2 1997-12-08 18:18:27 burghart Exp $")
+RCSID("$Id: AreaDS.c,v 1.3 2003-01-29 22:22:21 burghart Exp $")
 
 
 
@@ -153,8 +153,7 @@ SetupDC (AreaFile *chain, const char *platname)
 
 
 int
-AreaIngest (AreaFile *chain, AreaGrid *ag,
-	    const char *platname, const char *spec)
+AreaIngest (AreaFile *chain, AreaGrid *ag, const char *platname)
 /*
  * Begin the ingest process
  */
@@ -217,7 +216,7 @@ AreaIngest (AreaFile *chain, AreaGrid *ag,
 		if (! SetAreaLimits (f, ag))
 			grid = NULL;
 		else if (SetGrid (ag, &rg, &loc))
-			grid = DoFile (f, spec, ag, map);
+			grid = DoFile (f, ag, map);
 	/*
 	 * We're done with the file
 	 */

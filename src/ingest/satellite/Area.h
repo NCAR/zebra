@@ -1,5 +1,5 @@
 /*
- * $Id: Area.h,v 1.4 1997-06-22 21:00:56 granger Exp $
+ * $Id: Area.h,v 1.5 2003-01-29 22:22:21 burghart Exp $
  *
  * Prototypes for routies in the Area module
  */
@@ -71,8 +71,7 @@ AreaFile *RemoveOldFile (AreaFile *chain, AreaFile *f);
 int CountFiles (AreaFile *chain);
 void CloseAreaFile (AreaFile *f);
 AreaFile *TimeCheck (AreaFile *chain, ZebTime *t);
-void *DoFile (AreaFile *f, const char *spec, const AreaGrid *ag,
-	      unsigned char *map);
+void *DoFile (AreaFile *f, const AreaGrid *ag, unsigned char *map);
 int UserLimits (AreaGrid *ag, double minlat, double minlon, 
 		double maxlat, double maxlon);
 void InitGrid (AreaGrid *ag);
@@ -85,8 +84,7 @@ int SetAreaLimits (AreaFile *f, AreaGrid *ag);
 unsigned char *ReadAreaImage (AreaFile *f, AreaImage *area);
 #ifdef __zebra_DataStore_h_
 DataChunk *SetupDC (AreaFile *chain, const char *platname);
-int AreaIngest (AreaFile *chain, AreaGrid *ag,
-		const char *platname, const char *spec);
+int AreaIngest (AreaFile *chain, AreaGrid *ag, const char *platname);
 void SetFieldMap (FieldId fid, ScaleInfo *scale, unsigned char *map);
 #endif
 

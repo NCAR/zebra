@@ -33,7 +33,7 @@
 # include <DataStore.h>
 # include <ingest.h>
 
-RCSID("$Id: SatIngest.c,v 1.16 1997-06-17 09:36:27 granger Exp $")
+RCSID("$Id: SatIngest.c,v 1.17 2003-01-29 22:22:21 burghart Exp $")
 
 # include "Area.h"
 # include "keywords.h"
@@ -69,15 +69,9 @@ static char GMS_Field[CFG_PLATNAME_LEN] = { '\0' };
 static char Field[CFG_PLATNAME_LEN] = "vis";
 
 /*
- * Keep a record of the type of areas we're expecting to ingest.
- */
-static char SpecName[CFG_PLATNAME_LEN];
-static char *Spec = SpecName;
-
-/*
  * Prototypes
  */
-static void	EnterUI (char *name, char *spec, int argc, char **argv);
+static void	EnterUI (char *name, int argc, char **argv);
 static int	Dispatcher FP ((int, struct ui_command *));
 /* static int	MDispatcher FP ((struct message *)); */
 static int	Die FP ((void));
@@ -198,28 +192,19 @@ main (int argc, char *argv[])
 		IngestRemoveOptions (&argc, argv, i, nargs);
 	}
 	IngestParseOptions (&argc, argv, Usage);
-	EnterUI ("SatIngest", NULL, argc, argv);
+	EnterUI ("SatIngest", argc, argv);
 	exit (0);
 }
 
 
 
 void
-EnterUI (name, spec, argc, argv)
-char *name;
-char *spec;	/* image type to expect */
-int argc;
-char *argv[];
+EnterUI (char *name, int argc, char *argv[])
 {
 	SValue	v;
 	stbl	vtable;
 	char	loadfile[200], prompt[200], ourname[200];
 
-	if ((Spec = spec))
-	{
-		strcpy (SpecName, spec);
-		Spec = SpecName;
-	}
 	InitGrid (&Grid);
 /*
  * Initialize connections
@@ -256,10 +241,6 @@ char *argv[];
 	usy_c_indirect (vtable, "gmsinfrared", GMS_Field, SYMT_STRING, 
 			CFG_PLATNAME_LEN);
 	usy_c_indirect (vtable, "field", Field, SYMT_STRING, CFG_PLATNAME_LEN);
-#ifdef notdef
-	usy_c_indirect (vtable, "navigation", SpecName, SYMT_STRING, 
-			CFG_PLATNAME_LEN);
-#endif
 	usy_c_indirect (vtable, "gridX", &Grid.gridX, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gridY", &Grid.gridY, SYMT_INT, 0);
 	usy_c_indirect (vtable, "truncate", &Grid.truncate, SYMT_BOOL, 0);
@@ -316,7 +297,7 @@ struct ui_command	*cmds;
 		/* Check for a GMS ir mapping */
 		if (GMS_Field[0])
 			GMS_MapIRField (GMS_Field);
-		AreaIngest (Infile, &Grid, Platname, Spec);
+		AreaIngest (Infile, &Grid, Platname);
 		break;
 	/*
 	 * lat/lon limits
