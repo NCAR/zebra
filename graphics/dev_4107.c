@@ -14,7 +14,7 @@
 # include "lib_include:lib_proto.h"
 # endif
 
-static char *rcsid = "$Id: dev_4107.c,v 1.5 1990-03-29 15:44:58 corbet Exp $";
+static char *rcsid = "$Id: dev_4107.c,v 1.6 1990-03-30 14:30:24 corbet Exp $";
 
 /*
  * Defines.
@@ -48,6 +48,7 @@ struct tek_tag
 	struct tty_tag	*tek_tty;	/* The terminal buffer info	*/
 	int	tek_segno;		/* Next available segment #	*/
 	int	tek_pixmap;		/* Running in pixmap mode?	*/
+	int	tek_seg;		/* Running in segment mode?	*/
 };
 
 
@@ -84,6 +85,9 @@ struct device *dev;
  * See which mode we are to run in.
  */
  	t->tek_pixmap = ! strncmp (type, "4107p", 5);
+	t->tek_seg = ! strcmp (type, "4107s");
+	if (! t->tek_seg)	/* Let's hope */
+		dev->gd_flags &= ~GDF_SEGMENT;
 /*
  * Attempt to clear the dialog area by (1) insuring ANSI mode, then (2)
  * sending the ANSI clear sequence.
@@ -126,7 +130,7 @@ struct device *dev;
  * Set the fixup level to two.
  */
 # ifdef FIXUP
-	if (! t->tek_pixmap)
+	if (t->tek_seg)
 		gtty_out (t->tek_tty, "\033RF2");
 # endif
 	*tag = (char *) t;
@@ -294,8 +298,9 @@ float rot;
  * The text size routine.
  */
 {
-	*height = pixsize;	/* you want it, you get it	*/
-	*width = (int) (((float) pixsize*strlen (text)) * CHASPECT);
+	*height = (pixsize*5)/4;	/* you want it, you get it	*/
+	*width = (int) (((float) pixsize*strlen (text)) * CHASPECT) +
+		strlen (text) /* For inter-char spacing */;
 	*desc = 0;	/* ??? */
 }
 
@@ -325,8 +330,8 @@ float rot;
 	gtty_out (tag->tek_tty, "\033MQ2");	/* Stroke text */
 	gtty_out (tag->tek_tty, "\033MC");	/* set graphtext size */
 	tek_int	(width, tag->tek_tty);
-	tek_int ((int) (((float) pixsize)*0.9), tag->tek_tty);
-	tek_int (0, tag->tek_tty);
+	tek_int ((int) (((float) pixsize)*0.8), tag->tek_tty);
+	tek_int (1, tag->tek_tty);
 /*
  * Do rotation (!)
  */
@@ -335,7 +340,7 @@ float rot;
  * Now send the text.
  */
 	gtty_out (tag->tek_tty, "\033LF");	/* MOVE */
-	tek_xy (x, y, tag->tek_tty);
+	tek_xy (x, y, tag->tek_tty, TRUE);
 	gtty_out (tag->tek_tty, "\033LT");	/* TEXT */
 	tek_int (strlen (text), tag->tek_tty);
 	gtty_out (tag->tek_tty, text);
@@ -545,7 +550,7 @@ int	renew;
  *	This assures that the prompt won't get in the way when the plot
  * 	is finished.
  */
-	if (! tag->tek_pixmap && renew)
+	if (tag->tek_seg && renew)
 		gtty_out (tag->tek_tty, "\033KN0");	/* Renew */
 	gtty_out (tag->tek_tty, "\033LZ");	/* Clear dialog area */
 	gtty_out (tag->tek_tty, "\033%!2");
@@ -572,7 +577,7 @@ char *ctag;
  	gtty_out (tag->tek_tty, "\033RW");	/* SET WINDOW...	*/
 	tek_xy (0, 0, tag->tek_tty, TRUE);	/* Origin		*/
 	tek_xy (4095, 3130, tag->tek_tty, TRUE);/* extent	*/
-	if (! tag->tek_pixmap)
+	if (tag->tek_seg)
 	{
 		gtty_out (tag->tek_tty, "\033SK");	/* DELETE SEGMENT */
 		tek_int (-1, tag->tek_tty);
