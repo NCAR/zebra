@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.6 1990-03-02 11:42:15 corbet Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.7 1991-02-14 16:55:35 corbet Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -619,8 +619,13 @@ int *type;
  * parse tree -- chances are the variables are not bound right anyway, and
  * we should not signal errors.  (We do parse the expression, though, to
  * catch syntax errors.)
+ *
+ * (2/91 jc) Sigh.  Of course, every now and then one needs to evaluate
+ *		    in any case, since the result could be the changing
+ *		    of the eval flag.  I wonder how long elseif was
+ *		    broken this way?
  */
-	if (! Cs->cs_exec)
+	if (! Cs->cs_exec && ! (state->sta_vpact.act_flags & STAF_EVAL))
 	{
 		*type = SYMT_INT;
 		v->us_v_int = 0;

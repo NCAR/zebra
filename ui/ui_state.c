@@ -337,6 +337,9 @@ struct ui_command *cmds;
 	   case UIC_LOWERCASE:
 	   	s->s_ap->act_flags |= STAF_LOWERCASE;
 		break;
+	   case UIC_FORCEEVAL:
+	   	s->s_ap->act_flags |= STAF_EVAL;
+		break;
 	   case UIC_NEXT:
 	   	strcpy (s->s_ap->act_next, cmds[1].uc_v.us_v_ptr);
 		break;

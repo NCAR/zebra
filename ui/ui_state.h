@@ -1,4 +1,4 @@
-/* $Id: ui_state.h,v 1.2 1989-09-25 16:59:59 corbet Exp $ */
+/* $Id: ui_state.h,v 1.3 1991-02-14 16:55:35 corbet Exp $ */
 /*
  * Structures for the state table.
  */
@@ -74,6 +74,7 @@ struct state_table_entry
 # define STAF_DONE	0x08	/* This is a terminal token.		*/
 # define STAF_PARTIAL	0x10	/* Partial cmd OK after this		*/
 # define STAF_LOWERCASE 0x20	/* Fold to lower case			*/
+# define STAF_EVAL	0x40	/* Always evaluate VParams		*/
 
 /*
  * Routines.
