@@ -6,6 +6,7 @@ global
 p_raster
 	platform:	SOMETHING
 	field:		SOMETHING
+	altitude-control:	true
 	representation:	raster
 	color-table:	16gray
 	icon:		satellite
