@@ -15,15 +15,15 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Makefile.cpp,v 1.1 1991-09-16 22:47:21 burghart Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.2 1991-09-26 17:59:54 gracio Exp $"
 
 # ifdef sun
 /*
  * Sun options
  */
 CC=gcc
-CFLAGS=  -g -O -I/fcc/include -I/rdss/include
-LIBS=/fcc/lib/libfcc.a -lnetcdf -lrdss -lXaw -lXt -lXmu -lXext -lX11 -ltermcap -lm
+CFLAGS=  -g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
+LIBS= $(ZEBHOME)/fcc/lib/libfcc.a -lnetcdf -lrdss -lXaw -lXt -lXmu -lXext -lX11 -ltermcap -lm
 # endif
 
 
