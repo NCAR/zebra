@@ -20,7 +20,8 @@
 # endif /* UNIX */
 
 
-static char *rcsid = "$Id: ui_error.c,v 1.12 1995-07-09 15:46:32 granger Exp $";
+static char *rcsid =
+   "$Id: ui_error.c,v 1.13 1996-01-12 20:37:27 granger Exp $";
 /*
  * Stack stuff.
  */
@@ -30,7 +31,11 @@ static struct jstack
 #ifdef __hp9000s800  /* certain hps have to be different */
         double *js_value;
 #else
+# ifdef linux
+	void *js_value;
+# else
 	int *js_value;		/* The value we pushed		*/
+# endif
 #endif  
 
 } *Stack = 0;
