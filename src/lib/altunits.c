@@ -24,7 +24,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-RCSID("$Id: altunits.c,v 2.9 1998-03-13 15:29:24 burghart Exp $")
+RCSID("$Id: altunits.c,v 2.10 1998-03-13 15:42:21 burghart Exp $")
 
 /*
  * 
@@ -59,7 +59,7 @@ static const struct _unames
 	 {""}},
 	/* AU_level */
 	{"level", "level", "%.0f",
-	 {"plane", "z", "index", ""}}
+	 {"plane", "z", "index", ""}},
 	/* AU_unknown */
 	{"unknown", "unknown", "%.0f",
 	 {""}}
