@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.14 1998-11-20 15:52:03 burghart Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.15 1998-12-10 00:39:55 burghart Exp $")
 
 /*
  * Local private prototypes.
@@ -640,7 +640,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
  * The given class must be MetData or one of its subclasses. 
  */
 {
-    int nextraflds, nsrcflds, df;
+    int nextraflds, nsrcflds, nraw, df;
     FieldId extraflds[MAXRAWFLDS], aliases[MAXRAWFLDS];
     FieldId *srcflds;
     DerivMethod *derivs;
@@ -673,6 +673,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	{
 	    if (is_raw)
 	    {
+		nraw++;
 		ds_DestroyDeriv (derivs[df]);
 		derivs[df] = 0;
 	    }   
@@ -727,6 +728,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	     */
 		aliases[df] = destflds[df];
 		destflds[df] = rawfld;
+		nraw++;
 	    /*
 	     * Get rid of the derivation method
 	     */
@@ -760,6 +762,26 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	}
 
 	free (srcflds);
+    }
+/* 
+ * KLUGE: If we are doing derivations, we need at least one raw field in
+ * the destination data chunk in order to get the data geometry there
+ * correct.  If necessary, temporarily replace the first derived field
+ * with the first extra field (which we know is raw) via our alias shortcut.
+ * We will rename the field to its desired name later, and the derivation 
+ * process will overwrite the data. 
+ */
+    if (nraw == 0 && nextraflds > 0)
+    {
+	for (df = 0; df < ndestflds; df++)
+	{
+	    if (derivs[df])
+	    {
+		aliases[df] = destflds[df];
+		destflds[df] = extraflds[0];
+		break;
+	    }
+	}
     }
 /*
  * Set up our return datachunk with the destination fields.  Also set up a
@@ -844,7 +866,8 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	    dc_ChangeFld (dest_dc, destflds[df], aliases[df]);
 	    destflds[df] = aliases[df];
 	}
-	else if (derivs[df])
+
+	if (derivs[df])
 	{
 	    DeriveFld (dest_dc, extra_dc, destflds[df], derivs[df]);
 	    ds_DestroyDeriv (derivs[df]);
