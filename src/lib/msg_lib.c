@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 # include <stdio.h>
+# include <unistd.h>
 # include <varargs.h>
 # include <errno.h>
 # include <signal.h>
@@ -33,7 +34,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.31 1995-06-12 22:52:51 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.32 1995-06-29 23:07:14 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -1220,143 +1221,6 @@ void *param;		/* the source of the echo */
 
 
 
-
-int
-msg_ELPrintMask (mask)
-int mask;
-/*
- * Set the mask of events we print to the terminal, and return the
- * old mask.
- */
-{
-	int old = PrintMask;
-
-	PrintMask = mask;
-	return (old);
-}
-
-
-int
-msg_ELSendMask (mask)
-int mask;
-/*
- * Set the mask for messages which we send down our socket.
- * This is set to zero to disable message manager logging when
- * there is no message connection.  Return the old mask.  The
- * event logger may still tell us to use a different mask.
- */
-{
-	int old = SendMask;
-
-	SendMask = mask;
-	return (old);
-}
-
-
-
-static void
-msg_PError (va_alist)
-va_dcl
-/*
- * Log an error message without sending it.  Meant for within msg_send, 
- * since using msg_ELog might lead to infinite recursion.
- */
-{
-	va_list args;
-	char *fmt;
-/*
- * Format and print the message to stderr.
- */
- 	va_start (args);
-	fmt = va_arg (args, char *);
-	vsprintf (LogBuffer, fmt, args);
-	va_end (args);
-	fprintf (stderr, "%s: %s\n", Identity, LogBuffer);
-}
-
-
-
-
-void
-msg_log (va_alist)
-va_dcl
-/*
- * Send a message to the event logger with a default mask of EF_INFO.
- */
-{
-	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
-	va_list args;
-	char *fmt;
-/*
- * Print up our message.
- */
-	el->el_flag = EF_INFO;
-	va_start (args);
-	fmt = va_arg (args, char *);
-	vsprintf (el->el_text, fmt, args);
-	va_end (args);
-	msg_SendLog (el);
-}
-
-
-
-void
-msg_ELog (va_alist)
-va_dcl
-/*
- * Extended message logging interface.
- */
-{
-	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
-	va_list args;
-	char *fmt;
-/*
- * Get and/or use all of our arguments from the va_alist first
- */
-	va_start (args);
-	el->el_flag = va_arg (args, int);
-	fmt = va_arg (args, char *);
-	vsprintf (el->el_text, fmt, args);
-	va_end (args);
-	msg_SendLog (el);
-}
-
-
-
-
-static void
-msg_SendLog (el)
-struct msg_elog *el;
-{
-/*
- * If this message won't get logged, don't bother sending it.
- */
-	el->el_flag &= ~EF_DEVELOP;
-	if (! (el->el_flag & SendMask) && ! (el->el_flag & PrintMask))
-		return;
-/*
- * Print the message if we're shutting down or the message matches the 
- * print mask.
- */
-	if ((ShuttingDown && (el->el_flag & SendMask)) || 
-	    (el->el_flag & PrintMask))
-	{
-		printf ("%s: %s\n", Identity, el->el_text); 
-	}
-/*
- * Actually send the message only if it's in the send mask, we're not
- * shutting down, and we're connected.
- */
-	if (! ShuttingDown && (el->el_flag & SendMask) && ! NoConnection)
-	{
-		msg_send (EVENT_LOGGER_NAME, MT_ELOG, 0, el,
-			  sizeof (*el) + strlen (el->el_text));
-	}
-}
-
-
-
-
 static int
 msg_ELHandler (msg)
 struct message *msg;
@@ -1695,8 +1559,6 @@ char *client;
 
 
 
-
-
 static int
 msg_CQReply (msg, reply)
 struct message *msg;
@@ -1714,4 +1576,141 @@ int *reply;
 	}
 	return (1);
 }
+
+
+
+
+int
+msg_ELPrintMask (mask)
+int mask;
+/*
+ * Set the mask of events we print to the terminal, and return the
+ * old mask.
+ */
+{
+	int old = PrintMask;
+
+	PrintMask = mask;
+	return (old);
+}
+
+
+int
+msg_ELSendMask (mask)
+int mask;
+/*
+ * Set the mask for messages which we send down our socket.
+ * This is set to zero to disable message manager logging when
+ * there is no message connection.  Return the old mask.  The
+ * event logger may still tell us to use a different mask.
+ */
+{
+	int old = SendMask;
+
+	SendMask = mask;
+	return (old);
+}
+
+
+
+static void
+msg_PError (va_alist)
+va_dcl
+/*
+ * Log an error message without sending it.  Meant for within msg_send, 
+ * since using msg_ELog might lead to infinite recursion.
+ */
+{
+	va_list args;
+	char *fmt;
+/*
+ * Format and print the message to stderr.
+ */
+ 	va_start (args);
+	fmt = va_arg (args, char *);
+	vsprintf (LogBuffer, fmt, args);
+	va_end (args);
+	fprintf (stderr, "%s: %s\n", Identity, LogBuffer);
+}
+
+
+
+
+void
+msg_log (va_alist)
+va_dcl
+/*
+ * Send a message to the event logger with a default mask of EF_INFO.
+ */
+{
+	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
+	va_list args;
+	char *fmt;
+/*
+ * Print up our message.
+ */
+	el->el_flag = EF_INFO;
+	va_start (args);
+	fmt = va_arg (args, char *);
+	vsprintf (el->el_text, fmt, args);
+	va_end (args);
+	msg_SendLog (el);
+}
+
+
+
+void
+msg_ELog (va_alist)
+va_dcl
+/*
+ * Extended message logging interface.
+ */
+{
+	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
+	va_list args;
+	char *fmt;
+/*
+ * Get and/or use all of our arguments from the va_alist first
+ */
+	va_start (args);
+	el->el_flag = va_arg (args, int);
+	fmt = va_arg (args, char *);
+	vsprintf (el->el_text, fmt, args);
+	va_end (args);
+	msg_SendLog (el);
+}
+
+
+
+
+static void
+msg_SendLog (el)
+struct msg_elog *el;
+{
+/*
+ * If this message won't get logged, don't bother sending it.
+ */
+	el->el_flag &= ~EF_DEVELOP;
+	if (! (el->el_flag & SendMask) && ! (el->el_flag & PrintMask))
+		return;
+/*
+ * Print the message if we're shutting down or the message matches the 
+ * print mask.
+ */
+	if ((ShuttingDown && (el->el_flag & SendMask)) || 
+	    (el->el_flag & PrintMask))
+	{
+		printf ("%s: %s\n", Identity, el->el_text); 
+	}
+/*
+ * Actually send the message only if it's in the send mask, we're not
+ * shutting down, and we're connected.
+ */
+	if (! ShuttingDown && (el->el_flag & SendMask) && ! NoConnection)
+	{
+		msg_send (EVENT_LOGGER_NAME, MT_ELOG, 0, el,
+			  sizeof (*el) + strlen (el->el_text));
+	}
+}
+
 
