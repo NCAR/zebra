@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.10 1992-08-10 18:07:27 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.11 1992-10-01 17:50:07 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -175,6 +175,8 @@ bool	update;
 	xmax = oldxmax;
 	ymin = oldymin;
 	ymax = oldymax;
+	/* Make sure coordinate system is intialized */
+	lc_SetUserCoord ( &xmin, &xmax, &ymin, &ymax );
         xy_GetDataDescriptors(Pd, c, update, 
 			      &bTimeTarget,&eTimeTarget, 
 			      &bTimeOld,&eTimeOld,
