@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.6 1992-05-27 16:41:38 kris Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.7 1992-06-12 19:33:02 corbet Exp $")
 
 
 
@@ -152,8 +152,9 @@ float	*x0, *y0, *x1, *y1, *alt;
 	DataOrganization platorg;
 	DataClass	platclass;
 	Location	loc;
-	int 		len;
+	int 		len, ndet = 0;
 	FieldId		fid = F_Lookup (fname);
+	dsDetail	det;
 /*
  * Look up our platform.
  */
@@ -163,11 +164,17 @@ float	*x0, *y0, *x1, *y1, *alt;
 		return (0);
 	}
 	platorg = ds_PlatformDataOrg (pid);
+# ifdef notdef  /* 6/12/92 jc */
 	if (platorg == Org3dGrid)
 		platorg = Org2dGrid;
+# endif
 	switch (platorg)
 	{
 		case Org3dGrid:
+			det.dd_Name = "altitude";
+			det.dd_V.us_v_float = *alt;
+			ndet++;
+			/* Fall into */
 		case Org2dGrid:
 			platclass = DCC_RGrid;
 			break;
@@ -193,7 +200,7 @@ float	*x0, *y0, *x1, *y1, *alt;
  * Do a DS get for this data.
  */
 	if (! (dc = ds_Fetch (pid, platclass, &realtime, &realtime, &fid, 1, 
-		NULL, 0)))
+		&det, ndet)))
 	{
 		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", platform, fname);
 		return (0);
