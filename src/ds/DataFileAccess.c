@@ -37,7 +37,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.24 1996-01-23 04:47:55 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.25 1996-05-03 15:17:24 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -547,7 +547,7 @@ struct DataFormat Formats[] =
     {
 	"HDF",	".hdf",
 	dfa_Unsupported,		/* Query times			*/
-	(DataChunk *(*)())&dfa_Unsupported,/* Setup			*/
+	(DataChunk *(*)())dfa_Unsupported,/* Setup			*/
 	dfa_Unsupported,		/* Open				*/
 	dfa_Unsupported,		/* Close			*/
 	dfa_Unsupported,		/* Synchronize			*/

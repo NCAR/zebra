@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.41 1996-05-01 20:29:43 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.42 1996-05-03 15:17:28 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -82,6 +82,7 @@ DMNOBJS = $(DSOBJS) $(DSLIBOBJS) $(DCOBJS)
 CompleteProgramTarget(dsDaemon, $(DMNOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 SpecialObjectRule(DFA_HDF.o,/**/,$(HDFDEFINES))
+SpecialObjectRule(DataFileAccess.o,/**/,$(HDFDEFINES))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
