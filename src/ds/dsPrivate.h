@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.7 1992-11-20 23:11:13 burghart Exp $
+ * $Id: dsPrivate.h,v 3.8 1993-02-08 22:35:50 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -122,7 +122,7 @@ typedef struct ds_DataFile
  * The size of the shared memory segment, and the pointer which will locate
  * it in each process.
  */
-# define SHM_SIZE 65536*6
+# define SHM_SIZE 65536*12
 char *ShmSegment;
 struct ds_ShmHeader *ShmHeader;
 
