@@ -19,19 +19,19 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.2 1991-09-26 18:14:42 gracio Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.3 1991-10-28 17:44:29 corbet Exp $";
 
 # include <copyright.h>
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
 
+# include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
 # include <ImageXfr.h>
 # include <signal.h>
-# include <config.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 # include "display.h"
@@ -142,19 +142,21 @@ int argc;
 char **argv;
 {
 	SValue v;
+	char loadfile[200];
 /*
  * Initialize.
  */
 	msg_connect (MHandler, "Radar Ingest");
+	fixdir ("RI_LOAD_FILE", LIBDIR, "radar_ingest.lf", loadfile);
 	if (argc > 1)
 	{
-		ui_init (strcat(LIBDIR, "/radar_ingest.lf"), FALSE, TRUE);
+		ui_init (loadfile, FALSE, TRUE);
 		v.us_v_ptr = argv[1];
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 				SYMT_STRING, &v);
 	}
 	else
-		ui_init (strcat(LIBDIR, "/radar_ingest.lf"), TRUE, FALSE);
+		ui_init (loadfile, TRUE, FALSE);
 
 	ui_setup ("radar_ingest", &argc, argv, 0);
 	DefineWidgets ();
