@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.3 1991-10-15 22:23:21 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -140,7 +140,7 @@ XtAppContext 	actx;
 /*
  * The button to switch origins.
  */
-	OrgButton = LeftRightButtons (parent, ChangeOrg);
+	OrgButton = LeftRightButtons (parent, ChangeOrg, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, DMSButton);	n++;
