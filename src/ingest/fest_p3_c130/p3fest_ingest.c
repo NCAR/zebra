@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.6 1994-02-01 08:52:02 granger Exp $
+ * $Id: p3fest_ingest.c,v 1.7 1994-02-02 20:07:51 burghart Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -56,23 +56,23 @@
 #define FL2			11
 
 /* ERROR FLAG BIT MASKS */
-#define BIT(n)			(1ul<<(32-n))
+#define BIT(n)			(0x1<<(32-n))
 #define ERR_TI			BIT(1)
 #define ERR_LA			BIT(2)
 #define ERR_LO			BIT(3)
-#define ERR_RA			(1ul<<28)
+#define ERR_RA			(0x1<<28)
 #define ERR_ALT			ERR_RA
-#define ERR_PS			(1ul<<27)
-#define ERR_TA			(1ul<<26)
-#define ERR_TD			(1ul<<25)
-#define ERR_RD			(1ul<<24)
-#define ERR_RS			(1ul<<23)
-#define ERR_GS			(1ul<<22)
-#define ERR_TS			(1ul<<21)
-#define ERR_WGS			(1ul<<20)
-#define ERR_TK			(1ul<<19)
-#define ERR_HD			(1ul<<18)
-#define ERR_PC			(1ul<<17)
+#define ERR_PS			(0x1<<27)
+#define ERR_TA			(0x1<<26)
+#define ERR_TD			(0x1<<25)
+#define ERR_RD			(0x1<<24)
+#define ERR_RS			(0x1<<23)
+#define ERR_GS			(0x1<<22)
+#define ERR_TS			(0x1<<21)
+#define ERR_WGS			(0x1<<20)
+#define ERR_TK			(0x1<<19)
+#define ERR_HD			(0x1<<18)
+#define ERR_PC			(0x1<<17)
 
 #define BADVAL_DEFAULT		((float)-9999.0)
 
@@ -443,11 +443,13 @@ main(argc, argv)
 
 
 
-void
+static void
 StoreDataChunk(dc)
 	DataChunk *dc;
 {
-	static dsDetail dsd = { DD_NC_TIME_FLOAT, 0 };
+	dsDetail dsd;
+	dsd.dd_Name = DD_NC_TIME_FLOAT;
+	dsd.dd_V.us_v_int = 0;
 
 	if (dc_GetNSample(dc) == 0)
 	{
@@ -476,7 +478,7 @@ StoreDataChunk(dc)
  * stores the divisors of a type 3 into the P3_FieldDivisors array.
  * Type 5 data is stored into the data chunk with IngestDataRecord().
  */
-void
+static void
 IngestRecords(p3file, hdr)
 	FILE *p3file;
 	P3_header_t * hdr;
@@ -586,7 +588,7 @@ IngestRecords(p3file, hdr)
  * then every field in P3_Fields[] is retrieved from the record,
  * scaled according to P3_FieldDivisors[], and stored into the DC.
  */
-void
+static void
 IngestDataRecord(dc, buf, rtype, rsize, hdr)
 	DataChunk **dc;
 	short buf[];
@@ -774,7 +776,7 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
  *
  * Load the divisors from a type 3 record into the P3_Fields array
  */
-void
+static void
 LoadFieldDivisors(buf, rtype, rsize)
 	short buf[];
 	short rtype;
@@ -826,7 +828,7 @@ LoadFieldDivisors(buf, rtype, rsize)
  * Read the header record from the file and fill in the fields
  * of the P3_header_t structure
  */
-void
+static void
 ReadHeader(p3file, hdr)
 	FILE *p3file;
 	P3_header_t *hdr;
@@ -896,7 +898,7 @@ ReadHeader(p3file, hdr)
  * Dump the info stored in the first record (type 1) of a
  * P3 data file.
  */
-void
+static void
 DumpHeader(hdr)
 	P3_header_t *hdr;
 {
@@ -956,7 +958,7 @@ DumpHeader(hdr)
  * IMPORTANT: buf[] is based at 1 rather than 0 to correspond to the index
  * values used in P3_Fields and the type 3 records.
  */
-short *
+static short *
 ReadNextRecord(p3file, rec_type, nwords)
 	FILE *p3file;
 	short *rec_type;
@@ -1132,7 +1134,7 @@ ReadNextRecord(p3file, rec_type, nwords)
  * FieldId's in the corresponding element of the P3_FieldIds array.
  * Returns non-zero if successful, 0 otherwise.
  */
-int
+static int
 InitializeFieldIds()
 {
 	register int i;
@@ -1176,11 +1178,11 @@ InitializeFieldIds()
  * info from the header.  Returns either a pointer to the new
  * and empty data chunk, or NULL if an error occurs.
  */
-DataChunk *
+static DataChunk *
 CreateDataChunk(hdr)
 	P3_header_t *hdr;
 {
-	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.6 $";
+	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.7 $";
 	static int file_part = 0;
 	DataChunk *dc;
 	unsigned int nsamples;
@@ -1287,7 +1289,7 @@ CreateDataChunk(hdr)
 
 
 
-void
+static void
 InitWordToFieldMapping()
 {
 	int i;
@@ -1304,7 +1306,7 @@ InitWordToFieldMapping()
 }
 
 
-long
+static long
 SeekFileSize(file)
 	FILE *file;
 {
@@ -1421,7 +1423,7 @@ PrintColorCodeMenu(out)
 
 
 
-void
+static void
 PrintMenus(out)
 	FILE *out;
 {
@@ -1436,7 +1438,7 @@ PrintMenus(out)
 /*
  * Dump field info to stdout
  */
-void
+static void
 DumpFields(fields, nfields)
 	FieldId *fields;
 	int nfields;

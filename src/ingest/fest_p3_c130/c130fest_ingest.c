@@ -1,5 +1,5 @@
 /*
- * $Id: c130fest_ingest.c,v 1.4 1992-12-09 23:14:24 granger Exp $
+ * $Id: c130fest_ingest.c,v 1.5 1994-02-02 20:07:54 burghart Exp $
  *
  * Ingest ASCII data files for the U of Washington's C-130 Convair.
  * As far as I can determine from the files, they follow this format:
@@ -226,7 +226,9 @@ void
 StoreDataChunk(dc)
 	DataChunk *dc;
 {
-	static dsDetail dsd = { DD_NC_TIME_FLOAT, 0 };
+	dsDetail dsd;
+	dsd.dd_Name = DD_NC_TIME_FLOAT;
+	dsd.dd_V.us_v_int = 0;
 
 	/*
 	 * Store the data chunk, as long as we got some samples
@@ -253,7 +255,7 @@ StoreDataChunk(dc)
 /*
  * Tell the user how to use the program
  */
-void
+static void
 Usage(prog)
 	char *prog;
 {
@@ -274,7 +276,7 @@ Usage(prog)
  * function alternates between the buffer it uses.  A new buffer is not
  * selected until the current one is successfully filled without error.
  */
-char *
+static char *
 GetLine(file, msg)
 	FILE *file;
 	char *msg;
@@ -336,13 +338,13 @@ GetLine(file, msg)
  * a pointer to the new data chunk.  If any errors occur, a message is
  * logged and the program exits.
  */
-DataChunk *
+static DataChunk *
 CreateDataChunk(in, nfields, flight_date)
 	FILE *in;
 	int *nfields;
 	ZebTime *flight_date;
 {
-	static char version_info[] = "$RCSfile: c130fest_ingest.c,v $ $Revision: 1.4 $";
+	static char version_info[] = "$RCSfile: c130fest_ingest.c,v $ $Revision: 1.5 $";
 	char *buf;
 	int num_fields;
 	int flight_no;
@@ -445,7 +447,7 @@ CreateDataChunk(in, nfields, flight_date)
  * stored here, but the units read from the line are verified with what we've
  * stored internally.
  */
-FieldId *
+static FieldId *
 GetFields(in, parms, nfields)
 	FILE *in;
 	FILE *parms;
@@ -622,7 +624,7 @@ GetFields(in, parms, nfields)
  * The date is required to reconstruct a full time for each sample
  * from the hours, minutes, and seconds time given in the time field.
  */
-void
+static void
 IngestSamples(dc, in, nfields, fields, flight_date)
 	DataChunk *dc;
 	FILE *in;
@@ -865,7 +867,7 @@ IngestSamples(dc, in, nfields, fields, flight_date)
  * date can be detected.  Hence this is not an all-purpose converter; it
  * expects to be called in the chronological order of the file.
  */
-void
+static void
 DateFromPackedTime(sample_time, flight_date, packed_time)
 	ZebTime *sample_time;
 	ZebTime *flight_date;
@@ -907,7 +909,7 @@ DateFromPackedTime(sample_time, flight_date, packed_time)
  * calculate the time and location of this sample from the time, lat, and
  * lon fields of the sample line.
  */
-int
+static int
 ReadSampleLine(in, sample_time, sample_locn, values, nfields, flight_date)
 	FILE *in;
 	ZebTime *sample_time;
@@ -988,7 +990,8 @@ ReadSampleLine(in, sample_time, sample_locn, values, nfields, flight_date)
 
 
 
-DataChunk *ReCreateDataChunk(src)
+static DataChunk *
+ReCreateDataChunk(src)
 	DataChunk *src;
 {
 	/*
@@ -1053,7 +1056,7 @@ CopyAttribute(key, value)
 /*
  * Dump field info to stdout
  */
-void
+static void
 DumpFields(fields, nfields)
 	FieldId *fields;
 	int nfields;
