@@ -85,8 +85,8 @@ static struct fname
         static void	Die (void);
 	static void	DumpPlatform (Platform *);
 	static void	DumpChains (char *, int);
-	static void	GetTimes (Platform *, time *, time *);
-        static void	SetEntry (int, time *, time *);
+	static void	GetTimes (Platform *, ZebTime *, ZebTime *);
+        static void	SetEntry (int, ZebTime *, ZebTime *);
         static int	MsgHandler (Message *);
         static void	MsgInput ();
 	static int	PopupDisplay (Widget, XtPointer, XtPointer);
@@ -254,7 +254,7 @@ Platform *p;
 static void
 GetTimes (p, begin, end)
 Platform *p;
-time *begin, *end;
+ZebTime *begin, *end;
 /*
  * Get the begin and end data times for a platform.
  */
@@ -264,10 +264,8 @@ time *begin, *end;
 	
 	if (start == NULL)
 	{
-		end->ds_yymmdd = 0;	
-		end->ds_hhmmss = 0;	
-		begin->ds_yymmdd = 0;	
-		begin->ds_hhmmss = 0;	
+		end->zt_Sec = end->zt_MicroSec = 0;	
+		begin->zt_Sec = begin->zt_MicroSec = 0;	
 	}
 	else
 	{
@@ -291,15 +289,16 @@ int start;
  */
 {
 	DataFile *dp;
-
+	char abegin[30], aend[30];
 
 	while (start)
 	{
 		dp = DFTable + start;
-		fprintf (Fptr, "  %s %2d/%d '%s' %d %d -> %d [%d]\n", which,
+		TC_EncodeTime (&dp->df_begin, TC_Full, abegin);
+		TC_EncodeTime (&dp->df_end, TC_TimeOnly, aend);
+		fprintf (Fptr, "  %s %2d/%d '%s' %s -> %s [%d]\n", which,
 			start, dp->df_use, dp->df_name,
-			dp->df_begin.ds_yymmdd, dp->df_begin.ds_hhmmss,
-			dp->df_end.ds_hhmmss, dp->df_nsample);
+			abegin, aend, dp->df_nsample);
 		start = dp->df_FLink;
 	}
 }
@@ -364,7 +363,7 @@ Rescan ()
  */
 {
 	int i, nplat;
-	time begin, end;
+	ZebTime begin, end;
 	Platform *p;
 
 	msg_ELog (EF_INFO, "Rescanning disk.");	
@@ -387,7 +386,7 @@ Rescan ()
 static void
 SetEntry (index, begin, end)
 int index;
-time *begin, *end;
+ZebTime *begin, *end;
 /*
  * Make a label for this platform.
  */
@@ -398,14 +397,18 @@ time *begin, *end;
  * Make the label.
  */
 	msg_ELog (EF_DEBUG, "Setting entry for %s", Names[index]);
-	if ((end->ds_yymmdd == 0) && (begin->ds_yymmdd == 0))
+	if ((end->zt_Sec == 0) && (begin->zt_Sec == 0))
 	{
 		sprintf (label, "%-17s     -- None --", Names[index]);
 	}
 	else 
 	{
+# ifdef notdef
 		ud_format_date (end_date, (date *)end, UDF_FULL);
 		ud_format_date (begin_date, (date *)begin, UDF_FULL);
+# endif
+		TC_EncodeTime (end, TC_Full, end_date);
+		TC_EncodeTime (begin, TC_Full, begin_date);
 		sprintf (label, "%-17s     %20s -> %20s", Names[index],
 			begin_date, end_date);
 # ifdef notdef
