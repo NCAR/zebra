@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.42 1997-02-03 17:53:03 corbet Exp $")
+RCSID ("$Id: Track.c,v 2.43 1997-06-04 15:16:48 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -76,7 +76,7 @@ typedef struct _TrackParams
 	bool	tp_ShowPosition;		/* Add position icon?	*/
 	bool	tp_PositionArrow;		/* Arrow at end of track*/
 	bool	tp_AutoScale;			/* Scale automatically? */
-	char	tp_CCField[CFG_FIELD_NAME_LEN];		/* color-code field */
+	char	tp_CCField[CFG_FIELD_NAME_LEN];	/* color-code field 	*/
 	char	tp_MTColor[CFG_FILENAME_LEN];	/* Color for mono tracks*/
 	char	tp_CTable[CFG_FILENAME_LEN];	/* Color table for coded*/
 	int	tp_NColor;			/* Number of colors	*/
@@ -785,7 +785,7 @@ TrackParams *tparams;
  */
 	An_TopAnnot (" ", tadefclr.pixel);
 	An_TopAnnot (platform, tadefclr.pixel);
-	if (tparams->tp_CCField)
+	if (! tparams->tp_Mono)
 	{
 		An_TopAnnot (" ", tadefclr.pixel);
 		An_TopAnnot (px_FldDesc (tparams->tp_CCField), tadefclr.pixel);
