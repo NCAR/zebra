@@ -67,7 +67,7 @@ GIFFILES = \
 	track-a.gif track.gif ts-empty.gif ts-first.gif \
 	ts-limits.gif ts-nolines.gif ts-sannot.gif ts-split.gif \
 	ts-two.gif tseries-icon.gif ua.gif vector-icon.gif \
-	widgets.gif xsect-icon.gif xy-contour-limits.gif zeb-icon.gif \
+	widgets.gif xsect-icon.gif xy-contour-limits.gif z-icon.gif \
 	zoombox.gif zzxs-apply.gif zzxs-clear.gif zzxs-sel.gif
 
 DISTFILES = Imakefile $(HELPFILES) $(HTMLFILES) $(GIFFILES)
