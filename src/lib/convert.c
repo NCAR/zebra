@@ -1,7 +1,7 @@
 /*
  * lat,lon <-> x,y conversion utilities
  */
-static char *rcsid = "$Id: convert.c,v 2.3 1991-11-14 20:45:32 burghart Exp $";
+static char *rcsid = "$Id: convert.c,v 2.4 1993-05-14 23:50:52 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -45,7 +45,7 @@ float	lat, lon, *x, *y;
  * cylindrical (rectangular) projection
  */
 {
-	float	del_lat, del_lon;
+	float	del_lat, del_lon;	/* delta lat, delta lon, in radians */
 /*
  * Make sure we have an origin
  */
@@ -58,13 +58,31 @@ float	lat, lon, *x, *y;
 			0, -180.0, 180.0, 0.0) * PI / 180.0;
 	}
 /*
- * Convert the lat,lon to x,y
+ * Convert the lat,lon to x,y, making sure to do the arithmetic in mod(180
+ * deg).  The greatest difference between two longitudes will be +/- 180
+ * deg (PI R), and the greatest difference between two latitudes will be
+ * +/- 90 deg (PI/2 R).
  */
 	lat *= PI / 180.0;
 	lon *= PI / 180.0;
 
 	del_lat = lat - Origin_lat;
 	del_lon = lon - Origin_lon;
+	if (fabs(del_lon) > PI)
+	{
+	/* 
+	 * Longitudes across Intl Date Line,
+	 * so add or subtract a full circle from our delta value.
+	 * If lon < 0 (del_lon < 0), then add one circle to make lon > 0:
+	 *	del_lon = (lon + 2*PI) - (Origin_lon) = del_lon + 2*PI;
+	 * Else Origin_lon < 0 (del_lon > 0), so add one circle to Origin_lon:
+	 *	del_lon = (lon) - (Origin_lon + 2*PI) = del_lon - 2*PI;
+	 */
+		if (del_lon < 0)
+			del_lon += 2*PI;
+		else
+			del_lon -= 2*PI;
+	}
 
 	*x = R_EARTH * cos (Origin_lat) * del_lon;
 	*y = R_EARTH * del_lat;
@@ -106,6 +124,10 @@ float	x, y, *lat, *lon;
  */
 	*lat *= 180.0 / PI;
 	*lon *= 180.0 / PI;
+/*
+ * Center the longitude from -180 to 180
+ */
+	*lon = (float)fmod(*lon + 540.0, 360.0) - 180.0;
 }
 
 
