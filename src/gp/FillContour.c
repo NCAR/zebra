@@ -60,12 +60,21 @@
 # include <X11/Intrinsic.h>
 
 # include <defs.h>
+# include <config.h>
 # include <message.h>
 # include <pd.h>
 # include "GraphProc.h"
 
 # include "Contour.h"
 # include "ContourP.h"
+
+/*
+ * Just in case it wasn't defined in config.h.  It also avoids editing
+ * a bunch of existing config.h files which don't have a default yet.
+ */
+#ifndef CFG_GP_MAX_CONTOURS
+#define CFG_GP_MAX_CONTOURS 50
+#endif
 
 /*
  * Triangle and vertex structures
@@ -162,11 +171,12 @@ double	ccenter, cstep;
 /*
  * Sanity test
  */
-	if ((cndx_max - cndx_min + 1) > 50)
+	if ((cndx_max - cndx_min + 1) > CFG_GP_MAX_CONTOURS)
 	{
 		msg_ELog (EF_PROBLEM, 
-			  "FillContour: Too many contours (%d), nothing drawn",
-			  cndx_max - cndx_min + 1);
+			  "FillContour: %s (%d). Limit is %d. Nothing drawn.",
+			  "Too many contours", cndx_max - cndx_min + 1, 
+			  CFG_GP_MAX_CONTOURS);
 		return;
 	}
 /*

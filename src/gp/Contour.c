@@ -23,7 +23,9 @@
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
+
 # include <defs.h>
+# include <config.h>
 # include <message.h>
 # include <pd.h>
 # include "GraphProc.h"
@@ -31,7 +33,7 @@
 # include "ContourP.h"
 # include "DrawText.h"
 
-RCSID("$Id: Contour.c,v 2.11 1995-06-29 23:28:28 granger Exp $")
+RCSID("$Id: Contour.c,v 2.12 1995-07-10 06:44:04 granger Exp $")
 
 typedef short	cbool;
 
@@ -40,6 +42,14 @@ typedef short	cbool;
 
 # define IXYPAK(i,j)	(((i) << 16) + (j))
 # define FRAC(p1,p2)	(((p1) - Cval) / ((p1) - (p2)))
+
+/*
+ * Just in case it wasn't defined in config.h.  It also avoids editing
+ * a bunch of existing config.h files which don't have a default yet.
+ */
+#ifndef CFG_GP_MAX_CONTOURS
+#define CFG_GP_MAX_CONTOURS 50
+#endif
 
 /*
  * x and y offsets for surrounding points of the array, starting
@@ -197,12 +207,12 @@ int	dolabels, linewidth;
 /*
  * Sanity test
  */
-	if ((cndx_max - cndx_min + 1) > 50)
+	if ((cndx_max - cndx_min + 1) > CFG_GP_MAX_CONTOURS)
 	{
 		msg_ELog (EF_PROBLEM, 
-			  "Contour: Too many contours (%d). Nothing drawn.",
-			  cndx_max - cndx_min + 1);
-
+			  "Contour: %s (%d). Limit is %d. Nothing drawn.",
+			  "Too many contours", cndx_max - cndx_min + 1, 
+			  CFG_GP_MAX_CONTOURS);
 		free (Xpos);
 		free (Ypos);
 		return;
