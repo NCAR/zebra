@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.71 2002-03-26 00:07:10 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.72 2002-04-25 07:38:33 granger Exp $")
 
 # include <netcdf.h>
 
@@ -3524,7 +3524,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.71 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.72 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3834,6 +3834,7 @@ int *vlat, *vlon, *valt;
 {
 	float lat_range[2];
 	float lon_range[2];
+	char buf[256];
 
 	*vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, ndims, dims);
 	lat_range[0] = -90.0;
@@ -3856,11 +3857,36 @@ int *vlat, *vlon, *valt;
 		       2, lon_range);
 
 	*valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndims, dims);
+	/*
+	 * As a special case for MSL altitude units, the MSL part is left
+	 * off since that is the default for systems like VisAD as well as
+	 * for Zebra.  So the units will still be interpreted correctly by
+	 * Zebra, and the units attribute will be correct for packages
+	 * which expect udunits syntax, which cannot distinguish different
+	 * altitude dimensions like AGL and MSL.  The full units name,
+	 * including the MSL and AGL parts, will be included in the
+	 * long_name attribute so there is still some indication of the
+	 * dimension.
+	 */
+	strcpy (buf, "Altitude");
+	if (tag->nc_altUnits != AU_unknown)
+	    sprintf (buf, "Altitude (%s)", au_LongUnitsName(tag->nc_altUnits));
 	(void)ncattput(tag->nc_id, *valt, VATT_LONGNAME,
-		       NC_CHAR, strlen(ALT_LONGNAME)+1, ALT_LONGNAME);
+		       NC_CHAR, strlen(buf)+1, buf);
+	switch (tag->nc_altUnits)
+	{
+	case AU_kmMSL:
+	    strcpy (buf, "kilometers");
+	    break;
+	case AU_mMSL:
+	    strcpy (buf, "meters");
+	    break;
+	default:
+	    strcpy (buf, au_LongUnitsName (tag->nc_altUnits));
+	    break;
+	}
 	(void)ncattput(tag->nc_id, *valt, VATT_UNITS, NC_CHAR, 
-		       strlen (au_LongUnitsName (tag->nc_altUnits)) + 1, 
-		       au_LongUnitsName (tag->nc_altUnits));
+		       strlen (buf) + 1, buf);
 }
 
 
