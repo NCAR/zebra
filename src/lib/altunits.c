@@ -22,7 +22,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-MAKE_RCSID("$Id: altunits.c,v 2.1 1994-02-16 22:21:51 burghart Exp $")
+MAKE_RCSID("$Id: altunits.c,v 2.2 1994-02-17 17:31:54 burghart Exp $")
 
 /*
  * The order of strings in the arrays below *must* match the order in
@@ -108,6 +108,8 @@ AltUnitType	atype;
 	sprintf (ReturnLabel, au_PrintFormat (atype), alt);
 	sprintf (ReturnLabel + strlen (ReturnLabel), " %s", 
 		 au_UnitsName (atype));
+
+	return (ReturnLabel);
 }
 
 
@@ -127,6 +129,8 @@ AltUnitType	atype;
 	sprintf (ReturnLabel, au_PrintFormat (atype), alt);
 	sprintf (ReturnLabel + strlen (ReturnLabel), " %s", 
 		 au_LongUnitsName (atype));
+
+	return (ReturnLabel);
 }
 
 	
