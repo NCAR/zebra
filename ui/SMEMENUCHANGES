@@ -3,7 +3,7 @@ Changes, re-writes, and explanations of rdss/SmeMenu development.  The
 version numbers referenced below refer to RCS symbolic tags where 1.1
 is tagged as 'V1_1'.
 
-$Id: SMEMENUCHANGES,v 1.2 1993-04-12 19:16:44 granger Exp $
+$Id: SMEMENUCHANGES,v 1.3 1993-04-12 19:53:25 granger Exp $
 
 RdssMenu and SmeMenu Changes
 ----------------------------
@@ -161,9 +161,7 @@ ignore the XtName() argument type warnings.
 	popup behavior.
 
 
-Further changes not given symbolic revision tags:
-
-	There was a problem with re-using the same popup shell in different
+1.8 -- 	There was a problem with re-using the same popup shell in different
 	parts of a menu hierarchy.  SmeMenu's highlight method overrides
 	the popup shell's <BtnUp> translations to disable the usual 
 	unhighlight() and popdown() actions, which will get invoked from 
@@ -182,3 +180,8 @@ Further changes not given symbolic revision tags:
 	the bottom of the modal cascade.
 
 	For now the translation shuffling has been left there.
+
+1.9 --  All of the translation stuff was removed as tests on SmeMenu:1.8.1
+	seem to show that it is not necessary, as long as the translations
+	are like the defaults coded into RdssMenu.c (i.e. popdowns done
+	in post-order traversal of the modal cascade).
