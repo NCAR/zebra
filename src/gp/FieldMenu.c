@@ -27,6 +27,10 @@
 # include <X11/Xaw/SmeBSB.h>
 # include <X11/Shell.h>
 # include <X11/Xaw/SmeLine.h>
+# include <X11/Xaw/Form.h>
+# include <X11/Xaw/Label.h>
+# include <X11/Xaw/Command.h>
+# include <X11/Xaw/Viewport.h>
 
 # include <ui.h>
 # include <ui_date.h>
@@ -39,12 +43,12 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.16 1996-11-19 07:28:46 granger Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.17 1997-02-03 17:52:53 corbet Exp $")
 
 /*
  * Stuff for the SME menu.
  */
-# define MAXENTRY 100
+# define MAXENTRY 200
 static Widget Menu, Entries[MAXENTRY];
 static char Platform[PlatformListLen];	/* Platform of interest	*/
 static FieldId Fields[MAXENTRY];
@@ -59,6 +63,12 @@ static void EntryCallback FP ((Widget, XtPointer, XtPointer));
 static void PopupCallback FP ((Widget, XtPointer, XtPointer));
 static int SetupFields FP ((void));
 static int Funky FP ((char *));
+/*
+ * Field chooser stuff.
+ */
+static void InitFChooser FP ((void));
+static Widget FC_Create FP ((char *, Widget, XtAppContext));
+static void FC_Callback FP ((Widget, XtPointer, XtPointer));
 
 /*
  * XXX Ugly snarfed out of ui_wPulldown.c.
@@ -105,6 +115,10 @@ InitFieldMenu ()
 			(XtCallbackProc) EntryCallback, (XtPointer) i);
 	}
 	NManaged = 0;
+/*
+ * Also initialize the file chooser.
+ */
+	InitFChooser ();
 }
 
 
@@ -330,4 +344,137 @@ char *s;
 {
 	msg_ELog (EF_PROBLEM, "Field menu problem: %s", s);
 	return (0);
+}
+
+
+
+
+/*
+ * Stuff from here on down is specific to the "field chooser" widget --
+ * a popup, stay-around version of the field menu.
+ */
+
+
+
+
+static void
+InitFChooser ()
+/*
+ * Initialize the field chooser widget.
+ */
+{
+	char title[80];
+
+	sprintf (title, "Field chooser for %s", dm_WindowName ());
+	uw_def_widget ("fchooser", title, FC_Create, 0, 0);
+}
+
+
+
+
+static Widget
+FC_Create (junk, parent, appc)
+char *junk;
+Widget parent;
+XtAppContext appc;
+/*
+ * Create the field chooser.
+ */
+{
+	Arg args[15];
+	int n, field;
+	Widget w, vp, vpform, above;
+
+	NField = SetupFields ();
+/*
+ * We know that UI will create us with a Form widget parent and a TopLevelShell
+ * as a grandparent.  We *need* a resizable shell, so we force it..
+ */
+	n = 0;
+	XtSetArg (args[n], XtNallowShellResize, True); n++;
+	XtSetValues (XtParent(parent), args, n);
+
+	n = 0;
+ 	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	XtSetValues (parent, args, n);
+/*
+ * Make a viewport to hold all the buttons.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNallowVert, True);			n++;
+	XtSetArg (args[n], XtNheight, 300);			n++;
+	XtSetArg (args[n], XtNwidth, 450);			n++;
+/*	XtSetArg (args[n], XtNfromVert, above);			n++; */
+	vp = XtCreateManagedWidget ("pvp", viewportWidgetClass, parent,
+			args, n);
+	vpform = XtCreateManagedWidget ("pform", formWidgetClass, vp, 0, 0);
+/*
+ * Lotsa buttons.
+ */
+	above = NULL;
+	for (field = 0; field < NField; field++)
+	{
+		char *name = F_GetName (Fields[field]);
+		char *units = F_GetUnits (Fields[field]);
+		char string[120];
+	/*
+	 * Format up the label.
+	 */
+		strncpy (string, F_GetDesc (Fields[field]), 60);
+		string[60] = 0;
+		if (strcmp (string, name))
+			sprintf (string + strlen (string), " (%s)", name);
+		if (strcmp (units, "none"))
+			sprintf (string + strlen (string), " (%s)", units);
+	/*
+	 * Put together the args and make the button.
+	 */
+		n = 0;
+		XtSetArg (args[n], XtNlabel, string);		n++;
+		XtSetArg (args[n], XtNfromVert, above);		n++;
+		XtSetArg (args[n], XtNwidth, 300);		n++;
+		XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
+		XtSetArg (args[n], XtNborderWidth, 0);		n++;
+		above = XtCreateManagedWidget (name, commandWidgetClass,
+				vpform, args, n);
+		XtAddCallback (above, XtNcallback, FC_Callback,
+				(XtPointer) name);
+	}
+/*
+ * Done.
+ */
+	return (vp);
+}
+		
+		
+
+
+
+static void
+FC_Callback (w, xfield, junk)
+Widget w;
+XtPointer xfield, junk;
+/*
+ * They have punched a button.
+ */
+{
+	char *field = (char *) xfield, cbuf[512];
+/*
+ * Look and see if there is a command to execute.  If not, just set the
+ * field name and be done with it.
+ */
+	if (! pda_Search (Pd, IComp, "field-select-command", Platform, 
+			cbuf, SYMT_STRING))
+		parameter (IComp, "field", field);
+/*
+ * OK, format up the command and set it loose.
+ */
+	else
+	{
+		strcat (cbuf, " ");
+		strcpy (cbuf + strlen (cbuf), field);
+		msg_ELog (EF_DEBUG, "FChooser cmd '%s'", cbuf);
+		ui_perform (cbuf);
+	}
 }

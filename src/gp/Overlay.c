@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.57 1997-01-03 17:13:44 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.58 1997-02-03 17:52:57 corbet Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -161,13 +161,16 @@ static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, bool *, float *, bool *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
-			char *, bool *, float *, int *, PlatformId **, int *));
+			char *, bool *, float *, int *, PlatformId **, int *,
+			ZebTime *, ZebTime *, int *));
 static void	ov_LocPlot FP ((char *, char *, Location *, ZebTime *, char *,
 			int, LabelOpt, char *, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 static void	ov_ZapMap FP ((MapPoints *));
 static int ov_InFeature ();
+static int 	ov_GetLocArray FP ((char *, char *, ZebTime *, ZebTime *,
+			ZebTime *, Location *, int));
 static void	ov_FillPolygon FP ((float *x, float *y, int));
 
 
@@ -1624,20 +1627,25 @@ int update;
 {
 	char *plist[MaxPlatforms];
 	char label[40], icon[40];
-	int nplat, plat, fg, npid, pid, expid, nexcl;
+	int nplat, plat, fg, npid, pid, expid, nexcl, maxloc, nloc, loc;
 	bool tlabel;
-	Location loc;
+	Location *locs;
 	float asize;
 	LabelOpt opt;
-	ZebTime loctime;
+	ZebTime begin, end, *times;
 	PlatformId *pids, *expids;
 /*
  * Do our initialization.
  */
 	if (! ov_LocSetup (comp, plist, &nplat, icon, &opt, label, &tlabel,
-			 &asize, &fg, &expids, &nexcl))
+			 &asize, &fg, &expids, &nexcl, &begin, &end, &maxloc))
 		return;
 	SetClip (FALSE);
+/*
+ * Allocate space for the times and locations.
+ */
+	times = (ZebTime *) malloc (maxloc*sizeof (ZebTime));
+	locs = (Location *) malloc (maxloc*sizeof (Location));
 /*
  * Go through and place each platform.
  */
@@ -1647,11 +1655,13 @@ int update;
 	 * If we can find a location on this platform directly, we do so,
 	 * plot it, and get on with our lives.
 	 */
-		if (FancyGetLocation (comp, plist[plat], &PlotTime,
-					&loctime, &loc))
+		if (nloc = ov_GetLocArray (comp, plist[plat], &begin, &end,
+				times, locs, maxloc))
 		{
-			ov_LocPlot (comp, plist[plat], &loc, &loctime, icon,
-					fg, opt, label, asize, tlabel);
+			for (loc = 0; loc < nloc; loc++)
+				ov_LocPlot (comp, plist[plat], locs + loc,
+						times + loc, icon, fg, opt,
+						label, asize, tlabel);
 			continue;
 		}
 	/*
@@ -1682,11 +1692,13 @@ int update;
 		/*
 		 * OK, we're doing this one.
 		 */
-			if (! FancyGetLocation (comp, pname,  &PlotTime,
-					&loctime, &loc))
+			if (! (nloc = ov_GetLocArray (comp, pname, &begin,
+					&end, times, locs, maxloc)))
 				continue;
-			ov_LocPlot (comp, pname, &loc, &loctime, icon, fg,
-					opt, label, asize, tlabel);
+			for (loc = 0; loc < nloc; loc++)
+				ov_LocPlot (comp, pname, locs + loc,
+						times + loc, icon, fg, opt,
+						label, asize, tlabel);
 		}
 	}
 /*
@@ -1694,8 +1706,68 @@ int update;
  */
 	if (nexcl > 0)
 		free (expids);
+	free (times);
+	free (locs);   	
 	ResetGC ();
 }
+
+
+
+
+
+static int
+ov_GetLocArray (comp, plat, begin, end, times, locs, max)
+char *comp, *plat;
+ZebTime *begin, *end, *times;
+Location *locs;
+int max;
+/*
+ * Return a set of locations.  All OBSERVATION locations between BEGIN
+ * and END are returned in TIMES and LOCS.  The number of locations is
+ * the return value of the function.
+ */
+{
+	PlatformId pid;
+	int nobs, obs;
+/*
+ * If the two times are equal, proceed in the same old way.
+ */
+	if (TC_Eq (*begin, *end))
+	{
+		if (FancyGetLocation (comp, plat, begin, times, locs))
+			return (1);
+		return (0);
+	}
+/*
+ * OK, they want a time period.  So, we need a definite platform here.  Then
+ * fill up the array.
+ */
+	if ((pid = ds_LookupPlatform (plat)) == BadPlatform)
+		return (0);
+	if ((nobs = ds_GetObsTimes (pid, end, times, max, 0)) <= 0)
+		return (0);
+/*
+ * Now go through and look up all of the times which fit in the requested
+ * time period.
+ */
+	for (obs = 0; obs < nobs; obs++)
+	{
+		if (TC_Less (times[obs], *begin))
+			return (obs);
+		if (! FancyGetLocation (comp, plat, times + obs, times + obs,
+				locs + obs))
+		{
+			msg_ELog (EF_PROBLEM, "GetLoc failure");
+			return (obs);
+		}
+	}
+/*
+ * If we get here we used them all.
+ */
+	return (nobs);
+}
+
+	
 
 
 
@@ -1814,14 +1886,15 @@ double asize;
 
 static int
 ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize, fg, expids,
-		nexcl)
+		nexcl, begin, end, maxloc)
 char *comp, **plist, *label, *icon;
-int *nplat;
+int *nplat, *maxloc;
 bool *tlabel;
 LabelOpt *opt;
 float *asize;
 int *fg, *nexcl;
 PlatformId **expids;
+ZebTime *begin, *end;
 /*
  * Do the setup required to plot locations.
  */
@@ -1829,7 +1902,7 @@ PlatformId **expids;
 	static char platform[PlatformListLen];	/* XXX static */
 	char explat[PlatformListLen], *exlist[MaxPlatforms];
 	int i;
-	char color[40];
+	char color[40], time[40];
 	XColor xc;
 	XGCValues vals;
 /*
@@ -1888,12 +1961,27 @@ PlatformId **expids;
 		*opt = NoLabel;
 	else
 		*opt = LabelString;
-	if (*opt != NoLabel && ! pda_Search(Pd, comp, "label-size","location", 
-			(char *) asize, SYMT_FLOAT))
+	if (! pda_Search(Pd, comp, "label-size","location", (char *) asize,
+			SYMT_FLOAT))
 		*asize = 0.015;
 	*tlabel = FALSE;
 	(void) pda_Search (Pd, comp, "time-label", platform, (char *) tlabel,
 			SYMT_BOOL);
+/*
+ * Maximum number of locations?
+ */
+	if (! pda_Search (Pd, comp, "max-locations", "location",
+			(char *) maxloc, SYMT_INT))
+		*maxloc = 100;
+/*
+ * Time periods.
+ */
+	*begin = *end = PlotTime;
+	if (pda_Search (Pd, comp, "time-period", "location", time,SYMT_STRING))
+		begin->zt_Sec -= pc_TimeTrigger (time);
+	if (pda_Search (Pd, comp, "forward-time-period", "location", time,
+			SYMT_STRING))
+		end->zt_Sec += pc_TimeTrigger (time);
 /*
  * Now that we seem to have everything, fix up the graphics context.
  */

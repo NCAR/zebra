@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.41 1996-11-19 07:26:16 granger Exp $")
+RCSID ("$Id: Track.c,v 2.42 1997-02-03 17:53:03 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -52,17 +52,72 @@ RCSID ("$Id: Track.c,v 2.41 1996-11-19 07:26:16 granger Exp $")
 # endif
 
 /*
+ * It's amazing how something as conceptually simple as tracks can turn into
+ * some of the gnarliest stuff in the whole system.  In an attempt to
+ * simplify the interface to the various routines, and to keep all of
+ * the control parameters together, the following structure is now used to
+ * hold them all.
+ */
+typedef struct _TrackParams
+{
+/*
+ * General parameters.
+ */
+	int	tp_Period;			/* Time period to plot	*/
+	int	tp_LWidth;			/* Line width		*/
+	int	tp_DSkip;			/* Data skip		*/
+	int	tp_NField;			/* How many fields	*/
+	FieldId	tp_Fields[5];			/* The fields		*/
+	bool	tp_AnnotTime;			/* Time annotations?	*/
+/*
+ * Color coding parameters.
+ */
+	bool	tp_Mono;			/* Plotting mono?	*/
+	bool	tp_ShowPosition;		/* Add position icon?	*/
+	bool	tp_PositionArrow;		/* Arrow at end of track*/
+	bool	tp_AutoScale;			/* Scale automatically? */
+	char	tp_CCField[CFG_FIELD_NAME_LEN];		/* color-code field */
+	char	tp_MTColor[CFG_FILENAME_LEN];	/* Color for mono tracks*/
+	char	tp_CTable[CFG_FILENAME_LEN];	/* Color table for coded*/
+	int	tp_NColor;			/* Number of colors	*/
+	char	tp_PosIcon[CFG_FILENAME_LEN];	/* Position icon 	*/
+	XColor	*tp_Colors;			/* Color cell values	*/
+	XColor	tp_Outrange;			/* Out-of-range color	*/
+	float	tp_Center, tp_Step;		/* Range values		*/
+/*
+ * Arrow parameters.
+ */
+	bool	tp_DoArrows;			/* Do they want them?	*/
+	bool	tp_AInvert;			/* Flip 180 degrees?	*/
+	bool	tp_Barb;			/* Really do barbs	*/
+	char	tp_AColor[CFG_FILENAME_LEN];	/* Arrow color		*/
+	char	tp_AType[CFG_PDPARAM_LEN];	/* Type (for annot)	*/
+	int	tp_AInterval;			/* Arrow interval	*/
+	float	tp_ArrowScale;			/* Scale		*/
+	int	tp_ALWidth;			/* Line width for arrows*/
+	XColor	tp_ArrowColor;			/* Which color to use	*/
+	float	tp_UnitLen;			/* Arrow length/unit	*/
+	int	tp_AField;			/* Index to arrow data	*/
+	int	tp_ShaftLen;			/* Barb shaft length	*/
+/*
+ * Results and informational stuff.
+ */
+	int	tp_Shifted;			/* Spatial shifting done */
+	int	tp_NPlats;			/* Total platforms 	*/
+	long	tp_Vectime;			/* When last arrow drawn */
+	float	tp_BadValue;			/* Bad value flag	*/
+} TrackParams;
+
+
+/*
  * Forwards.
  */
-static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
-		int *, float *, float *, XColor *, float *, float *, bool *));
-static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
-		int *, char *, XColor *, char *));
-static bool tr_CTSetup FP((char *, int *, char **, PlatformId *, int *, int *,
-		char *, bool *, char *, bool *, bool *, char *));
-static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
-		char *, double, double, double, char *, int));
-static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable));
+static bool tr_CCSetup FP((char *, char *, TrackParams *));
+static void tr_GetArrowParams FP((char *, char *, TrackParams *));
+static bool tr_CTSetup FP((char *, char **, PlatformId *,TrackParams*));
+static void tr_AnnotTrack FP((char *, char *, TrackParams *));
+static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable,
+		TrackParams *));
 static void tr_DoTimeAnnot FP((Drawable, int, int, char *, char *, double, 
 		XColor, ZebTime, double rot, int justify));
 static float tr_FigureRot FP ((double, double, double, double, int *));
@@ -77,26 +132,21 @@ static DataChunk *tr_DoNSpace FP ((PlatformId pid, FieldId *fields,
 static DataChunk *tr_TrajNSpace FP ((PlatformId pid, FieldId *fields, 
 				     int numfields, dsDetail *details, 
 				     int ndetail));
+static DataChunk *tr_GetData FP ((char *, int, PlatformId, TrackParams *,
+		dsDetail *, int, ZebTime *));
+static void tr_Barb FP ((Drawable, int, int, double, double, int));
+static float tr_GetBadval FP ((DataChunk *));
+static void tr_PlotPlatform FP ((char *, int, char *, PlatformId,
+		TrackParams *));
+static void tr_DrawArrow FP ((Drawable, DataChunk *, int, WindInfo, int, int,
+		TrackParams *));
 
 
-static float
-tr_GetBadval (dc)
-DataChunk *dc;
-{
-	if (dc_IsSubClassOf (dc->dc_Class, DCC_MetData))
-		return (dc_GetBadval (dc));
-	else
-	{
-		char *abad;
-		float badvalue;
+/*
+ * Time for some real code.
+ */
 
-		abad = dc_GetGlobalAttr (dc, "bad_value_flag");
-		if (!abad)	/* trouble */
-			return (-99999.0);
-		sscanf (abad,"%f",&badvalue);
-		return (badvalue);
-	}
-}
+
 
 
 
@@ -104,391 +154,361 @@ void
 tr_CAPTrack (comp, update)
 char *comp;
 bool update;
+/*
+ * Add a track to a CAP plot.
+ */
 {
-	char *pnames[MaxPlatforms];
-	char ccfield[30], positionicon[40], param[40];
-	char mtcolor[20], ctable[30], a_color[30];
-	char a_type[30], annot[PlatformListLen];
-	int period, nc, lwidth, index, nplats, p;
-	int dskip = 0, i, a_int, numfields, afield;
-	int x0, y0, x1, y1, x00, y00;
-	float fx0, fy0;
-	int samp0;		/* sample at which (x0 =,y0) last set  */
-	long vectime;	/* the time, multiple of the arrow interval */
-		        /* a_int, for which last vector arrow drawn */
-	int npt;   	/* number pts read so far, for data-skipping */
-	int a_lwidth, nsamp;
-	bool arrow, showposition, annot_time, positionarrow;
-	bool mono, shifted, a_invert, autoscale;
-	ZebTime begin, zt;
-	float base, incr, a_scale;
-	float unitlen, center, step;
-	Drawable d;
-	XColor xc, *colors, outrange, a_clr;
-	DataChunk *dc;
-	FieldId fields[5];
-	float badvalue;
-	WindInfo wi;
-	char ctime[64];
-	dsDetail details[5];
+	char *pnames[MaxPlatforms], annot[PlatformListLen];
+	int p;
+	TrackParams tparams;
 	PlatformId pids[MaxPlatforms];
-	int ndetail;
 /*
  * Pull in our parameters.
  */
-	if (! tr_CTSetup (comp, &nplats, pnames, pids, &period, &dskip, 
-			  mtcolor, &mono, ccfield, &showposition, 
-			  &positionarrow, positionicon))
+	if (! tr_CTSetup (comp, pnames, pids, &tparams))
 		return;
 /*
- * Multiple platforms are possible
+ * Go through and plot the track for each platform.
  */
-	for (p = 0; p < nplats; p++)
+	for (p = 0; p < tparams.tp_NPlats; p++)
+		tr_PlotPlatform (comp, update, pnames[p], pids[p], &tparams);
+/*
+ * Finish up the annotation if need be.
+ */
+	if (! update)
 	{
-	/*
-	 * Color code field.
-	 */
-		if (! mono)
+		annot[0] = '\0';
+		for (p = 0; p < tparams.tp_NPlats; p++)
 		{
-			mono = ! tr_CCSetup (comp, pnames[p], ccfield, 
-					     ctable, &colors, &nc, &base, 
-					     &incr, &outrange, &center, &step, 
-					     &autoscale);
+			if (p > 0)
+				strcat (annot, " ");
+			strcat (annot, pnames[p]);
+		}
+		tr_AnnotTrack (comp, annot, &tparams);
+	}
+}
 
-			if (! mono && autoscale && (nplats > 1))
-			{
-			    msg_ELog (EF_PROBLEM, 
-			        "Can't autoscale tracks w/multiple platforms");
-			    continue;
-			}
-		}
-		
-				
-	/*
-	 * Start the field list.
-	 */
-		numfields = 0;
-		if (! mono)
-			fields[numfields++] = F_Lookup (ccfield);
-	/*
-	 * Read arrow parameters if necessary.
-	 */
-		arrow = FALSE;
-		tr_GetParam (comp, "arrow", pnames[p], (char *) &arrow, 
-			     SYMT_BOOL);
-		if (arrow)
+
+
+
+
+
+static void
+tr_PlotPlatform (comp, update, pname, pid, tparams)
+char *comp, *pname;
+bool update;
+PlatformId pid;
+TrackParams *tparams;
+/*
+ * Do all the work to get a single track on the screen.
+ */
+{
+	char param[CFG_PDPARAM_LEN], ctime[64];
+	int index, i, x0, y0, x1, y1, x00, y00;
+	int npt, nsamp, ndetail, samp0;
+	ZebTime begin, zt;
+	float base, incr, fx0, fy0;
+	Drawable d;
+	XColor xc;
+	DataChunk *dc;
+	WindInfo wi;
+	dsDetail details[5];
+/*
+ * Color code field.
+ */
+	if (! tparams->tp_Mono)
+	{
+		tr_CCSetup (comp, pname, tparams);
+		if (! tparams->tp_Mono && tparams->tp_AutoScale &&
+				(tparams->tp_NPlats > 1))
 		{
-			tr_GetArrowParams (comp, pnames[p], &a_scale, 
-					   &a_lwidth, &a_invert, &a_int, 
-					   a_color, &a_clr, a_type);
-# ifdef notdef
-			fields[numfields] = F_Lookup (a_xfield);
-			fields[numfields + 1] = F_Lookup (a_yfield);
-# endif
-			FindWindsFields (comp, pids[p], &PlotTime, 
-					 fields+numfields, &wi);
-			afield = numfields;
-			numfields += 2;
-		} 
-	/*
-	 * Check for a particular bad value to use for this platform.
-	 * Useful for platforms with bad locations since locations don't
-	 * get processed by file access routines like regular fields. 
-	 */
-		ndetail = 0;
-		if (pda_Search (Pd, comp, "bad-value", pnames[p], 
-				(char *)&badvalue, SYMT_FLOAT))
-		{
-			details[ndetail].dd_V.us_v_float = badvalue;
-			details[ndetail++].dd_Name = DD_FETCH_BADVAL;
-		}
-	/*
-	 * Figure the begin time and fetch data.  If updating, only fetch and
-	 * plot data since the last plot of this track; otherwise, fetch the
-	 * period or the whole observation depending upon the mode.
-	 */
-		if (update && pda_Search (Pd, comp, "data-end-time", NULL, 
-					  (char*) &begin, SYMT_DATE))
-		{
-		/*
-		 * Update: get data since last plot regardless of
-		 * obesrvation or period mode.  If we don't know when
-		 * we last plotted data, skip this and fetch a full
-		 * swath of data.
-		 */
-			msg_ELog (EF_DEBUG, "update in %s mode from %d to %d",
-				  (period) ? "period" : "obs",
-				  begin.zt_Sec, PlotTime.zt_Sec);
-			dc = ds_Fetch (pids[p], 
-				       numfields ? DCC_Scalar : DCC_Location,
-				       &begin, &PlotTime, fields, numfields, 
-				       details, ndetail);
-		}
-	/*
-	 * If this platform delivers NSpace data, then do what we can
-	 * to get it in DCC_Scalar or DCC_Location form
-	 */
-		else if (ds_PlatformDataOrg (pids[p]) == OrgNSpace)
-			dc = tr_DoNSpace (pids[p], fields, numfields, details, 
-					  ndetail);
-	/*
-	 * Barring updates we fetch data based on period or observation
-	 */
-		else if (period) /* time-period type plot */
-		{
-			begin = PlotTime;
-			begin.zt_Sec -= period;
-			dc = ds_Fetch (pids[p], 
-				       numfields ? DCC_Scalar : DCC_Location,
-				       &begin, &PlotTime, fields, numfields,
-				       details, ndetail);
-		}
-		else		/* observation type plot */
-		{
-		/* get whole observation */
-			if (!ds_GetObsTimes(pids[p], &PlotTime, &begin, 1,
-					    NULL))
-			{
-				dc = NULL;
-			}
-			else
-			{
-				msg_ELog (EF_DEBUG, "global, FetchObs for %d", 
-					  begin.zt_Sec);
-				dc = ds_FetchObs (pids[p],
-					 numfields ? DCC_Scalar : DCC_Location,
-					 &begin, fields, numfields, details, 
-					 ndetail);
-			}
-		}
-	/*
-	 * Well, if we can't get any data, there is no point in going any
-	 * further with this whole thing. 
-	 */
-		if (! dc)
-		{
-			msg_ELog (EF_INFO, "No %s data available", pnames[p]);
+			msg_ELog (EF_PROBLEM, 
+				"Can't autoscale tracks w/multiple platforms");
 			return;
 		}
-	/*
-	 * Set the badval here anyway, in case bad values are not supported
-	 * (ARM) but we still got a value to use from the pd.  If bad value
-	 * fetching is supported, then this doesn't hurt anything. 
-	 */
-		if (ndetail)
-			dc_SetBadval (dc, badvalue);
-	/*
-	 * Remember the begin time in case we don't plot any points here
-	 * because of data skips. 
-	 */
-		zt = begin;
-		nsamp = dc_GetNSample (dc);
-		msg_ELog (EF_DEBUG, "track %s: %d points to plot in %s mode", 
-			  comp, nsamp, 
-			  update ? "update" : (period ? "period" : "obs"));
-	/*
-	 * Do some initial looking over the data.
-	 */
-		shifted = ApplySpatialOffset (dc, comp, &PlotTime);
-		nsamp = dc_GetNSample (dc);
-		badvalue = tr_GetBadval (dc);
-	/*
-	 * If they want autoscaling figure out how it goes now.
-	 */
-		if (autoscale && ! mono)
-		{
-			FindCenterStep (dc, fields[0], nc, &center, &step);
-			sprintf (param, "%s-center", ccfield);
-			pd_Store (Pd, comp, param, (char *) &center, 
-				  SYMT_FLOAT);
-			sprintf (param, "%s-step", ccfield);
-			pd_Store (Pd, comp, param, (char *) &step, SYMT_FLOAT);
-		}
-	/*
-	 * Fix up the parameters to make coding a little easier.
-	 */
-		if ((nc & 0x1) == 0)
-			nc--;
-		base = center - (nc/2)*step - step/2;
-		incr = step;
-	/*
-	 * Fix up some graphics info.
-	 */
-		if (mono)
-			ct_GetColorByName (mtcolor, &xc);
-		d = GWFrame (Graphics);
-	/*
-	 * How wide do they like their lines?
-	 */
-		lwidth = SetLWidth (comp, "line-width", pnames[p], 0);
-		unitlen = GWHeight (Graphics) * a_scale;
-	/*
-	 * Now work through the data.
-	 */
-		vectime = 0;
-		npt = 0;
-		x00 = y00 = -1;
-		samp0 = -1;
-		for (i = 0; i < nsamp; i++)
-		{
-			float u, v; /* vector component values	     */
-			long timenow; /* time of the current sample	     */
-			float fx, fy; /* x,y Cartesian coords of lat/lon */
-			Location loc; /* lat/lon locn extracted from sample*/
-		/*
-		 * Do skipping if requested.
-		 */
-			if ((dskip) && ((npt++ % dskip) != 0))
-				continue;
-		/*
-		 * Locate this point.  Skip it if either coordinate ==
-		 * badvalue. 
-		 */
-			dc_GetLoc (dc, i, &loc);
-			dc_GetTime (dc, i, &zt);
-			if ((loc.l_lat == badvalue) || (loc.l_lon == badvalue))
-				continue;
-			prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
-			x1 = XPIX (fx); y1 = YPIX (fy);
-		/*
-		 * Draw arrows if necessary.  Get the time of the sample,
-		 * and see if its time for an arrow: either the time falls
-		 * on a multiple of the interval, or the interval of time
-		 * has passed since the last vector was drawn. 
-		 */
-			if (arrow)
-			{
-				timenow = TC_ZtToSys (&zt);
-				if(((timenow % a_int) == 0) || 
-				   ((vectime + a_int) < timenow))
-				{
-					u = dc_GetScalar (dc, i, 
-							  fields[afield]);
-					v = dc_GetScalar(dc, i, 
-							 fields[afield+1]);
-					GetWindData (&wi, &u, &v, badvalue);
-					if (u != badvalue && v != badvalue) 
-					{
-						vectime = timenow - 
-							timenow % a_int;
-						FixForeground (a_clr.pixel);
-						FixLWidth (a_lwidth);
-						draw_vector (Disp, d, Gcontext,
-							     x1, y1, u, v, 
-							     unitlen);
-						FixLWidth (lwidth);
-					}
-				}
-			}
-		/*
-		 * Draw the line, if (x0,y0) valid, color coding if requested.
-		 * Don't draw the line if it doesn't intersect the plot region.
-		 */
-			if (samp0 >= 0 && Intersects (fx0, fy0, fx, fy))
-			{
-				if (mono)
-					FixForeground (xc.pixel);
-				else
-				{
-				    index = (dc_GetScalar (dc, i, fields[0]) - 
-					     base)/incr;
-				    FixForeground ((index >= 0 && index < nc) ?
-						   colors[index].pixel : 
-						   outrange.pixel);
-				}
-				XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
-			}
-			x00 = x0; x0 = x1; y00 = y0; y0 = y1;
-			fx0 = fx; fy0 = fy;
-			samp0 = i;
-		}
-	/* remember the last point plotted */
-		TC_EncodeTime (&zt, TC_Full, ctime);
-		msg_ELog (EF_DEBUG, "storing data-end-time: %s", ctime);
-		pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
-	/*
-	 * If this isn't an update, indicate which end of the track is the
-	 * front. 
-	 */
-		if ((! update) && showposition && (samp0 >= 0))
-		{
-			if (positionarrow)
-			{
-				double theta;
-
-				if (x00 < 0 && y00 < 0)
-				{
-					x00 = 0;
-					y00 = y0 - 1;
-				}
-
-				theta = ATAN2 ((double)(y00 - y0), 
-					       (double)(x00 - x0));
-
-				XDrawLine (Disp, d, Gcontext, x0, y0, 
-					   x0 + 15 * cos (theta - 0.26),
-					   y0 + 15 * sin (theta - 0.26));
-				XDrawLine (Disp, d, Gcontext, x0, y0,
-					   x0 + 15 * cos (theta + 0.26),
-					   y0 + 15 * sin (theta + 0.26));
-			}
-		/*
-		 * I_PositionIcon disregards clipping, so check the location.
-		 */
-			else if (fx0 >= Xlo && fx0 <= Xhi && fy0 >= Ylo && 
-				 fy0 <= Yhi)
-			{
-				I_PositionIcon (comp, pnames[p], &zt, 
-						positionicon, 
-						x0, y0, mono ? xc.pixel : 
-						(index >= 0 && index < nc) ? 
-						colors[index].pixel : 
-						outrange.pixel);
-			}
-		}
-	/*
-	 * See about annotating the track with times.  It shouldn't hurt
-	 * updates since we'll only be plotting new times. 
-	 */
-		if (/*(! update) && */ 
-		    pda_Search (Pd, comp, "annot-time", "track", 
-				(char *) &annot_time, SYMT_BOOL))
-		{
-			if (annot_time)
-				tr_AnnotTime (comp, pnames[p], dc, d);
-		}
-		ResetGC ();
-	/*
-	 * Put in the status line before we lose the data object, then get
-	 * rid of it.  (Only do it if this isn't an update.  It won't get
-	 * printed anyway, and it's likely to overflow the overlay widget's
-	 * text space.) 
-	 */
-		if (! update)
-		{
-			dc_GetTime (dc, nsamp - 1, &zt);
-			ot_AddStatusLine (comp, pnames[p], 
-					  mono ? "" : ccfield, &zt);
-		}
-		dc_DestroyDC (dc);
-	} /* end of platform loop */
-/*
- * Annotate if necessary.
- */
-	annot[0] = '\0';
-	
-	for (p = 0; p < nplats; p++)
-	{
-		if (p > 0)
-			strcat (annot, " ");
-		strcat (annot, pnames[p]);
 	}
-		
+/*
+ * Start the field list.
+ */
+	tparams->tp_NField = 0;
+	if (! tparams->tp_Mono)
+		tparams->tp_Fields[tparams->tp_NField++] =
+			F_Lookup (tparams->tp_CCField);
+/*
+ * Read arrow parameters if necessary.
+ */
+	tparams->tp_DoArrows = FALSE;
+	tr_GetParam (comp, "arrow", pname,
+			&tparams->tp_DoArrows, SYMT_BOOL);
+	if (tparams->tp_DoArrows)
+	{
+		tr_GetArrowParams (comp, pname, tparams);
+		FindWindsFields (comp, pid, &PlotTime, 
+				tparams->tp_Fields + tparams->tp_NField, &wi);
+		tparams->tp_AField = tparams->tp_NField;
+		tparams->tp_NField += 2;
+	} 
+/*
+ * Check for a particular bad value to use for this platform.
+ * Useful for platforms with bad locations since locations don't
+ * get processed by file access routines like regular fields. 
+ */
+	ndetail = 0;
+	if (pda_Search (Pd, comp, "bad-value", pname, 
+			(char *)&tparams->tp_BadValue, SYMT_FLOAT))
+	{
+		details[ndetail].dd_V.us_v_float = tparams->tp_BadValue;
+		details[ndetail++].dd_Name = DD_FETCH_BADVAL;
+	}
+/*
+ * Time to get some data!
+ */
+	dc = tr_GetData (comp, update, pid, tparams, details, ndetail, &begin);
+/*
+ * Well, if we can't get any data, there is no point in going any
+ * further with this whole thing. 
+ */
+	if (! dc)
+	{
+		msg_ELog (EF_INFO, "No %s data available", pname);
+		return;
+	}
+/*
+ * Set the badval here anyway, in case bad values are not supported
+ * (ARM) but we still got a value to use from the pd.  If bad value
+ * fetching is supported, then this doesn't hurt anything. 
+ */
+	if (ndetail)
+		dc_SetBadval (dc, tparams->tp_BadValue);
+/*
+ * Remember the begin time in case we don't plot any points here
+ * because of data skips. 
+ */
+	zt = begin;
+	nsamp = dc_GetNSample (dc);
+	msg_ELog (EF_DEBUG, "track %s: %d points to plot in %s mode", 
+			comp, nsamp, update ? "update" :
+			(tparams->tp_Period ? "period" : "obs"));
+/*
+ * Do some initial looking over the data.
+ */
+	tparams->tp_Shifted = ApplySpatialOffset (dc, comp, &PlotTime);
+	nsamp = dc_GetNSample (dc);
+	tparams->tp_BadValue = tr_GetBadval (dc);
+/*
+ * If they want autoscaling figure out how it goes now.
+ */
+	if (tparams->tp_AutoScale && ! tparams->tp_Mono)
+	{
+		FindCenterStep (dc, tparams->tp_Fields[0], tparams->tp_NColor,
+				&tparams->tp_Center, &tparams->tp_Step);
+		sprintf (param, "%s-center", tparams->tp_CCField);
+		pd_Store (Pd, comp, param, (char *) &tparams->tp_Center,
+				SYMT_FLOAT);
+		sprintf (param, "%s-step", tparams->tp_CCField);
+		pd_Store (Pd, comp, param, (char *) &tparams->tp_Step,
+				SYMT_FLOAT);
+	}
+/*
+ * Fix up the parameters to make coding a little easier.
+ */
+	if ((tparams->tp_NColor & 0x1) == 0)
+		tparams->tp_NColor--;
+	base = tparams->tp_Center -
+		(tparams->tp_NColor/2)*tparams->tp_Step - tparams->tp_Step/2;
+	incr = tparams->tp_Step;
+/*
+ * Fix up some graphics info.
+ */
+	if (tparams->tp_Mono)
+		ct_GetColorByName (tparams->tp_MTColor, &xc);
+	d = GWFrame (Graphics);
+/*
+ * How wide do they like their lines?
+ */
+	tparams->tp_LWidth = SetLWidth (comp, "line-width", pname, 0);
+	tparams->tp_UnitLen = GWHeight (Graphics)*tparams->tp_ArrowScale;
+/*
+ * Now work through the data.
+ */
+	tparams->tp_Vectime = 0;
+	npt = 0;
+	x00 = y00 = -1;
+	samp0 = -1;
+	for (i = 0; i < nsamp; i++)
+	{
+		float u, v; /* vector component values	     */
+		long timenow; /* time of the current sample	     */
+		float fx, fy; /* x,y Cartesian coords of lat/lon */
+		Location loc; /* lat/lon locn extracted from sample*/
+	/*
+	 * Do skipping if requested.
+	 */
+		if ((tparams->tp_DSkip) && ((npt++ % tparams->tp_DSkip) != 0))
+			continue;
+	/*
+	 * Locate this point.  Skip it if either coordinate ==
+	 * badvalue. 
+	 */
+		dc_GetLoc (dc, i, &loc);
+		dc_GetTime (dc, i, &zt);
+		if ((loc.l_lat == tparams->tp_BadValue) ||
+				(loc.l_lon == tparams->tp_BadValue))
+			continue;
+		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
+		x1 = XPIX (fx); y1 = YPIX (fy);
+	/*
+	 * Draw arrows if necessary.
+	 */
+		if (tparams->tp_DoArrows)
+			tr_DrawArrow (d, dc, i, wi, x1, y1, tparams);
+	/*
+	 * Draw the line, if (x0,y0) valid, color coding if requested.
+	 * Don't draw the line if it doesn't intersect the plot region.
+	 */
+		if (samp0 >= 0 && Intersects (fx0, fy0, fx, fy))
+		{
+			if (tparams->tp_Mono)
+				FixForeground (xc.pixel);
+			else
+			{
+				index = (dc_GetScalar (dc, i,
+						tparams->tp_Fields[0]) - 
+						base)/incr;
+				FixForeground ((index >= 0 &&
+						index < tparams->tp_NColor) ?
+						tparams->tp_Colors[index].pixel
+						: tparams->tp_Outrange.pixel);
+			}
+			XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
+		}
+		x00 = x0; x0 = x1; y00 = y0; y0 = y1;
+		fx0 = fx; fy0 = fy;
+		samp0 = i;
+	}
+/*
+ * remember the last point plotted
+ */
+	TC_EncodeTime (&zt, TC_Full, ctime);
+	msg_ELog (EF_DEBUG, "storing data-end-time: %s", ctime);
+	pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
+/*
+ * If this isn't an update, indicate which end of the track is the
+ * front. 
+ */
+	if ((! update) && tparams->tp_ShowPosition && (samp0 >= 0))
+	{
+		if (tparams->tp_PositionArrow)
+		{
+			double theta;
+
+			if (x00 < 0 && y00 < 0)
+			{
+				x00 = 0;
+				y00 = y0 - 1;
+			}
+
+			theta = ATAN2 ((double)(y00 - y0), 
+					(double)(x00 - x0));
+
+			XDrawLine (Disp, d, Gcontext, x0, y0, 
+					x0 + 15 * cos (theta - 0.26),
+					y0 + 15 * sin (theta - 0.26));
+			XDrawLine (Disp, d, Gcontext, x0, y0,
+					x0 + 15 * cos (theta + 0.26),
+					y0 + 15 * sin (theta + 0.26));
+		}
+	/*
+	 * I_PositionIcon disregards clipping, so check the location.
+	 */
+		else if (fx0 >= Xlo && fx0 <= Xhi && fy0 >= Ylo && 
+				fy0 <= Yhi)
+		{
+			I_PositionIcon (comp, pname, &zt, 
+					tparams->tp_PosIcon, 
+					x0, y0, tparams->tp_Mono ? xc.pixel : 
+					(index >= 0 && index < tparams->tp_NColor) ? 
+					tparams->tp_Colors[index].pixel:
+					tparams->tp_Outrange.pixel);
+		}
+	}
+/*
+ * See about annotating the track with times.
+ */
+	if (tparams->tp_AnnotTime)
+		tr_AnnotTime (comp, pname, dc, d, tparams);
+	ResetGC ();
+/*
+ * Put in the status line before we lose the data object, then get
+ * rid of it.  (Only do it if this isn't an update.  It won't get
+ * printed anyway, and it's likely to overflow the overlay widget's
+ * text space.) 
+ */
 	if (! update)
-		tr_AnnotTrack (comp, annot, mono ? NULL : ccfield, arrow, 
-			       a_type, mtcolor, ctable, center, step, unitlen, 
-			       mono ? mtcolor : a_color, shifted);
-	
+	{
+		dc_GetTime (dc, nsamp - 1, &zt);
+		ot_AddStatusLine (comp, pname, 
+			tparams->tp_Mono ? "" : tparams->tp_CCField, &zt);
+	}
+	dc_DestroyDC (dc);
+}
+
+
+
+
+
+
+static void
+tr_DrawArrow (d, dc, sample, wi, x, y, tparams)
+Drawable d;
+DataChunk *dc;
+WindInfo wi;
+int x, y;
+TrackParams *tparams;
+/*
+ * Add arrows to a track.
+ */
+{
+	long timenow;
+	float u, v;
+	ZebTime zt;
+/*
+ * What is the time of this sample?
+ */
+	dc_GetTime (dc, sample, &zt);
+	timenow = TC_ZtToSys (&zt);
+/*
+ * Look to see if it's time to do another arrow.
+ */
+	if (((timenow % tparams->tp_AInterval) == 0) || 
+			((tparams->tp_Vectime + tparams->tp_AInterval)
+					< timenow))
+	{
+	/*
+	 * Yup, it is.  Get the wind values.
+	 */
+		u = dc_GetScalar (dc, sample, 
+				tparams->tp_Fields[tparams->tp_AField]);
+		v = dc_GetScalar (dc, sample, 
+				tparams->tp_Fields[tparams->tp_AField + 1]);
+		GetWindData (&wi, &u, &v, tparams->tp_BadValue);
+	/*
+	 * If they are good, plot them.
+	 */
+		if (u != tparams->tp_BadValue && v != tparams->tp_BadValue) 
+		{
+			tparams->tp_Vectime = timenow - 
+				timenow % tparams->tp_AInterval;
+			FixForeground (tparams->tp_ArrowColor.pixel);
+			FixLWidth (tparams->tp_ALWidth);
+			if (tparams->tp_Barb)
+				tr_Barb (d, x, y, u, v, tparams->tp_ShaftLen);
+			else
+				draw_vector (Disp, d, Gcontext, x, y, u, v, 
+						tparams->tp_UnitLen);
+			FixLWidth (tparams->tp_LWidth);
+		}
+	}
 }
 
 
@@ -496,36 +516,31 @@ bool update;
 
 
 static void
-tr_AnnotTime (comp, platform, dc, d)
+tr_AnnotTime (comp, platform, dc, d, tparams)
 char	*comp, *platform;
 DataChunk	*dc;
 Drawable	d;
+TrackParams *tparams;
 /*
  * Annotate the track with times.
  */
 {
-	char	interval[20], label[40], icon[40], color[20];
+	char	interval[20], label[40], icon[40], color[20], pformat[20];
 	int	i, interval_sec, nsamp;
 	int	x, y;
-	float	label_scale, rot;
+	float	label_scale, rot, fv;
 	XColor	x_color;
 	ZebTime	when, t;
 	int	justify;
+	enum { L_Time, L_Data, L_Constant, L_None } labelopt;
 /*
  * Get the time interval. 
  */
 	if (! pda_Search (Pd, comp, "annot-time-interval", "track", 
 		interval, SYMT_STRING))
-	{
-	/*
-	 * Default to one hour intervals.
-	 */
 		interval_sec = 3600;
-	}
 	else
-	{
 		interval_sec = pc_TimeTrigger (interval);
-	}
 /*
  * Make sure the user hasn't given us a bad interval
  */
@@ -537,11 +552,31 @@ Drawable	d;
 		interval_sec = 3600;
 	}
 /*
- * Label to use.  May be either "none", "time", or a string.
+ * Label to use.  May be either "none", "time", "data", or a string.
  */
 	if (! pda_Search (Pd, comp, "annot-time-label", "track", 
-			label, SYMT_STRING))
-		strcpy (label, "time");
+			label, SYMT_STRING) || ! strcmp (label, "time"))
+		labelopt = L_Time;
+	else if (! strcmp (label, "data"))
+	{
+		if (tparams->tp_Mono)
+		{
+			msg_ELog (EF_PROBLEM,
+				"Can't do data labels on mono tracks");
+			labelopt = L_None;
+		}
+		else
+		{
+			if (! pda_Search (Pd, comp, "annot-time-print-format",
+					"track", pformat, SYMT_STRING))
+				strcpy (pformat, "%.1f");
+			labelopt = L_Data;
+		}
+	}
+	else if (! strcmp (label, "none"))
+		labelopt = L_None;
+	else
+		labelopt = L_Constant;
 /*
  * Icon used to mark the track.
  */
@@ -588,12 +623,36 @@ Drawable	d;
 		if (when.zt_Sec <= t.zt_Sec)
 		{
 		/*
+		 * Create the label to be used with the annotation.
+		 */
+			char alabel[80];
+			switch (labelopt)
+			{
+			    case L_Constant:
+				strcpy (alabel, label);
+				break;
+			    case L_Time:
+				TC_EncodeTime (&t, TC_TimeOnly, alabel);
+				alabel[strlen (alabel) - 3] = '\0';
+				break;
+			    case L_Data:
+				fv = dc_GetScalar (dc,i,tparams->tp_Fields[0]);
+				if (fv != tparams->tp_BadValue)
+					sprintf (alabel, pformat, fv);
+				else
+					strcpy (alabel, "-");
+				break;
+			    case L_None:
+				alabel[0] = '\0';
+				break;
+			}
+		/*
 		 * Figure out where the annotation is supposed to go, and
 		 * do the annotation if possible.
 		 */
 			if (tr_LocateAnnot (dc, i, &t, interval_sec, &x, &y, 
 					    &rot, &justify))
-				tr_DoTimeAnnot (d, x, y, icon, label, 
+				tr_DoTimeAnnot (d, x, y, icon, alabel, 
 						label_scale, x_color, t, 
 						rot, justify);
 		/*
@@ -673,26 +732,7 @@ int		justify;
 /*
  * Label it.
  */
-	if (strcmp (label, "time") == 0)
-	{
-	/*
-	 * Insert some space before the time
-	 */
-		strcpy (label_str, "  ");
-		TC_EncodeTime (&t, TC_TimeOnly, label_str + strlen(label_str));
-	/*
-	 * Get rid of seconds, and add a space for right-justified times.
-	 */
-		label_str[strlen (label_str) - 3] = '\0';
-		strcat (label_str, "  ");
-	}
-	else if (strcmp (label, "none") == 0)
-		return;
-	else 
-	{
-		strncpy (label_str, label, sizeof(label_str));
-		label_str[sizeof(label_str) - 1] = '\0';
-	}
+	sprintf (label_str, " %s ", label);
 	DrawText (Graphics, d, Gcontext, x, y, label_str, rot, label_scale, 
 		  justify, JustifyCenter);
 }
@@ -701,12 +741,9 @@ int		justify;
 
 
 static void
-tr_AnnotTrack (comp, platform, ccfield, arrow, a_type, mtcolor, ctable,
-	center, step, unitlen, a_color, shifted)
-char *comp, *platform, *ccfield, *a_type, *mtcolor, *ctable, *a_color;
-int arrow;
-float center, step, unitlen;
-bool shifted;
+tr_AnnotTrack (comp, platform, tparams)
+char *comp, *platform;
+TrackParams *tparams;
 /*
  * Annotate the track we have just done.
  */
@@ -723,71 +760,87 @@ bool shifted;
 		strcpy (tadefcolor, "white");
 	if(! ct_GetColorByName (tadefcolor, &tadefclr))
 	{
-		msg_ELog (EF_PROBLEM,"Can't get default color: '%s'.", 
+		msg_ELog (EF_PROBLEM, "Can't get default color: '%s'.", 
 			tadefcolor);
-		strcpy (tadefcolor,"white");
-		ct_GetColorByName (tadefcolor,&tadefclr);
+		strcpy (tadefcolor, "white");
+		ct_GetColorByName (tadefcolor, &tadefclr);
 	}
 /*
  * Do we do color matching?
  */
-	tr_GetParam("global", "ta-color-match", NULL, (char *) &tacmatch,
+	tr_GetParam ("global", "ta-color-match", NULL, (char *) &tacmatch,
 		SYMT_BOOL);
-	if(tacmatch)
-		ct_GetColorByName (a_color, &taclr);
+	if (tacmatch)
+		taclr = tparams->tp_ArrowColor;
 	else
 		taclr = tadefclr;
 /*
  * And scaling for side annotation.
  */
-	if(! tr_GetParam(comp, "sa-scale", platform, (char *) &sascale,
+	if (! tr_GetParam (comp, "sa-scale", platform, (char *) &sascale,
 		SYMT_FLOAT))
 		sascale = 0.02;
 /*
  * Annotate along the top.
  */
-	An_TopAnnot(" ", tadefclr.pixel);
+	An_TopAnnot (" ", tadefclr.pixel);
 	An_TopAnnot (platform, tadefclr.pixel);
-	if (ccfield)
+	if (tparams->tp_CCField)
 	{
-		An_TopAnnot(" ", tadefclr.pixel);
-		An_TopAnnot (px_FldDesc (ccfield), tadefclr.pixel);
+		An_TopAnnot (" ", tadefclr.pixel);
+		An_TopAnnot (px_FldDesc (tparams->tp_CCField), tadefclr.pixel);
 	}
 	An_TopAnnot (" track", tadefclr.pixel);
-	if (shifted)
+	if (tparams->tp_Shifted)
 		An_TopAnnot (" (SHIFTED)", tadefclr.pixel);
 /*
  * Annotate arrows if necessary.
  */
-	if (arrow)
+	if (tparams->tp_DoArrows)
 	{
 		An_TopAnnot (" with ",tadefclr.pixel);
-		An_TopAnnot (a_type,taclr.pixel);
-		An_TopAnnot (" vectors",taclr.pixel);
+		An_TopAnnot (tparams->tp_AType, taclr.pixel);
+		An_TopAnnot (tparams->tp_Barb ? " barbs" : " vectors",
+				taclr.pixel);
 	}
 	An_TopAnnot (".  ", tadefclr.pixel);
 /*
  * Down the side too.
  */
-	if (! ccfield)
+	if (tparams->tp_Mono)
 	{
-		ct_GetColorByName (mtcolor, &xc);
+		ct_GetColorByName (tparams->tp_MTColor, &xc);
 		sprintf (datastr, "%s %li", platform, xc.pixel);
 		An_AddAnnotProc (An_ColorString, comp, datastr,
 			strlen (datastr), 25, FALSE, FALSE);
 	}
 	else
 	{
-		sprintf (datastr, "%s %s %f %f", ccfield, ctable, center, 
-			 step);
+		sprintf (datastr, "%s %s %f %f", tparams->tp_CCField,
+				tparams->tp_CTable, tparams->tp_Center, 
+				tparams->tp_Step);
 		An_AddAnnotProc (An_ColorBar, comp, datastr,
 				 strlen (datastr), 75, TRUE, FALSE);
-		if (arrow)
+	}
+/*
+ * Arrows/barbs.  Pulled out of the color-code branch above (jc); I don't
+ * know why it was there.  Mono tracks can have arrows too.
+ */
+	if (tparams->tp_DoArrows)
+	{
+		if (tparams->tp_Barb)
+		{
+			sprintf (datastr, "m/s %li %d", taclr.pixel,
+					tparams->tp_ShaftLen);
+			An_AddAnnotProc (An_BarbLegend, comp, datastr,
+					strlen (datastr), 100, FALSE, FALSE);
+		}
+		else
 		{
 			sprintf (datastr, "%s %li %f %f %f", "10m/sec", 
-				 taclr.pixel, 10.0, 0.0, unitlen);
+				taclr.pixel, 10.0, 0.0, tparams->tp_UnitLen);
 			An_AddAnnotProc (An_ColorVector, comp, datastr,
-					 strlen (datastr), 25, FALSE, FALSE);
+				strlen (datastr), 30, FALSE, FALSE);
 		}
 	}
 }
@@ -968,12 +1021,10 @@ int *justify;		/* Justification to use for annotation */
 
 
 static bool
-tr_CTSetup (comp, nplats, pnames, pids, period, dskip, mtcolor, mono, ccfield,
-	showposition, positionarrow, positionicon)
-char *comp, **pnames, *mtcolor, *ccfield, *positionicon;
+tr_CTSetup (comp, pnames, pids, tparams)
+char *comp, **pnames;
 PlatformId *pids;
-int *nplats, *period, *dskip;
-bool *mono, *showposition, *positionarrow;
+TrackParams *tparams;
 /*
  * Do the basic setup to plot aircraft tracks.
  */
@@ -986,12 +1037,11 @@ bool *mono, *showposition, *positionarrow;
  */
 	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
 		return (FALSE);
-
-	*nplats = CommaParse (platform, pnames);
+	tparams->tp_NPlats = CommaParse (platform, pnames);
 /*
  * Look up all the platforms
  */
-	for (p = 0; p < *nplats; p++)
+	for (p = 0; p < tparams->tp_NPlats; p++)
 	{
 	/*
 	 * Get the id
@@ -1000,69 +1050,64 @@ bool *mono, *showposition, *positionarrow;
 		{
 			msg_ELog (EF_PROBLEM, "Unknown platform '%s'", 
 				  pnames[p]);
-			return (FALSE);
+			return (FALSE);  /* XXX should just skip this one */
 		}
-#ifdef notdef
-	/*
-	 * Make sure that we'll get the right sort of stuff.
-	 */
-		if (! ds_IsMobile (pids[p]))
-		{
-			msg_ELog (EF_PROBLEM, 
-				  "Track attempted on static platform %s",
-				  pnames[p]);
-			return (FALSE);
-		}
-#endif
 	}
 /*
  * Pull out other parameters of interest.
  */
 	if (! tr_GetParam (comp, "time-period", platform, tmp, SYMT_STRING))
-		*period = 300;
-	else if ((!strcmp(tmp, "observation"))) {
+		tparams->tp_Period = 300;
+	else if ((! strcmp (tmp, "observation")))
 	  /* if time-period == "observation", set period == 0 as a flag */
-	  *period = 0;
-	  } else if ((*period = pc_TimeTrigger (tmp)) == 0)
-	    {
-	      msg_ELog (EF_PROBLEM, "Unparsable time-period: '%s'", tmp);
-	      *period = 300;
-	    }
+		tparams->tp_Period = 0;
+	else if ((tparams->tp_Period = pc_TimeTrigger (tmp)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Unparsable time-period: '%s'", tmp);
+		tparams->tp_Period = 300;
+	}
 /*
  * Do they want us to pare things down?
  */
-	if (! tr_GetParam (comp, "data-skip", platform, (char *) dskip,
-			SYMT_INT))
-		*dskip = 0;
+	if (! tr_GetParam (comp, "data-skip", platform,
+			(char *) &tparams->tp_DSkip, SYMT_INT))
+		tparams->tp_DSkip = 0;
+/*
+ * Time annotations?
+ */
+	if (! pda_Search (Pd, comp, "annot-time", "track", 
+				&tparams->tp_AnnotTime, SYMT_BOOL))
+		tparams->tp_AnnotTime = FALSE;
 /*
  * Color info.
  */
-	if (! tr_GetParam (comp, "color", platform, mtcolor,SYMT_STRING))
-		strcpy (mtcolor, "white");
+	if (! tr_GetParam (comp, "color", platform, tparams->tp_MTColor,
+			SYMT_STRING))
+		strcpy (tparams->tp_MTColor, "white");
 /*
  * Color code field.
  */
-	*mono = ! (tr_GetParam (comp, "field", platform, ccfield, SYMT_STRING)
+	tparams->tp_Mono = ! (tr_GetParam (comp, "field", platform,
+			tparams->tp_CCField, SYMT_STRING)
 			|| tr_GetParam (comp, "color-code-field", platform,
-				ccfield, SYMT_STRING));
+				tparams->tp_CCField, SYMT_STRING));
 /*
  * Show the location?  As arrow or icon?
  */
-	*showposition = FALSE;
-	*positionarrow = FALSE;
+	tparams->tp_ShowPosition = FALSE;
+	tparams->tp_PositionArrow = FALSE;
 	if (tr_GetParam (comp, "show-position", platform, 
-			 (char *) showposition, SYMT_BOOL) && *showposition)
+			&tparams->tp_ShowPosition, SYMT_BOOL) &&
+			tparams->tp_ShowPosition)
 	{
 	/*
 	 * do-position-arrow takes precedence over position-icon; if
 	 * position arrow enabled, positionicon is undefined.
 	 */
 		if (tr_GetParam (comp, "do-position-arrow", platform, 
-				 (char *) positionarrow, SYMT_BOOL) &&
-		    *positionarrow)
-		{
+				&tparams->tp_PositionArrow, SYMT_BOOL) &&
+				tparams->tp_PositionArrow)
 			; /* hunky-dory */
-		}
 	/*
 	 * If we need an icon to show, get it from position-icon if it
 	 * exists, else default to plain old icon.  The thinking is that
@@ -1070,13 +1115,13 @@ bool *mono, *showposition, *positionarrow;
 	 * position-icon, without so much redundancy in plot descriptions.
 	 */
 		else if (! tr_GetParam (comp, "position-icon", platform, 
-					positionicon, SYMT_STRING) &&
+				tparams->tp_PosIcon, SYMT_STRING) &&
 			 ! tr_GetParam (comp, "icon", platform, 
-					positionicon, SYMT_STRING))
+				tparams->tp_PosIcon, SYMT_STRING))
 		{
-			*showposition = FALSE;
+			tparams->tp_ShowPosition = FALSE;
 			msg_ELog (EF_PROBLEM, "%s: show-position true, %s.",
-				  comp, "but no icon or arrow");
+					comp, "but no icon or arrow");
 		}
 	}
 	return (TRUE);
@@ -1087,134 +1132,143 @@ bool *mono, *showposition, *positionarrow;
 
 
 static bool
-tr_CCSetup (comp, platform, ccfield, ctable, colors, nc, base, incr, outrange,
-	center, step, autoscale)
-char *comp, *platform, *ccfield, *ctable;
-XColor **colors, *outrange;
-int *nc;
-float *base, *incr, *center, *step;
-bool *autoscale;
+tr_CCSetup (comp, platform, tparams)
+char *comp, *platform;
+TrackParams *tparams;
 /*
  * Get everything set up to color-code a track.
  */
 {
 	char orc[20], param1[50], param2[50], mode[32];
 /*
+ * Assume the worst.  We're cynical folks.
+ */
+	tparams->tp_Mono = TRUE;
+/*
  * Get the color table.
  */
-	if (! tr_GetParam (comp, "color-table", platform, ctable, SYMT_STRING))
+	if (! tr_GetParam (comp, "color-table", platform, tparams->tp_CTable,
+			SYMT_STRING))
 	{
 		msg_ELog (EF_PROBLEM,
 			"No color table specified in component %s", comp);
 		return (FALSE);
 	}
-	if (! ct_LoadTable (ctable, colors, nc))
+	if (! ct_LoadTable (tparams->tp_CTable, &tparams->tp_Colors,
+			&tparams->tp_NColor))
 	{
-		msg_ELog (EF_PROBLEM, "Unable to load color table %s", ctable);
+		msg_ELog (EF_PROBLEM, "Unable to load color table %s",
+				tparams->tp_CTable);
 		return (FALSE);
 	}
 /*
  * Autoscaling?
  */
 	if (pda_Search (Pd, comp, "scale-mode", "track", mode, SYMT_STRING))
-		*autoscale = strcmp (mode, "manual");
+		tparams->tp_AutoScale = strcmp (mode, "manual");
 	else
-		*autoscale = FALSE;
+		tparams->tp_AutoScale = FALSE;
 /*
  * Get our color coding parameters.
  */
-	if (! *autoscale)
+	if (! tparams->tp_AutoScale)
 	{
-		sprintf (param1, "%s-center", ccfield);
-		sprintf (param2, "%s-step", ccfield);
-		if (! pda_ReqSearch (Pd, comp, param1, "track", (char *)center,
-				     SYMT_FLOAT) ||
-		    ! pda_ReqSearch (Pd, comp, param2, "track", (char *) step,
-				     SYMT_FLOAT))
+		sprintf (param1, "%s-center", tparams->tp_CCField);
+		sprintf (param2, "%s-step", tparams->tp_CCField);
+		if (! pda_ReqSearch (Pd, comp, param1, "track",
+				(char *) &tparams->tp_Center, SYMT_FLOAT) ||
+		    ! pda_ReqSearch (Pd, comp, param2, "track",
+				    (char *) &tparams->tp_Step, SYMT_FLOAT))
 			return (FALSE);
 	}
 /*
  * Something for completely funky colors too.  Red is probably a bad
  * choice but that's what we have for now.
  */
-	if (! tr_GetParam (comp, "out-of-range-color", ccfield, orc,
-		SYMT_STRING))
+	if (! tr_GetParam (comp, "out-of-range-color", tparams->tp_CCField,
+			orc, SYMT_STRING))
 		strcpy (orc, "red");
-	if (! ct_GetColorByName (orc, outrange))
+	if (! ct_GetColorByName (orc, &tparams->tp_Outrange))
 	{
 		msg_ELog (EF_PROBLEM, "Bad out of range color: %s", orc);
-		ct_GetColorByName ("red", outrange); /* assume this works */
+		ct_GetColorByName ("red", &tparams->tp_Outrange);
 	}
 
+	tparams->tp_Mono = FALSE;
 	return (TRUE);
 }
 
 
 
 static void
-tr_GetArrowParams (comp, platform, a_scale, a_lwidth, a_invert, a_int, 
-		a_color, a_clr, a_type)
+tr_GetArrowParams (comp, platform, tparams)
 char *comp;
 char *platform;
-float *a_scale;
-int *a_lwidth;
-bool *a_invert;
-int *a_int;
-char *a_color;
-XColor *a_clr;
-char *a_type;
+TrackParams *tparams;
 /*
  * Get the parameters that control track arrows.
  */
 {
-	char a_interval[30];
+	char param[CFG_PDPARAM_LEN];
 /*
  * Misc params.
  */
-	if(! tr_GetParam(comp, "arrow-scale", platform, (char *) a_scale,
-			SYMT_FLOAT))
-		*a_scale = 0.007;
-	if(! tr_GetParam(comp, "arrow-line-width", platform, (char *) a_lwidth,
-			SYMT_INT))
-		*a_lwidth = 1;
-	if(! tr_GetParam(comp, "arrow-invert", platform, (char *) a_invert,
+	if (! tr_GetParam (comp, "arrow-scale", platform,
+			(char *) &tparams->tp_ArrowScale, SYMT_FLOAT))
+		tparams->tp_ArrowScale = 0.007;
+	if (! tr_GetParam (comp, "arrow-line-width", platform,
+			(char *) &tparams->tp_ALWidth, SYMT_INT))
+		tparams->tp_ALWidth = 1;
+	if (! tr_GetParam(comp, "arrow-invert", platform, &tparams->tp_AInvert,
 			SYMT_BOOL))
-		*a_invert = FALSE;
+		tparams->tp_AInvert = FALSE;
+/*
+ * Maybe they really want to plot barbs?
+ */
+	if (tr_GetParam (comp, "arrow-style", platform, param, SYMT_STRING))
+		tparams->tp_Barb = ! strcmp (param, "barb");
+	else
+		tparams->tp_Barb = FALSE;
+	if (tparams->tp_Barb)
+	{
+		if (! tr_GetParam (comp, "shaft-length", platform,
+				(char *) &tparams->tp_ShaftLen, SYMT_INT))
+			tparams->tp_ShaftLen = 20;
+	}
 /*
  * Get and parse the arrow interval.
  */
-	if(! tr_GetParam(comp, "arrow-interval", platform, a_interval,
+	if (! tr_GetParam (comp, "arrow-interval", platform, param,
 			SYMT_STRING))
-		*a_int = 10;
-	else if((*a_int = pc_TimeTrigger (a_interval)) == 0)
+		tparams->tp_AInterval = 10;
+	else if ((tparams->tp_AInterval = pc_TimeTrigger (param)) == 0)
 	{
 		msg_ELog(EF_PROBLEM,"Unparsable arrow interval: '%s'.",
-			a_interval);
-		*a_int = 10;
+			param);
+		tparams->tp_AInterval = 10;
 	}
 /*
  * Color information.
  */
-	if(! tr_GetParam (comp, "arrow-color", platform, a_color, SYMT_STRING))
-		strcpy (a_color, "white");
-	if(! ct_GetColorByName (a_color, a_clr))
+	if (! tr_GetParam (comp, "arrow-color", platform, tparams->tp_AColor,
+			SYMT_STRING))
+		strcpy (tparams->tp_AColor, "white");
+	if (! ct_GetColorByName (tparams->tp_AColor, &tparams->tp_ArrowColor))
 	{
-		msg_ELog (EF_PROBLEM, "Can't get arrow color: '%s'.",a_color);
-		strcpy (a_color, "white");
-		ct_GetColorByName (a_color, a_clr);
+		msg_ELog (EF_PROBLEM, "Can't get arrow color: '%s'.",
+				tparams->tp_AColor);
+		strcpy (tparams->tp_AColor, "white");
+		ct_GetColorByName (tparams->tp_AColor,&tparams->tp_ArrowColor);
 	}
 /*
  * And what are we actually plotting?
  */
-	if(! tr_GetParam (comp, "arrow-type", platform, a_type, SYMT_STRING))
-		strcpy (a_type, "wind");
-#ifdef notdef
-	if(! tr_GetParam (comp, "x-field", platform, a_xfield, SYMT_STRING))
-		strcpy (a_xfield, "u_wind");
-	if(! tr_GetParam (comp, "y-field", platform, a_yfield, SYMT_STRING))
-		strcpy (a_yfield, "v_wind");
-#endif
+	if (! tr_GetParam (comp, "arrow-type", platform, tparams->tp_AType,
+			SYMT_STRING))
+		strcpy (tparams->tp_AType, "wind");
 }
+
+
 
 
 
@@ -1379,4 +1433,120 @@ int		ndetail;
 	return (dc);
 }    
 
+
+
+
+static DataChunk *
+tr_GetData (comp, update, pid, tparams, details, ndetail, begin)
+char *comp;
+PlatformId pid;
+int ndetail, update;
+dsDetail *details;
+ZebTime *begin;
+TrackParams *tparams;
+{
+	DataChunk *dc;
+/*
+ * Figure the begin time and fetch data.  If updating, only fetch and
+ * plot data since the last plot of this track; otherwise, fetch the
+ * period or the whole observation depending upon the mode.
+ */
+	if (update && pda_Search (Pd, comp, "data-end-time", NULL, 
+			(char*) begin, SYMT_DATE))
+	{
+	/*
+	 * Update: get data since last plot regardless of
+	 * obesrvation or period mode.  If we don't know when
+	 * we last plotted data, skip this and fetch a full
+	 * swath of data.
+	 */
+		msg_ELog (EF_DEBUG, "update in %s mode from %d to %d",
+				(tparams->tp_Period) ? "period" : "obs",
+				begin->zt_Sec, PlotTime.zt_Sec);
+		dc = ds_Fetch (pid, tparams->tp_NField ? DCC_Scalar :
+				DCC_Location, begin, &PlotTime,
+				tparams->tp_Fields, tparams->tp_NField,
+				details, ndetail);
+	}
+/*
+ * If this platform delivers NSpace data, then do what we can
+ * to get it in DCC_Scalar or DCC_Location form
+ */
+	else if (ds_PlatformDataOrg (pid) == OrgNSpace)
+		dc = tr_DoNSpace (pid, tparams->tp_Fields, tparams->tp_NField,
+				details, ndetail);
+/*
+ * Barring updates we fetch data based on period or observation
+ */
+	else if (tparams->tp_Period) /* time-period type plot */
+	{
+		*begin = PlotTime;
+		begin->zt_Sec -= tparams->tp_Period;
+		dc = ds_Fetch (pid, tparams->tp_NField ? DCC_Scalar :
+				DCC_Location, begin, &PlotTime,
+				tparams->tp_Fields, tparams->tp_NField,
+				details, ndetail);
+	}
+/*
+ * OK, looks like they want an observation plot.  See when we might have
+ * an observation for them.
+ */
+	else if (ds_GetObsTimes (pid, &PlotTime, begin, 1, NULL))
+	{
+		msg_ELog (EF_DEBUG, "global, FetchObs for %d", 	begin->zt_Sec);
+		dc = ds_FetchObs (pid,	tparams->tp_NField ?
+				DCC_Scalar : DCC_Location, begin,
+				tparams->tp_Fields, tparams->tp_NField,
+				details, ndetail);
+	}
+/*
+ * Bummer.
+ */
+	else
+		dc = NULL;
+	return (dc);
+}
+
+
+
+
+
+static void
+tr_Barb (d, x1, y1, u, v, shaftlen)
+Drawable d;
+int x1, y1, shaftlen;
+float u, v;
+/*
+ * Draw a barb on the screen.
+ */
+{
+	draw_barb (Disp, d, Gcontext, x1, y1, atan2 (-v, -u), hypot (u, v),
+			shaftlen, 0);
+}
+
+
+
+
+static float
+tr_GetBadval (dc)
+DataChunk *dc;
+{
+	if (dc_IsSubClassOf (dc->dc_Class, DCC_MetData))
+		return (dc_GetBadval (dc));
+	else
+	{
+		char *abad;
+		float badvalue;
+
+		abad = dc_GetGlobalAttr (dc, "bad_value_flag");
+		if (!abad)	/* trouble */
+			return (-99999.0);
+		sscanf (abad,"%f",&badvalue);
+		return (badvalue);
+	}
+}
+
+
 # endif /* C_CAP_TRACKS */
+
+

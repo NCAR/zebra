@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.34 1996-11-19 07:29:19 granger Exp $")
+RCSID("$Id: XYContour.c,v 1.35 1997-02-03 17:53:06 corbet Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -90,7 +90,7 @@ bool	update;
 	int	npts[MAX_PLAT], plat, nplat, ncolors, dmode;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
-	float	zstep, ccenter, *datagrid = NULL;
+	float	zstep, ccenter, *datagrid = NULL, widen = 0.0;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
 	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
@@ -220,6 +220,19 @@ bool	update;
 		ymax.val.t = eTimeTarget;
 	}
 /*
+ * Think about maybe widening the time period for the purposes of fetching
+ * the data.
+ */
+	if (pda_Search (Pd, c, "widen-time", "xy-contour", (char *) &widen,
+			SYMT_FLOAT) && widen > 0)
+	{
+		int tp = eTimeTarget.zt_Sec - bTimeTarget.zt_Sec;
+		int adjust = (int) (tp * widen/100.0);
+		bTimeTarget.zt_Sec -= adjust;
+		eTimeTarget.zt_Sec += adjust;
+		msg_ELog (EF_INFO, "Widening by %d", adjust);
+	}
+/*
  * Loop through the platforms and get the data vectors
  */
 	for (plat = 0; plat < nplat; plat++)
@@ -338,7 +351,8 @@ bool	update;
 		{
 			char param[80];
 			CalcCenterStep (zmin[plat].val.f, zmax[plat].val.f,
-					ncolors, &ccenter, &zstep);
+					(ncolors == 1) ? 10 : ncolors,
+					&ccenter, &zstep);
 			sprintf (param, "%s-scale-z-center", zfnames[0]);
 			pd_Store (Pd, "global", param, (char *) &ccenter,
 					SYMT_FLOAT);
@@ -623,19 +637,19 @@ DataValPtr	y0;
     switch (ydata->type)
     {
 	case 't':
-	    index = (ydim - 1) - (int) ((float) (ydata->val.t.zt_Sec + 
-						 ystep * 0.5 - 
-						 y0->val.t.zt_Sec) / ystep);
+	    index = (ydim - 1) - (int) ((float) (ydata->val.t.zt_Sec
+					    /* + ystep * 0.5 */  
+						- y0->val.t.zt_Sec) / ystep);
 
 	    break;
 	case 'f':
-	    index = (ydim - 1) - (int) ((ydata->val.f + ystep * 0.5 - 
+	    index = (ydim - 1) - (int) ((ydata->val.f /* + ystep * 0.5 */ - 
 					 y0->val.f) / ystep);
 
 	    break;
     }
 
-    if (index < ydim) 
+    if (index >= 0 && index < ydim) 
 	    return (index);
     else
 	    return (-1);
@@ -655,17 +669,18 @@ DataValPtr	x0;
     switch (xdata->type)
     {
 	case 't':
-	    index = (int) ((float) (xdata->val.t.zt_Sec + xstep * 0.5 - 
+	    index = (int) ((float) (xdata->val.t.zt_Sec /* + xstep * 0.5 */ - 
 				    x0->val.t.zt_Sec) / xstep);
 
 	    break;
 	case 'f':
-	    index = (int) ((xdata->val.f + xstep * 0.5 - x0->val.f) / xstep);
+	    index = (int) ((xdata->val.f + /* xstep * 0.5 */
+			    - x0->val.f) / xstep);
 
 	    break;
     }
 
-    if (index < xdim)
+    if (index < xdim && index >= 0)
 	    return (index);
     else 
 	    return (-1);
@@ -683,10 +698,10 @@ DataValPtr	data0, data1;
     {
 	case 't':
 	    dstep = (float) (data1->val.t.zt_Sec - data0->val.t.zt_Sec) /
-			 ((float) ddim-1);
+			 ((float) ddim /* - 1 */);
 	    break;
 	case 'f':
-	    dstep = (data1->val.f - data0->val.f) / ((float) ddim-1);
+	    dstep = (data1->val.f - data0->val.f) / ((float) ddim /* -1 */);
 	    break;
     }
     return (dstep);
@@ -716,7 +731,7 @@ float		badval;
     {
 	ix = xGridIndex (& (xdata[k]), ginfo->xdim, xstep, x0);
 	iy = yGridIndex (& (ydata[k]), ginfo->ydim, ystep, y0);
-	if (ix >= 0 && iy >= 0)
+	if (ix >= 0 && iy >= 0 && ix < ginfo->xdim && iy < ginfo->ydim)
 	{
 	    if (GRID (ginfo->grid, ix, iy, ginfo->ydim) == badval)
 	    {

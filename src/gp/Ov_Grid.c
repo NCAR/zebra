@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Ov_Grid.c,v 2.6 1996-03-12 17:41:32 granger Exp $")
+RCSID ("$Id: Ov_Grid.c,v 2.7 1997-02-03 17:52:55 corbet Exp $")
 
 # define BETWEEN(x,a,b)    ((((x)-(a))*((x)-(b))) <= 0)
 
@@ -50,6 +50,7 @@ RCSID ("$Id: Ov_Grid.c,v 2.6 1996-03-12 17:41:32 granger Exp $")
 #define HeightPixPerInch(screen) \
 	(HeightOfScreen(screen)/(HeightMMOfScreen(screen)/25.4))
 
+# define ABS(v) ((v) > 0 ? (v) : (- (v)))
 /*
  * The maximum number of segments we want to draw in a curve.
  */
@@ -544,7 +545,7 @@ float aint;
 /*
  * Find the lat/lon of the center of the display area
  */
-	prj_Reverse (YUSER ((top + bottom)/2),  XUSER ((left + right)/2),
+	prj_Reverse (XUSER ((left+right)/2), YUSER ((top + bottom)/2),
 		     &ctr_lat, &ctr_lon);
 /*
  * Change our spacings from minutes into degrees
@@ -588,8 +589,7 @@ float aint;
 		 * Run through the range of longitudes, stepping by
 		 * half the distance between our longitude lines.
 		 */
-			did_draw = FALSE;
-			did_label = FALSE;
+			did_label = did_draw = FALSE;
 
 			for (lon = ctr_lon - 180.0; 
 			     lon <= ctr_lon + 180.0; 
@@ -606,7 +606,8 @@ float aint;
 			}
 		/*
 		 * Break out if no portion of this latitude line showed up
-		 * on the plot
+		 * on the plot.  (BUT don't do that until we have drawn
+		 * somewhere -- bugfix jc).
 		 */
 			if (! did_draw)
 			{
@@ -667,7 +668,6 @@ float aint;
 				did_draw |= npts;
 				did_label |= (npts == 2);
 			}
-			
 		/*
 		 * Break out if no portion of this longitude line showed up
 		 * on the plot
@@ -719,7 +719,13 @@ double	theight;
 	px1 = IXPIX (x1);
 	py0 = IYPIX (y0);
 	py1 = IYPIX (y1);
-
+/*
+ * An attempt to get rid of the funky line problem by filtering out truly
+ * outlandish points.
+ */
+	if (ABS (px0) > 5000 || ABS (px1) > 5000 || ABS (py0) > 5000 ||
+			ABS (py1) > 5000)
+		return (0);
 	XDrawLine (Disp, GWFrame (Graphics), Gcontext, px0, py0, px1, py1);
 /*
  * Are there 0, 1, or 2 points inside the plot region?

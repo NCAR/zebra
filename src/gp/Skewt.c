@@ -39,7 +39,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.27 1996-11-19 07:25:17 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.28 1997-02-03 17:53:01 corbet Exp $")
 
 /*
  * General definitions
@@ -51,6 +51,8 @@ RCSID ("$Id: Skewt.c,v 2.27 1996-11-19 07:25:17 granger Exp $")
 # define PI	3.141592654
 # endif
 # define BUFLEN	1024
+
+# define MINUTES(v) ((int) (60*(v - (int) v) + 0.5))
 
 /*
  * Plot limits (initialized in sk_Init below)
@@ -124,6 +126,7 @@ static int	sk_Surface FP ((float *, float *, float *, int, float*,
 				float *, float *, double));
 static int	sk_700mb FP ((float *, float *, float*, int, double, double,
 			      float *, float *, int *, double));
+static void	EncodeLocation FP ((char *, Location *));
 
 
 void
@@ -838,22 +841,48 @@ bool    update;
  */
         if (! update)
 	{
-		int active = FALSE;
+		int active = FALSE, anloc = FALSE;
+	/*
+	 * Do they want it active?
+	 */
 		pda_Search (Pd, c, "top-annot-active", "skewt",
 				(char *) &active, SYMT_BOOL);
 		An_DoTopAnnot (pname, tacolor, active ? c : 0, pname);
 	/*
-	 * See if they want to hear about the time too.
+	 * See if they want any additional stuff added in.
 	 */
 		if (! pda_Search (Pd, c, "annot-time", "skewt", 
-				  (char *) &antime, SYMT_BOOL) || antime)
+				  (char *) &antime, SYMT_BOOL))
+			antime = TRUE;
+		if (! pda_Search (Pd, c, "annot-location", "skewt",
+				(char *) &anloc, SYMT_BOOL))
+			anloc = FALSE;
+		if (antime || anloc)
+			An_TopAnnot (" (", tacolor);
+	/*
+	 * Throw in the time if they want it.
+	 */
+		if (antime)
 		{
 			char atime[40];
-			TC_EncodeTime (&ptime, TC_Full, atime + 2);
-			atime[0] = ' '; atime[1] = '(';
-			strcat (atime, ")");
+			TC_EncodeTime (&ptime, TC_Full, atime);
 			An_TopAnnot (atime, tacolor);
 		}
+	/*
+	 * The location too.
+	 */
+		if (anloc)
+		{
+			char aloc[40];
+			Location loc;
+			dc_GetLoc (dc, 0, &loc);
+			if (antime)
+				An_TopAnnot (", ", tacolor);
+			EncodeLocation (aloc, &loc);
+			An_TopAnnot (aloc, tacolor);
+		}
+		if (antime || anloc)
+			An_TopAnnot (")", tacolor);
 	}
 /*
  * Find the number of points in the observation, and stash it away
@@ -1054,6 +1083,12 @@ int	skip;
 		details[ndetail].dd_V.us_v_float = badvalue;
 		details[ndetail++].dd_Name = DD_FETCH_BADVAL;
 	}
+/*
+ * While we're at it, see if they want to tweak the wind scale.
+ */
+	if (! pda_Search (Pd, c, "wind-scale", pname, (char *) &W_scale,
+			SYMT_FLOAT))
+		W_scale = 25.0;		/* old default */
 /*
  * Get the data
  */
@@ -1581,5 +1616,32 @@ int	npts, *ndx700;
 
 
 
+
+
+static void
+EncodeLocation (string, locp)
+char *string;
+Location *locp;
+/*
+ * Encode a location for display.
+ */
+{
+	char latc = 'N', lonc = 'E';
+	Location loc = *locp;
+	
+	if (loc.l_lat < 0)
+	{
+		loc.l_lat = fabs (loc.l_lat);
+		latc = 'S';
+	}
+	if (loc.l_lon < 0)
+	{
+		loc.l_lon = fabs (loc.l_lon);
+		lonc = 'W';
+	}
+	sprintf (string, "%d\260 %d'%c, %d\260 %d'%c", (int) loc.l_lat,
+			MINUTES (loc.l_lat), latc, (int) loc.l_lon,
+			MINUTES (loc.l_lon), lonc);
+}
 
 # endif /* C_PT_SKEWT */
