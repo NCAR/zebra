@@ -12,7 +12,6 @@
 # include "pixel.h"
 
 
-
 static int Trace = 0;
 
 
@@ -1408,4 +1407,17 @@ int t;
  */
 {
 	Trace = t;
+}
+
+
+
+
+G_name_to_rgb (cname, r, g, b)
+char	*cname;
+double	*r, *g, *b;
+/*
+ * Convert a color name to rgb values (dump this to the routine in color.c)
+ */
+{
+	return (gc_name_to_rgb (cname, r, g, b));
 }
