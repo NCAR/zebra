@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 2.1 1991-07-22 19:39:31 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 2.2 1991-07-22 19:42:44 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -1542,7 +1542,7 @@ DataObject *dobj;
  */
 {
 	NCTag *tag;
-	int start[4], count[4], vfield, field;
+	int start[4], count[4], vfield, field, doffset;
 /*
  * Gotta open up the file before we do anything.
  */
@@ -1561,6 +1561,31 @@ DataObject *dobj;
  */
  	dnc_MakeCoords (tag, dobj, start, count);
 /*
+ * Figure out the necessary offset into the data array
+ */
+	switch (dobj->do_org)
+	{
+	    case Org2dGrid:
+		doffset = begin * rg->rg_nX * rg->rg_nY;
+		break;
+	    case Org3dGrid:
+		doffset = begin * rg->rg_nX * rg->rg_nY * rg->rg_nZ;
+		break;
+	    case OrgIRGrid:
+		doffset = begin * irg->ir_npoint;
+		break;
+	    case OrgScalar:
+		doffset = begin;
+		break;
+	    case OrgImage:
+		rg = dobj->do_desc.d_img.ri_rg;
+		doffset = begin * rg->rg_nX * rg->rg_nY;
+		break;
+	    case OrgOutline:
+		doffset = begin * *(dobj->do_desc.d_length);
+		break;
+	}
+/*
  * Time for the humungo write to dump it all into the file.
  */
 	for (field = 0; field < dobj->do_nfield; field++)
@@ -1572,7 +1597,7 @@ DataObject *dobj;
 			continue;
 		}
 		if (ncvarput (tag->nc_id, vfield, start, count,
-					dobj->do_data[field]) < 0)
+					dobj->do_data[field] + doffset) < 0)
 			dnc_NCError ("Data write");
 	}
 /*
