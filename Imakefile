@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.21 1995-04-25 20:50:30 granger Exp $
+XCOMM $Id: Imakefile,v 1.22 1995-05-24 21:26:53 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -8,12 +8,13 @@ XCOMM distribution.
 #define PassCDebugFlags
 
       WORLDOPTS = -k
-     CHECKFNSRC = $(UTILSRC)/checkfn
-        CHECKFN = $(CHECKFNSRC)/checkfn
 
-        SUBDIRS = config src
-    DISTSUBDIRS = config imake src
-     SRCSUBDIRS = config imake src
+#if BuildRDSS
+    RDSSSUBDIRS = util ui
+#endif
+        SUBDIRS = config $(RDSSSUBDIRS) src
+    DISTSUBDIRS = config $(RDSSSUBDIRS) src
+     SRCSUBDIRS = config $(RDSSSUBDIRS) src
 
           ETAGS = etags
      ETAGSFLAGS = 
@@ -25,7 +26,7 @@ XCOMM Note that for distributions, Makefile should be a copy of
 XCOMM Makefile.ini and NOT the Makefile created by imake.  The tarfile
 XCOMM target copies Makefile.ini over Makefile automatically.
 
-      DISTFILES = Imakefile Makefile.ini Makefile ChangeLog
+      DISTFILES = Imakefile Makefile.ini /*Makefile*/ ChangeLog
 #ifdef notdef
        LINKDIRS = dist/zeb/doc dist/zeb/project
       LINKNAMES = $(TARNAME)/doc $(TARNAME)/project
@@ -66,9 +67,9 @@ default::
 	@echo "You can enter any of the targets Makefile, Makefiles, clean,"
 	@echo "includes, depend, all, or install on the make command line,"
 	@echo "but you risk compiling with outdated header or object files."
-	@echo "Other targets available:
+	@echo "Other targets available:"
 	@echo "	make distclean      - clean all subdirectories, "
-	@echo "			      including ./imake and ./include"
+	@echo "			      including ./include"
 	@echo "	make tarfile        - make a tar file of the distribution,"
 	@echo "	                      see Imakefile for info before using"
 	@echo "Press <Return> here to continue with 'make Everything',"
@@ -84,6 +85,10 @@ DependSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
 
+TESTSUBDIRS = src
+
+TestSubdirs($(TESTSUBDIRS))
+
 XCOMM do not name your log file make.log or MakeOut when you run this ...
 World::
 	@echo ""
@@ -95,7 +100,7 @@ World::
 	cd $(IMAKESRC); \
 		$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) clean; \
 		$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) \
-			INCLUDES=-I../config \
+			INCLUDES=-I../project \
 			BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
@@ -213,14 +218,6 @@ mf:: Makefile
 	@echo "Skipping the depend part of this target."
 	@echo "Use 'make depend' to perform depend on all subdirectories."
 	@false
-
-/*
- * This section used for generating distributions will not be useful to most
- * people.
- */
-XCOMM check all filenames for length, letters, and content
-checkfilenames::  $(CHECKFNSRC)/checkfn
-	@find . -type d \! -name RCS -exec $(CHECKFNSRC)/find.sh $(CHECKFN) {} \;
 
 XCOMM clean out link tree looking for stuff that should get checked in
 flushlinks::
