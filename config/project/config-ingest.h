@@ -1,6 +1,6 @@
 
 XCOMM ================================================================
-XCOMM $Id: config-ingest.h,v 1.3 2001-01-17 23:29:16 granger Exp $
+XCOMM $Id: config-ingest.h,v 1.4 2003-01-28 22:52:24 burghart Exp $
 XCOMM Definitions from config-ingest.h.
 XCOMM ================================================================
 
@@ -176,7 +176,7 @@ XCOMM ================================================================
 #ifdef LinuxArchitecture
 
 # define FortranCompiler g77
-# define FortranLibraries -lf2c
+# define FortranLibraries `g77 --print-file-name=libg2c.a`
 
 #else 
 #ifdef OSF1Architecture

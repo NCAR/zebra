@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.45 2001-12-21 16:24:38 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.46 2003-01-28 22:52:24 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -463,7 +463,7 @@ XCOMM --- Deciding FORTRAN library paths
 #  define FortranLibraries -lU77 -lf -lisamstub
 # else
 #  define FortranCompiler g77
-#  define FortranLibraries -lf2c
+#  define FortranLibraries `g77 --print-file-name=libg2c.a`
 #  define FortOptions -O -funix-intrinsics-delete
 # endif
 #endif
@@ -480,7 +480,7 @@ XCOMM --- Deciding FORTRAN library paths
 
 #ifdef LinuxArchitecture
 # define FortranCompiler g77
-# define FortranLibraries -lf2c
+# define FortranLibraries `g77 --print-file-name=libg2c.a`
 #endif
 
 #ifdef LinuxArchitecture
