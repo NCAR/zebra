@@ -1,0 +1,61 @@
+!
+! Procedures for winds
+!
+require simple-color
+
+!
+! Right menu
+!
+define widget winds-right intmenu ' '
+	title 'Winds Options'
+	line
+	submenu 'Color' 'simple-color'
+	submenu	'Arrow Line Width' 'linewidth'
+	submenu 'Barbs/Vectors' 'winds-style'
+	submenu 'Data Degradation' 'winds-degrade'
+endmenu
+
+!
+! Vector/Barb representation
+!
+define widget winds-style intmenu ' '
+	entry 'Vectors' 'wstyle-vector' \
+		(PDParam(icon_component,'wind-style') <> 'barb')
+	entry 'Barbs' 'wstyle-barb' \
+		(PDParam(icon_component,'wind-style') = 'barb')
+endmenu
+
+procedure wstyle-vector
+	parameter #icon_component plot-hold true
+	parameter #icon_component wind-style vector
+	parameter #icon_component limit-proc adj_arrow_scale
+	parameter #icon_component plot-hold false
+endprocedure
+
+procedure wstyle-barb
+	parameter #icon_component plot-hold true
+	parameter #icon_component wind-style barb
+	parameter #icon_component limit-proc adj_barb_scale
+	parameter #icon_component plot-hold false
+endprocedure
+
+
+!
+! Change grid degradation factor
+!
+define widget winds-degrade intmenu ' '
+	title 'Data Degradation'
+	line
+	entry 'Show All Vectors' 'change-degrade 1' \
+	     (PDParam(icon_component,'degrade') = '1')
+	entry 'Every Other' 'change-degrade 2' \
+	     (PDParam(icon_component,'degrade') = '2')
+	entry 'Every 3rd' 'change-degrade 3' \
+	     (PDParam(icon_component,'degrade') = '3')
+	entry 'Every 4th' 'change-degrade 4' \
+	     (PDParam(icon_component,'degrade') = '4')
+endmenu
+	
+procedure change-degrade degrade string
+	parameter #icon_component degrade #degrade
+endprocedure
