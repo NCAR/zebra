@@ -1,62 +1,102 @@
-16
-000000%000000Welcome to Zeb
-538
-Introduction To Zeb
+17
+000000%000000Welcome to the Wide World of Zeb
+808
 
-        Zeb is a system of software that may be used to
-combine diverse data sets in an integrated display.
-Zeb is useful in both real-time and post-processing 
-environments.
+/ INTRODUCTION /
 
-Using This Help Facility
+Zeb integrates meteorological data from multiple and
+diverse platforms into a single display.  Zeb operates as
+a real-time field operations and control tool and also as
+a post-processing visualization tool.
 
-        This is Zeb's online help facility.  In order
-to see the topics on which help is available, press
-the Topics button.  The Up and Down arrow buttons move
-up and down throught the list of topics.  The
-magnifying glass button searches a topic for a text
-string.  Click on the Quit button to remove this window.buttonmaps   Button to Command Mapping
-1697
-Button to Command Mapping
+/ USING HELP /
 
-        Zeb's command mapping refers to how functions of the
-graphics process are mapped to keystrokes and mouse button
-clicks in the graphics window.  In order to perform one of
-the actions listed in the following table, simply press the
-indicated key or mouse button while the cursor is in the
-graphics window where the action should be performed:
+This is the on-line help facility for Zeb.  Help can be
+obtained in several ways.  To see all of the topics for
+which help is available, press the <Topics> button, the
+leftmost icon above the title bar "Welcome to the Wide
+World of Zeb".  The <Up> and <Down> icon buttons, the
+second and third icons from the left, move up and down
+through the list of topics.  The <Search> button, picturing
+the magnifying glass, provides a search facility for
+finding references to a text string within a single topic. 
+Click the <Down> icon for more information on using Help...
+moreonhelp   More Help with Using Help
+1369
 
-        b               Back up from a zoom.
+/ SCROLLING HELP WINDOWS /
 
-        g               Popup the GetPosition widget.
+Often, a help topic includes more text than fits inside the
+help window.  In these cases a scroll bar will appear at
+the left side of the window.  Click the middle mouse button
+inside the scroll bar, and while holding the button down,
+move the mouse up and down to scroll text through the
+window.  Clicking the left or right mouse buttons inside
+the scroll bar scrolls the text down and up, respectively.
 
+/ HOW HELP TOPICS ARE ORGANIZED /
+
+Zeb's help information is divided into many topics.  All of
+the topics can be reached by moving up and down through the
+topic list using the <Up> and <Down> icon buttons. 
+Likewise, clicking on the <Topics> icon pops up a list of
+all of the help topics.  Any of the topics listed can be
+viewed by clicking on the topic name in the list.  Also,
+many of the help topics will be displayed automatically
+when help is requested in other parts of Zeb, such as from
+the Icon Bar help menu, one of the Zeb widgets, or a plot
+window icon.
+
+/ EXITING HELP /
+
+Click on the <Quit> button, found above the row of icon
+buttons in the help window, to remove the help window.  If
+help is requested at a later time, the help window will
+automatically pop up again.  If the help window is already
+on the screen (though it may be hidden by other windows),
+any help topics requested will be shown in the help window.
+
+
+buttonmaps   Graphics Window Buttons
+2000
+
+/ BUTTON TO COMMAND MAPPING /
+
+        Zeb uses button-to-command mappings to map
+keystrokes and mouse button clicks in the graphics window
+to many of the functions available in the graphics window. 
+To perform one of the actions listed in the following
+table, simply press the indicated key or mouse button while
+the cursor is in the graphics window where you wish the
+action performed.  In the table, a letter refers to the key
+on the keyboard.  LMB indicates left mouse button, MMB the
+middle, and RMB the right.  Prepending Shift- to the button
+indicates that the shift key should be held down while the
+mouse button is pressed.  So Shift-LMB means 'hold the
+shift key and press the left mouse button.'
+
+Button or Key		Graphics Window Action
+----------------------- ----------------------------------
 	h		Popup this help window.
-
+        b               Back up from a zoom.
+        g               Popup the GetPosition widget.
         m               Popup the movie controller.
-
         p               Draw a spotlight.
-
         r               Run a movie.
-
         s               Stop a movie.
-
         t               Popup the overlay times widget.
-
         u               Move up one step in altitude.
-
         d               Move down one step in altitude.
 
-        Left Mouse Button       Display this location in the
-                                GetPosition widget.
+	LMB		Display this location in the
+                           GetPosition widget.
+	Shift-LMB	Zoom area of graphics window.
 
-	Shift-Left Mouse Button	Zoom in on an area.
+        MMB		Draw a line on which to base
+                           a vertical cross section.
 
-        Middle Mouse Button     Draw a line on which to base
-                                a vertical cross section.
-
-        Right Mouse Button      Toggle the radar field 
-                                between reflectivity and
-                                velocity.
+        RMB		Toggle the radar field between
+                           reflectivity and velocity.
 
         Up Arrow        Move up one step in altitude.
 
@@ -64,46 +104,110 @@ graphics window where the action should be performed:
 
         Left Arrow      Zoom to a preset level(large scale).
 
-        RightArrow      Zoom to a preset level(small scale).
+        Right Arrow     Zoom to a preset level(small scale).
 
         Page Up         Move to the highest altitude
                         available.
 
         Page Down       Move to the lowest altitude
-                        available.movies       Running Movies
-659
-Starting a Movie
+                        available.
+movies       Running Movies
+3553
 
-        Movies can be run in each of the graphics windows
-at any time.  The first step is to popup the movie
-controller.  This can be done in one of two ways:
+/ SETTING THE MOVIE PARAMETERS /
 
-        -  Select the
+Movies are chronological sequences of "time frames"
+generated and displayed by the movie controller to create
+animation of graphics window plots.  Movies can be run in
+each of the graphics windows at any time.  First, you must
+popup the movie controller.  You can do this in one two
+ways:
 
-                Popup movie controller
+	Find the <Zeb> icon in the lower left corner
+	of the graphics window.  Choose the
+        "Popup Movie Controller" entry from the icon menu.
 
-           entry from the menu under the Zeb icon located in
-           the graphics window.
+	Or, type 'm' inside the graphics window.
 
-        -  Or, type 'm' in the graphics window.
+Next, you must set the movie parameters to generate the
+time frames which will comprise the animation sequence. 
+The movie controller provides four parameters for you to
+adjust: the duration of the movie, the time of the last
+frame of the movie, the interval between frames, and the
+rate at which the frames are displayed.  The movie duration
+and frame interval are measured in minutes, and the display
+rate is measured in frames/second.  For example, to animate
+satellite images over a five hour period ending at
+"04-mar-1992,21:00:00", skipping one hour between plots and
+displaying five frames every second, the movie controller
+would look like the following:
 
-        Next set the movie parameter to generate the
-desired movie.  Then click on the Run button. 
+Movie for [ 300 ] minutes ending at [ 04-mar-1992,21:00:00 ]
+Frames/Second: [ 5   ]  Frame skip: [ 60 ] minutes.
 
-Stopping a Movie and Returning to Real Time
+If you are interested in five-minute surface data, you can
+change the frame skip to five minutes.  However, since
+there is a limit to the maximum number of frames in a
+movie, the duration must be reduced as the frequency of the
+frames increases.
 
-	Click the Stop button to halt the movie in History
-Mode.  Click the Real Time button to return to the normal 
-real time display.altitude     Changing Altitude
-487
-Changing Altitude
+When entering the ending time for a movie, note that the
+year must have four digits.  If the time is left out, as in
+"04-mar-1992", "00:00" is assumed.  The time can also be
+specified as "04-mar-1992,0".  Lastly, the ending time
+can be specified as "now", in which case the ending time
+is taken as the current system time.  This option is only
+useful in real-time applications.
 
-	When the graphics window is dislaying a constant
-altitude plot, and the base field contains several different
-altitudes (or elevation angles), it is possible to change the
-altitude of the plot.
+/ RUNNING THE MOVIE /
 
-	The following keystrokes may be used to step up and
+Once the movie parameters are adjusted, begin the movie by
+pressing the <Run> button next to "Movie control:".  If
+the parameters are all valid, the movie controller will
+begin generating each frame of the movie.  If an error
+occurs, a message will appear on the "Status:" line.
+
+After each of the frames has been generated and stored, the
+movie will run more quickly and smoothly.  The speed of the
+movie will depend upon the "Frames/Second:" parameter.  
+
+The movie can be stopped at any time, even while the
+controller is generating frames, by pressing the <Stop>
+button.  This leaves the graphics window in history mode,
+with a plot time corresponding to the frame at which the
+movie stopped.  The movie can be continued by pressing
+<Run> again.
+
+The scroll bar at the bottom of the movie controller
+provides a convenient method for stepping backward and
+forward through the movie frames.  Holding down the middle
+mouse button inside the scroll bar allows you to scroll
+through frames continuously by moving the mouse left and
+right.  The left mouse button steps backward a single frame
+while the right mouse button steps forward a single frame.
+
+The <Real Time> button puts the graphics window in real
+time mode, taking the plot time from the current system
+time and disactivating the movie controller.  Naturally,
+this is useful only in real-time applications.
+
+/ QUITING THE MOVIE CONTROLLER /
+
+The movie controller window can be removed by pressing the
+<zap> button at the top of the window.  Removing the movie
+controller leaves the graphics window in the mode and time
+last set by the movie controller.  
+altitude     Changing Altitude
+523
+
+/ CHANGING THE ALTITUDE OF A CONSTANT-ALTITUDE PLOT /
+
+When the graphics window is dislaying a constant-altitude
+plot, and the base field contains several different
+altitudes (or elevation angles), it is possible to change
+the altitude of the plot.
+
+The following keystrokes may be used to step up and
 down in altitude:
 
 	Up Arrow	Move up one step in altitude.
@@ -114,40 +218,70 @@ down in altitude:
 			available.
 
 	Page Down	Move down to the lowest altitude
-			available.zooming      Zooming
-643
-Zooming
+			available.
+zooming      Zooming a Graphics Window
+1368
 
-	In order to zoom in on a portion of a graphics
-window, a box is drawn around that area using the mouse:
+/ ZOOMING /
 
-	1.  Place the cursor in the upper left corner of the
-	    area of interest.
+Zooming involves enlarging an area of a graphics window to
+obtain a narrower perspective and to distinguish greater
+detail in a plot.  To zoom an area of a graphics window,
+follow these steps:
 
-	2.  Press the Shift key and the Left Mouse Button at
-	    the same time.
+   1.  Place the cursor in the upper left corner of the
+       area you wish to zoom.
 
-	3.  Without releasing the key or button, drag the
-	    cursor until a box of the correct size encloses
-	    the area of interest.
+   2.  Press and hold the Shift key and the Left Mouse
+       Button at the same time.
 
-	4.  Let go of the key and button.
+   3.  Without releasing the mouse button, drag the
+       cursor to the lower right corner of the area
+       you wish to zoom.  You will see a box 
+       delineating an area of the window as you move 
+       the mouse.  
 
-	Note:  If the box does not cover the correct area,
-cancel the zoom by pressing any other mouse button without
-releasing the Shift key or the Left Mouse Button.
+   4.  If at any time you wish to cancel the zoom
+       while still pressing the left mouse button, 
+       simply press the middle or right mouse buttons
+       without releasing the left mouse button.
+       The box will disappear, the zoom will be
+       cancelled, and the mouse buttons can then 
+       be released.
 
-Un-Zooming
+   5.  When the box in the window outlines the area
+       you wish to zoom, let go of the mouse button.
+       The area enclosed by the box will be enlarged
+       to fill the entire graphics window.
 
-	To return from a zoom press 'b'.addrem       Adding and Removing Overlays
-1802
-Adding and Removing Overlays
 
-	An overlay is either a representation of the data
-that can be displayed in a graphics window or a static
-overlay such as a map.  The user may add as many overlays
-as desired to a graphics window (providing the plot type
-of the graphics window and the overlay are the same.)
+/ BACKING OUT OF A ZOOMED AREA /
+
+To return to the perspective from which you zoomed an area,
+press 'b'.  You can zoom an area successively any number of
+times; pressing 'b' steps back from each zoomed perspective
+one zoom at a time.
+addrem       Adding and Removing Overlays
+2087
+
+/ WHAT IS AN OVERLAY? /
+
+Most often, an overlay is a representation of static 
+information for display on a constant-altitude plot.
+For example, lat/lon grids, x/y grids, range rings,
+state boundaries, dual doppler lobes, and locations
+of towns, airports, and soundings are all represented
+as static overlays.  
+
+An overlay is either a representation of the data that can
+be displayed in a graphics window or a static overlay such
+as a map.
+
+
+
+The user may add as many overlays as desired to
+a graphics window (providing the plot type of the graphics
+window and the overlay are the same.)
 
 Adding Overlays
 
@@ -204,33 +338,88 @@ to disable or re-enable an overlay, follow these steps:
 	4.  Let go of the mouse button.
 
 	The icon will change color, typically to gray, to
-indicate that an overlay has been disabled.getposition  Get Position Widget
-530
-Get Position Widget
+indicate that an overlay has been disabled.getposition  Displaying Coordinates with Get Position
+2473
 
-	The Get Position Widget allows the user to click on
-a point in the graphics window and have that point's 
-location displayed in a special widget.  There are two
-steps to using the Get Position Widget, popping it up and
-picking the points.
+/ THE GET POSITION WIDGET /
 
-	1.  To pop up the Get Position Widget:  Type a 'g'
-	    in the graphics window where positions are to
-	    be located.
+The Get Position Widget allows the user to click on a point
+in the graphics window and see the location of that point
+in latitude and longitude coordinates.  The Get Position
+widget also reports distances relative to a named origin
+using azimuth and range, and x and y offsets; range, x, and
+y can be displayed in kilometers or nautical miles.  There
+are three steps to using the Get Position Widget, popping
+it up, entering an origin, and picking the points.
 
-	2.  To get the location of a point:  Click the left
-	    mouse button on that point.
+	1.  To pop up the Get Position Widget, type a 'g'
+	    in the graphics window for which you wish to
+	    display location coordinates.
 
-	To remove the Get Position Widget, click on the Zap
-button.overlaytimes Overlay Times Widget
-516
-Overlay Times Widget
+	2.  Enter an origin for the relative measurements.
+	    The origin name should be typed into the blank
+	    box, second from both the left and the bottom of
+	    the window.  For STORM-FEST, the origin can
+	    be one of the following locations:
 
-	The Overlay Times Widget displays the time at which
-the data was collected for each data platform used in the
-graphics window.  Note that this time may be different from
-the time displayed in the graphics window.  The widget can
-be popped up in one of two ways:
+		ops-ctr		Richards-Gebaur Ops Center
+		cp3		CP-3 Radar
+		cp4		CP-4 Radar
+		mhr		Mile-High Radar
+		okc		Twin Lakes, OK Nexrad
+		fdr		Frederick, OK Nexrad
+		cim		NSSL Cimarron
+		hot
+		chill
+		osk		Oskaloosa
+		aster		Aster
+		array		Center of boundary layer
+				array
+		
+	    In addition, many of the CLASS, NSSL CLASS,
+	    NWS sounding, and profiler site locations
+	    are available.  Use the ID name as the
+	    origin name.
+
+	3.  To get the location of a point in the graphics
+	    window, click the left mouse button on the
+	    point.  The coordinates of the point will be
+	    displayed in the Get Position window.  If
+	    you see the message "Unable to locate origin:
+	    xxx", then the origin name could not be found
+	    and must be changed.  You can click the left
+	    mouse button on as many points as you like;
+	    each time the coordinates of the point you
+	    clicked will be shown in the Get Position
+	    window.  You can also change the origin at
+	    any time by typing a new origin name into
+	    the origin box.
+
+/ CHANGING COORDINATE UNITS /
+
+You can change the units and formats which the Get Position
+widget uses to display coordinates.  There are two toggle
+buttons in the lower left corner of the Get Position
+window.  The bottom button toggles the units of range, x,
+and y between nautical miles and kilometers.  The button
+just above the bottom button toggles the format of the
+lat/lon coordinates between deg/min/sec and decimal degrees.
+
+/ REMOVING THE GET POSITION WIDGET /
+
+To remove the Get Position Widget, click on the <Zap> 
+button at the top of the window.
+overlaytimes Overlay Times Widget
+521
+
+/ OVERLAY TIMES WIDGET /
+
+
+The Overlay Times Widget displays the time at which the data
+was collected for each data platform used in the graphics
+window.  Note that this time may be different from the time
+displayed in the graphics window.  The widget can be popped
+up in one of two ways:
 
 	-  Select the
 
@@ -355,9 +544,10 @@ done by:
 
 	2.  Click on the scrollbar area of the movie
 	    controller to manually loop through the frames
-	    of the movie.icons        Using Icons
-1019
-Using Icons
+	    of the movie.icons        Using the Icons in the Graphics Window
+1034
+
+/ GRAPHICS WINDOW ICONS /
 
 	The Iconbar is Zeb's main menu and allows the user 
 to choose the type of data to be plotted and the display 
@@ -450,71 +640,205 @@ menu under the Zeb icon of the IconBar.
 
 	While the new configuration is being drawn some
 or all of the currently visible windows may disappear.
-shutdown    Shutting Down Zeb
-671
-Shutting Down Zeb
+shutdown    Ending the Zeb Universe
+1195
 
-	Stopping the Zeb system is a two step process. First
-the graphics display is stopped by performing the following
-steps:
-        1.  Move the cursor to the Zeb icon in the IconBar.
-        2.  Press and hold the left mouse button.
-        3.  Drag the cursor until the entry
-                Shutdown the Zeb system
-            is highlighted.
-        4.  Let go of the mouse button.
+/ SHUTTING DOWN ZEB /
 
-        If it is not possible to use the IconBar, the
-graphics display may be stopped by typing the following
-command at the display manager prompt:
+Stopping the Zeb system entails two steps.  First, you must
+stop the Zeb graphics display.  Move the cursor to the
+<Zeb> icon in the Icon Bar.  Press and hold the left mouse
+button.  Drag the cursor until the entry "Shut down Zeb
+system" is highlighted.  Release the mouse button.
+
+The Icon Bar, the graphics windows, and all associated
+widgets such as the Time widget, the Hardcopy widget,
+and the Movie and Overlay widgets will disappear from
+the screen.
+
+If it is not possible to use the Icon Bar, the graphics
+display may be stopped by typing the following command at
+the display manager prompt:
 
         DM> exit
 
-        Second the background processes must be stopped.  Do
-this by typing the command:
+In the second step, the rest of the Zeb background
+processes must be stopped.  Type this command at any
+shell prompt, assuming the Zeb executable directory
+is in your path:
 
-	% zebstopddop         Displaying Dual Doppler Analysis Data
-1602
-Displaying Dual Doppler Analisys Data
+	% zebstop
 
-	One of the platforms available for display with Zeb
-is the results of Dual Doppler Analysis.  To display Dual
-Doppler data, first examine the representations of the data
-that are available by clicking and holding the left mouse
-button on the Dual Doppler icon in the IconBar.  
+This command stops processes such as the DataStore and
+the EventLogger.
 
-	These representations are:
+/ STORM-FEST CD /
 
-	-  Line Contours
-	-  Filled Contours
-	-  Wind Vectors
+If you are using the STORM-FEST CD-ROM Zeb distribution,
+the script which starts the Zeb system also automatically
+shuts down all of the Zeb processes once the graphics
+display is shut down.  Hence STORM-FEST CD users do not
+need to perform the second step mentioned above.
+printer      Printing Hardcopies of Windows
+4630
 
-Any of these data representations may be added to a
-graphics window by following the steps listed in the
-topic, Adding and Removing Overlays.  If a filled contour
-is selected, other overlays may need to be removed before
-the newly added data becomes visible.
+/ THE HARDCOPY WIDGET /
 
-	Filled Contours of Divergence, Vertical Velocity, or
-Interpolated Reflectivity may be displayed.  When filled 
-contours are added to a graphics window, they become the 
-'base' overlay, meaning that these contours are drawn first 
-and all other overlays are drawn on top of them.  Because 
-filled contours become the base overlay, altitude stepping 
-is based on this data.  When adding a filled contour to
-a graphics window that already contains either another
-filled contour or a raster image (such as radar data), 
-pre-existing contour or raster image must be removed or
-disabled for the new filled contour to be visible.	
+The Hardcopy Widget simplifies the process of printing
+windows that are displayed on the screen.  To pop up the
+Hardcopy Widget, select the "Hardcopy Widget" option from
+the <Zeb> icon menu, next to the <Help ?> icon on the
+Icon Bar.
 
-	Line contours of divergence, vertical velocity, or
-interpolated reflectivity may be displayed.  When line
-contours are added to a graphics window, they are overlayed
-on top of the existing data.
+/ SETTING THE PARAMETERS /
 
-	Wind Vectors may also be added to a graphics 
-window.  Wind vectors will be overlayed on top of the
-existing data.xygraph      Using X-Y Graphs
+The Hardcopy Widget controls several printing parameters. 
+The settings of these parameters should be verified before
+attempting to print a window.  Messages which appear at the
+bottom of the widget give hints on which steps to take,
+information about each selection made, and notices about
+any problems which occur.
+
+First, decide whether to print a single window or the
+entire screen.  The top button, to the right of the
+label "Printing:", indicates the current setting.  The
+button displays either "One Window" or "Entire Screen".
+Click on this button to change from one setting to the
+other.  The window you wish to print does not have to
+be a Zeb window.
+
+Second, if the default printer name is not correct, type
+the name of the printer in the box to the right of "Printer
+name:".  See "Environment Variables" below to learn how to
+change the default printer name.
+
+Next, choose the printer's device type.  Pressing the
+button to the right of "Device type:" pops up a menu
+of device types.  Holding the left mouse button down,
+drag the selection bar to the appropriate device and
+release the mouse button.  The new device name will be
+displayed inside the menu button label.  The message
+at the bottom of the Hardcopy Widget will give you
+some information about the device you just selected,
+such as whether it is a color or monochrome device.
+
+The next button from the top toggles the "Reverse
+video:" parameter.  If this parameter is "On", black
+and white will be swapped before printing the window.
+This helps cut down on the use of ink, especially in
+color printers.
+
+Lastly, you may toggle the "Remove widget:" parameter
+between "Yes" and "No".  This is most useful when you
+want to print the entire screen, but you do not want the
+Hardcopy Widget to appear on the printout.  If this
+parameter is "Yes", the Hardcopy Widget will be removed
+from the screen before anything is printed.
+
+/ EXECUTING THE PRINT /
+
+Once you are satisfied with the parameter settings, press
+the <Print> button at the top of the Hardcopy Widget.  If
+you are printing only one window, you must indicate which
+window by clicking the mouse button inside the window you
+wish to print.  A message appears at the bottom of the
+widget instructing you when to select the window.  If you
+are printing the entire screen, you do not need to select a
+window.  If you chose to have the widget removed before
+printing, the widget will disappear; it can be popped up
+again by selecting it from the Icon Bar menu as described
+above.  Otherwise, a message will be displayed noting that
+the window has been sent to the printer.  At this point,
+you may change the parameters and/or print another window.
+
+/ EXITING THE HARDCOPY WIDGET /
+
+To exit the Hardcopy Widget, press the <Dismiss> button in
+the upper right corner of the widget.
+
+/ ENVIRONMENT VARIABLES /
+
+The Hardcopy Widget tests several environment variables to
+determine parameter defaults and paths to required
+programs.  Ordinarily, these variables should be set in
+your dm.config file if the defaults do not suffice.
+
+ZEB_PRINTER_NAME	Default name of printer;
+			"lp" if variable not found
+
+ZEB_PRINTER_DEVICE	Default device; "psmono" if
+			variable not found.  Must be one
+			of the following: pscolor, psmono,
+			ljet, pjet, pjetxl, la100, ln03,
+			and pp.  Note that the pscolor
+			device requires the xwd2ps
+			program.  All other devices require
+			xpr.
+
+ZEB_XWD_PATH		Path to xwd, including the name of
+			the executable, such as 
+			"/usr/bin/X11/xwd".  Defaults to
+			"xwd".
+
+ZEB_XPR_PATH		Path to xpr, including the name of
+			the executable, such as 
+			"/usr/bin/X11/xpr".  Defaults to
+			"xpr".
+
+ZEB_XWD2PS_PATH		Path to the xwd2ps program,
+			including the name of the 
+			executable, as in "/bin/X11/xwd2ps".
+			Defaults to "xwd2ps".
+
+The xwd program must exist.  If it is not in your default
+path, it must be explicitly specified in the ZEB_XWD_PATH
+environment variable.  The xwd2ps program is required to
+generate Color PostScript code for Color PostScript
+printers.  All other devices require xpr.  If you specify a
+path for xwd2ps, then xwd2ps will be used for monchrome
+PostScript, instead of xpr, using the xwd2ps option for
+monochrome output.
+
+The programs 'xwd' and 'xpr' are part of the standard MIT
+X11 Release 5 distribution, and the 'xwd2ps' program is
+freely distributed software.
+components   Planets in the Zeb Solar System
+1435
+
+/ ZEB SYSTEM COMPONENTS /
+
+The entire Zeb system comprises many programs.  The most
+obvious programs are those which display windows on the
+workstation screen.  However, these programs rely on other
+programs for retrieving and storing data, and for passing
+messages between each other.  To help you navigate the Zeb
+solar system, this help topic describes the more obvious
+planets of the system: the Icon Bar, the Event Logger,
+the Graphics Windows, and the Time Widget.
+
+/ THE ICON BAR /
+
+The Icon Bar is the "main menu" of the Zeb display.  It
+will be present for ALL display configurations, regardless
+of the number or type of Zeb windows on the screen.  The
+Icon Bar is a box containing several icons, each depicting
+some clue about the use of the Icon.  Usually the icons
+have a blue background and a yellow foreground.  Each icon
+is a button which pops up a menu when pressed.  To choose
+an item from an icon menu, press and hold the left mouse
+button inside the icon.  The menu will appear; while still
+holding down the mouse button, drag the selection bar to
+the item you wish to choose and release the mouse button. 
+Some icon menus have sub-menus.  Sub-menu items will have
+an arrow at the left side of the menu.  To open a sub-menu,
+drag the cursor to the far right of the sub-menu name. 
+Select a sub-menu item by releasing the mouse button over
+the name of the item.
+
+It is easy to confuse the Icon Bar with the icons 
+
+
+xygraph      Using X-Y Graphs
 1245
 Using X-Y Graphs
 
@@ -555,11 +879,3 @@ Changing Color and Representation
 points is allowed, then menus to do this will be found by
 clicking the right mouse button on the icons in the graphics
 window.
-SFestStationsSurface station names in STORMFEST
-236
-This is a list of stations found in the STORMFEST project. 
-Cindy is going to get them all in here, somehow.  Myself,
-I don't know how that is ever going to happen -- *I* am 
-sure as hell not going to type all those damn things in!
-
-...
