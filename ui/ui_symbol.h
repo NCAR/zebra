@@ -1,4 +1,4 @@
-/* $Id: ui_symbol.h,v 1.2 1989-04-13 15:38:18 corbet Exp $ */
+/* $Id: ui_symbol.h,v 1.3 1989-07-12 09:43:07 corbet Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -46,7 +46,7 @@ typedef char *stbl;
  */
 int usy_g_symbol ();
 bool usy_defined ();
-char *usy_string ();
+char *usy_string (), *usy_pstring ();
 stbl usy_g_stbl ();
 stbl usy_c_stbl ();
 
