@@ -27,18 +27,23 @@
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/VPaned.h>
+# include <X11/Xaw/MenuButton.h>
+# include <X11/Xaw/SimpleMenu.h>
+# include <X11/Xaw/SmeBSB.h>
+# include <X11/Xaw/SmeLine.h>
 # endif
 
 # include "ui.h"
 # include "ui_param.h"
 # include "ui_globals.h"
+# include "ui_expr.h"
 # include "ui_mode.h"
 # include "ui_commands.h"
 # include "ui_window.h"
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.2 1990-02-06 16:13:00 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.3 1990-03-02 15:57:46 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -65,6 +70,12 @@ static char Title_font_name[TITLE_FONT_LEN];/* Name of the label font	*/
 static stbl Widget_table = 0;	/* Where the actual widgets live	*/
 static stbl Widget_vars;	/* Variables used by commands and such  */
 
+/*
+ * This pixmap holds the little mark used in pulldown menus.
+ */
+static Pixmap Mb_mark = 0;
+static char Mb_mark_file[200];
+# define DEFAULT_MARK_FILE "/usr/include/X11/bitmaps/star"
 
 /*
  * An entry in a mapping table, which is used to map selector variable
@@ -77,6 +88,15 @@ struct map_table
 	int mt_target;		/* The target value.		*/
 };
 # define MAXMAP	40	/* Maximum entries in a map table	*/
+
+/*
+ * Temporary structure used when parsing map tables.
+ */
+struct mtemp
+{
+	int *mtm_nmap;			/* Pointer to # of entries	*/
+	struct map_table *mtm_t;	/* The actual table		*/
+};
 
 
 
@@ -130,6 +150,49 @@ struct frame_widget
 # define WF_INIT	0x0008	/* Was this widget created during init? */
 # define WF_OVERRIDE	0x0010	/* This is an OVERRIDE widget		*/
 # define WF_NODEC	0x0020	/* Do not decorate this widget		*/
+
+/*
+ * The "menubar" widget.
+ */
+struct menubar_widget
+{
+	int	mw_type;	/* = WT_MENUBAR				*/
+	struct gen_widget *mw_next;	/* Next widget in the chain	*/
+	void (*mw_create)();	/* The routine to create this thing	*/
+	void (*mw_popup) ();	/* Popup routine			*/
+	void (*mw_destroy) ();	/* The destroy method			*/
+	struct frame_widget *mw_frame;	/* The associated frame		*/
+	Widget mw_w;		/* The actual popup widget structure	*/
+	/* -- end of gen_widget stuff */
+	int	mw_nmenus;	/* The number of menus in this bar	*/
+	struct mb_menu *mw_menus; /* The actual menus			*/
+};
+
+
+/*
+ * This structure holds an actual pulldown menu.
+ */
+# define MAX_ENTRY	60	/* XXX Maximum # of entries		*/
+struct mb_menu
+{
+	char	mbm_name[MAXTITLE];	/* The name of the menu		*/
+	Widget	mbm_button;		/* The menu button		*/
+	Widget	mbm_pulldown;		/* The actual pulldown		*/
+	int	mbm_nentries;		/* The number of entries.	*/
+	char	*mbm_etext[MAX_ENTRY];	/* The text of each entry	*/
+	char	*mbm_eact[MAX_ENTRY];	/* The associated action command */
+	Widget	mbm_ewidget[MAX_ENTRY];	/* The smeBSB widget		*/
+	char	*mbm_eexpr[MAX_ENTRY];	/* Mark expression		*/
+	bool	mbm_eval[MAX_ENTRY];	/* Last expr value		*/
+	struct mb_menu *mbm_next;	/* The next entry in the chain	*/
+	struct map_table *mbm_map;	/* The mapping table		*/
+	int	mbm_nmap;		/* Number of map table entries	*/
+	char	*mbm_selector;		/* Selector variable		*/
+	int	mbm_esel;		/* Currently selected entry	*/
+	bool	mbm_oom;		/* one-of-many selection	*/
+	bool	mbm_expr;		/* There are mark expressions	*/
+};
+
 
 
 
@@ -190,7 +253,7 @@ static bool Save_all = 0;
  */
 struct frame_widget *uw_make_frame ();
 void uw_lselect ();
-struct gen_widget *uw_list_def (), *uw_cm_def ();
+struct gen_widget *uw_list_def (), *uw_cm_def (), *uw_mb_def ();
 
 
 
@@ -212,6 +275,9 @@ uw_init ()
 	usy_c_indirect (Ui_variable_table, "ui$title_font", Title_font_name,
 		SYMT_STRING, TITLE_FONT_LEN);
 	strcpy (Title_font_name, DEFAULT_TITLE_FONT);
+	usy_c_indirect (Ui_variable_table, "ui$menu_mark_file", Mb_mark_file,
+		SYMT_STRING, 200);
+	strcpy (Mb_mark_file, DEFAULT_MARK_FILE);
 }
 
 
@@ -228,7 +294,7 @@ struct ui_command *cmds;
 	void uw_quit (), uw_sel (), uw_do_pop ();
 	static char *argv[] = { "ui", 0 };
 	static int one = 1;
-	int uw_xevent ();
+	int uw_xevent (), h, w;
 /*
  * Throw the mode onto the stack.
  */
@@ -240,10 +306,6 @@ struct ui_command *cmds;
  */
 	if (! Initialized)
 	{
-# ifdef notdef
-		Top = XtInitialize ("UI", "UI", NULL, 0, &one, argv);
-		Appc = XtWidgetToApplicationContext (Top);
-# endif
 		Top = XtAppInitialize (&Appc, "UI", NULL, ZERO, &one, argv,
 			NULL, NULL, ZERO);
 		Labelfont = XLoadQueryFont (XtDisplay (Top), Title_font_name);
@@ -429,6 +491,13 @@ struct ui_command *cmds;
 	   case WT_STACK:
 	   	uw_dstack (name, title);
 		return (TRUE);
+
+	/*
+	 * Menubar widgets.
+	 */
+	   case WT_MENUBAR:
+	   	gw = uw_mb_def ();
+		break;
 
 	   default:
 	   	ui_error ("(BUG): unknown widget type: %d\n", type);
@@ -660,6 +729,7 @@ struct ui_command *cmds;
 	int i, len;
 	char *cp;
 	int uw_in_map ();
+	struct mtemp mt;
 
 	switch (UKEY (cmds[0]))
 	{
@@ -739,7 +809,9 @@ struct ui_command *cmds;
 	    /*
 	     * Now pull in the stuff.
 	     */
-	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, lw);
+		mt.mtm_nmap = &lw->lw_nmap;
+		mt.mtm_t = lw->lw_map;
+	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, &mt);
 		break;
 	/*
 	 * Horizontal orientation.
@@ -754,14 +826,15 @@ struct ui_command *cmds;
 
 
 
-uw_in_map (lw, cmds)
-struct list_widget *lw;
+uw_in_map (mt, cmds)
+struct mtemp *mt;
 struct ui_command *cmds;
 /*
  * Deal with a map table.
  */
 {
 	char *usy_pstring ();
+	int nmap = *mt->mtm_nmap;
 /*
  * See if we're done.
  */
@@ -770,7 +843,7 @@ struct ui_command *cmds;
 /*
  * No overflows, please.
  */
- 	if (lw->lw_nmap >= MAXMAP)
+ 	if (nmap >= MAXMAP)
 	{
 		ui_warning ("Maximum map table size (%d) exceeded", MAXMAP);
 		return (TRUE);
@@ -778,21 +851,21 @@ struct ui_command *cmds;
 /*
  * OK, move over the info.
  */
-	lw->lw_map[lw->lw_nmap].mt_type = cmds[0].uc_vptype;
-	lw->lw_map[lw->lw_nmap].mt_target = UINT (cmds[1]);
-	switch (cmds[1].uc_vptype)
+	mt->mtm_t[nmap].mt_type = cmds[0].uc_vptype;
+	mt->mtm_t[nmap].mt_target = UINT (cmds[1]);
+	switch (cmds[0].uc_vptype)
 	{
 	   case SYMT_INT:
 	   case SYMT_BOOL:
-	   	lw->lw_map[lw->lw_nmap].mt_v.us_v_int = UINT (cmds[0]);
+	   	mt->mtm_t[nmap].mt_v.us_v_int = UINT (cmds[0]);
 		break;
 
 	   case SYMT_FLOAT:
-	   	lw->lw_map[lw->lw_nmap].mt_v.us_v_float = UFLOAT (cmds[0]);
+	   	mt->mtm_t[nmap].mt_v.us_v_float = UFLOAT (cmds[0]);
 		break;
 
 	   case SYMT_STRING:
-	   	lw->lw_map[lw->lw_nmap].mt_v.us_v_ptr =
+	   	mt->mtm_t[nmap].mt_v.us_v_ptr =
 					usy_pstring (UPTR (cmds[0]));
 		break;
 
@@ -800,7 +873,7 @@ struct ui_command *cmds;
 	   	ui_warning ("BUG: Funky type (%d)", cmds[0].uc_vptype);
 		break;
 	}
-	lw->lw_nmap++;
+	(*mt->mtm_nmap)++;
 	return (TRUE);
 }
 	
@@ -1289,6 +1362,8 @@ struct ui_command *cmds;
  * Handle interactive cmenu definition.
  */
 {
+	struct mtemp mt;
+
 	switch (UKEY (*cmds))
 	{
 	/*
@@ -1330,11 +1405,13 @@ struct ui_command *cmds;
 	     */
 		cm->c_lw->lw_nmap = 0;
 		cm->c_lw->lw_map = (struct map_table *)
-		getvm (MAXMAP * sizeof (struct map_table));
+			getvm (MAXMAP * sizeof (struct map_table));
 	    /*
 	     * Now pull in the stuff.
 	     */
-	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, cm->c_lw);
+		mt.mtm_nmap = &cm->c_lw->lw_nmap;
+		mt.mtm_t = cm->c_lw->lw_map;
+	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, &mt);
 		break;
 	/*
 	 * Horizontal orientation.
@@ -1450,22 +1527,49 @@ union usy_value *v;
  * Tweak this widget according to the new selection.
  */
 {
+	int index;
+/*
+ * Do the map lookup.
+ */
+ 	index = uw_map_lookup (type, v, lw->lw_nmap, lw->lw_map);
+/*
+ * Actually do something with the widget.
+ */
+	if (index < 0 || index >= lw->lw_nitem)
+		XawListUnhighlight (lw->lw_list);
+	else
+		XawListHighlight (lw->lw_list, index);
+}
+
+
+
+
+
+
+uw_map_lookup (type, v, nmap, map)
+int type, nmap;
+union usy_value *v;
+struct map_table *map;
+/*
+ * Do a map table->index lookup.
+ */
+{
 	int index = -1, i, rt;
 	union usy_value result;
 /*
  * If there is a map table for this widget, let's attempt to translate
  * what we got.
  */
-	if (lw->lw_nmap)
-		for (i = 0; i < lw->lw_nmap; i++)
+	if (nmap)
+		for (i = 0; i < nmap; i++)
 		{
-			if (type != lw->lw_map[i].mt_type)
+			if (type != map[i].mt_type)
 				continue;
-			ue_do_eq (type, v, &lw->lw_map[i].mt_v, &result);
+			ue_do_eq (type, v, &map[i].mt_v, &result);
 			if (result.us_v_int)
 			{
 				type = SYMT_INT;
-				index = lw->lw_map[i].mt_target;
+				index = map[i].mt_target;
 				break;
 			}
 		}
@@ -1481,16 +1585,11 @@ union usy_value *v;
 		   case SYMT_BOOL:
 		   	index = v->us_v_int ? 1 : 0;
 			break;
-		   default:
-			;/* Do nothing -- taken care of below */
 		}
 /*
- * Actually do something with the widget.
+ * Return what we got.
  */
-	if (index < 0 || index >= lw->lw_nitem)
-		XawListUnhighlight (lw->lw_list);
-	else
-		XawListHighlight (lw->lw_list, index);
+ 	return (index);
 }
 
 
@@ -1962,8 +2061,368 @@ bool realized;
 
 
 
+struct gen_widget *
+uw_mb_def ()
+/*
+ * Interactively define a new menubar widget.
+ */
+{
+	struct menubar_widget *new;
+	int uw_in_menubar ();
+	void uw_mbcreate (), uw_mbdestroy ();
+/*
+ * Put together a widget structure.
+ */
+	new = NEW (struct menubar_widget);
+	new->mw_type = WT_MENUBAR;
+	new->mw_nmenus = 0;
+	new->mw_menus = (struct mb_menu *) 0;
+	new->mw_create = uw_mbcreate;
+	new->mw_destroy = uw_mbdestroy;
+/*
+ * Read in each pulldown.
+ */
+	ERRORCATCH
+		ui_subcommand ("ust$in-menubar", "Menubar>", uw_in_menubar,
+				new);
+	ON_ERROR
+		relvm (new);	/* What about pulldowns? */
+		RESIGNAL;
+	ENDCATCH
+/*
+ * Done.
+ */
+	return ((struct gen_widget *) new);
+}
+
+
+
+
+
+
+int
+uw_in_menubar (mb, cmds)
+struct menubar_widget *mb;
+struct ui_command *cmds;
+/*
+ * Define a pulldown menu.
+ */
+{
+	struct mb_menu *menu = NEW (struct mb_menu), *list;
+	int uw_in_mbentry ();
+/*
+ * If this is an ENDDEF, we're done.
+ */
+	if (UKEY (cmds[0]) == UIC_ENDDEF)
+		return (FALSE);
+/*
+ * Initialize the menu structure, and add it to the list.
+ */
+ 	menu->mbm_nentries = 0;
+	strcpy (menu->mbm_name, UPTR (cmds[1]));
+	if (mb->mw_nmenus++ == 0)
+		mb->mw_menus = menu;
+	else
+	{
+		for (list = mb->mw_menus; list->mbm_next;
+				list = list->mbm_next)
+			;
+		list->mbm_next = menu;
+	}
+/*
+ * If this is a one-of-many menu, grab also the selector.
+ */
+	if (menu->mbm_oom = (cmds[2].uc_ctype != UTT_END))
+		menu->mbm_selector = usy_pstring (UPTR (cmds[2]));
+/*
+ * Deal with the actual entries now.
+ */
+	/* errorcatch? */
+	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry, menu);
+	return (TRUE);
+}
+
+
+
+int
+uw_in_mbentry (menu, cmds)
+struct mb_menu *menu;
+struct ui_command *cmds;
+/*
+ * Deal with the actual menubar entries.
+ */
+{
+	struct mtemp mt;
+
+	switch (UKEY (*cmds))
+	{
+	/*
+	 * ENDMENU means we're done.
+	 */
+	   case UIC_ENDMENU:
+	   	return (FALSE);
+
+	/*
+	 * Most things are ENTRYs.
+	 */
+	   case UIC_ENTRY:
+	   	menu->mbm_etext[menu->mbm_nentries] = 
+				usy_pstring (UPTR (cmds[1]));
+		menu->mbm_eact[menu->mbm_nentries] =
+				usy_pstring (UPTR (cmds[2]));
+		if (cmds[3].uc_ctype != UTT_END)
+		{
+			menu->mbm_expr = TRUE;
+			menu->mbm_eexpr[menu->mbm_nentries] =
+				usy_pstring (UPTR (cmds[3]));
+		}
+		menu->mbm_nentries++;
+		break;
+	/*
+	 * A LINE is represented by a null entry.
+	 */
+	   case UIC_LINE:
+		menu->mbm_etext[menu->mbm_nentries++] = (char *) 0;
+		break;
+	/*
+	 * Maybe we have a map table.
+	 */
+	   case UIC_MAPPING:
+	   	if (! menu->mbm_oom)
+			ui_warning ("Map table ignored -- no selector");
+	    /*
+	     * Start by simply allocating a big map table.
+	     */
+		menu->mbm_nmap = 0;
+		menu->mbm_map = (struct map_table *)
+			getvm (MAXMAP * sizeof (struct map_table));
+	    /*
+	     * Now pull in the stuff.
+	     */
+		mt.mtm_nmap = &menu->mbm_nmap;
+		mt.mtm_t = menu->mbm_map;
+	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, &mt);
+		break;
+	/*
+	 * Anything else is weird.
+	 */
+	   default:
+	   	ui_error ("(BUG): Funky kw %d %s in mb entry", UKEY (*cmds),
+			cmds->uc_text);
+		break;
+	}
+	return (TRUE);
+}
+
+
+
+
+
+uw_mbcreate (mw, parent)
+struct menubar_widget *mw;
+Widget parent;
+/*
+ * Realize this widget.
+ */
+{
+	static Arg mbargs[10] = {
+		{ XtNorientation,	(XtArgVal) XtorientHorizontal}
+	};
+	struct mb_menu *menu;
+/*
+ * Create the box widget that will contain the menu buttons.
+ */
+	mw->mw_w = XtCreateWidget ("menubar", boxWidgetClass, parent,
+		mbargs, 1);
+/*
+ * Now go through and create each popup, and add it.
+ */
+ 	for (menu = mw->mw_menus; menu; menu = menu->mbm_next)
+		uw_mbmcreate (mw, menu);
+}
+
+
+
+
+
+uw_mbmcreate (mw, menu)
+struct menubar_widget *mw;
+struct mb_menu *menu;
+/*
+ * Actually create this menubar widget.
+ */
+{
+	int i, uw_mb_cb ();
+	static Arg margs[10];
+	int uw_mb_popup ();
+/*
+ * Create the menubutton and the shell for the menu.
+ */
+	XtSetArg (margs[0], XtNmenuName, menu->mbm_name);
+	menu->mbm_button = XtCreateManagedWidget (menu->mbm_name,
+		menuButtonWidgetClass, mw->mw_w, margs, ONE);
+	menu->mbm_pulldown = XtCreatePopupShell (menu->mbm_name,
+		simpleMenuWidgetClass, menu->mbm_button, NULL, ZERO);
+/*
+ * Go through and add each entry.
+ */
+	XtSetArg (margs[0], XtNleftMargin, (menu->mbm_oom || menu->mbm_expr) ?
+			20 : 4);
+	for (i = 0; i < menu->mbm_nentries; i++)
+	{
+		if (menu->mbm_etext[i])
+		{
+			menu->mbm_ewidget[i] = XtCreateManagedWidget (
+				menu->mbm_etext[i], smeBSBObjectClass,
+				menu->mbm_pulldown, margs, ONE);
+			XtAddCallback (menu->mbm_ewidget[i], XtNcallback,
+				uw_mb_cb, menu->mbm_eact[i]);
+		}
+		else
+			menu->mbm_ewidget[i] = XtCreateManagedWidget ("line",
+				smeLineObjectClass, menu->mbm_pulldown,
+				NULL, ZERO);
+		menu->mbm_eval[i] = FALSE;
+	}
+/*
+ * If this menu has a selector, put in a popup callback to insure that it
+ * is always right.
+ */
+	if (menu->mbm_oom || menu->mbm_expr)
+	{
+		menu->mbm_esel = -1;
+		XtAddCallback (menu->mbm_pulldown, XtNpopupCallback,
+			uw_mb_popup, menu);
+	}
+/*
+ * For menus with mark expressions, go through and set the initial values.
+ */
+	if (menu->mbm_expr)
+		uw_mb_set_marks (menu);
+}
+
+
+
+
+uw_mb_cb (w, action, junk)
+Widget w;
+XtPointer action, junk;
+/*
+ * The menubar callback.
+ */
+{
+	ui_perform (action);
+}
+
+
+uw_mb_popup (wgt, xpmenu, junk)
+Widget wgt;
+XtPointer xpmenu, junk;
+/*
+ * The menu popup callback routine.
+ */
+{
+	struct mb_menu *menu = (struct mb_menu *) xpmenu;
+	int type, index, xh, yh;
+	unsigned int h, w;
+	union usy_value v;
+	Arg args[5];
+/*
+ * Do we have our pixmap?
+ */
+	if (! Mb_mark && XReadBitmapFile (XtDisplay (Top),
+		XtWindow (menu->mbm_pulldown), Mb_mark_file, &w, &h,
+		&Mb_mark, &xh, &yh) != BitmapSuccess)
+	{
+		ui_warning ("Can't read bitmap file '%s'", Mb_mark_file);
+		return;
+	}
+/*
+ * If this menu has individual item marks, deal with it separately.
+ */
+	if (menu->mbm_expr)
+	{
+		uw_mb_set_marks (menu);
+		return;
+	}
+/*
+ * Look up the selector variable.
+ */
+	if (! usy_g_symbol (Ui_variable_table, menu->mbm_selector, &type, &v))
+		return;
+	index = uw_map_lookup (type, &v, menu->mbm_nmap, menu->mbm_map);
+/*
+ * If it's the same is the current value, we're done.
+ */
+ 	if (index == menu->mbm_esel)
+		return;
+/*
+ * Clear the old setting.
+ */
+	if (menu->mbm_esel >= 0)
+	{
+		XtSetArg (args[0], XtNleftBitmap, None);
+		XtSetValues (menu->mbm_ewidget[menu->mbm_esel], args, ONE);
+	}
+/*
+ * Set the new one.
+ */
+	if ((menu->mbm_esel = index) < 0 || index >= menu->mbm_nentries)
+		return;
+	XtSetArg (args[0], XtNleftBitmap, Mb_mark);
+	XtSetValues (menu->mbm_ewidget[index], args, ONE);
+}
+
+
+
+
+
+uw_mb_set_marks (menu)
+struct mb_menu *menu;
+/*
+ * Set the individual item marks for this menu.
+ */
+{
+	int i, type;
+	struct parse_tree *pt;
+	union usy_value v;
+	Arg args[2];
+
+	for (i = 0; i < menu->mbm_nentries; i++)
+	{
+	/*
+	 * If no expression, no mark.
+	 */
+	 	if (! menu->mbm_eexpr[i])
+			continue;
+	/*
+	 * Evaluate the expression.
+	 */
+		if ((pt = ue_parse (menu->mbm_eexpr[i], 0, FALSE)) == 0)
+		{
+			ui_warning ("Unable to parse '%s'",menu->mbm_eexpr[i]);
+			continue;
+		}
+		ue_eval (pt, &v, &type);
+		ue_rel_tree (pt);
+	/*
+	 * Make it boolean, and see if things have changed.
+	 */
+	 	if (type != SYMT_BOOL)
+			uit_coerce (&v, type, SYMT_BOOL);
+		if (v.us_v_int == menu->mbm_eval[i])
+			continue;
+	/*
+	 * They have.  Set the new map.
+	 */
+		XtSetArg (args[0], XtNleftBitmap, v.us_v_int ? Mb_mark : None);
+		XtSetValues (menu->mbm_ewidget[i], args, ONE);
+		menu->mbm_eval[i] = v.us_v_int;
+	}
+}
+
+
+uw_mbdestroy () {}
+
 # endif /* XSUPPORT */
-
-
-
 
