@@ -267,15 +267,32 @@ char *ctag;
  */
 {
 	struct rm_tag *tag = (struct rm_tag *) ctag;
+	short	save_x0, save_x1, save_y0, save_y1;	
 
 	if (! tag->rm_clear)
 	{
 	/*
-	 * Just load up the command..
+	 * Save the current clip limits
+	 */
+		save_x0 = tag->cx0;
+		save_x1 = tag->cx1;
+		save_y0 = tag->cy0;
+		save_y1 = tag->cy1;
+	/*
+	 * Set clipping to the whole window
+	 */
+		rm_hcw (ctag, 0, 0, Xres[tag->rm_dtype]-1, 
+			Yres[tag->rm_dtype]-1);
+	/*
+	 * Just load up the command
 	 */
 		*tag->rm_bufp++ = RM_I_ERS | RM_F_RP | RM_F_DF;
 		*tag->rm_bufp++ =  0;		/* Data flag */
 		tag->rm_clear = TRUE;
+	/*
+	 * Set clipping back again
+	 */
+		rm_hcw (ctag, save_x0, save_y0, save_x1, save_y1);
 	}
 }
 
