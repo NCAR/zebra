@@ -1,0 +1,65 @@
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 1993-05-26 19:22:52 corbet Exp $"
+
+#define IHaveSubdirs
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+/*
+ * prt_Notify does not get built for now -- it depends on deep hooks
+ * into the data store that don't exist for the moment.
+ *
+ * Some subdirs are conditional.
+ */
+# if BuildRealtimeDataStoreTools
+	REALTIME=realtime
+# endif
+
+# if BuildOptimizer
+	OPTIMIZER = Optimizer
+# endif
+
+# if BuildIngest
+	INGEST = ingest
+# endif
+
+#if BuildDataUtilities
+       DATAUTIL = datautil
+#endif
+
+/*
+ * "lib" and "ds" must come first, in that order.  Thereafter it's
+ * alphabetical but really doesn't matter.
+ */
+SUBDIRS = lib ds \
+	$(DATAUTIL) dm dsdelete dsdump dsdwidget dsmanage dsrescan \
+	etc EventLogger fccclock gettime gp $(INGEST) \
+	msg msg_ping mstatus mtap $(OPTIMIZER) pdmon $(REALTIME) \
+	settime Sound timer tweakcolor xhelp zebstop zmon zquery zrun
+
+
+DISTFILES = Imakefile
+DISTSUBDIRS = dsdelete dsdump dsdwidget dsmanage dsrescan \
+	msg msg_ping mstatus mtap lib $(REALTIME) timer zebstop zquery zrun
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+InstallLibSubdirs($(SUBDIRS))
+DistfilesTarget($(DISTFILES))
+DistfilesSubdirs($(DISTSUBDIRS))
+
