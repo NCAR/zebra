@@ -1,3 +1,4 @@
+#include <stdio.h>
 /*
  * Barb drawing routine.
  */
@@ -28,7 +29,7 @@
 
 
 void
-draw_barb(W, D, Gcontext, x, y, angle, spd, shaftlen)
+draw_barb(W, D, Gcontext, x, y, angle, spd, shaftlen, doKnots )
 Display *W;
 Drawable D;
 GC Gcontext;
@@ -36,6 +37,7 @@ int x, y;	    /* coordinate origin of barb in pixels */
 double angle; 	    /* angle in radians (FROM WHICH the wind is blowing) */
 double spd;  	    /* speed of wind */
 int	shaftlen;   /* length in pixels to draw barb shaft */
+int	doKnots;
 /*
  *  Draw a wind-barb.
  */
@@ -84,7 +86,11 @@ int	shaftlen;   /* length in pixels to draw barb shaft */
 /*
  *  Add the speed flags.
  */
-	barbspd = spd;
+	/* convert from m/s to knots if requested */
+	if ( doKnots )
+	    barbspd = spd / .5148 ;
+	else
+	    barbspd = spd;
 	while ( barbspd >= 97.5 )
 	{
 	    coord[0].x = (int)((double)x + DX(shaftlen,angle));
