@@ -6,7 +6,7 @@
 //#include <defs.h>
 //#undef bool
 //
-//RCSID("$Id: BlockObject.cc,v 1.6 1998-05-28 21:51:42 granger Exp $")
+//RCSID("$Id: BlockObject.cc,v 1.7 1998-06-02 23:23:17 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -72,6 +72,16 @@ SyncBlock::attach (const Block &exist)
 	// Existing blocks need to be read on next readSync
 	if (block.offset > 0)
 		changed = 1;
+}
+
+
+
+
+void
+SyncBlock::attach (const Block &exist, BlockFile &_bf)
+{
+	bf = &_bf;
+	attach (exist);
 }
 
 

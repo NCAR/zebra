@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.7 1998-05-28 21:51:44 granger Exp $
+/* $Id: BlockObject.hh,v 1.8 1998-06-02 23:23:18 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -77,6 +77,8 @@ public:
 	///
 	/** Attach a new block to this object */
 	virtual void attach (const Block &exist);
+
+	void attach (const Block &exist, BlockFile &_bf);
 
 	/// 
 	/** Write this block to disk if its changed or if 'force' non-zero
