@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.31 1995-09-20 20:45:15 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.32 1995-09-21 21:12:43 burghart Exp $")
 
 /*
  * General definitions
@@ -3128,7 +3128,8 @@ bool	update;
 	char	platform[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[20], cname[20], hcolor[20];
 	char	param[50], outrange[40], *igrid = 0;
-	float	center, step, step_per_color, hrange, hvalue, alt, *fgrid = 0;
+	float	center, step, step_per_color, hrange, hvalue, alt;
+	float	*fgrid = 0;
 	float	xleft, xright, yleft, yright, max, min, d_left, d_right;
 	float	bot, top, wanted_azim, azim, hlen, ang;
 	int	hdim, vdim, shifted, highlight;
@@ -3350,21 +3351,29 @@ bool	update;
 	ct_GetColorByName (hcolor, &xc);
 	max = center + (nsteps/2) * step;
 	min = center - (nsteps/2) * step;
-	RP_Init (Colors, Ncolors, C_outrange, clip, min, max, highlight, hvalue,
-		 xc, hrange);
+	RP_Init (Colors, Ncolors, C_outrange, clip, min, max, highlight, 
+		 hvalue, xc, hrange);
 	
 	xiraster = TRUE;
 
 	if (image)
+	{
+	/*
+	 * Pass NULL for the last two parameters so that 
+	 * RasterImagePlot() doesn't apply a map projection...
+	 */
 		RasterImagePlot (Graphics, DrawFrame, igrid, hdim, vdim, 
 				 pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
-				 scale.s_Offset);
+				 scale.s_Offset, NULL, NULL);
+	}
+# ifdef notdef
 	else if (xiraster)
 		RasterXIPlot (Graphics, GWFrame (Graphics), fgrid, hdim, vdim, 
 			      pix_x0, pix_y0, pix_x1, pix_y1, FALSE);
 	else
 		RasterPlot (Graphics, GWFrame (Graphics), fgrid, hdim, vdim, 
 			    pix_x0, pix_y0, pix_x1, pix_y1);
+# endif
 /*
  * Free the data chunk.
  */
