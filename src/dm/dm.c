@@ -33,7 +33,7 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.19 1993-01-14 20:51:57 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.20 1993-02-05 22:19:13 corbet Exp $")
 
 
 /*
@@ -99,7 +99,7 @@ char **argv;
 /*
  * Get the interface set up.
  */
-	fixdir_t ("DMLOADFILE", LIBDIR, "dm.lf", loadfile, ".lf");
+	fixdir_t ("DMLOADFILE", GetLibDir (), "dm.lf", loadfile, ".lf");
 	ui_init (loadfile, TRUE, FALSE);
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
