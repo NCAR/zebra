@@ -29,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: DataChunk.c,v 3.12 1998-10-28 21:20:50 corbet Exp $")
+RCSID ("$Id: DataChunk.c,v 3.13 2002-10-06 07:55:52 granger Exp $")
 
 /*
  * The class methods structure for the raw class.
@@ -334,14 +334,30 @@ dc_RawAdd (dc, len)
 DataChunk *dc;
 int len;
 /*
- * Modify this data chunk to hold "len" more data.
+ * Modify this data chunk to hold "len" more data.  The initial size
+ * setting is just a simple optimization to help smooth out the initial
+ * realloc bumps when a datachunk first blooms. 
  */
 {
-	if (dc->dc_DataLen > 0)
-		dc->dc_Data = (DataPtr) realloc (dc->dc_Data,
-						dc->dc_DataLen + len);
-	else
-		dc->dc_Data = (DataPtr) malloc (len);
+        static const int initialSize = 512;
+
+	if (dc->dc_DataLen == 0)
+	{
+	    int firstSize = (initialSize > len) ? initialSize : len;
+	    dc->dc_Data = (DataPtr) malloc (firstSize);
+	    msg_ELog (EF_DEVELOP, "dc_RawAdd(%s): malloc (%i) => %x", 
+		      ds_PlatformName(dc->dc_Platform), firstSize, 
+		      dc->dc_Data);
+	}
+	else if (dc->dc_DataLen + len > initialSize)
+	{
+	    void *pdata = dc->dc_Data;
+	    dc->dc_Data = (DataPtr) realloc (dc->dc_Data,
+					     dc->dc_DataLen + len);
+	    msg_ELog (EF_DEVELOP, "dc_RawAdd(%s): realloc (%x, %i) => %x",
+		      ds_PlatformName(dc->dc_Platform),
+		      pdata, dc->dc_DataLen + len, dc->dc_Data);
+	}
 	if (dc->dc_Data == NULL)
 		msg_ELog (EF_EMERGENCY, 
 		  "DC, class %s, plat '%s', malloc failed!",
