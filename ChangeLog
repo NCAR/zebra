@@ -1,3 +1,11 @@
+Thu Apr 27 08:55:32 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* time widget: menu for deleting times and controlling windows
+
+	* display manager: -single option to get original behavior,
+	  better choices when mapping processes to windows, and force a
+	  new process when restarting windows
+
 Tue Apr 25 14:56:49 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* ds and prt_Notify: added d_Notify module to ds library so that
