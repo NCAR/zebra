@@ -1,24 +1,21 @@
-/*
+/* -*- C -*-
  * Imakefile for the zstart script
  */
 
 DISTFILES = Imakefile zstart.sh
 DISTSUBDIRS = $(SUBDIRS)
 
-all:: zstart		/* don't want first target to be install */
+all:: zstart
 
-zstart: zstart.script
+zstart: zstart.sh
 	$(RM) zstart
-	cat zstart.script > zstart
+	sed -e s,##TOPDIRHERE,BaseDir, <zstart.sh >zstart
 	chmod +x zstart
 
-zstart.script:	zstart.sh
-	sed -e s,##TOPDIRHERE,BaseDir, <zstart.sh >zstart.script
-
 clean::
-	rm -f zstart.script
+	rm -f zstart
 
-InstallScript (zstart, $(BINDIR))
+InstallNamedTarget (install,zstart,$(INSTBINFLAGS),$(BINDIR),zstart)
 
 DistfilesTarget($(DISTFILES))
 
