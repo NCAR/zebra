@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.19 1994-02-10 23:18:12 corbet Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.20 1994-05-02 20:16:21 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -138,7 +138,7 @@ AxisSide	side;
  */
 {
     int		ticlen, maxHeight, maxWidth, edge, fit = TRUE, inverted;
-    int		xloc, yloc, axisSpaceHeight, axisSpaceWidth;
+    int		xloc, yloc, axisSpaceHeight, axisSpaceWidth, emult;
     int		yOrig, xOrig, direction, totalHeight;
     char	color[32], label[80], ticLabel[20], ticLabel2[20];
     float	ticInterval, fscale, drawGrid;
@@ -213,6 +213,7 @@ AxisSide	side;
  * Find the min and max ends of the bounds
  */
     inverted = (lc_CompareData (&val0, &val1) > 0);
+    emult = (inverted) ? -1 : 1;
     
     max = inverted ? val0 : val1;
     min = inverted ? val1 : val0;
@@ -275,7 +276,7 @@ AxisSide	side;
 		 */
 		xloc = devX (&ticLoc);
 
-		if (abs (xloc - edge) >= maxWidth / 2)
+		if ((emult * (xloc - edge)) >= 0)
 		{
 		    /*
 		     * Draw the tic
@@ -321,7 +322,7 @@ AxisSide	side;
 		     * Move the edge defining where we allow the next tic label
 		     */
 		    edge = (xloc < edge) ? 
-			    xloc - 5 - maxWidth / 2 : xloc + 5 + maxWidth / 2;
+			    xloc - 5 - maxWidth : xloc + 5 + maxWidth;
 	    	}
 		/*
 		 * Otherwise, just put in a half tic
