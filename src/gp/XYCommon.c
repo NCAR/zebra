@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.17 1993-12-02 21:38:41 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.18 1994-02-02 19:19:17 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,8 +42,8 @@ static char *rcsid = "$Id: XYCommon.c,v 1.17 1993-12-02 21:38:41 burghart Exp $"
  * NetCDF code.  This may not be right on some machines, but it's here
  * as a kluge anyway, and it won't stop things from compiling anywhere.
  */
-long xdr_f_infinity = 0x7f800000;
-# define XDR_F_INFINITY (*((float *)&xdr_f_infinity))
+long XDR_F_infinity = 0x7f800000;
+# define XDR_F_INFINITY (*((float *)&XDR_F_infinity))
 
 /*
  * Convenient scratch string
