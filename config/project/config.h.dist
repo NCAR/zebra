@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.51 1997-07-01 23:59:37 granger Exp $
+XCOMM $Id: config.h.dist,v 1.52 1997-09-18 21:54:24 ishikawa Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -606,7 +606,7 @@ XCOMM -----------------------------------------------------------------------
 #else 
 #ifdef OSF1Architecture
 # define FortranCompiler f77
-# define FortranLibraries -lfor -lFutil -Ufor
+# define FortranLibraries -lfor -lFutil -lUfor -lots
  
 #else
 #ifdef AIXArchitecture
