@@ -1,4 +1,6 @@
 /*
+ * $Id: version.h,v 1.6 1995-04-14 23:52:38 granger Exp $
+ *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
  * possible, as well as allowing for the use what(1) or ident(1) to identify
@@ -67,12 +69,16 @@ static char cppsyms[] = "@(#)$Symbols: "
 #ifdef LIBDIR
 "LIBDIR:" LIBDIR " "
 #endif
+#ifdef AutoBuild
+" AutoBuild "
+#endif
 " $";
+static const char *use_cppsyms = (0, use_cppsyms, cppsyms);
 #else
 static char cppsyms[] = "@(#)$Symbols: __STDC__ not defined$";
 #endif /* __STDC__ */
 
-#endif
+#endif /* !SABER && !lint */
 
 /*-----------------------------------------------------------------------
  * Version management macros
@@ -92,24 +98,30 @@ static char cppsyms[] = "@(#)$Symbols: __STDC__ not defined$";
 #define RCSAUTHOR(id) 
 #define RCSSTATE(id) 
 
-#elif __STDC__
+#else
+#if __STDC__
 
 #define RCSID(id) \
 static const char i_sccsid[4] = { '@', '(', '#', ')' }; \
 static const char rcs_id[] = "@(#)" id ;			  \
 static const char compileid[] = 			  \
-	"@(#)" "$Compiled: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
+	"@(#)" "$Compiled: " __FILE__ " on " __DATE__ " at " __TIME__ " $"; \
+static const char *use_i_sccsid = (0, use_i_sccsid, i_sccsid); \
+static const char *use_rcs_id = (0, use_rcs_id, rcs_id); \
+static const char *use_compileid = (0, use_compileid, compileid);
 
 #define RCSAUTHOR(id) \
-static const char rcs_author[] = "@(#)" id ;
+static const char rcs_author[] = "@(#)" id ; \
+static const char *use_rcs_author = (0, use_rcs_author, rcs_author);
 
 #define RCSSTATE(id) \
-static const char rcs_state[] = "@(#)" id ;
+static const char rcs_state[] = "@(#)" id ; \
+static const char *use_rcs_state = (0, use_rcs_state, rcs_state);
 
 #else /* not lint and not __stdc__ */
 /*
  * These defs are not as complete as above. And the 'what' flags may be
- * lost on optimization or not left preceding the RCS string
+ * lost on optimization or not left preceding the RCS string.
  */
 
 #define RCSID(id) \
@@ -124,24 +136,20 @@ static const char rcs_state[] = id ;
 static const char a_sccsid[4] = { '@', '(', '#', ')' }; \
 static const char rcs_author[] = id ;
 
-#endif
+#endif /* __STDC__ */
+#endif /* lint */
 
-
-/*
- * Actually instantiate one of the version macros defined above
- */
-
-#ifdef notdef
-RCSID("$Id: version.h,v 1.5 1994-12-11 17:37:05 corbet Exp $")
-#endif
 
 #if !defined(lint) && !defined(LINT) && !defined(SABER)
 
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.5 1994-12-11 17:37:05 corbet Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.6 1995-04-14 23:52:38 granger Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
+static const char *use_V_sccsid = (0, use_V_sccsid, V_sccsid);
+static const char *use_V_rcs_id = (0, use_V_rcs_id, V_rcs_id);
+static const char *use_V_compileid = (0, use_V_compileid, V_compileid);
 #endif /* __STDC__ */
 
 /*
@@ -150,12 +158,21 @@ static const char V_compileid[] =
  * manually.  Perhaps an explicit version tag script which tags with CVS as
  * well as updating the ChangeLog and this file.
  */
-static char zeb_version_id1[] = 
+static const char zeb_version_id1[] = 
 "@(#)$ZebVersion: 4.1 $";
-static char zeb_version_id2[] = 
+static const char zeb_version_id2[] = 
 "@(#)$ZebVersion: Research Data Program, NCAR $";
-static char zeb_version_id3[] = 
+static const char zeb_version_id3[] = 
 "@(#)$Copyright: University Corporation for Atmospheric Research, 1994 $";
+
+#if __STDC__
+static const char *use_zeb_version_id1 = 
+	(0, use_zeb_version_id1, zeb_version_id1);
+static const char *use_zeb_version_id2 = 
+	(0, use_zeb_version_id2, zeb_version_id2);
+static const char *use_zeb_version_id3 = 
+	(0, use_zeb_version_id3, zeb_version_id3);
+#endif /* __STDC__ */
 
 #endif /* lint, LINT, and SABER */
 
