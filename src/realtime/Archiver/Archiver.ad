@@ -1,0 +1,17 @@
+! $Id: Archiver.ad,v 1.1 1992-08-20 05:34:21 granger Exp $
+!
+! Application defaults file for Archiver, from the DataStore directory
+!
+! THIS FILE IS UNDER RCS CONTROL.  
+! DO NOT MODIFY THIS FILE IF IT IS THE INSTALLED COPY IN THE LIB DIRECTORY!
+!
+*status.left:		chainLeft
+*status.right:		chainRight
+*Label.borderWidth:	0
+*Label.justify:		left
+*status.width:		200
+*bytes.width:		270
+*background:		gray90
+*Command.borderColor:	red
+*bytes.font:		-*-lucidatypewriter-medium-r-*-*-14-*-*-*-*-*-*-*
+*status.font:		-*-lucidatypewriter-medium-r-*-*-14-*-*-*-*-*-*-*

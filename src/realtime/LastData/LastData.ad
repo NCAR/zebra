@@ -1,0 +1,29 @@
+! $Id: LastData.ad,v 1.1 1992-08-20 05:34:21 granger Exp $
+!
+! Application defaults file for LastData, from the DataStore directory
+!
+! THIS FILE IS UNDER RCS CONTROL.  
+! DO NOT MODIFY THIS FILE IF IT IS THE INSTALLED COPY IN THE LIB DIRECTORY!
+!
+*viewport.width:	230
+*viewport.height:	150
+*viewport.bottom:	chainBottom
+*viewport.left:		chainLeft
+*viewport.right:	chainRight
+*viewport.top:		chainTop
+*viewport.allowVert:	true
+*top		chainTop
+*bottom:	chainTop
+*Box.orientation:	orientHorizontal
+*Box.vSpace:		1
+*die.horizDistance:	100
+*die.foreground:	red
+*Label.width:		200
+*Label.height:		12
+*Label.justify:		left
+*Label.borderWidth:	0
+*Label.foreground:	red
+*SimpleMenu.background: gray80
+*background:		gray90
+*Command.borderColor:	red
+*MenuButton.borderColor: red

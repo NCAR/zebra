@@ -1,0 +1,50 @@
+! $Id: DisplayMgr.ad,v 1.1 1992-08-20 05:38:48 granger Exp $
+!
+! Application defaults file for the Display Manager
+!
+! Do not modify this file if it is the installed copy in lib/resources!!!
+!
+*allowShellResize:	true
+*input:		True
+*time*Label*font:	-*-helvetica-bold-r-*-*-*-120-*-*-*-*-*-*
+*time*Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*time*Text*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*time*Command*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*time*title*font:	-*-helvetica-bold-r-*-*-180-*-*-*-*-*-*
+*time*arrow*font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*
+*time*Text*height:	20
+*time*title*borderWidth: 0
+*time*background:	gray90
+*time*Command.borderColor:	red
+*time*Text.borderColor:		yellow
+*time*Toggle.borderColor:	red
+*time*Text.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		kill-to-end-of-line()insert-char() \n\
+	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>.:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+*iconbar*MenuButton.foreground:	yellow
+*iconbar*MenuButton.background: MidnightBlue
+*iconbar*Box.background: CadetBlue
+*iconbar*Form.background: CadetBlue
+*SimpleMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
+*SimpleMenu*font: -*-helvetica-medium-r-*-*-14-140-*
+*UIForm.defaultDistance: 8
+*UIForm*Text*background: gray90
+*UIForm*Command*borderColor: red
+*UIForm*Command*background: Gray90
+*UIForm.background: gray95
+*UIForm*Label.background: gray95

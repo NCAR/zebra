@@ -1,0 +1,24 @@
+! $Id: Optimizer.ad,v 1.1 1992-08-20 05:44:51 granger Exp $
+!
+! Optimizer application defaults file
+! Do Not modify if this is the library installed copy
+!
+*Foreground: black
+*Background: gray65
+! *BorderColor: white
+*BorderColor: black
+*font: *times-medium-r-*-*-14*
+
+*Command*foreground: black
+*Command*background: goldenrod
+
+*Text*borderColor: black
+*Text*background: white
+*Text.translations: #override \n\
+	<Key>Return:	no-op(RingBell) \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
+
+*exit*background: hot pink
+
+*optionForm*font: *courier-medium-r-normal--12*

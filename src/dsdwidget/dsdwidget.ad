@@ -1,0 +1,21 @@
+! $Id: dsdwidget.ad,v 1.1 1992-08-20 05:34:21 granger Exp $
+!
+! Application defaults file for dsdwidget, from the DataStore directory
+!
+! THIS FILE IS UNDER RCS CONTROL.  
+! DO NOT MODIFY THIS FILE IF IT IS THE INSTALLED COPY IN THE LIB DIRECTORY!
+!
+*viewport.width:	495
+*viewport.height:	200
+*viewport.bottom:	chainBottom
+*viewport.left:		chainLeft
+*viewport.right:	chainRight
+*viewport.top:		chainTop
+*viewport.allowVert:	true
+*top		chainTop
+*bottom:	chainTop
+*Box.orientation:	orientVertical
+*Box.vSpace:		1
+*die.foreground:	red
+*background:		gray90
+*Command.borderColor:	red
