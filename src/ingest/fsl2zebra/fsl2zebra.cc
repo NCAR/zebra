@@ -128,13 +128,17 @@ main(int argc, char* argv[])
 	    continue;
 	
 	const Station* s = stations[ids[r]];
-//  	//
-//  	// Skip stuff that isn't at least 30 minutes old.  Otherwise
-//  	// our most recent Zebra time record will almost always be sparsely
-//  	// popuplated.
-//  	//
-//  	if ((now - times[r]) < 1800)
-//  	    continue;
+  	//
+  	// Skip stuff that isn't at least 45 minutes old.  Otherwise
+  	// our most recent Zebra time record will almost always be sparsely
+  	// populated.
+  	//
+  	if ((now - times[r]) < (45 * 60))
+	{
+	  //    printf("skipping %s @ %.0f, too close to now (%ld)\n", 
+	  //		   ids[r].c_str(), times[r], now);
+  	    continue;
+	}
 	//
 	// See if one of our open files gets this sample
 	//
