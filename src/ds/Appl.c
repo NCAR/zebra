@@ -30,7 +30,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.39 1995-02-10 00:49:04 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.40 1995-06-29 21:30:48 granger Exp $")
 #endif
 
 /*
@@ -49,7 +49,6 @@ static void     ds_InitPFTable FP ((void));
 static void     ds_NotifyDaemon FP ((ClientPlatform *, int, DataChunk *, 
 				     int, int, int, int));
 static void     ds_DispatchNotify FP ((struct dsp_Notify *));
-int             ds_DSMessage FP ((struct message *));
 static int      ds_AttrCheck FP ((int, ZebTime *, char *));
 static int 	ds_FindDest FP ((DataChunk *, ClientPlatform *, int, 
 				 int *dfile,
