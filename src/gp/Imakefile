@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.43 2000-12-01 23:13:12 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.44 2001-04-24 22:49:11 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -72,9 +72,9 @@ COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	ThetaPlot.o RasterImage.o \
 	Skewt.o TimeSeries.o Track.o UserEvent.o Utilities.o Radar.o \
 	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
-	XYObservation.o XYWind.o PolarPlot.o
+	XYObservation.o XYWind.o
 
-CXXOBJS = FieldSelect.o
+CXXOBJS = FieldSelect.o PolarPlot.o
 
 #ifdef notdef
 /*
@@ -109,7 +109,7 @@ SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
 	VectorGrid.c XSection.c XYCommon.c XYContour.c XYGraph.c \
 	XYObservation.c XYWind.c sfont_1.c ThetaPlot.c RasterImage.c
 
-SRCS_CXX = FieldSelect.cc
+SRCS_CXX = FieldSelect.cc PolarPlot.cc
 
 #ifdef UseFORTRAN
 FSRCS = cfit.F rgrid.F bints.f
