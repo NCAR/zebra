@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.13 1998-10-28 21:20:34 corbet Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.14 1998-11-20 15:52:03 burghart Exp $")
 
 /*
  * Local private prototypes.
@@ -62,9 +62,8 @@ static DataChunk* Derive (PlatformId pid, DataClass class, GetList *get,
 			  FieldId *flds, int nflds, dsDetail *details, 
 			  int ndetail);
 static void	DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, 
-			   FieldId fld, FieldId surrogate, DerivMethod deriv);
-static void	DerivationFailure (DataChunk *dest_dc, FieldId fld, 
-				   FieldId surrogate);
+			   FieldId fld,DerivMethod deriv);
+static void	DerivationFailure (DataChunk *dest_dc, FieldId fld);
 static zbool	DerivationCheck (PlatformId pid, DataClass class, 
 				 GetList *get, FieldId *flds, int nflds);
 static zbool	FldAvailable (FieldId fld, PlatformId pid, GetList *get, 
@@ -641,19 +640,17 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
  * The given class must be MetData or one of its subclasses. 
  */
 {
-    int nextraflds, df;
-    FieldId extraflds[MAXRAWFLDS], surrogates[MAXRAWFLDS];
+    int nextraflds, nsrcflds, df;
+    FieldId extraflds[MAXRAWFLDS], aliases[MAXRAWFLDS];
+    FieldId *srcflds;
     DerivMethod *derivs;
     DataChunk *dest_dc, *extra_dc;
 /* 
  * For each destination field:
- *	o Get a derivation method (if any)
- *	If we have a derivation method
- *		o Find the source fields necessary for the derivation (srcflds)
- *		o Use the first srcfld as a temporary surrogate for the 
- *		  destination field
- *		o Add the rest of the srcflds to a list of extra needed 
- *		  fields (extraflds)
+ *    Get a derivation method (if any).  If the field is available raw,
+ *    do nothing special.  Otherwise, if we got a good derivation method,
+ *    then add the source fields necessary for the derivation to our list
+ *    of extra fields.
  */
     derivs = (DerivMethod*) malloc (ndestflds * sizeof (DerivMethod));
     
@@ -661,35 +658,93 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 
     for (df = 0; df < ndestflds; df++)
     {
-	FieldId	*srcflds;
-	int sf, nsrcflds;
+	int sf;
 	zbool is_raw;
     /*
-     * Get a derivation for this field.  If it's either available raw or
-     * it's underivable, the field will serve as a surrogate for itself and
-     * we can go on to the next.
+     * If the field is unavailable (can't be gotten directly or derived),
+     * or is available raw, we don't have to deal with extra derivation stuff
+     * so just move on.
      */
 	derivs[df] = (DerivMethod) 0;
+	aliases[df] = BadField;
+	
 	if (! FldAvailable (destflds[df], pid, gl, &is_raw, &derivs[df]) ||
 	    is_raw)
 	{
-	    surrogates[df] = destflds[df];
+	    if (is_raw)
+	    {
+		ds_DestroyDeriv (derivs[df]);
+		derivs[df] = 0;
+	    }   
 	    continue;
 	}
     /*
-     * Get the list of source fields required for the derivation
+     * Get the list of source fields needed to derive this destination field
      */
 	srcflds = ds_DerivNeededFields (derivs[df], &nsrcflds);
     /* 
-     * We'll use the first field required for the derivation as a temporary
-     * surrogate in the datachunk we have to build.
+     * Check for a simple alias case: we can set up to skip the derivation step
+     * for fields that are effectively just renamed raw fields.  Our
+     * shortcut is to grab the raw field directly into the destination data
+     * chunk and then assign its desired FieldId later.  IMPORTANT NOTE:
+     * because a data chunk can only hold one copy of any given field, this
+     * shortcut can only work if the required raw field is not already in
+     * the destination data chunk. Otherwise, we fall through and use the
+     * normal (slow) derivation mechanism. 
      */
-	surrogates[df] = srcflds[0];
+	if (ds_DerivIsAlias (derivs[df]))
+	{
+	    int d;
+	    FieldId rawfld = srcflds[0];
+	/*
+	 * Check all of the current destination fields to make sure the
+	 * raw field we want isn't already there.
+	 */
+	    for (d = 0; d < ndestflds; d++)
+		if (rawfld == destflds[d])
+		    break;
+	/*
+	 * If the desired raw FieldId isn't already in the list of
+	 * destination fields, then we can use the shortcut.  Stash the
+	 * real destination field into the aliases list, and replace it
+	 * in list destfld with the raw field.  The field will be renamed
+	 * in the datachunk later.
+	 */
+	    if (d == ndestflds)
+	    {
+		char rname[128];
+	    /*
+	     * Print a message.  Gotta copy one of the full names, since
+	     * the string returned by F_GetFullName() is only valid until
+	     * the next call, so we can't have two of them in one
+	     * msg_ELog() call...
+	     */
+		strcpy (rname, F_GetFullName (rawfld));
+		msg_ELog (EF_DEBUG, "Alias shortcut: %s yields %s.  Cool!",
+			  rname, F_GetFullName (destflds[df]));
+	    /*
+	     * Swap the fields around as described above
+	     */
+		aliases[df] = destflds[df];
+		destflds[df] = rawfld;
+	    /*
+	     * Get rid of the derivation method
+	     */
+		ds_DestroyDeriv (derivs[df]);
+		derivs[df] = 0;
+	    /*
+	     * Move on to the next destination field
+	     */
+		continue;
+	    }
+	}
     /*
-     * Add the rest of the fields for this derivation (if any) to our 
-     * complete list of extra needed raw fields, dropping duplicates.
+     * Not raw or a simple alias, so we have to set up for a real derivation.
+     * Figure out which source field(s) we need for deriving this
+     * destination field, and add those to our list of extra fields,
+     * dropping duplicates. 
      */
-	for (sf = 1; sf < nsrcflds; sf++)
+	for (sf = 0; sf < nsrcflds; sf++)
 	{
 	/*
 	 * Just continue if this field is already in the list
@@ -707,11 +762,10 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	free (srcflds);
     }
 /*
- * Set up our return datachunk with the surrogate fields, which will be
- * overwritten with the derived data later.  Also set up a data chunk for
- * the extra needed fields
+ * Set up our return datachunk with the destination fields.  Also set up a
+ * data chunk for the extra fields needed for derivations.
  */
-    dest_dc = dfa_Setup (gl, surrogates, ndestflds, class);
+    dest_dc = dfa_Setup (gl, destflds, ndestflds, class);
 
     extra_dc = nextraflds ? dfa_Setup (gl, extraflds, nextraflds, class) : 0;
     
@@ -730,35 +784,75 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	return ((DataChunk*) 0);
     }
 /*
- * Fill the data chunks
- */	
-    dc_SetPlatform (dest_dc, pid);
-    ds_FProcGetList (dest_dc, gl, details, ndetail);
-
+ * Get the extra data required for derivations (if any)
+ */ 
     if (extra_dc)
     {
 	dc_SetPlatform (extra_dc, pid);
 	ds_FProcGetList (extra_dc, gl, details, ndetail);
     }
 /*
- * Derive each field that needs deriving, replacing the surrogate fields
- * with the desired fields.
+ * Special handling for derived fields in NSpace datachunks.  The
+ * setup above knew nothing of the geometry for derived fields, so we have
+ * to redefine them here.  For each derived field, we just copy the geometry
+ * from one of the fields to be used in its derivation.
+ */
+    if (class == DCC_NSpace)
+    {
+	dc_NSAllowRedefine (dest_dc, 1);
+	
+	for (df = 0; df < ndestflds; df++)
+	{
+	    if (derivs[df])
+	    {
+		FieldId template;
+		int i, ndims, is_static;
+		char *names[DC_MaxDimension];
+		FieldId dims[DC_MaxDimension];
+	    /*
+	     * Get the list of fields to be used for the derivation, and
+	     * use the first in the list as a template for the derived
+	     * field's geometry.
+	     */
+		srcflds = ds_DerivNeededFields (derivs[df], &nsrcflds);
+		dc_NSGetField (extra_dc, srcflds[0], &ndims, names, 0,
+			       &is_static);
+
+		for (i = 0; i < ndims; i++)
+		    dims[i] = F_Lookup (names[i]);
+
+		dc_NSDefineVariable (dest_dc, destflds[df], ndims, dims,
+				     is_static);
+	    }
+	} 
+    }
+/*
+ * Fill the destination data chunk
+ */
+    dc_SetPlatform (dest_dc, pid);
+    ds_FProcGetList (dest_dc, gl, details, ndetail);
+/*
+ * Loop through the fields in the destination data chunk.  Rename fields where
+ * the alias shortcut was used.  For destination fields that need to be
+ * derived, perform the derivation and replace their data in the destination
+ * data chunk.
  */
     for (df = 0; df < ndestflds; df++)
     {
-	if (derivs[df])
-	    DeriveFld (dest_dc, extra_dc, destflds[df], surrogates[df],
-		       derivs[df]);
+	if (aliases[df] != BadField)
+	{
+	    dc_ChangeFld (dest_dc, destflds[df], aliases[df]);
+	    destflds[df] = aliases[df];
+	}
+	else if (derivs[df])
+	{
+	    DeriveFld (dest_dc, extra_dc, destflds[df], derivs[df]);
+	    ds_DestroyDeriv (derivs[df]);
+	}
     }
 /*
  * Clean up
- */
-    for (df = 0; df < ndestflds; df++)
-    {
-	if (derivs[df])
-	    ds_DestroyDeriv (derivs[df]);
-    }
-
+ */    
     free (derivs);
     
     if (extra_dc)
@@ -773,42 +867,22 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 
 
 static void
-DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld, 
-	   FieldId surrogate, DerivMethod deriv)
+DeriveFld (DataChunk *dest_dc, DataChunk *src_dc, FieldId fld, 
+	   DerivMethod deriv)
 /*
- * Derive field 'fld' from data in dest_dc and extra_dc, using derivation
- * method 'deriv', and replacing field 'surrogate' in dest_dc.
+ * Derive field 'fld' from data in src_dc, using derivation method 'deriv',
+ * and inserting the results into dest_dc. 
  */
 {
     int nsrcflds, sf, nsample, elemsize, elemcount, samp, firstelem;
     int uniform, *sampsizes, e;
     DC_ElemType elemtype;
     FieldId *srcflds;
-    DataChunk **src_dc;
     double **dblptrs, *dblresults;
     char *results;
     void *badvp;
     double badval;
     ZebraTime *samptimes;
-/*
- * Really, really easy if this is just an alias.  Just rename the field
- * in the data chunk and we're done!
- */
-    if (ds_DerivIsAlias (deriv))
-    {
-	char sname[128];
-    /*
-     * Gotta copy one of the full names, since the string returned by 
-     * F_GetFullName() is only valid until the next call, so we can't have
-     * two of them in one msg_ELog() call...
-     */
-	strcpy (sname, F_GetFullName (surrogate));
-	msg_ELog (EF_DEBUG, "Field %s yields %s directly.  Cool!",
-		  sname, F_GetFullName (fld));
-
-	dc_ChangeFld (dest_dc, surrogate, fld);
-	return;
-    }
 
     msg_ELog (EF_INFO, "Deriving %s", F_GetFullName (fld));
 /*
@@ -820,12 +894,12 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
  * How big are our destination elements?
  */
     nsample = dc_GetNSample (dest_dc);
-    elemtype = dc_Type (dest_dc, surrogate);
+    elemtype = dc_Type (dest_dc, fld);
     elemsize = dc_SizeOfType (elemtype);
 /*
- * We'll continue using surrogate's bad value
+ * Get the bad value flag
  */
-    if ((badvp = dc_GetFieldBadval (dest_dc, surrogate)) != NULL)
+    if ((badvp = dc_GetFieldBadval (dest_dc, fld)) != NULL)
 	dc_ConvertDouble (&badval, badvp, elemtype);
     else
 	badval = (double) dc_GetBadval (dest_dc);
@@ -841,41 +915,12 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
     
     for (samp = 0; samp < nsample; samp++)
     {
-	dc_GetMData (dest_dc, samp, surrogate, &(sampsizes[samp]));
+	dc_GetMData (dest_dc, samp, fld, &(sampsizes[samp]));
 	sampsizes[samp] /= elemsize;
 	elemcount += sampsizes[samp];
 
 	if (samp > 0)
 	    uniform = uniform && (sampsizes[samp] == sampsizes[samp-1]);
-    }
-/*
- * Find out which dc holds each of our source fields
- */
-    src_dc = (DataChunk**) malloc (nsrcflds * sizeof (DataChunk*));
-
-    for (sf = 0; sf < nsrcflds; sf++)
-    {
-    /*
-     * Look for this field first in dest_dc, then in extra_dc, and stash
-     * where we find it.
-     */
-	if (dc_GetFieldIndex (dest_dc, srcflds[sf]) >= 0)
-	    src_dc[sf] = dest_dc;
-	else if (extra_dc && dc_GetFieldIndex (extra_dc, srcflds[sf]) >= 0)
-	    src_dc[sf] = extra_dc;
-	else
-	{
-	/*
-	 * Uh-oh, we should've found it but didn't...
-	 */
-	    msg_ELog (EF_PROBLEM, 
-		      "DeriveFld: Expected field %s not found to derive %s",
-		      F_GetFullName (srcflds[sf]), F_GetFullName (fld));
-	    DerivationFailure (dest_dc, fld, surrogate);
-	    free (src_dc);
-	    free (sampsizes);
-	    return;
-	}
     }
 /*
  * Allocate a list to hold arrays of doubles for the source data for the
@@ -913,18 +958,18 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
 	 * Source data type, size per element, and number of data elements 
 	 * this sample.
 	 */
-	    src_type = dc_Type (src_dc[sf], srcflds[sf]);
+	    src_type = dc_Type (src_dc, srcflds[sf]);
 	    src_elemsize = dc_SizeOfType (src_type);
-	    rawdp = dc_GetMData (src_dc[sf], samp, srcflds[sf], &nbytes);
+	    rawdp = dc_GetMData (src_dc, samp, srcflds[sf], &nbytes);
 
 	    nelems = nbytes / src_elemsize;
 	/*
 	 * Get the bad value for this source field, as a double
 	 */
-	    if ((badvp = dc_GetFieldBadval (src_dc[sf], srcflds[sf])) != NULL)
+	    if ((badvp = dc_GetFieldBadval (src_dc, srcflds[sf])) != NULL)
 		dc_ConvertDouble (&src_bad, badvp, src_type);
 	    else
-		src_bad = (double) dc_GetBadval (src_dc[sf]);
+		src_bad = (double) dc_GetBadval (src_dc);
 	/* 
 	 * We need sample size uniformity among the fields, since the
 	 * derivations simply work element-by-element.  If this uniformity
@@ -939,8 +984,7 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
 	    /*
 	     * Fill the field with bad values, clean up, and return
 	     */
-		DerivationFailure (dest_dc, fld, surrogate);
-		free (src_dc);
+		DerivationFailure (dest_dc, fld);
 		free (samptimes);
 		for (sf = 0; sf < nsrcflds; sf++)
 		    free (dblptrs[sf]);
@@ -977,7 +1021,7 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
     ds_DoDerivation (deriv, srcflds, nsrcflds, elemcount, dblptrs, dblresults, 
 		    badval);
 /* 
- * Convert to surrogate's element type before stashing in the data chunk
+ * Convert to the necessary element type before stashing in the data chunk
  */
     results = (char *) malloc (elemcount * elemsize);
 
@@ -985,12 +1029,9 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
 	dc_LongDoubleToType ((void*)(results + e * elemsize), elemtype,
 			     (LongDouble)(dblresults[e]));
 /*
- * We can now rename the surrogate field and stash the derived data.  Data
- * stash can happen as a unit for uniform samples, otherwise must happen 
- * sample by sample.
+ * We can now stash the derived data.  Data stash can happen as a unit for
+ * uniform samples, otherwise must happen sample by sample.
  */
-    dc_ChangeFld (dest_dc, surrogate, fld);
-
     if (uniform)
     {
 	if (! dc_AddMData (dest_dc, samptimes, fld, sampsizes[0] * elemsize, 
@@ -1020,7 +1061,6 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
  */
     free (results);
     free (dblresults);
-    free (src_dc);
     free (samptimes);
     for (sf = 0; sf < nsrcflds; sf++)
 	free (dblptrs[sf]);
@@ -1037,20 +1077,15 @@ DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld,
 
 
 static void
-DerivationFailure (DataChunk *dest_dc, FieldId fld, FieldId surrogate)
+DerivationFailure (DataChunk *dest_dc, FieldId fld)
 /*
- * Rename the 'surrogate' to 'fld' (the field we were trying to derive), and
- * fill with bad values.
+ * Report derivation failure and fill with bad values.
  */
 {
     int samp, nsample, sampsize, elemsize;
 
     msg_ELog (EF_PROBLEM, "Derivation of %s/%s failed",
 	      ds_PlatformName (dc_PlatformId (dest_dc)), F_GetFullName (fld));
-/*
- * Change 'surrogate' to 'fld'
- */
-    dc_ChangeFld (dest_dc, surrogate, fld);
 /*
  * Get the element size and sample count, then fill with bad values a sample
  * at a time.
