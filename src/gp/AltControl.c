@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.20 1997-04-11 21:18:27 corbet Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.21 1997-04-17 17:16:42 granger Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -54,7 +54,7 @@ static int	alt_GetRSAlts FP ((char *, float *));
 static void	alt_SetLabel FP ((char *label));
 /* static int	alt_AlreadyThere FP ((float *, int, double)); */
 static int	alt_GetLatest FP ((char *, float *));
-static void	alt_Insert FP ((float *, int *, float));
+/* static void	alt_Insert FP ((float *, int *, float)); */
 
 
 
