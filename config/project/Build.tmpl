@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.14 1995-12-03 02:02:16 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.15 1995-12-04 10:04:33 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -53,9 +53,9 @@ XCOMM -----------------------------------------------------------------------
  * Default to HDF on all architectures
  */
 #ifndef HasHDF
-/* # ifndef LinuxArchitecture */ /* alas, cannot yet compile HDF on linux */
+# ifndef LinuxArchitecture /* alas, cannot yet compile HDF on linux */
 #  define HasHDF YES
-/* # else
+# else
 #  define HasHDF NO
 # endif /* ndef linux */
 #endif /* ndef HasHDF */
