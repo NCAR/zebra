@@ -31,9 +31,8 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-#ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.52 1996-01-23 23:09:29 granger Exp $")
-#endif
+
+RCSID ("$Id: DFA_NetCDF.c,v 3.53 1996-03-12 06:49:52 granger Exp $")
 
 #include <netcdf.h>
 
@@ -644,8 +643,12 @@ NCTag **rtag;
 	{
 		if (! dnc_VarAlts (tag->nc_id, v, &tag->nc_altUnits))
 		{
+# ifdef notdef
 			dnc_CloseFile (tag);
 			return (FALSE);
+# endif
+			msg_ELog (EF_PROBLEM, "using ambiguous 'level' units");
+			tag->nc_altUnits = AU_level;
 		}
 	}
 	else
@@ -675,19 +678,19 @@ NCTag **rtag;
 			ret = dnc_GetRGridAlts (tag, BadField, 0, 1);
 		break;
 	/*
-	 * For scalar and nspace files, pull in the location if it is static.
+	 * For scalar and nspace files, set the static location.
 	 */
 	   case OrgScalar:
-		if (! ds_IsMobile (dp->df_platform))
-			dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
+		/* if (! ds_IsMobile (dp->df_platform)) */
+		dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
 	        ret = TRUE;
 		break;
 	/*
 	 * For nspace, also check for available altitudes
 	 */
 	   case OrgNSpace:
-		if (! ds_IsMobile (dp->df_platform))
-			dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
+		/* if (! ds_IsMobile (dp->df_platform)) */
+		dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
 	        ret = dnc_GetNSpaceAlts (tag, BadField, 0, 1);
 		break;
 
@@ -2468,24 +2471,35 @@ DataChunk *dc;
 NCTag *tag;
 long begin, nsamp;
 /*
- * Pull in a location-class data chunk.
+ * Pull in a location-class data chunk.  If we're a static platform,
+ * then they'll get our location repeated for every sample.
  */
 {
 	ZebTime *t = (ZebTime *) malloc (nsamp * sizeof (ZebTime));
-	Location *locs = (Location *) malloc (nsamp*sizeof (Location));
 	int i;
 /*
- * Get the time and location arrays.
+ * Get the time array.
  */
 	dnc_ConvTimes (tag, begin, nsamp, t);
-	dnc_LoadLocation (tag, locs, begin, nsamp);
 /*
- * Now we just stuff them into the DC and we're done.
+ * Fill the location array based on whether we actually move or not.
  */
-	for (i = 0; i < nsamp; i++)
-		dc_LocAdd (dc, t + i, locs + i);
+	if (ds_IsMobile (tag->nc_plat))
+	{
+		Location *locs;
+
+		locs = (Location *) malloc (nsamp*sizeof (Location));
+		dnc_LoadLocation (tag, locs, begin, nsamp);
+		for (i = 0; i < nsamp; i++)
+			dc_LocAdd (dc, t + i, locs + i);
+		free (locs);
+	}
+	else
+	{
+		for (i = 0; i < nsamp; i++)
+			dc_LocAdd (dc, t + i, &tag->nc_sloc);
+	}		
 	free (t);
-	free (locs);
 	return (nsamp);
 }
 
@@ -2697,6 +2711,15 @@ dsDetail *dets;
 
 
 #ifdef APPLY_BADVALUE
+/*
+ * The attributes we check for to find a bad value.  The
+ * 'MissingValue' string is for RAF ADS netCDF files.
+ */
+
+static char *BadValueAtts[] = { 
+	VATT_MISSING, "MissingValue", "bad_value_flag", "bad_value", NULL
+};
+
 static void
 dnc_ApplyBadval (tag, vfield, dc, fid, badval, data, ndata)
 NCTag *tag;
@@ -2713,6 +2736,7 @@ int ndata;
 	float ncbadval;
 	nc_type atype;
 	char buf[256];
+	char **flag;
 	int len;
 	int i;
 
@@ -2720,11 +2744,16 @@ int ndata;
 	 * If the att is not a float already, try to convert it to a string
 	 * first (from whatever type it is) and then convert to a float.
 	 */
-	if (ncattinq (tag->nc_id, vfield, VATT_MISSING, &atype, &len) < 0)
+	for (flag = BadValueAtts; *flag != NULL; ++flag)
+	{
+		if (ncattinq (tag->nc_id, vfield, *flag, &atype, &len) >= 0)
+			break;
+	}
+	if (*flag == NULL)
 		return;
 	if (len*nctypelen(atype) > 255)
 		return;
-	if (ncattget (tag->nc_id, vfield, VATT_MISSING, (void *)buf) < 0)
+	if (ncattget (tag->nc_id, vfield, *flag, (void *)buf) < 0)
 		return;
 	if (atype == NC_FLOAT)
 		ncbadval = *(float *)buf;
@@ -2788,12 +2817,23 @@ NCTag *tag;
 Location *locs;
 long begin, count;
 /*
- * Load in mobile platform location info.
+ * Load in mobile platform location info.  If we're a static location,
+ * then we return the same location for all of the samples, where the
+ * location either comes from zero-dimensional lat, lon, alt fields
+ * or from the very first samples of those fields.
  */
 {
 	int i, var;
 	float *ltemp = (float *) malloc (count * sizeof (float));
+	int mobile;
 	int fail;
+	int nlocs = count;
+
+	if (! (mobile = ds_IsMobile (tag->nc_plat)))
+	{
+		begin = 0;
+		count = 1;
+	}
 /*
  * Just do it one piece at a time.  Latitude.
  */
@@ -2809,8 +2849,18 @@ long begin, count;
 		dnc_NCError ("Latitude read");
 		fail = 1;
 	}
-	for (i = 0; i < count; i++)
-		locs[i].l_lat = (fail) ? 0.0 : ltemp[i];
+	if (fail)
+		ltemp[0] = 0.0;
+	if (mobile && !fail)
+	{
+		for (i = 0; i < nlocs; i++)
+			locs[i].l_lat = ltemp[i];
+ 	}
+	else
+	{
+		for (i = 0; i < nlocs; i++)
+			locs[i].l_lat = *ltemp;
+	}
 /*
  * Longitude.
  */
@@ -2826,8 +2876,18 @@ long begin, count;
 		dnc_NCError ("Longitude read");
 		fail = 1;
 	}
-	for (i = 0; i < count; i++)
-		locs[i].l_lon = (fail) ? 0.0 : ltemp[i];
+	if (fail)
+		ltemp[0] = 0.0;
+	if (mobile && !fail)
+	{
+		for (i = 0; i < nlocs; i++)
+			locs[i].l_lon = ltemp[i];
+ 	}
+	else
+	{
+		for (i = 0; i < nlocs; i++)
+			locs[i].l_lon = *ltemp;
+	}
 /*
  * Altitude.
  */
@@ -2841,8 +2901,18 @@ long begin, count;
 		dnc_NCError ("Altitude read");
 		fail = 1;
 	}
-	for (i = 0; i < count; i++)
-		locs[i].l_alt = (fail) ? 0.0 : ltemp[i];
+	if (fail)
+		ltemp[0] = 0.0;
+	if (mobile && !fail)
+	{
+		for (i = 0; i < nlocs; i++)
+			locs[i].l_alt = ltemp[i];
+ 	}
+	else
+	{
+		for (i = 0; i < nlocs; i++)
+			locs[i].l_alt = *ltemp;
+	}
 	free (ltemp);
 }
 
@@ -3662,7 +3732,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.52 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.53 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */

@@ -15,7 +15,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.7 1995-09-26 15:06:14 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.8 1996-03-12 06:45:33 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
@@ -200,6 +200,7 @@ dt_SetWindowNames ()
 	char *names[MAXWIN];
 	int i, nwin;
 
+	dt_InitTW ();
 	nwin = 0;
 	cfg = dg_CurrentConfig ();
 	for (i = 0; cfg && (i < cfg->c_nwin); ++i)

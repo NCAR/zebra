@@ -21,6 +21,7 @@
  */
 # include <stdio.h>
 # include <unistd.h>
+# include <math.h>
 # include <varargs.h>
 # include <fcntl.h>
 # include <signal.h>
@@ -43,8 +44,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.66 1995-10-31 02:20:43 granger Exp $")
-
+MAKE_RCSID ("$Id: dm.c,v 2.67 1996-03-12 06:45:31 granger Exp $")
 
 /*
  * Pick a help browser.
@@ -1603,8 +1603,12 @@ struct ui_command *cmds;
 	mlat = UFLOAT (cmds[2]);
 	dlon = UFLOAT (cmds[3]);
 	mlon = UFLOAT (cmds[4]);
-	where.l_lat = dlat + mlat/60.0;
-	where.l_lon = dlon + mlon/60.0;
+/*
+ * Use absolute value for minutes, but add them in the same direction
+ * as the degrees.
+ */
+	where.l_lat = dlat + ((dlat < 0) ? (-1) : (1)) * fabs(mlat/60.0);
+	where.l_lon = dlon + ((dlon < 0) ? (-1) : (1)) * fabs(mlon/60.0);
 	where.l_alt = UFLOAT (cmds[5]);
 /*
  * If they gave us a time, use it; otherwise we need to see when the last

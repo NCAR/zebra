@@ -78,7 +78,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.6 1995-11-19 21:39:49 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.7 1996-03-12 06:49:49 granger Exp $")
 
 #ifdef HDF_TEST
 #define ds_PlatformDataOrg(id) Org2dGrid
@@ -109,6 +109,7 @@ static const double D_PI = 3.14159265358979323846;
 #define VATT_LONGNAME	"long_name"	/* description of variable */
 #define VATT_UNITS	"units"		/* units of variable	   */
 #define VATT_MISSING	"missing_value" /* bad value		   */
+#define FILL_VALUE	"_FillValue"	/* TDF sets this one	   */
 
 /*
  * This is our tag structure.
@@ -1484,12 +1485,17 @@ int nfield;
 	int32 ndims, natts;
 	int32 dims[MAX_DIMS];
 	int32 dimsizes[MAX_DIMS];
+	int32 ftype, isize, count;
 	long nx, ny;
 	RGrid info;
 	Location origin;
 	float *grid, *dest;
 	unsigned short *words;
 	unsigned char *bytes;
+	unsigned short sfillval;
+	unsigned char cfillval;
+	float fillval;
+	float badval = dc_GetBadval (dc);
 	int nsample = dc_GetNSample (dc);
 /*
  * For each field: find its varid.
@@ -1542,36 +1548,107 @@ int nfield;
 			      &info, &tag->h_time, (void *) NULL, 0);
 		grid = (float *) malloc (nx * ny * sizeof(float));
 		dest = dc_GetMData (dc, nsample, fields[i], 0);
+		/*
+		 * When converting, be sure to test against missing
+		 * value first, BEFORE scaling.  If its a missing value,
+		 * then explicitly set it to the datachunk's bad value.
+		 */
 		switch (vtype)
 		{
 		   case DFNT_UCHAR8:
-		   case DFNT_CHAR8:
-		   case DFNT_INT8:
 		   case DFNT_UINT8:
 			bytes = (unsigned char *) malloc (nx * ny * 
 							  sizeof (char));
 			dh_ReadData (tag->h_fid, varid, bytes);
+			if (! dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
+					   &ftype, &count, &isize, &cfillval))
+				cfillval = 0xff;
 			for (j = 0; j < nx * ny; ++j)
 			{
-				grid[j] = (float)bytes[j] * scales[i].s_Scale;
-				grid[j] += scales[i].s_Offset;
+				if (bytes[j] == cfillval)
+					grid[j] = badval;
+				else
+				{
+					grid[j] = (float)bytes[j] * 
+						scales[i].s_Scale;
+					grid[j] += scales[i].s_Offset;
+				}
 			}
 			free (bytes);
 			break;
-		   case DFNT_INT16:
+		   case DFNT_CHAR8:
+		   case DFNT_INT8:
+			bytes = (unsigned char *) malloc (nx * ny * 
+							  sizeof (char));
+			dh_ReadData (tag->h_fid, varid, bytes);
+			if (! dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
+					   &ftype, &count, &isize, &cfillval))
+				cfillval = 0x80;
+			for (j = 0; j < nx * ny; ++j)
+			{
+				if (bytes[j] == cfillval)
+					grid[j] = badval;
+				else
+				{
+					grid[j] = (float)((signed char)
+					   bytes[j]) * scales[i].s_Scale;
+					grid[j] += scales[i].s_Offset;
+				}
+			}
+			free (bytes);
+			break;
 		   case DFNT_UINT16:
 			words = (unsigned short *) 
 				malloc (nx * ny * sizeof (unsigned short));
 			dh_ReadData (tag->h_fid, varid, words);
+			if (! dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
+					   &ftype, &count, &isize, &sfillval))
+				sfillval = 0xffff;
 			for (j = 0; j < nx * ny; ++j)
 			{
-				grid[j] = (float)words[j] * scales[i].s_Scale;
-				grid[j] += scales[i].s_Offset;
+				if (words[j] == sfillval)
+					grid[j] = badval;
+				else
+				{
+					grid[j] = (float)words[j] * 
+						scales[i].s_Scale;
+					grid[j] += scales[i].s_Offset;
+				}
+			}
+			free (words);
+			break;
+		   case DFNT_INT16:
+			words = (unsigned short *) 
+				malloc (nx * ny * sizeof (unsigned short));
+			dh_ReadData (tag->h_fid, varid, words);
+			if (! dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
+					   &ftype, &count, &isize, &sfillval))
+				sfillval = 0x8000;
+			for (j = 0; j < nx * ny; ++j)
+			{
+				if (words[j] == sfillval)
+					grid[j] = badval;
+				else
+				{
+					grid[j] = 
+					   (float)((signed short)words[j]) * 
+					   scales[i].s_Scale;
+					grid[j] += scales[i].s_Offset;
+				}
 			}
 			free (words);
 			break;
 		   case DFNT_FLOAT32:
 			dh_ReadData (tag->h_fid, varid, grid);
+			if (dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
+					 &ftype, &count, &isize, &fillval))
+			{
+				for (j = 0; j < nx * ny; ++j)
+				{
+					if (grid[j] == fillval)
+						grid[j] = badval;
+				}
+			}
 			break;
 		   default:
 			msg_ELog (EF_PROBLEM,
