@@ -8,6 +8,8 @@ define widget projection intmenu 'projection'
 	entry 'Zebra cylindrical (fast)' 'ChangeProj zebra' \
 		(PDParam('global','projection') = 'zebra' or not pd_defined('global','projection'))
 	line
+	entry 'Polar stereographic' 'ChangeProj stpolar' \
+		(PDParam('global','projection') = 'stpolar')
 	entry 'Albers equal area' 'ChangeProj aea' \
 		(PDParam ('global', 'projection') = 'aea')
 	entry 'Equidistant cylindrical' 'ChangeProj eqc' \

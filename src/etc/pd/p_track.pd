@@ -21,7 +21,6 @@ p_track
 	arrow-color:	brown
 	sa-scale:	0.025
 	show-position:	true
-	position-icon:	littleplane
 	scale-mode:	auto
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	FieldMenu

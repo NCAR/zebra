@@ -13,7 +13,6 @@ p_simple_track
 	line-width:	3
 	sa-scale:	0.025
 	show-position:	true
-	position-icon:	littleplane
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	simple-color
 	icon-right-menu:	linewidth

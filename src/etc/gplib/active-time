@@ -1,5 +1,5 @@
 !
-! $Id: active-time,v 1.1 1995-04-19 14:55:00 granger Exp $
+! $Id: active-time,v 1.2 1996-03-12 17:19:42 granger Exp $
 !
 ! Menus and commands for active time labels in the top annotation
 !
@@ -13,6 +13,130 @@ define widget global-time-left-menu intmenu "global time actions"
 	   'dm "realtime all"'
 	entry 'Set ALL windows to this history time' \
 	   'dm concat("history all ",PDParam("global","plot-time"))'
+	entry 'Time control tool...' 'dm "popup time"'
+	line
+	entry 'Previous day boundary'	previous-day
+	entry 'Previous 12-hour boundary' previous-halfday
+	line
+	entry 'Next day boundary' next-day
+	entry 'Next 12-hour boundary' next-halfday
 endmenu
 
+
+
+!
+! Extract the day part of our plot time and set the hours to zero
+!
+procedure previous-day
+
+	local plotmode PDParam("global","plot-mode")
+	if (plotmode = "real-time")
+		local time (now)
+		local plottime string(time)
+	else
+		local plottime PDParam("global","plot-time")
+		local time #plottime
+	endif
+	local date RmElement(plottime,1)
+	local midnight concat(date,",0")
+	local nighttime #midnight
+	if (nighttime = time)
+		local time (time - 1.0)
+	else
+		local time nighttime
+	endif
+	local plottime quote(string(time))
+	parameter "global" "plot-time" #plottime
+	parameter "global" "plot-mode" "history"
+
+endprocedure
+
+!
+! A little more complicated than the above, since we need
+! to know whether 00 or 12 is closer to plot time, but
+! still earlier.
+!
+procedure previous-halfday
+
+	local plotmode PDParam("global","plot-mode")
+	if (plotmode = "real-time")
+		local time (now)
+		local plottime string(time)
+	else
+		local plottime PDParam("global","plot-time")
+		local time #plottime
+	endif
+	local date RmElement(plottime,1)
+	local midnight concat(date,",0")
+	local noon concat(date,",12")
+	local noontime #noon
+	local nighttime #midnight
+	if (time = nighttime)
+		local time (time - 0.5)
+	elseif (noontime < time)
+		local time noontime
+	else
+		local time nighttime
+	endif
+	local plottime quote(string(time))
+	parameter "global" "plot-time" #plottime
+	parameter "global" "plot-mode" "history"
+
+endprocedure
+
+
+procedure next-day
+
+	local plotmode PDParam("global","plot-mode")
+	if (plotmode = "real-time")
+		local time (now)
+		local plottime string(time)
+	else
+		local plottime PDParam("global","plot-time")
+		local time #plottime
+	endif
+	local date RmElement(plottime,1)
+	local midnight concat(date,",0")
+	local nighttime #midnight
+	local nighttime (nighttime + 1.0)
+	if (nighttime = time)
+		local time (time + 1.0)
+	else
+		local time nighttime
+	endif
+	local plottime quote(string(time))
+	parameter "global" "plot-time" #plottime
+	parameter "global" "plot-mode" "history"
+
+endprocedure
+
+
+procedure next-halfday
+
+	local plotmode PDParam("global","plot-mode")
+	if (plotmode = "real-time")
+		local time (now)
+		local plottime string(time)
+	else
+		local plottime PDParam("global","plot-time")
+		local time #plottime
+	endif
+	local date RmElement(plottime,1)
+	local midnight concat(date,",0")
+	local noon concat(date,",12")
+	local noontime #noon
+	local nighttime #midnight
+	local nighttime (nighttime + 1.0)
+	if (time = nighttime)
+		local time (time + 0.5)
+	elseif (noontime > time)
+		local time noontime
+	else
+		local time nighttime
+	endif
+	local plottime quote(string(time))
+	parameter "global" "plot-time" #plottime
+	parameter "global" "plot-mode" "history"
+
+endprocedure
 

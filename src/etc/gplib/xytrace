@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.8 1996-02-08 16:40:22 burghart Exp $
+! $Id: xytrace,v 1.9 1996-03-12 17:19:44 granger Exp $
 
 !
 ! Some widths, so we can change 'em in one place
@@ -297,6 +297,9 @@ define widget xyrepmenu intmenu ' '
 endmenu
 
 define widget grebl intmenu ' '
+	title 'Trace parameters'
+	line
+	submenu 'Line width' linewidth
 	line
 	submenu 'Side annotation size' xysideannot
 	entry 'Show time in side annotation' 'ToggleBoolean time-annot' \
