@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.2 1993-08-27 15:03:32 burghart Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.3 1993-09-07 21:21:04 burghart Exp $"
  "The RCS id")
 
 ;
@@ -30,16 +30,14 @@
 ; not done via save-excursion or some such because if an error is signaled
 ; we want to stay where things went wrong.
 ;
-  (if (null (pd::show-monitor)) (message "No PD is being monitored")
-    (progn (setq pd::position (point-min))
-	   (let ((saved-pt (point)))
-	     (pd::reset-zones)
-	     (setq pd::plot-type
-		   (downcase
-		    (or (pd::retrieve "global" "plot-type") "none")))
-	     (pd::do-check)
-	     (goto-char saved-pt)
-	     (message "Check went OK")))))
+  (setq pd::position (point-min))
+  (let ((saved-pt (point)))
+    (pd::reset-zones)
+    (setq pd::plot-type
+	  (downcase (or (pd::retrieve "global" "plot-type") "none")))
+    (pd::do-check)
+    (goto-char saved-pt)
+    (message "Check went OK")))
 
 
 
