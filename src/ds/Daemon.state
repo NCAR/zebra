@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.0 1991-07-18 22:49:58 corbet Exp $
+! $Id: Daemon.state,v 2.1 1991-09-24 21:23:35 martin Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -111,6 +111,9 @@ define state organization
 		next ust$no_more
 	endinput
 	input 'grid' 1
+		next ust$no_more
+	endinput
+	input '1dgrid' 8
 		next ust$no_more
 	endinput
 	input '2dgrid' 1
