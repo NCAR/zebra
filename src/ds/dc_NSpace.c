@@ -148,7 +148,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.8 1994-10-11 16:24:45 corbet Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.9 1994-10-31 21:41:22 sobol Exp $")
 #endif
 
 /*
@@ -570,6 +570,7 @@ dc_NSRedefineIsAllowed(dc)
 	if (! IsNSpace(dc,"NSRedefineIsAllowed"))
 		return(0);
 
+	info = GetInfo(dc);
 	return ((int) info->ns_AllowRedefine);
 }
 /*---------------------------------------- end: dc_NSRedefineIsAllowed() --*/
