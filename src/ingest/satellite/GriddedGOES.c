@@ -27,7 +27,7 @@
 # include "Area.h"
 
 /*
- * $Id: GriddedGOES.c,v 1.2 1997-03-11 19:39:06 granger Exp $
+ * $Id: GriddedGOES.c,v 1.3 1997-06-22 21:00:59 granger Exp $
  */
 
 
@@ -80,7 +80,7 @@ char **argv;
  * Process the file
  */
 	f = AddFile (NULL, argv[2], "null");
-	if (! (grid = DoFile (f, "GOES", &ag)))
+	if (! (grid = DoFile (f, "GOES", &ag, /*map*/NULL)))
 	{
 		fprintf (stderr, "Failed to create grid\n");
 		exit (1);

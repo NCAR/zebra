@@ -12,14 +12,12 @@
 # include <stdio.h>
 # include <dirent.h>
 
-# include <config.h>
 # include <defs.h>
 # include <message.h>
-# include <DataStore.h>
 
 # include "Area.h"
 
-RCSID("$Id: Area.c,v 1.2 1997-06-17 09:36:21 granger Exp $")
+RCSID("$Id: Area.c,v 1.3 1997-06-22 21:00:54 granger Exp $")
 
 
 static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};

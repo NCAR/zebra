@@ -23,8 +23,9 @@
 
 # include <defs.h>
 # include <message.h>
+# include <DataStore.h>
 
-RCSID("$Id: GMS.c,v 1.1 1997-06-17 09:36:24 granger Exp $")
+RCSID("$Id: GMS.c,v 1.2 1997-06-22 21:00:58 granger Exp $")
 
 # include "Area.h"	/* Need SetFieldMap() */
 

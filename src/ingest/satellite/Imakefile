@@ -16,14 +16,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.18 1997-06-17 09:36:26 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.19 1997-06-22 21:01:00 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBMCIDAS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS) $(LIBMCIDAS)
 
-SRCS = SatIngest.c GMS.c Area.c AreaIngest.c areadump.c GriddedGOES.c
+SRCS = SatIngest.c GMS.c Area.c AreaIngest.c AreaDS.c areadump.c GriddedGOES.c
 
 XCOMM nvxgoes.f/nvxgvar.f contain the definitions of the nvxeas, nvxini, 
 XCOMM nvxopt, and nvxsae routines required by the satellite ingestors.
@@ -37,14 +37,16 @@ DISTFILES = Imakefile $(SRCS) SatIngest.state big.sat \
 
 SATDEPS = $(DEPLIBS) SatIngest.lf
 
-SIOBJS = SatIngest.o GMS.o Area.o AreaIngest.o
+SIOBJS = SatIngest.o GMS.o Area.o AreaIngest.o AreaDS.o
 CompleteProgramTarget(SatIngest,$(SIOBJS),$(SATDEPS),$(LIBS),$(SYSLIBS))
 
+AREALIBS = $(LIBZEBRA) $(LIBMCIDAS) $(FLIBS) $(LIBMATH)
+
 GRIDOBJS = GriddedGOES.o Area.o AreaIngest.o
-CompleteProgramTarget(GriddedGOES,$(GRIDOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(GriddedGOES,$(GRIDOBJS),$(DEPLIBS),$(AREALIBS),/**/)
 
 ADOBJS = areadump.o Area.o AreaIngest.o
-CompleteProgramTarget(areadump,$(ADOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(areadump,$(ADOBJS),$(DEPLIBS),$(AREALIBS),/**/)
 
 UICppLoadFileTarget(SatIngest.lf,SatIngest.state,keywords.h)
 
