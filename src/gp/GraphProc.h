@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.3 1991-10-15 18:24:43 kris Exp $ */
+/* $Id: GraphProc.h,v 2.4 1991-10-15 22:22:16 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -159,7 +159,7 @@ extern int AgeCheck (char *, time *);
 	extern int ct_GetColorByName (char *, XColor *);
 	extern int ct_GetColorByRGB (XColor *);
 	extern void An_TopAnnot (char *, Pixel);
-	extern Widget LeftRightButtons (Widget, void *);
+	extern Widget LeftRightButtons (Widget, void *,XtTranslations);
 # endif
 # else
 	extern void tr_InitAcWidget ();
