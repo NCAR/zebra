@@ -13,7 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.2 1992-06-01 18:39:23 corbet Exp $")
 
 
 
@@ -48,7 +48,6 @@ static int AttrLen;
  * Local routines.
  */
 static void	drf_WSync FP ((RFTag *));
-static int	drf_FindOffset FP ((DataObject *, int));
 static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
 static int	drf_FldOffset FP ((RFTag *, FieldId));
 static int	drf_TimeIndex FP ((const RFTag *, const ZebTime *));
