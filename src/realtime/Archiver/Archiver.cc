@@ -52,7 +52,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-RCSID ("$Id: Archiver.cc,v 1.33 1995-06-29 22:37:56 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.34 1996-01-12 20:43:38 granger Exp $")
 
 /*
  * Issues:
@@ -1382,7 +1382,11 @@ char *cmd;
 # ifdef hpux
 	int fd = pfp->__fileL;	/* HP weirdness -- untested */
 # else
+#  ifdef linux
+	int fd = pfp->_fileno;	/* LINUX */
+#  else
 	int fd = pfp->_file;
+#  endif
 # endif
 /*
  * Be sure we can run tar.
