@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Boundary.c,v 1.4 1992-11-12 18:32:23 burghart Exp $";
+static char *rcsid = "$Id: Boundary.c,v 1.5 1992-11-25 18:11:13 burghart Exp $";
 
 # include <math.h>
 # include <defs.h>
@@ -37,18 +37,10 @@ static char *rcsid = "$Id: Boundary.c,v 1.4 1992-11-12 18:32:23 burghart Exp $";
 /*
  * private prototypes
  */
-# ifdef __STDC__
-	static void	bnd_SetLimits (float *, float *, int);
-	static void	bnd_CheckAzRng (Radar *, double, double, double, 
-				double);
-	static void	bnd_NewBoundary (PlatformId, int, time);
-	static bool	bnd_GetBoundary (PlatformId);
-# else
-	static void	bnd_SetLimits ();
-	static void	bnd_CheckAzRng ();
-	static void	bnd_NewBoundary ();
-	static bool	bnd_GetBoundary ();
-# endif
+static void	bnd_SetLimits FP ((float *, float *, int));
+static void	bnd_CheckAzRng FP ((Radar *, double, double, double, double));
+static void	bnd_NewBoundary FP ((PlatformId, int, time *));
+static bool	bnd_GetBoundary FP ((PlatformId));
 
 
 
@@ -114,13 +106,13 @@ PlatformId	pid;
 {
 	DataChunk	*dc;
 	Location	*locs;
-	time		t;
+	ZebTime		t;
 	float		*lat, *lon;
 	int		npts, i;
 /*
  * Get the current time and see if a boundary exists
  */
-	tl_GetTime (&t);
+	tl_Time (&t);
 	if (! ds_DataTimes (pid, &t, 1, DsBefore, &t))
 		return (FALSE);
 /*
@@ -170,7 +162,7 @@ static void
 bnd_NewBoundary (pid, global, t)
 PlatformId	pid;
 int		global;
-time		t;
+time		*t;
 /*
  * The data store has a new boundary for us, so go get it
  */
