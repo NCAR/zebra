@@ -73,6 +73,9 @@ else
 fi
 
 # Any reason this can't be run in parallel?  Leaving serial for now...
-set -x
-zplotd -period $plot1 $zplotdargs
-zplotd -period $plot2 $zplotdargs
+# For that matter, just arbitrarily decide to only plot data for the
+# full prior period, rather than try to plot partial periods which almost
+# always will be empty.
+echo zplotd -period $plot1 $zplotdargs
+exec zplotd -period $plot1 $zplotdargs
+# zplotd -period $plot2 $zplotdargs
