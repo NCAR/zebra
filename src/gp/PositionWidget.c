@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.17 1995-01-03 22:02:48 burghart Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.18 1995-04-17 22:16:22 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,9 +29,10 @@ static char *rcsid = "$Id: PositionWidget.c,v 1.17 1995-01-03 22:02:48 burghart 
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/AsciiText.h>
 
-# include "defs.h"
-# include "message.h"
-# include "pd.h"
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
+# include <GraphicsW.h>
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
@@ -103,7 +104,7 @@ XtAppContext 	actx;
  * Actually create the position widget.
  */
 {
-	Widget	form, hbutton;
+	Widget	hbutton;
 	Arg	args[20];
 	char	units[16];
 	int	n;
