@@ -1,16 +1,17 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.3 2000-08-04 04:54:36 granger Exp $
+# $Id: sumplot,v 1.4 2000-10-16 19:22:53 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
 #
 
-if [ $# -ne 4 ]; then
+if [ $# -ne 4 -a $# -ne 5 ]; then
 
-    echo "Usage: $0 <project> <pattern> <basedir> <destdir>"
+    echo "Usage: $0 <project> <pattern> <basedir> <destdir> [<htmlfile>]"
     echo "Finds all image files of the given <pattern> under <basedir>,"
-    echo "creates thumbnails and a html table in <destdir>."
+    echo "creates thumbnails in <destdir> and a html table <htmlfile>."
+    echo "If <htmlfile> not given, a default is created using the pattern."
     exit 1
 
 fi
@@ -25,9 +26,13 @@ if [ ! -d $destdir ]; then
     exit 1
 fi
 
-htmlfile=$destdir/summary-$pattern.html
+if [ $# -eq 5 ]; then
+    htmlfile=$5
+else
+    htmlfile=$destdir/summary-$pattern.html
+fi
 
-(echo "<html><head><title>$project Plot Summary for $pattern</title></head><body>"
+(echo "<html><head><title>$project Plot Summary</title></head><body>"
 
 cat <<EOF
 <body bgcolor="#ffffff">
@@ -37,7 +42,7 @@ cat <<EOF
 <br>
 <A HREF="http://www.atd.ucar.edu/welcome.html"><IMG valign=center alt="ATD..." 
    SRC="http://www.atd.ucar.edu/gif/atd_ban_sml.gif"></a>
-$project Plot Summary for $pattern
+$project Plot Summary
 </h1>
 <hr>
 EOF
