@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.12 1990-04-06 11:14:10 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.13 1990-05-08 13:55:06 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -160,7 +160,7 @@ static byte Class_table[128] =
 	/* ^J	*/	CG_WKILL,	/* ^K	*/	CG_UP_ARROW,
 	/* ^L	*/	CG_ERROR,	/* ^M	*/	CG_RETURN,
 	/* ^N	*/	CG_ERROR,	/* ^O	*/	CG_ERROR,
-	/* ^P	*/	CG_ERROR,	/* ^Q	*/	CG_ERROR,
+	/* ^P	*/	CG_UP_ARROW,	/* ^Q	*/	CG_ERROR,
 	/* ^R	*/	CG_REDRAW,	/* ^S	*/	CG_ERROR,
 	/* ^T	*/	CG_ERROR,	/* ^U	*/	CG_LKILL,
 	/* ^V	*/	CG_LITERAL,	/* ^W	*/	CG_WKILL,
