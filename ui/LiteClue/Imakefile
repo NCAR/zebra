@@ -6,6 +6,7 @@
 /* SYS_LIBRARIES= -lXaw -lXmu $(XPMLIB) $(XTOOLLIB) $(XLIB)  */
 SYS_LIBRARIES= $(XLIBS)
 
+EXTRA_DEFINES = $(PICFLAGS)
 INCLUDES = -I. $(XINCLUDES)
 SRCS= LiteClueTest.c LiteClue.c
 OBJS= LiteClueTest.o LiteClue.o

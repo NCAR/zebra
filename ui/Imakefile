@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.14 2001-12-03 17:52:56 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.15 2002-02-12 23:33:54 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,7 +35,7 @@ UI_LF = $(LIBDIR)/ui.lf
  * to leave it there for RDSS builds also.
  */
 INCLUDES = $(XINCLUDES) -I. -I./LiteClue
-LIBS = $(LIBRDSSUTIL) $(XLIBS)
+LIBS = $(LIBRDSS) $(XLIBS)
 DEPLIBS = $(LIBRDSSUTIL)
 
 
@@ -60,14 +60,17 @@ SYSDEFINES = -DBSD
 SYSDEFINES =
 #endif
 
-EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) $(NORMAL_DEFINES) $(SYSDEFINES)
+#if ZebraSharedLibraries
+PICDEFS = $(PICFLAGS)
+#endif
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) $(NORMAL_DEFINES) $(SYSDEFINES) $(PICDEFS)
 
 BINSRCS = uic.c uib.c
 
 /*
  * Override UIB variable to always use the local one
  */
-UIB = ./uib
+UIB = LdLibEnv ./uib
 
 # if (UseXWindows || (UseOpenWindows && !OldOpenWin))
 SMEMENUOBJS= SmeMenu.o RdssMenu.o
@@ -113,12 +116,19 @@ DISTFILES = Imakefile ui_commands \
 
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
+#if ZebraSharedLibraries
+DEPLIBS=
+SharedLibraryTarget(rdssui,1,$(LIBOBJS),.,.)
+InstallSharedLibrary(rdssui,1,$(LIBDIR))
+#else
 NormalLibraryTarget(rdssui,$(LIBOBJS))
 InstallLibrary(rdssui,$(LIBDIR))
+#endif
+
 InstallNonExecFile(ui_commands,$(LIBDIR)/ui)
 
-CompleteProgramTarget(uib, uib.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
-CompleteProgramTarget(uic, uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(uib, uib.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(uic, uic.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
@@ -131,8 +141,8 @@ SYSLIBS = $(LIBREGEXP)
 AllTarget ($(LIBOBJS))
 NormalLibraryTarget($(LOCALLIB),$(LIBOBJS))
 
-NormalProgramTarget(uib,uib.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
-NormalProgramTarget(uic,uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(uib,uib.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(uic,uic.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 InstallObjectsIntoLibrary($(LIBRDSSUI),$(LIBOBJS))
 
@@ -140,7 +150,7 @@ BuildIncludes($(HEADERS),.,.)
 
 #endif /* ProjectZebra */
 
-UIBootFileDepsTarget(ui.lf, ui.state, ui_commands $(UIB))
+UIBootFileDepsTarget(ui.lf, ui.state, ui_commands ./uib)
 
 DependTarget()
 

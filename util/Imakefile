@@ -16,13 +16,16 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.5 1996-05-01 20:30:21 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 2002-02-12 23:33:55 granger Exp $"
 
 #define PassCDebugFlags /* 'CDEBUGFLAGS=$(CDEBUGFLAGS)' */
 
 LOCALLIB = libutil.a
 
-EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) -DNETACCESS
+#if ZebraSharedLibraries
+PICDEFS = $(PICFLAGS)
+#endif
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) -DNETACCESS $(PICDEFS)
 
 LIBOBJS = strcpyUC.o bio.o fixdir.o swap4.o vm.o batch.o sprintrmt.o \
 	  disk.o cpanic.o bfile.o parsetime.o ntdsk_client.o rtape_lib.o \
@@ -44,8 +47,13 @@ DISTFILES = Imakefile $(LIBSRCS) $(HEADERS) $(PRIVATE_HEADERS)
  */
 #ifdef ProjectZebra
 
+#if ZebraSharedLibraries
+SharedLibraryTarget(rdssutil,1,$(LIBOBJS),.,.)
+InstallSharedLibrary(rdssutil,1,$(LIBDIR))
+#else
 NormalLibraryTarget(rdssutil,$(LIBOBJS))
 InstallLibrary(rdssutil,$(LIBDIR))
+#endif
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
