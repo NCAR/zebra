@@ -2,18 +2,55 @@
 ! Support for active ISS locations.
 !
 
-define widget send-iss intmenu 'iss sender'
-	title 'ISS Display'
+define widget iss-to-other intmenu 'other'
+	title 'Display in other window'
 	line
-	entry 'Display station in other window' 'iss-select'
+	entry 'Omega sounding' 'iss-shipout none'
+	entry 'Wind profile (high)' 'iss-shipout _h'
+	entry 'Wind profile (low)' 'iss-shipout _l'
+	entry 'RASS' 'iss-shipout _r'
+	entry 'Surface measurements' 'iss-shipout _s'
+endmenu
+
+
+!
+! The function which actually gets this data around.
+!
+procedure iss-shipout suffix string
+	if (suffix <> 'none')
+		local fullplat concat(icon_platform, suffix)
+	else
+		local fullplat icon_platform
+	endif
+	local dmcmd quote(concat3 ('PutScalar ', fullplat, ' tdry'))
+	dm #dmcmd
+endprocedure
+
+
+define widget send-iss intmenu 'iss sender'
+	title 'Add Data to Other Window'
+	line
+	entry 'RASS data' 'iss-rass'
+	entry 'Sonde data' 'iss-sonde'
+	entry 'Profiler data' 'iss-profiler'
 endmenu
 
 
 !
 ! Stuff called out of the above
 !
-procedure iss-select
-	local dmcmd quote(concat('TweakISS ', icon_platform))
+procedure iss-rass
+	local dmcmd quote(concat3('rass-add rass/', icon_platform, '_r'))
+	dm #dmcmd
+endprocedure
+
+procedure iss-sonde
+	local dmcmd quote(concat('sounding-add sounding/', icon_platform))
+	dm #dmcmd
+endprocedure
+
+procedure iss-profiler
+	local dmcmd quote(concat('profiler-add prof/', icon_platform))
 	dm #dmcmd
 endprocedure
 
