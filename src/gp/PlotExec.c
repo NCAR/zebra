@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.18 1991-03-28 18:25:49 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.19 1991-04-10 15:54:20 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -319,15 +319,7 @@ px_GlobalPlot ()
  * On CAPs, annotate the altitude we eventually got.
  */
 	if (PlotType == PT_CAP)
-	{
-		sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
-
-		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext,
-			GWWidth (Graphics) - 10, USABLE_HEIGHT - 10, 
-			datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
-			JustifyBottom);
-	}
+		CAP_Finish (Alt);
 /*
  * If the altitude has changed, stash it.
  */
