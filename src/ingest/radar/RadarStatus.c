@@ -35,7 +35,7 @@
 # include "timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.7 1997-02-03 16:41:04 granger Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.8 1999-03-11 17:38:58 burghart Exp $";
 
 # define PI		3.1415927
 # define DEG_TO_RAD(x)	(((x) * 0.017453293))
@@ -45,10 +45,10 @@ static char *rcsid = "$Id: RadarStatus.c,v 2.7 1997-02-03 16:41:04 granger Exp $
  */
 Widget Top, Second, Shell, Form, Wm, DateLabel, Graphics;
 XtAppContext Appc;
-bool Visible = FALSE;
-bool Override = TRUE;
+zbool Visible = FALSE;
+zbool Override = TRUE;
 
-bool DataSeen = FALSE;
+zbool DataSeen = FALSE;
 
 /*
  * Default width and height for the graphical display

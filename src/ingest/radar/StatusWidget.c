@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: StatusWidget.c,v 2.2 1994-10-26 00:36:14 granger Exp $";
+static char *rcsid = "$Id: StatusWidget.c,v 2.3 1999-03-11 17:38:59 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -36,7 +36,7 @@ static char *rcsid = "$Id: StatusWidget.c,v 2.2 1994-10-26 00:36:14 granger Exp 
 # include "RadarInfo.h"
 
 
-static bool SWMade = FALSE;
+static zbool SWMade = FALSE;
 static Widget AzLabel, ElLabel, FixedLabel, TimeLabel, GateLabel, ModeLabel;
 static Widget BeamLabel, MissedLabel;
 static Widget ThrEnable, ThrCountLbl;
@@ -46,7 +46,7 @@ static int UpdateSocket;
  * Local variables mirroring the thresholding state, which we keep until
  * asked.
  */
-static bool LDoThresholding;
+static zbool LDoThresholding;
 static unsigned char LThrCounts;
 
 # ifdef __STDC__

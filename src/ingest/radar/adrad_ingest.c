@@ -39,7 +39,7 @@
 # include "radar_ingest.h"
 # include "display.h"
  
-RCSID("$Id: adrad_ingest.c,v 2.12 1997-02-03 16:41:06 granger Exp $")
+RCSID("$Id: adrad_ingest.c,v 2.13 1999-03-11 17:39:00 burghart Exp $")
 
 /* 
  * Adrad includes for xdr, etc.
@@ -67,16 +67,16 @@ int NFrames = 2;		/* How many frames		*/
 int Niceness = 0;
 int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
-bool Project = TRUE;
+zbool Project = TRUE;
 
 /* trust internal flags for adrad data	*/
-bool TrustSweep = TRUE;
-bool TrustVol = TRUE;
+zbool TrustSweep = TRUE;
+zbool TrustVol = TRUE;
 
 /*
  * No Thresholding.
  */
-bool DoThresholding = FALSE;
+zbool DoThresholding = FALSE;
 int ThrFldOffset;
 unsigned char ThrCounts = 0;
 
@@ -100,7 +100,7 @@ ScaleInfo Scale[MFIELD];
 static char Consumer[200];
 static char *CArgs[20];
 static int NCArg = 0;
-static bool CSet = FALSE;
+static zbool CSet = FALSE;
 static int CPid = 0;		/* It's process ID	*/
 
 /*
@@ -491,7 +491,7 @@ int newvol, left, right, up, down, mode;
 	RGrid rg;
 	Location loc;
 	char attr[100];
-	static bool	firstsweep = TRUE;
+	static zbool	firstsweep = TRUE;
 /*
  * Set newvol to true if this is the first sweep, regardless of what
  * our caller says.

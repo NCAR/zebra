@@ -57,19 +57,19 @@ int	MinRHI = 0;		/* not used in UFIngest (yet) */
 int	NFrames = 2;		/* How many frames		*/
 int	Niceness = 0;
 int	NBeam = 0;
-bool	Project = TRUE;
-bool	CheckTrailLen = TRUE;	/* verify trailing reclen in file sources? */
+zbool	Project = TRUE;
+zbool	CheckTrailLen = TRUE;	/* verify trailing reclen in file sources? */
 
 /*
  * We should be able to trust sweep and volume flags in UF data
  */
-bool	TrustSweep = TRUE;
-bool	TrustVol = TRUE;
+zbool	TrustSweep = TRUE;
+zbool	TrustVol = TRUE;
 
 /*
  * No thresholding by default
  */
-bool	DoThresholding = FALSE;
+zbool	DoThresholding = FALSE;
 int	ThrFldOffset;
 unsigned char	ThrCounts = 0;
 
@@ -97,7 +97,7 @@ char	PlatformName[PF_LEN];
 char	Consumer[200];
 char	*CArgs[20];
 int	NCArg = 0;
-bool	CSet = FALSE;
+zbool	CSet = FALSE;
 int	CPid = 0;		/* Its process ID	*/
 
 /*
@@ -440,7 +440,7 @@ int newvol, left, right, up, down, mode;
 	RGrid rg;
 	Location loc;
 	char attr[100];
-	static bool	firstsweep = TRUE;
+	static zbool	firstsweep = TRUE;
 /*
  * Set newvol to true if this is the first sweep, regardless of what
  * our caller says.

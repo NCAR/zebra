@@ -35,7 +35,7 @@ int	Nbeam = 0;
 int	Fd;
 char	*InSource;
 char	TapeSource = FALSE;
-bool	CheckTrailer;
+zbool	CheckTrailer;
 
 /*
  * The beam structure we pass back.
@@ -50,7 +50,7 @@ char		*Databuf;
 void 
 FileInput (file, check_trailer)
 char	*file;
-bool	check_trailer;
+zbool	check_trailer;
 /*
  * Make a note of file input.  If check_trailer is true, we verify that the
  * trailing record length in each record is correct.

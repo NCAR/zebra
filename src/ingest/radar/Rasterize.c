@@ -28,7 +28,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: Rasterize.c,v 2.16 1998-10-28 21:22:33 corbet Exp $")
+RCSID("$Id: Rasterize.c,v 2.17 1999-03-11 17:38:59 burghart Exp $")
 
 
 static char *Modes[] = { "CAL", "PPI", "COP", "RHI", "??4", "??5", "??6",
@@ -116,7 +116,7 @@ static void ScanConvert FP ((struct RastInfo *, int, double, double,
 	double, double, RDest *, int));
 static inline void CheckMax FP ((int, int, int, int));
 static int DirCheck FP ((Direction *, Beam, int, double));
-static bool CheckFixAng FP ((Housekeeping *, double));
+static zbool CheckFixAng FP ((Housekeeping *, double));
 
 
 /*
@@ -335,7 +335,7 @@ const int offset, skip;
  */
 {
 	register int chunk, gate;
-	const bool dothresh = DoThresholding;
+	const zbool dothresh = DoThresholding;
 	unsigned char tvalue = ThrCounts;
 
 	for (chunk = 0; chunk < beam->b_npart; chunk++)
@@ -458,7 +458,7 @@ Beam beam;
 	gettimeofday (&newtime, 0);
 	if (InSweep)
 	{
-		bool newvol;
+		zbool newvol;
 	/*
 	 * See if a new volume is warranted.
 	 */
@@ -574,7 +574,7 @@ Beam beam;
 
 
 
-static bool
+static zbool
 CheckFixAng (hk, tol)
 Housekeeping *hk;
 float tol;

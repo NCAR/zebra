@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.11 1996-03-15 22:25:57 burghart Exp $ */
+/* $Id: radar_ingest.h,v 2.12 1999-03-11 17:39:01 burghart Exp $ */
 
 
 /*
@@ -77,7 +77,7 @@ typedef struct _RDest
 /*
  * Do we trust the scan and volume flags?
  */
-extern bool TrustSweep, TrustVol;
+extern zbool TrustSweep, TrustVol;
 
 /*
  * The scale factor, in pixels per kilometer.
@@ -97,7 +97,7 @@ extern float ElTolerance;
 /*
  * Thresholding information.
  */
-extern bool DoThresholding;		/* Thresholding is enabled	*/
+extern zbool DoThresholding;		/* Thresholding is enabled	*/
 extern int ThrFldOffset;		/* Offset to threshold field	*/
 extern unsigned char ThrCounts;		/* Threshold count value	*/
 extern int SMinusXThresh;
@@ -105,12 +105,12 @@ extern int SMinusXThresh;
 /*
  * Mhr mode -- drop .5's.
  */
-/* extern bool MhrMode; */
+/* extern zbool MhrMode; */
 extern float MhrTop;
 /*
  * Do we do elevation projection?
  */
-extern bool Project;
+extern zbool Project;
 
 /*
  * Doing beam buffering?

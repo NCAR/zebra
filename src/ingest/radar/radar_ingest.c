@@ -47,7 +47,7 @@ static void SetRealTime ();
 # include "display.h"
 # include "BeamBuffer.h"
 
-RCSID("$Id: radar_ingest.c,v 2.17 1998-03-06 17:25:26 burghart Exp $")
+RCSID("$Id: radar_ingest.c,v 2.18 1999-03-11 17:39:00 burghart Exp $")
 
 /*
  * Define globals here.
@@ -65,31 +65,31 @@ int NFrames = 2;		/* How many frames		*/
 int Niceness = 0;
 int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
-bool Project = TRUE;
-/* bool MhrMode = FALSE; */
-bool ForceRealTime = TRUE;	/* Force data times to real time?	*/
+zbool Project = TRUE;
+/* zbool MhrMode = FALSE; */
+zbool ForceRealTime = TRUE;	/* Force data times to real time?	*/
 float MhrTop = 21.0;
 RadarFormat RFormat = RF_CBAND;		/* The format of our data */
 int Using_BB = FALSE;		/* Doing beam buffering? 	*/
-bool Reinitialize = TRUE;
+zbool Reinitialize = TRUE;
 
 /*
  * Stuff for forcing a minimum time interval between beams.  Useful when
  * testing off of a tape.
  */
 float BeamDelay = 0.0;	/* minimum interval in seconds */
-bool OKToGetBeam;
+zbool OKToGetBeam;
 
 /*
  * Are we hacking out RHI limits?
  */
-static bool DumpLimits = FALSE;
+static zbool DumpLimits = FALSE;
 static PlatformId LimitPID;
 
 /*
  * Thresholding.
  */
-bool DoThresholding = FALSE;
+zbool DoThresholding = FALSE;
 int ThrFldOffset;
 unsigned char ThrCounts = 0;
 int SMinusXThresh = 12;	/* Just for CP2 in SCMS */
@@ -97,8 +97,8 @@ int SMinusXThresh = 12;	/* Just for CP2 in SCMS */
 /*
  * Do we trust internal flags?
  */
-bool TrustSweep = FALSE;
-bool TrustVol = FALSE;
+zbool TrustSweep = FALSE;
+zbool TrustVol = FALSE;
 
 struct _ix_desc *ShmDesc = 0;
 int	ImageSet = -1;
@@ -117,7 +117,7 @@ ScaleInfo Scale[MFIELD];
 static char Consumer[200];
 static char *CArgs[20];
 static int NCArg = 0;
-static bool CSet = FALSE;
+static zbool CSet = FALSE;
 static int CPid;		/* It's process ID	*/
 
 /*
@@ -133,7 +133,7 @@ char *Fields[MFIELD];
 typedef struct _MHRState
 {
 	float	ms_Elev;	/* Radar elevation angle */
-	bool	ms_Keep;	/* Is it a keeper?	*/
+	zbool	ms_Keep;	/* Is it a keeper?	*/
 } MHRState;
 
 # define MaxMHRState 100

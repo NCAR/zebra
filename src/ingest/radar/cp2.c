@@ -28,7 +28,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID ("$Id: cp2.c,v 2.3 1996-12-10 20:50:51 granger Exp $")
+RCSID ("$Id: cp2.c,v 2.4 1999-03-11 17:39:00 burghart Exp $")
 
 
 /*
@@ -692,7 +692,7 @@ register unsigned char *dest;
  */
 {
 	const ScaleInfo *sc = &dip->cd_scale;
-	static bool griped = FALSE;
+	static zbool griped = FALSE;
 	register unsigned char *sdata, *xdata;
 	register int gate;
 /*
