@@ -2,7 +2,7 @@
  * GP library files.
  */
 
-LFILES = color-table contour ctr-step form-color grid interp \
+LFILES = color-table contour ctr-step grid interp \
 	offsets radar range raster rings simple-color simple-track \
 	station track xytrace skewt xywind location winds active-loc \
 	active-time time-height global projection histogram
