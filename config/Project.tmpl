@@ -1,7 +1,7 @@
 /* -*- C -*- */
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.14 1997-08-07 19:56:15 ishikawa Exp $
+/**/# $Id: Project.tmpl,v 1.15 1997-08-29 17:00:05 ishikawa Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -277,9 +277,15 @@
 
 #ifndef XLibraries
 #  if (UseXWindows)
+#    ifdef AIXArchitecture
+#define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw \
+LoaderLibPrefix -lXmu LoaderLibPrefix -lXextSam \
+LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
+#    else
 #define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw \
 LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
+#    endif /* AIX */
 #  else
 #    if (UseOpenWindows && !OldOpenWin)
 #       if !SystemV4
@@ -334,6 +340,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 #endif
 
+#ifdef  AIXArchitecture
+# ifndef TermcapLibrary
+# define TermcapLibrary LoaderLibPrefix -lcurses
+# endif
+#endif
+
 #ifndef TermcapLibrary
 #define TermcapLibrary LoaderLibPrefix -ltermcap
 #endif
@@ -348,9 +360,10 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 # endif
 #endif
 
+/* IBM/AIX defines RegexpLibrary in Programmer's Workbench */
 #ifdef AIXArchitecture
 # ifndef RegexpLibrary
-#  define RegexpLibrary -lPW	/* AIX defines in the Programmer's Workbench */
+#  define RegexpLibrary -lPW
 # endif
 #endif
 
@@ -600,8 +613,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
           FDEFINES = -DUNIX -static
 
 #else  
+# ifdef AIXArchitecture
+          FDEFINES =
+# else
           FDEFINES = -DUNIX
 
+# endif /* AIX */
 #endif
 
 
