@@ -1,7 +1,7 @@
 /* -*- C -*- */
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.13 1995-05-24 22:59:10 granger Exp $
+/**/# $Id: Project.tmpl,v 1.14 1997-08-07 19:56:15 ishikawa Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -345,6 +345,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifdef HPArchitecture
 # ifndef RegexpLibrary
 #  define RegexpLibrary /* HP defines SystemV but has no -lgen library */
+# endif
+#endif
+
+#ifdef AIXArchitecture
+# ifndef RegexpLibrary
+#  define RegexpLibrary -lPW	/* AIX defines in the Programmer's Workbench */
 # endif
 #endif
 
