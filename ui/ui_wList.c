@@ -3,7 +3,7 @@
  */
 
 # ifdef XSUPPORT
-static char *rcsid = "$Id: ui_wList.c,v 1.6 1991-12-20 18:11:44 corbet Exp $";
+static char *rcsid = "$Id: ui_wList.c,v 1.7 1992-01-30 21:10:58 corbet Exp $";
 /* 
  * Window system code.
  */
@@ -14,23 +14,11 @@ static char *rcsid = "$Id: ui_wList.c,v 1.6 1991-12-20 18:11:44 corbet Exp $";
 # include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
-
-# ifdef X11R3
-# include <X11/Box.h>
-# include <X11/Command.h>
-# include <X11/List.h>
-# include <X11/Form.h>
-# include <X11/Label.h>
-# define XawListHighlight XtListHighlight
-# define XawListUnhighlight XtListUnhighlight
-
-# else
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/List.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Label.h>
-# endif
 
 # include "ui.h"
 # include "ui_param.h"
@@ -54,6 +42,7 @@ struct list_widget
 	void (*lw_create)();	/* The routine to create this thing	*/
 	void (*lw_popup) ();	/* Popup routine			*/
 	void (*lw_destroy) ();	/* The destroy method			*/
+	GenWidget *(*lw_cl) ();	/* Unused 				*/
 	struct frame_widget *lw_frame;	/* The associated frame		*/
 	Widget lw_list;		/* The actual list widget		*/
 	/* -- end of gen_widget stuff */
@@ -188,7 +177,7 @@ uw_list_def ()
  * Now read in the info.
  */
 	ERRORCATCH
-		ui_subcommand ("ust$in-list", "List>", uw_in_list, new);
+		ui_subcommand ("ust$in-list", "List>", uw_in_list, (long) new);
 	ON_ERROR
 		if (new->lw_nmap)
 			relvm (new->lw_map);
@@ -299,7 +288,7 @@ struct ui_command *cmds;
 	     */
 		mt.mtm_nmap = &lw->lw_nmap;
 		mt.mtm_t = lw->lw_map;
-	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, &mt);
+	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, (long) &mt);
 		break;
 	/*
 	 * Horizontal orientation.
@@ -462,7 +451,8 @@ uw_cm_def ()
 	cm.c_nentry = 0;
 	cm.c_select = (char *) 0;
 	ERRORCATCH
-		ui_subcommand ("ust$in-cmenu", "CMenu>", uw_in_cmenu, &cm);
+		ui_subcommand ("ust$in-cmenu", "CMenu>", uw_in_cmenu,
+					(long) &cm);
 	ON_ERROR
 		for (i = 0; i < cm.c_nentry; i++)
 		{
@@ -576,7 +566,7 @@ struct ui_command *cmds;
 	     */
 		mt.mtm_nmap = &cm->c_lw->lw_nmap;
 		mt.mtm_t = cm->c_lw->lw_map;
-	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, &mt);
+	    	ui_subcommand ("ust$in-map", "  Map>", uw_in_map, (long) &mt);
 		break;
 	/*
 	 * Horizontal orientation.
