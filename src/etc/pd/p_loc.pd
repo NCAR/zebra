@@ -1,0 +1,18 @@
+!
+! Generic location PD component.
+!
+global
+	pd-name:	p_loc
+p_loc
+	platform:	SOMETHING
+	representation:	overlay
+	field:		location
+	color:		green
+	icon-left-menu:		minimal-cap-left-menu
+	posicon-left-menu:	minimal-cap-left-menu
+	icon-right-menu:	location-options
+	posicon-right-menu:	location-options
+	label:		platform
+	active-icon:	true
+	require:	location
+	label-size:	12

@@ -1,0 +1,15 @@
+global
+	pd-name:	skewt-template
+	plot-mode:	history
+	plot-time:	now
+	plot-type:	skewt
+skewt
+	color-table:	Skew-t
+	icon:	sounding
+	icon-left-menu:		skewt-left
+	icon-middle-menu:	DataAvailable
+	icon-right-menu:	feet-km
+	platform:	null
+	representation:	skewt
+	trigger:	platform
+	require:	skewt

@@ -1,0 +1,21 @@
+!
+! Location component oriented around ISS stations, which can be displayed
+! in almost any format you can think of.
+!
+global
+	pd-name:	p_iss_loc
+p_iss_loc
+	platform:	SOMETHING
+	representation:	overlay
+	field:		location
+	color:		white
+	label-size:	12
+	icon:		radar-loc
+	icon-left-menu:		minimal-cap-left-menu
+	icon-right-menu:	location-options
+	posicon-left-menu:	minimal-cap-left-menu
+	posicon-right-menu:	location-options
+	posicon-middle-menu:	send-iss
+	label:		platform
+	active-icon:	true
+	require:	location, iss-cap
