@@ -1,4 +1,5 @@
 /* 10/88 jc */
+# include <string.h>
 
 void
 fixdir (env, def, file, dest)
