@@ -70,7 +70,11 @@
 # include <errno.h>
 # include <math.h>
 # include <sys/file.h>
+# ifdef AIXV3
+# include <fcntl.h>
+# else
 # include <sys/fcntl.h>
+# endif
 
 # define SHORTFLAG 0x4000
 # define CBD_MAGIC 0x20770002
