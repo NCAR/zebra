@@ -1,5 +1,5 @@
 /* 2/87 jc */
-/* $Id: ui_interrupt.c,v 1.2 1989-04-11 10:16:20 corbet Exp $ */
+/* $Id: ui_interrupt.c,v 1.3 1989-04-30 16:35:17 corbet Exp $ */
 /*
  * Interrupt handling.
  */
@@ -109,7 +109,7 @@ uii_tstp ()
 	sigsetmask (oldmask);
 	signal (SIGTSTP, uii_tstp);
 	tty_setup ();
-	ut_reline (); ut_do_reline ();
+	ut_reline (); ut_do_reline (0);
 }
 
 
