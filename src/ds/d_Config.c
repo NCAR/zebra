@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Config.c,v 2.3 1992-08-06 16:39:50 corbet Exp $";
+static char *rcsid = "$Id: d_Config.c,v 2.4 1993-02-08 22:36:19 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -73,7 +73,7 @@ struct ui_command *cmds;
  * Define a subplatform.
  */
 {
-	Platform *parent, *sub;
+	Platform *parent, *sub, *other;
 /*
  * Find our parent platform first.
  */
@@ -92,6 +92,13 @@ struct ui_command *cmds;
 	/*
 	 * We won't redefine an existing platform.
 	 */
+		if ((other = dt_FindPlatform (UPTR (*cmds), TRUE)) &&
+				! (other->dp_flags & DPF_SUBPLATFORM))
+		{
+			msg_ELog (EF_PROBLEM,"(Sub)platform %s already exists",
+				UPTR (*cmds));
+			return;
+		}
 		sprintf (subname, "%s/%s", parent->dp_name, UPTR (*cmds));
 	 	if (dt_FindPlatform (subname, TRUE))
 			msg_ELog (EF_PROBLEM, "Subplatform %s already exists",
