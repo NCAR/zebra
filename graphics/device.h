@@ -1,4 +1,4 @@
-/* $Id: device.h,v 1.4 1989-10-19 14:14:25 corbet Exp $ */
+/* $Id: device.h,v 1.5 1989-10-19 14:29:27 corbet Exp $ */
 /* 5/87 jc */
 /*
  * This file contains the definition of the device structure.
@@ -46,7 +46,7 @@ struct device
 	int	(*gd_viewport) ();	/* Viewport (zoom/origin)	*/
 	int	(*gd_readscreen) ();	/* Read back screen data	*/
 	int	(*gd_pick) ();		/* Pick a screen point		*/
-	ing	(*gd_coff) ();		/* Return color offset		*/
+	int	(*gd_coff) ();		/* Return color offset		*/
 };
 
 
