@@ -46,7 +46,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.25 1993-02-08 21:40:06 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.26 1993-03-12 22:02:39 granger Exp $")
 
 /*
  * Default resources.
@@ -474,6 +474,7 @@ struct ui_command *cmds;
 	extern void mc_MovieRun ();
 	struct dm_event dme;
 	char helpfile[100];
+	char topic[40];
 
 	switch (UKEY (*cmds))
 	{
@@ -612,9 +613,15 @@ struct ui_command *cmds;
 	 */
 	   case GPC_HELP:
 		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
-		XhCallXHelp (Graphics, helpfile, 
-			cmds[1].uc_ctype == UTT_END ? XHELP_INTRO_ID : 
-				UPTR (cmds[1]), "Welcome to Zeb");
+		if (cmds[1].uc_ctype == UTT_END)
+			strcpy (topic, XHELP_INTRO_ID);
+		else /* enforce length of 13 on topic */
+		{
+			strcpy (topic, UPTR (cmds[1]));
+			strcat (topic, "             ");
+			topic[13] = '\0';
+		}
+		XhCallXHelp (Graphics, helpfile, topic, "Welcome to Zeb");
 		break;
 	/*
 	 * The user wants to annotate something.
@@ -1446,4 +1453,29 @@ SValue *argv, *retv;
 {
 	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
 	*rett = SYMT_BOOL;
+}
+
+
+
+/* ARGSUSED */
+void
+HelpCallback (w, client_data, call_data)
+Widget w;
+XtPointer client_data;
+XtPointer call_data;
+{
+	char *topic = (char *)client_data;
+	char helpfile[100];
+	char full_topic[40];
+/*
+ * Call Xhelp with the supplied topic.  If topic is NULL, use
+ * XHELP_INTRO_ID instead.
+ */
+	if (!topic)
+		topic = XHELP_INTRO_ID;
+	strcpy(full_topic, topic);
+	strcat(full_topic,"             ");
+	full_topic[13] = '\0';
+	fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
+	XhCallXHelp (Graphics, helpfile, full_topic, "Welcome to Zeb");
 }
