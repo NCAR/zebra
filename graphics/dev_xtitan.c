@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_xtitan.c,v 1.3 1989-09-18 13:51:57 corbet Exp $ */
+/* $Id: dev_xtitan.c,v 1.4 1989-10-11 14:00:25 corbet Exp $ */
 /*
  * Graphics driver for the X window system, version 11.3, with Titan 
  * enhancements.
@@ -87,11 +87,6 @@ static struct
  */
 static unsigned short Xtab[256];
 
-/*
- * MAJOR ugly kludge to make things work in the radar code.
- */
-static int Fd = -1;
-
 
 xt_open (device, type, ctag, dev)
 char *device, *type, **ctag;
@@ -131,7 +126,7 @@ struct device *dev;
 		return (GE_BAD_DEVICE);
 	}
 	screen = DefaultScreen (tag->x_display);
-	Fd = XConnectionNumber (tag->x_display);
+	G_setfd (XConnectionNumber (tag->x_display));
 /*
  * Fill in our tag.
  */
@@ -889,17 +884,6 @@ char *ctag;
 		}
 	}
 	return (ret);
-}
-
-
-
-int
-xt_fd ()
-/*
- * Ugly hack for perusal.
- */
-{
-	return (Fd);
 }
 
 
