@@ -4,6 +4,9 @@
 # optionally ftp them to a remote host.
 #
 
+use Time::Local;
+use POSIX;
+
 # Use an associative array to give the config and window to plot
 # when a given platform is updated.
 
@@ -511,10 +514,16 @@ sub clear
     }
     unlink("$batch");
 
+    $pindex = "plotindex \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'}";
     if ($debug < $D_NoPlot)
     {
 	print "Generating plot image index:\n";
-	system ("plotindex \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'}");
+	print "$pindex\n";
+	system ("$pindex");
+    }
+    else
+    {
+	print "Skipping: $pindex\n";
     }
 
     if (! $enable_ftp)
