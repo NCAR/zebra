@@ -1,15 +1,74 @@
 !
-! Support for the p_radar PD component.
+! Support for the p_radar and p_polar PD components.
 !
+require color-table
+require contour
+
 
 define widget radar-middle intmenu 'radar middle'
 	title 'Radar options'
 	line
-!	submenu 'Display field' 'FieldMenu'
-	entry 'Reflectivity' 'param #icon_component field reflectivity' \
-		(PDParam (icon_component, 'field') = 'reflectivity')
-	entry 'Velocity' 'param #icon_component field velocity' \
-		(PDParam (icon_component, 'field') = 'velocity')
+	submenu 'Fields...' 'popup FChooser'
+	submenu 'Representation' 'radar-rep'
+	submenu 'Color tables' Color-tables
+	line
+	submenu 'Scan types' 'radar-stypes'
+	entry 'Hold angle mode' 'ToggleBoolean every-sweep' \
+		(PDParam (icon_component, "every-sweep") = "false")
+	line
+	entry 'Highlighting...' 'popup highlight'
+	entry 'Thresholding...' 'popup pol_threshold'
+endmenu
+
+define widget radar-rep intmenu 'x'
+	line
+	entry 'Polar representation' \
+		'param #icon_component representation polar' \
+		(PDParam (icon_component, 'representation') = 'polar')
+	entry 'Raster representation' \
+		'param #icon_component representation raster' \
+		(PDParam (icon_component, 'representation') = 'raster')
+	entry 'Contour representation' \
+		'param #icon_component representation contour' \
+		(PDParam (icon_component, 'representation') = 'contour')
+	entry 'Filled contour representation' \
+		'param #icon_component representation filled-contour' \
+		(PDParam (icon_component, 'representation') = 'filled-contour')
+	line
+	submenu 'Grid size ratio (for non-polar rep.)' radar-gratio
+	submenu 'Contour plot options' radar-contour
+endmenu
+
+
+define widget radar-contour intmenu 'x'
+	title 'Contour options'
+	line
+	submenu 'Label options' 'contour-label-options'
+	entry 'Color-coded contours' 'ToggleBoolean color-mono' \
+		(PDParam(icon_component,'color-mono') <> 'true')
+	submenu '(Monochrome) contour color' 'simple-color'
+	submenu 'Line width' linewidth
+endmenu
+
+define widget radar-gratio intmenu 'x'
+	title 'Grid ratio'
+	line
+	entry '1 (Highest resolution)' \
+		'parameter #icon_component grid-size-ratio 0' \
+		(PDParam (icon_component, 'grid-size-ratio') = '0')
+	entry '3' 'parameter #icon_component grid-size-ratio 3' \
+		(PDParam (icon_component, 'grid-size-ratio') = '3')
+	entry '5' 'parameter #icon_component grid-size-ratio 5' \
+		(PDParam (icon_component, 'grid-size-ratio') = '5')
+	entry '10' 'parameter #icon_component grid-size-ratio 10' \
+		(PDParam (icon_component, 'grid-size-ratio') = '10')
+	entry '20 (Horribly low resolution)' \
+		'parameter #icon_component grid-size-ratio 20' \
+		(PDParam (icon_component, 'grid-size-ratio') = '20')
+endmenu
+
+define widget radar-stypes intmenu 'Scan types'
+	title 'Scan type selection'
 	line
 	entry 'Surveillance Scans' 'scan_mode sur' \
 		(PDParam (icon_component, "radar-mode") = "sur")
@@ -19,25 +78,155 @@ define widget radar-middle intmenu 'radar middle'
 		(PDParam (icon_component, "radar-mode") = "ppi")
 	entry 'Any Scan' 'scan_mode any' \
 		(PDParam (icon_component, "radar-mode") = "any")
-	line
-	entry 'Hold angle mode' 'ToggleBoolean every-sweep' \
-		(PDParam (icon_component, "every-sweep") = "false")
-	line
-	entry 'Raster representation' \
-		'param #icon_component representation raster'
-	entry 'Contour representation' \
-		'param #icon_component representation contour'
-	entry 'Filled contour representation' \
-		'param #icon_component representation filled-contour'
-	line
-	submenu 'Color tables' Color-tables
 endmenu
-
 
 procedure scan_mode mode string
 	param #icon_component radar-mode #mode
 endprocedure
 
+
+
+!
+! Polar plot thresholding stuff.
+!
+define widget pol_threshold form 'Polar data thresholding'
+	noheader
+	popup pt-popup
+
+	label title 'Polar data thresholding options'
+	button apply 'Apply' command 'pt-apply'
+	button dismiss 'Dismiss' color red command 'popdown #ui$form'
+	newline
+!
+! The master enable/disable switch
+!
+	label l1 'Thresholding is'
+	button enable 'confused' command pt-thrtoggle
+	label comp 'x' width 1 color gray95
+	newline
+!
+! The rest of the stuff.
+!
+	label l2 'Use field'
+	pulldown tfield 'bogosity' menu pt-fields
+	label l3 '; delete when'
+	button overunder 'around' command pt-overunder
+	blank value 'weird'
+enddef
+
+
+
+
+procedure pt-popup
+	local f ui$form
+	local c icon_component
+
+	formtext #f comp #c
+!
+! Are we doing this or not?
+!
+	if (PDParam (c, 'threshold') = 'true')
+		formtext #f enable 'enabled'
+	else
+		formtext #f enable 'disabled'
+	endif
+!
+! What's the threshold field?
+!
+	local tfield PDParam(c, 'threshold-field')
+	if (tfield = '(Undefined)')
+		formtext #f tfield '?'
+	else
+		formtext #f tfield #tfield
+	endif
+!
+! The test?
+!
+	local ttest PDParam(c, 'threshold-test')
+	if (ttest = 'over')
+		formtext #f overunder 'over'
+	else
+		formtext #f overunder 'under'
+	endif
+!
+! And the value.
+!
+	local tvalue PDParam(c, 'threshold-value')
+	if (tvalue = '(Undefined)')
+		formtext #f value '?'
+	else
+		formtext #f value #tvalue
+	endif
+endprocedure
+
+
+
+procedure pt-thrtoggle
+	if (getftext (ui$form, 'enable') = 'enabled')
+		formtext #ui$form enable 'disabled'
+	else
+		formtext #ui$form enable 'enabled'
+	endif
+endprocedure		
+
+
+
+
+define widget pt-fields intmenu 'x'
+	title 'Threshold field'
+	line
+	entry 'dbz' 'formtext #ui$form tfield dbz'
+	entry 'vr' 'formtext #ui$form tfield vr'
+	entry 'dm' 'formtext #ui$form tfield dm'
+	entry 'zdr' 'formtext #ui$form tfield zdr'
+	entry 'ldr' 'formtext #ui$form tfield ldr'
+	entry 'swidth' 'formtext #ui$form tfield swidth'
+	entry 'phidp' 'formtext #ui$form tfield phidp'
+	entry 'rhohv' 'formtext #ui$form tfield rhohv'
+	entry 'ncp' 'formtext #ui$form tfield ncp'
+	entry 'ckdp' 'formtext #ui$form tfield ckdp'
+endmenu
+
+
+
+
+procedure pt-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+!
+! Make sure that they filled in the important stuff.
+!
+	local tfield getftext(f, 'tfield')
+	local tvalue getftext(f, 'value')
+	if (tfield = '?' or tvalue = '?')
+		dm 'beep'
+		return
+	endif
+!
+! OK, we can proceed.  Set things.
+!
+	parameter #c threshold-field #tfield
+	parameter #c threshold-value #tvalue
+	local p getftext(f, 'overunder')
+	parameter #c threshold-test #p
+	local p getftext(f, 'enable')
+	if (p = 'enabled')
+		parameter #c threshold 'true'
+	else
+		parameter #c threshold 'false'
+	endif
+endprocedure
+
+
+
+procedure pt-overunder
+	local current getftext(ui$form, 'overunder')
+	if (current = 'over')
+		formtext #ui$form overunder 'under'
+	else
+		formtext #ui$form overunder 'over'
+	endif
+endprocedure
 
 !
 ! We want this to turn angle hold off, since the user is picking a specific
@@ -55,4 +244,4 @@ procedure RadarRealTime
 endprocedure
 
 
-require color-table
+
