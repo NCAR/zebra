@@ -1,5 +1,5 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.9 1998-02-26 21:18:36 burghart Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.10 1998-12-15 23:29:57 burghart Exp $";
 /*
  * Interrupt handling.
  */
@@ -10,10 +10,10 @@ static char *rcsid = "$Id: ui_interrupt.c,v 1.9 1998-02-26 21:18:36 burghart Exp
 # include "ui_param.h"
 # include "ui_globals.h"
 
-# if defined(SVR4) || defined(SYSV)
-# define SIGNAL_RETURN void
-# else
+# if BSD
 # define SIGNAL_RETURN int
+# else
+# define SIGNAL_RETURN void
 # endif
 
 /*
