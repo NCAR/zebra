@@ -5,7 +5,7 @@
 define widget projection intmenu 'projection'
 	title 'Projections'
 	line
-	entry 'Zebra cylindrical (fast)' 'ChangeProj rectangular' \
+	entry 'Zebra cylindrical (fast)' 'ChangeProj zebra' \
 		(PDParam('global','projection') = 'zebra' or not pd_defined('global','projection'))
 	line
 	entry 'Albers equal area' 'ChangeProj aea' \
