@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.4 1996-01-12 01:16:05 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.5 1996-02-08 21:31:17 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -387,8 +387,6 @@ mf:: Makefile								@@\
 distfiles::								@@\
 									@@\
 distmakefiles::								@@\
-									@@\
-DistCleanTarget()							@@\
 									@@\
 DistCleanTarget()							@@\
 									@@\
