@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: Journal.cc,v 1.3 1997-12-14 23:50:14 granger Exp $");
+RCSID ("$Id: Journal.cc,v 1.4 1997-12-17 03:51:15 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -105,7 +105,6 @@ Journal::Record (Journal::ChangeType change, BlkOffset offset, BlkSize length)
 		last = (max + last - 1) % max;
 	}
 	mark ();
-	writeSync ();
 }
 
 
