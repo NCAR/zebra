@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.16 1997-07-10 22:01:27 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.17 1997-11-21 20:52:55 burghart Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -45,6 +45,11 @@ XCOMM
  * 
  * TestProgramTarget(program,objects,deplibs,locallibs,syslibs)
  *  -- Same as NormalProgramTarget, except program will not be
+ *     installed, nor be part of the All target.  Instead it will be part
+ *     of the test:: target.
+ *
+ * CccTestProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Same as CplusplusProgramTarget, except program will not be
  *     installed, nor be part of the All target.  Instead it will be part
  *     of the test:: target.
  *
@@ -282,6 +287,18 @@ xdrclean::								@@\
  */
 #define	TestProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
 NormalProgramTarget(program,objects,deplibs,locallibs,syslibs)		@@\
+									@@\
+CvsIgnoreFile(program)							@@\
+									@@\
+test:: program								@@\
+
+/*
+ * Same as NormalCplusplusProgramTarget, but the program will not
+ * be installed, nor it will be an 'all' dependency.  It will be a
+ * 'test' dependency, and it will get ignored by CVS.
+ */
+#define	CccTestProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+NormalCplusplusProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
 									@@\
 CvsIgnoreFile(program)							@@\
 									@@\
