@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.6 1991-12-13 15:37:19 kris Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.7 1992-03-13 17:42:41 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1310,7 +1310,7 @@ int update;
  * Plot the location of a series of platforms.
  */
 {
-	char *plist[80], label[40];
+	char *plist[100], label[40];
 	int nplat, plat, px, py;
 	OvIcon *icon;
 	Location loc;
@@ -1387,7 +1387,7 @@ float *asize;
  * Do the setup required to plot locations.
  */
 {
-	static char platform[200];	/* XXX */
+	static char platform[1000];	/* XXX */
 	char iconname[40], color[40];
 	XColor xc;
 	XGCValues vals;
@@ -1414,9 +1414,9 @@ float *asize;
 /*
  * Find our icon.
  */
-	if (! pda_Search (Pd, comp, "icon", plist[0], iconname, SYMT_STRING) &&
-	    ! pda_Search (Pd, comp, "location-icon", plist[0], iconname,
-	    			SYMT_STRING))
+	if (! pda_Search (Pd, comp, "location-icon", plist[0], iconname, 
+		SYMT_STRING) && 
+	    ! pda_Search (Pd, comp, "icon", plist[0], iconname, SYMT_STRING))
 	{
 		msg_ELog (EF_PROBLEM, "No location icon for %s", plist[0]);
 		return (FALSE);
