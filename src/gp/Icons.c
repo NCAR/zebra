@@ -262,7 +262,7 @@ I_DoIcons ()
  */
 {
 	int xpos = 5, comp, disable = 0;
-	int width, height, fg, bg;
+	int fg, bg;
 	char **comps = pd_CompList (Pd), platform[40], *qual = NULL;
 	Pixmap icon;
 	struct IconList *ilp;
@@ -375,10 +375,6 @@ int *fg, *bg, disable;
  * Otherwise we gotta go dig it up.
  */
 	sprintf (fname, "%s/icons/%s", LIBDIR, iname);
-# ifdef notdef
-	strcpy (fname, "../lib/icons/");	/* XXX */
-	strcat (fname, iname);
-# endif
 	if (XReadBitmapFile (disp, root, fname, &w, &h, &pmap, &xh, &yh) !=
 		BitmapSuccess)
 	{
@@ -556,7 +552,7 @@ char *colorcomp;
 {
         int disable, fg, bg;
         int seconds, ntime, update;
-	time timenow, datatime;
+	ZebTime timenow, datatime;
         char comp[40], platform[40], repr[40];
 	char agelimit[40], color[40];
 	PlatformId pid;
@@ -633,8 +629,8 @@ char *colorcomp;
 				ilp = ilp->il_next;
 				continue;	
 			}		
-			if (! PlotTime.ds_hhmmss) 
-				tl_GetTime (&timenow); 
+			if (! PlotTime.zt_Sec) 
+				tl_Time (&timenow); 
 			else
                        		timenow = PlotTime;
                		ntime = ds_DataTimes (pid, &timenow, 1, DsBefore, 
@@ -642,8 +638,7 @@ char *colorcomp;
 		/*
 		 * If the data is old then color it.
 		 */
-               		if ((ntime == 0) || ((TC_FccToSys (&timenow) -
-                       		TC_FccToSys (&datatime)) > seconds))
+               		if ((ntime == 0) || ((timenow.zt_Sec - datatime.zt_Sec)					 > seconds))
                		{
                        		if (pda_Search (Pd, comp, "icon-age-foreground",
 					NULL, color, SYMT_STRING))
