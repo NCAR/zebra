@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.4 1989-06-05 16:06:01 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.5 1989-07-12 09:23:35 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -134,7 +134,7 @@ bool interact, nokeypad;
 		RESIGNAL;
 	ENDCATCH
 /*
- * Keypad mode is an indirect variable.
+ * Set up the indirect variables.
  */
  	usy_c_indirect (Ui_variable_table, "ui$keypad", &Keypad_on,
 			SYMT_BOOL, 0);
@@ -142,6 +142,9 @@ bool interact, nokeypad;
 			SYMT_STRING, 100);
 	usy_c_indirect (Ui_variable_table, "ui$prompt", Prompt,
 			SYMT_STRING, 100);
+	usy_c_indirect (Ui_variable_table, "ui$bailout", &Bailout, SYMT_BOOL,
+			0);
+	Bailout = TRUE;
 /*
  * Finally, if an initialization procedure exists, execute it.
  */
@@ -294,7 +297,7 @@ ui_do_cmode ()
 				}
 			ON_ERROR
 				ui_reset (TRUE);
-				if (! ut_interactive ())
+				if (Bailout && ! ut_interactive ())
 				{
 					uii_clear_handler (ui_cc);
 					ui_epop ();
@@ -338,7 +341,8 @@ bool exec;
 /*
  * If (1) the first element on the list is a keyword, and (2) it
  * has a negative number, then it is an internal command.  Let's
- * just handle it behind the user's back.
+ * just handle it behind the user's back.  Otherwise pass it on to
+ * the application command handler.
  */
 	ERRORCATCH
 		if ((cmds->uc_ctype == UTT_VALUE) ||
@@ -350,15 +354,20 @@ bool exec;
 			ret = exec ? (*Initial_handler)
 				(Initial_arg, cmds) : TRUE;
 		}
+/*
+ * If an error is signalled, reset the control stack, and, in non-interactive
+ * cases, give up entirely (unless told not to).
+ */
 	ON_ERROR
 		ui_reset (TRUE);
-		if (! ut_interactive ())
+		if (Bailout && ! ut_interactive ())
 		{
 			uii_clear_handler (ui_cc);
 			ui_epop ();
 			uip_release (cmds);
 			ui_error ("Total error bailout");
 		}
+		ret = 1; /* Don't drop out of cmode */
 	ENDCATCH
 	Jump = TRUE;
 	return (ret);
@@ -814,7 +823,7 @@ ui_reset ()
  */
 {
 	ut_breakout ();
-	while (Cs && Cs->cs_type != CST_MODE)
+	while (Bailout && Cs && Cs->cs_type != CST_MODE)
 		ucs_pop_cstack ();
 }
 
