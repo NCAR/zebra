@@ -46,7 +46,7 @@
 
 # ifndef lint
 static char *rcsid = 
-	"$Id: trmm_sonde.c,v 1.3 1993-06-12 08:53:14 granger Exp $";
+	"$Id: trmm_sonde.c,v 1.4 1993-06-22 21:03:29 granger Exp $";
 # endif
 
 # include <time.h>
@@ -60,6 +60,9 @@ static char *rcsid =
 
 # define BADVAL	-9999.0
 # define DEG_TO_RAD(x)	((x)*(double)0.017453293)
+# define StoreBlocks(a,b,c,d) ((NoDataStore)?(TRUE):\
+                               (ds_StoreBlocks(a,b,c,d)))
+
 
 struct Station {
 	char *id;
@@ -381,7 +384,7 @@ char *platform;
 				IngestLog (EF_DEBUG, 
 					   "Storing sounding of %d samples",
 					   nsample);
-				if (!ds_Store (dc, TRUE, (dsDetail *) 0, 0))
+				if (!ds_StoreBlocks (dc,TRUE,(dsDetail *)0,0))
 				{
 					IngestLog (EF_EMERGENCY, 
 						   "%s: Failure storing data", 
