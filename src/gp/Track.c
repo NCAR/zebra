@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.38 1995-09-20 20:45:06 burghart Exp $")
+RCSID ("$Id: Track.c,v 2.39 1995-09-23 02:38:53 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -106,6 +106,7 @@ bool update;
 	int period, nc, lwidth, pid, index;
 	int dskip = 0, i, a_int, numfields = 0, afield;
 	int x0, y0, x1, y1, x00 = -1, y00 = -1;
+	float fx0, fy0;
 	int samp0;		/* sample at which (x0 =,y0) last set  */
 	long vectime;	/* the time, multiple of the arrow interval */
 		        /* a_int, for which last vector arrow drawn */
@@ -293,7 +294,6 @@ bool update;
 		float u, v;		/* vector component values	     */
 		long timenow;		/* time of the current sample	     */
 		float fx, fy;	 /* x,y Cartesian coords of lat/lon location */
-		float fx0, fy0;
 		Location loc;	 	/* lat/lon locn extracted from sample*/
 	/*
 	 * Do skipping if requested.
@@ -375,7 +375,7 @@ bool update;
 				y00 = y0 - 1;
 			}
 
-			theta = atan2 ((double)(y00 - y0), (double)(x00 - x0));
+			theta = ATAN2 ((double)(y00 - y0), (double)(x00 - x0));
 
 			XDrawLine (Disp, d, Gcontext, x0, y0, 
 				   x0 + 15 * cos (theta - 0.26),
@@ -384,11 +384,16 @@ bool update;
 				   x0 + 15 * cos (theta + 0.26),
 				   y0 + 15 * sin (theta + 0.26));
 		}
-		else
+		/*
+		 * I_PositionIcon disregards clipping, so check the location.
+		 */
+		else if (fx0 >= Xlo && fx0 <= Xhi && fy0 >= Ylo && fy0 <= Yhi)
+		{
 			I_PositionIcon (comp, platform, &zt, positionicon, 
 					x0, y0, mono ? xc.pixel : 
 					(index >= 0 && index < nc) ? 
 					colors[index].pixel : outrange.pixel);
+		}
 	}
 /*
  * See about annotating the track with times.  It shouldn't hurt updates
@@ -550,10 +555,12 @@ int *justify;
  * Find the angle, -pi to pi, defined by the right-hand perpendicular of
  * the line (x0,y0) - (x1,y1).
  */
+#ifdef notdef
 	if ((x0 - x1 == 0) && (y1 - y0 == 0))	/* to avoid DOMAIN warnings */
 		theta = 0.0;
 	else
-		theta = atan2 ( (double)(x0 - x1), (double)(y1 - y0) );
+#endif
+		theta = ATAN2 ( (double)(x0 - x1), (double)(y1 - y0) );
 /*
  * Always label the "right" side of line, depending upon direction, putting
  * labels perpendicular to line but right-side-up, and justifying according
@@ -742,13 +749,16 @@ int *samp1;
 {
 	float badval;
 	Location loc;
-	ZebTime t0, t1;
+	ZebTime t0, t1, t;
 	int i;
 	int nsample;
+#	define TIMEWINDOW 120	/* a couple minutes leeway */
 
 	badval = tr_GetBadval (dc);
+	dc_GetTime (dc, sample, &t);
 	i = sample + 1;
 	*samp0 = -1;
+	*samp1 = -1;
 	while (--i >= 0)
 	{
 		dc_GetLoc (dc, i, &loc);
@@ -762,10 +772,19 @@ int *samp1;
 			break;
 		}
 	}
+	/*
+	 * If nothing good at or close, forget it.
+	 */
+	if (*samp0 < 0)
+		return;
+	if (t.zt_Sec - t0.zt_Sec > TIMEWINDOW)
+	{
+		*samp0 = -1;
+		return;
+	}
 
 	nsample = dc_GetNSample (dc);
 	i = sample;
-	*samp1 = -1;
 	while (++i < nsample)
 	{
 		dc_GetLoc (dc, i, &loc);
@@ -784,6 +803,11 @@ int *samp1;
 			*loc1 = loc;
 		}
 	}
+	/*
+	 * Verify that the second sample is not too far into the future.
+	 */
+	if (*samp0 >= 0 && (t1.zt_Sec - t.zt_Sec > TIMEWINDOW))
+		*samp0 = -1;
 }
 
 
@@ -825,7 +849,7 @@ int *justify;		/* Justification to use for annotation */
 	 * If the time of the given sample equals the desired annot time,
 	 * we use the sample's location
 	 */
-		if ( t0.zt_Sec == a_time->zt_Sec )
+		if (TC_Eq (t0, *a_time))
 		{
 			fx = fx0;
 			fy = fy0;
@@ -840,6 +864,14 @@ int *justify;		/* Justification to use for annotation */
 				(t1.zt_Sec - t0.zt_Sec);
 			fy = fy0 + (fy1 - fy0)*(a_time->zt_Sec - t0.zt_Sec) / 
 				(t1.zt_Sec - t0.zt_Sec);
+		}
+	/*
+	 * If we don't have a location at the desired time nor two points to
+	 * interpolate, we have to bail.
+	 */
+		else
+		{
+			return (0);
 		}
 		*x = XPIX (fx); *y = YPIX (fy);
 	}
@@ -928,21 +960,31 @@ bool *mono, *showposition, *positionarrow;
 			|| tr_GetParam (comp, "color-code-field", platform,
 				ccfield, SYMT_STRING));
 /*
- * Show the location?
+ * Show the location?  As arrow or icon?
  */
-	if (! tr_GetParam (comp, "show-position", platform, 
-			   (char *) showposition, SYMT_BOOL))
-		*showposition = FALSE;
-	if (*showposition && 
-	    ! tr_GetParam (comp, "do-position-arrow", platform, 
-			   (char *) positionarrow, SYMT_BOOL) &&
-	    ! tr_GetParam (comp, "position-icon", platform, positionicon, 
-			   SYMT_STRING))
+	*showposition = FALSE;
+	*positionarrow = FALSE;
+	if (tr_GetParam (comp, "show-position", platform, 
+			 (char *) showposition, SYMT_BOOL) && *showposition)
 	{
-		msg_ELog (EF_PROBLEM, "Show position, but no icon.");
-		*showposition = FALSE;
+	/*
+	 * do-position-arrow takes precedence over position-icon; if
+	 * position arrow enabled, positionicon is undefined.
+	 */
+		if (tr_GetParam (comp, "do-position-arrow", platform, 
+				 (char *) positionarrow, SYMT_BOOL) &&
+		    *positionarrow)
+		{
+			; /* hunky-dory */
+		}
+		else if (! tr_GetParam (comp, "position-icon", platform, 
+					positionicon, SYMT_STRING))
+		{
+			*showposition = FALSE;
+			msg_ELog (EF_PROBLEM, "%s: show-position true, %s.",
+				  comp, "but no icon or arrow");
+		}
 	}
-
 	return (TRUE);
 }
 
