@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.15 1990-12-04 15:09:38 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.16 1990-12-13 15:47:27 burghart Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -9,16 +9,18 @@ static char *rcsid = "$Id: GraphProc.c,v 1.15 1990-12-04 15:09:38 corbet Exp $";
 # include <ui.h>
 # include <fcntl.h>
 
-# include "gp_cmds.h"
 # include "../include/defs.h"
-# include "EventQueue.h"
 # include "../include/message.h"
 # include "../include/dm.h"
 # include "../include/pd.h"
 # include "../include/GraphicsW.h"
 # include "../include/timer.h"
 
+# include "gp_cmds.h"
+# include "EventQueue.h"
+# include "GC.h"
 # include "GraphProc.h"
+
 /*
  * Default resources.
  */
@@ -40,35 +42,41 @@ static String Resources[] = {
  */
 char Ourname[40];	/* What is our process name?	*/
 
-
 /*
  * Definition of globals referenced in GraphProc.h
  */
-Widget Top;				/* The top level widget		*/
-Widget Graphics, GrShell;		/* The graphics widget		*/
-Display *Disp;				/* Our display			*/
-int FrameCount = 1;			/* Number of frames		*/
-int DisplayFrame = 0;			/* Frame being displayed	*/
-int DrawFrame = 0;			/* Frame to draw next		*/
-XtAppContext Actx;			/* The application context	*/
-bool Abort = FALSE;			/* Has the current plot been stopped*/
-bool HoldProcess = FALSE;		/* Plotting on hold?		*/
-stbl Vtable;				/* The variable table		*/
-plot_description Pd = 0, Defaults = 0;	/* Plot description info	*/
-time PlotTime;				/* The current plot time.	*/
-enum pmode PlotMode = NoMode;
-enum wstate WindowState = DOWN;
-bool MovieMode = FALSE;
-Cursor BusyCursor, NormalCursor;	/* Our cursors			*/
+Widget	Top;				/* The top level widget		*/
+Widget	Graphics, GrShell;		/* The graphics widget		*/
+Display	*Disp;				/* Our display			*/
+int	FrameCount = 1;			/* Number of frames		*/
+int	DisplayFrame = 0;		/* Frame being displayed	*/
+int	DrawFrame = 0;			/* Frame to draw next		*/
+XtAppContext	Actx;			/* The application context	*/
+bool	Abort = FALSE;			/* Has the current plot been stopped?*/
+bool	HoldProcess = FALSE;		/* Plotting on hold?		*/
+stbl	Vtable;				/* The variable table		*/
+plot_description	Pd = 0;		/* Current plot description	*/
+plot_description	Defaults = 0;	/* Plot description info	*/
+time	PlotTime;			/* The current plot time.	*/
+enum pmode	PlotMode = NoMode;
+enum wstate	WindowState = DOWN;
+bool	MovieMode = FALSE;
+Cursor	BusyCursor, NormalCursor;	/* Our cursors			*/
 int	Pltype;
 float	Xlo, Xhi, Ylo, Yhi;
 float	Alt;
+
+/*
+ * Definition of the global graphics context in GC.h
+ */
+GC	Gcontext;
 
 /*
  * Saved versions of the "command line" parameters.
  */
 static int Argc;
 static char **Argv;
+
 /*
  * Forward routine definitions.
  */
@@ -213,6 +221,11 @@ finish_setup ()
  * Tell DM that we're here.
  */
 	greet_dm ();
+/*
+ * Graphics context
+ */
+	Gcontext = XCreateGC (XtDisplay (Graphics), XtWindow (Graphics), 
+		0, NULL);
 /*
  * Set up our event handlers.
  */
