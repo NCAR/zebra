@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.18 1992-12-28 15:41:44 kris Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.19 1993-01-19 22:48:03 kris Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -438,7 +438,13 @@ ZebTime		t;
  * Label it.
  */
 	if (strcmp (label, "time") == 0)
+	{
 		TC_EncodeTime (&t, TC_TimeOnly, label_str);
+	/*
+	 * Get rid of seconds.
+	 */
+		label_str[strlen (label_str) - 3] = '\0';
+	}
 	else if (strcmp (label, "none") == 0)
 		return;
 	else 
