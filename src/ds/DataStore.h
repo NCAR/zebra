@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.15 1993-11-30 02:08:19 granger Exp $
+ * $Id: DataStore.h,v 3.16 1993-12-20 17:19:17 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -394,7 +394,7 @@ typedef struct s_PlatformInfo
 	bool	pl_Mobile;		/* Does it move?		*/
 	bool	pl_SubPlatform;		/* Is it a subplat?		*/
 	PlatformId pl_Parent;		/* Parent plat for subplats	*/
-} PlatformInfo;;
+} PlatformInfo;
 
 /*
  * Types of data sources.  This definition will move elsewhere some day 
