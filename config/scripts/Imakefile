@@ -1,10 +1,12 @@
-XCOMM $Id: Imakefile,v 1.1 1993-07-26 17:03:54 case Exp $
+XCOMM $Id: Imakefile,v 1.2 1994-01-04 17:18:28 case Exp $
 #if UseCCMakeDepend
 MDEP_DIR = makedepend
 #endif
          PROGRAMS = $(MDEP_DIR) zmkmf
 
 all:: $(PROGRAMS)
+
+DISTFILES=Imakefile Makefile *.sh *.man *.cpp
 
 CppScriptTarget(zmkmf,zmkmf.cpp,/* cpp args */,/*$(ICONFIGFILES)*/)
 InstallNamedProg(zmkmf,zmkmf,$(BINDIR))
@@ -30,5 +32,7 @@ clean::
 depend::
 
 install.man::
+
+DistfilesTarget($(DISTFILES))
 
 
