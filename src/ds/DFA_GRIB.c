@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.36 1997-10-27 15:23:35 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.37 1998-01-29 22:30:04 burghart Exp $")
 
 
 /*
@@ -266,6 +266,9 @@ static struct s_GRB_FList
 	{ 53, ANY, "mr", "Humidity mixing ratio", "g/kg", 0.001, 0.0 },
 	/* Cloud ice (kg/m**2)	*/
 	{ 58, ANY, "cloud_ice", "Cloud ice", "kg/m**2", 1.0, 0.0 },
+	/* Precipitation rate kg m-2 s-1	*/
+	{ 59, ANY, "precip_rate", "Precipitation rate", 
+	  "kg m-2 s-1", 1.0, 0.0 },
 	/* Total precipitation (kg/m**2)	*/
 	{ 61, ANY, "precip", "Total precipitation", "kg/m**2", 1.0, 0.0 },
 	/* Large-scale precipitation */
@@ -274,11 +277,22 @@ static struct s_GRB_FList
 	/* Convective precipitation (kg/m**2)	*/
 	{ 63, ANY, "conv_precip", "Convective precipitation", 
 		  "kg/m**2", 1.0, 0.0 },
+	/* Surface roughness (m) */
+	{ 83, ANY, "roughness", "Surface roughness", "m", 1.0, 0.0 },
 	/* Soil temperature (scale to C) */
 	{ 85, ANY, "soil_temp", "Soil temperature", "deg C", 1.0, -273.15 },
-/*
- * ECMWF fields
- */
+	/* Water runoff (kg m-2) */
+	{ 90, ANY, "water_runoff", "Water runoff", "kg m-2", 1.0, 0.0 },
+	/* Ice concentration (ice = 0; no ice = 0) */
+	{ 91, ANY, "ice", "Ice concentration", "deg C", 1.0, 0.0 },
+	/* Latent heat net flux (W m-2) */
+	{ 121, ANY, "lhtfl", "Latent heat flux", "W m-2", 1.0, 0.0 },
+	/* Sensible heat net flux (W m-2) */
+	{ 122, ANY, "shtfl", "Sensible heat net flux", "W m-2", 1.0, 0.0 },
+	/* Momentum flux, u component (N m-2) */
+	{ 124, ANY, "uflx", "Momentum flux, u", "N m-2", 1.0, 0.0 },
+	/* Momentum flux, v component (N m-2) */
+	{ 125, ANY, "vflx", "Momentum flux, v", "N m-2", 1.0, 0.0 },
 	/* Geopotential (m**2/s)		*/
 	{ 129, ANY, "geopotential", "Geopotential", "m**2/s", 0.3048, 0.0 },
 	/* Temperature (K), scale to C 		*/
@@ -309,6 +323,12 @@ static struct s_GRB_FList
 /*
  * General fields (cont)
  */
+	/* Zonal flux of gravity wave stress (N m-2)*/
+	{ 147, ANY, "u_gwd", "Zonal flux, gravity wave stress", 
+	  "N m-2", 1.0, 0.0 },
+	/* Meriodonal flux of gravity wave stress (N m-2) */
+	{ 148, ANY, "v_gwd", "Meriodonal flux, gravity wave stress", 
+	  "N m-2", 1.0, 0.0 },
 	/* Pressure reduced to MSL (Pa), scale to mb */
 	{ 151, ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
 	/* Relative humidity (%) */
@@ -317,6 +337,15 @@ static struct s_GRB_FList
 	{ 158, ANY, "tke", "Turbulent kinetic energy", "J/kg", 1.0, 0.0 },
 	/* Condenstation pressure (Pa) scale to mb */
 	{ 159, ANY, "condp", "Condenstation pressure", "mb", 100.0, 0.0 },
+	/* Clear sky upward solar flux (W m-2) */
+	{ 160, ANY, "csusf", "Clear sky upward solar flux", 
+	  "W m-2", 1.0, 0.0 },
+	/* Clear sky downward solar flux (W m-2) */
+	{ 161, ANY, "csdsf", "Clear sky downward solar flux", 
+	  "W m-2", 1.0, 0.0 },
+	/* Clear sky downward longwave flux (W m-2) */
+	{ 163, ANY, "csdlf", "Clear sky downward longwave flux", 
+	  "W m-2", 1.0, 0.0 },
 	/* u component of wind at 10m (m/s)	*/
 	{ 165, ANY, "u_wind_10m", "u component of wind at 10m", 
 		  "m/s", 1.0, 0.0 },
@@ -333,6 +362,21 @@ static struct s_GRB_FList
 	{ 176, ANY, "latitude", "latitude", "deg", 1.0, 0.0 },
 	/* longitude */
 	{ 177, ANY, "longitude", "longitude", "deg", 1.0, 0.0 },
+	/* downward shortwave radiation flux (W m-2) */
+	{ 204, ANY, "dswrf", "downward shortwave radiation flux", 
+	  "W m-2", 1.0, 0.0 },
+	/* downward longwave radiation flux (W m-2) */
+	{ 205, ANY, "dlwrf", "downward longwave radiation flux", 
+	  "W m-2", 1.0, 0.0 },
+	/* upward shortwave radiation flux (W m-2) */
+	{ 211, ANY, "uswrf", "upward shortwave radiation flux", 
+	  "W m-2", 1.0, 0.0 },
+	/* upward longwave radiation flux (W m-2) */
+	{ 212, ANY, "ulwrf", "upward longwave radiation flux", 
+	  "W m-2", 1.0, 0.0 },
+	/* Convective precipitation rate (kg m-2 s-1) */
+	{ 214, ANY, "cprat", "Convective precip rate", 
+	  "kg m-2 s-1", 1.0, 0.0 },
 };
 
 static int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
@@ -398,9 +442,9 @@ static Regular Regular2 =
  * 2.5 degree spacing in both directions
  */
 {
-    2.5,	/* lat_spacing */
+    -2.5,	/* lat_spacing */
     2.5,	/* lon_spacing */
-    -90.0,	/* lat @ (0,0) */
+    90.0,	/* lat @ (0,0) */
     0.0,	/* lon @ (0,0) */
 };
 
