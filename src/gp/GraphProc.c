@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.42 1994-05-24 00:22:01 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.43 1994-05-24 09:04:34 granger Exp $")
 
 /*
  * Default resources.
@@ -304,8 +304,9 @@ finish_setup ()
  */
 	XtSetArg (args[0], XtNinput, True);
 	XtSetArg (args[1], XtNwidthInc, 4);
+	XtSetArg (args[2], XtNallowShellResize, True);
 	GrShell = XtCreatePopupShell (Ourname, applicationShellWidgetClass,
-		Top, args, 2);
+		Top, args, 3);
 /*
  * Inside this shell goes the graphics widget itself.
  */
@@ -347,11 +348,14 @@ finish_setup ()
  * Tell DM that we're here.
  */
 	greet_dm ();
+
+#ifdef notdef	/* moved to happen after we have a window */
 /*
  * Graphics context
  */
 	Gcontext = XCreateGC (XtDisplay (Graphics), XtWindow (Graphics), 
 		0, NULL);
+#endif
 /*
  * Set up our event handlers.
  */
@@ -509,6 +513,7 @@ int fd;
 
 
 
+#ifdef notdef	/* try obviating the kludge by delaying sending window id */
 greet_dm ()
 /*
  * Send the greeting to the display manager.
@@ -538,7 +543,40 @@ greet_dm ()
 	dmh.dmm_win = XtWindow (GrShell);
 	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
 }
+#endif
 
+
+
+greet_dm ()
+/*
+ * Say "hello" to the display manager so that we can get our
+ * configuration and plot descriptions.
+ */
+{
+	struct dm_hello dmh;
+/*
+ * Send the message.
+ */
+	dmh.dmm_type = DM_HELLO;
+	dmh.dmm_win = 0;
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
+}
+
+
+
+send_window ()
+/*
+ * Send our window id to the display manager.
+ */
+{
+	struct dm_hello dmh;
+/*
+ * Send the message.
+ */
+	dmh.dmm_type = DM_WINDOW;
+	dmh.dmm_win = XtWindow (GrShell);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
+}
 
 
 
@@ -884,7 +922,10 @@ int len;
  * Reconfigure the window.
  */
 {
+	static bool WindowSent = FALSE;
 	Arg args[10];
+	Dimension width, height;
+	Position x, y;
 	bool schanged, wchanged;
 /*
  * Figure out if anything really important has changed.
@@ -893,19 +934,44 @@ int len;
 			(dmsg->dmm_dy != GWHeight (Graphics));
 	wchanged = (WindowState == DOWN);
 /*
- * Make sure the window is popped up first, and THEN change the geometry,
- * since olwm insists on ignoring the setvalues change otherwise.
- * Unfortunately, this will usually generate two expose events, but no
- * kludge is perfect...
+ * Set the geometry first, in case this is the first time we're
+ * popping up this window and it needs some geometry settings.
  */
-	ChangeState (UP);
-
-	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
-	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
+	width = dmsg->dmm_dx;
+	height = dmsg->dmm_dy;
+	XtSetArg (args[0], XtNwidth, width);
+	XtSetArg (args[1], XtNheight, height);
 	XtSetValues (Graphics, args, (Cardinal)2);
 
- 	XtSetArg (args[0], XtNx, dmsg->dmm_x);
-	XtSetArg (args[1], XtNy, dmsg->dmm_y);
+	x = dmsg->dmm_x;
+	y = dmsg->dmm_y;
+ 	XtSetArg (args[0], XtNx, x);
+	XtSetArg (args[1], XtNy, y);
+	XtSetValues (GrShell, args, (Cardinal)2);
+/*
+ * If this is the first time we've popped up, send along our newly-realized
+ * window id.
+ */
+	ChangeState (UP);
+	if (! WindowSent)
+	{
+		send_window ();
+		WindowSent = TRUE;
+		/*
+		 * Graphics context
+		 */
+		Gcontext = XCreateGC (XtDisplay (Graphics), 
+				      XtWindow (Graphics), 0, NULL);
+	}
+/*
+ * Do the geometry setting again for those window managers which
+ * don't get it the first time.
+ */
+	XtSetArg (args[0], XtNwidth, width);
+	XtSetArg (args[1], XtNheight, height);
+	XtSetValues (Graphics, args, (Cardinal)2);
+ 	XtSetArg (args[0], XtNx, x);
+	XtSetArg (args[1], XtNy, y);
 	XtSetValues (GrShell, args, (Cardinal)2);
 /*
  * Set the cursor to our normal value.
