@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.7 1999-11-22 20:37:39 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.8 2000-05-24 19:46:35 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -70,9 +70,9 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.7 1999-11-22 20:37:39 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.8 2000-05-24 19:46:35 granger Exp $")
 
-#include "ZTime.hh"
+#include <ZTime.h>
 #include "FieldClass.h"
 
 
