@@ -19,7 +19,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 3.8 1994-04-27 08:24:07 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -27,6 +26,7 @@ static char *rcsid = "$Id: GetList.c,v 3.8 1994-04-27 08:24:07 granger Exp $";
 # include "dsPrivate.h"
 # include "dslib.h"
 
+RCSID("$Id: GetList.c,v 3.9 1995-02-10 01:10:45 granger Exp $")
 
 /*
  * Getlist lookaside list.
@@ -129,7 +129,6 @@ ZebTime *begin, *end;
 {
 	GetList *list, *l, *zap;
 	ClientPlatform p;
-	int startdf;
 /*
  * Make an initial, unsatisfied entry.
  */
@@ -317,7 +316,9 @@ int *complete, dfindex;
  * we're done.
  */
 	gp->gl_dfindex = dfindex;
+#ifdef DF_USE
 	gp->gl_dfuse = dp->df_use;
+#endif
 	gp->gl_flags |= GLF_SATISFIED;
 	if (TC_LessEq (dp->df_begin, gp->gl_begin))
 		return (gp);
