@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.6 1992-01-29 22:29:36 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.7 1992-02-19 23:55:43 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -177,14 +177,27 @@ char			datatype;
     long	iVal,iBase;
     float	drawGrid;
     int		nint;
+    char	*flist[10];
+    char	fnames[80];
+    int		n;
 
     /*
      *  Get parameters to use while computing the scale.
      */
     if ( side == 't' || side == 'b' )
-        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max);
+    {
+	if (pda_ReqSearch( pd, c, "x-field", NULL, fnames, SYMT_STRING))
+	    n = CommaParse ( fnames,flist );
+        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max,
+				 n > 0 ? flist[0] : "");
+    }
     else if ( side == 'r' || side == 'l' )
-        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max);
+    {
+	if (pda_ReqSearch( pd, c, "y-field", NULL, fnames, SYMT_STRING))
+	    n = CommaParse ( fnames,flist );
+        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max,
+				 n > 0 ? flist[0] : "");
+    }
 
     ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
 		&maxWidth, &maxHeight, &nticLabel, &ticlen, &ticInterval,
@@ -276,12 +289,24 @@ unsigned short		mode;
     float	drawGrid;
     XColor	mainPix, gridPix;
     float	red,green,blue,hue,lightness,saturation;
-    int		x1,x2,y1,y2;
+    int		x1,x2,y1,y2,n;
+    char	*flist[10];
+    char	fnames[80];
 
     if ( side == 't' || side == 'b' )
-        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max);
+    {
+	if (pda_ReqSearch( pd, c, "x-field", NULL, fnames, SYMT_STRING))
+	    n = CommaParse ( fnames,flist );
+        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max,
+				 n > 0 ? flist[0] : "");
+    }
     else if ( side == 'r' || side == 'l' )
-        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max);
+    {
+	if (pda_ReqSearch( pd, c, "y-field", NULL, fnames, SYMT_STRING))
+	    n = CommaParse ( fnames,flist );
+        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max,
+				 n > 0 ? flist[0] : "");
+    }
 
     ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
 		&maxWidth, &maxHeight, &maxLabel, &ticlen, &ticInterval,
@@ -600,6 +625,11 @@ vertical:
 	break;
 
     }
+    if ( !fit )
+    {
+        msg_ELog (EF_PROBLEM,"Not enough space for axis: %s on side: %c",
+	flist[0],side);
+    }
     ResetGC();
     return(nextoffset);
 }
@@ -686,28 +716,28 @@ char	side;
     {
 	case 'b':
     	    if ( !pda_Search (pd, c, "axis-bottom", "xy",
-                (char *)&plot, SYMT_INT))
+                (char *)&plot, SYMT_BOOL))
     	    {
         	plot = 1;
     	    }
 	break;
 	case 't':
     	    if ( !pda_Search (pd, c, "axis-top", "xy",
-                (char *)&plot, SYMT_INT))
+                (char *)&plot, SYMT_BOOL))
     	    {
         	plot = 0;
     	    }
 	break;
 	case 'r':
     	    if ( !pda_Search (pd, c, "axis-right", "xy",
-                (char *)&plot, SYMT_INT))
+                (char *)&plot, SYMT_BOOL))
     	    {
         	plot = 0;
     	    }
 	break;
 	case 'l':
     	    if ( !pda_Search (pd, c, "axis-left", "xy",
-                (char *)&plot, SYMT_INT))
+                (char *)&plot, SYMT_BOOL))
     	    {
         	plot = 1;
     	    }

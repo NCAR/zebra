@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.5 1992-01-29 22:31:23 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.6 1992-02-19 23:54:17 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -39,6 +39,7 @@ static char *rcsid = "$Id: XYGraph.c,v 1.5 1992-01-29 22:31:23 barrett Exp $";
 # include "LayoutControl.h"
 # include "XYCommon.h"
 # include "AxisControl.h"
+# include "ui_date.h"
 
 /*
  * General definitions
@@ -70,7 +71,7 @@ bool	update;
 	bool	ok;
 	int	i,  plat, nplat,ii,jj;
 	int	xrescale = 0, yrescale = 0;
-	int	npts = 0;
+	int	npts[MAX_PLAT];
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted;
@@ -100,6 +101,8 @@ bool	update;
 	int	dmode ;
 	char	style[80];
 	char	datalabel[80];
+	char	timelabel[80];
+	int	sideAnnot;
 /*
  * Get X-Y Graph Required parameters:
  * "platform","x-field", "y-field", "wind-coords", "org"
@@ -128,10 +131,15 @@ bool	update;
  *  Get optional "simple" parameters.
  *  "style" - "point" , "line", "cross" or "xmark"
  */
-        if ( !pda_Search (Pd,c,"representation-style", NULL,
+        if ( !pda_Search (Pd,c,"representation-style", "xy-simple",
 		(char *) &style, SYMT_STRING))
         {
             strcpy(style, "line" );
+        }
+        if ( !pda_Search (Pd,c,"do-side-annotation", "xy-simple",
+		(char *) &sideAnnot, SYMT_BOOL))
+        {
+            sideAnnot = True;
         }
 
 /*
@@ -153,8 +161,8 @@ bool	update;
 	    ytype = 't';
 	xy_GetScaleInfo(Pd,c,'x',&xscalemode);
 	xy_GetScaleInfo(Pd,c,'y',&yscalemode);
-	xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax);
-	xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax);
+	xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax,fnames[0][0]);
+	xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax,fnames[1][0]);
 	xmin = oldxmin;
 	xmax = oldxmax;
 	ymin = oldymin;
@@ -243,17 +251,6 @@ bool	update;
 	for (plat = 0; plat < nplat; plat++)
 	{
 	/*
-	 * Add this platform to the annotation
-	 */
-	    if (! update)
-	    {
-		sprintf(datalabel, "%s-%s:%s %s", 
-			pnames[plat], fnames[0][plat],
-			fnames[1][plat], linecolor[plat]);
-		An_AddAnnotProc ( An_ColorString, c, datalabel,
-		strlen(datalabel)+1,25, FALSE,FALSE);
-	    }
-	/*
 	 * Get the data and determine the coordinate min and max's
 	 */
 	    pid = ds_LookupPlatform (pnames[plat]);
@@ -307,7 +304,7 @@ bool	update;
 				"Unable to get field data for '%s' at %d %06d", 
 				pnames[plat], eTimeReq.ds_yymmdd, 
 			eTimeReq.ds_hhmmss);
-		npts = 0;
+		npts[plat] = 0;
 	        xdata[plat] = NULL;
 	        ydata[plat] = NULL;
 		continue;
@@ -315,20 +312,20 @@ bool	update;
 	    else
             {
 	        if ( xyOrg == OrgScalar )
-		    npts = dobj->do_npoint;
+		    npts[plat] = dobj->do_npoint;
 	        else if ( xyOrg == Org1dGrid )
-		    npts = dobj->do_desc.d_rgrid.rg_nX * dobj->do_npoint;
+		    npts[plat] = dobj->do_desc.d_rgrid.rg_nX * dobj->do_npoint;
 
-	        xdata[plat] = (DataValPtr)calloc( npts , sizeof(DataValRec));
-	        ydata[plat] = (DataValPtr)calloc( npts , sizeof(DataValRec));
+	        xdata[plat] = (DataValPtr)calloc(npts[plat],sizeof(DataValRec));
+	        ydata[plat] = (DataValPtr)calloc(npts[plat],sizeof(DataValRec));
 	    }
 	    count = 0;
 	    /*
 	     * Extract field data arrays.
 	     */
 	    msg_ELog ( EF_DEBUG, 
-		   "X-Y Graph found %d data points for component %s.",npts,c);
-	    for ( ii = 0; ii < npts; ii++ )
+		   "X-Y Graph found %d data points for component %s.",npts[plat],c);
+	    for ( ii = 0; ii < npts[plat]; ii++ )
 	    {
 		/* search for next good data point. */
 		do {
@@ -339,8 +336,8 @@ bool	update;
 			    ii++; break;
 			}
 		    }
-		} while ( jj < fcount && ii < npts);
-		if ( ii < npts )
+		} while ( jj < fcount && ii < npts[plat]);
+		if ( ii < npts[plat] )
 		{
 		  if ( xtype == 't' )
 		  {
@@ -367,19 +364,34 @@ bool	update;
 		  count += 1;
 		}
 	    }
-	    npts = count;
+	    npts[plat] = count;
 	    /*
 	     * Calculate autoscaled mins/maxs if necessary.
 	     */
 	    if ( (xscalemode & AUTO) && xtype != 't' )
 	    {
-	        xy_GetDataMinMax(update, &xmin, &xmax, xdata[plat], npts);
+	        xy_GetDataMinMax(update, &xmin, &xmax, xdata[plat], npts[plat]);
             }
 	    if ( (yscalemode & AUTO) && ytype != 't' )
 	    {
-	        xy_GetDataMinMax(update, &ymin, &ymax, ydata[plat], npts);
+	        xy_GetDataMinMax(update, &ymin, &ymax, ydata[plat], npts[plat]);
             }
 	    ds_FreeDataObject (dobj);
+	    /*
+	     * Do the side annotation for this data
+	     */
+	    if ( sideAnnot && npts[plat] > 0 && !update )
+	    {
+		sprintf(datalabel, "%s-%s:%s %s", 
+			pnames[plat], fnames[0][plat],
+			fnames[1][plat], linecolor[plat]);
+		An_AddAnnotProc ( An_ColorString, c, datalabel,
+		strlen(datalabel)+1,25, FALSE,FALSE);
+		    ud_format_date ( timelabel, &eTimeReq, UDF_FULL );
+		    sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
+		    An_AddAnnotProc ( An_ColorString, c, datalabel,
+		    strlen(datalabel)+1,25, FALSE,FALSE);
+	    }
 	}
 /*
  * Now set the current scale bounds.
@@ -441,55 +453,34 @@ bool	update;
 	{
 	    lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
 	    gp_Clip( &xmin, &ymin,&xmax,&ymax, xscalemode, yscalemode );
-	    msg_ELog ( EF_DEBUG, 
-	       "X-Y Graph plotting %d data points for component %s.",npts,c);
 	    for (plat = 0; plat < nplat; plat++)
 	    {
-		if ( strcmp(style,"point")==0)
+	    msg_ELog ( EF_DEBUG, 
+	       "X-Y Graph plotting %d data points for component %s.",npts[plat],c);
+                if ( npts[plat] > 0 )
 		{
-                    if ( npts > 0 )
-		        gp_Points( xdata[plat],ydata[plat],npts,
-                          lcolor[plat], xscalemode, yscalemode);
-	            else
+		    if ( strcmp(style,"point")==0)
 		    {
-	    	        msg_ELog ( EF_INFO, 
-       				"X-Y Graph: zero plottable points for %s.",c);
+		        gp_Points( xdata[plat],ydata[plat],npts[plat],
+                          lcolor[plat], xscalemode, yscalemode);
 		    }
-		}
-		else if ( strcmp(style,"cross")==0)
-		{
-                    if ( npts > 0 )
-		        gp_Symbol( xdata[plat],ydata[plat],npts,
+		    else if ( strcmp(style,"cross")==0)
+		    {
+		        gp_Symbol( xdata[plat],ydata[plat],npts[plat],
                           lcolor[plat], xscalemode, yscalemode,CROSS);
-	            else
-		    {
-	    	        msg_ELog ( EF_INFO, 
-       				"X-Y Graph: zero plottable points for %s.",c);
 		    }
-		}
-		else if ( strcmp(style,"xmark")==0)
-		{
-                    if ( npts > 0 )
-		        gp_Symbol( xdata[plat],ydata[plat],npts,
+		    else if ( strcmp(style,"xmark")==0)
+		    {
+                    if ( npts[plat] > 0 )
+		        gp_Symbol( xdata[plat],ydata[plat],npts[plat],
                           lcolor[plat], xscalemode, yscalemode,XMARK);
-	            else
-		    {
-	    	        msg_ELog ( EF_INFO, 
-       				"X-Y Graph: zero plottable points for %s.",c);
 		    }
-		}
-		else
-		{
-                    if ( npts > 1 )
-		        gp_Pline( xdata[plat],ydata[plat],npts,L_solid,
+		    else if ( (strcmp(style,"line")==0) && (npts[plat] > 1) )
+		    {
+		        gp_Pline( xdata[plat],ydata[plat],npts[plat],L_solid,
                           lcolor[plat], xscalemode, yscalemode);
-	            else
-		    {
-	    	        msg_ELog ( EF_INFO, 
-       "X-Y Graph less than 2 data points for component %s, not plotted.",c);
 		    }
 		}
-
 	    }
 	    XSetClipMask(XtDisplay(Graphics), Gcontext, None);
 	}

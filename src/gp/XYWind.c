@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.4 1992-01-29 22:30:39 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.5 1992-02-19 23:55:11 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,7 +21,7 @@ static char *rcsid = "$Id: XYWind.c,v 1.4 1992-01-29 22:30:39 barrett Exp $";
  */
 # include <config.h>
 
-# if C_PT_XYWIND
+# if C_PT_XYGRAPH
 
 
 # include <math.h>
@@ -108,24 +108,25 @@ bool	update;
 	char	csystem[32];
 	int	dmode;
 	char	datalabel[80];
+	int	sideAnnot;
 /*
  * Get X-Y Winds Required parameters:
- * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
+ * "platform","x-field", "y-field", "coords", "color-table", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
 	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)&(dataNames[0]), SYMT_STRING);
 	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)&(dataNames[1]), SYMT_STRING);
 
 	/* The winds coordinate system */
-	ok = pda_ReqSearch (Pd,c,"wind-coords",NULL, csystem, SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"coords","xy-wind", csystem, SYMT_STRING);
 	if ( strcmp ( csystem , "compass" ) == 0 )
 	{
-	    if( !pda_Search (Pd,c,"wdir-field",NULL,&(dataNames[2]),
+	    if( !pda_Search (Pd,c,"wdir-field","xy-wind",&(dataNames[2]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[2], "wdir");
 	    }
-	    if( !pda_Search (Pd,c,"wspd-field",NULL,&(dataNames[3]),
+	    if( !pda_Search (Pd,c,"wspd-field","xy-wind",&(dataNames[3]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[3], "wspd");
@@ -134,12 +135,12 @@ bool	update;
 	}
 	else 
 	{
-	    if( !pda_Search (Pd,c,"u-field",NULL,&(dataNames[2]),
+	    if( !pda_Search (Pd,c,"u-field","xy-wind",&(dataNames[2]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[2], "u_wind");
 	    }
-	    if( !pda_Search (Pd,c,"v-field",NULL,&(dataNames[3]),
+	    if( !pda_Search (Pd,c,"v-field","xy-wind",&(dataNames[3]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[3], "v_wind");
@@ -147,7 +148,7 @@ bool	update;
 	    angle = 0;
 	}
 
-	ok &= pda_ReqSearch (Pd, c, "color-table", NULL,ctname,SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-wind",ctname,SYMT_STRING);
 
 	if (! ok) return;
 /*
@@ -176,35 +177,41 @@ bool	update;
  * "style" - "barb" or "vector"
  * "step" - float, the size of the color table intervale
  */
-	if ( !pda_Search (Pd,c,"data-skip", NULL,(char *) &skip, SYMT_INT))
+        if ( !pda_Search (Pd,c,"do-side-annotation", "xy-wind",
+                (char *) &sideAnnot, SYMT_BOOL))
+        {
+            sideAnnot = True;
+        }
+
+	if ( !pda_Search (Pd,c,"data-skip", "xy-wind",(char *) &skip, SYMT_INT))
 	{
 	    skip = 5;
 	}
-	if ( !pda_Search (Pd,c,"representation-style", NULL,(char *) &style, SYMT_STRING))
+	if ( !pda_Search (Pd,c,"representation-style", "xy-wind",(char *) &style, SYMT_STRING))
 	{
 	    strcpy(style, "vector" );
 	}
 	if ( strcmp(style, "vector" )==0)
 	{
-	    if( !pda_Search (Pd,c,"vec-scale", NULL,(char *) &vecScale, 
+	    if( !pda_Search (Pd,c,"vec-scale", "xy-wind",(char *) &vecScale, 
 			SYMT_FLOAT))
 	    {
-	        vecScale = .02;
+	        vecScale = 5.0;
 	    }
 	}
 	else 
 	{
-	    if( !pda_Search (Pd,c,"barb-scale", NULL,(char *) &vecScale, 
+	    if( !pda_Search (Pd,c,"barb-scale", "xy-wind",(char *) &vecScale, 
 			SYMT_FLOAT))
 	    {
 	        vecScale = 25.0;
 	    }
 	}
-	if( !pda_Search (Pd,c,"step", NULL,(char *) &cstep, SYMT_FLOAT))
+	if( !pda_Search (Pd,c,"step", "xy-wind",(char *) &cstep, SYMT_FLOAT))
 	{
 	  cstep = 5.0;
 	}
-	if( !pda_Search (Pd,c,"scale-speed", NULL,(char *) &scaleSpeed, SYMT_FLOAT))
+	if( !pda_Search (Pd,c,"scale-speed", "xy-wind",(char *) &scaleSpeed, SYMT_FLOAT))
 	{
 	  scaleSpeed = 25.0;
 	}
@@ -228,8 +235,8 @@ bool	update;
 	    ytype = 't';
         xy_GetScaleInfo(Pd,c,'x',&xscalemode);
         xy_GetScaleInfo(Pd,c,'y',&yscalemode);
-        xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax);
-        xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax);
+        xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax,fnames[0][0]);
+        xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax,fnames[1][0]);
 	xmin = oldxmin;
         xmax = oldxmax;
         ymin = oldymin;
@@ -321,7 +328,7 @@ bool	update;
 	/*
 	 * Add this platform to the annotation
 	 */
-	    if (! update)
+	    if (sideAnnot && !update)
 	    {
 
 	        if ( strcmp(style, "vector" ) == 0 )
@@ -599,4 +606,4 @@ errorExit:
 	}
 	free(xdata); free(ydata); free(udata); free(vdata);
 }
-# endif /* C_PT_XYWIND */
+# endif /* C_PT_XYGRAPH */
