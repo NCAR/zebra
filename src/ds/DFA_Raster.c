@@ -13,7 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.2 1992-06-01 18:39:23 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.3 1992-07-13 16:39:13 kris Exp $")
 
 
 
@@ -862,13 +862,13 @@ DataChunk *dc;
 /*
  * If no attributes, don't bother.
  */
-	if ((len = toc[sample].rft_AttrLen) <= 0)
+	if ((len = toc->rft_AttrLen) <= 0)
 		return;
 /*
  * Get some space and pull in the attributes.
  */
 	adata = malloc (len);
-	lseek (tag->rt_fd, toc[sample].rft_AttrOffset, SEEK_SET);
+	lseek (tag->rt_fd, toc->rft_AttrOffset, SEEK_SET);
 	if (read (tag->rt_fd, adata, len) < len)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
