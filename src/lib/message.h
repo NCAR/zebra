@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.23 1996-08-20 19:51:30 granger Exp $ */
+/* $Id: message.h,v 2.24 1996-08-21 22:16:37 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -88,6 +88,7 @@
 # define MH_QUIT	-11	/* Quit process group			*/
 # define MH_LISTGROUP	-12	/* List clients in a group		*/
 # define MH_GROUP	-13	/* Reply to MH_LISTGROUP		*/
+# define MH_NOTFOUND	-14	/* Recipient not found			*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 
@@ -267,7 +268,7 @@ struct msg_elog
  * The name of the event manager.
  */
 # define MSG_MGR_NAME		"Message manager"
-# define MSG_PROTO_VERSION	"V-1.3"
+# define MSG_PROTO_VERSION	"V-1.4"
 
 /*
  * Standard group names recognized by the message manager

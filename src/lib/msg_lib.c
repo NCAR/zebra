@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.37 1996-08-20 19:51:33 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.38 1996-08-21 22:16:39 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -78,7 +78,7 @@ static int NoConnection = 1; 	/* True when in a non-connected state */
  * using the message library or a message connection.  These are reversed
  * when msg_connect succeeds.
  */
-static int PrintMask = (EF_ALL & ~(EF_DEVELOP));
+static int PrintMask = (EF_ALL & ~(EF_DEVELOP) & ~(EF_DEBUG));
 static int SendMask = 0x00;
 static char LogBuffer[1024];	/* for msg_log and msg_ELog to share */
 
@@ -114,6 +114,7 @@ static struct mqueue *msg_NewMq FP ((struct message *));
 static void msg_RemQueue FP ((struct mqueue *));
 static void msg_AddQueue FP ((struct message *msg));
 static int msg_SrchAck FP ((struct message *, struct mh_ack *));
+static int msg_Intercept FP ((Message *msg));
 static int msg_InterceptMask FP ((struct message *msg));
 static int msg_ELHandler FP ((struct message *));
 static int msg_PingHandler FP ((Message *));
@@ -216,6 +217,27 @@ char *ident;
 		return (FALSE);
 	}
 	msg_netread (Msg_fd, (char *)&greet, sizeof (greet));
+	if (greet.mh_type != MH_GREETING || 
+	    strcmp (greet.mh_version, MSG_PROTO_VERSION))
+	{
+		fprintf (stderr, "fyi: %s: server %s != client %s\n",
+			 "message protocol mismatch", greet.mh_version, 
+			 MSG_PROTO_VERSION);
+		fprintf (stderr, "fyi: this will not effect execution;\n%s",
+ "     this is just a hint that the server or the client is outdated\n");
+	}
+	if (greet.mh_type == MH_GREETING &&
+	    strcmp (greet.mh_version, "V-1.3"))	/* must be newer protocol */
+	{
+	/*
+	 * Initialize our log mask to the message manager's current mask.
+	 */
+		SendMask = msg.m_seq;
+	}
+	else
+	{
+		SendMask = EF_EMERGENCY | EF_PROBLEM;
+	}
 /*
  * Send our Ident packet.
  */
@@ -249,15 +271,13 @@ char *ident;
 	msg_AddProtoHandler (MT_QUERY, msg_QueryHandler);
 	Query_Handler = msg_DefaultQH;
 /*
- * Looks we're going to succeed with the connection, so note as much
+ * Looks like we're going to succeed with the connection, so note as much
  * and re-initialize event logging masks.  Note that we leave the SendMask
  * zero until we know an event logger is connected and it tells us which
  * messages to send.
  */
 	NoConnection = 0;
 	PrintMask = 0x00;
-	/* SendMask = (EF_ALL & (~EF_DEVELOP)); */
-	SendMask = 0x00;
 	msg_SendPID ();
 /*
  * Now that everything's hunky-dory, see if we should operate in echo
@@ -276,7 +296,7 @@ char *ident;
 int
 msg_Connected ()
 /*
- * Return non-zero when if we're hooked into the message manager and its
+ * Return non-zero iff we're hooked into the message manager and its
  * safe to send messages.
  */
 {
@@ -321,6 +341,8 @@ msg_disconnect ()
 	ShuttingDown = 0;
 	NoConnection = 0;
 	EchoMode = 0;
+	SendMask = 0;
+	PrintMask = (EF_ALL & ~(EF_DEVELOP) & ~(EF_DEBUG));
 	Identity[0] = 0;
 }
 
@@ -635,6 +657,51 @@ Message *msg;
 
 
 
+static int
+msg_Intercept (msg)
+Message *msg;
+/*
+ * Check this message for anything which we detect internally.
+ */
+{
+	int mtype = 0;
+
+	if ((msg->m_proto == MT_MESSAGE) && (msg->m_len > 0))
+	{
+		struct mh_ident *mh;
+		mh = (struct mh_ident *) msg->m_data;
+		mtype = mh->mh_type;
+	/*
+	 * Check for an unknown destination message from the handler.
+	 * Until clients learn what to do with this message, we just log
+	 * a debug message.
+	 */
+		if (mh->mh_type == MH_NOTFOUND)
+		{
+			msg_ELog (EF_DEBUG,
+				  "msg intercepted (seq %d): %s: %s",
+				  msg->m_seq, "destination unknown",
+				  mh->mh_name);
+		}
+	/*
+	 * Check for a shutdown message and note it internally
+	 */
+		else if (mh->mh_type == MH_SHUTDOWN)
+		{
+			ShuttingDown = TRUE;
+		}
+	}
+	/*
+	 * Intercept ELOG MASK messages before passing them on
+	 */
+	else if ((msg->m_proto == MT_ELOG) && (msg->m_len > 0))
+	{
+		msg_InterceptMask (msg);
+	}
+	return (mtype);
+}
+
+
 
 static int
 msg_HandleProto (msg, nproto, protolist, ret)
@@ -650,6 +717,8 @@ int *ret;	/* return value of message handler, if called */
 {
 	int i;
 
+	if (msg_Intercept (msg) == MH_NOTFOUND)
+		return (1);	/* clients can't handle this yet */
 	if (protolist != NULL && nproto != 0)
 	{
 		/*
@@ -660,23 +729,6 @@ int *ret;	/* return value of message handler, if called */
 				break;
 		if (i >= nproto)
 			return (0);
-	}
-	/*
-	 * Check for a shutdown message and note it internally
-	 */
-	if ((msg->m_proto == MT_MESSAGE) && (msg->m_len > 0))
-	{
-		struct mh_template *tm;
-		tm = (struct mh_template *) msg->m_data;
-		if (tm->mh_type == MH_SHUTDOWN)
-			ShuttingDown = TRUE;
-	}
-	/*
-	 * Intercept ELOG MASK messages before passing them on
-	 */
-	if ((msg->m_proto == MT_ELOG) && (msg->m_len > 0))
-	{
-		msg_InterceptMask (msg);
 	}
 	if (msg->m_proto >= 0 && msg->m_proto < MT_MAX_PROTO &&
 	    ProtoHandlers[msg->m_proto])
@@ -927,7 +979,9 @@ void *param;
 		}
 	}
 /*
- * No such luck there.  We'll have to start reading stuff.
+ * No such luck there.  We'll have to start reading stuff.  We can't just
+ * return within in the loop in case there are messages to append to the
+ * queue.
  */
 	queue = 0;
 	for (;;)
@@ -937,7 +991,36 @@ void *param;
 	 * Get a message.
 	 */
 		if (! (msg = msg_read (Msg_fd)))
-			return (1);
+			break;
+	/*
+	 * Theoretically we cannot be certain that an unknown destination
+	 * reply corresponds to the client we're expecting a response from.
+	 * The best we can do for now is wave our hands wildly and hope
+	 * someone notices that we've been stood up.
+	 */
+		if (msg_Intercept (msg) == MH_NOTFOUND)
+		{
+			struct mh_ident *mh;
+
+			mh = (struct mh_ident *) msg->m_data;
+			msg_ELog (EF_EMERGENCY,
+				  "msg_Search (seq %d): %s: %s",
+				  msg->m_seq, "destination unknown",
+				  mh->mh_name);
+			msg_PError ("msg_Search (seq %d): %s: %s",
+				    msg->m_seq, "destination unknown",
+				    mh->mh_name);
+#ifdef BETTER		/* let the application know the search failed */
+			break;
+
+#else			/* all talk and no action */
+			msg_free (msg);
+			continue;
+#endif
+#ifdef notdef		/* drastic */
+			exit (1);
+#endif
+		}
 	/*
 	 * If it's the desired type, call the handler.
 	 */
@@ -979,8 +1062,12 @@ void *param;
 			Mq_tail->mq_next = queue;
 		Mq_tail = tail;
 	}
-	msg_free (msg);
-	return (0);
+	if (msg)
+		msg_free (msg);
+/*
+ * Return non-zero if we're ending on an error rather than MSG_DONE.
+ */
+	return ((action != MSG_DONE));
 }
 
 
