@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_param.h,v 1.2 1989-03-16 15:45:33 corbet Exp $ */
+/* $Id: ui_param.h,v 1.3 1989-10-27 11:28:18 corbet Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -31,9 +31,16 @@ struct date_st
 };
 typedef struct date_st date;		/* Date in date/time format */
 
+/*
+ * Define these if nobody else has already done it.
+ */
+# ifndef TRUE
 # define TRUE -1
 # define FALSE 0
+# endif
+# ifndef NULL
 # define NULL 0
+# endif
 
 /*
  * Macros for VMS system services.
