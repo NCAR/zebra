@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.23 1993-08-05 18:16:58 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.24 1993-08-12 18:21:58 granger Exp $")
 
 
 
@@ -1092,6 +1092,12 @@ PlatformId which;
  * times.  But if the daemon is waiting for an unlock on this platform, 
  * things will hang.
  */
+	if ((which < 0) || (which > NPlatform))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Read lock attempt for invalid plat id %d", which);
+		return;
+	}
 	msg_ELog (EF_DEBUG, "Read lock on %s by %s", p->dp_name, who);
 	for (lp = p->dp_RLockQ; lp; lp = lp->l_Next)
 		if (! strcmp (who, lp->l_Owner))
@@ -1132,6 +1138,12 @@ int expect;
 	Lock *lp, *zap;
 	Platform *p = PTable + which;
 
+	if ((which < 0) || (which > NPlatform))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Read lock release for invalid plat id %d", which);
+		return;
+	}
 	msg_ELog (EF_DEBUG, "Lock on %s released by %s", p->dp_name, who);
 /*
  * Find the structure for the lock held by this process and remove it.
