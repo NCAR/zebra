@@ -10,13 +10,8 @@
 # include "ui_state.h"
 # include "ui_symbol.h"
 
-# ifdef VMS
-#	define var globaldef
-#	define forward globalref
-# else
-#	define var /* nothing */
-#	define forward extern
-# endif
+# define var /* nothing */
+# define forward extern
 
 forward struct state_keyword boot_initial_kw[], define_what_kw[];
 forward struct state_keyword input_initial_kw[], input_what_kw[];

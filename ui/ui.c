@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.22 1998-02-26 21:18:17 burghart Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.23 1999-06-25 19:20:59 burghart Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -18,18 +18,7 @@ static char *Rcsid = "$Id: ui.c,v 1.22 1998-02-26 21:18:17 burghart Exp $";
 # include "ui_expr.h"
 # include "ui_mode.h"
 
-/*
- * Keep the system type around.
- */
-# ifdef VMS
-# define SYSTEM_TYPE "vms"
-# endif
-# ifdef CRAY
-# define SYSTEM_TYPE "cray"
-# endif
-# ifdef UNIX
 # define SYSTEM_TYPE "unix"
-# endif
 
 /*
  * Jump is TRUE iff a longjmp is to be performed out of a ^C interrupt.
@@ -1512,36 +1501,6 @@ ui_return ()
 
 
 
-# ifdef notdef
-
-ui_unbind_args (name)
-char *name;
-/*
- * Remove any arguments for "proc" from the arg table.
- */
-{
-	struct procedure *proc;
-	int arg, type;
-	union usy_value v;
-/*
- * Look up this proc in the procedure table.
- */
- 	if (! usy_g_symbol (Proc_table, name, &type, &v))
-	{
-		ui_warning ("Unbind attempted on unknown proc '%s'", name);
-		return;
-	}
-	proc = (struct procedure *) v.us_v_ptr;
-/*
- * Now step through the arg list.
- */
- 	for (arg = 0; arg < proc->p_narg; arg++)
-		usy_z_symbol (Arg_table, proc->p_args[arg].pa_name);
-}
-
-# endif
-
-
 void
 ui_edt (file)
 char *file;
@@ -1549,12 +1508,7 @@ char *file;
  * Try to invoke EDT on this file.
  */
 {
-# ifdef VMS
-	Jump = FALSE;	/* Otherwise ^C bails out of EDT! */
-	edt$edit (descr (file));
-# else
 	ui_error ("EDT is only available on VMS machines");
-# endif
 }
 
 

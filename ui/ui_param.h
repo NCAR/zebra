@@ -1,54 +1,12 @@
-/* $Id: ui_param.h,v 1.13 1998-12-17 16:41:26 burghart Exp $ */
+/* $Id: ui_param.h,v 1.14 1999-06-25 19:21:01 burghart Exp $ */
 /*
  * Basic UI parameters.
  */
 # ifndef UI_PARAM_SYMBOLS
 # define UI_PARAM_SYMBOLS
 
-/*
- * Hack to avoid the need for command line flags.
- */
-# ifdef sun
-#  ifndef UNIX
-#   define UNIX
-#  endif
-# endif
-
-# ifdef hpux
-#  ifndef UNIX
-#   define UNIX
-#  endif
-# endif
-
-# ifdef __osf__
-#  ifndef UNIX
-#   define UNIX
-#  endif
-# endif
-
-# ifdef AIXV3 
-#  ifndef UNIX
-#   define UNIX
-#  endif
-# endif
-
-
-# ifdef unix
-#  ifndef UNIX
-#   define UNIX
-#  endif
-# endif
-
-# ifdef titan
-#  ifndef UNIX
-#   define UNIX
-#  endif
-# endif
-
-# ifdef UNIX
 # include <stdio.h>
 # include <string.h>
-# endif
 
 /*
  * So far only g++ has the predefined bool type per the final draft 
@@ -85,10 +43,6 @@ typedef struct date_st date;		/* Date in date/time format */
 # define NULL 0
 # endif
 
-/*
- * Macros for VMS system services.
- */
-# define ss_err(s)	(((s) & 0x1) == 0)	/* Is this an error status */
 # define ___ 0		/* Null parameter. */
 
 /*
@@ -116,13 +70,7 @@ char *getvm ();
 /*
  * Fast copy
  */
-# ifdef VMS
-#	define COPY(from,to,len) { int _L_ = len; \
-		if (_L_ < 65535) lib$movc3 (&_L_, from, to); \
-		else uiu_slowcopy (_L_, from, to); };
-# else
-#	define COPY(from,to,len) memcpy (to, from, len)
-# endif
+# define COPY(from,to,len) memcpy (to, from, len)
 
 /*
  * Conditional def's for arguments for sprintrmt.  
@@ -140,40 +88,16 @@ char *getvm ();
  *			. . .
  *		}
  */
-# ifdef VMS
-#	define ARGS args
-#	define SPRINTARGS &args
-# else
-#	define ARGS a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
-#	define SPRINTARGS a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
-# endif
+# define ARGS a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
+# define SPRINTARGS a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
 
 /*
  * System dependent standard input and output units
  */
-# ifdef VMS
-#	define IN_STD	"SYS$INPUT"
-#	define OUT_STD	"SYS$OUTPUT"
-#	define LUN	int
-# endif
-
-# ifdef UNIX
-#	define IN_STD "stdin"
-#	define OUT_STD "stdout"
-#	define LUN FILE *
+# define IN_STD "stdin"
+# define OUT_STD "stdout"
+# define LUN FILE *
 long dview (), dopen ();
-# endif
-
-# ifdef CRAY
-#	include	<stdio.h>
-#	define IN_STD	"$IN"
-#	define OUT_STD	"$OUT"
-#	define LUN	char *
-# endif
-
-# ifndef IN_STD
-	Error: I dont have anything defined for this system
-# endif
 
 /*
  * This is (essentially) the maximum length of an input line.

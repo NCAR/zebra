@@ -253,9 +253,6 @@ struct ui_command *cmds;
 					getvm ((ste->sta_nkw + 1) *
 						sizeof (struct state_keyword));
 			len = ste->sta_nkw * sizeof (struct state_keyword);
-# ifdef notdef /* 5/28/87 cb	Can't use lib$movc3 on CRAY */
-			lib$movc3 (&len, ste->sta_kw, tkp);
-# endif
 			COPY (ste->sta_kw, tkp, len);
 			relvm (ste->sta_kw);
 			ste->sta_kw = tkp;

@@ -2,9 +2,6 @@
 /*
  * Routines for handling interactive prompting.
  */
-# ifdef VMS
-# include <string.h>
-# endif
 # include "ui.h"
 # include "ui_error.h"
 # include "ui_token.h"
@@ -15,7 +12,7 @@
 # include "ui_expr.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_prompt.c,v 1.7 1998-02-26 21:18:41 burghart Exp $";
+static char *Rcsid = "$Id: ui_prompt.c,v 1.8 1999-06-25 19:21:01 burghart Exp $";
 
 /*
  * Prototypes
@@ -562,11 +559,7 @@ struct ui_command *cmds;
 {
 	int i;
 	float def = 0.0;
-# ifdef SYSV	/* For my poor little 16-bit system */
-	float lower = -32767.0, upper = 32767.0;
-# else
 	float lower = -999999.9, upper = 999999.9;
-# endif
 	union usy_value v;
 	char *helpfile = (char *) NULL;
 	stbl dest = Ui_variable_table;

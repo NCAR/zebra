@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.16 1998-02-26 21:18:47 burghart Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.17 1999-06-25 19:21:02 burghart Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -356,12 +356,7 @@ bool interact, nokeypad;
 		else
 		{
 			strcpy (inp->s_name, "(standard input)");
-# ifdef UNIX
 			inp->s_lun = stdin;
-# else
-			if ((inp->s_lun = dview (IN_STD)) == 0)
-				c_panic ("Unable to open standard input");
-# endif
 			inp->s_type = IST_FILE;
 		}
 	}
@@ -372,15 +367,8 @@ bool interact, nokeypad;
 	{
 		strcpy (inp->s_name, IN_STD);
 		Out_tty = FALSE;
-# ifdef UNIX
 		Out_lun = stdout;
 		inp->s_lun = stdin;
-# else
-		if ((Out_lun = dcreate (OUT_STD)) == 0)
-			c_panic ("I can't open an output channel!");
-		if ((inp->s_lun = dview (IN_STD)) == 0)
-			c_panic ("Unable to open standard input");
-# endif
 		inp->s_type = IST_FILE;
 	}
 	uio_init (Out_tty, Out_lun);
@@ -2372,11 +2360,7 @@ ut_linit ()
 
 	if (! usy_g_symbol (Ui_variable_table, "user", &type, &v))
 		return;
-# ifdef UNIX
 	sprintf (fn, "/rdss/ui/log/%s", v.us_v_ptr);
-# else
-	sprintf (fn, "du:[corbet.log]%s", v.us_v_ptr);
-# endif
 	if ((Log_fp = fopen (fn, "a")) == (FILE *) NULL)
 		return;
 	fprintf (Log_fp, "(startup)\n");

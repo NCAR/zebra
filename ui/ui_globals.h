@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui_globals.h,v 1.5 1990-09-11 14:27:49 corbet Exp $ */
+/* $Id: ui_globals.h,v 1.6 1999-06-25 19:21:00 burghart Exp $ */
 /*
  * Global variable definitions.
  */
@@ -9,11 +9,7 @@
 # include "ui_symbol.h"
 
 # ifndef var
-#	ifdef VMS
-#		define var globalref
-#	else
-#		define var extern
-#	endif
+#   define var extern
 # endif
 
 /*

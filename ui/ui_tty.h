@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_tty.h,v 1.1 1989-02-08 13:28:22 corbet Exp $ */
+/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_tty.h,v 1.2 1999-06-25 19:21:02 burghart Exp $ */
 /*
  * Terminal handling info.
  */
@@ -46,10 +46,5 @@
 /*
  * Functions.
  */
-# ifndef CRAY
-	char *tty_get_key_name ();
-	int tty_get_key_code ();
-# else
-	int tty_get_key ();	/* This takes care of both tty_get_key_name */
-				/* and tty_get_key_code on the CRAY	    */
-# endif
+char *tty_get_key_name ();
+int tty_get_key_code ();

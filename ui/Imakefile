@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.10 1997-05-29 14:28:47 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.11 1999-06-25 19:20:59 burghart Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -50,15 +50,7 @@ NORMAL_DEFINES = $(UIDIR) $(LFDIR) $(XWINDOWSFLAG) $(MENUDEFINES)
 #if defined(SunArchitecture) && !SystemV4 && !SystemV
 SYSDEFINES = -DBSD
 #else
-#if defined(SVR4Architecture) || SVR4 || SYSV || SystemV4 || SystemV
-SYSDEFINES = -DSYSV
-#else
-#if defined(LinuxArchitecture)
-SYSDEFINES = -DSYSV
-#else
 SYSDEFINES =
-#endif
-#endif
 #endif
 
 EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) $(NORMAL_DEFINES) $(SYSDEFINES)

@@ -14,15 +14,11 @@
 # include <string.h>
 # include "ui_symbol.h"
 
-# ifdef UNIX
-# ifndef SYSV
 # define longjmp _longjmp
-# endif /* SYSV */
-# endif /* UNIX */
 
 
 static char *rcsid =
-   "$Id: ui_error.c,v 1.17 1998-04-20 14:13:01 burghart Exp $";
+   "$Id: ui_error.c,v 1.18 1999-06-25 19:21:00 burghart Exp $";
 /*
  * Stack stuff.
  */
@@ -35,11 +31,7 @@ static struct jstack
 /*
  * Errorbell is true iff a bell is to be rung on errors.
  */
-# ifdef CRAY
-	static bool Errorbell = FALSE;
-# else
-	static bool Errorbell = TRUE;
-# endif
+static bool Errorbell = TRUE;
 
 /*
  * The lookaside list for jstack structures.
@@ -508,12 +500,7 @@ va_dcl
 /*
  * Put out the system error message.
  */
-# ifdef VMS
-	errmes (&status);
-	printf ("\n");
-# else
 	printf ("System error status: %d\n", status);
-# endif
 /*
  * Now add the program text.
  */

@@ -1,3 +1,4 @@
+# include <stdlib.h>
 # include "ui_error.h"
 # include "ui_globals.h"
 # include "ui.h"
@@ -18,24 +19,13 @@ int argc;
 char **argv;
 {
 	int c_handler ();
-# ifndef CRAY
-	char *getenv ();
 	char *loadfile = getenv ("LOADFILE");
-# endif
 /*
  * Initialize.
  */
 	strcpy (Istate, "ust$boot_initial");
 	ERRORCATCH
-# ifdef VMS
-	ui_init (loadfile ? loadfile : "ds:[rdss.ui]ui.lf", TRUE, FALSE);
-# else
-# ifdef CRAY
-	ui_init ("/RDSS/UI/ui.lf", TRUE, FALSE);
-# else
 	ui_init (loadfile ? loadfile : LF, TRUE, FALSE);
-# endif
-# endif
 	ON_ERROR
 		ui_printf ("No loadfile!\n");
 		exit (1);

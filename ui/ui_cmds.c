@@ -12,19 +12,9 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.14 1998-02-26 21:18:22 burghart Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.15 1999-06-25 19:21:00 burghart Exp $";
 
-# ifdef VMS
-# define HELPDIR "ui_help:"
-# endif	/* Come up with something else for unix */
-
-# ifdef UNIX
 # define HELPDIR "/rdss/help"
-# endif
-
-# ifdef CRAY
-# define HELPDIR "nowhere"	/* No interactive help on batch systems! */
-# endif
 
 /*
  * Prototypes
@@ -451,9 +441,6 @@ int init;
 /*
  * Open the file.
  */
-# ifdef VMS			/* XXX */
-	dsetdef (".lf");
-# endif
 	if ((lun = bfview (file)) == 0)
 		ui_error ("Unable to open load file '%s'", file);
 /*
@@ -518,9 +505,6 @@ int all;
 /*
  * Try to open up the file.
  */
-# ifdef VMS
- 	dsetdef (".lf");
-# endif
  	if ((lun = bfcreate (file)) == 0)
 		ui_error ("Unable to create file '%s'", file);
 /*
@@ -586,9 +570,6 @@ char *file;
 /*
  * Try to open up the file.
  */
-# ifdef VMS
-	dsetdef (".help");
-# endif
 	if (usy_defined (Ui_variable_table, "ui$helpdir"))
 	{
 		union usy_value v;

@@ -1,12 +1,10 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.10 1998-12-15 23:29:57 burghart Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.11 1999-06-25 19:21:01 burghart Exp $";
 /*
  * Interrupt handling.
  */
 # include <sys/types.h>
-# ifdef UNIX
 # include <signal.h>
-# endif
 # include "ui_param.h"
 # include "ui_globals.h"
 
@@ -30,9 +28,8 @@ static SIGNAL_RETURN uii_cc_handler ();
 # ifdef SIGTSTP
 static SIGNAL_RETURN uii_tstp ();
 # endif
-# ifdef UNIX
+
 static SIGNAL_RETURN uii_fault ();
-# endif
 
 void
 uii_init ()
@@ -41,9 +38,7 @@ uii_init ()
  */
 {
 	int hndl;
-# ifdef UNIX
 	void (*oldh)();
-# endif
 /*
  * No interrupts in batch jobs.
  */
@@ -59,7 +54,6 @@ uii_init ()
  * (4/89 jc)	Also set up catches for seg fault and bus error signals,
  *		so that we can clean up before dying.
  */
-# ifdef UNIX
 	signal (SIGINT, uii_cc_handler);
 	if ((oldh = signal (SIGBUS, uii_fault)) != SIG_DFL)
 		signal (SIGBUS, oldh);
@@ -69,9 +63,6 @@ uii_init ()
 	signal (SIGTSTP, uii_tstp);
 # endif
 
-# else
- 	tty_setint (uii_cc_handler);
-# endif
 }
 
 
@@ -127,12 +118,7 @@ vfptr handler;
 
 
 static SIGNAL_RETURN
-uii_cc_handler 
-# if defined(SYSV) || defined(SVR4)
-(dummy) int dummy;
-# else
-()
-#endif
+uii_cc_handler (int dummy)
 /*
  * This is the ^C AST routine.
  */
@@ -147,23 +133,15 @@ uii_cc_handler
 	int mask = sigblock (0);
 	mask &= ~(sigmask (SIGINT));
 	sigsetmask (mask);
-# endif
-
-# ifdef SYSV
-
-/* SYSV kindly resets the handler to SIG_DFL before it executes our handler
- * so we have to reset the signal to make sure it will work right the next 
- * time we want it to
+# else
+/* 
+ * non-BSD signal() kindly resets the handler to SIG_DFL before it executes 
+ * our handler so we have to reset the signal to make sure it will work 
+ * right the next time we want it to
  */   
         signal (SIGINT, uii_cc_handler);
 # endif
 
-# ifdef VMS
-/*
- * VMS handlers need to be reestablished each time.
- */
- 	tty_setint (uii_cc_handler);
-# endif
 /*
  * Pass through the array of handlers, and call each one.
  */
@@ -173,9 +151,6 @@ uii_cc_handler
 }
 
 
-
-
-# ifdef UNIX
 
 static SIGNAL_RETURN
 uii_fault (sig, code, scp, addr)
@@ -193,46 +168,26 @@ char *addr;
 	abort ();
 }
 
-# endif
-
-
 
 # ifdef SIGTSTP
 
 static SIGNAL_RETURN
-uii_tstp
-# if defined(SYSV) || defined(SVR4)
-(dummy) int dummy;
-# else
-()
-#endif
+uii_tstp (int dummy)
 /*
  * Deal with a STOP signal.
  */
 {
-#ifndef SVR4 
-	int oldmask;
-#else
         sigset_t oldmask;
-#endif 
 	tty_kpoff ();
 	tty_return ();	/* Terminal back to normal state */
 	signal (SIGTSTP, SIG_DFL);
 
-#ifndef SVR4 
-	oldmask = sigsetmask (0);
-#else
         sigprocmask (SIG_SETMASK, NULL, &oldmask);
-#endif
        
 	kill (getpid (), SIGTSTP);
 	/* ... */
 
-#ifndef SVR4 
-	sigsetmask (oldmask);
-#else
         sigprocmask (SIG_SETMASK, &oldmask, NULL);
-#endif
         
 	signal (SIGTSTP, uii_tstp);
 	tty_setup ();
