@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.13 2000-06-05 21:57:19 granger Exp $
+# $Id: zstart.sh,v 1.14 2002-04-17 22:53:04 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -189,7 +189,7 @@ again:
 		endif
 		if ($DS_DAEMON_SESSION != $SESSION) then
 
-	 		rsh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n \
+	 		ssh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n \
 				-s $DS_DAEMON_SESSION $ZEB_PROJDIR
 			if ( $status != 0 ) then
 			  echo "No datastore session on host $DS_DAEMON_HOST."
