@@ -1,0 +1,44 @@
+! $Id: ProjectWindows,v 1.1 2000-12-05 19:07:36 granger Exp $
+!
+! Stuff for window creation which can be overridden by the project
+! by copying this module into a project directory on the require path.
+!
+define widget cw_wintypes intmenu 'Coare version'
+       title 'Window types'
+       line
+       entry 'Constant Altitude Plot' 'cw_type "Constant altitude"'
+       entry 'Time-series' 'cw_type "Time series"'
+       entry 'Skew-t' 'cw_type "Skew-t"'
+       entry 'Wind profile' 'cw_type "Wind profile"'
+       entry 'Time-height profile' 'cw_type "Time-height profile"'
+       entry 'RASS virtual temperature profile' 'cw_type "RASS profile"'
+       entry 'Location Map' 'cw_type "Location Map"'
+       entry 'Line Plot' 'cw_type "Line Plot"'
+endmenu
+
+procedure ProjectNewWindow type string
+	if (type = 'Depth profile')
+		set nw_pd 'depth-profile-template'
+	elseif (type = 'Time/depth profile')
+	        set nw_pd 'time-depth-template'
+	elseif (type = 'Time/depth contour')
+	       set nw_pd 'depth-contour-template'
+	elseif (type = 'Wind profile')
+	       set nw_pd 'wind-template'
+	elseif (type = 'Time-height profile')
+	       set nw_pd 'time-height-template'
+	elseif (type = 'RASS profile')
+	       set nw_pd 'rass-template'
+	elseif (type = 'Location Map')
+	       set nw_pd 'location-template'
+	elseif (type = 'Line Plot')
+	       set nw_pd 'lineplot-template'
+	elseif (type = 'Midwest Map')
+	       set nw_pd 'midwest-template'
+	elseif (type = 'Time series')
+	        set nw_pd 'tseries-template'
+	endif
+	set nw_bmap 'xyplot'
+endprocedure
+
+

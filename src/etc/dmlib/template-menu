@@ -22,7 +22,6 @@ define widget template-menu intmenu 'window templates'
 		'create-window lineplot lineplot-template xyplot'
 	entry 'Skew-t plot' \
 		'create-window skewt skewt-template sounding'
-	entry 'Wind profile' 'create-window wind wind-template xyplot'
 	entry 'RASS profile' 'create-window rass rass-template xyplot'
 	entry 'XY Graph' 'create-window xygraph xygraph-template xyplot'
 	entry 'Vertical cross-section' \

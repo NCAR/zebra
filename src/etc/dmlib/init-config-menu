@@ -40,9 +40,9 @@ require init-config-path
 !
 procedure init-config-menu
 
-	local menufile concat(DmModPath,"/ConfigMenu")
+	local menufile "ConfigMenu"
 	local args concat3(ConfigDir," ",menufile)
-	shell concat3(DmModPath,"/makecfgmenu ",args)
+	shell concat3(c$libdir,"/dmlib/makecfgmenu ",args)
 	local delayread 'read'
 	#delayread #menufile
 

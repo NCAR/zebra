@@ -1,0 +1,98 @@
+! $Id: enter-widget,v 1.1 2000-12-05 19:07:37 granger Exp $
+!
+! Definitions for the position entry widget.
+!
+
+define widget enter form "Entry widget"
+	noheader
+!
+! The platform selection line.
+!
+	label l_plat "Platform:"
+	pulldown platform 'n308d' menu 'plats' width 100
+	label space ' ' width 100
+	button exit 'Zap' color red command 'popdown #ui$form'
+	newline
+!
+! Positions here.
+!
+	label l_lat 'Lat:'
+	blank lat_deg '0' width 40
+	blank lat_min '0' width 40
+	label l_lon 'Lon:'
+	blank lon_deg '0' width 40
+	blank lon_min '0' width 40
+	newline
+	label l_alt 'Alt:'
+	blank alt '0.0' width 60
+	pulldown aunits 'kft' menu en_altunits width 50
+	newline
+!
+! Let them put in a time.
+!
+	label l_time 'Time:'
+	blank time 'now' width 200
+	newline
+!
+! Options.
+!
+	button enter 'Enter point' command 'DoEnter false'
+	button overw 'Change last point' command 'DoEnter true'
+	newline
+!
+! And a gripe window.
+!
+	label gripe ' ' width 300 color red
+endform
+
+
+define widget en_altunits intmenu 'Default version'
+       title 'Altitude units'
+       line
+       entry 'kft' 'en_setaltunits "kft"'
+       entry 'km' 'en_setaltunits "km"'
+endmenu
+
+
+procedure en_setaltunits type string
+	local qtype quote(type)
+	formtext #ui$form aunits #qtype
+endprocedure
+
+
+procedure DoEnter overwrite bool
+!
+! Pull info from the widget.
+!
+	local plat getftext(ui$form,'platform')
+	local lat_deg getftext(ui$form,'lat_deg')
+	local lon_deg getftext(ui$form,'lon_deg')
+	local lat_min getftext(ui$form,'lat_min')
+	local lon_min getftext(ui$form,'lon_min')
+	local alt getftext(ui$form,'alt')
+	local altunits getftext(ui$form,'aunits')
+!
+! Convert altitude to km if necessary
+!
+	if (altunits = "km")
+		! nothing
+	elseif (altunits = "kft")
+		local altval #alt
+		local alt string(altval * .3048)
+	else
+		local mesg quote( concat3("bad units: '", altunits, "'"))
+		message #mesg
+		return
+	endif
+! 
+! Do the entry.
+!
+	if (overwrite)
+		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt
+	else
+		local when getftext(ui$form,'time')
+		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt #when
+	endif
+endprocedure
+
+

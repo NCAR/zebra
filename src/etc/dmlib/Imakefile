@@ -4,16 +4,23 @@
 
 LFILES = AllXSect ButtonMaps DisplayConfigs ModelAdd RadarAdd \
          ResetWindow empty.dc init-config-menu \
-         init-config-path lineplot-add makecfgmenu profiler-add \
+         init-config-path lineplot-add profiler-add \
          rass-add send-wbounds template-menu theight-add theta-add \
          tseries-add tweak-depth-plat xmgr-pipe zoom cfg-tools \
-         sk-add-data cap-add
+         sk-add-data cap-add ProjectWindows \
+         dm.project dm.init dm.iconbar
 
-DISTFILES = $(LFILES) Imakefile
+XFILES = makecfgmenu IconBar.sh
+
+DISTFILES = $(LFILES) $(XFILES) Imakefile
+
+DMLIB = $(LIBDIR)/dmlib
 
 all::	/* nothing */
 
 InstallLibFile ($(LFILES),dmlib,..)
+InstallNamedTarget (install,makecfgmenu,$(INSTBINFLAGS),$(DMLIB),makecfgmenu)
+InstallNamedTarget (install,IconBar.sh,$(INSTBINFLAGS),$(DMLIB),IconBar.sh)
 
 DistfilesTarget ($(DISTFILES))
 

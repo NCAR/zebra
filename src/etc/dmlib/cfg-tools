@@ -1,7 +1,9 @@
-! $Id: cfg-tools,v 1.1 2000-11-10 22:03:25 granger Exp $
+! $Id: cfg-tools,v 1.2 2000-12-05 19:07:36 granger Exp $
 !
 ! Define some procedures for flexible configuration editing
 !
+
+set PUNDEF "(Undefined)"
 
 !
 ! Point to a window and delete it
@@ -79,12 +81,95 @@ procedure create-clock
 endprocedure
 
 
+! ================================================================
 !
-! Define our place holder procedure, indicating this module has
-! already been loaded
+! Utilities for using a single display config "template" across
+! multiple platforms, for example ISS platforms.  The template can be
+! saved with any platforms set in the parameters, but when realized the
+! platform parameters are set to the desired platform.
 !
-procedure cfg-tools
-	local nop 0
-	set nop 1
+! We must display the template config first, then we loop through all
+! components of all the windows switching the platform parameter.  The
+! template window pds are changed also so that the current platform is
+! preserved if the window is reset.  We cannot just change the window pd
+! directly after displaying the config, since the window may process its
+! parameter change before it has received its initial pd.  So we copy the
+! window pd's first, make the parameter changes, and finally call newpd to
+! apply the changes.
+!
+! A second procedure is provided which resets the display config by
+! resetting each window in the config.
+
+procedure pd-set-platform pd string platform string method string
+
+	local comps pd_complist(pd)
+	local setmethod method
+	if (method = "")
+		local setmethod "pd-direct-method"
+	endif
+	foreach comp #comps
+		local current PDParam(pd,comp,"platform")
+		if (current <> PUNDEF and current <> "null")
+			#setmethod #pd #comp #current #platform
+		endif
+	endfor
+
 endprocedure
+
+
+procedure pd-direct-method pd string comp string current string platform string
+	parameter #pd #comp platform #platform
+endprocedure
+
+
+procedure cfg-set-platform platform string method string
+
+	windowlist wins
+	foreach win #wins
+
+		! Change the dconfig base window pd
+		local pd PDParam(win,"global","pd-name")
+		pd-set-platform #pd #platform #method
+
+		! Copy and change the current window pd
+		local pd concat3(dm$config,"-tmp-",win)
+		pdcopy #win #pd
+		pd-set-platform #pd #platform #method
+		newpd win pd
+
+	endfor
+
+endprocedure
+
+
+! Apparently something gets messed up if try to run the cfg-set-platform
+! command right after changing the display, so we have to defer execution
+! of the platform change by putting it in a 'different thread', so to speak.
+!
+procedure cfg-platform-display dconfig string platform string method string
+
+	display #dconfig
+
+	local amp ' &'
+	local runcmd concat("zrun ",c$msgname)
+	local runcmd concat4(runcmd," 'cfg-set-platform ",platform," ")
+	local runcmd concat4(runcmd,method,"'",amp)
+	local runcmd quote(runcmd)
+	shell #runcmd
+
+endprocedure
+
+
+procedure cfg-reset
+
+	windowlist wins
+	foreach win #wins
+
+		local pd PDParam(win,"global","pd-name")
+		newpd win pd
+
+	endfor
+
+endprocedure
+
 

@@ -1,0 +1,22 @@
+! $Id: dm.iconbar,v 1.1 2000-12-05 19:07:36 granger Exp $
+!
+! An IconBar module to generate the iconbar at runtime and load it.
+! It includes a procedure to re-generate and redefine the iconbar while
+! dm is running.
+
+procedure iconbar-define modules string
+	local cmd concat4(c$libdir,"/dmlib/IconBar.sh ",modules,"")
+	local cmd quote(cmd)
+	shell #cmd
+	set pread "read"
+	#pread "IconBar"
+endprocedure
+
+procedure iconbar-redefine modules string
+	popdown iconbar
+	shell "mv -f IconBar IconBar.bak"
+	local qmodules quote(modules)
+	iconbar-define #qmodules
+	popup iconbar
+endprocedure
+

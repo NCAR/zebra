@@ -1,0 +1,5 @@
+! $Id: dm.project,v 1.1 2000-12-05 19:07:37 granger Exp $
+!
+! Extra project widgets can be defined in the dm.project module.  This
+! module is just an empty default in case the project does not have one.
+!

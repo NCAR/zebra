@@ -1,0 +1,110 @@
+! $Id: dm.init,v 1.1 2000-12-05 19:07:37 granger Exp $ 
+!
+! The generic and perpetual loading process, encapsulated into a simple
+! module.  At least, I think this is generic enough that someday it could
+! be put in the library.  The only requirements for the project are the
+! existence of the "pd" subdirectory and defaults.pd.  An empty dm.widgets
+! could be put in the library so that the project does not need to
+! override it.
+
+! Initialize some basic variables with defaults:
+
+set SoundEnabled false
+set AutoAdvance true
+set ForceHistory true
+set UseXHelp false
+
+! This is probably the compiled-in default, but set it here as a reminder
+! that it can be overridden.  The path must contain 'netscape' for zebra
+! to recognize it as the netscape browser and use the correct remote
+! control mechanism.
+!
+set browserpath "netscape"
+
+! Use the UI bitmap path to search for icons in both the project
+! icons directory and the zebra library icon directory.  These
+! are good defaults for most projects but can be overridden.
+!
+set ui$bitmap_path concat3("./icons,",c$libdir, "/icons")
+
+!
+! When and how long to sleep when creating windows.
+! OpenWindows => 1,5	MIT X => 4,1
+! For now, assume the differentiation is no longer needed and see
+! what breaks.
+!
+set sleepafter	4
+set sleepfor	1
+
+!
+! Load in our plot descriptions.
+!
+message 'Loading:'
+message '     ...plot descriptions...'
+
+!----------------------------------------------------------------
+! Grab the ones in the library and project pd directory
+!
+
+!set libpddir concat(c$libdir,'/pd')
+! Use source pd directory while testing
+set libpddir 'etc/pd'
+pddir #libpddir
+pddir pd
+
+!
+! Define an empty component which can be used to easily add (or make sure)
+! a component exists in a pd, particularly defaults.
+!
+beginpd empty
+component empty
+parameter empty-parameter true
+endpd
+
+procedure pdcheckcomp pd string comp string
+	pddrop empty empty #pd #comp
+endprocedure
+
+! Now merge the global defaults from the library with the project
+! defaults. Let the project defaults override the global defaults
+! by first saving the project defaults and then dropping them back in
+! after the global-defaults.
+
+pdcheckcomp defaults global
+pdcopy defaults save-project-defaults
+pddrop global-defaults defaults defaults defaults    
+pddrop save-project-defaults defaults defaults defaults
+
+! Use ZEB_CACHEDIR for cache files if defined, otherwise use a cache
+! directory under the project directory.
+!
+set cachedir getenv("ZEB_CACHEDIR")
+if (cachedir = undef)
+	set cachedir "./tmp"
+endif
+parameter defaults defaults file-path #cachedir
+
+
+!----------------------------------------------------------------
+
+message '     ...modules...'
+require "init-config-path"
+
+message '     ...button maps...'
+require "ButtonMaps"
+
+message '     ...display configurations...'
+require "DisplayConfigs"
+
+!
+! Put the times file in the project directory which we know exists and
+! from where we know it can be shared.
+!
+set TimeFile 'Times'
+set cmd quote(concat("touch ",TimeFile))
+shell #cmd
+
+message '     ...project widgets...'
+require "dm.project"
+require "ProjectWindows"
+
