@@ -44,11 +44,9 @@
 # include <message.h>
 # include <timer.h>
 # include <config.h>
-# include "DataStore.h"
-# include "dsPrivate.h"  /* Needed for MarkArchived call */
-/* # include "dslib.h" */
+# include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.21 1993-05-06 05:02:44 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.22 1993-05-13 20:29:31 corbet Exp $")
 
 /*
  * Issues:
@@ -287,7 +285,6 @@ static void	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
 static int	RunTar FP ((char *));
 static void	UpdateList FP ((void));
 static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
-static void	SendMA FP ((int));
 static int	TellDaemon FP ((char *, int, SValue *, int));
 static void	UpdateMem FP ((void));
 static void	FinishFinishing FP((void));
@@ -1250,7 +1247,7 @@ int all;
 	 * we'll try again later, since we go by our own dates, and not the
 	 * archived flag, when picking files to write.
 	 */
-	 	SendMA (findex);
+		ds_MarkArchived (findex);
 		if ((findex = dfi.dfi_Next) > 0)
 			ds_GetFileInfo (findex, &dfi);
 	}
@@ -1706,26 +1703,13 @@ int junk;
 	 */
 		ds_GetFileInfo (index, &dfi);
 	 	if (TC_LessEq (dfi.dfi_End, ftime) && ! dfi.dfi_Archived)
-			SendMA (index);
+			ds_MarkArchived (index);
 	}
 	return (TRUE);
 }
 
 
 
-static void
-SendMA (index)
-int index;
-/*
- * Send the archive mark.
- */
-{
-	struct dsp_MarkArchived ma;
-
-	ma.dsp_type = dpt_MarkArchived;
-	ma.dsp_FileIndex = index;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &ma, sizeof (ma));
-}
 
 
 
