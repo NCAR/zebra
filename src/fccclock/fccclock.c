@@ -34,7 +34,7 @@
 # include "copyright.h"
 # include "timer.h"
 # include "pd.h"
-MAKE_RCSID ("$Id: fccclock.c,v 2.4 1993-07-01 20:13:54 granger Exp $");
+MAKE_RCSID ("$Id: fccclock.c,v 2.5 1993-10-21 20:12:30 corbet Exp $");
 
 /*
  * Default resources.
@@ -143,7 +143,7 @@ struct message *msg;
 	 * Display manager messages.
 	 */
 	   case MT_DISPLAYMGR:
-	   	dm_message ((struct dm_msg *) msg->m_data);
+	   	dmgr_message ((struct dm_msg *) msg->m_data);
 		break;
 
 	/*
@@ -201,7 +201,7 @@ greet_dm ()
 
 
 
-dm_message (dmsg)
+dmgr_message (dmsg)
 struct dm_msg *dmsg;
 /*
  * Deal with a display manager message.
