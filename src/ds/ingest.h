@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.13 1996-11-19 15:11:52 granger Exp $
+ * $Id: ingest.h,v 1.14 1997-01-14 17:54:35 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -58,7 +58,8 @@
 /* ---------------------------------------------------------------------
  * Ingest Public Prototypes:						*/
 
-extern void	IngestLog ();
+/* extern void	IngestLog (); */
+#define IngestLog msg_ELog
 extern void	IngestParseOptions FP((int *argc, char *argv[], 
 					void (*usage)(/* char *prog */)));
 extern void 	IngestInitialize FP((char *module_name));
@@ -66,8 +67,10 @@ extern void	IngestUsage();
 
 extern bool _Ingest_ds_Store FP((DataChunk *dc, int newfile, 
 				dsDetail *details, int ndetail));
+#ifdef notdef
 extern bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, int newfile, 
 				       dsDetail *details, int ndetail));
+#endif
 extern PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 
 /*
@@ -82,7 +85,7 @@ extern void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
  */
 #define ds_Store(a,b,c,d) _Ingest_ds_Store(a,b,c,d)
 #define ds_LookupPlatform(a) _Ingest_ds_LookupPlatform(a)
-#define ds_StoreBlocks(a,b,c,d) _Ingest_ds_StoreBlocks(a,b,c,d)
+#define ds_StoreBlocks(a,b,c,d) _Ingest_ds_Store(a,b,c,d)
 /* #define ds_DeleteData(a,b) _Ingest_ds_DeleteData(a,b) */
 
 /* -------------------------------------------------------------------- */
@@ -150,4 +153,4 @@ extern short ShowIngestName;
 #define IngestSetNoDataStore()		SetNoDataStore()
 #define IngestSetDryRun()		SetDryRun()
 
-# endif
+# endif /* _ingest_h_ */

@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.14 1996-11-19 09:18:33 granger Exp $
+/* $Id: ingest.c,v 1.15 1997-01-14 17:54:33 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -45,7 +45,7 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.14 1996-11-19 09:18:33 granger Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.15 1997-01-14 17:54:33 granger Exp $")
 #endif
 
 
@@ -87,6 +87,12 @@ short DryRun = 0;		/* -dryrun flag, don't connect to message
 char *IngestName = "UnNamed!";	/* Message name of ingest module */
 short ShowIngestName = 0;	/* Show ingest name in local log messages */
 short DumpDataChunks = 0;	/* Dump data chunks as ds_Store'd */
+
+/*
+ * Private variables
+ */
+static short Standalone = 0;	/* Run in ds standalone mode */
+static char *DataDir = NULL;	/* Default datadir in standalone mode */
 
 /* ------------------------------------------------------------------*/
 
@@ -157,6 +163,10 @@ IngestUsage()
 	   "   %-20s Print the program name in log messages to the terminal\n",
 	   "-name");
    fprintf(stderr,"   %-20s Show this help information\n","-help, -h");
+   fprintf(stderr,"   %-20s Write files as standalone (env DS_STANDALONE)\n",
+	   "-standalone, -s");
+   fprintf(stderr,"   %-20s Standalone data directory (env DS_DATA_DIR)\n",
+	   "-data <dir>");
 }
 
 
@@ -186,7 +196,13 @@ IngestParseOptions(argc, argv, usage)
 		{
 		   nargs = 2;
 		   arg = argv[i+1];
-		   if (streq(arg,"all"))
+		   if (! arg)
+		   {
+			   fprintf(stderr,"-log requires argument\n");
+			   usage (argv[0]);
+			   exit (1);
+		   }
+		   else if (streq(arg,"all"))
 		      IngestLogFlags = 0xff | EF_DEVELOP;
 		   else
 		   {
@@ -219,9 +235,21 @@ IngestParseOptions(argc, argv, usage)
       		      }
 		   }
 		}
+		else if (streq(argv[i],"-data"))
+		{
+		   nargs = 2;
+		   arg = argv[i+1];
+		   if (! arg)
+		   {
+			   fprintf(stderr,"-data requires argument\n");
+			   usage (argv[0]);
+			   exit (1);
+		   }
+		   DataDir = arg;
+		}
 		else if (streq(argv[i],"-noel"))
 		{
-		   SetNoEventLogger();
+			SetNoEventLogger();
 		}
 		else if (streq(argv[i],"-chunks") ||
 			 streq(argv[i],"-blow"))
@@ -232,7 +260,12 @@ IngestParseOptions(argc, argv, usage)
 			 streq(argv[i],"-dry") ||
 			 streq(argv[i],"-test"))
 		{
-		   SetDryRun();
+			SetDryRun();
+		}
+		else if (streq(argv[i],"-standalone") ||
+			 streq(argv[i],"-s"))
+		{
+			Standalone = 1;
 		}
 		else if (streq(argv[i],"-name"))
 		{
@@ -274,8 +307,26 @@ IngestInitialize(name)
 	IngestName = (char *)malloc(strlen(name)+1);
 	strcpy (IngestName, name);
 
-	usy_init ();
-	if (!DryRun)
+	if (getenv ("DS_STANDALONE") != NULL)
+		Standalone = 1;
+	if (Standalone)
+	{
+		msg_connect (NULL, (ShowIngestName ? IngestName : ""));
+		ds_Standalone ();
+		if (! DataDir)
+		{
+			DataDir = getenv("DS_DATA_DIR");
+		}
+		if (! DataDir)
+		{
+			DataDir = ".";
+		}
+		ds_SetDataDir (DataDir);
+		fprintf(stderr,"Running standalone.  ");
+		fprintf(stderr,"Writing datafiles to datadir '%s'.\n", 
+			DataDir);
+	}
+	else if (!DryRun)
 	{
 		if (! msg_connect (IngestMsgHandler, IngestName))
 		{
@@ -294,10 +345,31 @@ IngestInitialize(name)
 	}
 	else
 	{
+		msg_connect (NULL, (ShowIngestName ? IngestName : ""));
+		SetNoDataStore();
 		fprintf(stderr,"Running in DryRun mode.  ");
-		fprintf(stderr,"No message connections attempted.\n");
+		fprintf(stderr,"No connections or data writes attempted.\n");
 	}
-	F_Init();			/* Init field ID table */
+	msg_ELPrintMask (IngestLogFlags);
+}
+
+
+PlatformId 
+_Ingest_ds_LookupPlatform (name)
+	char *name;
+{
+	static short called_once = 0;
+
+	if (NoDataStore)
+	{
+		if (called_once) return(0);
+		++called_once;
+		IngestLog(EF_INFO,
+		   "DryRun: Calls to ds_LookupPlatform will return 0");
+		return(0);
+	}
+	else
+		return(ds_LookupPlatform(name));
 }
 
 
@@ -340,6 +412,7 @@ _Ingest_ds_Store (dc, newfile, details, ndetail)
 
 
 
+#ifdef notdef
 bool 
 _Ingest_ds_StoreBlocks (dc, newfile, details, ndetail)
 	DataChunk *dc;
@@ -376,26 +449,7 @@ _Ingest_ds_StoreBlocks (dc, newfile, details, ndetail)
 	}
 	return(ret);
 }
-
-
-
-PlatformId 
-_Ingest_ds_LookupPlatform (name)
-	char *name;
-{
-	static short called_once = 0;
-
-	if (NoDataStore)
-	{
-		if (called_once) return(0);
-		++called_once;
-		IngestLog(EF_INFO,
-		   "DryRun: Calls to ds_LookupPlatform will return 0");
-		return(0);
-	}
-	else
-		return(ds_LookupPlatform(name));
-}
+#endif /* notdef */
 
 
 # ifdef notdef
@@ -423,6 +477,7 @@ _Ingest_ds_DeleteData(platform, leave)
 # endif
 
 
+#ifdef notdef
 void
 IngestLog(va_alist) 
 va_dcl
@@ -502,5 +557,5 @@ va_dcl
 			sizeof(*el) + strlen(el->el_text));
 	}
 }
-
+#endif /* notdef */
 
