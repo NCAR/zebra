@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.3 1991-09-26 17:23:14 gracio Exp $";
+static char *rcsid = "$Id: dm.c,v 2.4 1991-10-11 19:00:23 kris Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -155,6 +155,9 @@ struct ui_command *cmds;
  * Deal with a display manager command.
  */
 {
+	char winname[40];
+	union usy_value nv;
+
 	switch (UKEY (*cmds))
 	{
 	   case DMC_CONFIG:
@@ -230,7 +233,10 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_PICKWIN:
-	   	PickWin (UPTR (cmds[1]));
+	   	PickWin (winname);
+		nv.us_v_ptr = winname;
+		usy_s_symbol (usy_g_stbl ("ui$variable_table"), 
+			UPTR (cmds[1]), SYMT_STRING, &nv);
 		break;
 
 	   case DMC_SHUTDOWN:
@@ -1210,11 +1216,18 @@ struct ui_command *cmds;
 
 
 int
-tw_cb (mode, t)
+tw_cb (mode, t, control_all)
 int mode;
 time *t;
+int control_all;
 {
 	struct dm_history dmh;
+	char winname[40];
+/*
+ * See what window(s) to deal with.
+ */
+	if (! control_all)
+		PickWin (winname);
 /*
  * Decide what to do.
  */
@@ -1238,9 +1251,12 @@ time *t;
 		return;
 	}
 /*
- * Now broadcast the result.
+ * Now send out the result.
  */
-	msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof (dmh));
+	if (control_all)
+		msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof (dmh));
+	else
+		msg_send (winname, MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
 }
 
 
