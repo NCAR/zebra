@@ -1,3 +1,8 @@
+Wed Aug  4 11:45:44 1993  Gary Granger  (granger@stout)
+
+	* Zeb now compiles under SunOS 5.0 (Solaris), using GNU's gcc and
+	MIT's X11R5.
+
 Thu Jul 29 10:56:37 1993  Jonathan Corbet  (corbet@ale)
 
 	* Tagged revision V3-3.
