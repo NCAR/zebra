@@ -47,7 +47,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.38 1998-12-17 17:17:24 burghart Exp $")
+RCSID ("$Id: EventLogger.c,v 2.39 1999-02-28 23:18:38 burghart Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -2197,7 +2197,7 @@ static void
 TimestampSetup(period)
 int period;		/* timestamp interval, in seconds, 0 to disable */
 {
-	static slot = -1;
+	static int slot = -1;
 	ZebTime t;
 
 	if (! TimestampEnabled)
