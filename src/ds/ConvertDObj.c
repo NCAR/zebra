@@ -24,17 +24,14 @@
 # include "DataStore.h"
 # include "ds_fields.h"
 # include "DataChunk.h"
-MAKE_RCSID ("$Id: ConvertDObj.c,v 1.1 1991-12-04 23:45:14 corbet Exp $")
+MAKE_RCSID ("$Id: ConvertDObj.c,v 1.2 1991-12-20 20:52:13 kris Exp $")
 
 
-
-# ifdef __STDC__
-	static DataChunk *MakeIRGrid (DataObject *);
-	static DataChunk *MakeBoundary (DataObject *);
-	static DataChunk *MakeScalar (DataObject *);
-	static DataChunk *Make2dGrid (DataObject *);
-# else
-# endif
+static DataChunk *MakeIRGrid FP((DataObject *));
+static DataChunk *MakeBoundary FP((DataObject *));
+static DataChunk *MakeScalar FP((DataObject *));
+static DataChunk *Make2dGrid FP((DataObject *));
+static DataChunk *MakeImage FP((DataObject *));
 
 
 
@@ -50,17 +47,11 @@ DataObject *dobj;
  */
 	switch (dobj->do_org)
 	{
-	   case OrgIRGrid:
-	   	return (MakeIRGrid (dobj));
-
-	   case OrgOutline:
-	   	return (MakeBoundary (dobj));
-
-	   case Org2dGrid:
-	   	return (Make2dGrid (dobj));
-
-	   case OrgScalar:
-	   	return (MakeScalar (dobj));
+	   case OrgIRGrid:	return (MakeIRGrid (dobj));
+	   case OrgOutline:	return (MakeBoundary (dobj));
+	   case Org2dGrid:	return (Make2dGrid (dobj));
+	   case OrgScalar:	return (MakeScalar (dobj));
+	   case OrgImage:	return (MakeImage (dobj));
 
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Can't convert org %d yet",dobj->do_org);
@@ -188,7 +179,13 @@ DataObject *dobj;
  */
 	for (field = 0; field < dobj->do_nfield; field++)
 		fids[field] = F_Lookup (dobj->do_fields[field]);
-	dc_SetScalarFields (dc, dobj->do_nfield, fids);
+	if (dobj->do_nfield > 0)
+		dc_SetScalarFields (dc, dobj->do_nfield, fids);
+	else
+	{
+		fids[0] = BadField;
+		dc_SetScalarFields (dc, 1, fids);
+	}
 /*
  * Now we just go through and add the data, one field at a time.
  */
@@ -196,13 +193,60 @@ DataObject *dobj;
 		dc_AddMultScalar (dc, dobj->do_times, 0, dobj->do_npoint,
 				fids[field], dobj->do_data[field]);
 /*
+ * Kludge to make "location only" data chunks work.
+ */
+	if (dobj->do_nfield <= 0)
+	{
+		float zero = 0.0;
+		for (sample = 0; sample < dobj->do_npoint; sample++)
+			dc_AddScalar (dc, dobj->do_times + sample, sample,
+				BadField, &zero);
+	
+	}
+/*
  * Set the location for this chunk.  If it is a mobile platform, we need
  * to add each individually.
  */
 	if (ds_IsMobile (dobj->do_id))
-		dc_SetStaticLoc (dc, &dobj->do_loc);
-	else
 		for (sample = 0; sample < dobj->do_npoint; sample++)
 			dc_SetLoc (dc, sample, dobj->do_aloc + sample);
+	else
+		dc_SetStaticLoc (dc, &dobj->do_loc);
 	return (dc);
 }
+
+
+
+
+
+static DataChunk *
+MakeImage (dobj)
+DataObject *dobj;
+/*
+ * Deal with this image data object.
+ */
+{
+	DataChunk *dc = dc_CreateDC (DCC_Image);
+	FieldId fids[30];
+	RGrid *rg = dobj->do_desc.d_img.ri_rg;
+	int field;
+
+	dc->dc_Platform = dobj->do_id;
+/*
+ * Convert the field names in the DO to ID's, then set up our DC.
+ */
+	for (field = 0; field < dobj->do_nfield; field++)
+		fids[field] = F_Lookup (dobj->do_fields[field]);
+	dc_ImgSetup (dc, dobj->do_nfield, fids, dobj->do_desc.d_img.ri_scale);
+/*
+ * Go through and add each grid.
+ */
+	rg->rg_nZ = 1;	/* Just to be sure.	*/
+	for (field = 0; field < dobj->do_nfield; field++)
+		dc_ImgAddImage (dc, 0, fids[field], dobj->do_aloc, rg,
+			dobj->do_times, (unsigned char *) dobj->do_data[field],
+			0);
+	return (dc);
+}
+
+
