@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.3 1991-10-30 19:01:50 martin Exp $
+ * $Id: is_vars.h,v 1.4 1991-12-11 20:40:05 martin Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -29,6 +29,9 @@
 #define MAX_STTY_ARGS 20
 #define MAX_FILE_NAME 256
 #define MAX_RESTARTS  5
+#define LS_BEGIN "ls -1d "
+#define LS_END " 2> /dev/null"
+
 enum CONFIG_TYPE {
 	IS_FTYPE, IS_CTYPE, IS_PTYPE
 };
@@ -49,9 +52,7 @@ struct is_config {
 	enum CONFIG_TYPE type;	/* either file type or serial type */
 	char           *name;	/* configuration name */
 	char           *platform;	/* platform name */
-	char           *directory;	/* directory to look for files in
-					 * (file type only) */
-	char           *filename;	/* root of filename to match against
+	char           *filename;	/* filename to match against
 					 * (file type only) */
 	char           *movedir;/* directory to move finished files to, null
 				 * for no move (file type only) */
