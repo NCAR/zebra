@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.6 1995-07-06 04:11:45 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.7 1995-07-07 17:33:12 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 #ifndef UseInstalledZebra
@@ -34,9 +34,13 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 #ifndef HasHDF
-#define HasHDF YES
+# if defined(SunArchitecture) && !defined(SVR4Architecture)
+#  define HasHDF YES
+# else
+#  define HasHDF NO	/* HDF only installed on SunOS systems */
+# endif
+#endif /* ndef HasHDF */
 #define HDFIncDir /usr/local/include/hdf
-#endif
 
 /*
  * To get CVS ignore rules
