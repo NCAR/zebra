@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.5 1991-10-15 21:44:23 corbet Exp $ */
+/* $Id: ui_param.h,v 1.6 1993-08-13 17:35:53 case Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -9,6 +9,12 @@
  * Hack to avoid the need for command line flags.
  */
 # ifdef sun
+#  ifndef UNIX
+#   define UNIX
+#  endif
+# endif
+
+# ifdef unix
 #  ifndef UNIX
 #   define UNIX
 #  endif
