@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: fccclock.c,v 1.2 1990-08-20 20:51:14 corbet Exp $";
+static char *rcsid = "$Id: fccclock.c,v 1.3 1990-11-15 16:31:09 corbet Exp $";
 /*
  * The FCC clock program.
  */
@@ -201,7 +201,6 @@ struct dm_msg *dmsg;
 	 * Ribbit.
 	 */
 	   case DM_DIE:
-	   	msg_log ("DM decreed shutdown");
 		exit (0);
 	/*
 	 * Suspend.
