@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_status.c,v 1.4 1991-09-16 22:03:52 burghart Exp $";
+static char *rcsid = "$Id: ac_status.c,v 1.5 1991-09-26 18:22:14 gracio Exp $";
 
 # include <copyright.h>
 # include <X11/X.h>
@@ -34,6 +34,7 @@ static char *rcsid = "$Id: ac_status.c,v 1.4 1991-09-16 22:03:52 burghart Exp $"
 # include <string.h>
 # include <signal.h>
 
+# include <config.h>
 # include "ac_ingest.h"
 
 # define ATSLEN		80	/* Length for AsciiText strings.	*/
@@ -105,12 +106,12 @@ char	**argv;
 	msg_ELog (EF_DEBUG, "Ac_Status begins...");
 	if (argc > 1)
 	{
-		ui_init ("/fcc/lib/ac_status.lf", FALSE, TRUE);
+		ui_init (strcat(LIBDIR, "/ac_status.lf"), FALSE, TRUE);
 		v.us_v_ptr = argv[1];
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 			SYMT_STRING, &v);
 	}
-	else ui_init ("/fcc/lib/ac_status.lf", TRUE, FALSE);
+	else ui_init (strcat(LIBDIR, "/ac_status.lf"), TRUE, FALSE);
 	ui_setup ("acstatus", &argc, argv, NULL);
 
 	ds_Initialize ();	
