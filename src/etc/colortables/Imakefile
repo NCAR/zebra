@@ -5,7 +5,7 @@
 TABLES = 16gray AllWhite Contour ContourMono Rainbow RedBlue RevRainbow \
 	Skew-t SmallRainbow Winds cook16 cook32 fivegray fivegrey gcook16 \
 	hotcold newgray refcontour revgray scook smallrevgray tseries \
-	wild wild_new xygraph thetaplot
+	wild wild_new xygraph thetaplot chris
 
 DISTFILES = Imakefile $(TABLES)
 
