@@ -1,12 +1,21 @@
 Some info to be aware of for others who venture into this directory:
 
-Most of the source files in this directory come straight from the McIDAS 7.1
-distribution, and are copyrighted by SSEC.  This directory should not 
-be distributed to anyone not holding a McIDAS license.
+Build
+=====
+
+Buiding a libmcidas.a for Zebra from this directory requires that you
+have a McIDAS source tree installed on your system.  Set the environment
+variable McINST_ROOT to point to the top of your McIDAS installation,
+then the build from this directory should work properly, and will create
+a libmcidas.a in the Zebra library installation directory.
+
+
+Implementation note
+===================
 
 The four symbols nvxeas, nvxini, nvxopt, and nvxsae are each defined 
 in every McIDAS navigation module (nvx*.dlm).  The Imakefile has logic
-to take these modules and massage them into .f files with different symbol
+to take these modules and massage them into .f files with unique symbol
 names.  The module mcidas_nav.c (written by us, and separate from McIDAS)
 in turn provides an interface to the new symbols.
 
