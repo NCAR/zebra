@@ -25,7 +25,7 @@
 # include "../include/DataStore.h"
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.4 1991-12-03 21:42:55 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.5 1991-12-18 23:00:30 corbet Exp $")
 
 
 
@@ -189,7 +189,6 @@ float	*x0, *y0, *x1, *y1, *alt;
 			realtime.ds_hhmmss);
 		return (0);
 	}
-	*alt = dobj->do_loc.l_alt;
 /*
  * If we need to tweak this data into a grid, do so now.
  */
@@ -229,6 +228,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	rg = &dobj->do_desc.d_rgrid;
 	*xdim = rg->rg_nX;
 	*ydim = rg->rg_nY;
+	*alt = dobj->do_loc.l_alt;
 	cvt_ToXY (dobj->do_loc.l_lat, dobj->do_loc.l_lon, x0, y0);
 	*x1 = *x0 + (rg->rg_nX - 1)*rg->rg_Xspacing;
 	*y1 = *y0 + (rg->rg_nY - 1)*rg->rg_Yspacing;
@@ -264,6 +264,7 @@ DataObject *dobj;
  */
 	for (i = 0; i < 256; i++)
 		table[i] = (float) i/sc->s_Scale + sc->s_Offset;
+	table[255] = dobj->do_badval;
 /*
  * Populate the new grid.
  */
@@ -291,7 +292,7 @@ DataObject *dobj;
  * Turn an image format data object into a regular grid with compression.
  */
 {
-# define COMPRESS 8
+# define COMPRESS 4
 	float *grid, *gp, table[256];
 	RGrid *rg = dobj->do_desc.d_img.ri_rg;
 	ScaleInfo *sc = dobj->do_desc.d_img.ri_scale;
@@ -306,19 +307,36 @@ DataObject *dobj;
  */
 	for (i = 0; i < 256; i++)
 		table[i] = (float) i*sc->s_Scale + sc->s_Offset;
+	table[255] = dobj->do_badval;
 /*
  * Populate the new grid.
  */
 	for (y = 0; y < npy; y++)
 		for (x = 0; x < npx; x++)
 		{
-			int xp, yp;
+			int xp, yp, npa = 0;
 			gp = grid + (npy - y - 1)*npx + x;
 			*gp = 0.0;
 			for (yp = 0; yp < COMPRESS; yp++)
 				for (xp = 0; xp < COMPRESS; xp++)
-	*gp += table[img[(y*COMPRESS + yp)*rg->rg_nX + x*COMPRESS + xp]];
-			*gp /= COMPRESS*COMPRESS;
+				{
+					unsigned char cv;
+					cv = img[(y*COMPRESS + yp)*rg->rg_nX
+							+ x*COMPRESS + xp];
+					if (cv != 255)
+					{
+						*gp += table[cv];
+						npa++;
+					}
+				}
+		/*
+		 * Do the average.  If there were no good points here, put
+		 * in a bad value flag.
+		 */
+			if (npa > 0)
+				*gp /= (float) npa;
+			else
+				*gp = dobj->do_badval;
 		}
 /*
  * Kludge: rotate the grid so it can be rotated again later.
