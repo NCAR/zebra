@@ -20,6 +20,8 @@
  * maintenance or updates for its software.
  */
 
+# define DS_DAEMON
+
 # include <sys/types.h>
 # include <sys/vfs.h>
 # include <fcntl.h>
@@ -33,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.19 1993-05-27 20:12:29 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.20 1993-06-18 15:59:18 corbet Exp $")
 
 
 

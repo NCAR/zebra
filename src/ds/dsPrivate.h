@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.13 1993-05-27 20:12:32 corbet Exp $
+ * $Id: dsPrivate.h,v 3.14 1993-06-18 15:59:20 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -85,8 +85,15 @@ typedef struct ds_Platform
 /*
  * Macro to return the right data list for a platform.
  */
-# define LOCALDATA(p) (ds_DataChain (&(p), 0))
-# define REMOTEDATA(p) (ds_DataChain (&(p), 1))
+# ifdef DS_DAEMON
+#	define LOCALDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
+		PTable[(p).dp_parent].dp_LocalData : (p).dp_LocalData)
+#	define REMOTEDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
+		PTable[(p).dp_parent].dp_RemoteData : (p).dp_RemoteData)
+# else
+#	define LOCALDATA(p) (ds_DataChain (&(p), 0))
+#	define REMOTEDATA(p) (ds_DataChain (&(p), 1))
+# endif
 
 /*
  * The structure describing a file full of data.
