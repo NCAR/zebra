@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.26 1999-03-01 02:04:19 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.27 1999-07-21 18:32:11 burghart Exp $")
 
 #define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -244,6 +244,7 @@ int nstep;
 	FieldId fid;
 	PlatformId pid;
 	AltUnitType altunits;
+	ZebraTime datatime;
 /*
  * Get the platform and field from the control component.  If either is 
  * missing, we just use 0 km MSL.
@@ -298,10 +299,17 @@ int nstep;
 			return;
 		}
 	/*
+	 * Adjust to the correct (model issue) time if we have a model 
+	 * platform and we're plotting in validation mode.
+	 */
+		datatime = PlotTime;
+		if (ds_IsModelPlatform (pid) && ValidationMode)
+		    datatime.zt_Sec -= ForecastOffset;
+	/*
 	 * Check it out.
 	 */
-		else if (! ds_GetAlts (pid, fid, &PlotTime, ForecastOffset, 
-				       alts, &nalt, &altunits) || nalt == 0)
+		if (! ds_GetAlts (pid, fid, &datatime, ForecastOffset, 
+				  alts, &nalt, &altunits) || nalt == 0)
 		{
 			alt_SetLabel ("");
 			msg_ELog (EF_DEBUG, 
