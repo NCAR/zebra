@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.4 1993-02-23 06:51:53 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1993-04-26 16:04:05 corbet Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -11,8 +11,8 @@ CLIBS=$(LIBGCC)
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
-DSOBJS= Daemon.o d_SharedMemory.o d_DataTables.o d_Config.o d_Notify.o
-DSSRCS= Daemon.c d_SharedMemory.c d_DataTables.c d_Config.c d_Notify.c
+DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Notify.o d_Scan.o
+DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c
 
 /*
  * BINSRCS, BINOBJS = Sources for DS utilities
@@ -25,7 +25,7 @@ BINOBJS= dsdump.o zfdump.o rfdump.o bfdump.o dsdelete.o \
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
-DSLIBOBJS = Appl.o SharedMemory.o DataFileAccess.o DFA_NetCDF.o \
+DSLIBOBJS = Appl.o DataFileAccess.o DFA_NetCDF.o \
 	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o
 DSLIBSRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c \
 	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c
@@ -70,6 +70,9 @@ DISTFILES = Imakefile $(SRCS) $(HEADERS) Daemon.state NetXfr.state \
 
 
 NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
+		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
+
+NormalProgramTarget(dscopy,dscopy.o $(DSLIBOBJS) $(DCOBJS),
 		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
