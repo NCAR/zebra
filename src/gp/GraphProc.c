@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.43 1994-05-24 09:04:34 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.44 1994-06-10 14:22:45 corbet Exp $")
 
 /*
  * Default resources.
@@ -273,7 +273,7 @@ finish_setup ()
 		{ "ue_motion",		Ue_MotionEvent	},
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
-	int pd_removeparam (), substr_remove();
+	int pd_removeparam (), substr_remove(), ReplString ();
 	char initfile[128], perf[80];
 	XSizeHints hints;
 	long supplied;
@@ -374,6 +374,7 @@ finish_setup ()
 	uf_def_function ("substr_remove", 2, type, substr_remove);
 	uf_def_function ("realplatform", 1, type, RealPlatform);
 	uf_def_function ("listposition", 2, type, ListPosition);
+	uf_def_function ("replstring", 3, type, ReplString);
 /*
  * Couple more CLF's with non-string parameters
  */
@@ -1862,6 +1863,44 @@ SValue *argv, *retv;
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = ret;
 }
+
+
+
+static int
+ReplString (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * ReplString (string, olds, news)
+ *
+ * Replace "olds" with "news" in string.
+ */
+{
+	char retstr[300], *cp = argv[0].us_v_ptr, *olds = argv[1].us_v_ptr;
+	char *rp = retstr;
+	int olen = strlen (olds);
+/*
+ * Go through the string copying until we find a match with the zap string.
+ */
+	msg_ELog (EF_INFO, "Repl %s w/ %s in %s", olds, argv[2].us_v_ptr, cp);
+	for (; *cp; cp++)
+	{
+		if (! strncmp (cp, olds, olen))
+		{
+			strcpy (rp, argv[2].us_v_ptr);
+			rp += strlen (argv[2].us_v_ptr);
+			cp += olen;
+		}
+		else
+			*rp++ = *cp;
+	}
+	*rp = '\0';
+	msg_ELog (EF_INFO, "Result: %s", retstr);
+	*rett = SYMT_STRING;
+	retv->us_v_ptr = usy_string (retstr);
+}
+
+
 
 
 
