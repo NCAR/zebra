@@ -20,7 +20,7 @@
 # include "DataFormat.h"
 
 
-RCSID ("$Id: DFA_OpaqueFile.c,v 3.1 2002-10-22 08:12:19 granger Exp $")
+RCSID ("$Id: DFA_OpaqueFile.c,v 3.2 2002-10-24 17:02:52 granger Exp $")
 
 
 typedef struct OpaqueOpenFile
@@ -58,7 +58,7 @@ static DataFormat opaqueFileFormatRec =
 	NULL,
 
 	COCTable,			// Compatibility table
-	0,				// Length of that table
+	N_COC (COCTable),		// Length of that table
 	sizeof (OpaqueOpenFile),	// Open file size
 	TRUE,				// This is a read-only format
 
