@@ -24,7 +24,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: met_formulas.c,v 1.6 1991-10-21 21:49:30 burghart Exp $";
+static char *rcsid = "$Id: met_formulas.c,v 1.7 1992-03-16 17:27:40 burghart Exp $";
 
 # include <math.h>
 # include "met_formulas.h"
@@ -111,14 +111,14 @@ double	t, p;
  * Saturation mixing ratio in g/kg at t (deg. K) and p (mb)
  */
 {
-	double	e = e_w (t);
+	double	e = e_sw (t);
 
 	return (1000.0 * EPSILON * e / (p - e));
 }
 
 
 double
-e_w (t)
+e_sw (t)
 double	t;
 /*
  * Saturation vapor pressure in mb at temperature t (in deg. K)
