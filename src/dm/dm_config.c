@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.4 1993-02-08 21:37:24 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.5 1993-02-18 22:19:25 burghart Exp $")
 
 
 /*
@@ -36,7 +36,7 @@ MAKE_RCSID ("$Id: dm_config.c,v 1.4 1993-02-08 21:37:24 corbet Exp $")
 static void UpdateConfig FP ((struct config *));
 static void SavePD FP ((FILE *, char *, struct cf_window *));
 static bool ResolveLinks FP ((struct config *, struct ui_command *));
-static void DisplayWindow FP ((struct cf_window *));
+static bool DisplayWindow FP ((struct cf_window *));
 static void SetupExec FP ((struct cf_window *));
 static void PutConfig FP ((struct config *));
 static void RunProgram FP ((char *, char **));
@@ -261,8 +261,9 @@ struct config *cfg;
  * Get this config on the screen.
  */
 {
-	int win, disp_suspend ();
+	int win, newcount, disp_suspend ();
 	stbl old_table;
+	bool new;
 	char cfg_sname[MAXNAME];
 	SValue v;
 /*
@@ -275,6 +276,7 @@ struct config *cfg;
 /*
  * Go through and configure every window.
  */
+	newcount = 0;
 	for (win = 0; win < cfg->c_nwin; win++)
 	{
 		struct cf_window *wp = cfg->c_wins + win;
@@ -283,9 +285,15 @@ struct config *cfg;
 	 * "connection * refused" problems caused by too many processes
 	 * trying to hook into the X server at once.
 	 */
-		DisplayWindow (wp);
-		if ((win % SleepAfter) == 0)
+		new = DisplayWindow (wp);
+		newcount += new ? 1 : 0;
+
+		if (new && (newcount % SleepAfter) == 0)
+		{
+			msg_ELog (EF_DEBUG, "Sleeping for %d seconds (%d/%d)",
+				SleepFor, newcount, SleepAfter);
 			sleep (SleepFor);
+		}
 	/*
 	 * Zap it from the old config table.
 	 */
@@ -526,15 +534,16 @@ struct cf_window *win;
 
 
 
-static void
+static bool
 DisplayWindow (wp)
 struct cf_window *wp;
 /*
- * Get this window onto the screen.
+ * Get this window onto the screen.  Return TRUE iff we created a new window.
  */
 {
 	SValue v;
 	struct cf_window *exist;
+	bool created = FALSE;
 /*
  * If this is a widget window, deal with it separately.
  */
@@ -555,6 +564,7 @@ struct cf_window *wp;
 	{
 		msg_ELog (EF_DEBUG, "Create win %s", wp->cfw_name);
 		create_win (wp);
+		created = TRUE;
 	}
 /*
  * If it does exist, deal with the PD, and send it a new config.
@@ -572,6 +582,7 @@ struct cf_window *wp;
  */
 	v.us_v_ptr = (char *) wp;
 	usy_s_symbol (Current, wp->cfw_name, SYMT_POINTER, &v);
+	return (created);
 }
 
 
