@@ -45,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.55 1996-01-23 04:44:26 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.56 1996-01-23 19:56:04 granger Exp $")
 
 
 /*
@@ -935,8 +935,8 @@ struct dsp_UpdateFile *request;
  * reader processes know things have changed.
  */
 	msg_ELog (EF_DEBUG,
-		  "Update %s file %d (%s) ns %d ow %d last %d",
-		  request->dsp_Local ? "local" : "remote",
+		  "%s updated %s file %d (%s) ns %d ow %d last %d",
+		  from, request->dsp_Local ? "local" : "remote",
 		  request->dsp_FileIndex, plat->dp_name, 
 		  request->dsp_NSamples, request->dsp_NOverwrite, 
 		  request->dsp_Last);
