@@ -19,6 +19,8 @@
  * maintenance or updates for its software.
  */
 
+# include <unistd.h>
+# include <pwd.h>	/* to get username from uid */
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
@@ -30,16 +32,26 @@
 # include <sys/uio.h>
 # include <netinet/in.h>
 # include <signal.h>
+# include <string.h>
 #if defined(SVR4) || defined (SYSV)
 # include <sys/file.h>
 #endif
 
-# include "defs.h"
+/*
+ * Just in case not defined in in.h
+ */
+#ifndef IPPORT_RESERVED
+#define IPPORT_RESERVED 2048
+#endif
+
+# include <defs.h>
 # include <copyright.h>
-# include "message.h"
+
+# define MESSAGE_MANAGER	/* define prototypes for netread functions */
+# include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.23 1994-09-15 21:50:53 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.24 1995-04-20 07:49:34 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -61,9 +73,10 @@ static char UnSocketName[120];	/* Name of Un socket		*/
 static fd_set Allfds;
 static fd_set WriteFds;
 static int NWriteFd = 0, MaxWriteFd = 0;
-static int Port = DEFAULT_PORT;
-
+static int Port = 0;
+static int EMask = 0xff;
 static int Dying = FALSE;
+static int Debug = FALSE;	/* Debuggin' mode */
 
 /*
  * The delayed write queue.
@@ -83,6 +96,11 @@ typedef struct _DWrite
 # define DWGRIPE	 50000
 # define DWDROP		250000
 
+/*
+ * 'name' of an as yet un-named connection
+ */
+# define UNKNOWN_NAME	"(Unknown)"
+
 # define INETCTIME	2	/* How long we wait for inet connections */
 /*
  * This structure describes a connection.
@@ -97,7 +115,7 @@ typedef struct connection
 	int	c_bnrec;		/* Bytes received		*/
 	int	c_pid;			/* Process ID			*/
 	Message c_msg;			/* Incoming message		*/
-	short	c_nread;		/* How much has been read	*/
+	unsigned short c_nread;		/* How much has been read	*/
 	char	c_inprog;		/* Read in progress		*/
 	char	c_inet;			/* Internet connection		*/
 	DWrite	*c_dwrite;		/* The delayed write chain	*/
@@ -121,7 +139,7 @@ struct group
 /*
  * This array maps file descriptors onto their associated connections.
  */
-static struct connection *Fd_map[64] = { 0 };
+static struct connection *Fd_map[ FD_MAP_SIZE ] = { 0 };
 static int Nfd;
 
 /*
@@ -130,10 +148,43 @@ static int Nfd;
 char Hostname[40];
 
 /*
+ * Our very own host table for connecting to hosts (possibly ourself) using
+ * different ports.  An asterisk matches any host.  Someday maybe all '*'
+ * entries will be attempted successively until a connection is made if no
+ * exact match is found.  For now, the first '*' entry is tried if an exact
+ * match is not found.  If the services entry is found, it is entered as
+ * the global match in the hostports table.  That way if a host name is not
+ * found in the table, the service port will be attempted; otherwise the
+ * default port wil be attempted.  In fact, at the moment EnterHost only
+ * allows one ANYHOST entry, as each entry overrides an existing one of the
+ * same name.
+ * 
+ * An optional address allows a single host to be known by different names
+ * (but the same address) and to connect using different ports.  The ultimate
+ * goal is to allow the table to be dynamic, and then add a message type to
+ * the protocol which announces new internet connections to other hosts so
+ * that the message handlers on the other hosts can add an entry to their
+ * host table.
+ */
+struct hostportent {
+	char *hp_name;
+	char *hp_addr;
+	int hp_port;
+};
+#define MAX_HOSTS 30
+
+static const char *ANYHOST = "*";
+
+struct hostportent HostPorts[ MAX_HOSTS ];
+
+static int NHosts = 0;
+
+/*
  * Global statistics.
  */
 static int S_nmessage = 0, S_bnmessage = 0, S_nbcast = 0, S_bnbcast = 0;
 static int S_npipe = 0, S_ndisc = 0, S_NDRead = 0, S_NDWrite = 0;
+static time_t S_genesis = 0;      /* in the beginning, there was time... */
 
 /*
  * How long we wait between announcing a shutdown and really going down.
@@ -151,50 +202,182 @@ struct MTap
 } *Taps = 0;
 
 
-
 /*
  * Forwards.
  */
-struct connection *FindRecipient FP ((char *));
-struct connection *MakeConnection FP ((char *));
+Connection *FindRecipient FP ((char *));
+Connection *MakeConnection FP ((char *));
+Connection *InitConnection FP ((int fd, int inet));
+static void FreeConnection FP ((Connection *cp));
+
+static void AddHost FP((const char *host));
+static int FindHost FP((const char *host, int *port, int exact));
+static void ReadHosts FP((const char *file));
+static void EnterHost FP((const char *host, const char *addr, int port));
+static void FreeHosts FP((void));
+
 void	Greeting FP ((int, struct message *));
 void	add_to_group FP ((struct connection *, char *, struct message *));
+int	clear_group FP ((char *name, int type, union usy_value *v,
+			 struct connection *conp));
+int	free_group FP ((char *name, int type, union usy_value *v, int unused));
 void	FixAddress FP ((char *));
 void	MsgProtocol FP ((int, Message *));
 void	AnswerPing FP ((int, Message *));
 static	Message *ReadMessage FP ((int));
+
 static void DelayWrite FP ((Connection *, struct iovec *, int, int));
 static void DoDelayedWrite FP ((fd_set *));
 static int TryWrite FP ((Connection *));
+
 static void ClientQuery FP ((int, Message *));
+
 static void Tap FP ((int, Message *));
 void	DoTaps FP ((Message *));
 int	TapperWants FP ((struct MTap *, Message *));
 void	SendTap FP ((struct MTap *, Message *));
+static void FreeTap FP ((int fd));
+
 void	SetNonBlock FP ((int));
 void	ReallyDie FP ((void));
 void	GetInetPort FP ((void));
+void	NewInConnection FP ((void));
+void	new_un_connection FP ((void));
+static void MakeUnixSocket FP ((void));
+static void MakeInetSocket FP ((void));
+static void send_log ();
+static void log ();
+static void inc_message FP ((int nsel, fd_set *fds));
+static void send_msg FP ((struct connection *conp, struct message *msgp));
+static void deadconn FP ((int fd));
+static void die FP ((void));
+static void dispatch FP ((int fd, struct message *msg));
+static void ce_connect FP ((struct connection *conp));
+static void ce_join FP ((struct connection *conp, char *group));
+static void ce_disconnect FP ((struct connection *conp));
+static void broadcast FP ((struct message *msg, struct connection *conp));
+static void route FP ((int fd, struct message *msg));
+static void identify FP ((int fd, struct message *msg));
+static void join FP ((int fd, struct message *msg));
+static void create_group FP ((struct connection *conp, char *name));
+static void Stats FP ((struct connection *conp, char *to));
+static void ack FP ((struct connection *conp, struct message *msg));
+static int psig FP ((void));
 
 
 
 
+static void
+usage ()
+{
+	fprintf (stderr, "Usage: message [-internet] [-debug] [-nofork]\n");
+	fprintf (stderr, "         [-file <file>] [-port <port>]\n");
+	fprintf (stderr, "         [-session <name>]\n");
+	fprintf (stderr, "         [<name>[@<host>][:<port>]] ... \n");
+	fprintf (stderr, "where the options can be abbreviated ");
+	fprintf (stderr, "to single characters:\n");
+	fprintf (stderr, " -help      %s", "This usage message\n");
+	fprintf (stderr, " -internet  %s",
+		 "Create an inbound Internet socket, disabled by default\n");
+	fprintf (stderr, " -debug     %s",
+		 "Debug mode: log all messages to stdout\n");
+	fprintf (stderr, " -port      %s",
+		 "Listen on <port> for inbound Internet connections\n");
+	fprintf (stderr, " -nofork    %s",
+		 "Do not fork into the background; useful under debuggers\n");
+	fprintf (stderr, " -file      %s",
+		 "Add the session entries in <file> to the address table\n");
+	fprintf (stderr, " -session   Use <name> as our session identity\n");
+	fprintf (stderr, " name@host:port\n");
+	fprintf (stderr, "            Use address <host>:<port> for ");
+	fprintf (stderr, "connections to <name>;\n");
+	fprintf (stderr, "            add the entry to the address table\n");
+}
 
 
+static void
+InitFDMap ()
+/*
+ * Initialize our Fd_map
+ */
+{
+	int i;
+
+	Nfd = 0;
+	for (i = 0; i < FD_MAP_SIZE; ++i)
+		Fd_map[i] = NULL;
+}
+
+
+int
 main (argc, argv)
 int argc;
 char **argv;
 {
-	int conn, nb, inet = FALSE;
-	char msg[120], *host, *getenv ();
+	int inet = FALSE;
+	int nofork = FALSE;
+	char *host = NULL;
+	char *getenv ();
 	fd_set fds, wfds;
-	int psig ();
+	int i;
 /*
  * Check args.
  */
-	if (argc > 2 || (argc == 2 && strcmp (argv[1], "-i")))
-		fprintf (stderr, "Usage: message [-i] (args ignored)\n");
-	else
-		inet = (argc == 2);
+	i = 1;
+	while (i < argc)
+	{
+		int optlen = strlen (argv[i]);
+
+		if (argv[i][0] != '-')
+		{
+			AddHost (argv[i]);
+		}
+		else if (argv[i][1] == '\0')
+		{
+			usage ();
+			exit (1);
+		}
+		else if (! strncmp (argv[i], "-help", optlen))
+		{
+			usage ();
+			exit (0);
+		}
+		else if (! strncmp (argv[i], "-internet", optlen))
+			inet = TRUE;
+		else if (! strncmp (argv[i], "-debug", optlen))
+			Debug = TRUE;
+		else if (! strncmp (argv[i], "-port", optlen) && i+1 < argc)
+		{
+			Port = atoi (argv[++i]);
+			if (Port <= IPPORT_RESERVED)
+			{
+				fprintf (stderr,"%s must be greater than %d\n",
+					 "port number", IPPORT_RESERVED);
+				exit (1);
+			}
+		}
+		else if (! strncmp (argv[i], "-file", optlen) && i+1 < argc)
+		{
+			ReadHosts (argv[++i]);
+		}
+		else if (! strncmp (argv[i], "-session", optlen) && i+1 < argc)
+		{
+			host = argv[++i];
+		}
+		else if (! strncmp (argv[i], "-nofork", optlen))
+			nofork = TRUE;
+		else
+		{
+			fprintf (stderr, "unrecognized option: %s\n", argv[i]);
+			usage ();
+			exit (1);
+		}
+		++i;
+	}
+/*
+ * Initialize our begin time.
+ */
+	S_genesis = time (NULL);
 /*
  * Create our symbol tables.
  */
@@ -210,26 +393,39 @@ char **argv;
 	signal (SIGPIPE, (void *)psig);
 	signal (SIGHUP, SIG_IGN);
 /*
+ * We need our host name to look up our port in the host table.  Use
+ * the name given on the command line if we got one.
+ */
+	if (! host && ! (host = getenv ("HOST")))
+	{
+		printf ("Who the hell are we?\n");
+		exit (1);
+	}
+	if (strlen(host) >= sizeof(Hostname))
+	{
+		fprintf (stderr, "HOST name '%s' is too long?!?!\n", host);
+		exit (1);
+	}
+	strcpy (Hostname, host);
+/*
  * Get our inet port.  Do so even if we are not opening a listening
  * socket, since we may want to connect outbound.
  */
 	GetInetPort ();
+/*
+ * Initialize the file descriptor map before we start making connections
+ */
+	InitFDMap ();
 /*
  * Create Unix and Internet sockets.
  */
 	MakeUnixSocket ();
 	if (inet)
 		MakeInetSocket ();
-	if (! (host = getenv ("HOST")))
-	{
-		printf ("Who the hell are we?\n");
-		exit (1);
-	}
-	strcpy (Hostname, host);
 /*
  * OK initial setup is complete.  Back off into daemon mode...
  */
-	if (fork ())
+	if (! nofork && fork ())
 		exit (0);	/* Parent goes away */
 /*
  * Set up our select stuff.
@@ -243,7 +439,7 @@ char **argv;
  */
 	for (;;)
 	{
-		int nsel, fd;
+		int nsel;
 	/*
 	 * Do a select, waiting for something to happen.
 	 */
@@ -297,7 +493,226 @@ char **argv;
 }
 
 
+static void
+AddHost (host)
+const char *host;
+/*
+ * Extract a host name and a port from this string and insert it into
+ * the host table.
+ */
+{
+	char *colon;
+	char *addr;
+	char *at;
+	int port;
 
+	at = strchr (host, '@');
+	colon = strrchr (host, ':');
+	if (at)
+		*at++ = '\0';
+	if (colon)
+		*colon++ = '\0';
+	if (! host[0] || (at && ! at[0]) || (colon && ! colon[0]))
+	{
+		fprintf (stderr, "bad host entry '%s'\n", host);
+		exit (1);
+	}
+	if (at)
+		addr = at;
+	else
+		addr = NULL;
+	if (colon)
+		port = atoi (colon);
+	else
+		port = DEFAULT_PORT;
+
+	EnterHost (host, addr, port);
+}
+
+
+static void
+EnterHost (host, addr, port)
+const char *host;
+const char *addr;
+int port;
+{
+	int i;
+	int oldport;
+	struct hostportent *hp;
+
+	if (NHosts >= MAX_HOSTS)
+	{
+		fprintf (stderr, "too many host entries; max is %d\n",
+			 MAX_HOSTS);
+		exit (1);
+	}
+	if (port <= IPPORT_RESERVED)
+	{
+		fprintf (stderr,"%s must be greater than %d\n",
+			 "port number", IPPORT_RESERVED);
+		exit (1);
+	}
+	/*
+	 * See if it already exists, in which case this overrides it
+	 */
+	i = FindHost (host, &oldport, TRUE);
+	if (i < 0)
+	{
+		i = NHosts++;
+		hp = HostPorts + i;
+	}
+	else
+	{
+		hp = HostPorts + i;
+		free (hp->hp_name);
+		if (hp->hp_addr)
+			free (hp->hp_addr);
+	}
+	hp->hp_name = (char *) malloc (strlen(host) + 1);
+	if (! hp->hp_name)
+	{
+		fprintf (stderr, "malloc failed: host name for table\n");
+		exit (1);
+	}
+	strcpy (hp->hp_name, host);
+	if (addr)
+	{
+		hp->hp_addr = (char *) malloc (strlen(addr) + 1);
+		if (! hp->hp_addr)
+		{
+			fprintf (stderr, "malloc failed: host addr\n");
+			exit (1);
+		}
+		strcpy (hp->hp_addr, addr);
+	}
+	else
+		hp->hp_addr = NULL;
+
+	hp->hp_port = port;
+
+	if (Debug)
+		printf ("host entry %d, %s@%s:%d\n", i, hp->hp_name, 
+			(hp->hp_addr) ? hp->hp_addr : "*", hp->hp_port);
+}
+
+
+
+static void
+ReadHosts (file)
+const char *file;
+/*
+ * Read the host-ports file and add entries to the host table.
+ * Lines are of the form:
+ *	host	address	     port
+ * Comments begin with a '#' and end at the end of the line.
+ * Line lengths are limited to 255 characters.
+ */
+{
+	char line[256];
+	char host[256];
+	char addr[256];
+	int port;
+	FILE *infile;
+	int i, scan, n;
+
+	infile = fopen (file, "r");
+	if (! infile)
+	{
+		perror (file);
+		exit (1);
+	}
+	i = 0;
+	line[256] = '\0';
+	while (fgets (line, 256, infile) != NULL)
+	{
+		++i;
+		if (strlen(line) >= 255)
+		{
+			fprintf (stderr, "file %s: line %i too long\n", 
+				 file, i);
+			continue;
+		}
+		n = 0;
+		scan = sscanf (line, "%s%n", host, &n);
+		/*
+		 * ignore blank lines (sscanf returns 0) and comments
+		 */
+		if (scan == 0 || host[0] == '#' || host[0] == '\0' || n == 0)
+			continue;
+		if ((scan = sscanf (line + n, " %s %i ", addr, &port)) != 2)
+		{
+			fprintf (stderr, "file %s: error on line %d: %s", 
+				 file, i, line + n);
+			exit (1);
+		}
+		EnterHost (host, addr, port);
+	}
+	fclose (infile);
+}
+
+
+
+static int
+FindHost (host, port, exact)
+const char *host;
+int *port;
+int exact;
+/*
+ * Find a match for this host and return its port number.  If exact is
+ * non-zero, the name must match exactly.  Returns the entry's index into
+ * the host table if successful, less than zero otherwise.
+ */
+{
+	int i;
+
+	/*
+	 * Search for an exact match first.
+	 */
+	for (i = 0; i < NHosts; ++i)
+	{
+		if (! strcmp (host, HostPorts[i].hp_name))
+		{
+			*port = HostPorts[i].hp_port;
+			return (i);
+		}
+	}
+	if (exact)
+		return (-1);
+	for (i = 0; i < NHosts; ++i)
+	{
+		if (! strcmp (ANYHOST, HostPorts[i].hp_name))
+		{
+			*port = HostPorts[i].hp_port;
+			return (i);
+		}
+	}
+	return (-1);
+}	
+
+
+
+static void 
+FreeHosts ()
+/*
+ * Release all of the host entries and allocated strings
+ */
+{
+	int i;
+	struct hostportent *hpe;
+
+	for (hpe = HostPorts, i = 0; i < NHosts; ++i, ++hpe)
+	{
+		if (hpe->hp_addr)
+			free (hpe->hp_addr);
+		if (hpe->hp_name)
+			free (hpe->hp_name);
+	}
+	NHosts = 0;
+}
+
+
+
+static void
 MakeUnixSocket ()
 /*
  * Create the Unix domain socket.
@@ -316,15 +731,23 @@ MakeUnixSocket ()
  * Bind it to it's name.
  */
  	saddr.sun_family = AF_UNIX;
-	strcpy (saddr.sun_path,
-			(sn = getenv ("ZEB_SOCKET")) ? sn : UN_SOCKET_NAME);
+	sn = getenv ("ZEB_SOCKET");
+	if (! sn)
+		sn = UN_SOCKET_NAME;
+	if ((strlen (sn) >= sizeof(saddr.sun_path)) ||
+	    (strlen (sn) >= sizeof(UnSocketName)))
+	{
+		fprintf (stderr, "socket path too long: '%s'\n", sn);
+		exit (1);
+	}
+	strcpy (saddr.sun_path, sn);
 	if (bind (M_un_socket, (struct sockaddr *) &saddr,
 			sizeof (struct sockaddr_un)) < 0)
 	{
 		perror ("Unable to bind UNIX socket");
 		exit (1);
 	}
-	strcpy (UnSocketName, sn ? sn : UN_SOCKET_NAME);
+	strcpy (UnSocketName, sn);
 /*
  * Tell the system that we want connections.
  */
@@ -337,25 +760,60 @@ MakeUnixSocket ()
 void
 GetInetPort ()
 /*
- * Find out which port to use for inet connections.
+ * Find out which port to use for inbound inet connections, and enter a
+ * default port in the table for outbound connections.
  */
 {
 	struct servent *service;
+	int cmd_port = Port;	   /* did we get a command-line default? */
 /*
- * Try to look up our port number.
+ * Try to look up our port number.  The command-line option takes precedence,
+ * followed by an exact match for our host name in the host table, followed 
+ * by the services entry.  The last resort is to use the default.
  */
-	if (! (service = getservbyname (SERVICE_NAME, "tcp")))
-		printf ("%s service not found, using default port\n",
-				SERVICE_NAME);
+	if (Port != 0)
+	{
+		if (Debug) printf ("Listening on cmd-line port %d\n", Port);
+	}
+	else if (FindHost (Hostname, &Port, TRUE) >= 0)
+	{
+		if (Debug) printf ("%s on port %d from host table\n", 
+				   "Listening", Port);
+	}
+/*
+ * Try to get the service port as a fallback for outbound connections,
+ * else use the command-line default, otherwise we're stuck with the
+ * hardcoded default.
+ */
+	if ((service = getservbyname (SERVICE_NAME, "tcp")) != NULL)
+	{
+		if (! Port)
+		{
+			Port = service->s_port;
+			if (Debug) printf ("%s on port %d, tcp service %s\n",
+					   "Listening", Port, SERVICE_NAME);
+		}
+		EnterHost (ANYHOST, NULL, service->s_port);
+	}
 	else
-		Port = service->s_port;
+	{
+		if (! Port)
+		{
+			Port = DEFAULT_PORT;
+			if (Debug) 
+			   printf ("%s %s: listening on default port %d\n",
+				   SERVICE_NAME, "service not found", Port);
+		}
+		if (cmd_port)
+			EnterHost (ANYHOST, NULL, cmd_port);
+		else
+			EnterHost (ANYHOST, NULL, DEFAULT_PORT);
+	}
 }
 
 
 
-
-
-
+static void
 MakeInetSocket ()
 /*
  * Create our internet domain socket.
@@ -410,147 +868,201 @@ again:
 
 
 
+Connection *
+InitConnection (fd, inet)
+int fd;
+int inet;
+/*
+ * Put together a connection structure, and add it to the queue.  If we
+ * can't get memory for a new connection, we'll have to refuse it.
+ */
+{
+	Connection *conp;
+/*
+ * Two things can make this fail: we cannot malloc the space for another
+ * connection, or we have a file descriptor larger than the number we
+ * allocated in our map.
+ */
+	if (fd >= FD_MAP_SIZE)
+	{
+		send_log (EF_EMERGENCY, "fd %d higher than max allowed %d",
+			  fd, FD_MAP_SIZE - 1);
+		return (NULL);
+	}
+ 	conp = (struct connection *) malloc (sizeof (struct connection));
+	if (conp == NULL)
+	{
+		send_log (EF_EMERGENCY, "%s: aborting accepted %s connection",
+			  "malloc failed", (inet) ? "IN" : "UNIX");
+		return (NULL);
+	}
+	conp->c_fd = fd;
+	conp->c_nsend = conp->c_bnsend = 0;
+	conp->c_nrec = conp->c_bnrec = 0;
+	conp->c_inet = inet;
+	conp->c_griped = 0;
+	conp->c_ndwrite = 0;
+	conp->c_inprog = 0;
+	conp->c_pid = 0;
+	conp->c_dwrite = conp->c_dwtail = NULL;
+	strcpy (conp->c_name, UNKNOWN_NAME);
+	Fd_map[fd] = conp;
+/*
+ * Add this one to our list of FD's.
+ */
+	FD_SET (fd, &Allfds);
+	if (fd >= Nfd)
+		Nfd = fd + 1;
+/*
+ * Mark this thing for nonblocking I/O and we're done.
+ */
+	SetNonBlock (fd);
+	return (conp);
+}
+
+
+
+static void
+Hail (conp)
+Connection *conp;
+/*
+ * Put together a greeting and send it out.
+ */
+{
+	struct message msg;
+	struct mh_greeting greet;
+
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_to[0] = '\0';	/* No name yet */
+	msg.m_proto = MT_MESSAGE;
+	msg.m_flags = 0;
+	msg.m_len = sizeof (struct mh_greeting);
+	msg.m_data = (char *) &greet;
+	greet.mh_type = MH_GREETING;
+	strcpy (greet.mh_version, MSG_PROTO_VERSION);
+	send_msg (conp, &msg);
+}
+
+
+
+void
 new_un_connection ()
 /*
  * Deal with an incoming unix-domain connection.
  */
 {
 	struct connection *conp;
-	struct message msg;
-	struct mh_greeting greet;
-	int one = 1;
+	int conn;
 /*
  * Accept the new connection.
  */
-	int conn = accept (M_un_socket, (struct sockaddr *) 0,
-			(int *) 0);
-	/* printf ("Accepted connection %d\n", conn); */
+	conn = accept (M_un_socket, (struct sockaddr *) 0,
+		       (int *) 0);
 	if (conn < 0)
 	{
 		perror ("Accept error on UNIX socket");
-		exit (1);
+		send_log (EF_PROBLEM, "accept error %d on UNIX socket", errno);
+		return;
 	}
+	send_log (EF_DEBUG, "Accepted unix connection %d", conn);
 /*
- * Put together a connection structure, and add it to the queue.
+ * Initialize the connection and hail our new client
  */
- 	conp = (struct connection *) malloc (sizeof (struct connection));
-	conp->c_fd = conn;
-	conp->c_nsend = conp->c_bnsend = 0;
-	conp->c_nrec = conp->c_bnrec = 0;
-	conp->c_inet = FALSE;
-	conp->c_griped = conp->c_ndwrite = conp->c_inprog = conp->c_pid = 0;
-	conp->c_dwrite = conp->c_dwtail = 0;
-	strcpy (conp->c_name, "(Unknown)");
-	Fd_map[conn] = conp;
-/*
- * Add this one to our list of FD's.
- */
-	FD_SET (conn, &Allfds);
-	if (conn >= Nfd)
-		Nfd = conn + 1;
-/*
- * Mark this thing for nonblocking I/O.
- */
-	SetNonBlock (conn);
-/*
- * Put together a greeting and send it out.
- */
-	strcpy (msg.m_from, MSG_MGR_NAME);
-	msg.m_to[0] = '\0';	/* No name yet */
-	msg.m_proto = MT_MESSAGE;
-	msg.m_flags = 0;
-	msg.m_len = sizeof (struct mh_greeting);
-	msg.m_data = (char *) &greet;
-	greet.mh_type = MH_GREETING;
-	strcpy (greet.mh_version, "V-1.2");
-	
-	send_msg (conp, &msg);
+	if (! (conp = InitConnection (conn, FALSE)))
+	{
+		close (conn);
+		return;					/* oh well */
+	}
+	Hail (conp);
 }
 
 
 
-
+void
 NewInConnection ()
 /*
  * Deal with an incoming internet-domain connection.
  */
 {
 	struct connection *conp;
-	struct message msg;
-	struct mh_greeting greet;
+	struct sockaddr_in saddr;
+	int saddrlen;
+	unsigned long inaddr;
+	int conn;
 	int one = 1;
 /*
  * Accept the new connection.
  */
-	int conn = accept (M_in_socket, (struct sockaddr *) 0,
-			(int *) 0);
-	/* printf ("Accepted connection %d\n", conn); */
+	saddrlen = sizeof(saddr);
+	conn = accept (M_in_socket, (struct sockaddr *) &saddr, &saddrlen);
 	if (conn < 0)
 	{
-		perror ("Accept error on UNIX socket");
-		exit (1);
+		perror ("Accept error on UNIX internet-domain socket");
+		send_log (EF_PROBLEM, "error %d accepting IN domain socket",
+			  errno);
+		return;
 	}
+	inaddr = ntohl(saddr.sin_addr.s_addr);
+	send_log (EF_DEBUG, "%s %d, %lu.%lu.%lu.%lu:%d", 
+		  "accepted IN connection", conn,
+		  (inaddr & 0xff000000) >> 24,
+		  (inaddr & 0x00ff0000) >> 16,
+		  (inaddr & 0x0000ff00) >> 8,
+		  (inaddr & 0x000000ff) >> 0,
+		  saddr.sin_port);
 	setsockopt (conn, SOL_SOCKET, SO_REUSEADDR, 
 		    (char *)&one, sizeof (one));
 /*
- * Put together a connection structure, and add it to the queue.
+ * Time to initialize a connection on this fd and hail our new client
  */
- 	conp = ALLOC (struct connection);
-	conp->c_fd = conn;
-	conp->c_nsend = conp->c_bnsend = 0;
-	conp->c_nrec = conp->c_bnrec = 0;
-	conp->c_inet = TRUE;
-	conp->c_griped = conp->c_ndwrite = conp->c_inprog = conp->c_pid = 0;
-	conp->c_dwrite = conp->c_dwtail = 0;
-	strcpy (conp->c_name, "(Unknown)");
-	Fd_map[conn] = conp;
-/*
- * Add this one to our list of FD's.
- */
-	FD_SET (conn, &Allfds);
-	if (conn >= Nfd)
-		Nfd = conn + 1;
-/*
- * Mark this thing for nonblocking I/O.
- */
-	SetNonBlock (conn);
-/*
- * Put together a greeting and send it out.
- */
-	strcpy (msg.m_from, MSG_MGR_NAME);
-	msg.m_to[0] = '\0';	/* No name yet */
-	msg.m_proto = MT_MESSAGE;
-	msg.m_flags = 0;
-	msg.m_len = sizeof (struct mh_greeting);
-	msg.m_data = (char *) &greet;
-	greet.mh_type = MH_GREETING;
-	strcpy (greet.mh_version, "V-1.2");
-	
-	send_msg (conp, &msg);
+	if (! (conp = InitConnection (conn, TRUE)))
+	{
+		close (conn);
+		return;
+	}
+	Hail (conp);
 }
 
 
 
 
-
-
+static void
 send_msg (conp, msgp)
 struct connection *conp;
 struct message *msgp;
 /*
- * Send the given message to this connection.
+ * Send the given message to this connection.  Be careful about sending log
+ * messages, lest we enter an infinite recursion of calls to send_msg from
+ * within send_msg and DelayWrite.  Use log() instead.  To see messages at
+ * this level, turn on debugging.
+ *
+ * If we add our hostname to msgp->m_from before sending it, restore it
+ * before returning.
  */
 {
 	struct iovec iov[2];
 	int nwrote, nwant;
+	char *at = NULL;
 /*
  * If this message is going out over the net, we need to append
- * our identity to the from field.
+ * our host name to the from field.  But don't overrun our memory to do it.
  */
 	if (conp->c_inet)
 	{
-		strcat (msgp->m_from, "@");
-		strcat (msgp->m_from, Hostname);
+		int space = sizeof(msgp->m_from) - strlen(msgp->m_from) - 1;
+
+		at = msgp->m_from + strlen(msgp->m_from);
+		if (space < strlen(Hostname) + 1)
+		{
+			log (EF_PROBLEM, "from field too long: '%s@%s'",
+			     msgp->m_from, Hostname);
+			return;
+		}
+		else
+		{
+			at[0] = '@';
+			strcpy (at+1, Hostname);
+		}
 	}
 /*
  * Put together our I/O vector describing the data.
@@ -574,19 +1086,23 @@ struct message *msgp;
 	if (conp->c_dwrite)
 		DelayWrite (conp, iov, 2, 0);
 	else if ((nwrote = writev (conp->c_fd, iov, 2)) == nwant)
-		return;
+		/* do nothing and return below */ ;
 	else if (errno == EWOULDBLOCK)
 		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
 	else if (errno == ECONNREFUSED)	/* weird */
 	{
-		send_log ("ConRefused status on %s", conp->c_name);
+		log (EF_PROBLEM, "ConRefused status on %s", conp->c_name);
 		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
 	}
 	else
 	{
-		send_log ("Write failed for %s, errno %d",conp->c_name, errno);
 		deadconn (conp->c_fd);
+		log (EF_PROBLEM, "Write failed for %s, errno %d",
+		     conp->c_name, errno);
 	}
+	if (at)
+		*at = '\0';
+	return;
 }
 
 
@@ -609,20 +1125,21 @@ int niov, nwrote;
 	if (conp->c_ndwrite > DWGRIPE && ! conp->c_griped)
 	{
 		conp->c_griped = TRUE;
-		send_log (" WARNING: Proc %s not reading messages",
-			conp->c_name);
+		send_log (EF_PROBLEM, "WARNING: Proc %s not reading messages",
+			  conp->c_name);
 	}
 	else if (conp->c_ndwrite > DWDROP)
 		return;	/* alas */
 /*
  * Skip past iovecs which were completely written.
  */
-	/*send_log ("DWRITE %d, iov %d wrote %d", conp->c_fd, niov, nwrote);*/
+	log (EF_DEBUG, "DWRITE %d, iov %d wrote %d", conp->c_fd, 
+	     niov, nwrote);
 	while (nwrote >= iov->iov_len)
 	{
-		/*send_log ("Skip %d", iov->iov_len);*/
+		/* log (EF_DEBUG, "Skip %d", iov->iov_len); */
 		if (nwrote == iov->iov_len)
-			send_log ("DWrite IOV equal case");
+			log (EF_DEBUG, "DWrite IOV equal case");
 		nwrote -= iov->iov_len;
 		iov++;
 		niov--;
@@ -635,9 +1152,33 @@ int niov, nwrote;
 	/*
 	 * Get the space.
 	 */
+		int nbyte;
+		char *data;
+
+		if (iov->iov_len <= 0)
+		{	
+			/* No sense saving an empty iovec */
+			log (EF_DEBUG, "Skipping iovec with len <= 0");
+			iov++;
+			niov--;
+			nwrote = 0;
+			continue;
+		}
+
+		nbyte = iov->iov_len - nwrote;
+		data = (char *) malloc (nbyte);
 		dwp = ALLOC (DWrite);
-		dwp->dw_nbyte = iov->iov_len - nwrote;
-		dwp->dw_data = malloc (dwp->dw_nbyte);
+		if (! dwp || ! data)
+		{
+			log (EF_EMERGENCY, 
+			  "malloc failed for %d data bytes and dw struct, %s",
+			  nbyte, "messages lost");
+			if (dwp) free (dwp);
+			if (data) free (data);
+			break;
+		}
+		dwp->dw_nbyte = nbyte;
+		dwp->dw_data = data;
 		dwp->dw_nsent = 0;
 		dwp->dw_next = 0;
 	/*
@@ -650,7 +1191,8 @@ int niov, nwrote;
 			conp->c_dwrite = dwp;
 		conp->c_dwtail = dwp;
 		conp->c_ndwrite += dwp->dw_nbyte;
-	/*send_log ("Save %d -> %d", iov->iov_len - nwrote, conp->c_ndwrite);*/
+		log (EF_DEBUG, "Save %d -> %d", iov->iov_len - nwrote, 
+		     conp->c_ndwrite);
 	/*
 	 * Onward.
 	 */
@@ -704,9 +1246,10 @@ fd_set *fds;
 				break;
 	/*
 	 * If there is no more writing to be done here, clear out the
-	 * info.
+	 * info.  Use log instead of send_log since the delayed client
+	 * will likely be the event logger.
 	 */
-		/*send_log ("%d left on %d", cp->c_ndwrite, cp->c_fd);*/
+		log (EF_DEBUG, "%d left on %d", cp->c_ndwrite, cp->c_fd);
 	 	if (! cp->c_dwrite)
 		{
 			FD_CLR (cp->c_fd, &WriteFds);
@@ -734,7 +1277,7 @@ Connection *cp;
  * Just try.
  */
 	nwant = dw->dw_nbyte - dw->dw_nsent;
-	/*send_log ("TRY %d at %d on %d", nwant, dw->dw_nsent, cp->c_fd);*/
+	log (EF_DEBUG, "TRY %d at %d on %d", nwant, dw->dw_nsent, cp->c_fd);
 	if ((nwrote = write (cp->c_fd, dw->dw_data + dw->dw_nsent, nwant))
 				== nwant)
 	{
@@ -769,7 +1312,7 @@ Connection *cp;
 
 
 
-
+static void
 inc_message (nsel, fds)
 int nsel;
 fd_set *fds;
@@ -778,7 +1321,7 @@ fd_set *fds;
  */
 {
 	Message *msg;
-	int fd, nb;
+	int fd;
 /*
  * Pass through the list of file descriptors.
  */
@@ -793,18 +1336,22 @@ fd_set *fds;
 	/*
 	 * Bring in the message, and dispatch it if it's all here.
 	 */
-	 	if (msg = ReadMessage (fd))
+	 	if ((msg = ReadMessage (fd)))
 		{
 			FixAddress (msg->m_to);
-# ifdef DESPERATE
-		if (Fd_map[fd]->c_inet && strchr (msg->m_to, '@'))
-		{
-			FILE *fd = fopen ("/tmp/msgbug", "w+");
-			fprintf (fd, "@ left in net msg.  %s->%s\n",
-					msg->m_from, msg->m_to);
-			fprintf (fd, "Hostname is %s.\n", Hostname);
-		}
-# endif
+			if (Debug && Fd_map[fd]->c_inet && 
+			    strchr (msg->m_to, '@'))
+			{
+#ifdef DESPERATE
+				FILE *fd = fopen ("/tmp/msgbug", "w+");
+				fprintf (fd, "@ left in net msg.  %s->%s\n",
+					 msg->m_from, msg->m_to);
+				fprintf (fd, "Hostname is %s.\n", Hostname);
+#endif
+				send_log (EF_PROBLEM, 
+					  "host %s: @ left in net msg: %s->%s",
+					  Hostname, msg->m_from, msg->m_to);
+			}
 			Fd_map[fd]->c_nsend++;
 			Fd_map[fd]->c_bnsend += msg->m_len;
 			dispatch (fd, msg);
@@ -823,7 +1370,6 @@ int fd;
  * Pull in a piece of a message from this source.
  */
 {
-	static char data[500000];	/* XXX */
 	Connection *cp = Fd_map [fd];
 	struct message *msg = &cp->c_msg;
 	int nb;
@@ -834,23 +1380,24 @@ int fd;
  */
 	if (! cp->c_inprog)
 	{
-/*		nb = msg_netread (fd, msg, sizeof (struct message)); */
-		nb = msg_XX_netread (fd, msg, sizeof (struct message));
+		/* nb = msg_netread (fd, msg, sizeof (struct message)); */
+		nb = msg_XX_netread (fd, (char *)msg, sizeof (struct message));
 	/*
 	 * If we get nothing, the connection has been broken.
 	 */
 		if (nb < sizeof (struct message))
 		{
 			if (nb > 0)
-				send_log ("Short message (%d) from %s", nb,
-					Fd_map[fd]->c_name);
+				send_log (EF_PROBLEM, 
+					  "Short message (%d) from %s", nb,
+					  Fd_map[fd]->c_name);
 			deadconn (fd);
 			return (0);
 		}
 		if (msg->m_len > 50000)
 		{
-			send_log ("CORRUPT msg, len %d from %s", msg->m_len,
-				msg->m_from);
+			send_log (EF_PROBLEM, "CORRUPT msg, len %d from %s", 
+				  msg->m_len, msg->m_from);
 			return (0);
 		}
 	/*
@@ -864,7 +1411,7 @@ int fd;
  * Pull in the message text.
  */
 	cp->c_nread += msg_netread (fd, msg->m_data + cp->c_nread,
-			msg->m_len - cp->c_nread);
+				    msg->m_len - cp->c_nread);
 	if (cp->c_nread >= msg->m_len)
 	{
 		cp->c_inprog = FALSE;
@@ -894,66 +1441,71 @@ char *addr;
 
 
 
+static void
+FreeConnection (cp)
+Connection *cp;
+/*
+ * Free any existing delayed write data and the connection structure itself
+ */
+{
+	DWrite *dwp;
+
+	dwp = cp->c_dwrite;
+	while (dwp)
+	{
+		DWrite *next = dwp->dw_next;
+		free (dwp->dw_data);
+		free (dwp);
+		dwp = next;
+	}
+	free ((char *) cp);
+}
 
 
+
+static void
 deadconn (fd)
 int fd;
 /*
- * Mark this connection as being dead.
+ * Mark this connection as being dead.  Called from within send_msg,
+ * so use log() instead of send_log().
  */
 {
-	int clear_group ();
-	struct MTap *mt, *last = Taps;
+	Connection *cp = Fd_map[fd];
 
 	S_ndisc++;
 /*
  * Clean up our data structures.
  */
-	if (Fd_map[fd]->c_inet)
-		usy_z_symbol (Inet_table, Fd_map[fd]->c_name);
+	if (cp->c_inet)
+		usy_z_symbol (Inet_table, cp->c_name);
 	else
-		usy_z_symbol (Proc_table, Fd_map[fd]->c_name);
-	usy_traverse (Group_table, clear_group,(int)Fd_map[fd], FALSE);
+		usy_z_symbol (Proc_table, cp->c_name);
+	usy_traverse (Group_table, clear_group, (int)cp, FALSE);
 /*
  * Send out the notification.
  */
- 	ce_disconnect (Fd_map[fd]);
+ 	ce_disconnect (cp);
 /*
  * Clear out the mtap list too.
  */
-	if (Taps)
-	{
-		if (Taps->mt_who == fd)
-		{
-			mt = Taps;
-			Taps = mt->mt_next;
-		}
-		else
-			for (mt = Taps->mt_next; mt; mt = mt->mt_next)
-			{
-				if (mt->mt_who == fd)
-				{
-					last->mt_next = mt->mt_next;
-					break;
-				}
-				last = mt;
-			}
-		if (mt)
-			free (mt);
-	}
+	FreeTap (fd);
+/*
+ * Release the connection
+ */
+	FreeConnection (cp);
 /*
  * Clean up FDs
  */
 	FD_CLR (fd, &Allfds);
-	free ((char *) Fd_map[fd]);
-	Fd_map[fd] = 0;
+	Fd_map[fd] = NULL;
 	shutdown (fd, 2);
 	close (fd);
 }
 
 
 
-
+int
 clear_group (name, type, v, conp)
 char *name;
 int type;
@@ -981,8 +1533,43 @@ struct connection *conp;
 
 
 
-
 int
+free_group (name, type, v, unused)
+char *name;
+int type;
+union usy_value *v;
+int unused;
+/*
+ * Make sure this group is empty and then free its memory.
+ */
+{
+	int i;
+	struct group *grp = (struct group *) v->us_v_ptr;
+	char buf[256];
+
+	if (grp->g_nprocs > 0)
+	{
+		sprintf (buf, "group %s still has %hu members: ",
+			 grp->g_name, grp->g_nprocs);
+		for (i = 0; i < grp->g_nprocs; i++)
+		{
+			strcat (buf, grp->g_procs[i]->c_name);
+			strcat (buf, " ");
+		}
+		send_log (EF_PROBLEM, "%s", buf);
+	}
+	if (grp->g_procs)
+		free (grp->g_procs);
+	free (grp);
+	return (TRUE);
+}
+
+
+
+
+
+
+static int
 CloseInet (host, type, v, junk)
 char *host;
 int type, junk;
@@ -995,6 +1582,11 @@ SValue *v;
 	struct connection *conn = (struct connection *) v->us_v_ptr;
 	Message msg;
 
+	if (strlen(MSG_MGR_NAME) + strlen(host) + 1 >= sizeof(msg.m_to))
+	{
+		send_log (EF_PROBLEM, "recipient name too long: %s@%s",
+			  MSG_MGR_NAME, host);
+	}
 	sprintf (msg.m_to, "%s@%s", MSG_MGR_NAME, host);
 	strcpy (msg.m_from, MSG_MGR_NAME);
 	msg.m_proto = MT_MESSAGE;
@@ -1003,11 +1595,13 @@ SValue *v;
 	msg.m_data = (char *) &t;
 	t.mh_type = MH_NETCLOSE;
 	send_msg (conn, &msg);
+	return (TRUE);
 }
 	
 
 
 
+static void
 die ()
 /*
  * Give up the ghost.
@@ -1020,6 +1614,8 @@ die ()
  * explicitly broadcast to inet connections, or we could take down the
  * entire net.
  */
+	send_log (EF_DEBUG, "%s; going down in %d seconds",
+		  "broadcasting shutdown", SHUTDOWN_DELAY);
 	strcpy (msg.m_to, "Everybody");
 	strcpy (msg.m_from, MSG_MGR_NAME);
 	msg.m_proto = MT_MESSAGE;
@@ -1032,8 +1628,16 @@ die ()
 /*
  * Get rid of the socket now.  That means nobody can connect during the
  * remaining up time, but it also means that we get out of the way.
+ * Do likewise with our internet socket?
  */
 	unlink (UnSocketName);
+#ifdef notdef
+	if (M_in_socket >= 0)
+	{
+		close (M_in_socket);
+		M_in_socket = -1;
+	}
+#endif
 /*
  * Now set an alarm and continue to operate for a little while longer so that
  * processes can communicate while they shut down.
@@ -1054,23 +1658,49 @@ ReallyDie ()
 	int i;
 
 	Dying = TRUE;
+	log (EF_DEBUG, "exiting now");
 /*
  * Close out network connections.
  */
 	usy_traverse (Inet_table, CloseInet, 0, FALSE);
 /*
- * Clear out our sockets and quit.
+ * Clear out our sockets, release our memory, and quit.
  */
 	shutdown (M_un_socket, 2);
 	close (M_un_socket);
 	if (M_in_socket >= 0)
 	{
-		shutdown (M_in_socket, 2);
+		if (shutdown (M_in_socket, 2) < 0)
+			perror ("shutdown internet socket");
 		close (M_in_socket);
 	}
-	for (i = 0; i < 64; i++)
+	for (i = 0; i < FD_MAP_SIZE; i++)
+	{
 		if (Fd_map[i])
+		{
 			close (i);
+			usy_traverse (Group_table, clear_group, 
+				      (int)Fd_map[i], FALSE);
+			FreeTap (i);
+			FreeConnection (Fd_map[i]);
+		}
+	}
+	FreeHosts ();
+/*
+ * Free group nodes and make sure our accounting of group members was correct
+ */
+	usy_traverse (Group_table, free_group, 0, FALSE);
+/*
+ * Annihilate Symbol tables
+ */
+	usy_z_stbl (Proc_table);
+	usy_z_stbl (Group_table);
+	usy_z_stbl (Inet_table);
+	usy_z_stbl (InetGripeTable);
+	usy_z_stbl (InetAvoidTable);
+/* 
+ * And finally exit
+ */
 	exit (0);
 }
 
@@ -1078,7 +1708,7 @@ ReallyDie ()
 
 
 
-
+static void
 dispatch (fd, msg)
 int fd;
 struct message *msg;
@@ -1086,6 +1716,7 @@ struct message *msg;
  * Do something about this message.
  */
 {
+	struct msg_elog *el;
 /*
  * Branch out based on the protocol.  Most we just pass on through, but 
  * a couple are special.
@@ -1106,7 +1737,7 @@ struct message *msg;
 		break;
 	/*
 	 * We answer pings, but only if directed at us.  Otherwise
-	 * we fall through and route the ping to the intended recipient.
+	 * we route the ping to the intended recipient.
 	 */
 	   case MT_PING:
 	   case MT_CPING:
@@ -1115,7 +1746,21 @@ struct message *msg;
 			AnswerPing (fd, msg);
 			break;
 		}
-		/* Else fall through.... */
+		route (fd, msg);
+		break;
+	/*
+	 * Check for elog messages sent to us to update our mask
+	 */
+	   case MT_ELOG:
+		if (! strcmp (msg->m_to, MSG_MGR_NAME))
+		{
+			el = (struct msg_elog *) msg->m_data;
+			if (el->el_flag & EF_SETMASK)
+				EMask = el->el_flag & ~EF_SETMASK;
+		}
+		else
+			route (fd, msg);
+		break;
 	/*
 	 * Most stuff just gets sent through to the destination.
 	 */
@@ -1139,6 +1784,7 @@ Message *msg;
 {
 	strcpy (msg->m_to, msg->m_from);
 	strcpy (msg->m_from, MSG_MGR_NAME);
+	msg->m_proto = MT_PING;
 	send_msg (Fd_map[fd], msg);
 }
 
@@ -1171,6 +1817,12 @@ Message *msg;
 		Greeting (fd, msg);
 		break;
 	/*
+	 * An unexpected ack from across the ether...?
+	 */
+	   case MH_ACK:
+		send_log (EF_PROBLEM, "unexpected ack from %s", msg->m_from);
+		break;
+	/*
 	 * If they want us to die, we'll go along with it...
 	 */
 	   case MH_DIE:
@@ -1183,16 +1835,19 @@ Message *msg;
 		join (fd, msg);
 		break;
 	/*
-	 * Somebody wants statistics.
+	 * Somebody wants statistics.  But not necessarily from us.
 	 */
 	   case MH_STATS:
-		Stats (Fd_map[fd]);
+		if (! strcmp (msg->m_to, MSG_MGR_NAME))
+			Stats (Fd_map[fd], msg->m_from);
+		else
+			route (fd, msg);
 		break;
 	/*
 	 * Close out an internet connection.
 	 */
 	   case MH_NETCLOSE:
-	   	send_log ("NETCLOSE from %s", msg->m_from);
+	   	send_log (EF_INFO, "NETCLOSE from %s", msg->m_from);
 		deadconn (fd);
 		break;
 	/*
@@ -1222,7 +1877,7 @@ Message *msg;
 		break;
 		
 	   default:
-		send_log ("Funky MESSAGE type: %d\n", tm->mh_type);
+		send_log (EF_PROBLEM, "Funky MESSAGE type: %d", tm->mh_type);
 		break;
 	}
 }
@@ -1243,7 +1898,7 @@ Message *qmsg;
 	struct mh_ident *mhi = (struct mh_ident *) qmsg->m_data;
 	struct mh_BoolRepl mb;
 	Message msg;
-	char *at, *strchr ();
+	char *at;
 /*
  * Format up a reply.
  */
@@ -1288,7 +1943,7 @@ Message *qmsg;
 
 
 
-
+static void
 identify (fd, msg)
 int fd;
 struct message *msg;
@@ -1297,17 +1952,31 @@ struct message *msg;
  */
 {
 	struct connection *conp = Fd_map[fd];
-	union usy_value v;
 	struct mh_ident *ident = (struct mh_ident *) msg->m_data;
+	int type;
+	SValue v;
 /*
- * Make sure this person isn't changing his name.
+ * Make sure this person isn't changing his/her (:-) name.
  */
- 	if (strcmp (conp->c_name, "(Unknown)"))
+ 	if (strcmp (conp->c_name, UNKNOWN_NAME))
 	{
-		send_log ("Attempted name change %s to %s", conp->c_name,
-			ident->mh_name);
+		send_log (EF_PROBLEM, "Attempted name change %s to %s", 
+			  conp->c_name, ident->mh_name);
 		/* nak (fd, msg); */
 		return;
+	}
+/*
+ * See if this name is already in use... and try to do something rational
+ * about it.  For now, kill the existing one and let the new one take over.
+ */
+	if (usy_g_symbol (conp->c_inet ? Inet_table : Proc_table,
+			  ident->mh_name, &type, &v))
+	{
+		Connection *curr = (Connection *) v.us_v_ptr;
+		send_log (EF_PROBLEM, 
+			  "%s: existing %s being replaced by new connection",
+			  "name space collision", ident->mh_name);
+		deadconn (curr->c_fd);
 	}
 /*
  * Fix things up.
@@ -1327,7 +1996,7 @@ struct message *msg;
 	}
 	else if (usy_defined (InetAvoidTable, conp->c_name))
 	{
-		send_log ("%s woke up", conp->c_name);
+		send_log (EF_INFO, "%s woke up", conp->c_name);
 		usy_z_symbol (InetAvoidTable, conp->c_name);
 	}
 /*
@@ -1355,12 +2024,13 @@ struct message *msg;
  */
 	at = strrchr (msg->m_from, '@');
 	if (! at || strcmp (conp->c_name, at + 1))
-		send_log ("IN machine %s thinks its %s!", conp->c_name, at +1);
+		send_log (EF_PROBLEM, "IN machine %s thinks its '%s'!", 
+			  conp->c_name, at ? at + 1 : msg->m_from);
 }
 
 
 
-
+static void
 route (fd, msg)
 int fd;
 struct message *msg;
@@ -1368,8 +2038,6 @@ struct message *msg;
  * Route this message on through to its destination.
  */
 {
-	union usy_value v;
-	int type;
 	struct connection *conp;
 /*
  * Copy in the REAL sender of the message.
@@ -1392,7 +2060,7 @@ struct message *msg;
 /*
  * Look up the recipient.
  */
-	if (conp = FindRecipient (msg->m_to))
+	if ((conp = FindRecipient (msg->m_to)))
 		send_msg (conp, msg);
 }
 
@@ -1409,7 +2077,7 @@ char *recip;
 {
 	int type;
 	SValue v;
-	char *at, *strrchr ();
+	char *at;
 /*
  * See if this is a local connection; if so, we just look for somebody
  * we know directly.
@@ -1437,7 +2105,7 @@ char *recip;
 static void
 Alarm ()
 {
-	send_log ("Got alarm");
+	send_log (EF_DEBUG, "Got alarm");
 }
 
 
@@ -1451,9 +2119,13 @@ char *host;
 	int sock, one = 1;
 	struct sockaddr_in addr;
 	struct hostent *hp;
-	struct connection *conn;
+	struct connection *conp;
 	struct mh_ident ident;
 	struct message msg;
+	unsigned long inaddr;
+	char *hostaddr;
+	int port;
+	int idx;
 	SValue v;
 /*
  * See if we don't want to deal with this host at all.
@@ -1461,20 +2133,41 @@ char *host;
 	if (usy_defined (InetAvoidTable, host))
 		return (0);
 /*
+ * See if there's a translation for this host name to an Internet address
+ * and port.  Otherwise we look up the host name itself.
+ */
+	if ((idx = FindHost (host, &port, FALSE)) >= 0)
+	{
+		hostaddr = HostPorts[idx].hp_addr;
+		if (! hostaddr)
+			hostaddr = host;
+		send_log (EF_DEBUG, "%s for %s in host table: %s:%d",
+			  "Found addr", host, hostaddr, port);
+	}
+	else
+	{
+		port = Port;
+		hostaddr = host;
+		send_log (EF_DEBUG, "%s for %s in host table: %s %d",
+			  "Match not found", host, "using port", port);
+	}
+/*
  * Look up the name of the host to connect to.
  */
-	if (! (hp = gethostbyname (host)))
+	if (! (hp = gethostbyname (hostaddr)))
 	{
-		send_log ("Attempt to connect to unknown host %s", host);
-		return (0);
+		send_log (EF_PROBLEM, "Attempt to connect to unknown host %s",
+			  host);
+		return (NULL);
 	}
 /*
  * We need a socket to do this with.
  */
 	if ((sock = socket (AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		send_log ("Error %d getting new inet socket", errno);
-		return (0);
+		send_log (EF_PROBLEM, "Error %d getting new inet socket", 
+			  errno);
+		return (NULL);
 	}
 /*
  * Set up a timeout for this connection.
@@ -1484,81 +2177,87 @@ char *host;
 /*
  * Fill in the sockaddr structure, and try to make the connection.
  */
+	inaddr = ntohl(*(unsigned long *)hp->h_addr);
 	memcpy (&addr.sin_addr, hp->h_addr, hp->h_length);
 	addr.sin_family = AF_INET;
-	addr.sin_port = Port;
+	addr.sin_port = port;
+	send_log (EF_DEBUG, "%s %s, aka %s, address %lu.%lu.%lu.%lu:%d", 
+		  "connecting to ", host, hostaddr, 
+		  (inaddr & 0xff000000) >> 24,
+		  (inaddr & 0x00ff0000) >> 16,
+		  (inaddr & 0x0000ff00) >> 8,
+		  (inaddr & 0x000000ff) >> 0,
+		  addr.sin_port);
 	if (connect (sock, (struct sockaddr *) &addr, sizeof (addr)) < 0)
 	{
 		SValue v;
 		if (errno == EINTR)	/* timeout */
 		{
-			send_log ("Timeout -- avoiding %s", host);
+			send_log(EF_PROBLEM, "Timeout -- avoiding %s", host);
 			usy_s_symbol (InetAvoidTable, host, SYMT_INT, &v);
 		}
 		if (! usy_defined (InetGripeTable, host))
 		{
-			send_log("Error %d connecting to host %s",errno, host);
+			send_log(EF_PROBLEM, "Error %d connecting to host %s",
+				 errno, host);
 			usy_s_symbol (InetGripeTable, host, SYMT_INT, &v);
 		}
 		close (sock);
 		alarm (0);
-		return (0);
+		return (NULL);
 	}
 	setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, 
 		    (char *)&one, sizeof (one));
 	alarm (0);
+
+	if (! (conp = InitConnection (sock, TRUE)))
+	{
+		close (sock);
+		send_log (EF_PROBLEM, "connection to host %s failed", host);
+		return (NULL);
+	}
+	if (strlen(host) >= sizeof(conp->c_name))
+	{
+		send_log (EF_PROBLEM, "connect to '%s': hostname too long", 
+			  host);
+		strncpy (conp->c_name, host, sizeof(conp->c_name));
+		conp->c_name[sizeof(conp->c_name) - 1] = '\0';
+	}
+	else
+		strcpy (conp->c_name, host);
 /*
- * Mark this thing for nonblocking I/O.
+ * Update host name symbol tables
  */
-	SetNonBlock (sock);
-/*
- * Now we're confident enough to allocate a new connection structure and
- * fill it in.
- */
-	conn = ALLOC (struct connection);
-	conn->c_fd = sock;
-	conn->c_nsend = conn->c_bnsend = conn->c_nrec = conn->c_bnrec = 0;
-	conn->c_inet = TRUE;
-	conn->c_inprog = FALSE;
-	conn->c_griped = conn->c_pid = conn->c_ndwrite = 0;
-	conn->c_dwrite = conn->c_dwtail = 0;
-	strcpy (conn->c_name, host);
-	v.us_v_ptr = (char *) conn;
+	v.us_v_ptr = (char *) conp;
 	usy_s_symbol (Inet_table, host, SYMT_POINTER, &v);
 	usy_z_symbol (InetGripeTable, host);
 /*
- * Shove an identify down the pipe.
+ * Shove an identify down the pipe.  Don't append our host name here since
+ * send_msg will do it for us.
  */
 	ident.mh_type = MH_IDENTIFY;
 	strcpy (ident.mh_name, Hostname);
-	sprintf (msg.m_from, "%s@%s", MSG_MGR_NAME, Hostname);
+	sprintf (msg.m_from, "%s", MSG_MGR_NAME);
 	sprintf (msg.m_to, "%s@%s", MSG_MGR_NAME, host);
 	msg.m_proto = MT_MESSAGE;
 	msg.m_flags = 0;
 	msg.m_len = sizeof (ident);
 	msg.m_data = (char *) &ident;
-	send_msg (conn, &msg);
-/*
- * Add this one to our list of FD's.
- */
-	FD_SET (sock, &Allfds);
-	if (sock >= Nfd)
-		Nfd = sock + 1;
-	Fd_map[sock] = conn;
+	send_msg (conp, &msg);
 /*
  * Rather than wait for the greeting, just return the connection now.
  */
-	return (conn);
+	return (conp);
 }
 
 
 
-
+static void
 join (fd, msg)
 int fd;
 struct message *msg;
 /*
- * This process wants to join a new group.  Let's let them.
+ * This process or internet host wants to join a new group.  Let's let them.
  */
 {
 	struct mh_ident *ident = (struct mh_ident *) msg->m_data;
@@ -1568,9 +2267,11 @@ struct message *msg;
  */
  	add_to_group (conp, ident->mh_name, msg);
 /*
- * Send back an ack.
+ * Send back an ack to local clients.  Remote hosts send back the
+ * ack on their end and aren't expecting another one from us.
  */
- 	ack (conp, msg);
+	if (! conp->c_inet)
+		ack (conp, msg);
 /*
  * Send out the event.
  */
@@ -1580,7 +2281,7 @@ struct message *msg;
 
 
 
-
+static void
 ack (conp, msg)
 struct connection *conp;
 struct message *msg;
@@ -1625,7 +2326,7 @@ struct message *msg;
 /*
  * See if we're dealing with a remote group here.
  */
-	if (at = strrchr (name, '@'))
+	if ((at = strrchr (name, '@')))
 		*at++ = '\0';
 /*
  * Look up this group in our symbol table.
@@ -1657,6 +2358,11 @@ struct message *msg;
 			grp->g_procs = (struct connection **)
 				realloc (grp->g_procs,
 				grp->g_nprocs*sizeof (struct connection *));
+			if (! grp->g_procs)
+				send_log (EF_EMERGENCY, 
+					  "%s for addition of %s to group %s",
+					  "realloc failed", conp->c_name,
+					  grp->g_name);
 		 	grp->g_procs[grp->g_nprocs - 1] = conp;
 		}
 	}
@@ -1666,7 +2372,7 @@ struct message *msg;
 	if (at)
 	{
 		sprintf (msg->m_to, "%s@%s", MSG_MGR_NAME, at);
-		if (remote = FindRecipient (msg->m_to))
+		if ((remote = FindRecipient (msg->m_to)))
 			send_msg (remote, msg);
 	}
 }
@@ -1674,7 +2380,7 @@ struct message *msg;
 
 
 
-
+static void
 create_group (conp, name)
 struct connection *conp;
 char *name;
@@ -1688,8 +2394,20 @@ char *name;
  * Get the new structure and fill it in.
  */
  	grp = (struct group *) malloc (sizeof (struct group));
+	if (! grp)
+	{
+		send_log (EF_EMERGENCY, "malloc failed for group %s", name);
+		return;
+	}
 	grp->g_procs = (struct connection **)
 			malloc (sizeof (struct connection *));
+	if (! grp->g_procs)
+	{
+		send_log (EF_EMERGENCY, "%s creating group %s for %s", 
+			  "malloc failed", name, conp->c_name);
+		free (grp);
+		return;
+	}
 	grp->g_procs[0] = conp;
 	grp->g_nprocs = 1;
 	strcpy (grp->g_name, name);
@@ -1704,7 +2422,7 @@ char *name;
 
 
 
-
+static void
 broadcast (msg, conp)
 struct message *msg;
 struct connection *conp;
@@ -1721,9 +2439,9 @@ struct connection *conp;
  * If this thing has an @ in it, what we really want to do is to ship it
  * across the net.
  */
-	if (at = strrchr (msg->m_to, '@'))
+	if ((at = strrchr (msg->m_to, '@')))
 	{
-		if (netcon = FindRecipient (msg->m_to))
+		if ((netcon = FindRecipient (msg->m_to)))
 			send_msg (netcon, msg);
 	}
 /*
@@ -1756,8 +2474,7 @@ struct connection *conp;
 
 
 
-
-
+static void
 ce_connect (conp)
 struct connection *conp;
 /*
@@ -1771,7 +2488,7 @@ struct connection *conp;
  */
 	msg.m_proto = MT_MESSAGE;
 	strcpy (msg.m_from, MSG_MGR_NAME);
-	strcpy (msg.m_to, "Client events");
+	strcpy (msg.m_to, MSG_CLIENT_EVENTS);
 	msg.m_seq = conp->c_fd;
 	msg.m_flags = MF_BROADCAST;
 	msg.m_len = sizeof (cl);
@@ -1788,7 +2505,7 @@ struct connection *conp;
 
 
 
-
+static void
 ce_disconnect (conp)
 struct connection *conp;
 /*
@@ -1809,7 +2526,7 @@ struct connection *conp;
  */
 	msg.m_proto = MT_MESSAGE;
 	strcpy (msg.m_from, MSG_MGR_NAME);
-	strcpy (msg.m_to, "Client events");
+	strcpy (msg.m_to, MSG_CLIENT_EVENTS);
 	msg.m_seq = conp->c_fd;
 	msg.m_flags = MF_BROADCAST;
 	msg.m_len = sizeof (cl);
@@ -1818,19 +2535,17 @@ struct connection *conp;
 	cl.mh_evtype = MH_CE_DISCONNECT;
 	cl.mh_inet = conp->c_inet;
 /*
- * Send it out over any network connections we may have.  KLUDGE: send_msg
- * appends an @host, which gets messy after a while (trust me on this).  So
- * we reset the from string each time.
+ * Send it out over any network connections we may have.  We rely on 
+ * send_msg to restore our m_from field after each call.
  */
 	strcpy (cl.mh_client, conp->c_name);
 	strcat (cl.mh_client, "@");
 	strcat (cl.mh_client, Hostname);
 	for (i = 4; i < Nfd; i++)
+	{
 		if (Fd_map[i] && Fd_map[i]->c_inet)
-		{
 			send_msg (Fd_map[i], &msg);
-			strcpy (msg.m_from, MSG_MGR_NAME);
-		}
+	}
 /*
  * Also broadcast it locally, if we're not in the process of shutting down.
  */
@@ -1843,7 +2558,7 @@ struct connection *conp;
 
 
 
-
+static void
 ce_join (conp, group)
 struct connection *conp;
 char *group;
@@ -1858,7 +2573,7 @@ char *group;
  */
 	msg.m_proto = MT_MESSAGE;
 	strcpy (msg.m_from, MSG_MGR_NAME);
-	strcpy (msg.m_to, "Client events");
+	strcpy (msg.m_to, MSG_CLIENT_EVENTS);
 	msg.m_seq = conp->c_fd;
 	msg.m_flags = MF_BROADCAST;
 	msg.m_len = sizeof (cl);
@@ -1876,29 +2591,23 @@ char *group;
 
 
 
-
-
-send_log (va_alist)
+static void
+log (flags, va_alist)
+int flags;
 va_dcl
 /*
- * Send a message to the event logger.
+ * Log a message short of sending it.  Meant for within send_msg, since using
+ * send_log can lead to infinite or indefinite recursion.
  */
 {
-	char mbuf[400];
+	char mbuf[512];
 	va_list args;
 	char *fmt;
-	struct message msg;
-	int len, type;
-	union usy_value v;
-	struct connection *conp;
 /*
- * If there is no event logger, there is no point.
+ * No sense do compiling a message if we won't be printint it
  */
- 	if (Dying || ! usy_g_symbol (Proc_table, "Event logger", &type, &v))
+	if (! (flags & (EF_PROBLEM | EF_EMERGENCY)) && (! Debug))
 		return;
-	conp = (struct connection *) v.us_v_ptr;
-	if (! strcmp (conp->c_name, "Event logger"))
-		return;	/* Event logger croaking */
 /*
  * Format the message.
  */
@@ -1906,24 +2615,71 @@ va_dcl
 	fmt = va_arg (args, char *);
 	vsprintf (mbuf, fmt, args);
 	va_end (args);
-/*	printf ("%s\n", mbuf); */
+		fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname,
+			 mbuf);
+}
+
+
+
+static void
+send_log (flags, va_alist)
+int flags;
+va_dcl
+/*
+ * Send a message to the event logger.
+ */
+{
+	char mbuf[512];
+	va_list args;
+	char *fmt;
+	struct message msg;
+	struct msg_elog *el;
+	int len, type;
+	union usy_value v;
+	struct connection *conp;
+/*
+ * Format the message.
+ */
+ 	va_start (args);
+	fmt = va_arg (args, char *);
+	el = (struct msg_elog *) mbuf;
+	vsprintf (el->el_text, fmt, args);
+	va_end (args);
+	if (Debug || (flags & (EF_PROBLEM | EF_EMERGENCY)))
+		fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname,
+			 el->el_text);
+	if ((flags & EMask) == 0)
+		return;
+/*
+ * If there is no event logger, there is no point in the rest.
+ */
+ 	if (Dying || ! usy_g_symbol (Proc_table, EVENT_LOGGER_NAME, &type, &v))
+		return;
+	conp = (struct connection *) v.us_v_ptr;
+	if (strcmp (conp->c_name, EVENT_LOGGER_NAME))
+		return;	/* Event logger not finished connecting? */
+#ifdef notdef
+	if (! strcmp (conp->c_name, EVENT_LOGGER_NAME))
+		return;	/* Event logger croaking */
+#endif
 /*
  * Now send this message out.
  */
-	len = strlen (mbuf) + 1;
-	msg.m_proto = MT_LOG;
-	strcpy (msg.m_to, "Event logger");
+	el->el_flag = flags;
+	len = sizeof (*el) + strlen (el->el_text);
+	msg.m_proto = MT_ELOG;
+	strcpy (msg.m_to, EVENT_LOGGER_NAME);
 	strcpy (msg.m_from, MSG_MGR_NAME);
 	msg.m_flags = 0;
 	msg.m_len = len;
-	msg.m_data = mbuf;
+	msg.m_data = (char *) el;
 	send_msg (conp, &msg);
 }
 
 
 
 
-
+static int
 psig ()
 /*
  * Cope with pipe signals.  We don't have to actually *do* anything, since
@@ -1932,40 +2688,80 @@ psig ()
 {
 	signal (SIGPIPE, (void *) psig);
 	S_npipe++;
+	return (0);
 }
 
 
 
 
-
-Stats (conp)
+static void
+Stats (conp, to)
 struct connection *conp;
+char *to;
 /*
  * Send statistics back to this guy.
  */
 {
-	char string[200];
+	char buffer[200];
+	char *text;
+	char *username;
 	struct message msg;
+	struct mh_stats *mhs = (struct mh_stats *) buffer;
 	int i;
 /*
  * Fill in a message structure to be used in sending back the data.
  */
-	strcpy (msg.m_to, conp->c_name);
+	strcpy (msg.m_to, to);
 	strcpy (msg.m_from, MSG_MGR_NAME);
 	msg.m_proto = MT_MESSAGE;
 	msg.m_flags = 0;
-	msg.m_data = string;
+	msg.m_data = (char *) mhs;
+	mhs->mh_type = MH_STATS;
+	text = mhs->mh_text;
 /*
- * Header info.
+ * Process name, user name, user id:
  */
-	sprintf (string, "%d messages sent, %d bytes (%d/%d broadcast)",
-		S_nmessage, S_bnmessage, S_nbcast, S_bnbcast);
-	msg.m_len = strlen (string) + 1;
+	if (!(username = getenv ("USER")) && !(username = getenv ("LOGNAME")))
+	{
+		struct passwd *pw = getpwuid (getuid());
+		username = pw->pw_name;
+	}
+	sprintf (text, "'%s'@%s: pid %i, uid %i (%s)", 
+		 MSG_MGR_NAME, Hostname, getpid(), 
+		 getuid(), (username) ? username : "unknown");
+/*
+ * The 1 character in mh_text included in sizeof holds space for the '\0'
+ */
+	msg.m_len = sizeof (struct mh_stats) + strlen (text);
 	send_msg (conp, &msg);
-	sprintf (string,
+/*
+ * UNIX socket path and Internet port:
+ */
+	sprintf (text, "unix socket: %s", UnSocketName);
+	if (M_in_socket >= 0)
+		sprintf (text+strlen(text), ", internet port %d", Port);
+	else
+		strcat (text, ", no internet socket");
+	msg.m_len = sizeof (struct mh_stats) + strlen (text);
+	send_msg (conp, &msg);
+/*
+ * Session genesis time
+ */
+	sprintf (text, "session began: %s", (char *) ctime(&S_genesis));
+	msg.m_len = sizeof (struct mh_stats) + strlen (text) - 1;
+	text[strlen(text) - 1] = '\0';	/* remove \n from ctime */
+	send_msg (conp, &msg);
+/*
+ * Throughput stats
+ */
+	sprintf (text, "%d messages sent, %d bytes (%d/%d broadcast)",
+		S_nmessage, S_bnmessage, S_nbcast, S_bnbcast);
+	msg.m_len = sizeof (struct mh_stats) + strlen (text);
+	send_msg (conp, &msg);
+	sprintf (text,
 		"\t%d disconnects, with %d pipe signals, %d del rd %d wt",
 		S_ndisc, S_npipe, S_NDRead, S_NDWrite);
-	msg.m_len = strlen (string) + 1;
+	msg.m_len = sizeof (struct mh_stats) + strlen (text);
 	send_msg (conp, &msg);
 /*
  * Now go through and report on each connection.
@@ -1975,18 +2771,19 @@ struct connection *conp;
 		struct connection *c;
 		if (! (c = Fd_map[i]))
 			continue;
-		sprintf (string,
+		sprintf (text,
 			" %s '%s' on %d (p %d), send %d/%d, rec %d/%d, nd %d",
 			c->c_inet ? "Internet" : "Process ",
 			c->c_name, i, c->c_pid, c->c_nsend, c->c_bnsend,
 			c->c_nrec, c->c_bnrec, c->c_ndwrite);
-		msg.m_len = strlen (string) + 1;
+		msg.m_len = sizeof (struct mh_stats) + strlen (text);
 		send_msg (conp, &msg);
 	}
 /*
  * Send the EOF and quit.
  */
-	msg.m_len = 0;
+	mhs->mh_text[0] = '\0';
+	msg.m_len = sizeof (struct mh_stats);
 	send_msg (conp, &msg);
 }
 
@@ -2006,6 +2803,11 @@ Message *msg;
 /*
  * Fill in the tap info and add it to the list.
  */
+	if (! mt)
+	{
+		send_log (EF_PROBLEM, "malloc failed for tap node");
+		return;
+	}
 	mt->mt_who = conn;
 	mt->mt_tapee = * (struct msg_mtap *) msg->m_data;
 	mt->mt_next = Taps;
@@ -2029,6 +2831,41 @@ Message *msg;
 			SendTap (eavesdropper, msg);
 }
 
+
+
+
+static void
+FreeTap (fd)
+int fd;
+/*
+ * Remove any tap nodes for this connection.
+ */
+{
+	struct MTap *mt, *last;
+
+	if (Taps)
+	{
+		if (Taps->mt_who == fd)
+		{
+			mt = Taps;
+			Taps = mt->mt_next;
+		}
+		else
+		{
+			for (mt = Taps->mt_next; mt; mt = mt->mt_next)
+			{
+				if (mt->mt_who == fd)
+				{
+					last->mt_next = mt->mt_next;
+					break;
+				}
+				last = mt;
+			}
+		}
+		if (mt)
+			free (mt);
+	}
+}
 
 
 
@@ -2078,6 +2915,11 @@ Message *msg;
 	outmsg.m_flags = 0;
 	outmsg.m_len = sizeof (Message) + msg->m_len;
 	outmsg.m_data = malloc (outmsg.m_len);
+	if (! outmsg.m_data)
+	{
+		send_log (EF_PROBLEM, "malloc failed for tap message data");
+		return;
+	}
 	memcpy (outmsg.m_data, msg, sizeof (Message));
 	memcpy (outmsg.m_data + sizeof (Message), msg->m_data, msg->m_len);
 /*
@@ -2107,5 +2949,5 @@ int fd;
 # else
 	if (fcntl (fd, F_SETFL, FNDELAY) < 0)
 # endif
-		send_log ("Error %d doing FNDELAY", errno);
+		send_log (EF_PROBLEM, "Error %d doing FNDELAY", errno);
 }
