@@ -4,7 +4,11 @@
 \*----------------------------------------------------------------------*/
 
 # include <sys/types.h>
+#ifdef SYSV
+/* nothing */
+#else
 # include <sys/timeb.h>
+#endif
 # include <time.h>
 # include <errno.h>
 # include <stdio.h>
