@@ -2,7 +2,6 @@
  * Overlay times widget.  This is where plots can write per-component data
  * details like exact data time, altitude, etc.
  */
-static char *rcsid = "$Id: OverlayTimes.c,v 2.4 1994-12-11 16:21:17 corbet Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -31,7 +30,10 @@ static char *rcsid = "$Id: OverlayTimes.c,v 2.4 1994-12-11 16:21:17 corbet Exp $
 
 # include <defs.h>
 # include <pd.h>
+# include <dm.h>
 # include "GraphProc.h"
+
+RCSID("$Id: OverlayTimes.c,v 2.5 1995-04-17 22:12:48 granger Exp $")
 
 static Widget	OTWidget = NULL;
 static char	OTString[1024];
@@ -54,7 +56,7 @@ ot_Init ()
 {
 	char	title[40];
 
-	sprintf (title, "Data times for %s", Ourname);
+	sprintf (title, "Data times for %s", dm_WindowName());
 	uw_def_widget ("overlay", title, ot_Create, 0, 0);
 	uw_NoHeader ("overlay");
 }
@@ -101,7 +103,7 @@ XtAppContext appc;
 /*
  * The label which holds our title.
  */
-	sprintf (title, "Data times for %s", Ourname);
+	sprintf (title, "Data times for %s", dm_WindowName());
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
