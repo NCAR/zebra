@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.3 1991-11-04 17:59:42 kris Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.4 1992-01-29 22:33:33 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -104,7 +104,6 @@ XRectangle	Clip, Unclip;
  */
 void	ts_Plot (), ts_Annotate(), ts_Background (), ts_PutData ();
 void	ts_AnnotTime(), ts_SlideData(), ts_DrawLines();
-time_t	ts_GetSec();
 
 
 void
@@ -233,13 +232,13 @@ bool	update;
 	}
 	if (! FlipTime)
 	{
-		TMinval = ts_GetSec (Begin);
-		TMaxval = ts_GetSec (FixPT);
+		TMinval = GetSec (Begin);
+		TMaxval = GetSec (FixPT);
 	}
 	else
 	{
-		TMinval = ts_GetSec (FixPT);
-		TMaxval = ts_GetSec (Begin);
+		TMinval = GetSec (FixPT);
+		TMaxval = GetSec (Begin);
 	}
 	msg_ELog(EF_DEBUG, "TMinval %d TMaxval %d", TMinval, TMaxval);
 /*
@@ -582,7 +581,7 @@ int	nplat, nfld;
 			}
 			else
 			{
-				fx = CONVERT (ts_GetSec (Begin), TMinval, 
+				fx = CONVERT (GetSec (Begin), TMinval, 
 					TMaxval);
 				fy = CONVERT (dobj->do_data[i][0], Minval[i], 
 					Maxval[i]); 
@@ -600,7 +599,7 @@ int	nplat, nfld;
 				if (dobj->do_data[i][j] == BADVAL)
 					continue;
 				Save_x[plat * nfld + i] = 
-					ts_GetSec (dobj->do_times[j]);
+					GetSec (dobj->do_times[j]);
 				Save_y[plat * nfld + i] = dobj->do_data[i][j];
 				fx = CONVERT (Save_x[plat * nfld + i], 
 					TMinval, TMaxval);
@@ -653,7 +652,7 @@ ts_SlideData()
 /*
  * Figure the new data position.
  */
-	beginsec = ts_GetSec (Begin);	
+	beginsec = GetSec (Begin);	
 /*
  * Put the data back in its new position.
  */
@@ -675,26 +674,6 @@ ts_SlideData()
 	XFreePixmap (disp, temp);
 }
 
-
-time_t
-ts_GetSec (t)
-time	t;
-/*
- * Get the seconds in a number represented by hhmmss.
- */
-{
-	struct tm	syst;
-
-	syst.tm_year = t.ds_yymmdd/10000;
-	syst.tm_mon = (t.ds_yymmdd/100) % 100 - 1;
-	syst.tm_mday = t.ds_yymmdd % 100;
-	syst.tm_hour = t.ds_hhmmss/10000;
-	syst.tm_min = t.ds_hhmmss/100 % 100;
-	syst.tm_sec = t.ds_hhmmss % 100;
-	syst.tm_zone = (char *) 0;
-	syst.tm_wday = syst.tm_isdst = syst.tm_yday = 0;
-	return (timegm (&syst));
-}
 
 
 void
@@ -720,7 +699,7 @@ int	nstep;
 	if (nstep <= 1) 
 		nstep = 2;
 	tickinc = (Y1 - Y0) / (nstep - 1);
-	begin_x = CONVERT (ts_GetSec (Begin), TMinval, TMaxval);
+	begin_x = CONVERT (GetSec (Begin), TMinval, TMaxval);
 /*
  * Horizontal lines.
  */
@@ -739,7 +718,7 @@ int	nstep;
  */
 	if (! update)
 		lastline = Begin; 
-	ll = CONVERT (ts_GetSec (lastline), TMinval, TMaxval);
+	ll = CONVERT (GetSec (lastline), TMinval, TMaxval);
 	pts[0].y = Pix_bottom;
 	pts[1].y = Pix_top;
 	if (! FlipTime)
