@@ -18,7 +18,7 @@ endif
 # Run an event logger and show status of last data received
 #
 EventLogger -w &
-LastData -g 240x150-0+175 /ops/zebra/LastData.conf &
+LastData -g 240x200-0+175 /ops/zebra/LastData.conf &
 
 #
 # Run a zebra display and wait for it to terminate
