@@ -1,0 +1,28 @@
+LiteClue is a widget which pops a one line help message when the user
+passes the pointer over another "watched" widget. This is known by
+various names in the industry such as hints, clues, tips, bubble help
+and balloon help.
+
+Clues are particularly helpful for push buttons that contain graphic
+pixmaps rather than text. They obviate the need to place text within
+graphics in the button which creates internationalization problems. A
+clue may be attached to virtually any widget that has a window (no
+gadgets). LiteClue works with Motif but does not require it.
+
+Please see Copyright and Disclaimer statement in LiteClue.c.
+
+Please visit our web page at http://www.compgen.com
+Latest source available at
+ftp://ftp.compgen.com/pub/widgets/LiteClue.tar.Z
+
+Author:
+Gary Aviv 
+Computer Generation, Inc.,
+gary@compgen.com
+
+Documentation:
+	LiteClue.txt	Plain text
+	LiteClue.html
+	LiteClue.ps	PostScript
+
+

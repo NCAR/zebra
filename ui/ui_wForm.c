@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.10 1998-12-17 16:46:17 burghart Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.11 2001-11-30 00:42:05 granger Exp $";
 
 /*
  * malloc prototype
@@ -575,8 +575,7 @@ Cardinal *cardjunk;
 /*
  * Now make the menu appear.
  */
-	XtCallActionProc (w, "XawPositionSimpleMenu", event, &menu, 1);
-	XtCallActionProc (w, "MenuPopup", event, &menu, 1);
+	XtCallActionProc (w, "PositionAndPopupRdssMenu", event, &menu, 1);
 }
 
 

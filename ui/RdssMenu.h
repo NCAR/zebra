@@ -1,5 +1,5 @@
 /*
- * $Id: RdssMenu.h,v 1.3 1993-04-12 18:40:16 granger Exp $
+ * $Id: RdssMenu.h,v 1.4 2001-11-30 00:42:05 granger Exp $
  *
  * Copyright 1989 Massachusetts Institute of Technology
  *
@@ -141,7 +141,7 @@ extern void RdssMenuClearActiveEntry(
 #endif
 );
 
-/*	Function Name: RdssMenuPositionAndPopup
+/*	Function Name: RdssSubMenuPositionAndPopup
  *	Description: Positions, moves, and popups menu, warping pointer
  *		as necessaryonce menu popped up
  *	Arguments: w - the smw widget.
@@ -149,13 +149,16 @@ extern void RdssMenuClearActiveEntry(
  *		   grab - kind of grab to use to popup widget
  *	Returns: none
  */
-extern void RdssMenuPositionAndPopup(
+extern void RdssSubMenuPositionAndPopup(
 #if NeedFunctionPrototypes
    Widget w,
    XPoint *locn,
    XtGrabKind grab
 #endif
 );
+
+/* Counterpart to RdssSubMenuPositionAndPopup(). */
+void RdssMenuPopdown (Widget w);
 
 _XFUNCPROTOEND
 

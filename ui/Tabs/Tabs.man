@@ -1,0 +1,149 @@
+." $Id: Tabs.man,v 1.1 2001-11-30 00:42:10 granger Exp $
+." view with "tbl | nroff -man"
+."
+.TH "Tabs" 3 "June 1998" "Version 1.0" ""
+.SH NAME
+Tabs
+.SH DESCRIPTION
+The Tabs widget manages one or more child widgets, only one of which is
+visible at any time.  Along the top of the Tabs widget are a series of
+tabs which the user may use to select which child widget is visible.
+.P
+When the user selects a tab, that widget becomes visible, while all others
+are obscured.  In addition, any callback functions specified by the program
+will be called to notify the program that the specific child has been made
+visible.
+
+.SH CLASS
+Compound => Constraint => Tabs
+
+Tabs does not require any specific widget set, and may be combined with
+any other widget set.
+
+.SH RESOURCES
+
+.ps -2
+.TS
+center box;
+cBsss
+lB|lB|lB|lB
+l|l|l|l.
+Tabs
+Name	Class	Type	Default
+font	Font	XFontStruct *	XtDefaultFont
+internalWidth	InternalWidth	Dimension	4
+internalHeight	InternalHeight	Dimension	2
+topWidget	TopWidget	Widget
+callback	Callback	XtCallbackList	NULL
+popdownCallback	Callback	XtCallbackList	NULL
+selectInsensitive	SelectInsensitive	Boolean	True
+beNiceToColormap	BeNiceToColormap	Boolean	False
+topShadowContrast	TopShadowContrast	int	20
+bottomShadowContrast	BottomShadowContrast	int	40
+insensitiveContrast	InsensitiveContrast	int	33
+.TE
+.ps +2
+
+.LP
+See the \fBCore\fP widget for more resources.
+
+.SS Descriptions.
+
+.TP
+.I Font
+Font used to draw tab labels.
+
+.TP
+.I InternalWidth, InternalHeight
+Specifies the margins around the text.
+
+.TP
+.I TopWidget
+The child widget currently displayed on top.  Setting this attribute
+is equivalent to calling XawTabsSetTop()
+
+.TP
+.I Callback
+Function to call when the user selects a tab.  Prototype:
+callbackProc(Widget tabs, XtPointer client, XtPointer call_data).
+Call_data is the child widget which has been selected; cast to type
+Widget.
+
+.TP
+.I PopdownCallback
+Function to call when the user selects a tab.  Prototype:
+callbackProc(Widget tabs, XtPointer client, XtPointer call_data).
+Call_data is the child widget which was previously visible, and
+which will now become invisible.
+
+.TP
+.I SelectInsensitive
+Boolean value, determins if the user may select tabs belonging to
+insensitive child widgets.
+
+.TP
+.I BeNiceToColormap
+Boolean.  When true, Tabs widget allocates fewer colors for itself.
+
+.TP
+.I InsensitiveContrast.
+Determines how "grey" insensitive tabs appear.  0-100.
+
+
+.SH CONSTRAINT RESOURCES
+
+Constraint resources are set for the individual child widgets.
+
+.ps -2
+.TS
+center box;
+cBsss
+lB|lB|lB|lB
+l|l|l|l.
+Tabs Constraints
+Name	Class	Type	Default
+tabLabel	Label	String	widget name
+tabLeftBitmap	LeftBitmap	Pixmap	None
+tabForeground	Foreground	Pixel	XtDefaultForeground
+resizable	Resizable	Boolean	False
+.TE
+.ps +2
+
+.SS Descriptions.
+
+.TP
+.I TabLabel
+The label to be used for the tab.
+
+.TP
+.I TabLeftBitmap
+Specifies the bitmap to be displayed to the left of the label.
+
+.TP
+.I TabForeground
+Specifies the color used for the bitmap and the label.
+
+.TP
+.I Resizable
+Specifies whether or not the child widget may be resized.
+
+.SH FUNCTIONS
+
+.TP
+.B void XawTabsSetTop(Widget w, Boolean callCallbacks)
+Causes the specified child widget to become the top widget in its Tab group.
+If the specified widget's parent is not a Tabs widget, nothing happens.
+
+.SH BUGS
+
+Internal computations are O(n^2).  After about 100 child widgets are
+created, geometry changes become quite slow.
+
+
+.SH AUTHOR
+Edward Falk <falk@falconer.vip.best.com>
+
+.SH COPYRIGHT
+Copyright 1998 by Edward A. Falk.  This widget may be used freely in any
+free software.  Source code is freely distributable provided that my name
+is not removed from it.

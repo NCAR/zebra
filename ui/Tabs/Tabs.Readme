@@ -1,0 +1,24 @@
+	$Id: Tabs.Readme,v 1.1 2001-11-30 00:42:09 granger Exp $
+
+	Written by Edward A. Falk <falk@falconer.vip.best.com>
+
+The Tabs widget manages several children, displaying exactly
+one of them.  The user selects which child is visible via a series
+of tabs across the top which look like file folder index tabs.
+
+See Tabs.man for more information.
+
+
+
+	Installation:
+
+If your system supports Imake, simply give the commands:
+
+	xmkmf
+	make
+
+This will build the demo program as well as the Tabs widget .o file.
+
+If your system does not have Imake, or you don't wish to use it,
+some sample Makefiles are provided.  Choose the one closest to your
+own system, copy it to Makefile, and type "make".

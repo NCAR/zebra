@@ -1,4 +1,4 @@
-/* $Id: RdssMenu.c,v 1.10 1998-02-26 21:18:15 burghart Exp $ */
+/* $Id: RdssMenu.c,v 1.11 2001-11-30 00:42:05 granger Exp $ */
 /*
  * Hacked up version of SimpleMenu to provide some useful stuff -- in
  * particular, better cascading menus.
@@ -148,6 +148,7 @@ static char defaultTranslations[] =
      <BtnUp>:           unmap() notify() unhighlight() MenuPopdown()";
 #endif
 #endif
+#ifdef notdef
 /*
  * Forget that stuff above and use these translations instead.  We don't
  * need to highlight on Enter events, and in fact not highlighting on enter
@@ -158,7 +159,24 @@ static char defaultTranslations[] =
     "<LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
      <BtnUp>:           disable-highlight() notify() \
-                        unhighlight() MenuPopdown()";
+                        unhighlight() RdssMenuPopdown()";
+#endif
+
+/* 
+ * These are the translations which allow button-click persistent menus.
+ * If 'release' is still enabled, as it is initially on a spring-loaded
+ * popup, then the release() action on a BtnUp event just disables release
+ * but leaves the menu popped up.  Likewise any pointer motion disables
+ * release.  Once release is disabled, the next BtnUp event performs the
+ * original BtnUp sequence from the previous version of translations:
+ * disable-highlight() notify() unhighlight() RdssMenuPopdown().
+ */
+static char defaultTranslations[] =
+    "<LeaveWindow>:     disable-release() unhighlight()           \n\
+     <Motion>:          disable-release() highlight()             \n\
+     <BtnMotion>:       disable-release() highlight()             \n\
+     <BtnUp>:           release()";
+
 
 /*
  * This is the amount to shift the menu position by so that the pointer
@@ -180,7 +198,9 @@ static XtGeometryResult GeometryManager();
  */
 static void PositionMenuAction(), PositionAndPopupMenuAction();
 static void Highlight(), Unhighlight(), Notify();
-static void DisableHighlight(), EnableHighlight(), Unmap();
+static void DisableHighlight(), EnableHighlight(), Unmap(), Ungrab();
+static void RdssMenuPopdownAction();
+static void Release(), DisableRelease();
 
 /* 
  * Private Function Definitions.
@@ -196,10 +216,14 @@ static XtActionsRec actionsList[] =
 {
   {"notify",            Notify},
   {"highlight",         Highlight},
+  {"release",           Release},
+  {"disable-release",   DisableRelease},
   {"unhighlight",       Unhighlight},
   {"disable-highlight",	DisableHighlight},
   {"enable-hightlight", EnableHighlight},
-  {"unmap",		Unmap}
+  {"ungrab",		Ungrab},
+  {"unmap",		Unmap},
+  {"RdssMenuPopdown",   RdssMenuPopdownAction}
 };
  
 static CompositeClassExtensionRec extension_rec = {
@@ -348,6 +372,8 @@ Widget request, new;
   }
 
   smw->rdss_menu.highlight_enabled = True;
+  smw->rdss_menu.release = False;
+  smw->rdss_menu.grabbed = False;
 
 /*
  * Add a popup_callback routine for changing the cursor.
@@ -768,6 +794,27 @@ Cardinal * num_params;
 }  
 
 
+static void
+DoGrab (Widget menu)
+{
+    RdssMenuWidget smw = (RdssMenuWidget) menu;
+    smw->rdss_menu.grabbed = True;
+    ACK("grabbing pointer", menu);
+
+    XtGrabPointer (menu, 
+		   /*Boolean owner_events*/ True,
+		   /*event_mask*/ 
+		   ButtonPressMask | ButtonReleaseMask | 
+		   ButtonMotionMask | PointerMotionMask | 
+		   LeaveWindowMask | EnterWindowMask,
+		   /*int pointer_mode*/ GrabModeAsync,
+		   /*int keyboard_mode*/ GrabModeAsync,
+		   /*Window confine_to*/ None,
+		   /*Cursor cursor*/ None,
+		   CurrentTime);
+}
+
+
 /*
  * Positions, moves, pops up, and warps pointer all in a single action.
  * Must all be in one action because pointer warping requires the distance
@@ -786,6 +833,7 @@ Cardinal * num_params;
 { 
 	Widget menu;
 	XPoint loc;
+	XPoint *locp = &loc;
 	Position x, y;
 	Position dx, dy;
 	Boolean spring_loaded;
@@ -798,30 +846,28 @@ Cardinal * num_params;
 	   case ButtonRelease:
 		loc.x = event->xbutton.x_root;
 		loc.y = event->xbutton.y_root;
-		PositionMenu(menu, &loc, &x, &y);
 		break;
 	   case EnterNotify:
 	   case LeaveNotify:
 		loc.x = event->xcrossing.x_root;
 		loc.y = event->xcrossing.y_root;
-		PositionMenu(menu, &loc, &x, &y);
 		break;
 	   case MotionNotify:
 		loc.x = event->xmotion.x_root;
 		loc.y = event->xmotion.y_root;
-		PositionMenu(menu, &loc, &x, &y);
 		break;
 	   default:
-		PositionMenu(menu, NULL, &x, &y);
+	        locp = 0;
 		break;
 	}
+	PositionMenu(menu, locp, &x, &y);
 	MoveMenu(menu, x, y, &dx, &dy);
 
 	/*
 	 * Now that we've set the position, pop it up.
 	 */
-	if (event->type == ButtonPress)
-		spring_loaded = True;
+	if (event->type == ButtonPress || event->type == ButtonRelease)
+	    spring_loaded = True;
 	else if (event->type == KeyPress || event->type == EnterNotify)
 		spring_loaded = False;
 	else 
@@ -834,30 +880,16 @@ Cardinal * num_params;
 		spring_loaded = False;
 	}
 	
+	((RdssMenuWidget)menu)->rdss_menu.release = True;
 	if (spring_loaded) 
-		XtPopupSpringLoaded(menu);
-	else 
-		XtPopup(menu, XtGrabNonexclusive);
-	
-#ifdef notdef
-	/*
-	 * We also warp the pointer horizontally by the amount we had to
-	 * move the widget, so that the pointer does not end up in the middle
-	 * of a menu entry causing an automatic pop-up of a submenu and so on
-	 * ad infinitum.  We do not need to warp vertically since it is ok
-	 * for the pointer to end up on the left side of any of the entries.
-	 */
-	if (dx)
 	{
-		XWarpPointer (XtDisplay(menu), 
-			      RootWindowOfScreen(XtScreen(menu)), 
-			      None, 0, 0, 0, 0, dx, /*dy*/ 0);
+	    XtPopupSpringLoaded(menu);
+	    DoGrab(menu);
 	}
-#endif
-	
-	/*
-	 * And we're done.
-	 */
+	else 
+	{
+	    XtPopup(menu, XtGrabExclusive);
+	}
 }  
 
 
@@ -936,6 +968,33 @@ Cardinal * num_params;
     EXIT("Unhighlight()",w)
 }
 
+
+/* ARGSUSED */
+static void
+DisableRelease(Widget w, XEvent * event, String *params, Cardinal *num_params)
+{
+    RdssMenuWidget smw = (RdssMenuWidget) w;
+    smw->rdss_menu.release = False;
+}
+
+
+
+/* ARGSUSED */
+static void
+Release(Widget w, XEvent * event, String * params, Cardinal * num_params)
+{
+    RdssMenuWidget smw = (RdssMenuWidget) w;
+
+    if (! smw->rdss_menu.release)
+    {
+	/* "disable-highlight() notify() unhighlight() RdssMenuPopdown()" */
+	DisableHighlight (w, event, 0, 0);
+	Notify (w, event, 0, 0);
+	Unhighlight (w, event, 0, 0);
+	RdssMenuPopdown (w);
+    }
+    DisableRelease (w, event, 0, 0);
+}
 
 
 /*      Function Name: Highlight
@@ -1087,6 +1146,29 @@ Cardinal * num_params;
 
 
 /*
+ * Function: Ungrab()
+ *
+ * Ungrab any grabs, ie, before being popped down with MenuPopdown().
+ */
+/* ARGSUSED */
+static void
+Ungrab(w, event, params, num_params)
+Widget w;
+XEvent * event;
+String * params;
+Cardinal * num_params;
+{
+    RdssMenuWidget smw = (RdssMenuWidget) w;
+    
+    if (smw->rdss_menu.grabbed)
+    {
+	XtUngrabPointer (w, CurrentTime);
+    }
+    smw->rdss_menu.grabbed = False;
+}
+
+
+/*
  * Function: DisableHighlight()
  *
  * Disable highlight action.
@@ -1187,7 +1269,24 @@ Widget w;
 } 
 
 
-/*	Function Name: RdssMenuPositionAndPopup
+void
+RdssMenuPopdown (Widget w)
+{
+    Ungrab (w, 0, 0, 0);
+    XtPopdown (w);
+}
+
+
+
+void
+RdssMenuPopdownAction (Widget w)
+{
+    RdssMenuPopdown (w);
+}
+
+
+
+/*	Function Name: RdssSubMenuPositionAndPopup
  *	Description: Positions, moves, and popups menu, warping pointer
  *		as necessary once menu popped up.
  *	Arguments: w - the smw widget.
@@ -1197,12 +1296,12 @@ Widget w;
  */
 void
 #if NeedFunctionPrototypes
-RdssMenuPositionAndPopup(
+RdssSubMenuPositionAndPopup(
    Widget w,
    XPoint *locn,
    XtGrabKind grab)
 #else
-RdssMenuPositionAndPopup(w, locn, grab)
+RdssSubMenuPositionAndPopup(w, locn, grab)
    Widget w;
    XPoint *locn;
    XtGrabKind grab;
@@ -1213,15 +1312,8 @@ RdssMenuPositionAndPopup(w, locn, grab)
 
     PositionMenu(w, locn, &x, &y);
     MoveMenu(w, x, y, &dx, &dy);
+    DisableRelease (w, 0, 0, 0);
     XtPopup(w, grab);
-
-#ifdef notdef
-    if (dx)
-    {
-	XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
-		      None, 0, 0, 0, 0, dx, /*dy*/ 0);
-    }
-#endif
 } 
 
 

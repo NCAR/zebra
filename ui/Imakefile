@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.12 2000-12-02 07:05:26 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.13 2001-11-30 00:42:04 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -18,6 +18,12 @@ MFVERSION="$Id: Imakefile,v 1.12 2000-12-02 07:05:26 granger Exp $"
  * maintenance or updates for its software.
  */
 
+#define IHaveSubdirs
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+SUBDIRS = LiteClue Tabs
+SUBDIRS = LiteClue
+
 LOCALLIB = uilib.a
 UI_LF = $(LIBDIR)/ui.lf
 
@@ -27,7 +33,7 @@ UI_LF = $(LIBDIR)/ui.lf
  * directory specified on the compiler command line.  It shouldn't hurt 
  * to leave it there for RDSS builds also.
  */
-INCLUDES = $(XINCLUDES) -I.
+INCLUDES = $(XINCLUDES) -I. -I./LiteClue
 LIBS = $(LIBRDSSUTIL) $(XLIBS)
 DEPLIBS = $(LIBRDSSUTIL)
 
@@ -70,12 +76,15 @@ SMEMENUOBJS=
 
 SMEMENUSRCS= $(SMEMENUOBJS:.o=.c)
 
+TABOBJS = Tabs/Tabs.o Tabs/Gcs.o
+TABOBJS =
+
 LIBOBJS = ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o ui_util.o \
 	ui_ctable.o ui_state.o ui_expr.o ui_keys.o ui_types.o ui_token.o \
 	ui_prompt.o ui_parser.o ui_menu.o ui_interrupt.o ui_tty.o ui_cmds.o \
 	ui_cstack.o ui_output.o ui_function.o ui_string.o ui_window.o \
 	ui_wPulldown.o ui_wList.o ui_wAppl.o ui_OutHook.o ui_globals.o \
-	ui_wForm.o $(SMEMENUOBJS)
+ui_wForm.o $(SMEMENUOBJS) LiteClue/LiteClue.o $(TABOBJS)
 
 LIBSRCS = ui.c ui_bootstrap.c ui_date.c ui_error.c ui_symbol.c ui_util.c \
 	ui_ctable.c ui_state.c ui_expr.c ui_keys.c ui_types.c ui_token.c \
@@ -141,4 +150,6 @@ s_uic:
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
+
+StandardSubdirTargets()
 

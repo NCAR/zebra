@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.10 2001-06-19 22:21:48 granger Exp $ */
+/* $Id: ui.h,v 1.11 2001-11-30 00:42:05 granger Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -83,6 +83,7 @@ struct ui_command
 	void uw_mk_list (char *, char *, int, char **, void (*)(), char *);
 	void uw_popup (char *);
 	void uw_popdown (char *);
+        char *uw_menu_title(char *menu);
 	void ui_error (char *fmt, ...);
 	void ui_cl_error (bool jump, int col, char *fmt, ...);
 	void ui_ns_error (char *fmt, ...);

@@ -1,0 +1,21 @@
+
+/* XPMLIB = -lXpm */
+
+/*CC = gcc -g /* -DXPM  */
+
+/* SYS_LIBRARIES= -lXaw -lXmu $(XPMLIB) $(XTOOLLIB) $(XLIB)  */
+SYS_LIBRARIES= $(XLIBS)
+
+INCLUDES = -I.
+SRCS= LiteClueTest.c LiteClue.c
+OBJS= LiteClueTest.o LiteClue.o
+PROGRAM= LiteClueTest 
+HEADERS=LiteClueP.h LiteClue.h 
+AllTarget(LiteClue.o)
+
+TestProgramTarget(LiteClueTest,$(OBJS),/**/,$(XLIBS),/**/)
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
+depend:: $(HEADERS)

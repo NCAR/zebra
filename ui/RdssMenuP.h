@@ -1,5 +1,5 @@
 /*
- * $Id: RdssMenuP.h,v 1.3 1993-04-12 18:42:19 granger Exp $
+ * $Id: RdssMenuP.h,v 1.4 2001-11-30 00:42:05 granger Exp $
  *
  * Copyright 1989 Massachusetts Institute of Technology
  *
@@ -92,6 +92,10 @@ typedef struct _RdssMenuPart {
   SmeObject entry_set;		/* The entry that is currently set or
 				   highlighted. */
   Boolean highlight_enabled;	/* Whether to accept calls to highlight() action */
+
+  Boolean release;              /* Whether release() should leave menu */
+  Boolean grabbed;              /* True when this menu (ie top menu) has
+				   grabbed the pointer and should ungrab. */
 
 } RdssMenuPart;
 

@@ -28,7 +28,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.38 2001-06-19 22:21:48 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.39 2001-11-30 00:42:05 granger Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -1462,18 +1462,10 @@ char *name;
 {
 	struct gen_widget *gw = uw_g_widget (name);
 	struct frame_widget *frame = (struct frame_widget *) gw;
-# ifdef notdef
-/*
- * Make sure this is the right type of widget.
- */
-	if ((frame->fw_flags & WF_NOFRAME) == 0)
-		ui_error ("(APPL BUG): uw_IWRealize on non-int widget %s", 
-			name);
-# endif
 /*
  * Do it.
  */
-	return (frame->fw_next->gw_w);
+	return (frame && frame->fw_next) ? frame->fw_next->gw_w : 0;
 }
 
 

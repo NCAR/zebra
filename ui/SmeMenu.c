@@ -1,5 +1,5 @@
 #if ( !defined(lint) && !defined(SABER) )
-static char rcsid[] = "$Id: SmeMenu.c,v 1.14 1996-02-03 16:34:24 granger Exp $";
+static char rcsid[] = "$Id: SmeMenu.c,v 1.15 2001-11-30 00:42:05 granger Exp $";
 #endif 
 
 /*
@@ -496,8 +496,8 @@ Highlight(w)
 		 */
 		loc.x = root_x; loc.y = root_y;
 		entry->sme_menu.up = True;
-		RdssMenuPositionAndPopup(entry->sme_menu.popup, &loc,
-					 XtGrabNonexclusive);
+		RdssSubMenuPositionAndPopup(entry->sme_menu.popup, &loc,
+					    XtGrabNonexclusive);
 		IFD(ui_printf("	%s highlight popping up menu %s\n",
 			      XtName(w),
 			      XtName((Widget)entry->sme_menu.popup));)
@@ -508,7 +508,7 @@ Highlight(w)
  */
  	else if (entry->sme_menu.up && (x <= left))
 	{
-		XtPopdown (entry->sme_menu.popup);
+		RdssMenuPopdown (entry->sme_menu.popup);
 		entry->sme_menu.up = False;
 		IFD(ui_printf("	%s highlight popping down menu %s\n",
 			      XtName(w),
@@ -559,7 +559,7 @@ Widget w;
 	/*
 	 * Then popdown the menu shell
 	 */
-	XtPopdown (popup);
+	RdssMenuPopdown (popup);
 	entry->sme_menu.up = False;
 	IFD(ui_printf("%s: menu '%s' popped down\n",
 		      XtName(w), XtName(popup));)

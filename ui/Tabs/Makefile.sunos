@@ -1,0 +1,28 @@
+# $Id: Makefile.sunos,v 1.1 2001-11-30 00:42:09 granger Exp $
+
+CC = gcc
+
+CDEBUGFLAGS = -O
+
+CDEFS = -I/usr/openwin/include  -Dsun -Dsparc -DBSD \
+	-D_XFUNCPROTOBEGIN="" -D_XFUNCPROTOEND=""
+
+CFLAGS = $(CDEBUGFLAGS) $(CDEFS)
+
+#LIBS = -L/usr/openwin/lib -lXaw -lXmu -lm -lXt -lSM -lICE -lXext -lX11    -lsocket -lnsl  
+LIBS = -L/usr/openwin/lib -lXaw -lXmu -lXt -lXext -lX11
+
+SRCS = tabdemo.c Tabs.c
+OBJS = $(SRCS:.c=.o)
+
+all: tabdemo
+
+tabdemo: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LIBS)
+
+clean:
+	rm -f tabdemo
+	rm -f *.CKP *.BAK *.bak *.o core errs tags TAGS
+
+Tabs.i: Tabs.c
+	gcc $(CDEFS) -E Tabs.c > $@

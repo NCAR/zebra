@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.20 2001-01-08 22:12:02 granger Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.21 2001-11-30 00:42:05 granger Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -43,6 +43,7 @@ static char *rcsid = "$Id: ui_wPulldown.c,v 1.20 2001-01-08 22:12:02 granger Exp
 # include "ui_window.h"
 # include "ui_error.h"
 # include "ui_loadfile.h"
+# include "LiteClue.h"
 
 # ifdef SMEMENU
 static Pixmap SubMenuPixmap = 0;
@@ -454,6 +455,19 @@ Widget parent;
 		menu->mbm_button = XtCreateManagedWidget (menu->mbm_name,
 			menuButtonWidgetClass, parent, margs, i);
 		parent = menu->mbm_button;
+	/*
+	 * Add a tooltip to the button.
+	 */
+		{
+		    static Widget liteClue = 0;
+		    if (! liteClue)
+		    {
+		        liteClue = XtVaCreatePopupShell( "LiteClue_shell",
+					 xcgLiteClueWidgetClass, Top, NULL);
+		    }
+		    XcgLiteClueAddWidget(liteClue, menu->mbm_button,
+					 menu->mbm_title, 0, 0);
+		}
 	}
 /*
  * Create the pulldown.  Add the title if necessary.
@@ -565,6 +579,36 @@ char *name;
 }
 
 # endif
+
+
+/*
+ * Look up a menu by this name and return its title.  If not found or
+ * the found widget is not a menu, return null.  A menu without a title
+ * will return an empty string.  We assume the menu will be the first
+ * child of a frame widget.  If we only get the frame, revert to its title.
+ */
+char *
+uw_menu_title (char *menu)
+{
+    struct gen_widget *gw = uw_g_widget (menu);
+    struct frame_widget *frame = (struct frame_widget *) gw;
+    char *title = 0;
+
+    if (gw)
+    {
+	struct mb_menu *mbm = (struct mb_menu *) frame->fw_next;
+	if (mbm && mbm->mbm_type == WT_INTPOPUP)
+	{
+	    title = mbm->mbm_title;
+	}
+	else
+	{
+	    title = frame->fw_title;
+	}
+    }
+    return title;
+}
+
 
 
 static Widget uw_popup_menubutton;
