@@ -1,5 +1,5 @@
 /*
- * $Id: areadump.c,v 1.1 1993-06-25 08:12:33 granger Exp $
+ * $Id: areadump.c,v 1.2 1995-09-19 21:55:36 burghart Exp $
  */
 
 # include <stdio.h>
@@ -18,6 +18,9 @@ void swapfour();
 #define C_DEFAULT	(C_DATE | C_RESOLUTION)
 
 int	Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+int	LittleEndian;	/* Set to true when we have a LSB-first ordered file */
+
 
 
 void
@@ -43,7 +46,7 @@ int	argc;
 char	**argv;
 {
 	FILE	*infile;
-	char	*cvals, bytes[4], temp;
+	char	*cvals;
 	int	*header, *nav_cod;
 	int	i, c, *ival;
 	ZebTime	zt;
@@ -116,13 +119,20 @@ DumpInfo(filename, cvals, code)
 	ZebTime zt;
 	int Yres, Xres, Nbytes, Ny, Nx, Prefixlen, Linelen;
 	int i;
-
+/*
+ * Figure out if this file is big-endian or little-endian.  The second word
+ * of the area directory should always be 4, so we can test on that.
+ */
+	LittleEndian = (header[1] != 4);
 	GetFileTime(header, &zt);
 /*
  * NOTE: We don't swap in those portions which contain text
  */
-	swapfour (header + 5, 15);
-	swapfour (header + 32, 19);
+	if (LittleEndian)
+	{
+		swapfour (header + 5, 15);
+		swapfour (header + 32, 19);
+	}
 
 	strncpy (imtype, nav_cod, 4);
 	imtype[4] = '\0';
@@ -192,7 +202,8 @@ ZebTime *t;
 /*
  * Do the appropriate byte swapping.
  */
-	swapfour (header, 5);
+	if (LittleEndian)
+		swapfour (header, 5);
 /*
  * Extract the date.
  */
