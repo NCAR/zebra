@@ -3,10 +3,10 @@ XCOMM platform:  $XConsortium: sgi.cf,v 1.19 91/07/28 22:39:45 rws Exp $
 #define OSName			IRIX
 XCOMM operating system:		OSName
 
-#ifdef IRIX5 
+#ifdef IRIX4
 
 #ifndef OSMajorVersion
-#define OSMajorVersion 5 
+#define OSMajorVersion 4
 #endif
 #ifndef OSMinorVersion
 #define OSMinorVersion 0
@@ -14,7 +14,7 @@ XCOMM operating system:		OSName
 
 #else
 #ifndef OSMajorVersion
-#define OSMajorVersion 4
+#define OSMajorVersion 5
 #endif
 #ifndef OSMinorVersion
 #define OSMinorVersion 0
