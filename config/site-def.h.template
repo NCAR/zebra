@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.27 1997-01-14 19:56:05 case Exp $
+/**/# $Id: site-def.h.template,v 1.28 1997-01-14 21:44:40 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -303,6 +303,10 @@
  * however, Solaris 2.1 users should modify this to read:
  *
  *        # define TermcapLibrary -L/usr/ccs/lib -ltermcap
+ *
+ * Some Linux users may need to change this to:
+ *	  # define TermcapLibrary -lncurses
+ *
  */
 
 # define TermcapLibrary -ltermcap
