@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.17 1991-04-14 01:42:07 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.18 1991-07-02 15:40:59 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -1049,6 +1049,8 @@ int position;
 {
 	plot_description pd = find_pd (pdn), pdcomp;
 	struct cf_window *dwin = lookup_win (dest, TRUE);
+	char newname[40];
+	int i;
 /*
  * Sanity checks.
  */
@@ -1063,10 +1065,17 @@ int position;
 		return;
 	}
 /*
+ * Figure out the name for this component in the new PD, so as not to
+ * wipe out one that already exists.
+ */
+	strcpy (newname, comp);
+	for (i = 0; pd_CompExists (dwin->cfw_pd, newname); i++)
+		sprintf (newname, "%s.%d", comp, i);
+/*
  * Pull out the component.  If it fails, ReadComponent will gripe, so
  * we don't have to.
  */
-	if (! (pdcomp = pd_ReadComponent (pd, comp)))
+	if (! (pdcomp = pd_ReadComponent (pd, comp, newname)))
 		return;
 /*
  * Add it to the destination.
