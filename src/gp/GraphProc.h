@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.9 1991-12-20 17:49:49 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.10 1992-01-03 00:29:05 barrett Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -104,6 +104,11 @@ extern int DisplayFrame;		/* Frame to display		*/
 extern int DrawFrame;			/* Frame to draw in		*/
 
 /*
+ *  Set to 1 for PlotExec to trigger a global update
+ */
+extern int TriggerGlobal;
+
+/*
  * Routines of interest.
  */
 /* Basic graphic utilities */
@@ -119,6 +124,7 @@ extern void pc_CancelPlot FP ((void));
 extern void pc_PlotHandler FP ((void));
 extern void pc_ParamChange FP ((char *));
 extern int pc_TimeTrigger FP ((char *));
+extern void pc_TriggerGlobal FP ((void));
 
 /* Plot executive modules. */
 extern void px_PlotExec FP ((char *));
@@ -167,6 +173,7 @@ extern void An_DoSideAnnot FP (());
 extern void An_ColorBar FP ((char *, char *, int, int, int));
 extern void An_ColorNumber FP ((char *, char *, int, int, int));
 extern void An_ColorVector FP ((char *, char *, int, int, int));
+extern void An_BarbLegend FP ((char *, char *, int, int, int));
 extern void An_ColorString FP ((char *, char *, int, int, int));
 extern int An_GetLeft FP (());
 extern void An_GetSideParams FP ((char *, float *, int *));
