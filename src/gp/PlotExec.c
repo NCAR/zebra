@@ -35,7 +35,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.43 1995-04-17 22:15:08 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.44 1995-06-09 17:05:23 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -257,25 +257,25 @@ char	*component;
 		return;
 	}
 /*
+ * Global or update plot?
+ */
+	cachetime = PlotTime;
+	global = (strcmp (component, "global") == 0);
+/*
+ * Semi-kludge: roll back the plot time to the last trigger incr.
+ */
+	if (global && (PlotMode == RealTime))
+		px_FixPlotTime (&cachetime);
+/*
+ * Geographical coords and layout stuff will only change for global plots.
+ */
+	if (global && ! px_GetCoords ())
+		return;
+/*
  * Set the busy cursor so that people know something is going on.
  */
 	ChangeCursor (Graphics, BusyCursor);
-/*
- * Figure out coords.
- */
-	if (! px_GetCoords ())
-		return;
 	SetClip (TRUE);		/* Disable clipping for starters	*/
-/*
- * Global or update plot?
- */
-	if ((global = strcmp (component, "global") == 0) &&
-		 (PlotMode == RealTime))
-	/*
-	 * Semi-kludge: roll back the plot time to the last trigger incr.
-	 */
-		px_FixPlotTime (&cachetime);
-	else cachetime = PlotTime;
 /*
  * Three possibilities:
  *
@@ -578,58 +578,62 @@ ZebTime	*t;
 	ZebTime	ztavail;
 	PlatformId pid;
 /*
- * Convert ZebTime to UI time.
- */
-	TC_ZtToUI (t, &temptime);
-/*
  * If the global trigger is time based, we just roll back to that time.
  */
 	if (! pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
 		return;
 	if ((itrigger = pc_TimeTrigger (trigger)))
 	{
+		TC_ZtToUI (t, &temptime);
 		seconds = (temptime.ds_hhmmss / 10000) * 3600 +
 			  ((temptime.ds_hhmmss / 100) % 100) * 60 +
 			  (temptime.ds_hhmmss % 100);
 		seconds -= seconds % itrigger;
 		temptime.ds_hhmmss = (seconds / 3600) * 10000 + 
 			 ((seconds / 60) % 60) * 100 + seconds % 60;
-		temptime.ds_yymmdd = temptime.ds_yymmdd;
+		/* temptime.ds_yymmdd = temptime.ds_yymmdd; */
 		TC_UIToZt (&temptime, t);
-		return;
 	}
 /*
  * Otherwise we need to look at platform triggers.
  */
-	comps = pd_CompList (Pd);
-	latest.ds_yymmdd = 800101;	/* pretty early */
-	for (i = 0; comps[i]; i++)
-	{
-	/*
-	 * Get the trigger platform.
-	 */
-	 	if (! pd_Retrieve (Pd, comps[i], "trigger", trigger,
-				SYMT_STRING))
-			continue;
-		if ((pid = ds_LookupPlatform (trigger)) == BadPlatform)
-			continue;
-	/*
-	 * Find the most recent time.
-	 */
-	 	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &ztavail))
-			continue;
-		TC_ZtToUI (&ztavail, &avail);
-		if (DLE (latest, avail))
-			latest = avail;
-	}
-/*
- * If we found something, we go with it; otherwise keep the plot time
- * as it was.
- */
-	if (latest.ds_yymmdd > 800101) 	/* still pretty early */
-		TC_UIToZt (&latest, t);
 	else
-		TC_UIToZt (&temptime, t);
+	{
+		comps = pd_CompList (Pd);
+		latest.ds_yymmdd = 800101;	/* pretty early */
+		for (i = 0; comps[i]; i++)
+		{
+			char platform[PlatformListLen];
+			/*
+			 * Get the trigger platform.
+			 */
+			if (! pd_Retrieve (Pd, comps[i], "trigger", platform,
+					   SYMT_STRING))
+				continue;
+			if (! strcmp (platform, "platform"))
+			{
+				if (! pda_ReqSearch (Pd, comps[i], "platform",
+					     NULL, platform, SYMT_STRING))
+					continue;
+			}
+			if ((pid = ds_LookupPlatform(platform)) == BadPlatform)
+				continue;
+			/*
+			 * Find the most recent time.
+			 */
+			if (!ds_DataTimes(pid,&PlotTime,1,DsBefore,&ztavail))
+				continue;
+			TC_ZtToUI (&ztavail, &avail);
+			if (DLE (latest, avail))
+				latest = avail;
+		}
+		/*
+		 * If we found something, we go with it; otherwise keep the
+		 * plot time as it was. 
+		 */
+		if (latest.ds_yymmdd > 800101) 	/* still pretty early */
+			TC_UIToZt (&latest, t);
+	}
 }
 
 
@@ -651,7 +655,7 @@ Boolean	update;
  * If this overlay is disabled, ignore it.
  */
 	if (pda_Search (Pd, c, "disable", c, (char *) &disable, SYMT_BOOL) &&
-		disable)
+	    disable)
 		return;
 /*
  * Get the representation type
