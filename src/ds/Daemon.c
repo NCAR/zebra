@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.27 1993-09-02 08:12:55 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.28 1993-10-27 20:17:58 corbet Exp $")
 
 
 
@@ -202,11 +202,17 @@ FinishInit ()
  */
 {
 	ZebTime t1, t2;
+	int type;
+	SValue v;
 /*
- * Build the data table free list, then fill it up by scanning the disk
- * to see which data is already present.
+ * If they have defined a mondo cache file, pull it in now.
  */
-	/* dt_FinishTables (); */
+	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "cachefile",
+			  &type, &v))
+		ReadCacheFile (v.us_v_ptr);
+/*
+ * Perform the file scan to see what is out there.
+ */
 	msg_ELog (EF_INFO, "Starting file scan");
 	tl_Time (&t1);
 	DataScan ();
@@ -317,7 +323,7 @@ struct ui_command *cmds;
 	 * Write out cache files.
 	 */
 	   case DK_CACHE:
-	   	WriteCache (cmds[1].uc_ctype == UTT_KW);
+	   	WriteCache (cmds + 1);
 		break;
 
 	   default:
@@ -437,7 +443,7 @@ struct message *msg;
 	{
 	   case MH_SHUTDOWN:
 		if (CacheOnExit)
-			WriteCache (FALSE);
+			WriteCache (0);
 		ui_finish ();
 		exit (1);
 	/*

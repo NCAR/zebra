@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.23 1993-10-05 03:10:33 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.24 1993-10-27 20:17:52 corbet Exp $")
 #endif
 
 /*
@@ -66,6 +66,8 @@ static int	ds_FindBlock FP((int dfile, int dfnext,
 static int	ds_FindAfter FP ((PlatformId, ZebTime *));
 static void	ds_WriteLock FP ((PlatformId));
 static void	ds_FreeWLock FP ((PlatformId));
+static void	ds_ForceClosure FP ((void));
+
 
 /*
  * The application notification table.
@@ -2154,7 +2156,7 @@ int dfi;
 	
 
 
-void
+static void
 ds_ForceClosure()
 /*
  * Release whatever memory we have been holding onto, from open files,

@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.4 1993-09-02 08:24:29 granger Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.5 1993-10-27 20:18:02 corbet Exp $");
 
 
 /*
@@ -103,7 +103,7 @@ bool local, rescan;
  * Try to load a cache file.
  */
 	if (! rescan)
-		cloaded = LoadCache (p, local);
+		cloaded = (p->dp_flags & DPF_CLOADED) || LoadCache (p, local);
 	if (cloaded && (local ? LDirConst : RDirConst))
 	{
 		closedir (dp);
@@ -404,8 +404,8 @@ int chain;
 
 
 void
-WriteCache (onlydirty)
-int onlydirty;
+WriteCache (cmd)
+struct ui_command *cmd;
 /*
  * Dump out cache files for all local directores.  (Only those with changes
  * if "onlydirty" is set).
@@ -413,7 +413,25 @@ int onlydirty;
 {
 	int plat, fd, df, version = DSProtocolVersion;
 	char fname[300];
-
+	bool onlydirty, onefile;
+/*
+ * See just what they had in mind here.
+ */
+	if (! (onlydirty = (cmd->uc_ctype == UTT_KW)) &&
+	    (onefile = (cmd->uc_ctype != UTT_END)))
+	{
+		if ((fd = open (UPTR (*cmd), O_WRONLY|O_CREAT|O_TRUNC,
+				0664)) < 0)
+		{
+			msg_ELog (EF_PROBLEM, "Error %d opening %s",
+				  errno, UPTR (*cmd));
+			return;
+		}
+		write (fd, &version, sizeof (int));
+	}
+/*
+ * Now plow through the platforms and do it.
+ */
 	for (plat = 0; plat < NPlatform; plat++)
 	{
 		Platform *p = PTable + plat;
@@ -428,28 +446,115 @@ int onlydirty;
 	 	if (onlydirty && ! (p->dp_flags & DPF_DIRTY))
 			continue;
 	/*
-	 * Create the dump file.
+	 * Create the dump file if we're doing individual files.
 	 */
-		sprintf (fname, "%s/.ds_cache", p->dp_dir);
-		if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0)
+		if (! onefile)
 		{
-			msg_ELog (EF_PROBLEM, "Error %d opening %s", errno,
-					fname);
-			continue;
+			sprintf (fname, "%s/.ds_cache", p->dp_dir);
+			if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC,
+					0664)) < 0)
+			{
+				msg_ELog (EF_PROBLEM, "Error %d opening %s",
+					  errno, fname);
+				continue;
+			}
+			msg_ELog (EF_DEBUG, "Cache %s opened", fname);
+			write (fd, &version, sizeof (int));
 		}
-		msg_ELog (EF_DEBUG, "Cache %s opened", fname);
-		write (fd, &version, sizeof (int));
+	/*
+	 * Otherwise put in the platform marker.
+	 */
+		else
+		{
+			DataFile fake;
+			strcpy (fake.df_name, p->dp_name);
+			fake.df_flags = DFF_PlatMarker;
+			write (fd, &fake, sizeof (fake));
+		}
 	/*
 	 * Follow the chain.
 	 */
 	 	for (df = LOCALDATA (*p); df; df = DFTable[df].df_FLink)
 			write (fd, DFTable + df, sizeof (DataFile));
-		close (fd);
+		if (! onefile)
+			close (fd);
 	/*
 	 * This platform is now clean.
 	 */
 	 	p->dp_flags &= ~DPF_DIRTY;
 	}
+/*
+ * Close the file if there's only one.
+ */
+	if (onefile)
+		close (fd);
 }
 
 
+
+
+
+void
+ReadCacheFile (fname)
+char *fname;
+/*
+ * Pull in a big cache file.
+ */
+{
+	int fd, version;
+	Platform *p = NULL;
+/*
+ * Open up the file and check the version number.
+ */
+	if ((fd = open (fname, O_RDONLY)) < 0)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
+		return;
+	}
+	read (fd, &version, sizeof (int));
+	if (version != DSProtocolVersion)
+	{
+		msg_ELog (EF_PROBLEM, "Cache version mismatch in %s", fname);
+		close (fd);
+		return;
+	}
+/*
+ * Plow through it.
+ */
+	for (;;)
+	{
+		DataFile *df = dt_NewFile ();
+	/*
+	 * Pull in the next entry.
+	 */
+		if (read (fd, df, sizeof (DataFile)) < sizeof (DataFile))
+		{
+			dt_FreeDFE (df);
+			close (fd);
+			return;
+		}
+		df->df_index = df - DFTable;
+	/*
+	 * See if we have a platform marker.
+	 */
+		if (df->df_flags & DFF_PlatMarker)
+		{
+			if ((p = dt_FindPlatform (df->df_name, FALSE)) == NULL)
+				msg_ELog (EF_PROBLEM, "Funky plat %s in cache",
+					  df->df_name);
+			else
+				p->dp_flags |= DPF_CLOADED;
+			dt_FreeDFE (df);
+		}
+	/*
+	 * Otherwise store the file entry.
+	 */
+		else if (p)
+		{
+			df->df_flags &= ~(DFF_Seen | DFF_Remote);
+			dt_AddToPlatform (p, df, TRUE);
+		}
+	}
+	close (fd);
+}
+			

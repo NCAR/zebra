@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.10 1993-05-03 17:21:58 corbet Exp $
+! $Id: Daemon.state,v 2.11 1993-10-27 20:18:00 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -225,7 +225,7 @@ enddef
 
 
 !
-! After a cache command allow an optional "dirty" qualifier.
+! After a cache command allow an optional "dirty" qualifier or a file name.
 !
 define state cache-opt-dirty
 	input EOS
@@ -234,17 +234,22 @@ define state cache-opt-dirty
 	input 'dirty' 0
 		next ust$no_more
 	endinput
+	input string
+		next ust$no_more
+	endinput
 enddef
 
 
 set ui$initial_state "initial"
 
 procedure ui$init
+!
+! Pull in the init file.
+!
 	if (defined ("initfile"))
 		local rcmd concat("read ", initfile)
 	else
-        set config concat(getenv("ZEBHOME"), "/fcc/DataStore/ds.config")
-		local rcmd 'read config'
+		local rcmd "message 'What?  No init file'"
 	endif
 	#rcmd
 	done

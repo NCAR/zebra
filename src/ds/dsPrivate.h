@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.16 1993-09-02 08:26:09 granger Exp $
+ * $Id: dsPrivate.h,v 3.17 1993-10-27 20:18:08 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -82,6 +82,8 @@ typedef struct ds_Platform
 # define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
 # define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
 # define DPF_DIRTY	0x0080		/* Cache needs updating		*/
+# define DPF_CLOADED	0x0100		/* Cache has been loaded	*/
+
 /*
  * Macro to return the right data list for a platform.
  */
@@ -121,7 +123,7 @@ typedef struct ds_DataFile
 # define DFF_Archived	0x01		/* File has been archived	*/
 # define DFF_Seen	0x02		/* Seen during rescan		*/
 # define DFF_Remote	0x04		/* File in remote list		*/
-
+# define DFF_PlatMarker 0x08		/* Kludge: marker for cache	*/
 
 /*
  * Write codes -- used to control the placement of data.
