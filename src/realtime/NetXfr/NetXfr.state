@@ -41,7 +41,7 @@ define state initial
 	endinput
 	input 'dirimage' 7
 		next ust$final_string
-	endinpug
+	endinput
 enddef
 
 !
