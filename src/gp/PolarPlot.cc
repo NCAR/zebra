@@ -214,6 +214,25 @@ ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 	if (! Setup (pb))
 		return;
 //
+// If we need to swap data order, make a copy and swap there
+//
+	int swapping = sc_Dest->di_needswap;
+	if (swapping)
+	{
+	//
+	// Allocate a temporary data array, copy and swap the data, then
+	// point "data" to the new swapped array.
+	//
+	    int imgsize = sc_Dest->di_bpl * sc_Dest->di_h;
+	    char* newdata = new char[imgsize];
+	    memcpy (newdata, data, imgsize);
+
+	    for (int i = 0; i < imgsize; i+= 4)
+		swap4 (newdata + i);
+	    
+	    data = newdata;
+	}
+//
 // Do we need to triangle fill on the close end?  If so, be done with it.
 //
 	if (sp_CFill)
@@ -256,6 +275,11 @@ ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 				sc_Dest->di_bdepth);
 		return;
 	}
+//
+// If we made a swapped copy of the data, release it now
+//
+	if (swapping)
+	    delete[] data;
 }
 
 
@@ -854,6 +878,7 @@ ScanConverter::PFill_1_R (void *vdata)
 			dp[col] = data[gate_col.ival ()];
 			gate_col += col_inc;
 		}
+
 	/*
 	 * Update the gate and beam width info.
 	 */
@@ -1222,7 +1247,6 @@ pol_PlotBeam (PPCookie pc, PolarBeam *pb, void *data, float xr, float yr)
 {
 	ScanConverter *sc = (ScanConverter *) pc;
 	DestImage *img = sc->getDest ();
-// Swap data!!
 	sc->DoBeam (pb, data, xr - img->di_x, yr - img->di_y);
 }
 
