@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.53 2001-06-19 23:48:30 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.54 2001-08-31 03:43:45 granger Exp $")
 
 /*
  * General definitions
@@ -495,10 +495,13 @@ zbool	update;
  * Field
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
-	if (! strcmp (fldname, "normal"))  {
+	if (! strcmp (fldname, "normal") || ! strcmp (fldname, "inplane"))  {
 		ok &= pda_ReqSearch (Pd, c, "u-field", NULL, ufldname, SYMT_STRING);
 		ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vfldname, SYMT_STRING);
-		strcpy (justname, "normal");
+		if (! strcmp (fldname, "normal"))
+			strcpy (justname, "normal");
+		else
+			strcpy (justname, "inplane");
 	}
 	else  {
 		fid = F_Lookup (fldname);
@@ -1362,9 +1365,15 @@ int	nplat;
  * Annotate
  */
 	An_TopAnnot ("Contour of ");
-	An_TopAnnotMatch (strcmp (fldname, "normal") ? 
-			  px_FldDesc(fldname) : "normal winds", 
-			  Ccolor.pixel, Mono_color ? c : 0, 0);
+	if (! strcmp (fldname, "normal"))
+		An_TopAnnotMatch ("normal winds", Ccolor.pixel, 
+			Mono_color ? c : 0, 0);
+	else if (! strcmp (fldname, "inplane")) 
+		An_TopAnnotMatch ("inplane winds", Ccolor.pixel, 
+			Mono_color ? c : 0, 0);
+	else
+		An_TopAnnotMatch (px_FldDesc(fldname), Ccolor.pixel, 
+			Mono_color ? c : 0, 0);
 	An_TopAnnot (" using: ");
 /*
  * Find the gridding method and grab the data
@@ -1388,7 +1397,7 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		if (! strcmp(fldname, "normal"))  {
+		if (! strcmp(fldname, "normal") || ! strcmp(fldname, "inplane"))  {
 			uplane = xs_Bilinear (pnames[0], ufldname, &dtime);
 			vplane = xs_Bilinear (pnames[0], vfldname, &dtime);
 		}
@@ -1397,8 +1406,14 @@ int	nplat;
 	/*
 	 * Add a line to the overlay times widget
 	 */
-		if (uplane && vplane)
-		    ot_AddStatusLine (c, pnames[0], "(normal winds)", &dtime);
+		if (uplane && vplane)  {
+			if (! strcmp(fldname, "normal"))
+		    		ot_AddStatusLine (c, pnames[0], "(normal winds)", 
+					&dtime);
+			else
+				ot_AddStatusLine (c, pnames[0], "(inplane winds)", 
+					&dtime);
+		}
 		else if (plane)
 		    ot_AddStatusLine (c, pnames[0], fldname, &dtime);
 	}
@@ -1409,7 +1424,7 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		if (! strcmp(fldname, "normal"))  {
+		if (! strcmp(fldname, "normal") || ! strcmp(fldname, "inplane"))  {
 		    uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
 		    vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
 		}
@@ -1454,7 +1469,8 @@ int	nplat;
 		An_TopAnnot (".  ");
 	}
 /*
- * If we have horizontal vector components, compute the normal wind magnitude.
+ * If we have horizontal vector components, compute the normal or inplane wind 
+ * magnitude, depending on fldname.
  */
 	if (uplane && vplane)
 	{
@@ -1471,7 +1487,10 @@ int	nplat;
 		  else
 		  {
 			double theta = pangle - atan2(v, u);
-			vplane->data[i] = sqrt(u*u + v*v) * sin(theta);
+			if (! strcmp (fldname, "normal"))
+				vplane->data[i] = - sqrt(u*u + v*v) * sin(theta);
+			else
+				vplane->data[i] = sqrt(u*u + v*v) * cos(theta);
 		  }
 	    }
 	    /*
