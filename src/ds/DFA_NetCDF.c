@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.3 1992-06-19 16:20:05 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.4 1992-07-08 19:13:45 kris Exp $")
 
 # include "netcdf.h"
 
@@ -68,7 +68,7 @@ typedef struct _nctag
  * assumption that all the files for a given platform are organized the same
  * way, which should be safe.
  */
-#define MAXPLAT	256		/* How many different platforms we expect */
+#define MAXPLAT	1024		/* How many different platforms we expect */
 #define BASEDONE	-1	/* Flag to mark bases which are done	 */
 #define UNKNOWN	-2
 static int      SPMap[MAXPLAT] = {0};
@@ -681,7 +681,7 @@ NCTag *tag;
 		free (ftime);
 	}
 	else
-		ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
+		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
 			tag->nc_times);
 
 	if (status < 0)
