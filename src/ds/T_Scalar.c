@@ -688,12 +688,15 @@ int ndetail;	/* details to pass to storage to set time variables */
 	PlatformId pid;
 	DataChunk *dc;
 	FieldId fid = F_DeclareField("microsecs", "Microsecond samples", "ms");
-	Location loc = { 40.0, -180.0, 5280.0 };
+	Location loc;
 	ZebTime zt;
 	int maxs = microPlat.maxsamples;
 	int badval;
 	int i;
 
+	loc.l_lat = 40.0;
+	loc.l_lon = -180.0;
+	loc.l_alt = 5280.0;
 	pid = MakePlatform (&microPlat);
 	dc = dc_CreateDC (DCC_Scalar);
 	dc->dc_Platform = pid;

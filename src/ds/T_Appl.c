@@ -188,8 +188,9 @@ T_DSDump ()
 	PlatformInfo pi;
 	int i;
 	int tier = 0;
-	ZebTime since = ZT_EPOCH;
+	ZebTime since;
 
+	since = ZT_EPOCH;
 	if (! Verbose && ! Debug)
 		return (0);
 	for (i = 0; i < MAXPLAT; i++)
