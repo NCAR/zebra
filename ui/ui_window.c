@@ -26,7 +26,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.20 1992-05-06 15:54:52 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.21 1992-06-02 22:37:24 burghart Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -1266,6 +1266,12 @@ Widget parent;
 {
 	struct gen_widget *gw = uw_g_widget (name);
 	struct frame_widget *frame = (struct frame_widget *) gw;
+/*
+ * Real widget?
+ */
+	if (! gw)
+		ui_error ("uw_IWRealize: undefined internal widget '%s'", 
+			name);
 /*
  * Make sure this is the right type of widget.
  */
