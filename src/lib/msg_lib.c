@@ -31,9 +31,8 @@
 # include "defs.h"
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
-# ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.27 1995-05-01 16:06:52 corbet Exp $")
-# endif
+
+RCSID ("$Id: msg_lib.c,v 2.28 1995-05-02 23:16:28 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -161,8 +160,7 @@ char *ident;
 	struct message msg;
 	struct mh_greeting greet;
 	struct mh_ident id;
-	int msg_incoming ();
-	char *getenv (), *sn = getenv ("ZEB_SOCKET");
+	char *sn = getenv ("ZEB_SOCKET");
 /*
  * Preserve our identity
  */
@@ -514,7 +512,8 @@ msg_await ()
 	 * Wait for something.
 	 */
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, &fds, 0, 0, 0)) < 0)
+		if ((nsel = select (Max_fd + 1, (z_FdSet *)&fds, (z_FdSet *)0,
+				    (z_FdSet *) 0, 0)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
@@ -692,7 +691,7 @@ int fd;
 	{
 		if (! (msg = msg_read (fd)))
 			return (1);
-		msg_HandleProto (msg, NULL, 0, &ret);
+		msg_HandleProto (msg, 0, NULL, &ret);
 		msg_free (msg);
 		return (ret);
 	}
@@ -728,7 +727,8 @@ int timeout; /* seconds */
 	 * Wait for something.
 	 */
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, &fds, 0, 0, &delay)) < 0)
+		if ((nsel = select (Max_fd + 1, (z_FdSet *)&fds, (z_FdSet *) 0,
+				    (z_FdSet *) 0, &delay)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
@@ -801,7 +801,8 @@ int *protolist;	/* array of protocols to handle */
 	for (;;)
 	{
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, &fds, 0, 0, &delay)) < 0)
+		if ((nsel = select (Max_fd + 1, (z_FdSet *)&fds, (z_FdSet *)0,
+				    (z_FdSet *) 0, &delay)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
@@ -1003,8 +1004,8 @@ struct message *msg;
  * Write the message structure and its data.
  */
 {
-	int nsent;
-	int len;
+	unsigned int nsent;
+	unsigned int len;
 	int fail = 0;
 
 	if (msg_netwrite (Msg_fd, msg, sizeof (Message)) < sizeof (Message))
@@ -1017,9 +1018,9 @@ struct message *msg;
  * with msg_netwrite in place, but what the heck...it works...
  */
 	nsent = 0;
-	while ((!fail) && (nsent < msg->m_len))
+	while ((!fail) && (nsent < (unsigned int)msg->m_len))
 	{
-		len = ((msg->m_len - nsent) > DCHUNK) ? DCHUNK : 
+		len = (((unsigned int)msg->m_len - nsent) > DCHUNK) ? DCHUNK : 
 				(msg->m_len - nsent);
 		if (msg_netwrite (Msg_fd, ((char *)msg->m_data) + nsent, len)
 				< len)
@@ -1117,7 +1118,7 @@ int type, broadcast, datalen;
 		msg.m_seq = Seq++;
 		if (msg_write (&msg))
 		{
-			signal (SIGALRM, (void *) msg_abort);
+			signal (SIGALRM, (void(*)(/*int*/)) msg_abort);
 			alarm (30);
 			msg_Search (type, msg_echo, (void *) &msg);
 			alarm (0);

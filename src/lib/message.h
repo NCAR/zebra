@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.17 1995-04-15 00:53:23 granger Exp $ */
+/* $Id: message.h,v 2.18 1995-05-02 23:14:47 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -22,8 +22,8 @@
 # ifndef _ZEB_MESSAGE_H_
 # define _ZEB_MESSAGE_H_
 
-# include <defs.h>		/* For const definition */
-# include <config.h>		/* To get CFG_ parameters */
+# include "defs.h"		/* For const definition */
+# include "config.h"		/* To get CFG_ parameters */
 
 # define MT_MESSAGE	 0	/* Message handler protocol		*/
 # define MT_DISPLAYMGR	 1	/* Display manager messages		*/
@@ -270,10 +270,6 @@ struct msg_mtap
 	char mt_clients[MAX_NAME_LEN][MAX_TAP_CLIENT];
 };
 
-
-
-
-
 /*
  * Message lib routines.
  */
@@ -329,10 +325,22 @@ void cp_Exec FP ((char *process, char *command));
  */
 # if defined(MESSAGE_MANAGER) || defined(MESSAGE_LIBRARY)
 
+/*
+ * For some reason HP-UX uses pointers to int rather than
+ * pointers to fd_set in its select prototype.  This typedef is just
+ * to get the right cast for the compiler.
+ */
+#ifdef hpux
+typedef int z_FdSet;
+#else
+typedef fd_set z_FdSet;
+#endif
+
 #define FD_MAP_SIZE 64		/* used for fd map tables */
 
 int msg_XX_netread FP ((int fd, char *dest, int len));
 int msg_netread FP ((int fd, char *dest, int len));
+
 # endif /* MESSAGE_MANAGER || MESSAGE_LIBRARY */
 
 # endif /* ! _ZEB_MESSAGE_H_ */

@@ -21,7 +21,7 @@
 
 # include "defs.h"
 
-RCSID("$Id: Parse.c,v 2.3 1995-04-15 00:12:17 granger Exp $")
+RCSID("$Id: Parse.c,v 2.4 1995-05-02 23:16:21 granger Exp $")
 
 int
 CommaParse (string, substrings)
@@ -40,7 +40,9 @@ char	*string, **substrings;
 
 int
 ParseLine (string, substrings, delim)
-char *string, **substrings, delim;
+char *string;
+char **substrings;
+int delim;
 /*
  * Parse up this line using delim, which probably should ought not to be
  * white space.

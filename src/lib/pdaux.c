@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.11 1995-04-15 00:36:43 granger Exp $ */
+/* $Id: pdaux.c,v 1.12 1995-05-02 23:16:30 granger Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -130,6 +130,7 @@ int param;
 
 	pd_Release (pd);
 	usy_z_symbol (Pd_table, name);
+	return (TRUE);
 }
 
 

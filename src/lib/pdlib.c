@@ -38,7 +38,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.21 1995-04-15 00:42:03 granger Exp $")
+RCSID ("$Id: pdlib.c,v 1.22 1995-05-02 23:16:31 granger Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -86,6 +86,8 @@ static stbl pd_NewComponent FP ((stbl pd, char *compname));
 static int pd_ParamFunc FP((char *name, int type, union usy_value *v,
 			    struct traverse *t));
 static void pd_CopyComp FP ((stbl dest, stbl src));
+static int pd_UnloadParam FP ((char *name, int type, union usy_value *v,
+			       raw_plot_description *rpd));
 
 /*
  * Size of temp buffer used for writing raw PD's, eg 40960
@@ -657,8 +659,6 @@ raw_plot_description *rpd;
  * Encode a single component into this rpd.
  */
 {
-	static int pd_UnloadParam ();
-
 	strcat (rpd->rp_data, name);
 	strcat (rpd->rp_data, "\n");
 	usy_traverse (comp, pd_UnloadParam, (long) rpd, TRUE);
@@ -669,7 +669,7 @@ raw_plot_description *rpd;
 
 
 
-int
+static int
 pd_UnloadParam (name, type, v, rpd)
 char *name;
 int type;

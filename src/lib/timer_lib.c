@@ -22,7 +22,8 @@
 # include "defs.h"
 # include "timer.h"
 # include "message.h"
-MAKE_RCSID ("$Id: timer_lib.c,v 2.7 1995-04-15 00:33:23 granger Exp $");
+
+RCSID ("$Id: timer_lib.c,v 2.8 1995-05-02 23:16:33 granger Exp $")
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 

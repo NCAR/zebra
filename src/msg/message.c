@@ -45,7 +45,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.30 1995-05-01 16:07:09 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.31 1995-05-02 23:11:41 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -313,7 +313,6 @@ char **argv;
 	int inet = FALSE;
 	int nofork = FALSE;
 	char *host = NULL;
-	char *getenv ();
 	fd_set fds, wfds;
 	int i;
 /*
@@ -380,7 +379,7 @@ char **argv;
 /*
  * Signals 
  */
-	signal (SIGPIPE, (void *)psig);
+	signal (SIGPIPE, (void(*)(/*int*/)) psig);
 	signal (SIGHUP, SIG_IGN);
 /*
  * We need our host name to look up our port in the host table.  Use
@@ -437,19 +436,19 @@ char **argv;
 		if (NWriteFd)
 		{
 			wfds = WriteFds;
-			nsel = select (Nfd, &fds, &wfds, (fd_set *) 0,
-					(struct timeval *) NULL);
+			nsel = select (Nfd, (z_FdSet *)&fds, (z_FdSet *)&wfds,
+				       (z_FdSet *) 0, (struct timeval *) NULL);
 		}
 		else
-			nsel = select (Nfd, &fds, (fd_set *) 0, (fd_set *) 0,
-				(struct timeval *) NULL);
+			nsel = select (Nfd, (z_FdSet *)&fds, (z_FdSet *) 0,
+				       (z_FdSet *) 0, (struct timeval *) NULL);
 	/*
 	 * See what happened.
 	 */
 		if (nsel < 0 && errno != EINTR)
 		{
 			perror ("Select");
-			exit (1);	/* XXX */
+			break;		/* XXX */
 		}
 	 	listen (M_un_socket, 5);	/* XXXX?? */
 		/* printf ("Sel done, nsel %d\r\n", nsel); */
@@ -480,7 +479,9 @@ char **argv;
 		if (nsel)
 			inc_message (nsel, &fds);
 	}	
+	return (1);
 }
+
 
 
 static void
@@ -610,7 +611,7 @@ const char *file;
 	while (fgets (line, 256, infile) != NULL)
 	{
 		++i;
-		if (strlen(line) >= 255)
+		if ((unsigned int)strlen(line) >= (unsigned int)255)
 		{
 			fprintf (stderr, "file %s: line %i too long\n", 
 				 file, i);
@@ -703,7 +704,7 @@ MakeUnixSocket ()
  */
 {
 	struct sockaddr_un saddr;
-	char *sn, *getenv ();
+	char *sn;
 
 	if ((M_un_socket = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
@@ -1030,16 +1031,17 @@ struct message *msgp;
  */
 {
 	struct iovec iov[2];
-	char *at = NULL;
 	int nwrote, nwant;
+	char *at = NULL;
 /*
  * If this message is going out over the net, we need to append
  * our host name to the from field.  But don't overrun our memory to do it.
  */
 	if (conp->c_inet)
 	{
-		int space = sizeof(msgp->m_from) - strlen(msgp->m_from) - 1;
+		unsigned int space;
 
+		space = sizeof(msgp->m_from) - strlen(msgp->m_from) - 1;
 		at = msgp->m_from + strlen(msgp->m_from);
 		if (space < strlen(Hostname) + 1)
 		{
@@ -1671,7 +1673,7 @@ die ()
  * Now set an alarm and continue to operate for a little while longer so that
  * processes can communicate while they shut down.
  */
-	signal (SIGALRM, (void *) ReallyDie);
+	signal (SIGALRM, (void(*)(/*int*/)) ReallyDie);
 	alarm (SHUTDOWN_DELAY);
 }
 
@@ -2194,7 +2196,7 @@ char *host;
 /*
  * Set up a timeout for this connection.
  */
-	signal (SIGALRM, Alarm);
+	signal (SIGALRM, (void (*)(/*int*/)) Alarm);
 	alarm (INETCTIME);
 /*
  * Fill in the sockaddr structure, and try to make the connection.
@@ -2708,7 +2710,7 @@ psig ()
  * the dead process will be noted later.
  */
 {
-	signal (SIGPIPE, (void *) psig);
+	signal (SIGPIPE, (void (*)(/*int*/)) psig);
 	S_npipe++;
 	return (0);
 }

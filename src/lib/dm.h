@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.1 1995-04-15 00:45:10 granger Exp $ */
+/* $Id: dm.h,v 2.2 1995-05-02 23:16:24 granger Exp $ */
 /*
  * Display manager public interface.
  */
@@ -24,9 +24,9 @@
 #define __zeb_dm_h_
 
 # include <X11/Xlib.h>
-# include <defs.h>
-# include <message.h>
-# include <pd.h>
+# include "defs.h"
+# include "message.h"
+# include "pd.h"
 # include <config.h>		/* CFG_ symbol definitions 	*/
 
 /*

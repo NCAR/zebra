@@ -24,7 +24,7 @@
 # include "defs.h"
 # include "message.h"
 
-MAKE_RCSID("$Id: ConfigVars.c,v 1.8 1995-04-15 00:05:27 granger Exp $")
+MAKE_RCSID("$Id: ConfigVars.c,v 1.9 1995-05-02 23:16:19 granger Exp $")
 
 /*
  * Keep the directories around for queries.
@@ -43,7 +43,6 @@ InitDirVariables ()
  */
 {
 	static int done = FALSE;
-	char *getenv ();
 	char *envbase;
 	char *envp;
 

@@ -18,7 +18,7 @@
 
 #include "dm.h"
 
-RCSID ("$Id: dm_lib.c,v 2.1 1995-04-15 00:46:35 granger Exp $");
+RCSID ("$Id: dm_lib.c,v 2.2 1995-05-02 23:16:25 granger Exp $")
 
 /*
  * Private prototypes
