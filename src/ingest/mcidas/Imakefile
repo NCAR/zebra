@@ -4,7 +4,7 @@
  * nowrad and satellite.  Note that any program which references these
  * routines must also link with the FORTRAN libraries ($(FLIBS))
  */
-MFVERSION = "$Id: Imakefile,v 1.7 1997-06-30 19:33:20 granger Exp $"
+MFVERSION = "$Id: Imakefile,v 1.8 1997-06-30 20:49:39 granger Exp $"
 
 FSRCS = cfd.f cfg.f cfi.f cfr.f cfz.f clit.f ddest.f dpsino.f \
         edest.f flalo.f ftime.f geolat.f idmyyd.f iftok.f ih.f \
@@ -33,17 +33,11 @@ OBJS =  clit.o flalo.o ftime.o geolat.o iround.o itime.o lit.o llcart.o \
 	$(NAVOBJS) mcidas.o
 
 /*
- * So far on every architecture except these we expect the FORTRAN
- * compiler to append an underscore to the symbol name.  Note that
- * technically this is compiler-dependent.  For example, if you're
- * using GNU F77 you'll want UNDERSCORE defined on any architecture.
- * I think.
+ * Leave UNDERSCORE undefined if for some reason a FORTRAN compiler does not
+ * want to append underscores to its symbols.  For the architectures we
+ * support at present, UNDERSCORE needs to be defined.
  */
-#if defined(OSF1Architecture) || defined(AIXArchitecture)
-DEFINES = 
-#else
 DEFINES = -DUNDERSCORE=1
-#endif
 
 XCOMM nvx*.f files contain definitions of the nvxeas, nvxini, 
 XCOMM nvxopt, and nvxsae routines required by the satellite ingestors.
