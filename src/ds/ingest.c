@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.4 1992-07-22 14:53:55 granger Exp $
+/* $Id: ingest.c,v 1.5 1992-11-02 21:56:40 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -17,11 +17,13 @@
  * An application using the ingest package should do the following:
  *
  * #include "ingest.h"
- * Parse the ingest cmd-line options with IngestParseOptions()
- * IngestInitialize(), which intializes the message and DataStore, unless
+ * Parse the ingest cmd-line options with IngestParseOptions().  Call
+ * IngestInitialize(), which intializes the message and DataStore unless
  * these have been disabled by the application or command-line options.
- * Call IngestUsage() from the application's uasge() function to show the
- * user what the ingest options are.  Lastly, use IngestLog() rather than
+ * Call IngestUsage() from the application's usage() function to show the
+ * user what the ingest options are.  Alternatively, if the application has
+ * no usage() function, just pass IngestUsage() to IngestParseOptions
+ * as the usage function.  Lastly, use IngestLog() rather than
  * msg_ELog() to log messages with the EventLogger.
  *
  * IngestInitialize() also installs a default message handler which
@@ -107,15 +109,18 @@ va_dcl
 		note = 'I';
 	else if (flags & EF_DEBUG)
 		note = 'D';
+	else if (flags & EF_DEVELOP)
+		note = 'V';
 	else
 		note = '-';
 
 	va_start(args);
 	fmt = va_arg(args, char *);
 
-/*
- * First check our local debug flag
- */
+	/*
+	 * First check our local debug flag, which indicates which events
+	 * should get sent to stderr
+	 */
 	if (IngestLogFlags & flags)
 	{
 		fprintf(stderr,"%c %s: ",note,IngestName);
@@ -123,9 +128,18 @@ va_dcl
 		fprintf(stderr,"\n");
 	}
 
-/*
- * Now create the message to the event logger, iff NoEventLogger == 0
- */
+	/*
+	 * Remove the EF_DEVELOP flag, and if no flag remains, don't
+	 * bother actually sending this message to the EventLogger
+	 */
+	flags &= (~(long)EF_DEVELOP);
+	if (!flags)
+		return;
+
+	/*
+	 * Now create the message to the event logger, and send it
+	 * iff NoEventLogger == 0
+	 */
 	el = (struct msg_elog *) cbuf;
 	vsprintf(el->el_text, fmt, args);
 	va_end(args);
@@ -185,7 +199,7 @@ struct message *msg;
 void
 IngestUsage()
 {
-   const char spc[] = " ";
+   const char *spc = " ";
 
    fprintf(stderr,"Ingest Options:\n");
    fprintf(stderr,"   %-20s Dump data chunks when stored\n","-blow,-chunks");
@@ -202,6 +216,7 @@ IngestUsage()
    fprintf(stderr,"   %-20s    c:   clients\n",spc);
    fprintf(stderr,"   %-20s    d:   debugging\n",spc);
    fprintf(stderr,"   %-20s    i:   information\n",spc);
+   fprintf(stderr,"   %-20s    v:   development debugging\n",spc);
    fprintf(stderr,"   %-20s Show this information\n","-help, -h");
 }
 
@@ -233,7 +248,7 @@ IngestParseOptions(argc, argv, usage)
 		   nargs = 2;
 		   arg = argv[i+1];
 		   if (streq(arg,"all"))
-		      IngestLogFlags = 0xff;
+		      IngestLogFlags = 0xff | EF_DEVELOP;
 		   else
 		   {
       		      while ((*arg))
@@ -254,6 +269,9 @@ IngestParseOptions(argc, argv, usage)
 			       break;
 			    case 'i':
 			       IngestLogFlags |= EF_INFO;
+			       break;
+			    case 'v':
+			       IngestLogFlags |= EF_DEVELOP;
 			       break;
 			    default:
 			       fprintf(stderr,"Invalid log flag: %c\n",*arg);
