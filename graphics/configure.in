@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rdssgraphics, 20020823, rdp-support@atd.ucar.edu)
+AC_INIT(rdssgraphics, [20020827], rdp-support@atd.ucar.edu)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([control.c])
 
@@ -13,10 +13,14 @@ AC_PATH_X
 if test "$no_x" = "yes"; then
 	echo "X11 was not found; the RDSS Graphics library will not be built."
 else
-	LIBS="$LIBS -lXaw -lXt -lXmu -lX11"
+	LIBS="$LIBS -lX11"
 fi
 AM_CONDITIONAL(WITH_X, [test x$no_x = x])
 
+#
+# Add to LDFLAGS and INCLUDES if X files are not in locations
+# searched by default.
+#
 if test x$x_libraries != x; then 
 	LDFLAGS="$LDFLAGS -L$x_libraries"
 fi

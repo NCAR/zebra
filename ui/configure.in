@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rdssui, 20020716, rdp-support@atd.ucar.edu)
+AC_INIT(rdssui, [20020827], rdp-support@atd.ucar.edu)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([ui.c])
 
@@ -7,31 +7,6 @@ AC_CONFIG_SRCDIR([ui.c])
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_RANLIB
-
-#
-# X is required
-#
-AC_PATH_X
-
-if test "$no_x" != "yes"; then
-	DEFS="$DEFS -DXSUPPORT -DSMEMENU"
-	LIBS="$LIBS -lXaw -lXmu -lXt -lX11"
-fi
-
-AM_CONDITIONAL(WITH_X, [test x$no_x = x])
-
-if test x$x_libraries != x; then 
-	LDFLAGS="$LDFLAGS -L$x_libraries"
-fi
-
-if test x$x_includes != x; then 
-	INCLUDES="$INCLUDES -I$x_includes"
-fi
-
-#
-# Expect to find RDSS libraries under our installation directory
-#
-LDFLAGS="$LDFLAGS -L${libdir}"
 
 #
 # Checks for libraries.
@@ -44,6 +19,46 @@ AC_CHECK_LIB([termcap], [tgetstr], ,
 # otherwise we probably get the necessary stuff from libc (i.e., under Linux)
 AC_CHECK_LIB([nsl], [gethostbyname])
 AC_CHECK_LIB([socket], [socket])
+
+#
+# X is required
+#
+AC_PATH_X
+
+if test "$no_x" != "yes"; then
+	DEFS="$DEFS -DXSUPPORT -DSMEMENU"
+	LIBS="-lXt -lX11 $LIBS"
+fi
+
+AM_CONDITIONAL(WITH_X, [test x$no_x = x])
+
+#
+# Add to LDFLAGS and INCLUDES if X files are not in locations
+# searched by default.
+#
+if test x$x_libraries != x; then 
+	LDFLAGS="$LDFLAGS -L$x_libraries"
+fi
+
+if test x$x_includes != x; then 
+	INCLUDES="$INCLUDES -I$x_includes"
+fi
+
+#
+# HPUX may not have libXaw, libXext, and libXmu, so check explicitly and
+# complain if one is missing
+#
+AC_CHECK_LIB([Xmu], [XmuMakeAtom], ,
+	[echo "Cannot find X11 library libXmu"; exit 1])
+AC_CHECK_LIB([Xext], [XextCreateExtension], ,
+	[echo "Cannot find X11 extension library libXext"; exit 1])
+AC_CHECK_LIB([Xaw], [XawInitializeWidgetSet], ,
+	[echo "Cannot find Athena widget library libXaw"; exit 1])
+
+#
+# Expect to find RDSS libraries under our installation directory
+#
+LDFLAGS="$LDFLAGS -L${libdir}"
 
 # Checks for header files.
 AC_HEADER_STDC
