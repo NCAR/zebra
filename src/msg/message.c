@@ -45,7 +45,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.33 1995-06-09 16:11:34 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.34 1995-06-29 22:36:23 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -2617,93 +2617,6 @@ char *group;
 
 
 
-static void
-log (flags, va_alist)
-int flags;
-va_dcl
-/*
- * Log a message short of sending it.  Meant for within send_msg, since using
- * send_log can lead to infinite or indefinite recursion.
- */
-{
-	char mbuf[512];
-	va_list args;
-	char *fmt;
-/*
- * No sense in compiling a message if we won't be printing it
- */
-	if (! (flags & (EF_PROBLEM | EF_EMERGENCY)) && (! Debug))
-		return;
-/*
- * Format the message.
- */
- 	va_start (args);
-	fmt = va_arg (args, char *);
-	vsprintf (mbuf, fmt, args);
-	va_end (args);
-	fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname, mbuf);
-}
-
-
-
-static void
-send_log (flags, va_alist)
-int flags;
-va_dcl
-/*
- * Send a message to the event logger.
- */
-{
-	char mbuf[512];
-	va_list args;
-	char *fmt;
-	struct message msg;
-	struct msg_elog *el;
-	int len, type;
-	union usy_value v;
-	struct connection *conp;
-/*
- * Format the message.
- */
- 	va_start (args);
-	fmt = va_arg (args, char *);
-	el = (struct msg_elog *) mbuf;
-	vsprintf (el->el_text, fmt, args);
-	va_end (args);
-	if (Debug || (flags & (EF_PROBLEM | EF_EMERGENCY)))
-		fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname,
-			 el->el_text);
-	if ((flags & EMask) == 0)
-		return;
-/*
- * If there is no event logger, there is no point in the rest.
- */
- 	if (Dying || ! usy_g_symbol (Proc_table, EVENT_LOGGER_NAME, &type, &v))
-		return;
-	conp = (struct connection *) v.us_v_ptr;
-	if (strcmp (conp->c_name, EVENT_LOGGER_NAME))
-		return;	/* Event logger not finished connecting? */
-#ifdef notdef
-	if (! strcmp (conp->c_name, EVENT_LOGGER_NAME))
-		return;	/* Event logger croaking */
-#endif
-/*
- * Now send this message out.
- */
-	el->el_flag = flags;
-	len = sizeof (*el) + strlen (el->el_text);
-	msg.m_proto = MT_ELOG;
-	strcpy (msg.m_to, EVENT_LOGGER_NAME);
-	strcpy (msg.m_from, MSG_MGR_NAME);
-	msg.m_flags = 0;
-	msg.m_len = len;
-	msg.m_data = (char *) el;
-	send_msg (conp, &msg);
-}
-
-
-
-
 static int
 psig ()
 /*
@@ -2976,3 +2889,92 @@ int fd;
 # endif
 		send_log (EF_PROBLEM, "Error %d doing FNDELAY", errno);
 }
+
+
+
+
+static void
+log (flags, va_alist)
+int flags;
+va_dcl
+/*
+ * Log a message short of sending it.  Meant for within send_msg, since using
+ * send_log can lead to infinite or indefinite recursion.
+ */
+{
+	char mbuf[512];
+	va_list args;
+	char *fmt;
+/*
+ * No sense in compiling a message if we won't be printing it
+ */
+	if (! (flags & (EF_PROBLEM | EF_EMERGENCY)) && (! Debug))
+		return;
+/*
+ * Format the message.
+ */
+ 	va_start (args);
+	fmt = va_arg (args, char *);
+	vsprintf (mbuf, fmt, args);
+	va_end (args);
+	fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname, mbuf);
+}
+
+
+
+static void
+send_log (flags, va_alist)
+int flags;
+va_dcl
+/*
+ * Send a message to the event logger.
+ */
+{
+	char mbuf[512];
+	va_list args;
+	char *fmt;
+	struct message msg;
+	struct msg_elog *el;
+	int len, type;
+	union usy_value v;
+	struct connection *conp;
+/*
+ * Format the message.
+ */
+ 	va_start (args);
+	fmt = va_arg (args, char *);
+	el = (struct msg_elog *) mbuf;
+	vsprintf (el->el_text, fmt, args);
+	va_end (args);
+	if (Debug || (flags & (EF_PROBLEM | EF_EMERGENCY)))
+		fprintf (stderr, "%s (%s): %s\n", MSG_MGR_NAME, Hostname,
+			 el->el_text);
+	if ((flags & EMask) == 0)
+		return;
+/*
+ * If there is no event logger, there is no point in the rest.
+ */
+ 	if (Dying || ! usy_g_symbol (Proc_table, EVENT_LOGGER_NAME, &type, &v))
+		return;
+	conp = (struct connection *) v.us_v_ptr;
+	if (strcmp (conp->c_name, EVENT_LOGGER_NAME))
+		return;	/* Event logger not finished connecting? */
+#ifdef notdef
+	if (! strcmp (conp->c_name, EVENT_LOGGER_NAME))
+		return;	/* Event logger croaking */
+#endif
+/*
+ * Now send this message out.
+ */
+	el->el_flag = flags;
+	len = sizeof (*el) + strlen (el->el_text);
+	msg.m_proto = MT_ELOG;
+	strcpy (msg.m_to, EVENT_LOGGER_NAME);
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_flags = 0;
+	msg.m_len = len;
+	msg.m_data = (char *) el;
+	send_msg (conp, &msg);
+}
+
+
