@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.5 1991-11-04 18:04:34 kris Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.6 1991-11-14 17:48:57 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -375,7 +375,7 @@ Boolean	update;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	int	top, bottom, left, right, xannot, yannot;
 	Boolean	ok;
-	int	tacmatch = 0, grid;
+	int	tacmatch = 0, grid, linewidth;
 	XColor	color, qcolor;
 	time 	t;
 	PlatformId pid;
@@ -414,6 +414,15 @@ Boolean	update;
 	if (! pda_Search (Pd, c, "arrow-color", platform, cname, SYMT_STRING)
 		&& ! pda_Search (Pd, c, "color", platform, cname, SYMT_STRING))
 		strcpy (cname, "white");
+/*
+ * Arrow line width.
+ */
+	if (! pda_Search (Pd, c, "line-width", "vector", (char *) &linewidth,
+		SYMT_INT))
+		linewidth = 0;
+	if (linewidth == 1) linewidth = 0;
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, linewidth,
+		LineSolid, CapButt, JoinMiter);
 /*
  * Allocate the chosen arrow color
  */
@@ -461,9 +470,9 @@ Boolean	update;
 	/*
 	 * Draw the vectors
 	 */
-		VectorGrid (Graphics, GWFrame (Graphics), ugrid, vgrid, 
-			xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, vscale, 
-			BADVAL, color);
+		VectorGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, 
+			vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, 
+			vscale, BADVAL, color);
 	/*
 	 * Free the data arrays
 	 */
@@ -514,7 +523,13 @@ Boolean	update;
 			msg_ELog (EF_INFO, "Get failed on '%s'", platform);
 			return;
 		}
+	/*
+	 * Graphics context stuff.
+	 */
 		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
+	/*
+	 * Draw the vectors.
+	 */
 		for (i = 0; i < dobj->do_desc.d_irgrid.ir_npoint; i++)
 		{
 			cvt_ToXY (dobj->do_desc.d_irgrid.ir_loc[i].l_lat, 
@@ -524,14 +539,19 @@ Boolean	update;
 			pix_y0 = YPIX (y0);
 			ov_PositionIcon ("pam-loc", pix_x0, pix_y0, 
 				color.pixel);
+			XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
+				linewidth, LineSolid, CapButt, JoinMiter);
 			if ((dobj->do_data[0][i] != BADVAL) && 
 			    (dobj->do_data[1][i] != BADVAL))
-				draw_vector (XtDisplay(Graphics),
-				GWFrame (Graphics), Gcontext,pix_x0, pix_y0, 
+				draw_vector (XtDisplay (Graphics),
+				GWFrame (Graphics), Gcontext, pix_x0, pix_y0, 
 				dobj->do_data[0][i], dobj->do_data[1][i], 
 				unitlen);
 			XSetForeground (XtDisplay (Graphics), Gcontext,
 					qcolor.pixel);
+		/*
+ 		 * Do quadrants if necessary.
+		 */
 			for (j = 0; j < numquads; j++)
 			{
 				if (dobj->do_data[j+2][i] == BADVAL)
@@ -546,6 +566,8 @@ Boolean	update;
 					color.pixel);
 		}
 	}
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, LineSolid, 
+		CapButt, JoinMiter);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -727,18 +749,19 @@ Boolean	update;
  * Get info for highlighting and area.
  */
 	highlight = FALSE;
-	sprintf (param, "%s-highlight", name);
-	if (pda_Search (Pd, c, param, "raster", CPTR (hvalue), SYMT_FLOAT))
+	sprintf (param, "%s-highlight-range", name);
+	if (pda_Search (Pd, c, param, "raster", CPTR (hrange), SYMT_FLOAT)
+		&& (hrange != 0.0))
 	{
 		highlight = TRUE;
 		sprintf (param, "%s-highlight-color", name);
 		if (! pda_Search (Pd, c, param, "raster", CPTR (hcolor), 
 				SYMT_STRING))
 			strcpy (hcolor, "white");
-		sprintf (param, "%s-highlight-range", name);
-		if (! pda_Search (Pd, c, param, "raster", CPTR (hrange), 
+		sprintf (param, "%s-highlight", name);
+		if (! pda_Search (Pd, c, param, "raster", CPTR (hvalue), 
 				SYMT_FLOAT))
-			hrange = 4.0;
+			hvalue = 0.0;
 	}
 /*
  * Get annotation information from the plot description
@@ -906,7 +929,7 @@ int datalen, begin, space;
  */
 	if (highlight)
 	{
-		space -= scale * (float) USABLE_HEIGHT; 
+		space = bar_height * ncolors; 
 		XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 		bar_height = space * range / (step * (nsteps - 1.0));
 		max = center + nsteps / 2 * step;
