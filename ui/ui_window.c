@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.25 1992-08-17 17:06:29 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.26 1992-12-18 21:11:34 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -180,6 +180,7 @@ XtAppContext *appc;
 	XtRegisterGrabAction (uw_FPopup, True,
 	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
 	XawSimpleMenuAddGlobalActions (Appc);
+	RdssSimpleMenuAddGlobalActions (Appc);
 /*
  * If we have a widget name as an argument, go ahead and put it up.
  */
