@@ -1,0 +1,125 @@
+/*
+ * Site-specific configuration options.  Edit as needed.  Consult the 
+ * RDSS Libraries Package Installation Manual for more information.
+ */
+
+
+/*
+ * If you don't have the MIT X11 distribution, set UseXWindows to No.
+ * If you have X11 and your X11 libraries aren't in /usr/lib, edit define
+ * XLibraries with the proper path.
+ *
+ * Edit XInclude only if your X11 include directory is not in /usr/include.
+ * Since /usr/include is automatically searched during the compile process,
+ * XInclude is left blank here on purpose.  If you must edit this path,
+ * insert a -I before the path name.   
+ *
+ *    Example: 
+ *        Your X11 include directory is in: /usr/local/include.   
+ *        Edit "define XInclude" to read:
+ *        #       define XInclude -I/usr/local/include
+ *
+ */
+ 
+
+
+# define UseXWindows Yes
+
+# if UseXWindows
+#	define XLibrary -lX11
+#	define XLibraries /usr/lib
+#	define XInclude 
+# endif
+
+
+/*
+ * If your release of X is MIT X11 Release 3 or older, set this to Yes. 
+ */
+# define OldX11 No
+
+/*
+ * If you have OpenWindows, set UseOpenWin to Yes.
+ */
+# define UseOpenWin No
+
+
+/*
+ * If you wish to use Sunview, set this to Yes and
+ * edit the graphdev.h file.
+ */
+# define UseSunview No
+
+
+/*
+ * If you have the netCDF package and want to use it, some software
+ * (i.e. robot and suds) can take advantage of it.  Set this to Yes 
+ * and edit NetCDF_DESTDIR with the appropriate path for your system.
+ * Note that Zeb requires NetCDF, so edit these if you will be installing
+ * Zeb.
+ * 
+ */
+# define UseNetCDF No
+
+# if UseNetCDF
+#	define NetCDF_DESTDIR /usr/local
+# endif
+
+
+/*
+ * If you have Makedepend (normally included with the MIT X11 distribution),
+ * set this to Yes.
+ */
+# define HaveMakeDepend No
+
+/*
+ *
+ * Use the GNU C compiler.  
+ * 
+ */
+# define UseGcc No 
+
+
+
+/*
+ * Do we compile things with debugging on?
+ */
+# define CompileDebug Yes
+
+
+/*
+ * How about optimization?
+ */
+# define CompileOptimize Yes
+
+/*
+ *
+ * Program specific information:
+ *
+ */
+
+/*
+ * The root directory for RDSS stuff, the home of RDSS include files,
+ * the RDSS library files and the installation path for executables.
+ * These must be set correctly for the software to run and make properly.  
+ */
+
+# define RDSSRoot	/rdss
+# define RDSSInclude	/rdss/include
+# define RDSSLibraries  /usr/local/lib
+# define RDSSBin        /usr/local/bin
+
+
+/*
+ * The location for RADAR include files (for Perusal, Editor, Reorder, ToDisk).
+ */
+# define RADARInclude /rdss/radar/h
+
+
+/*
+ * If you are installing Robot, set these paths for the default
+ * ROBOT database
+ */
+
+# define DefDBDir \"/data/ppf\"
+# define DefDBType \"cmf\"
+# define DefDBName \"cmf\"
