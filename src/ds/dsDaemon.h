@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.28 2002-10-22 08:12:19 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.29 2005-01-16 18:16:31 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -93,6 +93,8 @@ const char *DataFilePath (Source *src, const Platform *p,
 			  const DataFileCore *dfc);
 void BuildDataFile (DataFile *df, const DataFileCore *dfc, Source *src, 
 		    const Platform *p);
+Source* dmn_Source(int n);
+int dmn_NumSources();
 
 /*
  * Datascan

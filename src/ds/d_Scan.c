@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.40 2002-10-22 08:12:19 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.41 2005-01-16 18:16:31 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -293,8 +293,9 @@ GetSortedSrcFiles (Source *src, const Platform *p, int *nsfiles)
 	/*
 	 * Oops, we wrote past our allocated memory... 
 	 */
-	    msg_ELog (EF_EMERGENCY, "%s:%s returned more files than expected!",
-		      src_Name (src), pi_Name (p));
+	    msg_ELog (EF_EMERGENCY, 
+		      "%s:%s returned more files than expected (%d > %d)!",
+		      src_Name (src), pi_Name (p), n, nfiles);
 	    exit (1);
 	}
     }

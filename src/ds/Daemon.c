@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.75 2002-10-22 08:12:19 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.76 2005-01-16 18:16:31 granger Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -122,11 +122,23 @@ int	Shutdown (void);
 static int BCastSocket = -1;
 
 /*
- * Our list of sources.  There's an arbitrary limit of 10 for now.
+ * Our list of sources.  There's an arbitrary limit for now.
  */
-# define MAXSOURCES 10
+# define MAXSOURCES 100
 Source *Srcs[MAXSOURCES];
 int NSrcs;
+
+int
+dmn_NumSources()
+{
+  return NSrcs;
+}
+
+Source*
+dmn_Source(int n)
+{
+  return (n >=0 && n < NSrcs) ? Srcs[n] : 0;
+}
 
 /*
  * Our data structure for the EVERY command.
@@ -802,6 +814,15 @@ InSourceDef (const char* srcname, struct ui_command *cmds)
 	char temp[128];
 	sprintf (temp, "%s/%s", dir, cachefile);
 	strcpy (cachefile, temp);
+    }
+/*
+ * Check that there's room for another source.
+ */
+    if (NSrcs >= MAXSOURCES)
+    {
+      msg_ELog (EF_PROBLEM, "Maximum sources reached (%d), "
+		"cannot define source '%s'", NSrcs, srcname);
+      return 0;
     }
 /*
  * Open the source and set the appropriate flags.

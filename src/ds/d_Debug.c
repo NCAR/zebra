@@ -14,7 +14,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.15 2005-01-10 21:42:48 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.16 2005-01-16 18:16:31 granger Exp $")
 
 static struct flagmask {
 	unsigned short mask;
@@ -261,8 +261,7 @@ char *who;
 {
 	char buf[1024];
 	time_t now = time (NULL);
-	extern Source *Srcs[];	/* from Daemon.c */
-	extern int NSrcs;	/* from Daemon.c */
+	Source* source;
 	int s;
 
 	sprintf (buf, "Zebra data store daemon, proto %08x",
@@ -277,7 +276,7 @@ char *who;
 	if (InitialScan)
 		sprintf (buf, "Initial scan: %d %s so far, %d to go...",
 			 PlatformsScanned, "platforms scanned", 
-			 dt_NPlatform() - PlatformsScanned);
+			 (dt_NPlatform()*dmn_NumSources()) - PlatformsScanned);
 	else if (LastScan)
 		dbg_EncodeElapsed ("Last full rescan ", 
 				   &LastScan, &now, buf);
@@ -294,18 +293,20 @@ char *who;
 	msg_AnswerQuery (who, buf);
 #endif
 
-	sprintf (buf, "Sources: \n");
-	for (s = 0; s < NSrcs; s++)
-	{
-	    sprintf (buf+strlen(buf), "%18s: %s%s%s%s%s\n", 
-		     src_Name (Srcs[s]),
-		     src_IsDirConst (Srcs[s]) ? "DirConst, " : "", 
-		     src_IsFileConst (Srcs[s]) ? "FileConst, " : "",
-		     src_RemembersAll (Srcs[s]) ? "RememberAll, " : "",
-		     src_DirsAreForced (Srcs[s]) ? "ForceDirs, " : "",
-		     src_RootDir (Srcs[s]));
-	}
+	sprintf (buf, "Sources (%d):", dmn_NumSources());
 	msg_AnswerQuery (who, buf);
+	for (s = 0; s < dmn_NumSources(); s++)
+	{
+	    source = dmn_Source(s);
+	    sprintf (buf, "%18s: %s%s%s%s%s", 
+		     src_Name (source),
+		     src_IsDirConst (source) ? "DirConst, " : "", 
+		     src_IsFileConst (source) ? "FileConst, " : "",
+		     src_RemembersAll (source) ? "RememberAll, " : "",
+		     src_DirsAreForced (source) ? "ForceDirs, " : "",
+		     src_RootDir (source));
+	    msg_AnswerQuery (who, buf);
+	}
 
 	sprintf (buf, "%18s: %d used of %d allocated, %s %d",
 		 "Platform classes", dt_NClass(), CTableSize, "grow by", 

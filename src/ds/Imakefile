@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.82 2002-10-24 18:49:37 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.83 2005-01-16 18:16:31 granger Exp $"
 
 DEPLIBS=$(DEPZLIBS)
 
@@ -163,7 +163,10 @@ InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 DMNOBJS = $(DSOBJS)
 CccProgramTarget(dsDaemon,$(DMNOBJS),$(DSLIBFILE) $(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
 
-SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
+SpecialObjectRule(Daemon.o,/**/,$(RDSSINCLUDES))
+SpecialObjectRule(d_Config.o,/**/,$(RDSSINCLUDES))
+SpecialObjectRule(d_Scan.o,/**/,$(RDSSINCLUDES))
+SpecialObjectRule(d_Debug.o,/**/,$(RDSSINCLUDES))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
