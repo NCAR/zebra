@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.5 1994-04-15 21:25:43 burghart Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.6 1994-04-19 22:08:14 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -32,11 +32,14 @@ static char *rcsid = "$Id: Contour.c,v 2.5 1994-04-15 21:25:43 burghart Exp $";
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
+# include <defs.h>
 # include <message.h>
+# include <pd.h>
+# include "GraphProc.h"
 # include "Contour.h"
 # include "DrawText.h"
 
-typedef short	bool;
+typedef short	cbool;
 
 # define PI		3.141592654
 # define RAD_TO_DEG(x)	((x)*57.29577951)
@@ -55,7 +58,7 @@ static int	Iny[] = {  0,  1,  1,  1,  0, -1, -1, -1};
  * Global stuff
  */
 # define MAXPTS	2000
-static bool	Closed;		/* Closed contour?		*/
+static cbool	Closed;		/* Closed contour?		*/
 static int	Done[MAXPTS];	/* List of points already done	*/
 static int	Ndone;		/* Number of points in the done list	*/
 static float	Cval;		/* current contour value	*/
@@ -413,7 +416,7 @@ CO_DoContours ()
  */
 {
 	int	ip1, i, jp1, j, ixy, k;
-	bool	already;
+	cbool	already;
 /*
  * Initialize
  */
@@ -519,7 +522,7 @@ int	ix, iy, iseg;
 	int	ix0 = ix, iy0 = iy, iseg0 = iseg, idx, idy;
 	int	ix2, iy2, ix3, iy3, ix4, iy4, isbig;
 	float	x, y, xprev = 0.0, yprev = 0.0;
-	bool	draw, drawprev, first;
+	cbool	draw, drawprev, first;
 /*
  * Get the other endpoint of this segment
  */

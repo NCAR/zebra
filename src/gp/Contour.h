@@ -68,16 +68,4 @@ static float	Xinc, Yinc;
 #	define FALSE	0
 # endif
 
-# define ABS(x)	((x) < 0 ? -(x) : (x))	/* Cheap absolute value */
-
-/*
- * An attempt to detect and avoid infinity and NaN values in the
- * data arrays, which really screw up the contouring algorithms.
- * On Sun's, we can at least use the finite() function, otherwise
- * we rely on the POSIX __infinity() function.
- */
-#if defined(sun) || defined(hpux)
-#define FINITE(x)	(finite((double)(x)))
-#else
-#define FINITE(x)	(!isinf(x) && !isnan(x))
-#endif
+/* # define ABS(x)	((x) < 0 ? -(x) : (x))	/* Cheap absolute value */

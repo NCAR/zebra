@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.34 1994-04-15 21:25:53 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.35 1994-04-19 22:08:21 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -136,6 +136,19 @@ extern int TriggerGlobal;
 # define GP_HELP_ICONS		"icons"
 # define GP_HELP_GPOSITION	"getposition"
 # define GP_HELP_ALTITUDE	"altitude"
+
+
+/*
+ * An attempt to detect and avoid infinity and NaN values in the
+ * data arrays, which really screw up the contouring algorithms.
+ * On Sun's, we can at least use the finite() function, otherwise
+ * we rely on the POSIX __infinity() function.
+ */
+#if defined(sun)
+#define FINITE(x)	(finite((double)(x)))
+#else
+#define FINITE(x)	(!isinf(x) && !isnan(x))
+#endif
 
 /*
  * Routines of interest.

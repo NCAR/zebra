@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.18 1994-04-15 21:26:35 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.19 1994-04-19 22:08:23 corbet Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -38,13 +38,7 @@ static void ApplyAdvection FP ((Location *, double, double, ZebTime *,
 # define CPTR(x)     (char *)(&(x))
 
 
-#ifndef FINITE		/* See note in Contour.h */
-#if defined(sun) || defined(hpux)
-#define FINITE(x)	(finite((double)(x)))
-#else
-#define FINITE(x)	(!isinf(x) && !isnan(x))
-#endif
-#endif /* def FINITE */
+
 
 
 int

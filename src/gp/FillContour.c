@@ -61,6 +61,8 @@
 
 # include <defs.h>
 # include <message.h>
+# include <pd.h>
+# include "GraphProc.h"
 
 # include "Contour.h"
 

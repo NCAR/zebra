@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.7 1994-02-03 22:08:16 burghart Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.8 1994-04-19 22:08:18 corbet Exp $")
 
 
 /*
@@ -97,7 +97,7 @@ InitFieldMenu ()
  */
 	n = 0;
 	XtSetArg (args[0], XtNlabel, "(nuttin)");	n++;
-	XtSetArg (args[0], XtNleftMargin, 20);		n++;
+	XtSetArg (args[1], XtNleftMargin, 20);		n++;
 	for (i = 0; i < MAXENTRY; i++)
 	{
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
