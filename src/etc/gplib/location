@@ -22,3 +22,18 @@ procedure ToggleLabels
 		parameter #icon_component label 'platform'
 	endif
 endprocedure
+
+
+!
+! Ship out data -- used by p_active_loc
+!
+define widget pa-send-data intmenu ' '
+       title 'Data options'
+       line
+       entry 'Display in other window' 'pa-sendother'
+endmenu
+
+procedure pa-sendother
+	local dmcmd quote(concat3 ('PutScalar ', icon_platform, ' junk'))
+	dm #dmcmd
+endprocedure
