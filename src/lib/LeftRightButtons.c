@@ -1,7 +1,7 @@
 /*
  * Left-right button widget
  */
-static char *rcsid = "$Id: LeftRightButtons.c,v 1.1 1991-09-13 15:01:58 corbet Exp $";
+static char *rcsid = "$Id: LeftRightButtons.c,v 1.2 1991-10-11 18:58:33 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -58,7 +58,7 @@ void	(*callback)();
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNbitmap, LeftArrow); n++;
-	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	XtSetArg (args[n], XtNborderWidth, 1); n++;
 	XtSetArg (args[n], XtNinternalWidth, 2); n++;
 	left = XtCreateManagedWidget ("leftbutton", commandWidgetClass, 
 		holder, args, n);
@@ -68,7 +68,7 @@ void	(*callback)();
 	XtSetArg (args[n], XtNfromHoriz, left); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNbitmap, RightArrow); n++;
-	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	XtSetArg (args[n], XtNborderWidth, 1); n++;
 	XtSetArg (args[n], XtNinternalWidth, 2); n++;
 	right = XtCreateManagedWidget ("rightbutton", commandWidgetClass, 
 		holder, args, n);
