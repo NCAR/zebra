@@ -35,7 +35,7 @@ DerivTable::DerivTable( void )
 
 DerivTable::~DerivTable( void )
 {
-    delete flds;
+    delete[] flds;
     delete[] root_nodes;
 }
 
