@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.6 1992-11-21 00:13:12 granger Exp $
+ * $Id: ingest.h,v 1.7 1993-05-18 05:49:59 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -21,14 +21,17 @@
  * An application using the ingest package should do the following:
  *
  * #include "ingest.h"
+ *
  * Parse the ingest cmd-line options with IngestParseOptions().  Call
  * IngestInitialize(), which intializes the message and DataStore unless
  * these have been disabled by the application or command-line options.
  * Call IngestUsage() from the application's usage() function to show the
  * user what the ingest options are.  Alternatively, if the application has
- * no usage() function, just pass IngestUsage() to IngestParseOptions
+ * no usage() function, just pass IngestUsage() to IngestParseOptions()
  * as the usage function.  Lastly, use IngestLog() rather than
- * msg_ELog() to log messages with the EventLogger.
+ * msg_ELog() to log messages with the EventLogger.  The application's
+ * usage() function should take one argument, the name of the
+ * program (usually passed as argv[0]).
  *
  * IngestInitialize() also installs a default message handler which
  * handles MH_SHUTDOWN calls.  This handler can be overridden by
@@ -58,7 +61,7 @@
 
 extern void	IngestLog ();
 extern void	IngestParseOptions FP((int *argc, char *argv[], 
-					void (*usage)()));
+					void (*usage)(/* char *prog */)));
 extern void 	IngestInitialize FP((char *module_name));
 extern void	IngestUsage();
 
@@ -105,10 +108,12 @@ extern short NoMessageHandler;
 extern short NoEventLogger;
 extern short DryRun;
 extern short DumpDataChunks;
+extern short ShowIngestName;
 
 /* -----------------------------------------------------------------
  * These macros allow ingest modules to set their default debug
- * state within the program, such as during development
+ * state within the program, such as during development, so that the
+ * command line does not have to be crowded with options.
  *
  * Do not use these anymore.  Use the macros prefixed with Ingest
  * instead, defined further on.
@@ -130,6 +135,10 @@ extern short DumpDataChunks;
 #define SetDryRun() {\
 		DryRun = 1; \
 		SetNoMessageHandler(); \
+		}
+
+#define IngestShowName() {\
+		ShowIngestName = 1; \
 		}
 
 #define IngestSetNoMessageHandler()	SetNoMessageHandler()
