@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 1.3 1991-02-21 16:32:17 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -16,10 +16,25 @@ static char *rcsid = "$Id: Appl.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 # ifdef __STDC__
 	static void ds_InitPFTable (void);
 	static void ds_AllocMemory (DataObject *, GetList *);
+	static void ds_NotifyDaemon (int, DataObject *, int, int);
+	static void ds_DispatchNotify (struct dsp_Notify *);
+	int ds_DSMessage (struct message *);
 # else
 	static void ds_InitPFTable ();
 	static void ds_AllocMemory ();
+	static void ds_NotifyDaemon ();
+	static void ds_DispatchNotify ();
+	int ds_DSMessage ();
 # endif
+
+
+/*
+ * The application notification table.
+ */
+# define MAXPLAT 128
+typedef void (*VFunc) ();
+VFunc ApplFuncs[MAXPLAT];
+
 
 
 int
@@ -28,6 +43,7 @@ ds_Initialize ()
  * Hook into the data store.
  */
 {
+	int i;
 /*
  * Hook into the shared memory segment.
  */
@@ -37,6 +53,13 @@ ds_Initialize ()
  * Set up the platform lookup table.
  */
 	ds_InitPFTable ();
+	for (i = 0; i < MAXPLAT; i++)
+		ApplFuncs[i] = 0;
+/*
+ * Join the data store group.
+ */
+	msg_join ("DataStore");
+	msg_AddProtoHandler (MT_DATASTORE, ds_DSMessage);
 
 	return (TRUE);
 }
@@ -149,7 +172,6 @@ float sel, badflag;
 /*
  * Start to fill things in.
  */
-/*	dobj->do_org = PTable[pid].dp_org; */
 	if (org == Org2dGrid && PTable[pid].dp_org == OrgIRGrid)
 		dobj->do_org = OrgIRGrid;
 	else
@@ -218,9 +240,14 @@ DataObject *dobj;
  */
 {
 	int i;
-
+/*
+ * Get rid of the field names.
+ */
 	for (i = 0; i < dobj->do_nfield; i++)
 		usy_rel_string (dobj->do_fields[i]);
+/*
+ * Data arrays.
+ */
 	if (dobj->do_flags & DOF_FREEALLDATA)
 	{
 		for (i = 0; i < dobj->do_nfield; i++)
@@ -228,6 +255,25 @@ DataObject *dobj;
 	}
 	else if (dobj->do_flags & DOF_FREEDATA)
 		free (dobj->do_data[0]);
+/*
+ * Locations for mobile platforms.
+ */
+	if (dobj->do_flags & DOF_FREEALOC)
+		free (dobj->do_aloc);
+/*
+ * Times.
+ */
+	if (dobj->do_flags & DOF_FREETIME)
+		free (dobj->do_times);
+/*
+ * Irregular grids have some additional stuff to get rid of.
+ */
+	if (dobj->do_org == OrgIRGrid)
+	{
+		free (dobj->do_desc.d_irgrid.ir_loc);
+		if (dobj->do_desc.d_irgrid.ir_subplats)
+			free (dobj->do_desc.d_irgrid.ir_subplats);
+	}
 	free ((char *) dobj);
 }
 
@@ -245,6 +291,7 @@ GetList *get;
 	int nsample, npoint, field, offset, toffset;
 	GetList *gp;
 	RGrid *rp;
+	IRGrid *irg;
 /*
  * Pass through the list and get the total number of data points.
  */
@@ -300,10 +347,12 @@ GetList *get;
 	switch (dobj->do_org)
 	{
 	   case OrgIRGrid:
-	   	dobj->do_desc.d_irgrid.ir_npoint =
-			dfa_InqNPlat (get->gl_dfindex);
-		dobj->do_desc.d_irgrid.ir_loc = (Location *) malloc (
-			dobj->do_desc.d_irgrid.ir_npoint*sizeof (Location));
+	   	irg = &dobj->do_desc.d_irgrid;
+	   	irg->ir_npoint = dfa_InqNPlat (get->gl_dfindex);
+		irg->ir_loc = (Location *)
+			malloc (irg->ir_npoint*sizeof (Location));
+		irg->ir_subplats = (PlatformId *)
+			malloc (irg->ir_npoint*sizeof (PlatformId));
 		break;
 	   case Org2dGrid:
 	   case Org3dGrid:
@@ -436,8 +485,10 @@ float sel, badflag;
 	DataObject *dobj = ALLOC (DataObject);
 	GetList *get;
 
+# ifdef notdef
 	msg_ELog (EF_INFO, "Get obs (%s) at %d %06d", fields[0],
 		when->ds_yymmdd, when->ds_hhmmss);
+# endif
 /*
  * Start to fill things in.
  */
@@ -480,10 +531,12 @@ float sel, badflag;
  * the point count.
  */
 	dfa_Setup (get);
+# ifdef notdef
 	ui_printf ("GL dfi %d/%d, flags 0x%x, %d %06d -> %06d np %d\n",
 			get->gl_dfindex, get->gl_dfuse, get->gl_flags,
 			get->gl_begin.ds_yymmdd, get->gl_begin.ds_hhmmss,
 			get->gl_end.ds_hhmmss, get->gl_npoint);
+# endif
 /*
  * Allocate memory, then get the data.
  */
@@ -494,4 +547,190 @@ float sel, badflag;
  */
 	dgl_ReturnList (get);
 	return (dobj);
+}
+
+
+
+
+
+
+void
+ds_PutData (dobj, newfile)
+DataObject *dobj;
+bool newfile;
+/*
+ * Add this data to the data store.
+ * Entry:
+ *	DOBJ	is the data object describing the data to be added.
+ *	NEWFILE	is TRUE iff a new file is to be created to hold this data.
+ * Exit:
+ *	The data has been added.
+ */
+{
+	int dfile, begin = 0, end;
+/*
+ * Split this data object into chunks, in case we exceed file size limits.
+ */
+	while (begin < dobj->do_npoint)
+	{
+	/*
+	 * Find the destination file for this data, and put it there.  Let
+	 * the daemon know that we have done it.
+	 */
+	 	if ((dfile = dgl_GetDestFile(dobj, newfile, begin, &end)) >= 0)
+		{
+			dfa_PutData (dfile, dobj, begin, end);
+			ds_NotifyDaemon (dfile, dobj, begin, end);
+		}
+		begin = end + 1;
+	}
+}
+
+
+
+
+
+
+static void
+ds_NotifyDaemon (dfile, dobj, begin, end)
+int dfile, begin, end;
+DataObject *dobj;
+/*
+ * Tell the data store daemon about this data.
+ */
+{
+	struct dsp_UpdateFile update;
+/*
+ * Fire off the message.
+ */
+	update.dsp_type = dpt_UpdateFile;
+	update.dsp_FileIndex = dfile;
+	update.dsp_EndTime = dobj->do_times[end];
+	update.dsp_NSamples = end - begin + 1;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &update, sizeof (update));
+/*
+ * Then let DFA know that we've signalled a revision on this file.
+ */
+	dfa_NoteRevision (dfile);
+}
+
+
+
+
+
+
+int
+ds_DSMessage (msg)
+struct message *msg;
+/*
+ * Deal with data store protocol messages.
+ */
+{
+	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
+
+	switch (dt->dsp_type)
+	{
+	/*
+	 * If they've gone and deleted data on us, we have to make sure that
+	 * we close the file and forget about it.
+	 */
+	   case dpt_DataGone:
+		dfa_ForceClose (((struct dsp_DataGone *) dt)->dsp_file);
+		break;
+	/*
+	 * An application notification has arrived.  Dispatch it back to
+	 * the appl.
+	 */
+	   case dpt_Notify:
+		ds_DispatchNotify ((struct dsp_Notify *) dt);
+		break;
+
+	   default:
+	   	msg_ELog (EF_PROBLEM, "Unknown DS message type %d",
+			dt->dsp_type);
+		break;
+	}
+	return (0);
+}
+
+
+
+
+
+void
+ds_DeleteData (platform, leave)
+PlatformId platform;
+int leave;
+/*
+ * Zap all data from "platform", leaving only "leave" seconds worth.
+ */
+{
+	struct dsp_DeleteData del;
+
+	del.dsp_type = dpt_DeleteData;
+	del.dsp_plat = platform;
+	del.dsp_leave = leave;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &del, sizeof (del));
+}
+
+
+
+
+
+
+void
+ds_RequestNotify (platform, param, func)
+PlatformId platform;
+int param;
+void (*func) ();
+/*
+ * Request a notification when data is available on this platform.
+ */
+{
+	struct dsp_NotifyRequest req;
+/*
+ * Fill in our request and send it off.
+ */
+	req.dsp_type = dpt_NotifyRequest;
+	req.dsp_pid = platform;
+	req.dsp_param = param;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof (req));
+/*
+ * Stash away the function so we can call it when the notifications arrive.
+ */
+	ApplFuncs[platform] = func;
+}
+
+
+
+
+void ds_CancelNotify ()
+/*
+ * Cancel all data available notifications.
+ */
+{
+	struct dsp_Template req;
+	int i;
+
+	req.dsp_type = dpt_CancelNotify;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof (req));
+	for (i = 0; i < MAXPLAT; i++)
+		ApplFuncs[i] = 0;
+}
+
+
+
+
+
+static void
+ds_DispatchNotify (notify)
+struct dsp_Notify *notify;
+/*
+ * An application notification has arrived -- give it back to those
+ * who requested it.
+ */
+{
+	if (ApplFuncs[notify->dsp_pid])
+		(*ApplFuncs[notify->dsp_pid]) (notify->dsp_pid, 
+				notify->dsp_param, &notify->dsp_when);
 }
