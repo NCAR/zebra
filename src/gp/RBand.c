@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.2 1991-11-13 22:03:24 corbet Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.3 1991-12-06 22:31:21 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -78,44 +78,23 @@ static enum pmode OldPlotMode;		/* Save plot mode		*/
 /*
  * Forwards
  */
-
-# ifdef __STDC__
-	static int rb_MakeGC (void);
-	static void rb_Init (struct ui_command *);
-	static void rb_Draw (void);
-	static void rb_ButtonUp (XEvent *);
-	static void rb_ButtonDown (XEvent *, char *);
-	static void rb_Motion (int, int);
-	static void rb_PLButtonDown (XEvent *, char *);
-	static void rb_PLStart (XEvent *);
-	static void rb_PLDelete (void);
-	static void rb_PLButtonUp (XEvent *);
-	static void rb_PLDone (void);
-	static void rb_PLWidget (void);
-	static void rb_MakePLInstructions (void);
-	static void rb_PLRmInstructions (void);
-	static void rb_PLAbort (void);
-	static void rb_PLConvert (void);
-	static void rb_PLDrawBoundary (void);
-# else
-	static int rb_MakeGC ();
-	static void rb_Init ();
-	static void rb_Draw ();
-	static void rb_ButtonUp ();
-	static void rb_ButtonDown ();
-	static void rb_Motion ();
-	static void rb_PLButtonDown ();
-	static void rb_PLStart ();
-	static void rb_PLDelete ();
-	static void rb_PLButtonUp ();
-	static void rb_PLDone ();
-	static void rb_PLWidget ();
-	static void rb_MakePLInstructions ();
-	static void rb_PLRmInstructions ();
-	static void rb_PLAbort ();
-	static void rb_PLConvert ();
-	static void rb_PLDrawBoundary ();
-# endif
+static int rb_MakeGC FP((void));
+static void rb_Init FP((struct ui_command *));
+static void rb_Draw FP((void));
+static void rb_ButtonUp FP((XEvent *));
+static void rb_ButtonDown FP((XEvent *, char *));
+static void rb_Motion FP((int, int));
+static void rb_PLButtonDown FP((XEvent *, char *));
+static void rb_PLStart FP((XEvent *));
+static void rb_PLDelete FP((void));
+static void rb_PLButtonUp FP((XEvent *));
+static void rb_PLDone FP((void));
+static void rb_PLWidget FP((void));
+static void rb_MakePLInstructions FP((void));
+static void rb_PLRmInstructions FP((void));
+static void rb_PLAbort FP((Widget, XtPointer, XtPointer));
+static void rb_PLConvert FP((void));
+static void rb_PLDrawBoundary FP((void));
 
 
 
@@ -732,8 +711,11 @@ rb_PLRmInstructions ()
 
 
 
+/* ARGSUSED */
 static void
-rb_PLAbort ()
+rb_PLAbort (wjunk, ajunk1, ajunk2)
+Widget wjunk;
+XtPointer ajunk1, ajunk2;
 /*
  * Abort this polyline.
  */
@@ -742,7 +724,6 @@ rb_PLAbort ()
  * Clean up everything and quit.
  */
 	Ue_ResetOverride ();
-	/* Eq_ReleaseHold (); */
 	rb_PLRmInstructions ();
 	px_ClearEOPHandler ();
 	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
