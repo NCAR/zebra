@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.29 1994-11-19 00:36:06 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.30 1994-11-29 18:00:27 granger Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -71,7 +71,7 @@ static void gridRandomData FP ((GridInfoPtr, DataValPtr, DataValPtr,
 		DataValPtr, double));
 float	*xy_InterpolateLinearOnY FP ((GridInfoPtr, double));
 GridInfoPtr 	getGrid FP ((char *, int, int, double));
-static void     xyc_FixYRes FP ((int *, DataValPtr, int, float, float));
+static void     xyc_FixYRes FP ((int *, DataValPtr, int, double, double));
 static float    gridStep FP ((int, DataValPtr, DataValPtr));
 
 
@@ -379,7 +379,7 @@ bool	update;
 		else if (strcmp (gridtype, "profile-linear") == 0)
 		{
 			xyc_FixYRes (&ygridres, ydata[plat], npts[plat],
-					ybottom.val.f, ytop.val.f);
+				(double)ybottom.val.f, (double)ytop.val.f);
 			ginfo = getGrid (c, xgridres, ygridres, BADVAL);
 			gridRandomData (ginfo, xdata[plat], ydata[plat], 
 					zdata[plat], npts[plat], &xleft, 
@@ -908,9 +908,10 @@ int *ncolors;
 
 static void
 xyc_FixYRes (ygridres, ydata, npts, y0, y1)
-int *ygridres, npts;
-float y0, y1;
+int *ygridres;
 DataValPtr ydata;
+int npts;
+double y0, y1;
 /*
  * Go through and adjust the Y grid resolution if need be.
  */
