@@ -22,7 +22,7 @@
 # include "defs.h"
 # include <sys/types.h>
 # include <sys/time.h>
-MAKE_RCSID ("$Id: TCvt.c,v 2.3 1991-12-28 00:11:28 corbet Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.4 1992-03-31 23:53:21 burghart Exp $");
 
 
 /*
@@ -80,7 +80,7 @@ time *fcc;
 
 long
 TC_ZtToSys (zt)
-ZebTime *zt;
+const ZebTime *zt;
 /*
  * Convert a zeb format time into a basic system format representation.
  */
@@ -109,7 +109,7 @@ ZebTime *zt;
 
 void
 TC_ZtToUI (zt, ui)
-ZebTime *zt;
+const ZebTime *zt;
 date *ui;
 /*
  * Convert a system time to an fcc time.
@@ -127,7 +127,7 @@ date *ui;
 
 void
 TC_UIToZt (ui, zt)
-date *ui;
+const date *ui;
 ZebTime *zt;
 /*
  * Convert an FCC time into a system time.
@@ -154,7 +154,7 @@ ZebTime *zt;
 
 void
 TC_EncodeTime (zt, format, dest)
-ZebTime *zt;
+const ZebTime *zt;
 TimePrintFormat format;
 char *dest;
 /*
@@ -198,7 +198,7 @@ char *dest;
 
 void
 TC_ZtSplit (zt, year, month, day, hour, minute, second, microsec)
-ZebTime *zt;
+const ZebTime *zt;
 int *year, *month, *day, *hour, *minute, *second, *microsec;
 /*
  * Split a zeb time into useful chunks.  Only stores into pieces
