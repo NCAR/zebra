@@ -12,14 +12,13 @@
 
 #include <X11/Xlib.h>
 
-#include <ui.h>
 #include <config.h>
 #include "defs.h"
 #include "message.h"
-
 #include "dm.h"
+#include "setup.h"
 
-RCSID ("$Id: dm_lib.c,v 2.3 1996-09-11 14:31:15 granger Exp $")
+RCSID ("$Id: dm_lib.c,v 2.4 1996-11-19 08:03:19 granger Exp $")
 
 /*
  * Private prototypes
@@ -29,8 +28,9 @@ static int dm_CTResponse FP ((struct message *msg, struct dm_ctable **ctr));
 /*
  * Local variables
  */
-static char DisplayManager[ CFG_MSGNAME_LEN ];
-static char WindowName[ CFG_MSGNAME_LEN ];
+char DisplayManager[ CFG_MSGNAME_LEN ];
+char WindowName[ CFG_MSGNAME_LEN ];
+
 static char MessageName[ CFG_MSGNAME_LEN ];
 static char GroupName[ CFG_MSGNAME_LEN ];
 
@@ -163,28 +163,6 @@ dm_GroupName ()
  */
 {
 	return (GroupName);
-}
-
-
-
-void
-dm_SetupVariables ()
-/*
- * Set up some UI indirect variables
- */
-{
-	stbl vtable = usy_g_stbl ("ui$variable_table");
-
-	usy_c_indirect (vtable, "window_name", WindowName, SYMT_STRING,
-			CFG_MSGNAME_LEN);
-	usy_c_indirect (vtable, "display_manager", DisplayManager, 
-			SYMT_STRING, CFG_MSGNAME_LEN);
-	/*
-	 * For compatibility with old gp UI code, which expects 'ourname'
-	 * to hold the window name.
-	 */
-	usy_c_indirect (vtable, "ourname", WindowName, SYMT_STRING, 
-			CFG_MSGNAME_LEN);
 }
 	
 
