@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.7 1991-12-20 18:12:14 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.8 1992-01-30 21:11:33 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -54,6 +54,7 @@ struct menubar_widget
 	void (*mw_create)();	/* The routine to create this thing	*/
 	void (*mw_popup) ();	/* Popup routine			*/
 	void (*mw_destroy) ();	/* The destroy method			*/
+	GenWidget *(*mw_cl) ();	/* (unused)				*/
 	struct frame_widget *mw_frame;	/* The associated frame		*/
 	Widget mw_w;		/* The actual popup widget structure	*/
 	/* -- end of gen_widget stuff */
@@ -111,10 +112,10 @@ struct mb_menu
  */
 # ifdef __STDC__
 	static void uw_mbmcreate (struct mb_menu *menu, Widget parent);
-	static Pixmap uw_mbmPixmap (char *);
+	static void uw_MenuDestroy (struct mb_menu *, int);
 # else
 	static void uw_mbmcreate ();
-	static Pixmap uw_mbmPixmap ();
+	static void uw_MenuDestroy ();
 # endif
 
 
@@ -265,8 +266,10 @@ char *name;
 	menu->mbm_next = 0;
 	menu->mbm_type = WT_INTPOPUP;
 	menu->mbm_create = uw_mbmcreate;
+	menu->mbm_destroy = uw_MenuDestroy;
 	menu->mbm_title[0] = '\0';
 	strcpy (menu->mbm_name, name);
+	menu->mbm_button = 0;
 /*
  * Deal with the actual entries now.
  */
@@ -433,7 +436,7 @@ Widget parent;
 		XtSetArg (margs[0], XtNmenuName, menu->mbm_name); i = 1;
 		if (menu->mbm_pixmap)
 		{
-			Pixmap pm = uw_mbmPixmap (menu->mbm_name);
+			Pixmap pm = uw_GetPixmap (menu->mbm_name);
 			if (pm)
 			{
 				XtSetArg (margs[i], XtNbitmap, pm);
@@ -479,7 +482,7 @@ Widget parent;
 				menu->mbm_etext[i], smeBSBObjectClass,
 				menu->mbm_pulldown, margs, ONE);
 			XtAddCallback (menu->mbm_ewidget[i], XtNcallback,
-				uw_mb_cb, menu->mbm_eact[i]);
+				(XtCallbackProc) uw_mb_cb, menu->mbm_eact[i]);
 			break;
 		/*
 		 * Lines.
@@ -511,13 +514,13 @@ Widget parent;
 	{
 		menu->mbm_esel = -1;
 		XtAddCallback (menu->mbm_pulldown, XtNpopupCallback,
-			uw_mb_popup, menu);
+			(XtCallbackProc) uw_mb_popup, menu);
 	}
 }
 
 
 
-
+# ifdef notdef
 
 static Pixmap
 uw_mbmPixmap (name)
@@ -556,7 +559,7 @@ char *name;
 	return (NULL);
 }
 
-
+# endif
 
 
 
@@ -667,7 +670,7 @@ struct mb_menu *menu;
  */
 	if (! menu->mbm_oom && ! menu->mbm_expr)
 		XtRemoveCallback (menu->mbm_pulldown, XtNpopupCallback,
-			uw_mb_popup, menu);
+			(XtCallbackProc) uw_mb_popup, menu);
 }
 # endif
 
@@ -750,6 +753,8 @@ bool realized;
 
 
 
+
+void
 uw_MenuDestroy (doomed, realized)
 struct mb_menu *doomed;
 bool realized;
@@ -766,7 +771,8 @@ bool realized;
 		for (i = 0; i < doomed->mbm_nentries; i++)
 			XtDestroyWidget (doomed->mbm_ewidget[i]);
 		XtDestroyWidget (doomed->mbm_pulldown);
-		XtDestroyWidget (doomed->mbm_button);
+		if (doomed->mbm_button)
+			XtDestroyWidget (doomed->mbm_button);
 	}
 /*
  * Zap the per-entry strings.
@@ -918,6 +924,8 @@ int lun;
  * Load the structure itself from the file.
  */
 	bfget (lun, new, sizeof (struct mb_menu));
+	new->mbm_create = uw_mbmcreate;
+	new->mbm_destroy = uw_MenuDestroy;
 /*
  * Get each of the entries.
  */
@@ -931,6 +939,8 @@ int lun;
 		if (new->mbm_eexpr[i])
 			new->mbm_eexpr[i] = uw_LoadString (lun);
 		new->mbm_eval[i] = FALSE;
+		if (new->mbm_EType[i] == MenuEntry)
+			new->mbm_SubMarks = TRUE;
 	}
 /*
  * Selector and map table, if necessary.
