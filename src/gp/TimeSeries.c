@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.8 1992-09-01 21:18:03 burghart Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.9 1992-09-02 15:47:52 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -137,10 +137,20 @@ bool	update;
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fields, SYMT_STRING);
 /*
  * Get the platforms and fields.
- */	
-	nplat = CommaParse (platforms, pnames);
-	nfld = CommaParse (fields, fnames);
-	if (nfld > MAXFLDS) nfld = MAXFLDS;
+ */
+	if ((nplat = CommaParse (platforms, pnames)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Empty 'platform' parameter");
+		ok = FALSE;
+	}
+
+	if ((nfld = CommaParse (fields, fnames)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Empty 'field' parameter");
+		ok = FALSE;
+	}
+	else if (nfld > MAXFLDS)
+		nfld = MAXFLDS;
 /*
  * Get the plot description parameters.
  */
