@@ -27,19 +27,8 @@ int len;
  * Fake the C memset for now.
  */
 {
-# ifdef VMS
-	int cl;
-	while (len > 0)
-	{
-		cl = (len > 65535) ? 65535 : len;
-		len -= cl;
-		lib$movc5 (&0, 0, &ch, &cl, dest);
-		dest += cl;
-	}
-# else
 	while (len-- > 0)
 		*dest++ = ch;
-# endif
 }
 
 # endif

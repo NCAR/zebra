@@ -1,10 +1,6 @@
 /*
  * Here are all of the error messages.
  */
-
-# ifdef VMS
-globaldef readonly
-# endif
 char *G_messages[] =
 {
 	"Normal, successful completion.  Don't worry.",

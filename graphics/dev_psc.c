@@ -4,13 +4,11 @@
  */
 # include "param.h"
 
-# ifdef DEV_PSC
-
 # include "graphics.h"
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.7 1998-02-27 16:00:36 burghart Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.8 2002-07-11 23:14:34 burghart Exp $";
 /*
  * The tag structure
  */
@@ -18,16 +16,12 @@ static char *rcsid = "$Id: dev_psc.c,v 1.7 1998-02-27 16:00:36 burghart Exp $";
 # define MAXCOLS 256
 struct psc_tag
 {
-# ifdef unix
 	FILE	*pt_file;	/* File pointer to the device	*/
 	int	pt_pipe;	/* Piped into lpr?		*/
 	char	*pt_devname;	/* printer name 		*/
-# endif
-# ifdef VMS
 	int	pt_channel;	/* Channel to printer		*/
 	int	pt_ef;		/* Event flag			*/
 	char	pt_queue[80];	/* Queue name			*/
-# endif
 	char	pt_buf[DBUFLEN];/* Device output buffer		*/
 	char	*pt_bufp;	/* Current position in ps_buf	*/
 	int	pt_winset;	/* Window info written yet?	*/
@@ -122,7 +116,6 @@ struct device *dev;
 	char *getenv ();
 	double atof();
 
-# ifdef unix
 	if (strchr (device, '/'))
 	/*
 	 * Open up a file name 'device'
@@ -138,7 +131,7 @@ struct device *dev;
 	 */
 	{
 		ptp->pt_pipe = TRUE;
-#ifdef SYSV
+#if (defined(__SVR4) || defined(__SYSV))
                 sprintf (Command, "lp -d%s", device);
 #else
 		sprintf (Command, "lpr -P%s", device);
@@ -152,7 +145,6 @@ struct device *dev;
 	ptp->pt_devname = (char *) malloc ((1 + strlen (device)) *
 		sizeof (char));
 	strcpy (ptp->pt_devname, device);
-# endif
 /*
  * The third char is m for mono, g for gray or c for color: psm1, psg1, psc1.
  */
@@ -694,7 +686,7 @@ struct psc_tag	*ptp;
 	if (ptp->pt_pipe)
 	{
 		pclose (ptp->pt_file);
-#ifdef SYSV
+#if (defined(__SVR4) || defined(__SYSV))
                 sprintf (Command, "lp -d%s", ptp->pt_devname);
 #else
 		sprintf (Command, "lpr -P%s", ptp->pt_devname);
@@ -1001,9 +993,7 @@ struct psc_tag *ptp;
  * Write out the command buffer
  */
 {
-# ifdef unix
 	fwrite (ptp->pt_buf, 1, ptp->pt_bufp - ptp->pt_buf, ptp->pt_file);
-# endif
 /*
  * Reset the buffer.
  */
@@ -1104,6 +1094,3 @@ float rot;
 	psc_out_s (tag, cbuf);
 	psc_out_s (tag, " sh\n");
 }
-			
-
-# endif /* DEV_PSC */

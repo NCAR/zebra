@@ -161,12 +161,7 @@ gc_transtable ()
 	if (getenv ("COLORNAMES") != 0)
 		strcpy (string, getenv ("COLORNAMES"));
 	else
-# ifdef VMS
-		strcpy (string, "ds:[rdss.graphics]rgb.txt");
-# else
 		strcpy (string, COLORDB);
-# endif
-
 /*
  * Open the file
  */

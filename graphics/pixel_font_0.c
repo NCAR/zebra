@@ -22,9 +22,6 @@ struct font_dir
  * The individual rastor info.  Yes, believe it or not, I actually typed this
  * whole damn thing in.  My fingers hurt.
  */
-# ifdef VMS
-globaldef
-# endif
 int Pf0_rasters[] = {
 /* "A" -- 5 x 7 */
 # define A_RAST 0
@@ -900,10 +897,6 @@ int Pf0_rasters[] = {
 /*
  * Here is the actual font directory.
  */
-
-# ifdef VMS
-globaldef
-# endif
 struct font_dir Pf0_dir[128] =
 {
 /*	 hgt	width	refy	refx	    rastor	junk		*/

@@ -1,5 +1,5 @@
 /* 7/87 jc */
-/* $Id: pixel.c,v 1.4 1998-02-27 16:00:52 burghart Exp $ */
+/* $Id: pixel.c,v 1.5 2002-07-11 23:14:34 burghart Exp $ */
 /*
  * Operations relating to pixel maps are performed here.
  */
@@ -9,9 +9,6 @@
 # include "device.h"
 # include "pixel.h"
 # include "overlay.h"
-# ifdef VMS
-# include "lib_include:lib_proto.h"
-# endif
 
 /*
  * Bit patterns used to create the various line types in a pixel map.

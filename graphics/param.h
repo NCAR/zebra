@@ -1,15 +1,10 @@
 /*
  * Various parameters of interest.
  */
-# include <graphdev.h>
-
 # ifndef NULL
 #   define NULL 0
 # endif
 
-# ifdef  AIXV3
-# undef  TRUE
-# endif
 # define TRUE -1
 # define FALSE 0
 
@@ -18,14 +13,6 @@
  * For copying data.
  */
 # define COPY(to,from,len) slowcopy (len, from, to)
-# ifdef VMS
-# define memcpy(dest,src,len) { int __LEN__ = (len); \
-			lib$movc3 (&__LEN__, src, dest); }
-/*
-# define memset(dest,v,len) {int __LEN__ = (len); \
-			lib$movc5 (&0, 0, v, &__LEN__, dest); }
-*/
-# endif
 
 /*
  * Conversion from world to device coords.

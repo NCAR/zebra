@@ -4,29 +4,23 @@
  */
 # include "param.h"
 
-# ifdef DEV_PS
-
 # include "graphics.h"
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.10 1998-02-27 16:00:34 burghart Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.11 2002-07-11 23:14:34 burghart Exp $";
 /*
  * The tag structure
  */
 # define DBUFLEN 1024
 struct ps_tag
 {
-# ifdef unix
 	FILE	*pt_file;	/* File pointer to the device	*/
 	int	pt_pipe;	/* Piped into lpr?		*/
 	char	*pt_devname;	/* printer name for lpr		*/
-# endif
-# ifdef VMS
 	int	pt_channel;	/* Channel to printer		*/
 	int	pt_ef;		/* Event flag			*/
 	char	pt_queue[80];	/* Queue name			*/
-# endif
 	char	pt_buf[DBUFLEN];/* Device output buffer		*/
 	char	*pt_bufp;	/* Current position in ps_buf	*/
 	int	pt_winset;	/* Are we set in a window?	*/
@@ -100,7 +94,6 @@ struct device *dev;
 	char *getenv ();
 	double atof();
 
-# ifdef unix
 	if (strchr (device, '/'))
 	/*
 	 * Open up a file name 'device'
@@ -116,7 +109,7 @@ struct device *dev;
 	 */
 	{
 		ptp->pt_pipe = TRUE;
-#ifdef SYSV
+#if (defined(__SVR4) || defined(__SYSV))
                 sprintf (command, "lp -d%s", device);
 #else
 		sprintf (command, "lpr -P%s", device);
@@ -130,7 +123,6 @@ struct device *dev;
 			sizeof (char));
 		strcpy (ptp->pt_devname, device);
 	}
-# endif
 /*
  * See how the user wants the page formatted (device type name is psN)
  */
@@ -569,9 +561,7 @@ struct ps_tag *ptp;
  * Write out the command buffer
  */
 {
-# ifdef unix
 	fwrite (ptp->pt_buf, 1, ptp->pt_bufp - ptp->pt_buf, ptp->pt_file);
-# endif
 /*
  * Reset the buffer.
  */
@@ -659,6 +649,3 @@ float rot;
 	ps_out_s (tag, cbuf);
 	ps_out_s (tag, " show\n");
 }
-			
-
-# endif /* DEV_PS */

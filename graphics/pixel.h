@@ -58,15 +58,11 @@ typedef struct pixmap *pixel_map;
 /*
  * Routines.
  */
-# ifdef VMS
+struct device;
+struct overlay;
+
 struct pixmap *gp_make_pmap (struct device *dev);
 void gp_pl (struct overlay *ov, int color, int ltype, int npt, int *ndata);
 char *gp_carve_window (char *old, int x0, int y0, int x1, int y1, int cx0,
 	int cy0, int cx1, int cy1, int *nx0, int *ny0, int *nx1, int *ny1);
 struct pixmap *G_get_pmap (overlay ov);
-# else
-struct pixmap *gp_make_pmap ();
-void gp_pl ();
-char *gp_carve_window ();
-struct pixmap *G_get_pmap ();
-# endif
