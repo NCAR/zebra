@@ -5,7 +5,7 @@
 # include "config.h"
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.20 1990-05-02 10:23:15 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.21 1991-11-05 23:21:27 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -119,7 +119,10 @@ struct device *dev;
  */
  	if (! strcmp (type, "X11") || ! strcmp (type, "X700") ||
 		! strcmp (type, "x11") || ! strcmp (type, "x700"))
-		tag->x_xres = tag->x_yres = 700;
+	{
+		tag->x_xres = tag->x_yres = 704;
+		dev->gd_xb = dev->gd_yb = 176;
+	}
 	else if (! strcmp (type, "X11-huge") || ! strcmp (type, "x11-huge"))
 	{
 		tag->x_xres = 912;
