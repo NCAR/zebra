@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.6 1991-11-04 17:58:43 kris Exp $";
+static char *rcsid = "$Id: Track.c,v 2.7 1991-11-14 17:50:10 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -69,10 +69,11 @@ bool update;
 	char *fields[5], mtcolor[20], string[40], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30];
 	char a_type[30], tadefcolor[30];
-	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
+	char positionicon[40];
+	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid, index;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
 	int arrow, a_invert, a_int, numfields = 1, dummy, xannot, yannot;
-	int a_lwidth, tacmatch, ctlimit;
+	int a_lwidth, tacmatch, ctlimit, showposition;
 	long timenow, vectime = 0;
 	unsigned int udummy, dwidth, dheight;
 	bool mono; 
@@ -138,8 +139,22 @@ bool update;
 			|| tr_GetParam (comp, "color-code-field", platform,
 				ccfield, SYMT_STRING));
 	if (! mono)
+	{
 		mono = ! tr_CCSetup (comp, platform, ccfield, ctable, &colors,
 				&nc, &base, &incr, &outrange, &center, &step);
+	}
+/*
+ * Show the location?
+ */
+	if (! tr_GetParam (comp, "show-position", platform, 
+		(char *) &showposition, SYMT_BOOL))
+		showposition = FALSE;
+	if (showposition && (! tr_GetParam (comp, "position-icon", platform, 
+		positionicon, SYMT_STRING)))
+	{
+			msg_ELog (EF_PROBLEM, "Show position, but no icon.");
+			showposition = FALSE;
+	}
 /*
  * Put together the field list.
  */
@@ -254,21 +269,6 @@ bool update;
 		cvt_ToXY (loc->l_lat, loc->l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
 	/*
-	 * Color code if necessary.
-	 */
-	 	if (! mono)
-		{
-			int index = (data[i] - base)/incr;
-			XSetForeground (disp, Gcontext,
-				(index >= 0 && index < nc) ?
-				colors[index].pixel : outrange.pixel);
-		}
-	/*
-	 * Finally draw the line.
-	 */
-		XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
-		x0 = x1; y0 = y1;
-	/*
 	 * Draw arrows if necessary.
 	 */
 		if(arrow)
@@ -293,7 +293,29 @@ bool update;
 					LineSolid, CapButt, JoinMiter);
 			}
 		}
+	/*
+	 * Color code if necessary.
+	 */
+	 	if (! mono)
+		{
+			index = (data[i] - base)/incr;
+			XSetForeground (disp, Gcontext,
+				(index >= 0 && index < nc) ?
+				colors[index].pixel : outrange.pixel);
+		}
+	/*
+	 * Finally draw the line.
+	 */
+		XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
+		x0 = x1; y0 = y1;
 	}
+/*
+ * If this isn't an update, indicate which end of the track is the front.
+ */
+	if ((! update) && showposition)
+		if (mono) ov_PositionIcon (positionicon, x0, y0, xc.pixel);
+		else ov_PositionIcon (positionicon, x0, y0, (index >= 0 &&
+			index < nc) ? colors[index].pixel : outrange.pixel);
 	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 /*
  * Put in the status line before we lose the data object, then get rid of it.
