@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.11 1994-01-03 07:17:53 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.12 1994-01-03 10:23:42 granger Exp $")
 
 
 /*
@@ -166,6 +166,7 @@ char *name;
 	new->dp_rdir[0] = '\0';
 	new->dp_Tfile = 0;
 	new->dp_flags = 0;
+	new->dp_parent = BadPlatform;
 	new->dp_org = OrgUnknown;
 	new->dp_ftype = FTUnknown;
 	new->dp_keep = DefaultKeep;
