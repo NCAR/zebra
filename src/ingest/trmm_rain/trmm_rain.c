@@ -24,7 +24,7 @@
 
 # ifndef lint
 static char *rcsid = 
-   "$Id: trmm_rain.c,v 1.8 1994-02-01 11:03:14 granger Exp $";
+   "$Id: trmm_rain.c,v 1.9 1995-07-10 13:14:02 granger Exp $";
 # endif
 
 # include <assert.h>
@@ -558,7 +558,10 @@ int *ryear;	/* year used for the Month and Day being ingested */
 	local.tm_year = year - 1900;
 	local.tm_wday = 0;
 	local.tm_yday = 0;
-#if !defined(SYSV) && !defined(SVR4)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
+	local.tm_isdst = -1;
+#else
+	local.tm_isdst = 0;
 	local.tm_zone = NULL;
 	local.tm_gmtoff = 0;
 #endif
@@ -598,7 +601,11 @@ int *ryear;	/* year used for the Month and Day being ingested */
 		local.tm_hour = hour;
 		local.tm_mday = mday;
 		local.tm_mon = month - 1;
+#if defined(SVR4) || defined(SYSV) || defined(linux)
+		t.zt_Sec = mktime (&local);
+#else
 		t.zt_Sec = (unsigned long) timelocal (&local);
+#endif
 	/*
 	 * If we have an end time, and t is later, we know we can
 	 * abort now.
