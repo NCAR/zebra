@@ -33,6 +33,7 @@
 
 static void ShowGDS FP ((GFgds *gds_in));
 static int DumpFile FP ((char *file));
+static void DumpGrid FP ((int ng, GFgds *gds, GFpds *pds));
 
 
 int
@@ -51,6 +52,8 @@ char	**argv;
 		exit (1);
 	}
 
+	msg_connect (NULL, "GRIBdump");
+	msg_ELPrintMask (EF_EMERGENCY | EF_PROBLEM | EF_INFO);
 	err = 0;
 	for (i = 1; i < argc; ++i)
 		err += DumpFile (argv[i]);
@@ -63,16 +66,13 @@ static int
 DumpFile (file)
 char *file;
 {
-	static  unsigned char *buf = 0;
-	static	int buflen = 0;
 	int	fd;
-	int	is_len, grib_len, pds_len;
-	int	status, ng = 0, ncopy;
-	unsigned char is[8], *trailer;
-	GFpds	pds;
-	GFgds	*gds = 0;
-	AltUnitType	altunits;
-	ZebTime zt;
+	int	len, pds_len, bms_len, bds_len;
+	int	status, ng, ncopy, ednum, bds_pos;
+	unsigned char buf[64];
+	GFpds	PDS, *pds = &PDS;
+	GFgds	GDS, *gds = &GDS;
+	int 	showgds = 1;
 /*
  * Try to open the file
  */
@@ -83,113 +83,136 @@ char *file;
 	}
 /*
  * Each grid starts with an Indicator Section.  Loop through grids
- * until we fail to get one of these, a read fails, or we reach eof.
+ * looking for an IS.  In Edition 1 and beyond, the IS is 8 bytes long,
+ * but it's 4 bytes long in Edition 0.
+ * An added complication is that sometimes records are separated by 20 blanks.
  */
-	is_len = 8;	/* Fixed length of the Indicator Section */
-	while (1)
+	ng = 0;
+	while ((status = grb_FindRecord (fd, buf)) > 0)
 	{
 	/*
-	 * Make sure we have the "GRIB" tag at the beginning
+	 * Read the next 4 bytes and determine the GRIB edition.  In Edition 1
+	 * and beyond, these are the the last 4 bytes of the IS.  For Edition
+	 * 0 files, they're the first four bytes of the PDS...
 	 */
-		if ((status = grb_FindRecord (fd, is)) < 0)
+		if (read (fd, buf, 4) < 4)
 		{
-			fprintf (stderr, "%s: Could not locate 'GRIB' seq\n", 
-				 file);
-			return (1);
-		}
-		else if (status == 0)
-			break;
-		if (read (fd, is + 4, 4) != 4)
-		{
-			fprintf (stderr, "%s: Indicator Section incomplete!\n",
-				 file);
-			exit (1);
-		}
-	/*
-	 * Get the length of this GRIB 'message' (one grid), make sure we
-	 * have space for it.
-	 */
-		grib_len = grb_ThreeByteInt (is + 4);
-		if (grib_len > buflen)
-		{
-			buflen = grib_len;
-
-			if (buf)
-				buf = (unsigned char *) realloc (buf, buflen);
-			else
-				buf = (unsigned char *) malloc (buflen);
-		}
-	/*
-	 * Copy in the eight bytes we have, and read the rest
-	 */
-		memcpy (buf, is, is_len);
-		status = read (fd, buf + is_len, grib_len - is_len);
-		if (status < (grib_len - is_len))
-		{
-			fprintf (stderr, 
-				 "%s: GRIB file ends with incomplete record",
-				 file);
+			msg_ELog (EF_INFO, 
+				  "GRIB file ends with incomplete record");
 			status = 0;	/* Treat it like an EOF */
 			break;
 		}
 	/*
-	 * Read the first 3 bytes of the Product Definition Section to get
-	 * the PDS length.  Our structure only holds the (required) first
-	 * 28 bytes of the PDS, so we don't copy any more than that.  We
-	 * accomodate illegal smaller ones though, by padding with zeros.
+	 * Figure out the GRIB Edition.  If the three byte length here is
+	 * 24 (the length of an Edition 0 PDS), we assume that it's Edition 0.
+	 * Otherwise, assume it's Edition 1 or later and we can get the real
+	 * edition number from the fourth byte.
 	 */
-		pds_len = grb_ThreeByteInt (buf + is_len);
+		len = grb_ThreeByteInt (buf);
+		ednum = (len == 24) ? 0 : (int) buf[3];
+	/*
+	 * For Edition > 0, we still need to read the first four bytes of 
+	 * the PDS.
+	 */
+		if (ednum != 0 && read (fd, buf, 4) < 4)
+		{
+			msg_ELog (EF_INFO, "Missing PDS at grid %d", ng + 1);
+			status = 0;	/* Treat it like an EOF */
+			break;
+		}
+
+		pds_len = grb_ThreeByteInt (buf);
+	/*
+	 * Read the rest of the PDS into our buffer. 
+	 */
+		if (read (fd, buf + 4, pds_len - 4) != pds_len - 4)
+		{
+			msg_ELog (EF_INFO, "Short PDS at grid %d", ng + 1);
+			status = 0;	/* Treat it like an EOF */
+			break;
+		}
+	/*
+	 * Copy up to 28 bytes into our PDS space.  We don't need to keep
+	 * the stuff (if any) beyond that.
+	 */
 		ncopy = (pds_len < sizeof (GFpds)) ? pds_len : sizeof (GFpds);
-		memcpy (&pds, buf + is_len, ncopy);
+		memcpy (pds, buf, ncopy);
 	/*
-	 * If we have a Grid Description Section, print it first and just once
+	 * If we have a Grid Description Section, read it
 	 */
-		if (!gds && (pds.section_flags & GDS_FLAG))
+		if (pds->section_flags & GDS_FLAG)
 		{
-			gds = (GFgds *) (buf + is_len + pds_len);
-			ShowGDS (gds);
+			gds = &GDS;
+			if ((status = grb_ReadGDS (fd, gds, ng+1)) <= 0)
+				break;
+			if (showgds)
+			{
+				ShowGDS (gds);
+				showgds = 0;
+			}
 		}
-	/*
-	 * Print the grid number and reference time
-	 */
-		grb_ReferenceTime (&pds, &zt);
-		printf ("%3d %-20s", ng++, TC_AscTime (&zt, TC_Full));
-#ifdef notdef
-		printf ("%3d %02d%02d%02d %02d%02d%02d", ng++, pds.year,
-			pds.month, pds.day, pds.hour, pds.minute, 0);
-#endif
-	/*
-	 * Grid ID
-	 */
-		printf ("Id: %3d", pds.grid_id);
-	/*
-	 * Field
-	 */
-		printf ("  Field: %3d", pds.field_id);
-	/*
-	 * Offset
-	 */
-		printf ("  Offset: %6ds", grb_Offset (&pds));
-	/*
-	 * Level
-	 */
-		if (! grb_NormalLevel (&pds))
-			printf ("  Z: (level type %d)", pds.level_id);
 		else
+			gds = NULL;
+	/*
+	 * If there's a Bit Map Section, bypass it.
+	 */
+		if (pds->section_flags & BMS_FLAG)
 		{
-			float z = grb_ZLevel (&pds, &altunits);
-			printf ("  Z: %s", au_AltLabel ((double)z, altunits));
+		/*
+		 * Read the first four bytes of the BMS and get its length
+		 */
+			if (read (fd, buf, 4) < 4)
+			{
+				msg_ELog (EF_INFO, 
+					  "Missing BMS at grid %d", ng + 1);
+				status = 0;	/* Treat it like an EOF */
+				break;
+			}
+
+			bms_len = grb_ThreeByteInt (buf);
+		/*
+		 * Seek past the rest
+		 */
+			lseek (fd, bms_len - 4, SEEK_CUR);
 		}
-		printf ("\n");
+	/*
+	 * We're at the Binary Data Section.
+	 */
+		bds_pos = lseek (fd, 0, SEEK_CUR);
+
+		if (read (fd, buf, 4) < 4)
+		{
+			msg_ELog (EF_INFO, 
+				  "Missing BDS at grid %d", ng + 1);
+			status = 0;	/* Treat it like an EOF */
+			break;
+		}
+		bds_len = grb_ThreeByteInt (buf);
+	/*
+	 * Skip over the rest of the BDS
+	 */
+		lseek (fd, bds_len - 4, SEEK_CUR);
+	/*
+	 * It looks like we really have a GRIB record here.
+	 */
+		++ng;
+		DumpGrid (ng, gds, pds);
 	/*
 	 * Sanity check.  Make sure the last 4 bytes of the GRIB record are 
 	 * the GRIB trailer "7777"
 	 */
-		trailer = buf + grib_len - 4;
-		if (strncmp ((char *) trailer, "7777", 4))
+		if (read (fd, buf, 4) < 4)
 		{
-			fprintf (stderr, "%s: Bad GRIB trailer '%4s'", 
-				 file, trailer);
+			msg_ELog (EF_INFO, "Missing trailer at grid %d", ng);
+			status = 0;	/* Treat it as an EOF */
+			break;
+		}
+		
+		if (strncmp ((char *) buf, "7777", 4))
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "Bad GRIB trailer '%4s' at grid %d",
+				  buf, ng);
 			return (1);
 		}
 	}
@@ -198,12 +221,56 @@ char *file;
  */
 	if (status < 0)
 	{
-		fprintf (stderr, "Error %d reading GRIB file", errno);
+		msg_ELog (EF_PROBLEM, "Error %d reading GRIB file at grid %d", 
+			  errno, ng);
 		return (1);
 	}
-
-	return (0);
+	else
+		return (0);
 }
+
+
+
+
+static void
+DumpGrid (ng, gds, pds)
+int ng;
+GFgds *gds;
+GFpds *pds;
+{
+	AltUnitType altunits;
+	ZebTime zt;
+
+	/*
+	 * Print the grid number and reference time
+	 */
+	grb_ReferenceTime (pds, &zt);
+	printf ("%3d %-20s", ng, TC_AscTime (&zt, TC_Full));
+	/*
+	 * Grid ID
+	 */
+	printf ("Id: %3d", pds->grid_id);
+	/*
+	 * Field
+	 */
+	printf ("  Field: %3d", pds->field_id);
+	/*
+	 * Offset
+	 */
+	printf ("  Offset: %6ds", grb_Offset (pds));
+	/*
+	 * Level
+	 */
+	if (! grb_NormalLevel (pds))
+		printf ("  Z: (level type %d)", pds->level_id);
+	else
+	{
+		float z = grb_ZLevel (pds, &altunits);
+		printf ("  Z: %s", au_AltLabel ((double)z, altunits));
+	}
+	printf ("\n");
+}
+
 
 
 
@@ -226,6 +293,7 @@ float *x, *y;
 	*y = R_Earth * k * (cos (phi1) * sin (phi) - 
 		 sin (phi1) * cos (phi) * cos (lambda - lambda0));
 }
+
 
 
 static void
@@ -257,6 +325,7 @@ float *lat, *lon;
 	*lat = RAD_TO_DEG (phi);
 	*lon = RAD_TO_DEG (lambda);
 }
+
 
 
 static void
