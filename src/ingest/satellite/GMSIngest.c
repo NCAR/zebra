@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.4 1994-11-17 03:42:35 granger Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.5 1995-03-02 23:49:46 granger Exp $")
 
 # include "keywords.h"
 
@@ -169,7 +169,11 @@ char **argv;
 /*
  * Connect to the message handler
  */
-	msg_connect (MDispatcher, "GMSIngest");
+	if (! msg_connect (MDispatcher, "GMSIngest"))
+	{
+		fprintf (stderr, "could not connect to message manager\n");
+		exit (9);
+	}
 	msg_DeathHandler (Die);
 /*
  * UI stuff
