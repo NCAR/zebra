@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.28 1995-04-20 14:21:19 granger Exp $
+ * $Id: DataStore.h,v 3.29 1995-04-20 20:20:04 granger Exp $
  *
  * Public data store definitions.
  */
@@ -741,6 +741,7 @@ bool		ds_InsertFile FP ((PlatformId platform, char *filename,
 bool		ds_ScanFile FP((PlatformId platid, char *fname, int local));
 void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
+void		ds_SnarfCopies FP ((void (*handler)()));
 int		ds_DataTimes FP ((PlatformId, ZebTime *, int, TimeSpec,
 			ZebTime *));
 int		ds_GetObsSamples FP ((PlatformId, ZebTime *, ZebTime *,
