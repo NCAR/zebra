@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.21 1995-08-03 21:00:21 corbet Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.22 1995-08-07 23:05:30 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -78,8 +78,8 @@ static XRectangle	Clip;
 /*
  * Useful macros.
  */
-# define MIN(x, y) (((x) < (y)) ? (x) : (y))
-# define MAX(x, y) (((x) > (y)) ? (x) : (y))
+# define RPMIN(x, y) (((x) < (y)) ? (x) : (y))
+# define RPMAX(x, y) (((x) > (y)) ? (x) : (y))
 # define WRAPLON(l) (((l) > 180.0) ? ((l) - 360) : (l))
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -1257,24 +1257,24 @@ int nx, ny, *x0, *y0, *x1, *y1;
 
 	prj_Project (loc->l_lat, loc->l_lon, &xk, &yk);
 	x = XPIX (xk); y = YPIX (yk);
-	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
-	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
 
 	prj_Project (loc->l_lat, WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
 	x = XPIX (xk); y = YPIX (yk);
-	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
-	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
 
 	prj_Project (loc->l_lat + ny*latstep, loc->l_lon, &xk, &yk);
 	x = XPIX (xk); y = YPIX (yk);
-	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
-	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
 
 	prj_Project (loc->l_lat + ny*latstep,
 			WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
 	x = XPIX (xk); y = YPIX (yk);
-	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
-	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
 }
 
 
