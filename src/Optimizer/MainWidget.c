@@ -1,6 +1,6 @@
 /*
  * Main optimizer widget
- * $Id: MainWidget.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
+ * $Id: MainWidget.c,v 1.2 1991-07-05 19:51:23 burghart Exp $
  */
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -42,7 +42,7 @@ XtAppContext	appc;
  * Create the main optimizer widget, which holds the others
  */
 {
-	Widget	outer_form, cform, rform, soform;
+	Widget	outer_form, cform, rform, sform, soform;
 	int	n;
 	Arg	args[20];
 /*
@@ -55,11 +55,12 @@ XtAppContext	appc;
 	outer_form = XtCreateManagedWidget ("outerForm", boxWidgetClass, 
 		parent, args, n);
 /*
- * Make the command widget, radar widget, and scan option widget children
- * of the outer box
+ * Make the command widget, radar widget, send widget, and scan option widget 
+ * children of the outer box
  */
 	cform = cw_CWidget (outer_form);
 	rform = rw_RWidget (outer_form);
+	sform = sw_SWidget (outer_form);
 	soform = so_SOWidget (outer_form);
 /*
  * Done 
