@@ -6,6 +6,15 @@
 # include "cvrt.h"
 # include "xdr.h"
 
+/*
+ * Cuz adradInput needs them...
+ */
+char	adfields[5];
+float	Vu;
+
+
+
+
 main (argc, argv)
 int	argc;
 char	**argv;
