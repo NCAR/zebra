@@ -85,9 +85,10 @@ else
 fi
 
 # Any reason this can't be run in parallel?  Leaving serial for now...
-$echo zplotd -period $plot1 $zplotdargs
-
 # Run the second plot if the current hour is not also the plot hour.
+set -x
+$echo zplotd -period $plot1 $zplotdargs
 if [ $doplot2 -ne 0 ]; then
     $echo zplotd -period $plot2 $zplotdargs
 fi
+
