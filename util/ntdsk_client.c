@@ -23,6 +23,17 @@ static FILE *Sin, *Sout;
 static int Connected = FALSE;
 
 static int Len = 0;		/* Hold length of last move for cli_bio_wait */
+
+/*
+ * Transmit and reply buffers and our current position in each
+ */
+static char	*Rply_buf = NULL;
+static int	Rply_pos = 0;
+static char	*Xmit_buf = NULL;
+static int	Xmit_pos = 0;
+
+
+
 /*
  * Forward declarations
  */
@@ -99,6 +110,11 @@ char *file;
 	Sin = fdopen (skt, "r");
 	skt = dup (skt);
 	Sout = fdopen (skt, "w");
+/*
+ * Create the transmit and reply buffers
+ */
+	Xmit_buf = (char *) malloc (MAXBUFSIZE * sizeof (char));
+	Rply_buf = (char *) malloc (MAXBUFSIZE * sizeof (char));
 /*
  * Get the banner line.
  */
@@ -462,9 +478,6 @@ char *str;
 
 
 
-static char	Xmit_buf[MAXBUFSIZE];
-static int	Xmit_pos;
-
 msg_addbyt (ptr, num)
 char *ptr;
 int num;
@@ -500,9 +513,6 @@ ntd_msg_send ()
 
 
 
-
-static char	Rply_buf[MAXBUFSIZE];  
-static int	Rply_pos = 0;
 
 char *
 rpl_getstr ()
