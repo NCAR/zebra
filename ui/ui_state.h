@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_state.h,v 1.1 1989-02-08 13:28:20 corbet Exp $ */
+/* $Id: ui_state.h,v 1.2 1989-09-25 16:59:59 corbet Exp $ */
 /*
  * Structures for the state table.
  */
@@ -6,10 +6,10 @@
 # define STATE_SYMBOLS
 
 # include "ui_param.h"
-# define STATE_NAME_LEN		30	/* Max len of a state name	*/
-# define HELP_LEN		50	/* Help file length		*/
+# define STATE_NAME_LEN		32	/* Max len of a state name	*/
+# define HELP_LEN		52	/* Help file length		*/
 # define MSG_LEN		80	/* Max message length		*/
-# define KW_LEN			30	/* Max keyword length		*/
+# define KW_LEN			32	/* Max keyword length		*/
 # define ST_NO_VP		100	/* No value parameter here	*/
 
 
