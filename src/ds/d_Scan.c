@@ -38,7 +38,7 @@
 # include "dfa.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.24 1995-02-10 01:08:06 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.25 1995-04-17 22:36:13 granger Exp $")
 
 
 /*
@@ -53,14 +53,12 @@ static int	LoadCache FP ((Platform *, int));
 static char     *CacheFileName FP((Platform *p, int local));
 static int	MakeDataDir FP ((char *));
 
-#ifdef notdef
 static int ScanProto[] =
 {
 	MT_MESSAGE, MT_ELOG, MT_PING, MT_CPING, MT_QUERY, MT_MTAP, MT_FINISH
 };
 
 static int NProto = sizeof (ScanProto) / sizeof (ScanProto[0]);
-#endif
 
 void
 DataScan ()
@@ -75,17 +73,15 @@ DataScan ()
 	for (plat = 0; plat < NPlatform; plat++)
 	{
 		Platform *p = PTable + plat;
-#ifdef notdef
 	/*
 	 * Check and handle any pending messages except ds protocol
 	 */
 		while (msg_PollProto (0, NProto, ScanProto) != MSG_TIMEOUT)
 			/* handle messages besides our own */ ;
-#endif
 	/*
-	 * Don't really scan subplatforms.
+	 * Don't really scan subplatforms or virtual platforms.
 	 */
-		if (! pi_Subplatform(p))
+		if (! pi_Subplatform(p) && ! pi_Virtual(p))
 		{
 		/*
 		 * Scan the local directory, and the remote one if it exists.
@@ -517,7 +513,7 @@ int all;
 		/*
 		 * Don't scan subplatforms.
 		 */
-			if (! pi_Subplatform (p))
+			if (! pi_Subplatform (p) && ! pi_Virtual (p))
 				RescanPlat (p);
 		}
 		/*
@@ -543,6 +539,9 @@ Platform *p;
  */
 {
 	int dfindex;
+
+	if (pi_Subplatform(p) || pi_Virtual(p))
+		return;
 /*
  * Go through and clear the "seen" flags.
  */
@@ -654,9 +653,9 @@ struct ui_command *cmd;
 	{
 		Platform *p = PTable + plat;
 	/*
-	 * We don't dump subplatforms.
+	 * We don't dump subplatforms or virtual platforms.
 	 */
-		if (pi_Subplatform(p))
+		if (pi_Subplatform(p) || pi_Virtual(p))
 			continue;
 	/*
 	 * Maybe they only want to write those which have changed.
