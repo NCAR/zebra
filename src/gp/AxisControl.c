@@ -1,7 +1,6 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.22 1994-11-19 00:34:29 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,6 +36,8 @@ static char *rcsid = "$Id: AxisControl.c,v 1.22 1994-11-19 00:34:29 burghart Exp
 # include "DrawText.h"
 # include "ui_date.h"
 # include "AxisControl.h"
+
+RCSID("$Id: AxisControl.c,v 1.23 1995-04-17 21:08:24 granger Exp $")
 
 /*
  * Convenient scratch string
