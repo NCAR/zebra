@@ -441,7 +441,7 @@ LogFatalI(s, i)
 LogFatal(x0,x1)
 	char *x0, *x1;
 {
-	extern char	*sys_errlist[];
+	extern const char *const sys_errlist[];
 	static boolean	entered = FALSE;
 
 	if (entered)
