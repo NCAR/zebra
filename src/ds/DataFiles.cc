@@ -76,4 +76,5 @@ DataFile::PutTo( ostream& s ) const
 	")\n";
     s << "======== core part ========\n";
     s << df_core;
+    return s;
 }
