@@ -1,3 +1,9 @@
+2001-06-19  Gary Granger  <granger@ale.atd.ucar.edu>
+
+	* Popup UI widgets near the X pointer where they will be more
+	  immediately and more consistently accessible, and more obvious.
+	  This uses a new uw_PositionWidget() UI function.
+
 2000-12-08  Gary Granger  <granger@ale.atd.ucar.edu>
 
 	* The enter-widget and hardcopy-widget have been taken out of the
