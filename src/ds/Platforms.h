@@ -1,5 +1,5 @@
 /*
- * $Id: Platforms.h,v 3.3 1999-03-01 02:03:35 burghart Exp $
+ * $Id: Platforms.h,v 3.4 2000-04-24 21:20:37 burghart Exp $
  *
  * The interface to platform classes and instances shared by daemon
  * and client.  The application, be they daemon or client, can choose
@@ -124,6 +124,7 @@ typedef PlatformInstance Platform;
  * for routines shared between the p_ and Platforms modules.
  */
 
+# undef INLINE	/* other definition by sweepfile stuff from DataStore.h */
 # define INLINE static inline
 
 # ifdef notdef
