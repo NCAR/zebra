@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.4 1998-02-25 22:17:26 burghart Exp $
+/* $Id: BlockObject.hh,v 1.5 1998-03-16 20:43:37 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -314,6 +314,48 @@ private:
 	// Not implemented //
 	TranslateBlock (const TranslateBlock &);
 	TranslateBlock &operator= (const TranslateBlock &);
+};
+
+
+
+/*
+ * Provide an object which simply keeps a reference to a Serializable
+ * object.  The "client" object calls the readLock(), writeLock(), 
+ * and unlock() methods, and then the Bridge calls the client's 
+ * encode and decode as needed.  This is essentially an implementation
+ * of object inheritance, for cases where actually subclassing SerialBlock
+ * is just too complicated or otherwise undesirable.
+ */
+class SerialBlockBridge : virtual public SerialBlock
+{
+public:
+	SerialBlockBridge (Serializable &_target, BlockFile &_bf)
+		: SyncBlock (_bf), target (_target)
+	{ }
+	SerialBlockBridge (Serializable &_target, BlockFile &_bf,
+			   const Block &exist)
+		: SyncBlock (_bf, exist), target (_target)
+	{ }
+
+	~SerialBlockBridge () { }
+
+	virtual int encode (SerialBuffer &buf)
+	{
+		return target.encode (buf);
+	}
+
+	virtual int decode (SerialBuffer &buf)
+	{
+		return target.decode (buf);
+	}
+
+	virtual long encodedSize (SerialBuffer &buf)
+	{
+		return target.encodedSize (buf);
+	}
+
+protected:
+	Serializable &target;
 };
 
 
