@@ -29,13 +29,13 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.6 1996-03-12 17:41:37 granger Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.7 1996-05-01 20:15:45 granger Exp $")
 
 # ifdef MAP_PROJECTIONS
-static char *projopt[2] = { "@(#)$GP: Map projections NOT compiled $",
+static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
 				   (char *)projopt };
 # else
-static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
+static char *projopt[2] = { "@(#)$GP: Map projections NOT compiled $",
 				   (char *)projopt };
 #endif
 
