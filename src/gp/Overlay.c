@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.14 1991-03-10 19:04:45 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.15 1991-06-24 18:24:32 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -46,6 +46,7 @@ typedef enum
 	static void ov_WBounds (char *, int);
 	static void ov_RangeRings (char *, int);
 	static void ov_Location (char *, int);
+	static void ov_Grid (char *, int);
 	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
 			float *, float *);
 	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
@@ -55,13 +56,20 @@ typedef enum
 			float *, float *, int *, float *, XColor *, int *);
 	static OvIcon *ov_GetIcon (char *);
 	static int ov_LocSetup (char *, char **, int *, OvIcon **, LabelOpt *,
-		char *, float *);
+					char *, float *);
+	static void	ov_SGSetup (char *, float *, float *, float *, int *,
+					int *);
+	static void 	ov_SolidGrid (int, int, int, int, double, double,
+				double, int);
+	static void	ov_TicGrid (int, int, int, int, double, double,
+				double, int, int);
 # else
 	static void ov_GridBBox ();
 	static void ov_DrawFeature ();
 	static void ov_Map ();
 	static void ov_WBounds ();
 	static bool ov_GetWBounds ();
+	static void ov_Grid ();
 	static int ov_FindWBReply ();
 	static void ov_Boundary ();
 	static bool ov_GetBndParams ();
@@ -69,6 +77,9 @@ typedef enum
 	static int ov_RRInfo ();
 	static OvIcon *ov_GetIcon ();
 	static int ov_LocSetup ();
+	static void	ov_SGSetup ();
+	static void 	ov_SolidGrid ();
+	static void	ov_TicGrid ();
 # endif
 
 # define BADVAL -9999.9
@@ -91,6 +102,8 @@ static struct overlay_table
 	{ "boundary",	ov_Boundary	},
 	{ "range-rings", ov_RangeRings	},
 	{ "location",	ov_Location	},
+	{ "solidgrid",	ov_Grid		},
+	{ "grid",	ov_Grid		},
 	{ 0, 0}
 };
 
@@ -130,6 +143,20 @@ static stbl Ftable = 0;
  */
 # define MAXPLSEG 100
 
+
+
+static inline float
+FloatTrunc (v, interval)
+float v, interval;
+{
+	if (v < 0)
+	{
+		float ret = interval * (int) ((-v)/interval);
+		return (-ret);
+	}
+	else
+		return (interval * (int) (v/interval));
+}
 
 
 
@@ -1182,4 +1209,205 @@ char *name;
 	v.us_v_ptr = (char *) icon;
 	usy_s_symbol (OvIcons, name, SYMT_POINTER, &v);
 	return (icon);
+}
+
+
+
+
+
+
+static void
+ov_Grid (comp, update)
+char *comp;
+int update;
+/*
+ * Draw a solid grid overlay.
+ */
+{
+	float xs, ys, theight;
+	int top, bottom, left, right, aint, n, solid, tic;
+/*
+ * Dig out our info.
+ */
+	ov_SGSetup (comp, &xs, &ys, &theight, &solid, &tic);
+	bottom = YPIX (Yhi);
+	top = YPIX (Ylo) - 12;
+	left = XPIX (Xlo);
+	right = XPIX (Xhi);
+/*
+ * Figure out how often to annotate lines along the bottom.
+ */
+	if ((aint = 70/(XPIX (xs) - XPIX (0))) <= 0)
+		aint = 1;
+/*
+ * Draw the grid.
+ */
+	if (solid)
+		ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint);
+	else
+		ov_TicGrid (left, right, top, bottom, xs, ys, theight, aint,
+				tic);
+}
+
+
+
+
+
+static void
+ov_TicGrid (left, right, top, bottom, xs, ys, theight, aint, ticwidth)
+int left, right, top, bottom, aint, ticwidth;
+float xs, ys, theight;
+/*
+ * Draw a tic-style cartesian grid.
+ */
+{
+	float xpos, ypos;
+	int xp, yp, nx = 0, ny = 0;
+	char label[30];
+	Drawable frame = GWFrame (Graphics);
+/*
+ * Pass along the rows.
+ */
+ 	for (xpos = FloatTrunc (Xlo, xs); xpos <= Xhi; xpos += xs)
+	{
+		if ((xp = XPIX (xpos)) < left)
+			continue;
+	/*
+	 * And down the columns.
+	 */
+	 	for (ypos = FloatTrunc (Ylo, ys); ypos <= Yhi; ypos += ys)
+		{
+			if ((yp = YPIX (ypos)) > top)
+				continue;
+		/*
+		 * Draw the tic marks.
+		 */
+			XDrawLine (Disp, frame, Gcontext, xp - ticwidth, yp,
+					xp + ticwidth, yp);
+			XDrawLine (Disp, frame, Gcontext, xp, yp - ticwidth,
+					xp, yp + ticwidth);
+		/*
+		 * Annotate if this is the first time through.
+		 */
+			if (nx == 0 && (ny++ % aint) == 0)
+			{
+				sprintf (label, "%.1f", ypos);
+				DrawText (Graphics, frame, Gcontext, left - 1,
+					yp, label, 0.0, theight,
+					JustifyRight, JustifyCenter);
+			}
+		}
+	/*
+	 * Bottom annotation.
+	 */
+		if ((nx++ % aint) == 0)
+		{
+			sprintf (label, "%.1f", xpos);
+			DrawText (Graphics, frame, Gcontext, xp,
+				top + 1, label, 0.0, theight,
+				JustifyCenter, JustifyTop);
+		}
+	}
+}
+
+
+
+
+
+static void
+ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint)
+int left, right, top, bottom, aint;
+float xs, ys, theight;
+/*
+ * Draw a solid grid.
+ */
+{
+	char label[30];
+	float pos;
+	int n;
+	Drawable frame = GWFrame (Graphics);
+/*
+ * Draw the vertical lines.
+ */
+	n = 0;
+	for (pos = FloatTrunc (Xlo, xs); pos <= Xhi; pos += xs)
+	{
+		if (XPIX (pos) < left)
+			continue;
+		XDrawLine (Disp, frame, Gcontext, XPIX (pos), top,
+				XPIX (pos), bottom);
+		if ((n++ % aint) == 0)
+		{
+			sprintf (label, "%.1f", pos);
+			DrawText (Graphics, frame, Gcontext, XPIX (pos),
+				top + 1, label, 0.0, theight,
+				JustifyCenter, JustifyTop);
+		}
+	}
+/*
+ * And horizontal.
+ */
+	n = 0;
+	for (pos = FloatTrunc (Ylo, ys); pos <= Yhi; pos += ys)
+	{
+		if (YPIX (pos) > top)
+			continue;
+		XDrawLine (Disp, frame, Gcontext, left, YPIX (pos),
+				right, YPIX (pos));
+		if ((n++ % aint) == 0)
+		{
+			sprintf (label, "%.1f", pos);
+			DrawText (Graphics, frame, Gcontext, left - 1,
+				YPIX (pos), label, 0.0, theight,
+				JustifyRight, JustifyCenter);
+		}
+	}
+}
+
+
+
+
+static void
+ov_SGSetup (comp, xs, ys, theight, solid, ticwidth)
+char *comp;
+float *xs, *ys;
+float *theight;
+int *solid, *ticwidth;
+/*
+ * Get everything set up to draw a grid.
+ */
+{
+	int lwidth;
+/*
+ * Find our spacings.
+ */
+	if (! pda_Search (Pd, comp, "x-spacing", "grid", (char *) xs,
+			SYMT_FLOAT))
+		*xs = 10.0;
+	if (! pda_Search (Pd, comp, "y-spacing", "grid", (char *) ys,
+			SYMT_FLOAT))
+		*ys = 10.0;
+/*
+ * Go ahead and set the line drawing parameters.
+ */
+	SetColor (comp, "color", "grid", "gray60");
+	if (! pda_Search (Pd, comp, "line-width", "grid", (char *) &lwidth,
+			SYMT_INT))
+		lwidth = 0;
+	XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
+			JoinMiter);
+/*
+ * Text height.
+ */
+	if (! pda_Search (Pd, comp, "annot-height", "grid", (char *) theight,
+			SYMT_FLOAT))
+		*theight = 0.02;
+/*
+ * Solidness.
+ */
+	if (! pda_Search(Pd, comp, "solid", "grid", (char *) solid, SYMT_BOOL))
+		*solid = FALSE;
+	if (! pda_Search (Pd, comp, "tic-width", "grid", (char *) ticwidth,
+			SYMT_INT))
+		*ticwidth = 8;
 }
