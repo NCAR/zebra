@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.18 1994-01-24 21:17:17 case Exp $
+/**/# $Id: site-def.h.template,v 1.19 1994-02-02 16:31:16 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -290,7 +290,7 @@
  * Byte ordering flag.  Do not change this unless you are attempting a
  * port to another machine which has "little endian" byte ordering.
  *
- * /
+ */
 
 # define EndianFlag -DBIG_ENDIAN
 
