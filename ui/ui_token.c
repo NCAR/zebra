@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.4 1989-05-31 16:20:47 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.5 1989-06-05 16:02:55 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -38,7 +38,8 @@ static char *Rcsid = "$Id: ui_token.c,v 1.4 1989-05-31 16:20:47 corbet Exp $";
 # define CG_AT		18	/* @					*/
 # define CG_FUNCTION	19	/* Function key				*/
 # define CG_COMMENT	20	/* Comment delimiter (!)		*/
-# define NCTYPE		21	/* Number of character types		*/
+# define CG_REDRAW	21	/* Redraw the line			*/
+# define NCTYPE		22	/* Number of character types		*/
 
 /*
  * The other dimension in the input analysis table is the current tokenizer
@@ -67,7 +68,7 @@ void ut_reos (), ut_eos (), ut_lkill (), ut_back (), ut_dbg ();
 void ut_wkill (), ut_at (), ut_quote (), ut_endq (), ut_help ();
 void ut_up (), ut_down (), ut_open (), ut_close (), ut_npar ();
 void ut_var (), ut_evar (), ut_sret (), ut_atsp (), ut_func ();
-void ut_peos (), ut_perr (), ut_qerr (), ut_bcom (), ut_scom ();
+void ut_peos (), ut_perr (), ut_qerr (), ut_bcom (), ut_scom (), ut_rdrw ();
 
 /*
  * This is the actual table.
@@ -140,7 +141,10 @@ static void_func_ptr Tst_table [NCTYPE] [NSTATES] =
 		  ut_func },
 /* Comment   */	{ ut_bcom,	ut_norm,	ut_norm,	ut_scom,
 		  ut_scom,	ut_scom,	ut_scom,	ut_norm,
-		  ut_norm }
+		  ut_norm },
+/* Redraw    */ { ut_rdrw,	ut_rdrw,	ut_rdrw,	ut_rdrw,
+		  ut_rdrw,	ut_rdrw,	ut_rdrw,	ut_rdrw,
+		  ut_rdrw }
 };
 
 /*
@@ -157,7 +161,7 @@ static byte Class_table[128] =
 	/* ^L	*/	CG_ERROR,	/* ^M	*/	CG_RETURN,
 	/* ^N	*/	CG_ERROR,	/* ^O	*/	CG_ERROR,
 	/* ^P	*/	CG_ERROR,	/* ^Q	*/	CG_ERROR,
-	/* ^R	*/	CG_ERROR,	/* ^S	*/	CG_ERROR,
+	/* ^R	*/	CG_REDRAW,	/* ^S	*/	CG_ERROR,
 	/* ^T	*/	CG_ERROR,	/* ^U	*/	CG_LKILL,
 	/* ^V	*/	CG_LITERAL,	/* ^W	*/	CG_WKILL,
 	/* ^X	*/	CG_LKILL,	/* ^Y	*/	CG_ERROR,
@@ -279,11 +283,6 @@ FILE *Log_fp;
 # endif
 
 
-/*
- * Temporary kludge.
- */
-static struct token_context *Tctx = 0;
-
 
 
 
@@ -383,8 +382,7 @@ bool interact, nokeypad;
 
 
 void
-ut_begin (ctx, prompt, subst)
-Tcontext ctx;
+ut_begin (prompt, subst)
 char *prompt;
 int subst;
 /*
@@ -393,10 +391,10 @@ int subst;
  */
 {
 	int i;
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Basic sanity check.
  */
-	Tctx = ctx;
 # ifdef notdef
 	if (ctx->tc_in_line)
 		ut_finish_line (TRUE);
@@ -518,13 +516,13 @@ ut_interactive ()
 
 
 void
-ut_get_token (ctx, tok)
-Tcontext ctx;
+ut_get_token (tok)
 struct token *tok;
 /*
  * Obtain the next token from the input stream.
  */
 {
+	Tcontext ctx = Cs->cs_tctx;
 	unsigned char ch, ut_getch ();
 	int class, flags;
 	void (*action) ();
@@ -549,7 +547,7 @@ struct token *tok;
  * Re-present our input line if needed.
  */
  	if (Redo)
-		ut_do_reline (ctx);
+		ut_do_reline ();
 /*
  * now grab up a token.
  */
@@ -558,7 +556,7 @@ struct token *tok;
 	/*
 	 * Obtain a character from the input, and classify it.
 	 */
-		if ((ch = ut_getch (ctx, &flags)) == K_NOINPUT)
+		if ((ch = ut_getch (&flags)) == K_NOINPUT)
 		{
 			tok->tk_type = TT_NOINPUT;
 			return;
@@ -630,8 +628,7 @@ ut_are_repl ()
 
 
 void
-ut_finish_line (ctx, history)
-Tcontext ctx;
+ut_finish_line (history)
 int history;
 /*
  * Finish out this input line.
@@ -639,6 +636,7 @@ int history;
  */
 {
 	int last = (Wptr == 0) ? NRECALL - 1 : Wptr - 1;
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Save this line, if it differs from the last one.
  */
@@ -676,10 +674,10 @@ int history;
 
 
 unsigned char
-ut_getch (ctx, flags)
-struct token_context *ctx;
+ut_getch (flags)
 int *flags;
 {
+	struct token_context *ctx = Cs->cs_tctx;
 	unsigned char tty_readch (), *line;
 	struct input_stack *inp;
 top:
@@ -687,7 +685,7 @@ top:
  * See where our input is coming from.
  */
 	inp = Cs->cs_input;
-	if (! inp || Cs->cs_mode != M_COMMAND)
+	if (! inp || (Cs->cs_mode != M_COMMAND && Cs->cs_mode != M_WINDOW))
 		return (K_NOINPUT);
 /*
  * Pull this character from the pushback text, if any exists.
@@ -799,7 +797,7 @@ int *flags;
 			return (ut_file_line (flags));
 		if (inp->s_xline[len - 1] != '\\')
 			break;
-		len += dget (inp->s_lun, inp->s_xline + len - 1, &maxline) - 1;
+		len += dget (inp->s_lun, inp->s_xline + len - 1, maxline) - 1;
 	}
 /*
  * Put it into the input line.
@@ -840,12 +838,12 @@ ut_reline ()
 
 
 
-ut_do_reline (ctx)
-struct token_context *ctx;
+ut_do_reline ()
 /*
  * Repaint the current line.
  */
 {
+	struct token_context *ctx = Cs->cs_tctx;
 	if (INTERACTIVE)
 	{
 		if (! Bol)
@@ -929,14 +927,14 @@ int refresh;
 
 
 void
-ut_zap_token (ctx)
-Tcontext ctx;
+ut_zap_token ()
 /*
  * Get rid of the current token in the token buffer.
  */
 {
 	int pos;
 	struct pb *pbp;
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Do some sanity checking.
  */
@@ -964,14 +962,14 @@ Tcontext ctx;
 
 
 void
-ut_complete (ctx, string)
-Tcontext ctx;
+ut_complete (string)
 char *string;
 /*
  * Complete a token already in the token buffer.
  */
 {
 	int i;
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Make the display look right.
  */
@@ -1009,12 +1007,13 @@ char *string;
 
 
 void
-ut_continue (ctx)
-Tcontext ctx;
+ut_continue ()
 /*
  * Cause the parser to continue reading on the last token.
  */
 {
+	struct token_context *ctx = Cs->cs_tctx;
+
 	ctx->tc_iindex--;
 	ctx->tc_dumped = FALSE;
 	if (ctx->tc_target & T_RLINE)
@@ -1150,7 +1149,7 @@ struct token_context *ctx;
 		ut_put_msg ("Missing close paren(s)", TRUE);
 	else
 		ui_error ("Missing close paren(s)");
-	ut_do_reline (ctx);
+	ut_do_reline ();
 }
 
 
@@ -1170,7 +1169,7 @@ struct token_context *ctx;
 		ut_put_msg ("Missing close quote", TRUE);
 	else
 		ui_error ("Missing close quote");
-	ut_do_reline (ctx);
+	ut_do_reline ();
 }
 
 
@@ -1786,7 +1785,7 @@ struct token_context *ctx;
  * Finally, get the command line back out.
  */
 	ut_reline ();
-	ut_do_reline (ctx);
+	ut_do_reline ();
 }
 
 
@@ -2088,13 +2087,13 @@ struct token_context *ctx;
 
 
 void
-ut_tok_repl (ctx, string)
-Tcontext ctx;
+ut_tok_repl (string)
 char *string;
 /*
  * Replace the last token with this string.
  */
 {
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Push it back into the input.
  */
@@ -2113,12 +2112,12 @@ char *string;
 
 
 void
-ut_reset (ctx)
-Tcontext ctx;
+ut_reset ()
 /*
  * Reset to the beginning of a line.
  */
 {
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * This hack makes sure that full line comments get printed when running
  * non-interactively.
@@ -2144,13 +2143,12 @@ ut_out_lines ()
  * Dump out the input lines, in anticipation of an error message.
  */
 {
-	/* KLUDGE!!!!!!!!!!!!!!!!!!!!!!! */
-	struct token_context *ctx = Tctx;
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Kludge to only get them out once.  This variable is reset at the begin
  * of each token.
  */
- 	if (!ctx || ! Initialized || ctx->tc_dumped)
+ 	if (ctx->tc_dumped || ! Initialized)
 		return;
 	ctx->tc_dumped = TRUE;
 /*
@@ -2263,10 +2261,27 @@ struct token_context *ctx;
 
 
 
+void ut_rdrw (ch, flags, tok, class, ctx)
+char ch;
+int flags, class;
+struct token *tok;
+struct token_context *ctx;
+/*
+ * Redraw the current line.
+ */
+{
+	ut_reline ();
+	ut_do_reline ();
+}
+
+
+
+
+
+
 
 void
-ut_int_string (ctx, prompt, tok)
-Tcontext ctx;
+ut_int_string (prompt, tok)
 char *prompt;
 struct token *tok;
 /*
@@ -2275,18 +2290,41 @@ struct token *tok;
  * bypassing any other sort of input.
  */
 {
-	struct token_context sctx;
+	struct token_context *ctx = Cs->cs_tctx;
 /*
  * Perform the usual sort of BOT setup.
  */
-	ut_begin (ctx, prompt, FALSE);
+	ut_begin (prompt, FALSE);
 	ctx->tc_t_state = TS_PROMPT;
 	ctx->tc_rstart = ctx->tc_rindex;
 /*
  * Grab the input data.
  */
-	ut_get_token (ctx, tok);
-	ut_finish_line (ctx, FALSE);
+	ut_get_token (tok);
+	ut_finish_line (FALSE);
+}
+
+
+
+
+
+ut_new_ctx ()
+/*
+ * Throw a new tokenizer context onto the control stack.
+ */
+{
+	Cs->cs_tctx = NEW (struct token_context);
+}
+
+
+
+ut_rel_ctx (ctx)
+struct token_context *ctx;
+/*
+ * Remove the current token context from the stack.
+ */
+{
+	relvm (ctx);
 }
 
 
@@ -2341,3 +2379,4 @@ char *line;
 }
 
 # endif
+
