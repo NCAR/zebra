@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.20 1994-02-16 22:21:54 burghart Exp $ */
+/* $Id: defs.h,v 2.21 1994-02-22 16:57:24 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -126,11 +126,12 @@ int     FindFile FP ((char *, char *, char *));
 /*
  * Altitude units convenience utilities
  */
-char	*au_UnitsName FP ((AltUnitType));
-char	*au_LongUnitsName FP ((AltUnitType));
-char	*au_PrintFormat FP ((AltUnitType));
-char	*au_AltLabel FP ((double, AltUnitType));
-char	*au_LongAltLabel FP ((double, AltUnitType));
+char	*au_UnitsName FP ((AltUnitType atype));
+char	*au_LongUnitsName FP ((AltUnitType atype));
+char	*au_PrintFormat FP ((AltUnitType atype));
+char	*au_AltLabel FP ((double alt, AltUnitType atype));
+char	*au_LongAltLabel FP ((double alt, AltUnitType atype));
+bool	au_ConvertName FP ((char *name, AltUnitType *atype));
 
 /*
  * Some macros for the new time format.
