@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.36 2001-10-16 22:26:30 granger Exp $
+ * $Id: dsPrivate.h,v 3.37 2002-01-19 06:56:45 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -39,7 +39,7 @@ extern "C" {
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x20011011
+# define DSProtocolVersion	0x20020118
 
 /*
  * Write codes -- used to note the placement of data by client and daemon.
