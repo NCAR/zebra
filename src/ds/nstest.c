@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.2 1993-05-18 21:29:28 granger Exp $
+ * $Id: nstest.c,v 1.3 1993-08-12 18:29:52 granger Exp $
  */
 
 #include <defs.h>
@@ -18,6 +18,7 @@ struct message *msg;
 }
 
 #define SCALAR
+#define BLOCKS
 
 static float test_data[10000];
 
@@ -54,45 +55,130 @@ main (argc, argv)
 	for (i = 0; i < sizeof(test_data)/sizeof(test_data[0]); ++i)
 		test_data[i] = i;
 
-#if defined(NSPACE) || defined(BLOCKS)
+#if defined(NSPACE) || defined(BLOCKS) || defined(SCALAR)
 	usy_init();
 	F_Init();
-	msg_connect (msg_handler, "NSpace Test");
+	msg_connect (msg_handler, "Test");
 	ds_Initialize();
 	plat_id = ds_LookupPlatform("t_nspace");
 #endif
 
 #if defined(SCALAR)	/* Use only scalar chunks, for testing znf */
 	{
-		FieldId fid;
+		FieldId fids[4];
 		float value;
+		int fld;
+		int i;
+		static Location loc = { 40.0, -160.0, 5280.0 };
+		dsDetail details[1];
+		int ndetail;
 
-		usy_init();
-		F_Init();
-		msg_connect (msg_handler, "ZNF Test");
-		ds_Initialize();
 		plat_id = ds_LookupPlatform("t_scalar");
+
+		/*
+		 * First a real simple test
+		 */
 		dc = dc_CreateDC (DCC_Scalar);
 		dc->dc_Platform = plat_id;
-		fid = F_DeclareField ("scalar","Test field for ZNF", "none");
-		dc_SetScalarFields (dc, 1, &fid);
+		fids[0] = F_DeclareField ("scalar","Test field", "none");
+		fids[1] = F_DeclareField ("field2","Test field, too", "none");
+		fids[2] = F_DeclareField ("fld3","field #3", "none");
+		fids[3] = F_DeclareField ("no4","Number 4 field", "none");
+		dc_SetScalarFields (dc, 4, fids);
 		dc_SetBadval (dc, -999.0);
+		dc_SetStaticLoc (dc, &loc);
 		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
 		dc_SetGlobalAttr (dc, "date", "today");
 		value = 1.0;
-		dc_AddScalar (dc, &when, 0, fid, &value); ++when.zt_Sec;
-		value *= 2.0;
-		dc_AddScalar (dc, &when, 1, fid, &value); ++when.zt_Sec;
-		value *= 2.0;
-		dc_AddScalar (dc, &when, 2, fid, &value); ++when.zt_Sec;
-		value *= 2.0;
-		dc_AddScalar (dc, &when, 3, fid, &value); ++when.zt_Sec;
-		value *= 2.0;
-		dc_AddScalar (dc, &when, 4, fid, &value); ++when.zt_Sec;
+		for (i = 0; i < 5; ++i)
+		{
+			for (fld = 0; fld < 4; ++fld, ++value)
+				dc_AddScalar (dc, &when, i, 
+					      fids[fld], &value); 
+			++when.zt_Sec;
+			value -= 4;
+			value *= 2.0;
+		}
 		dc_SetSampleAttr (dc, 0, "key", "first sample");
 		dc_SetSampleAttr (dc, 3, "sample_number", "3");
-		dc_SetSampleAttr (dc, 3, "median", "middle");
-		ds_StoreBlocks (dc, TRUE, 0, 0);
+		dc_SetSampleAttr (dc, 2, "median", "middle");
+		details[0].dd_Name = DD_FORCE_CLOSURE;
+		ndetail = 1;
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		dc_DestroyDC (dc);
+
+		/*
+		 * Now really put it through the ringer.  Start 30 seconds
+		 * back so that we precede the previous data, then overwrite
+		 * it, and finally append the rest.  Note that the sample
+		 * attributes should be deleted on the overwrite, since they 
+		 * won't correspond to the samples with atts here.
+		 */
+		when.zt_Sec -= 30;
+		dc = dc_CreateDC (DCC_Scalar);
+		dc->dc_Platform = plat_id;
+		dc_SetScalarFields (dc, 4, fids);
+		dc_SetBadval (dc, -999.0);
+		dc_SetStaticLoc (dc, &loc);
+		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+		dc_SetGlobalAttr (dc, "date", "today");
+		value = 0.0;
+		for (i = 0; i < 3000; ++i)
+		{
+			char c[2];
+
+			c[0] = (i % 10) + '0'; c[1] = '\0';
+			for (fld = 0; fld < 4; ++fld, ++value)
+				dc_AddScalar (dc, &when, i, 
+					      fids[fld], &value); 
+			/* dc_SetSampleAttr (dc, i, "ones", c); */
+			++when.zt_Sec;
+			value -= 4;
+			value += 10.0;
+		}
+		dc_SetSampleAttr (dc, 0, "key", "first sample");
+		dc_SetSampleAttr (dc, 3, "sample_number", "3");
+		dc_SetSampleAttr (dc, 27, "overwrote", "old_median");
+		dc_SetSampleAttr (dc, 28, "sample_number", "28");
+		dc_SetSampleAttr (dc, 1500, "median", "middle");
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		dc->dc_Platform = ds_LookupPlatform("t_fixed");
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		dc_DestroyDC (dc);
+
+		/*
+		 * As a final test, now overwrite a huge block of the
+		 * previously stored data.
+		 */
+		when.zt_Sec -= 1500;
+		dc = dc_CreateDC (DCC_Scalar);
+		dc->dc_Platform = plat_id;
+		dc_SetScalarFields (dc, 4, fids);
+		dc_SetBadval (dc, -999.0);
+		dc_SetStaticLoc (dc, &loc);
+		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+		dc_SetGlobalAttr (dc, "date", "today");
+		value = 0.0;
+		for (i = 0; i < 1500; ++i)
+		{
+			char c[2];
+
+			/* c[0] = (i % 10) + '0'; c[1] = '\0'; */
+			for (fld = 0; fld < 4; ++fld, value += 0.0001)
+				dc_AddScalar (dc, &when, i, 
+					      fids[fld], &value); 
+			/* dc_SetSampleAttr (dc, i, "ones", c); */
+			++when.zt_Sec;
+			value += 1.0;
+		}
+		dc_SetSampleAttr (dc, 0, "key", "first sample, 2nd block");
+		dc_SetSampleAttr (dc, 3, "sample_number", "3");
+		dc_SetSampleAttr (dc, 27, "overwrote", "old_median");
+		dc_SetSampleAttr (dc, 28, "sample_number", "28");
+		dc_SetSampleAttr (dc, 1500, "median", "middle");
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		dc->dc_Platform = ds_LookupPlatform("t_fixed");
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		dc_DestroyDC (dc);
 	}
 #endif
@@ -568,7 +654,7 @@ T_1DGridStoreBlocks()
 	fields[3] = F_Lookup("u_wind");
 	fields[4] = F_Lookup("v_wind");
 	nfield = 5;
-	TC_ZtAssemble (&when, 92, 12, 2, 18, 50, 0, 0);
+	TC_ZtAssemble (&when, 92, 12, 2, 18, 47, 41, 0);
 	printf("Fetching observation from kapinga/prof915h... ");
 	fflush(stdout);
 	dc = ds_FetchObs (src_id, DCC_RGrid, &when, fields, nfield, 0, 0);
