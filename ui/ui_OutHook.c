@@ -4,17 +4,17 @@
  */
 # include "ui_param.h"
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.1 1990-06-09 13:21:57 corbet Exp $";
+static char *rcsid = "$Id: ui_OutHook.c,v 1.2 1992-08-11 17:51:22 case Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
  */
-extern void printf ();
+extern int printf ();
 static void errprint ();
 
 typedef void (*vfptr) ();
-static vfptr Normal_out = printf;	/* Normal output routine	*/
-static vfptr Nf_out = printf;		/* No flush output routine	*/
+static vfptr Normal_out = ( void (*) () ) printf;  /* Normal output routine */
+static vfptr Nf_out = ( void (*) () ) printf;	/* No flush output routine */
 
 /*
  * And for error output.
