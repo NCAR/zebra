@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.6 1999-03-02 21:35:18 granger Exp $
+# $Id: zplotbatch,v 1.7 1999-04-27 20:33:49 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -96,12 +96,14 @@ PRESERVE_ZEB=1; export PRESERVE_ZEB
 
 # Start our private, virtual X display.
 # This may fail if one is already there, in which case we'll use the
-# existing one.
+# existing one.  Either way, disable access control so that iss can
+# connect to it no matter who starts it.
 
 $xvfb $display &
 x=$!
 sleep 5
 DISPLAY=${display}.0 ; export DISPLAY
+xhost +
 
 # Make sure we have a datastore running; we don't need the event logger
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
