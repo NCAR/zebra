@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 3.2 1993-08-04 17:17:42 granger Exp $";
+static char *rcsid = "$Id: nx_PktGrabber.c,v 3.3 1993-10-26 15:39:48 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -144,7 +144,7 @@ CreateShmSeg ()
 {
 	int len = sizeof (struct ShmHeader) + NPACKET*PKTSIZE - 1;
 	char *cseg;
-#ifndef SVR4
+#if ! defined(SVR4) && ! defined (SYSV)
 	char *shmat ();
 #endif
 
@@ -165,7 +165,14 @@ CreateShmSeg ()
 		exit (1);
 	}
 	Seg = (struct ShmHeader *) cseg;
+# ifdef sun
+/*
+ * Try to lock the segment into real memory.  If this is unavailable or
+ * doesn't work, lots of packets are likely to drop on the floor during
+ * page faults.
+ */
 	mlock (cseg, len);
+# endif
 /*
  * Fill it in.
  */

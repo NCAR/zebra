@@ -50,7 +50,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.23 1993-08-04 17:17:28 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.24 1993-10-26 15:39:31 corbet Exp $")
 
 /*
  * Issues:
@@ -1282,7 +1282,11 @@ char *cmd;
 	char toggle;
 	int msg_fd = msg_get_fd(); /* Keeping message fd here avoids 
 			  	    * repeated requests for it when polling */
-
+# ifdef hpux
+	int fd = pfp->__fileL;	/* HP weirdness -- untested */
+# else
+	int fd = pfp->_file;
+# endif
 /*
  * Be sure we can run tar.
  */
@@ -1296,7 +1300,7 @@ char *cmd;
  * Now read out chunks of stuff.
  */
 	toggle = 0;
-	while ((nb = netread (pfp->_file, fbuf, BLOCKSIZE)) > 0)
+	while ((nb = netread (fd, fbuf, BLOCKSIZE)) > 0)
 	{
 		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
 		{
@@ -1443,7 +1447,7 @@ check_messages(fd)
 	
 	FD_ZERO(&fdset);
 	FD_SET(fd, &fdset);
-	if (select(fd+1, &fdset, 0, 0, &timeout) > 0)
+	if (select(fd+1, (int *) &fdset, 0, 0, &timeout) > 0)
 	{
 		msg_incoming(fd);
 	}
@@ -1471,7 +1475,7 @@ PollWhileSuspended(fd)
 		 */
 		FD_ZERO(&fdset);
 		FD_SET(fd, &fdset);
-		if (select(fd+1, &fdset, 0, 0, &timeout) > 0)
+		if (select(fd+1, (int *) &fdset, 0, 0, &timeout) > 0)
 		{
 			msg_incoming(fd);
 		}
