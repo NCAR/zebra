@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.9 1993-11-18 00:32:13 corbet Exp $
+! $Id: dm.widgets,v 1.10 1993-11-29 22:59:06 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -51,12 +51,10 @@ endprocedure
 define widget bmap-menu intmenu 'Button Maps'
 	title 'Select a Button Map'
 	line
-!	entry 'Aircraft'	'formtext #ui$form bmap "aircraft"'
 	entry 'Basic'		'formtext #ui$form bmap "basic"' 
-!	entry 'Big'		'formtext #ui$form bmap "big"' 
-!	entry 'Optimizer'	'formtext #ui$form bmap "optimizer"' 
 	entry 'Radar'		'formtext #ui$form bmap "radar"' 
 	entry 'Sounding'	'formtext #ui$form bmap "sounding"'
+	entry 'Time series'	'formtext #ui$form bmap "xyplot"'
 endmenu
 
 !
