@@ -28,7 +28,18 @@
 # include <config.h>
 # include "message.h"
 
-RCSID ("$Id: cmd_exec.c,v 2.2 1995-06-12 22:52:48 granger Exp $")
+RCSID ("$Id: cmd_exec.c,v 2.3 1996-09-11 14:32:58 granger Exp $")
+
+
+/*
+ * The remote command handler set by the application
+ */
+static int (*CP_Handler) FP((char *cmd)) = NULL;
+
+/*
+ * Internal command protocol handler
+ */
+static int cp_RunCommand FP((Message *));
 
 
 void
@@ -42,3 +53,29 @@ char *process, *command;
 }
 
 
+
+void
+cp_SetupCmdHandler (fn)
+int (*fn) FP((char *));
+/*
+ * Set up to execute incoming commands.
+ */
+{
+	CP_Handler = fn;
+	msg_AddProtoHandler (MT_COMMAND, cp_RunCommand);
+	
+}
+
+
+
+static int
+cp_RunCommand (msg)
+Message *msg;
+/*
+ * Deal with a command protocol packet.
+ */
+{
+	if (CP_Handler)
+		(*CP_Handler) (msg->m_data);
+	return (0);
+}

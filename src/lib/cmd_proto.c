@@ -20,14 +20,13 @@
  * maintenance or updates for its software.
  */
 
+# include <ui.h>
 # include "defs.h"
 # include <config.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: cmd_proto.c,v 1.4 1995-04-15 00:11:58 granger Exp $")
+MAKE_RCSID ("$Id: cmd_proto.c,v 1.5 1996-09-11 14:33:00 granger Exp $")
 
-
-static int cp_RunCommand FP ((Message *));
 
 
 void
@@ -36,18 +35,7 @@ cp_SetupCmdProto ()
  * Set up to execute incoming commands.
  */
 {
-	msg_AddProtoHandler (MT_COMMAND, cp_RunCommand);
+	cp_SetupCmdHandler (ui_perform);
 }
 
 
-
-static int
-cp_RunCommand (msg)
-Message *msg;
-/*
- * Deal with a command protocol packet.
- */
-{
-	ui_perform (msg->m_data);
-	return (0);
-}
