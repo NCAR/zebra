@@ -2,7 +2,7 @@
  * Zebra Python module which allows use of the messaging facility.
  */
 
-# include <python2.2/Python.h>
+# include <Python.h>
 # include <defs.h>
 # define MESSAGE_LIBRARY	/* just to get FD_MAP_SIZE */
 # include <message.h>
@@ -787,7 +787,7 @@ ZPmsg_Search (PyObject *self, PyObject *args)
  * Do the search.
  */
 	ExceptionReturn = FALSE;
-	ret = msg_Search (proto, SearchFunc, param);
+	ret = msg_Search (proto, (int(*)())SearchFunc, param);
 /*
  * Deref our stuff and check for exceptions.
  */

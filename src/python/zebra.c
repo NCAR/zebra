@@ -8,7 +8,7 @@ extern "C"
 {
 # endif
     
-# include <python2.2/Python.h>
+# include <Python.h>
 
 /*
  * The (empty) method table.
