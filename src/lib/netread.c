@@ -20,9 +20,10 @@
  */
 
 # include <errno.h>
+# include <unistd.h>
 # include "defs.h"
 
-RCSID("$Id: netread.c,v 2.3 1995-06-06 22:43:50 burghart Exp $")
+RCSID("$Id: netread.c,v 2.4 1995-06-29 23:09:43 granger Exp $")
 
 
 int

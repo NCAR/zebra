@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.5 1993-11-30 02:12:37 granger Exp $ */
+/* $Id: timer.h,v 2.6 1995-06-29 23:09:49 granger Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -148,6 +148,7 @@ struct tm_tchange
  * Definitions of timer library routines.
  */
 void tl_Time FP ((ZebTime *));
+void tl_ChangeHandler FP ((void (*func) ()));
 void tl_DispatchEvent FP ((struct tm_time *));
 void tl_AllCancel FP ((void));
 void tl_Cancel FP ((int));

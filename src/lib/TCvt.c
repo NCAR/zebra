@@ -22,10 +22,11 @@
 # include <ctype.h>
 # include <sys/types.h>
 # include <string.h>
+# include <unistd.h>
 
 # include "defs.h"
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.16 1995-05-01 16:06:50 corbet Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.17 1995-06-29 23:09:34 granger Exp $")
 
 /*
  * The months of the year.
@@ -77,9 +78,11 @@ const UItime *fcc;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
         strcpy (tz, "TZ=GMT");
         putenv (tz);
+#ifdef notdef /* mktime() has the effect of tzset() so these are ignored */
         timezone = 0;
         /* altzone = 0; */
         daylight = 0;
+#endif
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
 	return (mktime (&t));
@@ -160,9 +163,11 @@ ZebTime *zt;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
+#ifdef notdef
         timezone = 0;
         /* altzone = 0; */
         daylight = 0;
+#endif
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
 	zt->zt_Sec = mktime (&t);
@@ -342,9 +347,11 @@ int year, month, day, hour, minute, second, microsec;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
+#ifdef notdef
         timezone = 0;
         /* altzone = 0; */
         daylight = 0;
+#endif
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
 	zt->zt_Sec = mktime (&t);

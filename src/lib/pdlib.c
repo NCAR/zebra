@@ -38,7 +38,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.22 1995-05-02 23:16:31 granger Exp $")
+RCSID ("$Id: pdlib.c,v 1.23 1995-06-29 23:09:45 granger Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -88,6 +88,12 @@ static int pd_ParamFunc FP((char *name, int type, union usy_value *v,
 static void pd_CopyComp FP ((stbl dest, stbl src));
 static int pd_UnloadParam FP ((char *name, int type, union usy_value *v,
 			       raw_plot_description *rpd));
+
+static int pd_RelComp FP ((char *name, int type, union usy_value *v, int));
+static int pd_UnloadComp FP ((plot_description pd, stbl comp, char *name,
+			      raw_plot_description *rpd));
+static int pd_CopyParam FP ((char *name, int type, union usy_value *v, stbl));
+static int pd_OverrideComp FP ((stbl pd, stbl comp, char *name, stbl dest));
 
 /*
  * Size of temp buffer used for writing raw PD's, eg 40960
@@ -575,7 +581,6 @@ plot_description pd;
  * Return a plot description to the system.
  */
 {
-	static int pd_RelComp ();
 	int type;
 	union usy_value v;
 
@@ -614,7 +619,6 @@ plot_description pd;
  */
 {
 	raw_plot_description *rpd = NEW (raw_plot_description);
-	static int pd_UnloadComp ();
 /*
  * Allocate a humungo amount of memory that can hold the largest conceivable
  * pd; we'll recycle it later.
@@ -843,8 +847,6 @@ stbl dest, src;
  * Copy all parameters from SRC to DEST.
  */
 {
-	static int pd_CopyParam ();
-
 	usy_traverse (src, pd_CopyParam, (long) dest, FALSE);
 }
 
@@ -876,8 +878,6 @@ plot_description pd, new;
  * Add all components of "new" DESTRUCTIVELY onto "pd".
  */
 {
-	static int pd_OverrideComp ();
-
 	pd_ForEachComponent (new, pd_OverrideComp, (int) pd);
 	usy_z_stbl (new);
 }

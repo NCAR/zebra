@@ -25,7 +25,7 @@
 # include "defs.h"
 # include "bitmaps.h"
 
-MAKE_RCSID("$Id: Bitmaps.c,v 1.6 1995-04-15 00:03:38 granger Exp $")
+MAKE_RCSID("$Id: Bitmaps.c,v 1.7 1995-06-29 23:09:32 granger Exp $")
 
 Pixmap	RightArrow = 0, LeftArrow = 0, ASAPButton = 0, MenuIcon = 0;
 
@@ -94,7 +94,7 @@ static const unsigned char asap_bits[] = {
 
 #define menu12_width 12
 #define menu12_height 12
-static unsigned char menu12_bits[] = {
+static const unsigned char menu12_bits[] = {
    0xfe, 0x03, 0x02, 0x02, 0x02, 0x06, 0x72, 0x06, 0x02, 0x06, 0x72, 0x06,
    0x02, 0x06, 0x72, 0x06, 0x02, 0x06, 0x02, 0x06, 0xfe, 0x07, 0xf8, 0x07};
 
@@ -109,11 +109,11 @@ Widget	parent;
 	Drawable	d = RootWindowOfScreen (XtScreen (parent));
 
 	RightArrow = XCreateBitmapFromData (XtDisplay (parent), d, 
-		rightarrow_bits, rightarrow_width, rightarrow_height);
+	   (const char *)rightarrow_bits, rightarrow_width, rightarrow_height);
 	LeftArrow = XCreateBitmapFromData (XtDisplay (parent), d, 
-		leftarrow_bits, leftarrow_width, leftarrow_height);
+	   (const char *)leftarrow_bits, leftarrow_width, leftarrow_height);
 	ASAPButton = XCreateBitmapFromData (XtDisplay (parent), d, 
-		asap_bits, asap_width, asap_height);
+	   (const char *)asap_bits, asap_width, asap_height);
 	MenuIcon = XCreateBitmapFromData (XtDisplay (parent), d, 
-		menu12_bits, menu12_width, menu12_height);
+	   (const char *)menu12_bits, menu12_width, menu12_height);
 }

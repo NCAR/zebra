@@ -1,4 +1,3 @@
-#include <stdio.h>
 /*
  * Barb drawing routine.
  */
@@ -20,8 +19,14 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <X11/Intrinsic.h>
 # include <math.h>
+
+# include "defs.h"
+# include "draw.h"
+
+RCSID ("$Id: barb.c,v 1.7 1995-06-29 23:09:38 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 #define DX(len,ang)	((double)len) * cos((double)(ang))

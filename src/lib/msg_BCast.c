@@ -24,12 +24,13 @@
 # include <sys/time.h>
 # include <netinet/in.h>
 # include <errno.h>
+# include <unistd.h>
 
 # include "defs.h"
 # define MESSAGE_LIBRARY
 # include "message.h"
 
-RCSID("$Id: msg_BCast.c,v 2.7 1995-05-05 18:05:18 granger Exp $")
+RCSID("$Id: msg_BCast.c,v 2.8 1995-06-29 23:09:41 granger Exp $")
 
 /*
  * An open UDP socket looks like this:

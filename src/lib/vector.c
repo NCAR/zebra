@@ -22,6 +22,11 @@
 # include <X11/Intrinsic.h>
 # include <math.h>
 
+# include "defs.h"
+# include "draw.h"
+
+RCSID ("$Id: vector.c,v 1.2 1995-06-29 23:09:51 granger Exp $")
+
 # define ARROWANG .2618 /* PI/12 */
 
 
