@@ -23,9 +23,10 @@
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/pd.h"
+# include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.2 1991-12-18 23:02:23 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.3 1992-01-29 22:32:16 barrett Exp $")
 
 
 
@@ -224,4 +225,25 @@ time *t;
  * Now see how close we are.
  */
 	return ((TC_FccToSys (&PlotTime) - TC_FccToSys (t)) <= seconds);
+}
+
+long
+GetSec (t)
+time    t;
+/*
+ * Get the seconds in a number represented by hhmmss.
+ * (Note: type long == type time_t, see <sys/stdtypes.h>)
+ */
+{
+        struct tm       syst;
+
+        syst.tm_year = t.ds_yymmdd/10000;
+        syst.tm_mon = (t.ds_yymmdd/100) % 100 - 1;
+        syst.tm_mday = t.ds_yymmdd % 100;
+        syst.tm_hour = t.ds_hhmmss/10000;
+        syst.tm_min = t.ds_hhmmss/100 % 100;
+        syst.tm_sec = t.ds_hhmmss % 100;
+        syst.tm_zone = (char *) 0;
+        syst.tm_wday = syst.tm_isdst = syst.tm_yday = 0;
+        return (timegm (&syst));
 }
