@@ -1,0 +1,117 @@
+		(Brief) Instructions for Building and Using
+			the Zebra Radar Scan Optimizer
+		-------------------------------------------
+
+
+NOTE: The assumption is made below that you have a Zebra source distribution 
+in the /zebra directory.  Modify directory references is you have your Zebra 
+source elsewhere.
+
+
+1) Check your /zebra/config/config.h file and make sure that you have enabled
+   building of the Optimizer:
+
+	#define BuildOptimizer YES
+
+2) Build Optimizer:
+
+	$ cd /zebra/src/Optimizer
+	$ make install
+
+Now go to your project-specific configuration directory.
+
+1) Put together a radar parameters file for the Optimizer.  The format and
+   contents of this file are described below.
+
+2) Add platform "boundary" to your ds.config file.  This platform will hold
+   the user-specified boundaries used by the scan optimizer.
+
+	platform boundary
+		organization	outline
+		filetype	zeb
+	endplatform
+
+3) Generally, optimizer boundaries are entered via a Zebra graphics process 
+   by drawing an outline on the screen.  The graphics process command to 
+   enable drawing and save the result under platform "boundary" is "polyline 
+   boundary".  Generally, this command is bound to a specific key in the
+   graphics process' button map.  I like to use "o" for "Optimizer":
+
+	buttonmap example
+		.
+		.
+		local	o	'polyline boundary'
+		.
+		.
+	endmap
+
+4) It is useful to have the graphics process being used for optimizing keep
+   the current boundary displayed.  To do this, add the component shown to the 
+   graphics process' plot description:
+
+	c_opt_boundary
+		closed-boundary:	true
+		color:	white
+		field:	boundary
+		icon:	boundary
+		icon-middle-menu:	simple-color
+		label:	opt_bdry
+		line-width:	2
+		platform:	boundary
+		representation:	overlay
+		trigger:	boundary
+		trigger-global:	true
+		require:	simple-color
+
+Finally, run everything.
+
+1) Start Zebra normally, making sure the graphics process modified above
+   is being displayed.
+
+2) Execute the Optimizer, giving it the radar parameters file that was created
+   earlier:
+
+	/zebra/bin/Optimizer /myprojdir/my.params &
+
+3) Enter a boundary via the graphics process (initiated by the "o" key if
+   using the button map shown above).
+
+4) Play with the controls in the Optimizer window.
+
+Repeat 3) and 4) as much as desired.
+
+
+
+
+                        Optimizer Config File Format
+                        (as of 12 July 91 16:45 GMT)
+                        ----------------------------
+
+
+0.7 0.7 0.4 0.4 0.0 4.0 ASAP	<-- H and V res., min. H and V separation,
+				    volume bottom and top, volume scan time
+CP2			<-- radar name
+/dev/modem 4978836 2400	<-- device, phone #, and baud rate for communications
+28.7544 -80.7747	<-- latitude and longitude
+15.0 12.0		<-- maximum H and V scan rates
+10.0 10.0		<-- maximum H and V accelerations
+64 1024	variable	<-- minimum and maximum hits, default setting
+960			<-- default PRF
+disabled		<-- enabled/disabled
+RHI			<-- default scan type (RHI, PPI, SUR)
+5.0 0.2			<-- default minimum range and minimum elevation
+constant		<-- constant/variable angle steps
+512 150			<-- number of gates and gate spacing
+
+More radars can follow, with a blank line before the start of each.  The blank
+line shown before the first radar above is real; it is not just there as
+a result of the comments I added to the right.
+
+The config line specifying outgoing line and phone number is special.  If 
+the first character of the line is '-', no direct communication with
+the radar will be attempted.  Otherwise, the line should have the device
+name to use for communicating with the radar, the phone number to dial, and
+the baud rate.  For radio modems, use the string 'radio-modem' for the phone 
+number.
+
+
