@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.2 1991-10-24 20:31:39 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -94,7 +94,7 @@ char *name;
  * Now parse the internals of the table.
  */
 	ERRORCATCH
-		ui_subcommand ("dm-ct-initial", "CTable>", dc_InTable, ct);
+		ui_subcommand ("dm-ct-initial", "CTable>", dc_InTable,(int)ct);
 	ON_ERROR
 		free (ct->ct_colors);
 		free (ct);
