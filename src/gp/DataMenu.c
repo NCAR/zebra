@@ -1,7 +1,6 @@
 /*
  * The data available menu.
  */
-static char *rcsid = "$Id: DataMenu.c,v 2.5 1991-11-22 20:56:16 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -32,6 +31,7 @@ static char *rcsid = "$Id: DataMenu.c,v 2.5 1991-11-22 20:56:16 kris Exp $";
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
+MAKE_RCSID ("$Id: DataMenu.c,v 2.6 1991-12-05 17:26:14 corbet Exp $")
 
 
 /*
@@ -48,12 +48,12 @@ static stbl VTable;
 static char IComp[60];
 
 # ifdef __STDC__
-	static void EntryCallback (Widget, int, char *);
-	static void PopupCallback (Widget, char *, char *);
+	static void EntryCallback (Widget, XtPointer, XtPointer);
+	static void PopupCallback (Widget, XtPointer, XtPointer);
 	static int SetupPlats (void);
 	static int FunkyPlat (char *);
 	static int AddPlatform (char *, int, time *);
-	static void ToRealTime (void);
+	static void ToRealTime (Widget, XtPointer, XtPointer);
 # else
 	static void EntryCallback ();
 	static void PopupCallback ();
@@ -101,7 +101,8 @@ InitDataMenu ()
 	{
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
 			Menu, args, 1);
-		XtAddCallback (Entries[i], XtNcallback, EntryCallback, i);
+		XtAddCallback (Entries[i], XtNcallback, EntryCallback, 
+				(XtPointer) i);
 	}
 	NManaged = 0;
 }
@@ -111,17 +112,17 @@ InitDataMenu ()
 
 
 
+/* ARGSUSED */
 static void
-EntryCallback (w, which, junk)
+EntryCallback (w, xwhich, junk)
 Widget w;
-int which;
-char *junk;
+XtPointer xwhich, junk;
 /*
  * One of the entries has been selected.
  */
 {
 	SValue v;
-	int type;
+	int type, which = (int) xwhich;
 	char cbuf[200];
 	char *qual;
 /*
@@ -158,7 +159,7 @@ char *junk;
 static void
 PopupCallback (w, junk, junk1)
 Widget w;
-char *junk, *junk1;
+XtPointer junk, junk1;
 /*
  * We're being popped up.  Set the entries accordingly.
  */
@@ -344,9 +345,11 @@ time *t;
 
 
 
-
+/* ARGSUSED */
 static void
-ToRealTime ()
+ToRealTime (w, junk1, junk2)
+Widget w;
+XtPointer junk1, junk2;
 /*
  * Put this window into real time mode.
  */
