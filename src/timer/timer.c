@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.4 $ $Date: 1993-08-04 17:17:47 $";
+char *Version = "$Revision: 2.5 $ $Date: 1993-10-22 21:34:55 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -27,7 +27,7 @@ char *Version = "$Revision: 2.4 $ $Date: 1993-08-04 17:17:47 $";
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "timer.h"
-MAKE_RCSID ("$Id: timer.c,v 2.4 1993-08-04 17:17:47 granger Exp $");
+MAKE_RCSID ("$Id: timer.c,v 2.5 1993-10-22 21:34:55 corbet Exp $");
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -77,11 +77,6 @@ int Status FP ((char *));
 
 main ()
 {
-#ifdef SVR4
-        struct sigaction svec;
-#else
-	struct sigvec svec;
-#endif
 	struct timeval timeout;
 	fd_set fds;
 	int mfd;
@@ -113,7 +108,11 @@ main ()
 	/*
 	 * Now wait for something.
 	 */
-		if ((nsel = select (mfd + 1, &fds, 0, 0, &timeout)) < 0)
+		if ((nsel = select (mfd + 1,
+# ifdef hpux
+				    (int *)
+# endif
+				           &fds, 0, 0, &timeout)) < 0)
 		{
 			msg_ELog (EF_EMERGENCY, "Select error %d", errno);
 			exit (1);
