@@ -21,6 +21,7 @@
 
 # include <stdio.h>
 # include <string.h>
+# include <unistd.h>
 
 # include <defs.h>
 # include <copyright.h>
@@ -28,7 +29,7 @@
 # include <timer.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.14 1995-04-25 16:11:34 granger Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.15 1995-06-29 22:33:44 granger Exp $")
 
 
 /*
@@ -268,7 +269,8 @@ char **argv;
  */
 	printf ((matches == 1) ? "\n1 match found.\n" :	((matches) ?
 		 "\n%d matches found.\n" : "\nNo matches found.\n"), matches);
-	exit(0);
+	exit (0);
+	return (0);
 }
 
 
@@ -341,7 +343,7 @@ PlatformInfo *pi;
 	PlatformId *subplats;
 	PlatformInfo spi;
 	char buf[256];
-	int buflen;
+	unsigned int buflen;
 	int n, i;
 /*
  * Request a list of subplatforms from the daemon
@@ -361,7 +363,7 @@ PlatformInfo *pi;
 			++name;
 		else
 			name = spi.pl_Name;
-		if (buflen && (buflen + strlen(name) + 3 >= 78))
+		if (buflen && (buflen + strlen(name) + 3 >= (unsigned)78))
 		{
 			ui_printf (" %s\n", buf);
 			buf[0] = '\0';

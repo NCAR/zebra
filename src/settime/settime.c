@@ -23,7 +23,7 @@
 # include "message.h"
 # include "copyright.h"
 # include "timer.h"
-MAKE_RCSID ("$Id: settime.c,v 2.4 1994-10-11 16:27:02 corbet Exp $")
+MAKE_RCSID ("$Id: settime.c,v 2.5 1995-06-29 22:38:14 granger Exp $")
 
 
 int msg_handler (), intr (), Slot;
@@ -35,7 +35,6 @@ char **argv;
 {
 	struct tm_prt prt;
 	date t;
-	char *getenv ();
 
 	if (argc != 3)
 	{
@@ -52,6 +51,7 @@ char **argv;
 	TC_UIToZt (&t, &prt.tr_time);
 	prt.tr_scale = 1;
 	msg_send ("Timer", MT_TIMER, FALSE, &prt, sizeof (prt));
+	return (0);
 }
 
 
@@ -71,6 +71,7 @@ intr ()
 
 	printf ("OUCH! (%d)\n", Slot);
 	tl_Cancel (Slot);
+	return (0);
 }
 
 

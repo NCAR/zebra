@@ -23,11 +23,11 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: zstop.c,v 1.4 1995-04-20 08:04:25 granger Exp $")
+RCSID("$Id: zstop.c,v 1.5 1995-06-29 22:39:04 granger Exp $")
 
 static char *argv0;
 
-int
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -54,6 +54,7 @@ char **argv;
 	printf ("%s: shutdown message never received.\n", argv0);
 	exit (1);
 }
+
 
 
 int

@@ -28,12 +28,15 @@
 
 # include <stdio.h>
 # include <string.h>
-# include "defs.h"
-# include "message.h"
-# include <copyright.h>
-# include "DataStore.h"
+# include <unistd.h>
 
-MAKE_RCSID ("$Id: xmgrpipe.c,v 1.2 1995-04-20 13:43:33 granger Exp $")
+# include <defs.h>
+# include <message.h>
+# include <copyright.h>
+# include <DataStore.h>
+# include <ingest.h>
+
+MAKE_RCSID ("$Id: xmgrpipe.c,v 1.3 1995-06-29 22:38:35 granger Exp $")
 
 static void Spew FP((DataChunk *dc, FieldId field, ZebTime *end));
 static void PipeData FP((PlatformId pid, ZebTime *begin, ZebTime *end,
@@ -56,7 +59,9 @@ char *prog;
 
 static int
 msg_handler ()
-{ }
+{ 
+	return (0);
+}
 
 
 
@@ -175,7 +180,7 @@ char **argv;
 /*
  * Done.
  */
-	exit(0);
+	return (0);
 }
 
 

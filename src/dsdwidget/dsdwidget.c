@@ -20,6 +20,7 @@
  * maintenance or updates for its software.
  */
 
+# include <unistd.h>
 # include <string.h>
 
 # include <X11/Intrinsic.h>
@@ -39,7 +40,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.22 1995-04-19 14:46:59 granger Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.23 1995-06-29 22:33:50 granger Exp $")
 
 
 # define MAXPLAT	1024
@@ -132,7 +133,7 @@ char *prog;
 }
 
 
-int
+void
 main (argc, argv)
 int	argc;
 char	**argv;

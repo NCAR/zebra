@@ -1,9 +1,11 @@
 
 /*
- * $Id: xncdump.c,v 1.1 1995-03-04 19:26:55 granger Exp $
+ * $Id: xncdump.c,v 1.2 1995-06-29 22:33:52 granger Exp $
  */
 
 #include <stdio.h>
+#include <unistd.h>
+
 #include <X11/Xos.h>
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -44,7 +46,7 @@ Boolean using_tmp = False;	/* Flag true when tmp file being used */
 static show_data = False;	/* Start out showing header only */
 static char tmp[256];   	/* Use global tmp name to remove 
 				 * before exiting */
-static char rcsid[]="$Id: xncdump.c,v 1.1 1995-03-04 19:26:55 granger Exp $";
+static char rcsid[]="$Id: xncdump.c,v 1.2 1995-06-29 22:33:52 granger Exp $";
 
 static char *fallbacks[] = {
 "Xncdump*text.height:		400",
@@ -61,7 +63,7 @@ void clean_up( )
 {
    if (using_tmp)   		 /* Remove old file, no longer needed */
       unlink(tmp);
-};   
+}   
 
 
 void QuitCallbackHandler(w,client_data,call_data)
@@ -79,7 +81,7 @@ XtPointer call_data;
 void
 ShowFile (w, showdata, calldata)
 Widget w;
-int showdata;
+XtPointer showdata;
 XtPointer calldata;
 {
    Arg args[2];
@@ -136,6 +138,7 @@ XtPointer calldata;
 
  *-----------------------------------------------------------*/
 
+int
 main(argc,argv)
 int argc;
 char **argv;
@@ -184,9 +187,10 @@ char **argv;
 	XtAddCallback(header, XtNcallback, ShowFile, (XtPointer)False);
 	XtRealizeWidget(top);
 	filename = argv[1];
-	ShowFile (header, (XtPointer)False, NULL);
+	ShowFile (header, (XtPointer)False, (XtPointer)NULL);
 
 	XtAppMainLoop(app_context);
+	return (0);
 
 } /* End main */
 

@@ -20,13 +20,14 @@
  */
 
 # include <string.h>
+# include <unistd.h>
 
 # include <defs.h>
 # include <message.h>
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsrescan.c,v 1.8 1995-04-19 14:48:40 granger Exp $")
+RCSID ("$Id: dsrescan.c,v 1.9 1995-06-29 22:34:03 granger Exp $")
 
 #ifdef notdef	/* do we need this if we don't call getenv()? */
 /*
@@ -68,7 +69,7 @@ handler ()
 }
 
 
-int
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -105,7 +106,7 @@ char **argv;
 		platname = (char **)malloc((argc - 1)*sizeof(char *));
 	for (i = 1; i < argc; ++i)
 	{
-		if ((argv[i][0] != '-') || (strlen(argv[i]) < 2))
+		if ((argv[i][0] != '-') || (strlen(argv[i]) < (unsigned)2))
 			platname[p++] = argv[i];
 		else if (!strncmp(argv[i], "-all", strlen(argv[i])))
 			all = TRUE;

@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.3  1995/05/05  22:35:48  granger
+ * change ANSI headers to K&R so that 4.1.3 cc can compile them
+ *
  * Revision 1.2  1995/02/10  00:44:59  granger
  * add skeleton usage function; remove warning from returning getopt to char
  *
@@ -55,6 +58,7 @@
 #include <stdio.h>		/* system lib includes	 */
 #include <string.h>
 #include <signal.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/errno.h>
@@ -72,7 +76,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.3 1995-05-05 22:35:48 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.4 1995-06-29 22:33:57 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -86,7 +90,7 @@ void field_init FP ((ZebTime *));	/* our data store init. */
 
 /* utility: */
 
-int getopts     FP ((int argc, char *argv[]));	/* grab cmd. line options */
+void getopts     FP ((int argc, char *argv[]));	/* grab cmd. line options */
 
 /*************************************************************
   GLOBAL VARIABLES
@@ -232,7 +236,7 @@ char *argv[];
 	    exit (0);
 	} else {
 	    *mon = toupper (*mon);
-	    for (i = 1; i < strlen (mon); i++)
+	    for (i = 1; i < (int) strlen (mon); i++)
 		*(mon + i) = tolower (*(mon + i));
 
 	    for (month = 0; month < 12; month++)
@@ -505,7 +509,7 @@ char *argv[];
     }
 
     exit (0);
-
+    return (0);
 }
 
 /**************************************************************************/
@@ -659,12 +663,11 @@ char *myname;
 ******************************************************************************/
 
 
-int
+void
 getopts (argc, argv)
 int argc;
 char *argv[];
 {
-
     int             c;
     int             err = 0;
     extern char    *optarg;

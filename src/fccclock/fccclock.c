@@ -35,7 +35,7 @@
 # include <timer.h>
 # include <pd.h>
 
-MAKE_RCSID ("$Id: fccclock.c,v 2.8 1995-04-20 05:00:47 granger Exp $")
+MAKE_RCSID ("$Id: fccclock.c,v 2.9 1995-06-29 22:34:08 granger Exp $")
 
 /*
  * Default resources.
@@ -60,7 +60,7 @@ enum wstate WindowState = DOWN;
 
 int Height;
 int WindowSent = 0;	/* True once we've sent our window ID to dm */
-unsigned long Fg = -1, Bg;
+unsigned long Fg = 0, Bg;
 Colormap Cm;
 /*
  * Forward routine definitions.
@@ -70,6 +70,14 @@ int xtEvent ();
 static void DMButton ();
 void NewTime ();
 static void SendGeometry FP((struct dm_msg *dmm));
+static void dmgr_message FP((struct dm_msg *dmsg));
+static void reconfig FP((struct dm_msg *dmsg));
+static void StartUpdate FP((void));
+static void sync FP((void));
+static void ParamChange FP((struct dm_parchange *dmp));
+static void NewPD FP((struct dm_pdchange *dmp));
+static void ChangeState FP((enum wstate new));
+static void inspectPD FP((void));
 
 /*
  * Our plot description.
@@ -77,6 +85,7 @@ static void SendGeometry FP((struct dm_msg *dmm));
 plot_description Pd = 0, Defaults = 0;
 
 
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -152,7 +161,7 @@ struct message *msg;
 	 */
 	   case MT_MESSAGE:
 	   	if (tm->mh_type == MH_SHUTDOWN)
-			shutdown ();
+			exit (0);
 		msg_log ("Unknown MESSAGE proto type: %d", tm->mh_type);
 		break;
 	}
@@ -185,7 +194,7 @@ int fd;
 
 
 
-
+static void
 dmgr_message (dmsg)
 struct dm_msg *dmsg;
 /*
@@ -217,7 +226,7 @@ struct dm_msg *dmsg;
 	 * DM thinks we're a graphics process (for now).
 	 */
 	   case DM_PDCHANGE:
-	   	NewPD (dmsg);
+	   	NewPD ((struct dm_pdchange *) dmsg);
 		break;
 
 	   case DM_PARCHANGE:
@@ -309,7 +318,7 @@ int width, height;
 
 
 
-
+static void
 reconfig (dmsg)
 struct dm_msg *dmsg;
 /*
@@ -353,7 +362,7 @@ struct dm_msg *dmsg;
 
 
 
-
+static void
 ChangeState (new)
 enum wstate new;
 /*
@@ -416,7 +425,7 @@ enum wstate new;
 
 
 
-
+static void
 sync ()
 /*
  * Synchronize with the window system.
@@ -470,6 +479,7 @@ int junk;
 
 
 
+static void
 StartUpdate ()
 /*
  * Start Updating the time.
@@ -494,7 +504,7 @@ StartUpdate ()
 
 
 
-
+static void
 NewPD (dmp)
 struct dm_pdchange *dmp;
 /*
@@ -521,7 +531,7 @@ struct dm_pdchange *dmp;
 
 
 
-
+static void
 ParamChange (dmp)
 struct dm_parchange *dmp;
 /*
@@ -541,9 +551,7 @@ struct dm_parchange *dmp;
 
 
 
-
-
-
+static void
 inspectPD ()
 /*
  * Look over this PD to see if there is anything useful to us.

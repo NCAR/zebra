@@ -19,7 +19,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char 	*rcsid = "$ID$";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -39,7 +38,7 @@ static char 	*rcsid = "$ID$";
 # include <copyright.h>
 # include <DataStore.h>
 
-
+RCSID ("$Id: LastData.c,v 2.11 1995-06-29 22:38:05 granger Exp $")
 
 
 /*
@@ -115,8 +114,10 @@ char **argv;
  */
 	tl_RelativeReq (TimeOut, 0, 60*INCFRAC, 60*INCFRAC);
 	XtRealizeWidget (Top);
-	XtAppAddInput (Appc, msg_get_fd (), (XtPointer)XtInputReadMask, MsgInput, 0);
+	XtAppAddInput (Appc, msg_get_fd (), (XtPointer)XtInputReadMask, 
+		       MsgInput, 0);
 	XtAppMainLoop (Appc);
+	return (0);
 }
 
 
@@ -242,7 +243,7 @@ char *config_file;
 {
 	ZebTime now;
 	FILE *cfile; 
-	char line[80], *cp, *strchr ();
+	char line[80], *cp;
 	int yellow, red;
 /*
  * Make sure we have a config.

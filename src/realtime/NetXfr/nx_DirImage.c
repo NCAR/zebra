@@ -26,7 +26,7 @@
 # include <ImageXfr.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_DirImage.c,v 3.3 1995-04-20 07:57:14 granger Exp $")
+RCSID("$Id: nx_DirImage.c,v 3.4 1995-06-29 22:40:01 granger Exp $")
 
 /*
  * We're only set up to deal with one image source for now.  Should
@@ -96,7 +96,8 @@ int set;
 	UItime t;
 	ZebTime zt;
 	ScaleInfo scale[2];
-	char *images[4], *attr;
+	unsigned char *images[4];
+	char *attr;
 	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
 	float junk;
@@ -104,8 +105,8 @@ int set;
 /*
  * Grab it.
  */
-	if (! IX_GetReadFrame (Desc, set, images, &t, &rg, &loc, scale,
-			&xmin, &ymin, &xmax, &ymax, &attr))
+	if (! IX_GetReadFrame (Desc, set, (char **)images, &t, &rg, &loc, 
+			       scale, &xmin, &ymin, &xmax, &ymax, &attr))
 	{
 		msg_ELog (EF_PROBLEM, "Can't get promised set %d", set);
 		return;
@@ -114,8 +115,7 @@ int set;
  * Trim out blank data.
  */
 	offset = TrimImage (images[0], &ymin, &ymax);
-	TrimXY ((unsigned char *) images[0] + offset, &xmin, &xmax,
-			ymax - ymin + 1);
+	TrimXY (images[0] + offset, &xmin, &xmax, ymax - ymin + 1);
 /*
  * 7/91 jc	The "moving radar" bug.  Calculate the new longitude at
  *		the old latitude -- that which the corner of the grid

@@ -18,17 +18,19 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.8 $ $Date: 1995-04-20 07:58:29 $";
+char *Version = "$Revision: 2.9 $ $Date: 1995-06-29 22:38:22 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
 # include <signal.h>
+# include <string.h>
 # include <errno.h>
 
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
-MAKE_RCSID ("$Id: timer.c,v 2.8 1995-04-20 07:58:29 granger Exp $")
+
+MAKE_RCSID ("$Id: timer.c,v 2.9 1995-06-29 22:38:22 granger Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -65,7 +67,22 @@ struct timeval *GetTime ();
 void GetZebTime FP ((ZebTime *));
 void ZtToTimeval FP ((ZebTime *, struct timeval *));
 void TimevalToZt FP ((struct timeval *, ZebTime *));
-int Status FP ((char *));
+static int Status ();
+static void SetTimeout FP ((struct timeval *t));
+static void RunQueue FP ((void));
+static void timer_request FP ((char *who, struct tm_req *tr));
+static void client_event FP ((struct mh_client *ce));
+static void SendTime FP ((char *who));
+static void RelativeTR FP ((char *who, struct tm_rel_alarm_req *tr));
+static void ZapRequests FP ((char *who, int ack, int param, int all));
+static void AbsoluteTR FP ((char *who, struct tm_abs_alarm_req *tr));
+static void EnterPRT FP ((struct tm_prt *prt));
+static void SendAlarm FP ((struct tq_entry *tqe, struct timeval *ct));
+static void AddDelay FP ((struct timeval *t, int delay));
+static void Enqueue FP ((struct tq_entry *tqe));
+static void Free_tqe FP ((struct tq_entry *tqe));
+static void SendCancelAck FP ((struct tq_entry *tqe));
+static void TimeChangeBc FP ((void));
 
 
 
@@ -76,7 +93,7 @@ int Status FP ((char *));
 	((t1)->tv_sec == (t2)->tv_sec && (t1)->tv_usec < (t2)->tv_usec))
 
 
-int
+void
 main (argc, argv)
 int argc;
 char *argv[];
@@ -117,10 +134,7 @@ char *argv[];
 	 * Now wait for something.
 	 */
 		if ((nsel = select (mfd + 1,
-# ifdef hpux
-				    (int *)
-# endif
-				           &fds, 0, 0, &timeout)) < 0)
+				    (SelectSet *) &fds, 0, 0, &timeout)) < 0)
 		{
 			msg_ELog (EF_EMERGENCY, "Select error %d", errno);
 			exit (1);
@@ -201,10 +215,7 @@ new_tqe ()
 
 
 
-
-
-
-
+static void
 timer_request (who, tr)
 char *who;
 struct tm_req *tr;
@@ -234,11 +245,7 @@ struct tm_req *tr;
 	   case TR_ABSOLUTE:
 	   	AbsoluteTR (who, (struct tm_abs_alarm_req *) tr);
 		break;
-# ifdef notdef /* superseded by zquery */
-	   case TR_STATUS:
-	   	Status (who);
-		break;
-# endif
+
 	   case TR_PRT:
 	   	EnterPRT ((struct tm_prt *) tr);
 		break;
@@ -253,6 +260,7 @@ struct tm_req *tr;
 
 
 
+static void
 client_event (ce)
 struct mh_client *ce;
 /*
@@ -281,7 +289,7 @@ timer_alarm ()
 
 
 
-
+static void
 SendTime (who)
 char *who;
 /*
@@ -327,7 +335,7 @@ GetTime ()
 
 
 
-
+static void
 SetTimeout (t)
 struct timeval *t;
 /*
@@ -362,7 +370,7 @@ struct timeval *t;
 
 
 
-
+static void
 RunQueue ()
 /*
  * Run through the timer queue, and see if anything is ready to go.
@@ -389,7 +397,7 @@ RunQueue ()
 
 
 
-
+static void
 RelativeTR (who, tr)
 char *who;
 struct tm_rel_alarm_req *tr;
@@ -416,6 +424,7 @@ struct tm_rel_alarm_req *tr;
 
 
 
+static void
 AbsoluteTR (who, tr)
 char *who;
 struct tm_abs_alarm_req *tr;
@@ -442,7 +451,7 @@ struct tm_abs_alarm_req *tr;
 
 
 
-
+static void
 AddDelay (t, delay)
 struct timeval *t;
 int delay;
@@ -461,7 +470,7 @@ int delay;
 
 
 
-
+static void
 Enqueue (tqe)
 struct tq_entry *tqe;
 /*
@@ -492,7 +501,7 @@ struct tq_entry *tqe;
 
 
 
-
+static void
 SendAlarm (tqe, ct)
 struct tq_entry *tqe;
 struct timeval *ct;
@@ -528,7 +537,7 @@ struct timeval *ct;
 
 
 
-
+static void
 Free_tqe (tqe)
 struct tq_entry *tqe;
 /*
@@ -542,10 +551,12 @@ struct tq_entry *tqe;
 
 
 
+static void
 ZapRequests (who, ack, param, all)
 char *who;
+int ack;
 int param;
-bool ack, all;
+int all;
 /*
  * Delete timer requests belonging to this process.
  */
@@ -589,7 +600,7 @@ bool ack, all;
 
 
 
-
+static void
 SendCancelAck (tqe)
 struct tq_entry *tqe;
 /*
@@ -608,7 +619,7 @@ struct tq_entry *tqe;
 
 
 
-
+static int
 Status (who)
 char *who;
 /*
@@ -644,12 +655,13 @@ char *who;
  * All done.
  */
 	msg_FinishQuery (who);
+	return (0);
 }
 
 
 
 
-
+static void
 EnterPRT (prt)
 struct tm_prt *prt;
 /*
@@ -683,7 +695,7 @@ struct tm_prt *prt;
 
 
 
-
+static void
 TimeChangeBc ()
 /*
  * Broadcast a time change to the world.

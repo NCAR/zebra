@@ -3,6 +3,7 @@
  */
 
 # include <stdio.h>
+# include <string.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/Form.h>
@@ -11,7 +12,7 @@
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: zmon.c,v 1.2 1993-08-04 17:17:56 granger Exp $")
+MAKE_RCSID ("$Id: zmon.c,v 1.3 1995-06-29 22:38:43 granger Exp $")
 
 typedef enum { S_OK, S_DEAD } State;
 
@@ -109,6 +110,7 @@ char **argv;
         XtAppAddInput (Appc, msg_get_fd (), (XtPointer)XtInputReadMask, 
 		       MsgInput, 0);
         XtAppMainLoop (Appc);
+	return (0);
 }
 
 
@@ -178,7 +180,7 @@ char *line;
  * Deal with one configuration line.
  */
 {
-	char *blank, *strchr ();
+	char *blank;
 	WatchMachine *mach, *mp;
 	ProcList proc;
 	char oline[200];
@@ -397,7 +399,7 @@ Message *msg;
  * Deal with incoming stuff.
  */
 {
-	char *at, *strchr ();
+	char *at;
 /*
  * Make sure this is what we expect.
  */

@@ -19,12 +19,13 @@
  * maintenance or updates for its software.
  */
 # include <stdio.h>
+# include <unistd.h>
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
 # include "pdmon.h"
 
-MAKE_RCSID ("$Id: pdmon.c,v 1.3 1994-09-15 21:50:57 corbet Exp $")
+MAKE_RCSID ("$Id: pdmon.c,v 1.4 1995-06-29 22:37:47 granger Exp $")
 
 char *Process;
 
@@ -35,6 +36,7 @@ char *Process;
 int Handler FP ((Message *));
 int Input FP ((int));
 void MonitorMsg FP ((pdmTemplate *));
+static void UnHook FP ((void));
 
 
 
@@ -72,6 +74,7 @@ char **argv;
  * Wait.
  */
 	msg_await ();
+	return (0);
 }
 
 
@@ -176,12 +179,13 @@ int fd;
  */
 	msg_send (Process, MT_PDMON, FALSE, ppd, sizeof (pdmPD) + len);
 	free (ppd);
+	return (0);
 }
 
 
 
 
-
+static void
 UnHook ()
 /*
  * Disconnect from the monitored process.

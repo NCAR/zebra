@@ -3,13 +3,14 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <config.h>
 #include <defs.h>
 #include <message.h>
 #include <pd.h>
 
-RCSID ("$Id: pdcheck.c,v 1.2 1995-05-16 22:04:23 granger Exp $")
+RCSID ("$Id: pdcheck.c,v 1.3 1995-06-29 22:37:41 granger Exp $")
 
 int
 main (argc, argv)

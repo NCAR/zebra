@@ -20,10 +20,12 @@
  */
 
 # include <stdio.h>
+# include <string.h>
+# include <unistd.h>
 # include <defs.h>
 # include <message.h>
 
-RCSID ("$Id: zquery.c,v 1.5 1995-05-04 07:29:22 granger Exp $")
+RCSID ("$Id: zquery.c,v 1.6 1995-06-29 22:38:50 granger Exp $")
 
 #define DEFAULT_DELAY 	0
 

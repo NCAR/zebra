@@ -52,7 +52,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-RCSID ("$Id: Archiver.c,v 1.32 1995-05-05 18:00:41 granger Exp $")
+RCSID ("$Id: Archiver.c,v 1.33 1995-06-29 22:37:56 granger Exp $")
 
 /*
  * Issues:
@@ -1376,7 +1376,7 @@ char *cmd;
  * the X and msg fd's are only polled for every other block read
  */
 {
-	FILE *pfp = popen (cmd, "r");
+	FILE *pfp = (FILE *) popen (cmd, "r");
 	static char fbuf[BLOCKSIZE];
 	int rstatus, nb, tnb = 0;
 # ifdef hpux

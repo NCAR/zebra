@@ -2,8 +2,9 @@
  * Attempt to allocate all color cells and set them to a bright
  * color, so that xoring stuff is more visible.
  */
-static char *rcsid="$Id: tweakcolor.c,v 1.4 1994-01-12 17:02:34 burghart Exp $";
+static char *rcsid="$Id: tweakcolor.c,v 1.5 1995-06-29 22:38:29 granger Exp $";
 
+# include <stdio.h>
 # include <X11/Intrinsic.h>
 
 main (argc, argv)
@@ -38,5 +39,5 @@ char **argv;
 
 	printf ("%d colors tweaked\n", ncolor);
 
-	exit (0);
+	return (0);
 }

@@ -2,11 +2,14 @@
  * Tap into the message string.
  */
 # include <stdio.h>
+# include <string.h>
+
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
 # include <dsPrivate.h>
 
+static void MTap FP ((char *mtdata));
 
 static char *Std_protos[] =
 {
@@ -91,11 +94,13 @@ char **argv;
 	}
 	msg_send (MSG_MGR_NAME, MT_MTAP, FALSE, &mt, sizeof (mt));
 	msg_await ();
+	return (0);
 }
 
 
 
 
+static void
 MTap (mtdata)
 char *mtdata;
 /*

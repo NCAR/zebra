@@ -24,13 +24,13 @@
 # include <defs.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: zrun.c,v 1.3 1995-04-20 08:02:29 granger Exp $")
+MAKE_RCSID ("$Id: zrun.c,v 1.4 1995-06-29 22:38:56 granger Exp $")
 
 
 int IncMsg ();
 
 
-int
+void
 main (argc, argv)
 int argc;
 char **argv;

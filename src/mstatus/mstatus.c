@@ -25,7 +25,7 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: mstatus.c,v 2.4 1995-04-20 07:51:56 granger Exp $")
+RCSID("$Id: mstatus.c,v 2.5 1995-06-29 22:37:26 granger Exp $")
 
 static char Username[128] = { '\0' };
 static int ShowUser = 0;
@@ -39,7 +39,7 @@ usage ()
 }
 
 
-int
+void
 main (argc, argv)
 int argc;
 char *argv[];

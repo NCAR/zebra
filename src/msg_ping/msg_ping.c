@@ -21,11 +21,13 @@
 
 # include <stdio.h>
 # include <signal.h>
+# include <unistd.h>
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
 
-MAKE_RCSID("$Id: msg_ping.c,v 2.4 1995-04-20 07:50:39 granger Exp $")
+MAKE_RCSID("$Id: msg_ping.c,v 2.5 1995-06-29 22:37:19 granger Exp $")
 
 #define DEFAULT_DELAY 	20
 
@@ -38,7 +40,7 @@ MAKE_RCSID("$Id: msg_ping.c,v 2.4 1995-04-20 07:50:39 granger Exp $")
 
 static int Handler FP((Message *));
 static void Ping FP((char *host, int proto));
-static void Timeout FP((void));
+static void Timeout FP((int sig));
 
 int NSent = 0, NGot = 0;
 
@@ -60,7 +62,7 @@ char *prog;
 }
 
 
-int
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -115,7 +117,7 @@ char **argv;
 	if (! pinged)
 		Ping (NULL, proto);
 
-	signal (SIGALRM, (void *) Timeout);
+	signal (SIGALRM, Timeout);
 	alarm (delay);
 	msg_await ();
 	exit (ERR_UNKNOWN);
@@ -189,8 +191,10 @@ Message *msg;
 }
 
 
+/*ARGSUSED*/
 static void
-Timeout ()
+Timeout (sig)
+int sig;
 {
 	printf ("msg_ping: timeout: got %d boings from %d pings\n",
 		NGot, NSent);

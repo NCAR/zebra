@@ -18,14 +18,17 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <unistd.h>
+# include <string.h>
 
-# include "defs.h"
-# include "message.h"
-# include "ui_expr.h"
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <ui_expr.h>
 # include <copyright.h>
-# include "DataStore.h"
+# include <DataStore.h>
 
-RCSID("$Id: dsdelete.c,v 2.11 1995-04-25 20:51:36 granger Exp $")
+RCSID("$Id: dsdelete.c,v 2.12 1995-06-29 22:33:35 granger Exp $")
 
 /*
  * The standard C test prevents conflicts with correctly-prototyped GNU C
@@ -196,4 +199,5 @@ char **argv;
 	else
 		ds_DeleteData (plat, &zaptime);
 	exit (0);
+	return (0);
 }

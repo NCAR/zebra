@@ -21,6 +21,7 @@
 
 # include <signal.h>
 # include <string.h>
+# include <unistd.h>
 
 # include <copyright.h>
 # include <defs.h>
@@ -31,7 +32,7 @@
 # include "NetXfr.h"
 
 
-RCSID("$Id: NetXfr.c,v 3.6 1995-04-20 07:57:10 granger Exp $")
+RCSID("$Id: NetXfr.c,v 3.7 1995-06-29 22:39:55 granger Exp $")
 
 
 /*

@@ -20,6 +20,7 @@
  */
 
 # include <errno.h>
+# include <unistd.h>
 # include <sys/types.h>
 # include <sys/ipc.h>
 # include <sys/shm.h>
@@ -31,7 +32,7 @@
 # include "DataStore.h"
 # include "NetXfr.h"
 
-RCSID("$Id: nx_PktGrabber.c,v 3.5 1995-04-20 07:57:15 granger Exp $")
+RCSID("$Id: nx_PktGrabber.c,v 3.6 1995-06-29 22:40:06 granger Exp $")
 
 /*
  * The header of our shared memory segment.
