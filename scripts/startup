@@ -79,4 +79,7 @@ if ( `hostname` == $ZEBRA_MASTER && $need_extras ) then
     rm -f $goes_watch_log
     $ZEBRA_PROJDIR/goes_watch >& $goes_watch_log &
 
+    # startup Campbell weather station ingest
+    start_cam &
+
 endif

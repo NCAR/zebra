@@ -1,0 +1,27 @@
+#!/bin/sh
+# specify name of output file
+
+# cam_ingest can not start until the datastore and message are running.
+# (it would be more elegant to poll utnil these tasks are ready . . .)
+# 
+sleep 180
+
+datafile=/scr/data/tmp/spol_surface.txt
+fields=skip:pres:tdry:rh:wspd:wdir:jd:hhmm
+
+# use S-Pol's coordinates, for now
+lat=36.57180
+lon=-100.8327833
+alt=.874  # km
+platform=spol_surface
+
+log=/usr/local/zebra/project/ihop/cam.log
+touch $log
+
+
+while echo starting cam_ingest >>$log
+    do 
+	cam_ingest -l /dev/ttyS0 -b 9600 -z $platform -f "$fields"  \
+    -o $datafile -w "$lat:$lon:$alt"  >>${log} 2>&1 &
+    wait   # wait for it to die
+done
