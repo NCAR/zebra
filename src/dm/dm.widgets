@@ -1,18 +1,19 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.22 1994-12-05 23:33:50 sobol Exp $
+! $Id: dm.widgets,v 1.23 1994-12-08 23:31:43 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
 	noheader
 	label l1 'Save configuration as: '
 	blank cname variable dm$config width 150 command 'do_cfg_save'
+	button help 'Help' command 'help ec-save'
 	button doit 'Do It' command 'do_cfg_save'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
 	newline
 	label l2 'Config directory: '
-	blank configdir variable configdir width 300
+	blank configdir variable configdir width 350
 endform
 
 
@@ -53,6 +54,7 @@ define widget NewWindow form 'New window'
 	label l2 'type:'
 	pulldown wtype 'Constant altitude' menu cw_wintypes width 140
 	newline
+	button help 'Help' command 'help ec-add'
 	button create 'Create window' command 'DoNewWindow'
 	button zap 'Cancel' command 'popdown #ui$form' color red
 	label gripe ' ' width 200 color red
@@ -113,6 +115,7 @@ define widget newconfig form 'New configs'
 	newline
 	blank oldname variable dm$config width 210
 	newline
+	button help 'Help' command 'help ec-start'
 	button doit 'Create Configuration' command 'DoConfigCreate'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
 endform
@@ -231,6 +234,7 @@ define widget ZorchWindow form 'Window zapper'
 	blank victim '--' width 150
 	button mouse 'Select with mouse' command 'ZW_pick'
 	newline
+	button help 'Help' command 'help ec-delete'
 	button Reaper 'Do it' color red command 'ZW_Zap'
 	button reprieve 'Cancel' command 'popdown #ui$form'
 endform
@@ -539,7 +543,7 @@ define widget hardcopy form "Print Window"
 	!
 	! Command buttons
 	!
-	button help "Help" command 'help "printer      "'
+	button help "Help" command 'help "printer"'
 	button print "Print" command 'printer_go'
 	button dismiss "Dismiss" command 'popdown #ui$form' color red
 	newline
