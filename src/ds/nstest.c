@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.9 1994-01-29 03:30:31 granger Exp $
+ * $Id: nstest.c,v 1.10 1994-05-19 20:07:49 granger Exp $
  */
 
 /*
@@ -81,12 +81,15 @@ struct message *msg;
 #define GETFIELDS
 #define GRID_BLOCKS
 /* #define DELETE_OBS */	/* test observation deletes */
-#endif
 #define NSPACE
+#endif
 
 #ifdef notdef
 /* #define DUMMY_FILES */
 #endif
+
+#define BACKWARDS
+#define COPY_SCALAR
 
 #ifdef notdef
 #define TEST4_STORE
@@ -96,7 +99,6 @@ struct message *msg;
 #define ATTRIBUTES
 #define NEXUS
 #define RGRID	/* test DC RGrid interface */
-
 #define DUMMY_FILES
 #define DATA_TIMES
 #endif
@@ -109,6 +111,7 @@ struct message *msg;
 #define dc_HintSampleSize(dc,s,b)	{}
 #define dc_HintMoreSamples(dc,m,b)	{}
 #define dc_AddMoreSamples(dc,n,b)	{}
+#define ds_ForceClosure()		{}
 
 #endif
 
@@ -152,6 +155,10 @@ struct TestPlatform {
 	{ "t_nsscalar" },
 	{ "t_nsblocks" },
 	{ "t_test6" },
+#endif
+#ifdef COPY_SCALAR
+	{ "t_copy_source" },
+	{ "t_copy_dest" },
 #endif
 #ifdef notdef
 	{ "t_virtual" },
@@ -448,6 +455,10 @@ main (argc, argv)
 
 #ifdef RGRID
 	T_RGrid (begin);
+#endif
+
+#ifdef COPY_SCALAR
+        T_CopyScalar (&begin);
 #endif
 
 	ds_ForceClosure();
@@ -804,6 +815,156 @@ ZebTime *begin;
 	dc_DestroyDC(dc);
 }
 
+
+
+#ifdef COPY_SCALAR
+/*
+ * Functions for copying attributes between datachunks
+ */
+FieldId DestFID;
+DataChunk *DestDC;
+
+int
+CopyGlobalAtts (key, value)
+char *key;
+char *value;
+{
+	dc_SetGlobalAttr (DestDC, key, value);
+	return (0);
+}
+
+int
+CopyFieldAtts (key, value)
+char *key;
+char *value;
+{
+	dc_SetFieldAttr (DestDC, DestFID, key, value);
+	return (0);
+}
+
+
+T_CopyScalar (begin)
+ZebTime *begin;
+/*
+ * Store lots of scalar samples with lots of fields, then fetch it back
+ * and try to copy the fetched datachunk into another datachunk with
+ * one new field.
+ */
+{
+	DataChunk *dc, *newdc;
+	char *pname = "t_copy_source";
+	char *pdest = "t_copy_dest";
+	PlatformId plat_id;
+	FieldId fields[40];
+	int i, n, fld;
+	float value;
+	Location loc;
+	ZebTime when = *begin;
+	dsDetail details[5];
+	int ndetail;
+	char buf[128];
+
+	Announce ("Copying one datachunk to another, adding one field");
+	plat_id = ds_LookupPlatform(pname);
+	n = 0;
+	fields[n] = F_Lookup("pres"); ++n;
+	fields[n] = F_Lookup("rh"); ++n;
+	fields[n] = F_Lookup("uwind"); ++n;
+	fields[n] = F_Lookup("vwind"); ++n;
+	fields[n] = F_Lookup("wspd"); ++n;
+	fields[n] = F_Lookup("wdir"); ++n;
+	fields[n] = F_Lookup("temp"); ++n;
+	fields[n] = F_Lookup("dpt"); ++n;
+	fields[n] = F_Lookup("tdry"); ++n;
+	fields[n] = F_Lookup("twet"); ++n;
+	fields[n] = F_Lookup("Qpres"); ++n;
+	fields[n] = F_Lookup("Qtdry"); ++n;
+	fields[n] = F_Lookup("Qu"); ++n;
+	fields[n] = F_Lookup("Qv"); ++n;
+	fields[n] = F_Lookup("theta"); ++n;
+	fields[n] = F_Lookup("range"); ++n;
+	fields[n] = F_Lookup("azimuth"); ++n;
+	fields[n] = F_Lookup("elev"); ++n;
+	fields[n] = F_Lookup("latitude"); ++n;
+	fields[n] = F_Lookup("longitude"); ++n;
+	fields[n] = F_Lookup("ascent"); ++n;
+	fields[n] = F_Lookup("mr"); ++n;
+	loc.l_lat = 40.0;
+	loc.l_lon = -120.0;
+	loc.l_alt = 1600.0;
+	ndetail = 0;
+
+	/* now begin creating a single sample DataChunk and storing it */
+	sprintf (buf, "creating '%s' observation of 1000 samples", pname);
+	Announce (buf);
+	dc = dc_CreateDC (DCC_Scalar);
+	dc->dc_Platform = plat_id;
+	dc_SetScalarFields (dc, n, fields);
+	dc_SetBadval (dc, 999.9);
+	for (i = 0; i < 1000; ++i)
+	{
+		for (fld = 0; fld < n; ++fld)
+		{
+			value = i*10.0 + fld*0.1;
+			dc_AddScalar (dc, &when, i, fields[fld], &value);
+		}
+		dc_SetLoc (dc, i, &loc);
+
+		loc.l_alt += 5.0;
+		when.zt_Sec += 5;
+	}
+	ds_StoreBlocks (dc, TRUE, details, ndetail);
+	dc_DestroyDC(dc);
+
+	/* now have a file of 500 samples, try to fetch the whole thing */
+	printf ("fetching the entire observation from '%s'...\n", pname);
+	dc = ds_FetchObs (plat_id, DCC_Scalar, begin, fields, n, NULL, 0);
+	dc_DumpDC (dc);
+
+	/* now create our second dc, and go through the hassle of adding
+	 * that one more field to it and copying attributes and data */
+	printf ("creating our copy dc for '%s', adding field 'avg'\n", pdest);
+	newdc = dc_CreateDC (DCC_Scalar);
+	newdc->dc_Platform = ds_LookupPlatform (pdest);
+
+	fields[n] = F_Lookup("avg"); ++n;
+	dc_SetScalarFields (newdc, n, fields);
+	dc_SetBadval (newdc, 999.9);
+	DestDC = newdc;
+	dc_ProcessAttrs (dc, NULL, CopyGlobalAtts);
+	for (fld = 0; fld < n; ++fld)
+	{
+		DestFID = fields[fld];
+		dc_ProcessFieldAttrs (dc, fields[fld], NULL, CopyFieldAtts);
+	}
+
+	/*
+	 * Last but not least, copy all of the data, including locations.
+	 */
+	dc_DumpDC (newdc);
+	printf ("copying data from src dc to dest dc...\n");
+	for (i = 0; i < 1000; ++i)
+	{
+		dc_GetTime (dc, i, &when);
+		for (fld = 0; fld < n-1; ++fld)
+		{
+			value = dc_GetScalar (dc, i, fields[fld]);
+			dc_AddScalar (newdc, &when, i, fields[fld], &value);
+		}
+		value *= 2.0;
+		dc_AddScalar (newdc, &when, i, fields[n-1], &value);
+
+		dc_GetLoc (dc, i, &loc);
+		dc_SetLoc (newdc, i, &loc);
+	}
+	dc_DumpDC (newdc);
+	printf ("storing the new datachunk to '%s'\n", pdest);
+	ds_StoreBlocks (newdc, TRUE, details, ndetail);
+	dc_DestroyDC(newdc);
+	dc_DestroyDC(dc);
+	Announce ("Done with DataChunk copy test.");
+}
+#endif /* COPY_SCALAR */
 
 
 
@@ -2015,6 +2176,7 @@ T_ZnfBlocks ()
 
 
 
+#ifdef AERI_TYPES
 T_AeriTypes(when)
 ZebTime when;
 /*
@@ -2155,8 +2317,10 @@ makes the beauty of your eyes glow with irresistable radiance",
 	Announce ("AERI typed NSpace test done.");
 	free (mean_rads);
 }
+#endif /* AERI_TYPES */
 
 
+#ifdef ATTRIBUTES
 
 struct AttrDesc {
 	enum { Global, Field, Sample } which;
@@ -2424,3 +2588,5 @@ ZebTime when;
 	dc_DestroyDC (dc);
 	Announce ("T_Attributes done.\n");
 }
+
+#endif /* ATTRIBUTES */
