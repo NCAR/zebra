@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.12 1993-10-26 21:42:46 corbet Exp $
+/**/# $Id: config.h-v4.0,v 1.13 1993-11-30 23:32:08 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -285,6 +285,20 @@
 # define UseGcc YES
 
 /*
+ * The PD monitor utility is an emacs program which provides interactive
+ * run-time editing, checking, and monitoring of graphics processes' plot
+ * descriptions.  If you have emacs (not version 19), and wish to compile
+ * the emacs lisp code for the PD monitor, define HaveEmacs to YES and make
+ * sure EmacsPath points to the emacs program.  The default is NO.  Even if
+ * the elisp code is not compiled and installed, the elisp source files
+ * will still be installed, so these can be used as is or byte-compiled
+ * later.  If you have Emacs 19, the elisp code cannot be batch compiled,
+ * so set HaveEmacs to NO. The Emacs 19 lisp file will still be installed.
+ */
+# define HaveEmacs NO
+# define EmacsPath emacs
+
+/*
  * If you wish to compile dsmanage and tapeindex, you need to specify
  * a C++ compiler, like Sun's CC or GNU's g++.  If you defined UseGcc
  * to YES above, g++ will be used for the C++ compiler.  Otherwise the
@@ -308,7 +322,7 @@
  *
  */
 # define CDebugFlags -g
-# define FortDebugFlags -g
+/* # define FortDebugFlags -g */
 
 /*
  * To change other compiler command line options, such as required by your
