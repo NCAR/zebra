@@ -9,7 +9,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.2 1994-04-27 08:24:17 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.3 1994-05-18 22:01:50 burghart Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -332,41 +332,38 @@ char *who;
  */
 {
 	char buf[1024];
-	ZebTime now;
+	time_t now = time (NULL);
 
 	sprintf (buf, "Zeb data store daemon, protocol version %08x",
 		 DSProtocolVersion);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%s", 
-	 "$Id: d_Debug.c,v 3.2 1994-04-27 08:24:17 granger Exp $");
+	 "$Id: d_Debug.c,v 3.3 1994-05-18 22:01:50 burghart Exp $");
 	msg_AnswerQuery (who, buf);
 
-	tl_Time (&now);
-	sprintf (buf, "Up since ");
-	TC_EncodeTime (&Genesis, TC_Full, buf+strlen(buf));
+	sprintf (buf, "Up since %s", ctime (&Genesis));
+	buf[strlen (buf) - 1] = '\0';	/* remove \n supplied by ctime */
 	sprintf (buf+strlen(buf), ", %d minutes and %d seconds ago",
-		 (now.zt_Sec - Genesis.zt_Sec) / 60,
-		 (now.zt_Sec - Genesis.zt_Sec) % 60);
+		 (now - Genesis) / 60, (now - Genesis) % 60);
 	msg_AnswerQuery (who, buf);
 
-	if (LastScan.zt_Sec)
+	if (LastScan)
 	{
-		sprintf (buf, "Last full rescan at ");
-		TC_EncodeTime (&LastScan, TC_Full, buf+strlen(buf));
+		sprintf (buf, "Last full rescan at %s", ctime (&LastScan));
+		buf[strlen (buf) - 1] = '\0';	/* remove \n */
 		sprintf (buf+strlen(buf), ", %d minutes and %d seconds ago",
-			 (now.zt_Sec - LastScan.zt_Sec) / 60,
-			 (now.zt_Sec - LastScan.zt_Sec) % 60);
+			 (now - LastScan) / 60, (now - LastScan) % 60);
 	}
 	else
 		sprintf (buf, "No full rescans have occurred.");
 	msg_AnswerQuery (who, buf);
-	if (LastCache.zt_Sec)
+	if (LastCache)
 	{
-		sprintf (buf, "Cache files up-to-date as of ");
-		TC_EncodeTime (&LastCache, TC_Full, buf+strlen(buf));
+		sprintf (buf, "Cache files up-to-date as of %s", 
+			 ctime (&LastCache));
+		buf[strlen (buf) - 1] = '\0';	/* remove \n */
 		sprintf (buf+strlen(buf), ", %d minutes and %d seconds ago",
-			 (now.zt_Sec - LastCache.zt_Sec) / 60,
-			 (now.zt_Sec - LastCache.zt_Sec) % 60);
+			 (now - LastCache) / 60, (now - LastCache) % 60);
 	}
 	else
 		sprintf (buf, "No cache file updates have occurred.");

@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.13 1994-04-27 08:24:24 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.14 1994-05-18 22:01:54 burghart Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -27,6 +27,8 @@
 
 #ifndef _zeb_dsDaemon_h_
 #define _zeb_dsDaemon_h_
+
+#include <time.h>
 
 #include <defs.h>
 #include <config.h>
@@ -86,9 +88,9 @@ extern bool CacheOnExit;	/* Write cache on way out?	*/
  * This variable is TRUE only during the initial file scan.
  */
 extern bool InitialScan;	/* True implies first data scan	*/
-extern ZebTime LastScan;	/* Time of latest full scan	*/
-extern ZebTime LastCache;	/* Time to which cache files are up-to-date */
-extern ZebTime Genesis;		/* Time when daemon started	*/
+extern time_t LastScan;		/* Time of latest full scan	*/
+extern time_t LastCache;	/* Time to which cache files are up-to-date */
+extern time_t Genesis;		/* Time when daemon started	*/
 
 /*
  * Metadata space

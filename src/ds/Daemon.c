@@ -39,7 +39,7 @@
 # include "commands.h"
 # include "zl_regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.35 1994-04-27 08:23:56 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.36 1994-05-18 22:01:47 burghart Exp $")
 
 
 /*
@@ -116,9 +116,9 @@ char *ECmds[MAXEVERY];
 static Lock *FreeLocks = 0;
 
 bool InitialScan = TRUE;
-ZebTime LastScan = { 0, 0 };	/* Time of the most recent FULL scan */
-ZebTime LastCache = { 0, 0 };	/* Time to which cache files are up-to-date */
-ZebTime Genesis;		/* In the beginning, there was Zeb...*/
+time_t LastScan = 0;	/* Time of the most recent FULL scan */
+time_t LastCache = 0;	/* Time to which cache files are up-to-date */
+time_t Genesis;		/* In the beginning, there was Zeb...*/
 
 /*
  * Caching options.
@@ -268,6 +268,10 @@ FinishInit ()
 	int type;
 	SValue v;
 /*
+ * Keep track of when we start.
+ */
+	Genesis = time (NULL);
+/*
  * If they have defined a mondo cache file, pull it in now.
  */
 	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "cachefile",
@@ -285,7 +289,6 @@ FinishInit ()
 	tl_Time (&t2);
 	msg_ELog (EF_INFO, "Scan done, took %d secs", t2.zt_Sec - t1.zt_Sec);
 	InitialScan = FALSE;
-	Genesis = t1;
 /*
  * If a cleanup_procedure exists, run it now.
  */

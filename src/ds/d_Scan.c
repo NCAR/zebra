@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.17 1994-04-27 16:26:36 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.18 1994-05-18 22:01:52 burghart Exp $")
 
 
 /*
@@ -76,7 +76,7 @@ DataScan ()
  * Update the time of this scan if we're not using stat revisions
  */
 	if (!StatRevisions)
-		tl_Time (&LastScan);
+		LastScan = time (NULL);
 }
 
 
@@ -336,7 +336,7 @@ DataFile *df;
 	 */
 	else
 	{
-		return (rev > LastScan.zt_Sec);
+		return (rev > LastScan);
 	}
 }
 
@@ -379,7 +379,7 @@ int all;
 /*
  * Update the time for the last full scan
  */
-	tl_Time (&LastScan);
+	LastScan = time (NULL);
 }
 
 
@@ -555,7 +555,7 @@ struct ui_command *cmd;
  * Update the cache time if all of the platforms are now clean
  */
 	if (dbg_DirtyCount() == 0)
-		tl_Time (&LastCache);
+		LastCache = time (NULL);
 }
 
 
