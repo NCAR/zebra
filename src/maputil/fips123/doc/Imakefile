@@ -1,0 +1,8 @@
+MFVERSION="$Id: Imakefile,v 1.1 1996-12-30 17:48:00 burghart Exp $"
+
+DISTFILES = appendixa.ps.gz appendixb.ps.gz appendixc.ps.gz \
+	    appendixd.ps.gz appendixe.ps.gz body.ps.gz toc.ps.gz
+
+AllTarget($(DISTFILES))
+DistfilesTarget($(DISTFILES))
+

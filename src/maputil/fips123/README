@@ -1,0 +1,5 @@
+This directory contains the source code for the FIPS 123 Function Library,
+obtained from ftp://sdts.er.usgs.gov/pub/sdts/software/fips123/.
+Subdirectory divisions from the original distribution have been removed, as
+well as extraneous files such as example data.  In addition, I've added an
+Imakefile to make things work more easily in our environment.

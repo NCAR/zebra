@@ -1,0 +1,54 @@
+MFVERSION="$Id: Imakefile,v 1.1 1996-12-30 17:40:31 burghart Exp $"
+
+#define IHaveSubdirs
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+SUBDIRS = doc
+
+SRCS =	a_toe.c bak_fld.c bak_rec.c bak_sfld.c beg_ddre.c beg_file.c \
+	beg_rec.c bld_fmt.c bld_lab.c bldadscr.c c_dddir.c c_ddlead.c \
+	c_drdir.c c_drlead.c ch_size.c chk_fld.c chk_nfld.c chk_nrec.c \
+	chk_nsfl.c chk_rec.c chk_sfld.c cki_nfld.c conv_cat.c del_dim.c \
+	del_fmt.c del_labs.c deldrval.c e_toa.c end_ddre.c end_file.c \
+	end_rec.c er_ddfld.c er_ddrec.c er_ddsfl.c free_lab.c g_order.c \
+	gbstr.c gdstr.c get_dim.c get_dval.c get_fmt.c get_lvl.c gfstr.c \
+	gint.c gsstr.c gstr.c gt_adscr.c i_toa.c incr_lab.c is_adscr.c \
+	is_intgr.c l_tos.c ld_ddrec.c ld_rec.c ld_tagp.c load_fld.c \
+	load_fmt.c load_lab.c out_fmt.c pop_rs.c push_rs.c r_dddir.c \
+	r_ddlead.c r_drdir.c r_drlead.c rd_ddfld.c rd_ddrec.c rd_ddsfl.c \
+	rd_fld.c rd_rec.c rd_sfld.c ret_dv.c ret_fv.c ret_matc.c ret_pdm.c \
+	rt_pvfld.c rt_pvsfl.c s_tol.c set_stat.c setup_lb.c stc_empt.c \
+	stor_dv.c str_tok.c uld_ddre.c uld_rec.c v_ddtag.c v_drtag.c wint.c \
+	wr_ddfld.c wr_ddrec.c wr_ddsfl.c wr_fld.c wr_rec.c wr_sfld.c
+
+OBJS =	a_toe.o bak_fld.o bak_rec.o bak_sfld.o beg_ddre.o beg_file.o \
+	beg_rec.o bld_fmt.o bld_lab.o bldadscr.o c_dddir.o c_ddlead.o \
+	c_drdir.o c_drlead.o ch_size.o chk_fld.o chk_nfld.o chk_nrec.o \
+	chk_nsfl.o chk_rec.o chk_sfld.o cki_nfld.o conv_cat.o del_dim.o \
+	del_fmt.o del_labs.o deldrval.o e_toa.o end_ddre.o end_file.o \
+	end_rec.o er_ddfld.o er_ddrec.o er_ddsfl.o free_lab.o g_order.o \
+	gbstr.o gdstr.o get_dim.o get_dval.o get_fmt.o get_lvl.o gfstr.o \
+	gint.o gsstr.o gstr.o gt_adscr.o i_toa.o incr_lab.o is_adscr.o \
+	is_intgr.o l_tos.o ld_ddrec.o ld_rec.o ld_tagp.o load_fld.o \
+	load_fmt.o load_lab.o out_fmt.o pop_rs.o push_rs.o r_dddir.o \
+	r_ddlead.o r_drdir.o r_drlead.o rd_ddfld.o rd_ddrec.o rd_ddsfl.o \
+	rd_fld.o rd_rec.o rd_sfld.o ret_dv.o ret_fv.o ret_matc.o ret_pdm.o \
+	rt_pvfld.o rt_pvsfl.o s_tol.o set_stat.o setup_lb.o stc_empt.o \
+	stor_dv.o str_tok.o uld_ddre.o uld_rec.o v_ddtag.o v_drtag.o wint.o \
+	wr_ddfld.o wr_ddrec.o wr_ddsfl.o wr_fld.o wr_rec.o wr_sfld.o
+
+DISTFILES = Imakefile $(SRCS) gvd123.h stc123.h
+
+DistfilesTarget($(DISTFILES))
+
+NormalLibraryTarget (fips123, $(OBJS))
+
+DependTarget()
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+InstallLibSubdirs($(SUBDIRS))
+DistfilesSubdirs($(SUBDIRS))
