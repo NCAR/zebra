@@ -1,7 +1,7 @@
 /*
  * Basic parsing stuff.
  */
-static char *rcsid = "$Id: Parse.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+static char *rcsid = "$Id: Parse.c,v 2.2 1993-10-07 16:06:28 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -31,6 +31,20 @@ char	*string, **substrings;
  * 'substrings' array.  Return the number of substrings in the string.
  */
 {
+	return (ParseLine (string, substrings, ','));
+}
+
+
+
+
+int
+ParseLine (string, substrings, delim)
+char *string, **substrings, delim;
+/*
+ * Parse up this line using delim, which probably should ought not to be
+ * white space.
+ */
+{
 	int	i = 0, nsubs = 0;
 
 	while (TRUE)
@@ -50,12 +64,12 @@ char	*string, **substrings;
 	/*
 	 * Skip characters until we hit a comma or the end of 'string'
 	 */
-		while (string[i] != ',' && string[i] != '\0')
+		while (string[i] != delim && string[i] != '\0')
 			i++;
 	/*
 	 * Replace a comma with a NULL or quit if we are at the end
 	 */
-		if (string[i] == ',')
+		if (string[i] == delim)
 			string[i++] = '\0';
 		else
 			break;
