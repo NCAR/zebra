@@ -1,18 +1,20 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.9 1996-03-12 17:19:44 granger Exp $
+! $Id: xytrace,v 1.10 1996-04-03 16:55:14 burghart Exp $
 
 !
 ! Some widths, so we can change 'em in one place
 !
-set one_w "150"
-set two_w "300"
-set oneandahalf_w "225"
-set half_w "75"
+local one_w "150"
+local two_w "300"
+local oneandahalf_w "225"
+local half_w "75"
 
 !
-! Main menu
+! Main menus, xytrace-right and xytrace-left.  The xytrace-left menu
+! is just the standard minimal left menu we've come to know and love, with
+! the addition of all the stuff in xytrace-right.
 !
 
 require simple-color
@@ -22,6 +24,21 @@ define widget xytrace-right intmenu 'x'
 	title 'XYGraph options'
 	line
 	entry 'Platforms & colors...' 'popup xytrace-plats-n-colors'
+	entry 'Other details...' 'popup xytrace-details'
+	line
+	
+endmenu
+
+define widget xytrace-left intmenu 'x'
+        title 'Overlay Operations'
+        line
+        entry 'Raise to top' 'move #icon_component 0'
+        entry 'Move to bottom' 'move #icon_component 1'
+        entry 'Disable/reenable' 'ToggleBoolean "disable"' \
+                (PDParam(icon_component,"disable") = "true")
+        entry 'Remove' 'i_remove_component'
+	line
+	entry 'Platform(s) & color(s)...' 'popup xytrace-plats-n-colors'
 	entry 'Other details...' 'popup xytrace-details'
 	line
 	
