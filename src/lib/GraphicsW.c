@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.2 1991-10-21 21:07:50 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -113,7 +113,7 @@ WidgetClass graphicsWidgetClass = (WidgetClass)&graphicsClassRec;
 void
 Realize (w, value_mask, attributes)
 GraphicsWidget	w;
-Mask		*value_mask;
+XtValueMask		*value_mask;
 XSetWindowAttributes	*attributes;
 {
 	XVisualInfo	vinfo;
@@ -249,16 +249,16 @@ GraphicsWidget	w;
 
 	XtFree ((char *) w->composite.children);
 	if (w->graphics.frames)
-		XtFree ((Pixmap *) w->graphics.frames);
+		XtFree ((char *) w->graphics.frames);
 # ifdef SHM
 	if(GWShmPossible(w))
 	{
 		if (w->graphics.frameaddr)
-			XtFree ((char **) w->graphics.frameaddr);
+			XtFree ((char *) w->graphics.frameaddr);
 		if (w->graphics.shminfo)
-			XtFree ((XShmSegmentInfo *) w->graphics.shminfo);
+			XtFree ((char *) w->graphics.shminfo);
 		if (w->graphics.image)
-			XtFree ((XImage **) w->graphics.image);
+			XtFree ((char *) w->graphics.image);
 	}
 # endif
 }
@@ -400,21 +400,21 @@ GraphicsWidget	current, request, new;
 	 * Reallocate the space for the pixmap array 
 	 * and create pixmaps if necessary 
 	 */
-		new->graphics.frames = (Pixmap *) 
-			XtRealloc (new->graphics.frames, 
+		new->graphics.frames = (Pixmap *)
+			XtRealloc ((char *) new->graphics.frames, 
 			newcount * sizeof (Pixmap));
 # ifdef SHM
 		if(GWShmPossible(new))
 		{
 			new->graphics.frameaddr = (char **) XtRealloc (
-				new->graphics.frameaddr, 
+				(char *) new->graphics.frameaddr, 
 				newcount * sizeof (char *));
 			new->graphics.shminfo = (XShmSegmentInfo *) XtRealloc (
-				new->graphics.shminfo, newcount * 
-				sizeof (XShmSegmentInfo));
+				(char *) new->graphics.shminfo, 
+				newcount * sizeof (XShmSegmentInfo));
 			new->graphics.image = (XImage **) XtRealloc (
-				new->graphics.image, newcount * 
-				sizeof (XImage *));
+				(char *) new->graphics.image, 
+				newcount * sizeof (XImage *));
 		}
 # endif
 		for (i = oldcount; i < newcount; i++)
@@ -526,8 +526,8 @@ GWResize (w, width, height)
 GraphicsWidget	w;
 int	width, height;
 {
-	if (XtMakeResizeRequest (w, width, height, NULL, NULL) == 
-		XtGeometryYes)
+	if (XtMakeResizeRequest (w, (_XtDimension) width, 
+		(_XtDimension) height, NULL, NULL) == XtGeometryYes)
 		Resize (w);
 }
 
@@ -779,7 +779,7 @@ int index;
 	
 	XShmDetach(disp, w->graphics.shminfo + index);
 	XFreePixmap(disp, w->graphics.frames[index]);
-	XtFree((XImage *) w->graphics.image[index]);
+	XtFree((char *) w->graphics.image[index]);
 	if(shmdt(w->graphics.shminfo[index].shmaddr) < 0)
 		msg_ELog(EF_PROBLEM, "SHM detach failure (%d)!", errno);
 
