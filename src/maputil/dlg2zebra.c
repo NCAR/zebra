@@ -278,6 +278,7 @@ void	WritePolyline (LineInfo *line, boolean filled);
 boolean	IsStream (LineInfo *line);
 boolean IsWaterBody (PolygonInfo *poly);
 boolean IsRoadOfClass (LineInfo *line, int class);
+boolean IsWantedFederal (PolygonInfo *poly);
 void	die (char *format, ...);
 
 
@@ -1411,15 +1412,11 @@ WriteFedAreas (void)
 	/*
 	 * Write out every line obeying all of the following:
 	 *	o has different areas on either side
-	 *	o at least one of the sides is federally administered by an
-	 *	  agency other than 321
+	 *	o at least one of the sides meets IsWantedFederal() criteria
 	 *	o the sides are administered by different agencies
 	 */
 	if ((pleft != pright) &&
-	    ((BAttrs[pleft->attr_ndx].fed_admin && 
-	      BAgencies[pleft->agency_ndx] != 321) ||
-	     (BAttrs[pright->attr_ndx].fed_admin &&
-	      BAgencies[pright->agency_ndx] != 321)) &&
+	    (IsWantedFederal (pleft) || IsWantedFederal (pright)) &&
 	    (BAgencies[pleft->agency_ndx] != BAgencies[pright->agency_ndx]))
 	    WritePolyline (BLines + i, 0);
     }
@@ -1790,4 +1787,32 @@ IsRoadOfClass (LineInfo *line, int class)
 	die ("Whoa, bad road class %d in IsRoadOfClass()!\n", class);
     }
     return (ok);
+}
+
+
+
+
+boolean
+IsWantedFederal (PolygonInfo *poly)
+/*
+ * Return true for a polygon that's federally administered and whose
+ * "agency" is one of the desired ones.
+ */
+{
+    int	fed = BAttrs[poly->attr_ndx].fed_admin;
+    int	agency_ndx = BAgencies[poly->agency_ndx];
+/*
+ * The numbers below come from DLG3MDOM.DDF.  A couple of additional ones
+ * that may be of interest at some point:  
+ *	363 - National Park
+ *	121 - National Forest
+ */
+    return (fed &&
+	    (agency_ndx == 200 ||	/* Department of Defense	*/
+	     agency_ndx == 210 ||	/* Air Force			*/
+	     agency_ndx == 220 ||	/* Army				*/
+	     agency_ndx == 225 ||	/* Army / Corps of Engineers	*/
+	     agency_ndx == 230 ||	/* Navy				*/
+	     agency_ndx == 235 ||	/* Navy / Marine Corps		*/
+	     agency_ndx == 250));	/* Department of Energy		*/
 }
