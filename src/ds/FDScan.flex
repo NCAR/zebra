@@ -29,7 +29,11 @@ int yywrap( void ) { return 1; }
  * IRIX 6.2/g++ kluge to make sure fileno() gets a prototype
  */
 # ifndef fileno
-extern int fileno( FILE* );
+#   ifdef __cplusplus
+	extern "C" int fileno( FILE* );
+#   else
+	int fileno( FILE* );
+#   endif
 # endif
 
 %}
