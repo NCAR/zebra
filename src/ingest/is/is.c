@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.6 1991-11-12 23:51:19 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.7 1991-12-11 20:38:03 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -28,6 +28,8 @@ static char    *rcsid = "$Id: is.c,v 1.6 1991-11-12 23:51:19 martin Exp $";
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <ui.h>
 #include <ui_error.h>
@@ -36,6 +38,8 @@ static char    *rcsid = "$Id: is.c,v 1.6 1991-11-12 23:51:19 martin Exp $";
 
 #include "is_vars.h"
 #include "is_cmds.h"
+void            sigchldHandler();
+
 
 #ifdef __STDC__
 int             is_shutdown(void);
@@ -48,8 +52,9 @@ is_shutdown();
  */
 stbl            Configs;	/* will hold all configurations, accesable by
 				 * config name */
-int             exclose = 1;	/* true if stdout and stderr should be closed
-				 * after fork */
+char           *redirect = "none";	/* where to redirect stdout and
+					 * stderr when an ingest process is
+					 * spawned */
 
 main(argc, argv)
 	int             argc;
@@ -153,8 +158,8 @@ is_initial(arg, cmds)
 		is_shutdown();
 		break;
 
-	case ISC_EXCLOSE:
-		is_exclose(cmds + 1);
+	case ISC_REDIRECT:
+		is_redirect(cmds + 1);
 		break;
 
 	default:
@@ -435,8 +440,7 @@ is_config(cmds)
 		 * file type ingestor
 		 */
 		if
-			(cfg->directory &&
-			 cfg->filename &&
+			(cfg->filename &&
 			 cfg->process &&
 			 cfg->interval)
 			/*
@@ -502,10 +506,6 @@ do_config(cfg, cmds)
 		cfg->platform = usy_string(UPTR(cmds[1]));
 		break;
 
-	case ISC_DIR:
-		cfg->directory = usy_string(UPTR(cmds[1]));
-		break;
-
 	case ISC_MOVEDIR:
 		cfg->movedir = usy_string(UPTR(cmds[1]));
 		break;
@@ -541,18 +541,6 @@ do_config(cfg, cmds)
 		cfg->interval = UINT(cmds[1]);
 		break;
 
-
-
-
-
-
-
-
-
-
-
-
-
 	case ISC_ENDCON:
 		return (FALSE);
 
@@ -562,25 +550,33 @@ do_config(cfg, cmds)
 	return (TRUE);
 }
 
-is_exclose(cmds)
+is_redirect(cmds)
 	struct ui_command *cmds;
 {
 
+	/*
+	 * set the place to send stdout and stderr when ingest process is
+	 * spawned
+	 */
+
 	switch (UKEY(*cmds)) {
-	case ISC_TRUE:
-		exclose = 1;
+	case ISC_NONE:
+		redirect = "none";
 		break;
 
-	case ISC_FALSE:
-		exclose = 0;
+	case ISC_TERM:
+		redirect = "term";
 		break;
 
 	default:
-		ui_error("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
+		redirect = usy_string(UPTR(cmds[0]));
+
+		if (access(redirect, (int) (W_OK | F_OK))) {
+			ui_error("access not available for %s, redirect ignored\n", redirect);
+		}
+		break;
 	}
-
 }
-
 is_list(cmds)
 	struct ui_command *cmds;
 {
@@ -653,7 +649,6 @@ list_cfg(name, type, v, junk)
 		break;
 	}
 	ui_nf_printf("\tplatform:\t%s\n", cfg->platform);
-	ui_nf_printf("\tdirectory:\t%s\n", cfg->directory);
 	ui_nf_printf("\tmovedir:\t%s\n", cfg->movedir);
 	ui_nf_printf("\tdelete:\t\t%c\n", cfg->delete ? 'T' : 'F');
 	ui_nf_printf("\tfilename:\t%s\n", cfg->filename);
@@ -704,38 +699,87 @@ cfg_go(cfg)
 		else
 			new_args[i] = cfg->proc_args[i];
 
-
-	if ((pid = fork()) == 0) {
+	pid = fork();
+	if (pid == 0) {
+		int             fd;
 		close(0);
-		if (exclose) {
+
+		if (!strcmp(redirect, "none")) {
+
+			/* no redirection, so close stdout and stderr */
 			close(1);
 			close(2);
+		} else {
+			if (!strcmp(redirect, "term")) {
+
+				/*
+				 * keep stdout and stderr open and connected
+				 * to is
+				 */
+			} else {
+
+				/* redirect stderr and stdout to another file */
+				close(1);
+				close(2);
+				if ((fd = open(redirect, O_WRONLY)) < 0) {
+					msg_ELog("cannot open %s, errno = %d\n", redirect, errno);
+				} else {
+					dup2(fd, 1);
+				}
+				if ((fd = open(redirect, O_WRONLY)) < 0) {
+					msg_ELog("cannot open %s, errno = %d\n", redirect, errno);
+				} else {
+					dup2(fd, 2);
+				}
+			}
 		}
+
 		close(msg_get_fd());
+
 		/*
 		 * sleep for a second. Otherwise, the exec'd job can run and
 		 * exit before we have had time to record the details in cfg
 		 */
 		sleep(1);
 		execv(cfg->process, new_args);
-		printf("Unable to exec '%s'\n", cfg->process);
+		printf("Unable to exec %s\n", cfg->process);
 		perror(cfg->process);
 		exit(1);
 	} else {
-		/*
-		 * record the details in cfg
-		 */
-		this_proc->pid = pid;
-		this_proc->next = cfg->proc;
-		cfg->proc = this_proc;
-		cfg->active++;
-		if (cfg->type == IS_FTYPE || cfg->type == IS_PTYPE)
-			cfg->timer = TRUE;
-		else
-			cfg->timer = FALSE;
-		msg_ELog(EF_INFO,
-			 "c=%s, p=%s, p=%d, f=%s",
-			 cfg->name, cfg->process, pid, cfg->ingest_file);
+		if (pid < 0) {
+			msg_ELog(EF_PROBLEM,
+				 "unable to fork %s, errno is %d", cfg->process, errno);
+		} else {
+			/*
+			 * record the details in cfg
+			 */
+			this_proc->pid = pid;
+			this_proc->next = cfg->proc;
+			cfg->proc = this_proc;
+			cfg->active++;
+			if ((cfg->type == IS_FTYPE) || (cfg->type == IS_PTYPE))
+				cfg->timer = TRUE;
+			else
+				cfg->timer = FALSE;
+
+			switch (cfg->type) {
+			case IS_FTYPE:
+				msg_ELog(EF_INFO,
+					 "%s:file [%d]%s f=%s",
+					 cfg->name, pid, cfg->process, cfg->ingest_file);
+				break;
+			case IS_PTYPE:
+				msg_ELog(EF_INFO,
+					 "%s:periodic [%d]%s rep:%d",
+				cfg->name, pid, cfg->process, cfg->interval);
+				break;
+			case IS_CTYPE:
+				msg_ELog(EF_INFO,
+					 "%s:continuous [%d]%s",
+					 cfg->name, pid, cfg->process);
+				break;
+			}
+		}
 	}
 }
 
@@ -805,7 +849,8 @@ process_term(name, type, v, pid)
 This function is called by usy_traverse(Configs,...)
 
 See if the pid matches the Configs entry. If it
-matches, do the following:
+does not match, it is probably the popen process
+terminating. If it does matche, do the following:
 
 1. clean up the process list entry.
 
@@ -981,6 +1026,13 @@ int
 find_file(cfg)
 	struct is_config *cfg;
 {
+	/*
+	 * find an elibible file for this configuration, and place
+	 * information in the configurtion structure. return 1 if successful,
+	 * 0 otherwise.
+	 */
+
+
 	DIR            *d;
 	struct dirent  *e;
 	struct stat     buff;
@@ -991,32 +1043,31 @@ find_file(cfg)
 	int             first = 1;
 	int             ret = FALSE;
 
-	/*
-	 * find an elibible file for this configuration, and place
-	 * information in the configurtion structure. return 1 if successful,
-	 * 0 otherwise.
-	 */
+	FILE           *dir_file;
+	char           *ls_command = (char *) malloc
+	(strlen(LS_BEGIN) + MAX_FILE_NAME + strlen(LS_END) + 10);
 
+	strcpy(ls_command, LS_BEGIN);
+	strcat(ls_command, cfg->filename);
+	strcat(ls_command, LS_END);
+
+	first = 1;
 	cfg->ingest_file[0] = 0;
 
-	if (!(d = opendir(cfg->directory))) {
-		msg_ELog("can't open directory %s\n", cfg->directory);
+	if (!(dir_file = popen(ls_command, "r"))) {
+		msg_ELog(EF_PROBLEM, "Unable to popen for ls command: %s\n", ls_command);
 		return (FALSE);
 	}
-	while (e = readdir(d)) {
+	while (!feof(dir_file)) {
 
-		if (!strncmp(cfg->filename,
-			     e->d_name,
-			     strlen(cfg->filename))) {
+		full_name[0] = 0;
 
+		fscanf(dir_file, "%s", full_name);
+
+		if (strlen(full_name)) {
 			/*
 			 * file matched!
 			 */
-
-			full_name[0] = 0;
-			strcat(full_name, cfg->directory);
-			strcat(full_name, "/");
-			strcat(full_name, e->d_name);
 
 			/*
 			 * get the stats on this file
@@ -1024,39 +1075,71 @@ find_file(cfg)
 
 			if (!stat(full_name, buf)) {
 
-				/*
-				 * find the oldest file that matches
-				 */
-				if (first) {
-					file_t = buf->st_mtime;
-					strcpy(cfg->ingest_file, full_name);
-					strcpy(cfg->basename, e->d_name);
-					first = 0;
-				} else {
-					if (buf->st_mtime < file_t) {
-						file_t = buf->st_mtime;
-						strcpy(cfg->ingest_file, full_name);
-						strcpy(cfg->basename, e->d_name);
+				/* is it a regular file? */
+
+				if (S_ISREG(buf->st_mode)) {
+
+					/*
+					 * insure that we can read this file.
+					 * Directories that match this
+					 * pattern are ignored. Files that we
+					 * do not have access to generate
+					 * warning, but are ignored.
+					 */
+					if (!access(full_name, (int) (R_OK | F_OK))) {
+
+						/*
+						 * find the oldest file that
+						 * matches
+						 */
+
+						if (first) {
+							file_t = buf->st_mtime;
+							strcpy(cfg->ingest_file, full_name);
+							first = 0;
+						} else {
+							if (buf->st_mtime < file_t) {
+								file_t = buf->st_mtime;
+								strcpy(cfg->ingest_file, full_name);
+							}
+						}
+					} else {
+						msg_ELog(EF_PROBLEM, "access not available for %s, \nfile will be ignored\n",
+							 full_name);
 					}
+					ret = TRUE;
 				}
-				ret = TRUE;
 			} else {
-				/*
-				 * if the stat fails, we have a problem for a
-				 * file that is supposed to match
-				 */
-				msg_ELog
-					("problem with stat(%s), errno %d",
-					 full_name, errno);
+				msg_ELog(EF_PROBLEM, "unable to stat %s\n", full_name);
 			}
 		}
 	}
 
-	closedir(d);
+	/*
+	 * pclose() should be used here, since it is supposed to wait for the
+	 * popen process to terminate. However, I found that it would call
+	 * wait, and then call wait4(), which would hang. Has something to do
+	 * with the fact that is execv's its own processes. Now just close()
+	 * dir_file and ASSUME! that the popen job has terminated.
+	 */
+	/*
+	 * pclose(dir_file);
+	 */
+	fclose(dir_file);
 
-	return (ret);
+	free(ls_command);
+
+	if (strlen(cfg->ingest_file)) {
+		if (strrchr(cfg->ingest_file, '/'))
+			strcpy(cfg->basename, strrchr(cfg->ingest_file, '/'));
+		else
+			strcpy(cfg->basename, cfg->ingest_file);
+		return (TRUE);
+	} else {
+		return (FALSE);
+	}
+
 }
-
 init_cfg(cmds, cfg, name)
 	struct ui_command *cmds;
 	struct is_config *cfg;
@@ -1081,7 +1164,6 @@ init_cfg(cmds, cfg, name)
 		cfg->type = IS_PTYPE;
 		break;
 	}
-	cfg->directory = NULL;
 	cfg->platform = NULL;
 	cfg->movedir = NULL;
 	cfg->filename = NULL;
