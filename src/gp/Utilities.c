@@ -20,6 +20,7 @@
  */
 
 # include <X11/Intrinsic.h>
+# include <X11/StringDefs.h>
 # include <math.h>
 # include <defs.h>
 # include <message.h>
@@ -28,7 +29,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.20 1994-04-20 21:58:02 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.21 1994-05-19 21:00:13 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -665,4 +666,43 @@ char *file;
 	sprintf (cmd, "xwd -id 0x%x | %s > %s", XtWindow (Graphics),
 			ImgRules[format], efile);
 	system (cmd);
+}
+
+
+
+
+void
+ChangeCursor (w, cursor)
+Widget	w;
+Cursor	cursor;
+/*
+ * Change to the selected cursor in the widget and its children.
+ */
+{
+	static int	rlevel = 0;
+	int	n, i, nchildren;
+	Arg	args[4];
+	WidgetList	children;
+
+	if (w && XtWindow (w))
+		XDefineCursor (XtDisplay (w), XtWindow (w), cursor);
+/*
+ * Recurse through children, if any
+ */
+	nchildren = 0;
+
+	n = 0;
+	XtSetArg (args[n], XtNnumChildren, &nchildren); n++;
+	XtSetArg (args[n], XtNchildren, &children); n++;
+	XtGetValues (w, args, n);
+
+	rlevel++;	/* recursion level */
+	for (i = 0; i < nchildren; i++)
+		ChangeCursor (children[i], cursor);
+	rlevel--;
+/*
+ * Sync if we're the top level of recursion
+ */
+	if (rlevel == 0)
+		eq_sync ();
 }

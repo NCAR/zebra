@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.35 1994-04-19 22:08:21 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.36 1994-05-19 21:00:10 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -307,6 +307,7 @@ extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 		       int xdim, int ydim, 
 		       int xlo, int ylo, int xhi, int yhi,
 		       bool fast));
+	void ChangeCursor FP ((Widget w, Cursor cursor));
 # ifdef SHM
 	void RP_ZapSHMImage FP ((Widget w));
 # endif /* SHM */
