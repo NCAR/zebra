@@ -1,7 +1,7 @@
 /*
  * Handle plot window annotation.
  */
-static char *rcsid = "$Id: Annotate.c,v 2.2 1991-10-31 20:28:02 kris Exp $";
+static char *rcsid = "$Id: Annotate.c,v 2.3 1991-12-19 23:06:46 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -263,7 +263,7 @@ int	*top, *bottom, *left, *right;
 	int	width = GWWidth (Graphics);
 
 	if (! SA_first)
-		An_Divider (SA_position, F_X1 * width, width);
+		An_Divider (SA_position, (int) (F_X1 * width), width);
 	else
 		SA_first = FALSE;
 
@@ -409,7 +409,7 @@ An_DoSideAnnot ()
 	{
 		if (entry->allocspace > 0)
 		{
-			An_Divider (begin, F_X1 * width, width);
+			An_Divider (begin, (int)(F_X1 * width), width);
 			begin += DIVIDE;
 			entry->allocspace -= DIVIDE;
 			(*entry->proc) (entry->comp, entry->data, 
@@ -420,7 +420,7 @@ An_DoSideAnnot ()
 		entry = entry->next;
 		free (temp);
 	}
-	An_Divider (begin, F_X1 * width, width);
+	An_Divider (begin, (int) (F_X1 * width), width);
 	AnnotTable = NULL;
 }
 
