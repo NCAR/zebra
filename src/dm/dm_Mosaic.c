@@ -6,6 +6,8 @@
 # include <stdio.h>
 # include <signal.h>
 # include <errno.h>
+# include <string.h>
+# include <ctype.h>
 
 # include <defs.h>
 # include <message.h>
@@ -35,12 +37,21 @@ char *url;
 /*
  * Figure out what we are really looking at.
  */
-	if (! dm_FindURL (url, realurl))
+	if (dm_FindURL (url, realurl))
 	{
-		msg_ELog (EF_PROBLEM, "Can't find help entry %s", url);
+		msg_ELog (EF_DEBUG, "Found help entry %s at %s", url, realurl);
+	} 
+	else if (! dm_FindURL ("index", realurl))
+	{
+		msg_ELog (EF_PROBLEM, "Can't find help entry %s or %s", url,
+			  "'index'");
 		return;
 	}
-	msg_ELog (EF_DEBUG, "URL is '%s'", realurl);
+	else
+	{
+		msg_ELog (EF_INFO, "Help entry %s not found, using index, %s",
+			  url, realurl);
+	}
 /*
  * Display it.
  */
@@ -61,8 +72,9 @@ char *url, *realurl;
  * Locate this URL and turn it into a full path name.
  */
 {
-	char temp[CFG_FILEPATH_LEN], *sharp, *strchr ();
+	char temp[CFG_FILEPATH_LEN];
 	char section[CFG_FILEPATH_LEN];
+	char *c, *sharp;
 /*
  * If this is some sort of network URL we don't mess with it.
  */
@@ -73,9 +85,13 @@ char *url, *realurl;
 	}
 /*
  * OK, assume it's a file.  Copy it over and check for #'s, so we can trim
- * that part out.
+ * that part out.  Strip trailing spaces also.
  */
 	strcpy (temp, url);
+	c = temp + strlen(temp) - 1;
+	while ((c >= temp) && isspace(*c))
+		c--;
+	*(++c) = '\0';
 	if (sharp = strchr (temp, '#'))
 	{
 		*sharp = '\0';
