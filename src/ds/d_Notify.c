@@ -26,7 +26,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.7 1995-06-12 23:09:14 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.8 1996-11-19 09:28:22 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -123,7 +123,7 @@ struct dsp_NotifyRequest *req;
 	{
 		strcpy (((char *) req) + sizeof (*req), from);
 		msg_send (CopyProc, MT_DATASTORE, FALSE, req,
-			sizeof (*req) + strlen (from) + 1);
+			  sizeof (*req) + strlen (from) + 1);
 	}
 }
 
@@ -139,8 +139,6 @@ char *proc;
 {
 	int plat;
 	NRequest *zap, *last;
-	char buf[256];
-	struct dsp_Template *dt = (struct dsp_Template *) buf;
 
 	for (plat = 0; plat < MAXPLAT; plat++)
 	{
@@ -151,7 +149,7 @@ char *proc;
 	 * usually get them all.
 	 */
 		while (Requests[plat] &&
-				! strcmp (Requests[plat]->nr_from, proc))
+		       ! strcmp (Requests[plat]->nr_from, proc))
 		{
 			zap = Requests[plat];
 			Requests[plat] = zap->nr_next;
@@ -180,6 +178,10 @@ char *proc;
  */
 	if (Copies)
 	{
+		char buf[256];
+		struct dsp_Template *dt = (struct dsp_Template *) buf;
+
+		dt->dsp_type = dpt_CancelNotify;
 		strcpy (((char *) dt) + sizeof (*dt), proc);
 		msg_send (CopyProc, MT_DATASTORE, FALSE, dt,
 			  sizeof (*dt) + strlen (proc) + 1);
@@ -194,7 +196,9 @@ void
 dap_Notify (pid, t, nsample, now, append)
 PlatformId pid;
 ZebTime *t;
-int nsample, now, append;
+int nsample;	/* number of new samples */
+int now;	/* number of overwritten samples */
+int append;	/* non-zero if new samples are the most recent for this plat */
 /*
  * Actually send out notifications that data is available for this platform
  * up through this time.
@@ -213,9 +217,9 @@ int nsample, now, append;
 	msg.dsp_type = dpt_Notify;
 	msg.dsp_pid = pid;
 	msg.dsp_when = *t;
-	msg.dsp_nsample = nsample;
 	msg.dsp_ucode = append ? UpdAppend : 
-			(nsample > 0) ? UpdInsert : UpdOverwrite;
+			((nsample > 0) ? UpdInsert : UpdOverwrite);
+	msg.dsp_nsample = (msg.dsp_ucode == UpdOverwrite) ? now : nsample;
 /*
  * Go through and tell everybody.
  */
