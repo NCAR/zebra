@@ -1,20 +1,21 @@
 /*
  * The message handler.
  */
-static char *rcsid = "$Id: message.c,v 1.4 1990-12-06 11:04:22 corbet Exp $";
+static char *rcsid = "$Id: message.c,v 1.5 1991-04-30 23:10:41 corbet Exp $";
 
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
+# include <netdb.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <sys/un.h>
 # include <sys/uio.h>
-# ifndef titan
+# include <netinet/in.h>
 # include <sys/filio.h>
-# endif
 # include <signal.h>
 
+# include "../include/defs.h"
 # include "message.h"
 # include <ui_symbol.h>
 
@@ -23,6 +24,7 @@ static char *rcsid = "$Id: message.c,v 1.4 1990-12-06 11:04:22 corbet Exp $";
  */
 static stbl Proc_table;		/* Lookup table for processes	*/
 static stbl Group_table;	/* Table for groups.		*/
+static stbl Inet_table;		/* Internet connections		*/
 
 /*
  * The master sockets for incoming connections.
@@ -35,6 +37,7 @@ static int M_in_socket;		/* Internet domain socket	*/
  * in.
  */
 static fd_set Allfds;
+static int Port = DEFAULT_PORT;
 
 /*
  * This structure describes a connection.
@@ -42,12 +45,12 @@ static fd_set Allfds;
 struct connection 
 {
 	char	c_name[MAX_NAME_LEN];	/* The name of the connection	*/
-	int	c_id;			/* The short ID for this conn	*/
 	int	c_fd;			/* The file descriptor.		*/
 	int	c_nsend;		/* Messages sent		*/
 	int	c_bnsend;		/* Bytes sent			*/
 	int	c_nrec;			/* Messages received		*/
 	int	c_bnrec;		/* Bytes received		*/
+	char	c_inet;			/* Internet connection		*/
 };
 struct connection *MH_conn;		/* Fake connection for local stuff */
 
@@ -66,9 +69,12 @@ struct group
  * This array maps file descriptors onto their associated connections.
  */
 static struct connection *Fd_map[64] = { 0 };
-static int Fd_count[64] = { 0 };
 static int Nfd;
 
+/*
+ * Who are we?
+ */
+char Hostname[40];
 
 /*
  * Global statistics.
@@ -79,56 +85,61 @@ static int S_npipe = 0, S_ndisc = 0;
 
 
 /*
- * Ardent doesn't provide writev!  Berkeley my ass...
+ * Forwards.
  */
-# ifdef titan
-# define writev fcc_writev
+# ifdef __STDC__
+	struct connection *FindRecipient (char *);
+	struct connection *MakeConnection (char *);
+	void	Greeting (int, struct message *);
+	void	add_to_group (struct connection *, char *, struct message *);
+	void	FixAddress (Message *);
+	void	MsgProtocol (int, Message *);
+	void	AnswerPing (int, Message *);
+# else
+	struct connection *FindRecipient ();
+	struct connection *MakeConnection ();
+	void	Greeting ();
+	void	add_to_group ();
+	void	FixAddress ();
+	void	MsgProtocol ();
+	void	AnswerPing ();
 # endif
+
 
 
 
 main ()
 {
-	struct sockaddr_un saddr;
 	int conn, nb;
-	char msg[120];
+	char msg[120], *host, *getenv ();
 	fd_set fds;
 	int psig ();
-	
-	/* Nfd = getdtablesize (); */
 /*
  * Create our symbol tables.
  */
 	usy_init ();
 	Proc_table = usy_c_stbl ("Process_table");
 	Group_table = usy_c_stbl ("Group_table");
+	Inet_table = usy_c_stbl ("Inet_table");
 	signal (SIGPIPE, psig);
 /*
- * Create our master socket.
+ * Create Unix and Internet sockets.
  */
-	if ((M_un_socket = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
+	MakeUnixSocket ();
+	MakeInetSocket ();
+	if (! (host = getenv ("HOST")))
 	{
-		perror ("Unable to create UNIX socket");
+		printf ("Who the hell are we?\n");
 		exit (1);
 	}
-	Nfd = M_un_socket + 1;
+	strcpy (Hostname, host);
 /*
- * Bind it to it's name.
+ * Set up our select stuff.
  */
- 	saddr.sun_family = AF_UNIX;
-	strcpy (saddr.sun_path, UN_SOCKET_NAME);
-	if (bind (M_un_socket, (struct sockaddr *) &saddr,
-			sizeof (struct sockaddr_un)) < 0)
-	{
-		perror ("Unable to bind UNIX socket");
-		exit (1);
-	}
-/*
- * Tell the system that we want connections.
- */
- 	listen (M_un_socket, 5);
 	FD_ZERO (&Allfds);
 	FD_SET (M_un_socket, &Allfds);
+	if (M_in_socket >= 0)
+		FD_SET (M_in_socket, &Allfds);
 /*	printf ("Master message socket: %d\n", M_un_socket); */
 /*
  * Now it's loop time.
@@ -158,6 +169,14 @@ main ()
 			nsel--;
 		}
 	/*
+	 * Look for Internet connections too.
+	 */
+	 	if (FD_ISSET (M_in_socket, &fds))
+		{
+			NewInConnection ();
+			nsel--;
+		}
+	/*
 	 * See if we have data coming in from somewhere.
 	 */
 		if (nsel)
@@ -167,6 +186,83 @@ main ()
 
 
 
+MakeUnixSocket ()
+/*
+ * Create the Unix domain socket.
+ */
+{
+	struct sockaddr_un saddr;
+
+	if ((M_un_socket = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
+	{
+		perror ("Unable to create UNIX socket");
+		exit (1);
+	}
+	Nfd = M_un_socket + 1;
+/*
+ * Bind it to it's name.
+ */
+ 	saddr.sun_family = AF_UNIX;
+	strcpy (saddr.sun_path, UN_SOCKET_NAME);
+	if (bind (M_un_socket, (struct sockaddr *) &saddr,
+			sizeof (struct sockaddr_un)) < 0)
+	{
+		perror ("Unable to bind UNIX socket");
+		exit (1);
+	}
+/*
+ * Tell the system that we want connections.
+ */
+ 	listen (M_un_socket, 5);
+}
+
+
+
+
+
+
+MakeInetSocket ()
+/*
+ * Create our internet domain socket.
+ */
+{
+	struct servent *service;
+	struct sockaddr_in saddr;
+/*
+ * Try to look up our port number.
+ */
+	if (! (service = getservbyname (SERVICE_NAME, "tcp")))
+		printf ("%s service not found, using default port\n",
+				SERVICE_NAME);
+	else
+		Port = service->s_port;
+/*
+ * Get our socket.  Failures here are nonfatal, since we can, in some way,
+ * get by without internet connectivity.
+ */
+	if ((M_in_socket = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		perror ("Internet socket get");
+		return;
+	}
+/*
+ * Fill in the address info, and bind to this port.
+ */
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = INADDR_ANY;
+	saddr.sin_port = Port;
+	if (bind (M_in_socket, (struct sockaddr *) &saddr, sizeof (saddr)) < 0)
+	{
+		perror ("IN Socket bind");
+		M_in_socket = -1;
+	}
+/*
+ * Tell them we're ready.
+ */
+	listen (M_in_socket, 5);
+	if (M_in_socket >= Nfd)
+		Nfd = M_in_socket + 1;
+}
 
 
 
@@ -195,9 +291,9 @@ new_un_connection ()
  */
  	conp = (struct connection *) malloc (sizeof (struct connection));
 	conp->c_fd = conn;
-	conp->c_id = (Fd_count[conn]++ << 16) | conn;
 	conp->c_nsend = conp->c_bnsend = 0;
 	conp->c_nrec = conp->c_bnrec = 0;
+	conp->c_inet = FALSE;
 	strcpy (conp->c_name, "(Unknown)");
 	Fd_map[conn] = conp;
 /*
@@ -210,9 +306,67 @@ new_un_connection ()
  * Mark this thing for nonblocking I/O.
  */
 # ifdef notdef
-# ifndef titan
  	ioctl (conn, FIONBIO, &one);
 # endif
+/*
+ * Put together a greeting and send it out.
+ */
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_to[0] = '\0';	/* No name yet */
+	msg.m_proto = MT_MESSAGE;
+	msg.m_flags = 0;
+	msg.m_len = sizeof (struct mh_greeting);
+	msg.m_data = (char *) &greet;
+	greet.mh_type = MH_GREETING;
+	strcpy (greet.mh_version, "V-1.2");
+	
+	send_msg (conp, &msg);
+}
+
+
+
+
+NewInConnection ()
+/*
+ * Deal with an incoming internet-domain connection.
+ */
+{
+	struct connection *conp;
+	struct message msg;
+	struct mh_greeting greet;
+	int one = 1;
+/*
+ * Accept the new connection.
+ */
+	int conn = accept (M_in_socket, (struct sockaddr *) 0,
+			(int *) 0);
+	/* printf ("Accepted connection %d\n", conn); */
+	if (conn < 0)
+	{
+		perror ("Accept error on UNIX socket");
+		exit (1);
+	}
+/*
+ * Put together a connection structure, and add it to the queue.
+ */
+ 	conp = ALLOC (struct connection);
+	conp->c_fd = conn;
+	conp->c_nsend = conp->c_bnsend = 0;
+	conp->c_nrec = conp->c_bnrec = 0;
+	conp->c_inet = TRUE;
+	strcpy (conp->c_name, "(Unknown)");
+	Fd_map[conn] = conp;
+/*
+ * Add this one to our list of FD's.
+ */
+	FD_SET (conn, &Allfds);
+	if (conn >= Nfd)
+		Nfd = conn + 1;
+/*
+ * Mark this thing for nonblocking I/O.
+ */
+# ifdef notdef
+ 	ioctl (conn, FIONBIO, &one);
 # endif
 /*
  * Put together a greeting and send it out.
@@ -242,6 +396,15 @@ struct message *msgp;
  */
 {
 	struct iovec iov[2];
+/*
+ * If this message is going out over the net, we need to append
+ * our identity to the from field.
+ */
+	if (conp->c_inet)
+	{
+		strcat (msgp->m_from, "@");
+		strcat (msgp->m_from, Hostname);
+	}
 /*
  * Put together our I/O vector describing the data.
  */
@@ -317,6 +480,10 @@ fd_set *fds;
 		msg.m_data = data;
 		(void) msg_netread (fd, data, msg.m_len);
 	/*
+	 * Fix the dest address.
+	 */
+	 	FixAddress (&msg);
+	/*
 	 * Deal with this message.
 	 */
 		Fd_map[fd]->c_nsend++;
@@ -325,6 +492,22 @@ fd_set *fds;
 	}
 }
 
+
+
+
+void
+FixAddress (msg)
+Message *msg;
+/*
+ * Remove the "@host" from the destination, if we're that host.
+ */
+{
+	char *at, *strrchr ();
+
+	at = strrchr (msg->m_to, '@');
+	if (at && ! strcmp (at + 1, Hostname))
+		*at = '\0';
+}
 
 
 
@@ -346,9 +529,12 @@ int fd;
 /*
  * Clean up our data structures.
  */
-	usy_z_symbol (Proc_table, Fd_map[fd]->c_name);
+	if (Fd_map[fd]->c_inet)
+		usy_z_symbol (Inet_table, Fd_map[fd]->c_name);
+	else
+		usy_z_symbol (Proc_table, Fd_map[fd]->c_name);
+	usy_traverse (Group_table, clear_group,(int)Fd_map[fd], FALSE);
 	FD_CLR (fd, &Allfds);
-	usy_traverse (Group_table, clear_group, (int) Fd_map[fd], FALSE);
 	free ((char *) Fd_map[fd]);
 	Fd_map[fd] = 0;
 	close (fd);
@@ -391,8 +577,11 @@ die ()
 {
 	struct message msg;
 	struct mh_template tmpl;
+	int i;
 /*
- * Send out a message saying that it's all over.
+ * Send out a message saying that it's all over.  Note that we do not
+ * explicitly broadcast to inet connections, or we could take down the
+ * entire net.
  */
 	strcpy (msg.m_to, "Everybody");
 	strcpy (msg.m_from, MSG_MGR_NAME);
@@ -404,10 +593,14 @@ die ()
 	tmpl.mh_type = MH_SHUTDOWN;
 	broadcast (&msg, 0);
 /*
- * Clear out our socket and quit.
+ * Clear out our sockets and quit.
  */
 	close (M_un_socket);
 	unlink (UN_SOCKET_NAME);
+	close (M_in_socket);
+	for (i = 0; i < 64; i++)
+		if (Fd_map[i])
+			close (i);
 	exit (0);
 }
 
@@ -423,45 +616,108 @@ struct message *msg;
  * Do something about this message.
  */
 {
-	if (msg->m_proto == MT_MESSAGE)
+/*
+ * Branch out based on the protocol.  Most we just pass on through, but 
+ * a couple are special.
+ */
+	switch (msg->m_proto)
 	{
-		struct mh_template *tm = (struct mh_template *) msg->m_data;
-
-		switch (tm->mh_type)
+	/*
+	 * MT_MESSAGE stuff is intended for us.
+	 */
+	   case MT_MESSAGE:
+	   	MsgProtocol (fd, msg);
+		break;
+	/*
+	 * We answer pings, but only if directed at us.
+	 */
+	   case MT_PING:
+	   	if (! strcmp (msg->m_to, MSG_MGR_NAME))
 		{
-		/*
-		 * Some process identifying itself.
-		 */
-		   case MH_IDENTIFY:
-		   	identify (fd, msg);
-			break;
-		/*
-		 * If they want us to die, we'll go along with it...
-		 */
-		   case MH_DIE:
-		   	die ();
-			break;
-		/*
-		 * Join a process group.
-		 */
-		   case MH_JOIN:
-		   	join (fd, msg);
-			break;
-		/*
-		 * Somebody wants statistics.
-		 */
-		   case MH_STATS:
-		   	Stats (Fd_map[fd]);
-			break;
-
-		   default:
-		   	send_log ("Funky MESSAGE type: %d\n", tm->mh_type);
+			AnswerPing (fd, msg);
 			break;
 		}
-	}
-	else
+		/* Else fall through.... */
+	/*
+	 * Most stuff just gets sent through to the destination.
+	 */
+	   default:
 		route (fd, msg);
+		break;
+	}
 }
+
+
+
+
+void
+AnswerPing (fd, msg)
+int fd;
+Message *msg;
+/*
+ * Answer a ping message.
+ */
+{
+	send_log ("Ping from %s", msg->m_from);
+	strcpy (msg->m_to, msg->m_from);
+	strcpy (msg->m_from, MSG_MGR_NAME);
+	send_msg (Fd_map[fd], msg);
+}
+
+
+
+
+
+void
+MsgProtocol (fd, msg)
+int fd;
+Message *msg;
+/*
+ * Deal with an MT_MESSAGE message.
+ */
+{
+	struct mh_template *tm = (struct mh_template *) msg->m_data;
+
+	switch (tm->mh_type)
+	{
+	/*
+	 * Some process identifying itself.
+	 */
+	   case MH_IDENTIFY:
+		identify (fd, msg);
+		break;
+	/*
+	 * The greeting from an internet connection we made before.
+	 */
+	   case MH_GREETING:
+		Greeting (fd, msg);
+		break;
+	/*
+	 * If they want us to die, we'll go along with it...
+	 */
+	   case MH_DIE:
+		die ();
+		break;
+	/*
+	 * Join a process group.
+	 */
+	   case MH_JOIN:
+		join (fd, msg);
+		break;
+	/*
+	 * Somebody wants statistics.
+	 */
+	   case MH_STATS:
+		Stats (Fd_map[fd]);
+		break;
+
+	   default:
+		send_log ("Funky MESSAGE type: %d\n", tm->mh_type);
+		break;
+	}
+}
+
+
 
 
 
@@ -491,19 +747,43 @@ struct message *msg;
  */
  	strcpy (conp->c_name, ident->mh_name);
 	v.us_v_ptr = (char *) conp;
-	usy_s_symbol (Proc_table, conp->c_name, SYMT_POINTER, &v);
+	usy_s_symbol (conp->c_inet ? Inet_table : Proc_table, conp->c_name,
+				SYMT_POINTER, &v);
 /* 
- * Add this guy to the "everybody" group, now that he has a name.
+ * Add this guy to the "everybody" group, now that he has a name, but only
+ * if it's a local connection.
  */
- 	add_to_group (conp, "Everybody");
-/*
- * Send back an acknowledge.
- */
-	ack (conp, msg);
+	if (! conp->c_inet)
+	{
+	 	add_to_group (conp, "Everybody", 0);
+		ack (conp, msg);
+	}
 /*
  * Finally, send out the client event for those who are interested.
  */
  	ce_connect (conp);
+}
+
+
+
+
+
+void
+Greeting (fd, msg)
+int fd;
+struct message *msg;
+/*
+ * Deal with an internet greeting.
+ */
+{
+	struct connection *conp = Fd_map[fd];
+	char *strrchr (), *at;
+/*
+ * See to it that we agree with the remote machine as to their name.
+ */
+	at = strrchr (msg->m_from, '@');
+	if (! at || strcmp (conp->c_name, at))
+		send_log ("IN machine %s thinks its %s!", conp->c_name, at);
 }
 
 
@@ -522,7 +802,8 @@ struct message *msg;
 /*
  * Copy in the REAL sender of the message.
  */
- 	strcpy (msg->m_from, Fd_map[fd]->c_name);
+	if (! Fd_map[fd]->c_inet)
+	 	strcpy (msg->m_from, Fd_map[fd]->c_name);
 /*
  * If this is a broadcast, deal with it separately.
  */
@@ -534,21 +815,127 @@ struct message *msg;
 /*
  * Look up the recipient.
  */
-	if (! usy_g_symbol (Proc_table, msg->m_to, &type, &v))
-	{
-		send_log ("Message from %s to unknown recipient %s",
-			msg->m_from, msg->m_to);
-		/* nak (fd, msg); */
-		return;
-	}
-/*
- * Send it to them.
- */
- 	conp = (struct connection *) v.us_v_ptr;
-	send_msg (conp, msg);
+	if (conp = FindRecipient (msg->m_to))
+		send_msg (conp, msg);
 }
 
 
+
+
+
+struct connection *
+FindRecipient (recip)
+char *recip;
+/*
+ * Try to find the connection to send this message through.
+ */
+{
+	int type;
+	SValue v;
+	char *at, *strrchr ();
+/*
+ * See if this is a local connection; if so, we just look for somebody
+ * we know directly.
+ */
+	if (! (at = strrchr (recip, '@')))
+	{
+		if (! usy_g_symbol (Proc_table, recip, &type, &v))
+			send_log ("Message to unknown recipient %s", recip);
+		return ((struct connection *) v.us_v_ptr);
+	}
+/*
+ * If this is an already-established Internet connection, we ship things
+ * out that way.
+ */
+	if (usy_g_symbol (Inet_table, at + 1, &type, &v))
+		return ((struct connection *) v.us_v_ptr);
+/*
+ * Otherwise we gotta make the connection ourselves.
+ */
+	return (MakeConnection (at + 1));
+}
+
+
+
+
+
+struct connection *
+MakeConnection (host)
+char *host;
+/*
+ * Make a connection to this host.
+ */
+{
+	int sock;
+	struct sockaddr_in addr;
+	struct hostent *hp;
+	struct connection *conn;
+	struct mh_ident ident;
+	struct message msg;
+	SValue v;
+/*
+ * Look up the name of the host to connect to.
+ */
+	if (! (hp = gethostbyname (host)))
+	{
+		send_log ("Attempt to connect to unknown host %s", host);
+		return (0);
+	}
+/*
+ * We need a socket to do this with.
+ */
+	if ((sock = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		send_log ("Error %d getting new inet socket", errno);
+		return (0);
+	}
+/*
+ * Fill in the sockaddr structure, and try to make the connection.
+ */
+	memcpy (&addr.sin_addr, hp->h_addr, hp->h_length);
+	addr.sin_family = AF_INET;
+	addr.sin_port = Port;
+	if (connect (sock, (struct sockaddr *) &addr, sizeof (addr)) < 0)
+	{
+		send_log ("Error %d connecting to host %s", errno, host);
+		close (sock);
+		return (0);
+	}
+/*
+ * Now we're confident enough to allocate a new connection structure and
+ * fill it in.
+ */
+	conn = ALLOC (struct connection);
+	conn->c_fd = sock;
+	conn->c_nsend = conn->c_bnsend = conn->c_nrec = conn->c_bnrec = 0;
+	conn->c_inet = TRUE;
+	strcpy (conn->c_name, host);
+	v.us_v_ptr = (char *) conn;
+	usy_s_symbol (Inet_table, host, SYMT_POINTER, &v);
+/*
+ * Shove an identify down the pipe.
+ */
+	ident.mh_type = MH_IDENTIFY;
+	strcpy (ident.mh_name, Hostname);
+	sprintf (msg.m_from, "%s@%s", MSG_MGR_NAME, Hostname);
+	sprintf (msg.m_to, "%s@%s", MSG_MGR_NAME, host);
+	msg.m_proto = MT_MESSAGE;
+	msg.m_flags = 0;
+	msg.m_len = sizeof (ident);
+	msg.m_data = (char *) &ident;
+	send_msg (conn, &msg);
+/*
+ * Add this one to our list of FD's.
+ */
+	FD_SET (sock, &Allfds);
+	if (sock >= Nfd)
+		Nfd = sock + 1;
+	Fd_map[sock] = conn;
+/*
+ * Rather than wait for the greeting, just return the connection now.
+ */
+	return (conn);
+}
 
 
 
@@ -565,7 +952,7 @@ struct message *msg;
 /*
  * Do the actual addition.
  */
- 	add_to_group (conp, ident->mh_name);
+ 	add_to_group (conp, ident->mh_name, msg);
 /*
  * Send back an ack.
  */
@@ -607,39 +994,67 @@ struct message *msg;
 
 
 
-
-add_to_group (conp, name)
+void
+add_to_group (conp, name, msg)
 struct connection *conp;
 char *name;
+struct message *msg;
 /*
  * Add this connection to the group specified by the given name.
  */
 {
 	union usy_value v;
-	int type;
+	int type, i;
 	struct group *grp;
+	char *at, *strrchr ();
+	struct connection *remote;
+/*
+ * See if we're dealing with a remote group here.
+ */
+	if (at = strrchr (name, '@'))
+		*at++ = '\0';
 /*
  * Look up this group in our symbol table.
  */
  	if (! usy_g_symbol (Group_table, name, &type, &v))
-	{
 	/*
 	 * No such group -- we'll have to create it.
 	 */
 	 	create_group (conp, name);
-		return;
+/*
+ * Add this entry.
+ */
+	else
+	{
+	/*
+	 * Make sure this connection is not already a member.  That can
+	 * happen easily with inet connections.
+	 */
+	 	grp = (struct group *) v.us_v_ptr;
+		for (i = 0; i < grp->g_nprocs; i++)
+			if (grp->g_procs[i] == conp)
+				break;
+	/*
+	 * Add this one if necessary.
+	 */
+		if (i >= grp->g_nprocs)	/* Not there yet */
+		{
+			grp->g_nprocs++;
+			grp->g_procs = (struct connection **)
+				realloc (grp->g_procs,
+				grp->g_nprocs*sizeof (struct connection *));
+		 	grp->g_procs[grp->g_nprocs - 1] = conp;
+		}
 	}
 /*
- * Make room for the new connection pointer.
+ * If this is a remote group join request, forward it on to the remote machine.
  */
- 	grp = (struct group *) v.us_v_ptr;
-	grp->g_nprocs++;
-	grp->g_procs = (struct connection **) realloc (grp->g_procs,
-		grp->g_nprocs*sizeof (struct connection *));
-/*
- * Add the group.
- */
- 	grp->g_procs[grp->g_nprocs - 1] = conp;
+	if (at)
+	{
+		sprintf (msg->m_to, "%s@%s", MSG_MGR_NAME, at);
+		if (remote = FindRecipient (msg->m_to))
+			send_msg (remote, msg);
+	}
 }
 
 
@@ -733,6 +1148,7 @@ struct connection *conp;
 	strcpy (cl.mh_client, conp->c_name);
 	cl.mh_type = MH_CLIENT;
 	cl.mh_evtype = MH_CE_CONNECT;
+	cl.mh_inet = conp->c_inet;
 /*
  * Broadcast it.
  */
@@ -763,6 +1179,7 @@ struct connection *conp;
 	strcpy (cl.mh_client, conp->c_name);
 	cl.mh_type = MH_CLIENT;
 	cl.mh_evtype = MH_CE_DISCONNECT;
+	cl.mh_inet = conp->c_inet;
 /*
  * Broadcast it.
  */
@@ -795,6 +1212,7 @@ char *group;
 	strcpy (cl.mh_group, group);
 	cl.mh_type = MH_CLIENT;
 	cl.mh_evtype = MH_CE_JOIN;
+	cl.mh_inet = conp->c_inet;
 /*
  * Broadcast it.
  */
@@ -898,8 +1316,9 @@ struct connection *conp;
 		struct connection *c;
 		if (! (c = Fd_map[i]))
 			continue;
-		sprintf (string, " Process '%s' on %d, send %d/%d, rec %d/%d",
-			c->c_name, c->c_id, c->c_nsend, c->c_bnsend,
+		sprintf (string, " %s '%s' on %d, send %d/%d, rec %d/%d",
+			c->c_inet ? "Internet" : "Process ",
+			c->c_name, i, c->c_nsend, c->c_bnsend,
 			c->c_nrec, c->c_bnrec);
 		msg.m_len = strlen (string) + 1;
 		send_msg (conp, &msg);

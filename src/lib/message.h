@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.8 1991-04-25 23:01:59 corbet Exp $ */
+/* $Id: message.h,v 1.9 1991-04-30 23:10:41 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -10,6 +10,8 @@
 # define MT_SOUND	5	/* Sound effects			*/
 # define MT_DATASTORE	6	/* Data store internal protocol		*/
 # define MT_IMAGEXFR	7	/* Image transfer			*/
+# define MT_PING	8	/* Boing...				*/
+# define MT_CPING	9	/* Client ping				*/
 
 /*
  * Message handler protocol message types.
@@ -30,6 +32,12 @@
 # define MH_CE_JOIN		3	/* New group joined by client	*/
 
 # define MAX_NAME_LEN	32	/* Maximum length of a name.	*/
+
+/*
+ * Internet protocol stuff.
+ */
+# define DEFAULT_PORT	1500	/* Default tcp port		*/
+# define SERVICE_NAME	"zeb-msg"
 
 /*
  * Structures for message handler protocol messages.
@@ -73,7 +81,8 @@ struct mh_ack
 struct mh_client
 {
 	int	mh_type;	/* == MH_CLIENT			*/
-	int	mh_evtype;	/* The client event type	*/
+	short	mh_evtype;	/* The client event type	*/
+	short	mh_inet;	/* This is an internet "client" */
 	char	mh_client[MAX_NAME_LEN];/* The client being talked about */
 	char	mh_group[MAX_NAME_LEN]; /* Group name, when appl	*/
 };
@@ -83,7 +92,7 @@ struct mh_client
 /*
  * The actual message header structure.
  */
-struct message
+typedef struct message
 {
 	char	m_from[MAX_NAME_LEN];	/* Who it's from	*/
 	char	m_to[MAX_NAME_LEN];	/* Who it is going to	*/
@@ -93,7 +102,7 @@ struct message
 	short	m_len;			/* Message length	*/
 	char	*m_data;		/* data pointer (internal
 					   use only)	        */
-};
+} Message;
 
 /*
  * The extended event log protocol.
