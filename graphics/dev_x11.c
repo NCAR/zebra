@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.25 1992-04-29 21:54:42 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.26 1992-04-29 22:05:56 burghart Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -330,8 +330,7 @@ char *ctag;
  * Clear the main window.
  */
 	XClearWindow (tag->x_display, tag->x_window);
-	XSetForeground (tag->x_display, tag->x_tgt_gc, 
-		BlackPixel (tag->x_display, 0));
+	XSetForeground (tag->x_display, tag->x_tgt_gc, tag->x_bg);
 	XFillRectangle (tag->x_display, tag->x_sw[0], tag->x_tgt_gc, 0, 0,
 		tag->x_xres, tag->x_yres);
 	tag->x_zoomok = FALSE;
