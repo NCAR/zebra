@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.4 1992-11-09 18:08:32 burghart Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.5 1992-11-10 04:20:16 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -142,7 +142,6 @@ struct connection *FindRecipient FP ((char *));
 struct connection *MakeConnection FP ((char *));
 void	Greeting FP ((int, struct message *));
 void	add_to_group FP ((struct connection *, char *, struct message *));
-void	remove_from_group FP ((struct connection *, char *, struct message *));
 void	FixAddress FP ((char *));
 void	MsgProtocol FP ((int, Message *));
 void	AnswerPing FP ((int, Message *));
@@ -1006,7 +1005,6 @@ Message *msg;
  * Answer a ping message.
  */
 {
-	send_log ("Ping from %s", msg->m_from);
 	strcpy (msg->m_to, msg->m_from);
 	strcpy (msg->m_from, MSG_MGR_NAME);
 	send_msg (Fd_map[fd], msg);
@@ -1051,12 +1049,6 @@ Message *msg;
 	 */
 	   case MH_JOIN:
 		join (fd, msg);
-		break;
-	/*
-	 * Quit a process group.
-	 */
-	   case MH_QUIT:
-		quit (fd, msg);
 		break;
 	/*
 	 * Somebody wants statistics.
@@ -1445,33 +1437,6 @@ struct message *msg;
 
 
 
-quit (fd, msg)
-int fd;
-struct message *msg;
-/*
- * This process wants to quit a group.  Let's let them.
- */
-{
-	struct mh_ident *ident = (struct mh_ident *) msg->m_data;
-	struct connection *conp = Fd_map[fd];
-/*
- * Do the actual removal.
- */
- 	remove_from_group (conp, ident->mh_name, msg);
-/*
- * Send back an ack.
- */
- 	ack (conp, msg);
-/*
- * Send out the event.
- */
- 	ce_quit (conp, ident->mh_name);
-}
-
-
-
-
-
 ack (conp, msg)
 struct connection *conp;
 struct message *msg;
@@ -1553,66 +1518,6 @@ struct message *msg;
 	}
 /*
  * If this is a remote group join request, forward it on to the remote machine.
- */
-	if (at)
-	{
-		sprintf (msg->m_to, "%s@%s", MSG_MGR_NAME, at);
-		if (remote = FindRecipient (msg->m_to))
-			send_msg (remote, msg);
-	}
-}
-
-
-
-
-
-void
-remove_from_group (conp, name, msg)
-struct connection *conp;
-char *name;
-struct message *msg;
-/*
- * Remove this connection from the group specified by the given name.
- */
-{
-	union usy_value v;
-	int type, i;
-	struct group *grp;
-	char *at, *strrchr ();
-	struct connection *remote;
-/*
- * See if we're dealing with a remote group here.
- */
-	if (at = strrchr (name, '@'))
-		*at++ = '\0';
-/*
- * Look up this group in our symbol table.
- */
- 	if (! usy_g_symbol (Group_table, name, &type, &v))
-	/*
-	 * No such group -- just return.
-	 * (Should quitting from a non-existent group be treated as an error?)
-	 */
-	 	return;
-/*
- * Remove this entry.
- */
-	else
-	{
-	/*
-	 * Find this connection in the list of members and remove it by moving
-	 * the succeeding ones up a notch.
-	 */
-	 	grp = (struct group *) v.us_v_ptr;
-		for (i = 0; i < grp->g_nprocs && grp->g_procs[i] != conp; i++)
-			/* do nothing */;
-
-		grp->g_nprocs--;
-		for (; i < grp->g_nprocs; i++)
-			grp->g_procs[i] = grp->g_procs[i+1];
-	}
-/*
- * If this is a remote group quit request, forward it on to the remote machine.
  */
 	if (at)
 	{
@@ -1797,40 +1702,6 @@ char *group;
 	strcpy (cl.mh_group, group);
 	cl.mh_type = MH_CLIENT;
 	cl.mh_evtype = MH_CE_JOIN;
-	cl.mh_inet = conp->c_inet;
-/*
- * Broadcast it.
- */
- 	broadcast (&msg, conp);
-}
-
-
-
-
-
-ce_quit (conp, group)
-struct connection *conp;
-char *group;
-/*
- * Send out a client group quit message.
- */
-{
-	struct message msg;
-	struct mh_client cl;
-/*
- * Fill in our message.
- */
-	msg.m_proto = MT_MESSAGE;
-	strcpy (msg.m_from, MSG_MGR_NAME);
-	strcpy (msg.m_to, "Client events");
-	msg.m_seq = conp->c_fd;
-	msg.m_flags = MF_BROADCAST;
-	msg.m_len = sizeof (cl);
-	msg.m_data = (char *) &cl;
-	strcpy (cl.mh_client, conp->c_name);
-	strcpy (cl.mh_group, group);
-	cl.mh_type = MH_CLIENT;
-	cl.mh_evtype = MH_CE_QUIT;
 	cl.mh_inet = conp->c_inet;
 /*
  * Broadcast it.
