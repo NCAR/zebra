@@ -93,7 +93,7 @@ ERRORCATCH
 	if (access (fname, 0) == 0)
 		ui_warning ("Appending to existing file '%s'", fname);
 
-	Mfile = fopen (fname, "w+");
+	Mfile = fopen (fname, "a+");
 /*
  * Initialize the tablet
  */
