@@ -34,6 +34,7 @@ int	Nbeam = 0;
 
 int	Fd;
 char	*InSource;
+char	TapeSource = FALSE;
 
 /*
  * The beam structure we pass back.
@@ -49,10 +50,26 @@ void
 FileInput (file)
 char	*file;
 /*
- * Make a note of file input. Where does this come in???
+ * Make a note of file input.
  */
 {
 	InSource = (char *) malloc (strlen (file) + 1);
+	TapeSource = FALSE;
+	strcpy (InSource, file);
+}
+
+
+
+
+void 
+TapeInput (file)
+char	*file;
+/*
+ * Set to a tape input source.
+ */
+{
+	InSource = (char *) malloc (strlen (file) + 1);
+	TapeSource = TRUE;
 	strcpy (InSource, file);
 }
 
@@ -101,24 +118,30 @@ ScaleInfo	*scale;
 	short	raw_rec[BUFLEN];
 	short	*fldhdr[MAXFIELD], *flddata[MAXFIELD];
 	short	*fhdr, *dp, *datahdr, uf_badval;
-	int	numgates;
+	int	numgates, nread;
 
 	Nbeam++;
 /*
- * Leading record length
+ * Leading record length (file sources only)
  */
-	if ((status = read (Fd, &rec_len, 4)) != 4)
+	if (TapeSource)
+		rec_len = sizeof (raw_rec);
+	else
 	{
-	/*
-	 * Return NULL if we're at EOF
-	 */
-		if (status == 0)
-			return (NULL);
-	/*
-	 * Otherwise complain
-	 */
-		msg_ELog (EF_EMERGENCY, "rec_len read error %s", InSource);
-		die ();
+		if (! TapeSource && (status = read (Fd, &rec_len, 4)) != 4)
+		{
+		/*
+		 * Return NULL if we're at EOF
+		 */
+			if (status == 0)
+				return (NULL);
+		/*
+		 * Otherwise complain
+		 */
+			msg_ELog (EF_EMERGENCY, "rec_len read error %s", 
+				  InSource);
+			die ();
+		}
 	}
 
 	if (rec_len > sizeof (raw_rec))
@@ -135,29 +158,43 @@ ScaleInfo	*scale;
 /*
  * The record itself
  */
-	if (read (Fd, raw_rec, rec_len) != rec_len)
+	nread = read (Fd, raw_rec, rec_len);
+
+	if (TapeSource)
 	{
-		msg_ELog (EF_EMERGENCY, 
-			  "Error %d reading %d bytes (%dth record)", errno,
-			  rec_len, Nbeam);
-		die ();
+		if (nread == 0)
+			return (NULL);
+	}
+	else
+	{
+		if (nread != rec_len)
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "Error %d reading %d bytes (%dth record)", 
+				  errno, rec_len, Nbeam);
+			die ();
+		}
 	}
 /*
- * Trailing record length
+ * Trailing record length (file sources only)
  */
-	if (read (Fd, &rec_len2, 4) != 4)
-   	{
-		msg_ELog (EF_EMERGENCY, "trailing rec_len read error %s", 
-			  InSource);
-		die ();
-	}
+	if (! TapeSource)
+	{
+		if (read (Fd, &rec_len2, 4) != 4)
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "trailing rec_len read error %s", 
+				  InSource);
+			die ();
+		}
 
-	if (rec_len != rec_len2)
-   	{
-		msg_ELog (EF_EMERGENCY, 
+		if (rec_len != rec_len2)
+		{
+			msg_ELog (EF_EMERGENCY, 
 			  "rec_len mismatch: %d vs. %d (at %dth record)",
 			  rec_len, rec_len2, Nbeam);
-		die ();
+			die ();
+		}
 	}
 /*
  * Get pointers to the various headers
@@ -219,7 +256,7 @@ ScaleInfo	*scale;
 	Hk.longitude = londeg * DEG_TO_BIN;
 	Hk.altitude = raw_rec[24];
 /*
- * Scan type (we only really care about PPI and RHI)
+ * Scan type (we only really care about PPI, RHI, and SUR)
  */
 	switch (raw_rec[34])
 	{
@@ -228,6 +265,9 @@ ScaleInfo	*scale;
 		break;
 	    case 3:
 		Hk.scan_mode = SM_RHI;
+		break;
+	    case 8:
+		Hk.scan_mode = SM_SUR;
 		break;
 	    default:
 		Hk.scan_mode = SM_CAL; /* others don't matter */
