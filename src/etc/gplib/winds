@@ -42,6 +42,18 @@ define widget winds-model-right intmenu ' '
 endmenu
 
 !
+! Right menu for non-model gridded data
+!
+define widget rg-winds-right intmenu ' '
+	title 'Gridded Winds Options'
+	line
+	submenu 'Color' 'simple-color'
+	submenu	'Arrow Line Width' 'linewidth'
+	submenu 'Barbs/Vectors' 'winds-style'
+	submenu 'Data Degradation' 'winds-degrade'
+endmenu
+
+!
 ! Vector/Barb representation
 !
 define widget winds-style intmenu ' '
