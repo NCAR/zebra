@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.2 1992-11-18 00:16:09 granger Exp $
+ * $Id: p3fest_ingest.c,v 1.3 1992-11-19 01:39:25 granger Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -159,60 +159,60 @@ p3_field_t P3_Fields[] =
 /*	{ 16, 	"Radar altitiude", 		"ra",		"m" },  */
 
 	{ 17, 	"Pressure", 			"ps",		"mb" },
-	{ 18, 	"Ambient temperature", 		"ta",		"degC" },
-	{ 19, 	"Dewpoint sensor", 		"tw1",		"degC" },
-	{ 20, 	"Radiometer down", 		"rd",		"degC" },
-	{ 21, 	"Radiometer side", 		"rs",		"degC" },
-	{ 22, 	"Ground speed", 		"gs",		"m/s" },
-	{ 23, 	"True airspeed", 		"ts",		"m/s" },
+	{ 18, 	"Ambient temperature", 		"ta",		"C" },
+	{ 19, 	"Dewpoint sensor", 		"tw1",		"C" },
+	{ 20, 	"Radiometer (Down)", 		"rd",		"C" },
+	{ 21, 	"Radiometer (Side)", 		"rs",		"C" },
+	{ 22, 	"Ground Speed", 		"gs",		"m/s" },
+	{ 23, 	"True Airspeed", 		"ts",		"m/s" },
 	{ 24, 	"A/C Vertical velocity",	"wgs",		"m/s" },
 	{ 25,	"Track",			"tk",		"deg" },
 	{ 26, 	"Heading (true)", 		"hd",		"deg" },
 	{ 27,	"Pitch",			"pc",		"deg" },
 	{ 28,	"Roll",				"rl",		"deg" },
-	{ 29,	"Attack angle",			"aa",		"deg" },
-	{ 30,	"Slip angle",			"sa",		"deg" },
-	{ 31,	"Liquid water content",		"lw",		"g/m3" },
-	{ 32,	"Dynamic pressure",		"pq",		"mb" },
-	{ 33,	"Dewpoint temperature",		"td",		"degC" },
-	{ 34,	"Radiometer up",		"ru",		"degC" },
+	{ 29,	"Attack Angle",			"aa",		"deg" },
+	{ 30,	"Slip Angle",			"sa",		"deg" },
+	{ 31,	"Liquid Water Content",		"lw",		"g/m3" },
+	{ 32,	"Dynamic Pressure",		"pq",		"mb" },
+	{ 33,	"Dewpoint Temperature",		"td",		"C" },
+	{ 34,	"Radiometer Up",		"ru",		"C" },
 	/* { 35,	"Switches",		"sw3",		UNITS_NONE }, */
-	{ 36,	"E/W Velocity of tail",		"utail",	"m/s" },
-	{ 37,	"N/S Velocity of tail",		"vtail",	"m/s" },
-	{ 38,	"Vertical velocity of tail",	"wtail",	"m/s" },
+	{ 36,	"E/W Velocity of Tail",		"utail",	"m/s" },
+	{ 37,	"N/S Velocity of Tail",		"vtail",	"m/s" },
+	{ 38,	"Vertical Velocity of Tail",	"wtail",	"m/s" },
 	/* 39,  ---blank--- */
-	{ 40,	"Geopotential altitude",	"ga",		"m" },
-	{ 41,	"Pressure altitude",		"pa",		"m" },
+	{ 40,	"Geopotential Altitude",	"ga",		"m" },
+	{ 41,	"Pressure Altitude",		"pa",		"m" },
 	{ 42,	"D Value",			"dv",		"m" },
-	{ 43,	"Height standard pres surface",	"ht",		"m" },
-	{ 44,	"Surface pressure",		"sp",		"mb" },
-	{ 45,	"Relative humidity",		"rh",		"%" },
-	{ 46,	"Virtual temperature",		"tv",		"K" },
-	{ 47,	"Vertical airspeed",		"was",		"m/s" },
-	{ 48,	"Ratio specific heats",		"gm",		UNITS_NONE },
-	{ 49,	"Mach number",			"ama",		"dim" },
-	{ 50,	"Drift angle",			"da",		"deg" },
-	{ 51,	"E/W Ground speed",		"gsx",		"m/s" },
-	{ 52,	"N/S Ground speed",		"gsy",		"m/s" },
-	{ 53,	"E/W True airspeed",		"tx",		"m/s" },
-	{ 54,	"N/S True airspeed",		"ty",		"m/s" },
-	{ 55,	"E/W Wind speed",		"wx",		"m/s" },
-	{ 56,	"N/S Wind speed",		"wy",		"m/s" },
-	{ 57,	"Vertical wind speed",		"wz",		"m/s" },
-	{ 58,	"Wind speed",			"ws",		"m/s" },
-	{ 59,	"Wind direction",		"wd",		"deg" },
+	{ 43,	"Height Standard Pres Surface",	"ht",		"m" },
+	{ 44,	"Surface Pressure",		"sp",		"mb" },
+	{ 45,	"Relative Humidity",		"rh",		"%" },
+	{ 46,	"Virtual Temperature",		"tv",		"K" },
+	{ 47,	"Vertical Airspeed",		"was",		"m/s" },
+	{ 48,	"Ratio Specific Heats",		"gm",		UNITS_NONE },
+	{ 49,	"Mach Number",			"ama",		"dim" },
+	{ 50,	"Drift Angle",			"da",		"deg" },
+	{ 51,	"E/W Ground Speed",		"gsx",		"m/s" },
+	{ 52,	"N/S Ground Speed",		"gsy",		"m/s" },
+	{ 53,	"E/W True Airspeed",		"tx",		"m/s" },
+	{ 54,	"N/S True Airspeed",		"ty",		"m/s" },
+	{ 55,	"E/W Wind Speed",		"wx",		"m/s" },
+	{ 56,	"N/S Wind Speed",		"wy",		"m/s" },
+	{ 57,	"Vertical Wind Speed",		"wz",		"m/s" },
+	{ 58,	"Wind Speed",			"ws",		"m/s" },
+	{ 59,	"Wind Direction",		"wd",		"deg" },
 	/* 60,  ---blank--- */
-	{ 61,	"Vapor pressure",		"ee",		"mb" },
-	{ 62,	"Mixing ratio",			"mr",		"g/kg" },
-	{ 63,	"Potential temperature",	"pt",		"K" },
-	{ 64, 	"Equivalent potential temperature", "et",	"K" },
-	{ 65,	"E/W average wind",		"wxb",		"m/s" },
-	{ 66,	"N/S average wind",		"wyb",		"m/s" },
-	{ 67,	"Average wind speed",		"wsb",		"m/s" },
-	{ 68,	"Average wind direction",	"wdb",		"deg" },
-	{ 69,	"Vertical accelerometer #1",	"av1",		UNITS_UNKNOWN },
-	{ 70,	"Vertical accelerometer #2",	"av2",		UNITS_UNKNOWN },
-	{ 71,	"Seconds wind averaged over",	"wac",		"secs" },
+	{ 61,	"Vapor Pressure",		"ee",		"mb" },
+	{ 62,	"Mixing Ratio",			"mr",		"g/kg" },
+	{ 63,	"Potential Temperature",	"pt",		"K" },
+	{ 64, 	"Equivalent Potential Temperature", "et",	"K" },
+	{ 65,	"E/W Average Wind",		"wxb",		"m/s" },
+	{ 66,	"N/S Average Wind",		"wyb",		"m/s" },
+	{ 67,	"Average Wind Speed",		"wsb",		"m/s" },
+	{ 68,	"Average Wind Direction",	"wdb",		"deg" },
+	{ 69,	"Vertical Accelerometer #1",	"av1",		UNITS_UNKNOWN },
+	{ 70,	"Vertical Accelerometer #2",	"av2",		UNITS_UNKNOWN },
+	{ 71,	"Seconds Wind Averaged Over",	"wac",		"secs" },
 	{ 72,	"AXBT1",			"bt1",		UNITS_UNKNOWN },
 	{ 73, 	"AXBT2",			"bt2",		UNITS_UNKNOWN },
 	{ 74,	"AXBT3",			"bt3",		UNITS_UNKNOWN }
@@ -282,6 +282,7 @@ short P3_WordToField[MAX_WORDS_RECORD5 + 1];
  */
 static void ReadHeader FP((FILE *p3file, P3_header_t *hdr));
 static void DumpHeader FP((P3_header_t *hdr));
+static void PrintMenus FP((FILE *out));
 static DataChunk *CreateDataChunk FP((P3_header_t *hdr));
 static void StoreDataChunk FP((DataChunk *dc));
 static int InitializeFieldIds ();
@@ -298,6 +299,19 @@ extern void InterpolateGap
 	    ZebTime *etime, Location *elocn, int *sample));
 
 /*-----------------------------------------*/
+
+void
+Usage(prog)
+	char *prog;
+{
+	fprintf(stderr,
+		"Usage: %s [ingest options] { -m[enu] | <datafile> }\n",prog);
+	fprintf(stderr,
+		"   If <datafile> is '-', the data will be read from stdin\n");
+	fprintf(stderr,
+		"   -menu		Write out GP menus for P-3 fields\n");
+	IngestUsage();
+}
 
 
 
@@ -317,18 +331,26 @@ main(argc, argv)
  	FILE *p3file;
 
 	/* Parse any ingest options. */
-	IngestParseOptions(&argc, argv, IngestUsage);
+	IngestParseOptions(&argc, argv, Usage);
 	
 	if (argc != 2)
 	{
-		fprintf(stderr,"Usage: %s [ingest options] <datafile>\n",argv[0]);
-		fprintf(stderr,"   If <datafile> is '-', stdin is used\n");
-		IngestUsage();
+		Usage(argv[0]);
 		exit(1);
 	}
 
 	/*
-	 * Initialize usy, message, DataStore, and fields simultaneously
+	 * For the -menu option, nothing is required other than dumping our
+	 * field and menu info to stdout.  Do this and get out.
+	 */
+	if ((strlen(argv[1]) > 1) && !strncmp(argv[1],"-menu",strlen(argv[1])))
+	{
+		PrintMenus(stdout);
+		exit(0);
+	}
+
+	/*
+	 * Initialize usy, message, DataStore, and Fields simultaneously
 	 */
 	IngestInitialize(INGEST_NAME);
 
@@ -580,7 +602,7 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 	TC_EncodeTime(&when, TC_Full, c_time);
 
 	flags = (unsigned long)buf[FL2] | (((unsigned long)buf[FL1]) << 16);
-	eflag = ((flags & (ERR_TI | ERR_LA | ERR_LO))?EF_PROBLEM:0);
+	eflag = ((flags & (ERR_TI | ERR_LA | ERR_LO | ERR_ALT))?EF_PROBLEM:0);
 
 	/*
 	 * Do some checks for errors in the data using the error flags
@@ -616,45 +638,51 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 			IngestLog(EF_PROBLEM,
 				  "Sample %i, longitude %8.4f (deg) may be in error",
 				  sample, locn.l_lon);
-		if (flags & ERR_TI)
+	}
+
+	/*
+	 * Errors in time will be checked separately, since experience has shown
+	 * that not all time gaps are flagged in the data files (naturally...) and
+	 * so we must do the checking ourselves...
+	 */
+	if ((flags & ERR_TI) || (tprev.zt_Sec && (when.zt_Sec - tprev.zt_Sec > 1)))
+	{
+		IngestLog(EF_PROBLEM,
+			  "Sample %i, time error, checking for a gap...",
+			  sample);
+		/*
+		 * According to the error flag, there has probably
+		 * been a gap in time between the last two samples.
+		 * Handle this condition by storing our current
+		 * DataChunk to a file, and starting a new one.
+		 * The current sample will be the first sample of
+		 * the new data chunk.  If the gap is 5 or less seconds,
+		 * we'll just interpolate between the previous sample
+		 * and this one.
+		 */
+		if (!tprev.zt_Sec)
+			IngestLog(EF_PROBLEM,"First sample, ignoring flag");
+		else if (when.zt_Sec - tprev.zt_Sec <= 5)
+		{
+			InterpolateGap(*dc, &tprev, &lprev,
+				       &when, &locn, &sample);
+			/* And continue with the current sample ... */
+		}
+		else	/* Bigger gaps require a new file */
 		{
 			IngestLog(EF_PROBLEM,
-				  "Sample %i, time error flag, checking for a gap...",
-				  sample);
-			/*
-			 * According to the error flag, there has probably
-			 * been a gap in time between the last two samples.
-			 * Handle this condition by storing our current
-			 * DataChunk to a file, and starting a new one.
-			 * The current sample will be the first sample of
-			 * the new data chunk.  If the gap is 5 or less seconds,
-			 * we'll just interpolate between the previous sample
-			 * and this one.
-			 */
-			if (!tprev.zt_Sec)
-				IngestLog(EF_PROBLEM,"First sample, ignoring flag");
-			else if (when.zt_Sec - tprev.zt_Sec <= 5)
-			{
-				InterpolateGap(*dc, &tprev, &lprev,
-					       &when, &locn, &sample);
-				/* And continue with the current sample ... */
-			}
-			else	/* Bigger gaps requires a new file */
+				  "Gap of %i seconds.  Starting a new file...",
+				  (when.zt_Sec - tprev.zt_Sec));
+			StoreDataChunk(*dc);
+			dc_DestroyDC(*dc);
+			*dc = CreateDataChunk(hdr);
+			if (!(*dc))
 			{
 				IngestLog(EF_PROBLEM,
-				   "Gap of %i seconds.  Starting a new file...",
-				   (when.zt_Sec - tprev.zt_Sec));
-				StoreDataChunk(*dc);
-				dc_DestroyDC(*dc);
-				*dc = CreateDataChunk(hdr);
-				if (!(*dc))
-				{
-					IngestLog(EF_PROBLEM,
 					  "Could not create new datachunk, aborting");
-					exit(1);
-				}
-				sample = 0;
+				exit(1);
 			}
+			sample = 0;
 		}
 	}
 
@@ -674,7 +702,7 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 			value = ((float)buf[IDX])/((float)P3_FieldDivisors[IDX]);
 		else
 			value = (float)buf[IDX];
-		IngestLog(EF_DEVELOP | ((eflag)?(EF_DEBUG):0),
+		IngestLog(EF_DEVELOP,
 			  "%3hu %-35s: %8.3f (%s)",
 			  P3_Fields[i].index,
 			  P3_Fields[i].long_name, value, P3_Fields[i].units);
@@ -1214,4 +1242,80 @@ SeekFileSize(file)
 	fseek(file, cur, SEEK_SET);		/* Return to original offset */
 
 	return(off);
+}
+
+
+
+void
+PrintEntry(out, field, desc, units, parm, comp)
+	FILE *out;
+	char *field, *desc, *units, *parm, *comp;
+{
+	char udesc[128];
+	char *c;
+
+	/*
+	 * Replace whitespace with underscores in the long name (desc)
+	 */
+	strcpy(udesc,desc);
+	for (c = udesc; c < udesc+strlen(udesc); ++c)
+	{
+		if ((*c == 32) || (*c == 11))  /* space or tab */
+			*c = '_';
+	}
+
+	fprintf(out,"	entry '%s %s' 'add_xy_component %s ",
+		desc, units, PLATFORM_NAME);
+	fprintf(out,	"\"%s %s\" \"%s\" %s'\n",
+		parm, field, udesc, comp);
+}
+
+
+
+
+void
+PrintOneMenu(out,menu,parm,comp)
+	FILE *out;
+	char *menu;
+	char *parm;
+	char *comp;
+{
+	int i;
+
+	/*
+	 * First do the menu definition stuff
+	 */
+	fprintf(out,"\ndefine widget %s intmenu 'P3 Air Fields'\n",menu);
+	fprintf(out,"	title 'Select Field'\n");
+	fprintf(out,"	line\n");
+
+	/*
+	 * Our first entry will be the standard 'alt' field 
+	 */
+	PrintEntry(out,"alt","Radar Altitude","km", parm, comp);
+
+	/*
+	 * Now process all of the fields in P3_Fields[]
+	 */
+	for (i = 0; i < NUMBER(P3_Fields); ++i)
+	{
+		PrintEntry(out, 
+			   P3_Fields[i].field_name,
+			   P3_Fields[i].long_name,
+			   P3_Fields[i].units,
+			   parm,
+			   comp);
+	}
+
+	fprintf(out,"endmenu\n\n");
+}
+
+
+
+void
+PrintMenus(out)
+	FILE *out;
+{
+	PrintOneMenu(out, "time-p3-air-parts", "y-field", "c_xytime_air");
+	PrintOneMenu(out, "p3-air-parts", "x-field", "c_xy_air");
 }
