@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.18 1992-10-06 15:29:00 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.19 1992-11-02 22:04:30 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -155,7 +155,7 @@ extern void fc_CreateFrameFile FP ((void));
 extern void fc_SetNumFrames FP ((int));
 extern char *fc_GetInfo FP ((int));
 extern void fc_AddFrame FP ((ZebTime *, int));
-extern int fc_LookupFrame FP ((ZebTime *));
+extern int fc_LookupFrame FP ((ZebTime *, char **));
 extern int fc_GetFrame FP ((void));
 extern void fc_MarkFrames FP ((ZebTime *, int));
 
@@ -213,7 +213,9 @@ extern void sync FP ((void));
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
-extern void tr_InitAcWidget ();
+extern void tr_InitAcWidget FP ((void));
+extern char *lw_Status FP ((void));
+
 # ifdef _DATACHUNK_H_
 	extern int ApplySpatialOffset (DataChunk *, char *, ZebTime *);
 # endif
