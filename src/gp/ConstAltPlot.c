@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.1 1991-08-07 19:58:05 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -879,7 +879,7 @@ ScaleInfo *scale;
 /*
  * Find out when we can really get data.
  */
-	if (! (ntime = ds_DataTimes (pid, when, 2, DsBefore, &realtime)))
+	if (! (ntime = ds_DataTimes (pid, when, 1, DsBefore, &realtime)))
 	{
 		msg_ELog (EF_INFO, "No data available at all for %s",
 			ds_PlatformName (pid));
