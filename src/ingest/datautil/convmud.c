@@ -2,6 +2,8 @@
  * Convert mudras files to netcdf.
  */
 # include <stdio.h>
+# include <string.h>
+
 # include <netcdf.h>
 # include <math.h>
 # include <defs.h>
@@ -26,7 +28,11 @@ int DTime;			/* Time dimension		*/
 
 # define BADVAL -32768
 
+static void MakeCDF FP ((char *name, ZebTime *zt, int nx, int ny, int nz));
+static void MoveData FP ((int level, int fld, float *grid, int nx, int ny));
 
+
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -181,7 +187,7 @@ char **argv;
 
 
 
-
+static void
 MakeCDF (name, zt, nx, ny, nz)
 char *name;
 ZebTime *zt;
@@ -243,7 +249,7 @@ int nx, ny, nz;
 
 
 
-
+void
 usage ()
 {
 }
@@ -251,7 +257,7 @@ usage ()
 
 
 
-
+static void
 MoveData (level, fld, grid, nx, ny)
 int level, fld, nx, ny;
 float *grid;

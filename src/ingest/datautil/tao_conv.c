@@ -169,7 +169,7 @@ main ()
 /*
  * Store the bastard.
  */
-	ds_Store (dc, TRUE, 0, 0);
+	return (! ds_Store (dc, TRUE, 0, 0));
 }
 
 

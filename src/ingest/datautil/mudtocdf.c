@@ -1,7 +1,6 @@
 /*
  * Translate MUDRAS files to netcdf.
  */
-static char *rcsid = "$Id: mudtocdf.c,v 1.5 1995-04-19 14:44:06 granger Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -24,6 +23,8 @@ static char *rcsid = "$Id: mudtocdf.c,v 1.5 1995-04-19 14:44:06 granger Exp $";
 # include <netcdf.h>
 
 # include <defs.h>	/* Time and coordinate conversions */
+
+RCSID ("$Id: mudtocdf.c,v 1.6 1995-06-29 21:20:47 granger Exp $")
 
 extern char *getenv ();
 
@@ -70,7 +71,7 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	char *cdfname, *malloc (), *tmp;
+	char *cdfname, *tmp;
 	char junk[10];
 	int print = -1, status, btime, level, nx, ny, toff = 60000;
 	long i;
@@ -139,7 +140,7 @@ char **argv;
 /*
  * Fix up the times and put them in.
  */
-	btime = TC_FccToSys (&volume_.mc_ivdate);	/* XXX	*/
+	btime = TC_FccToSys ((UItime *) &volume_.mc_ivdate);	/* XXX	*/
 	ncvarput1 (Nfile, VBTime, 0, &btime);
 	i = 0;
 	ncvarput1 (Nfile, VTOff, &i, &zero);
