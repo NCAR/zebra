@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.8 1995-07-06 04:51:31 granger Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.9 1995-10-30 17:21:18 burghart Exp $")
 
 # include "keywords.h"
 
@@ -131,7 +131,8 @@ int Nfiles = 0;
 /*
  * Useful stuff
  */
-# define BETWEEN(x,lower,upper)	(((x)-(lower))*((x)-(upper)) <= 0)
+# define BETWEEN(x,lower,upper)	\
+	((double)((x)-(lower))*(double)((x)-(upper)) <= 0)
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define RAD_TO_DEG(x)	((x)*57.29577951)
 # define DEG_TO_KM(x)	((x)*111.3238367) /* on a great circle */
@@ -163,6 +164,14 @@ static void *	DoFile FP ((int));
 static void	GetFileTime FP ((int, ZebTime *));
 static void	Die FP ((void));
 static inline unsigned char	imageval FP ((int, int));
+
+/*
+ * The McIDAS navigation function
+ */
+extern int	nvxeas_ FP ((float *lat, float *lon, float *dummy1, 
+			     float *line, float *elem, float *dummy2));
+extern int	nvxini_ FP ((int *ifunc, int *nav_codicil));
+
 
 
 
