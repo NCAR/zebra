@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.18 1992-11-10 18:31:36 burghart Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.19 1992-12-18 10:05:19 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,7 +21,18 @@ static char *rcsid = "$Id: Overlay.c,v 2.18 1992-11-10 18:31:36 burghart Exp $";
  */
 
 # include <config.h>
-# if C_CAP_OVERLAY
+
+/* 
+ * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
+ * always compiled, the PositionIcon function will always be compiled...
+ */
+# if (1 || C_CAP_OVERLAY || C_CAP_VECTOR || C_CAP_LIGHTNING || C_CAP_TRACKS)
+# define OV_POSITION_ICON
+# else
+# undef OV_POSITION_ICON
+# endif
+
+# ifdef OV_POSITION_ICON
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -50,6 +61,12 @@ typedef struct _OvIcon
 } OvIcon;
 
 static stbl OvIcons = 0;	/* Symbol table for icons		*/
+
+# endif /* ifdef OV_POSITION_ICON */
+
+/*//////////////////////////////////////////////////////////////////////*/
+
+# if C_CAP_OVERLAY
 
 typedef enum
 {
@@ -1581,49 +1598,6 @@ float *asize;
 
 
 
-static OvIcon *
-ov_GetIcon (name)
-char *name;
-/*
- * Get the icon by this name.
- */
-{
-	SValue v;
-	int type;
-	OvIcon *icon;
-	char filename[80];
-/*
- * Make sure our symbol table exists.
- */
-	if (! OvIcons)
-		OvIcons = usy_c_stbl ("LocationIcons");
-/*
- * If this icon is already cached in the symbol table, just return it.
- */
-	if (usy_g_symbol (OvIcons, name, &type, &v))
-		return ((OvIcon *) v.us_v_ptr);
-/*
- * Nope.  Time to get it from a file. 
- */
-	icon = ALLOC (OvIcon);
-	sprintf (filename, "%s/icons/%s", LIBDIR, name);
-	if (XReadBitmapFile (Disp, RootWindow (Disp, 0), filename, &icon->oi_w,
-		&icon->oi_h, &icon->oi_pixmap, &icon->oi_xh, &icon->oi_yh)
-		!= BitmapSuccess)
-	{
-		free (icon);
-		return (NULL);
-	}
-/*
- * Cache this one, and we're done.
- */
-	v.us_v_ptr = (char *) icon;
-	usy_s_symbol (OvIcons, name, SYMT_POINTER, &v);
-	return (icon);
-}
-
-
-
 
 
 
@@ -1974,13 +1948,57 @@ bool *solid, *ll;
 
 
 
-# endif		/* C_C_CAP_OVERLAY */
+# endif		/* C_CAP_OVERLAY */
 
 
 /*
- * This routine is special, and should be here even without overlays.
+ * These routines are special, and should be here even without overlays.
  */
-# if (C_CAP_OVERLAY || C_CAP_VECTOR || C_CAP_LIGHTNING)
+# ifdef OV_POSITION_ICON
+
+static OvIcon *
+ov_GetIcon (name)
+char *name;
+/*
+ * Get the icon by this name.
+ */
+{
+	SValue v;
+	int type;
+	OvIcon *icon;
+	char filename[80];
+/*
+ * Make sure our symbol table exists.
+ */
+	if (! OvIcons)
+		OvIcons = usy_c_stbl ("LocationIcons");
+/*
+ * If this icon is already cached in the symbol table, just return it.
+ */
+	if (usy_g_symbol (OvIcons, name, &type, &v))
+		return ((OvIcon *) v.us_v_ptr);
+/*
+ * Nope.  Time to get it from a file. 
+ */
+	icon = ALLOC (OvIcon);
+	sprintf (filename, "%s/icons/%s", LIBDIR, name);
+	if (XReadBitmapFile (Disp, RootWindow (Disp, 0), filename, &icon->oi_w,
+		&icon->oi_h, &icon->oi_pixmap, &icon->oi_xh, &icon->oi_yh)
+		!= BitmapSuccess)
+	{
+		free (icon);
+		return (NULL);
+	}
+/*
+ * Cache this one, and we're done.
+ */
+	v.us_v_ptr = (char *) icon;
+	usy_s_symbol (OvIcons, name, SYMT_POINTER, &v);
+	return (icon);
+}
+
+
+
 ov_PositionIcon (name, x, y, fg)
 char	*name;
 int	x, y, fg;
