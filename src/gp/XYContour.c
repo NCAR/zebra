@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.39 1998-10-28 21:22:20 corbet Exp $")
+RCSID("$Id: XYContour.c,v 1.40 1998-11-20 16:07:07 burghart Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -88,7 +88,7 @@ zbool	update;
 {
 	zbool	fill;
 	int	npts[MAX_PLAT], plat, nplat, ncolors, dmode;
-	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
+	int	dolabel, labelblank, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
 	int	oneplot;
 	float	zstep, ccenter, *datagrid = NULL, widen = 0.0;
@@ -163,6 +163,17 @@ zbool	update;
 	pda_Search (Pd, c, "grid-method", "xy-contour", gridtype, SYMT_STRING);
 	pda_Search (Pd, c, "line-width", "xy-contour", (char *) &linewidth,
 			SYMT_INT);
+/*
+ * Contour labels and whether we blank the area beneath them
+ */
+	dolabel = TRUE;
+	pda_Search (Pd, c, "do-labels", "contour", (char *) &dolabel,
+		    SYMT_BOOL);
+
+	labelblank = TRUE;
+	pda_Search (Pd, c, "label-blanking", "contour", (char *) &labelblank,
+		    SYMT_BOOL);
+	dt_SetBlankLabel (labelblank);
 /*
  * Data types
  */
@@ -885,9 +896,9 @@ char *c, *platforms, **pnames, **xfnames, **yfnames, **zfnames;
 		msg_ELog (EF_PROBLEM, "XYContour: %s: too many platforms", c);
 		return (FALSE);
 	}
-	*nxfield = CommaParse (xflds, xfnames);
-	*nyfield = CommaParse (yflds, yfnames);
-	*nzfield = CommaParse (zflds, zfnames);
+	*nxfield = ParseFieldList (xflds, xfnames);
+	*nyfield = ParseFieldList (yflds, yfnames);
+	*nzfield = ParseFieldList (zflds, zfnames);
 /*
  * Test for acceptable combinations of numbers of fields and platforms.
  * Number of fields must be equal, and the number must be equal to 
