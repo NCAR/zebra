@@ -38,7 +38,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.2 1993-02-02 19:35:33 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.3 1993-02-23 18:14:54 corbet Exp $")
 
 //
 // Import from main.
@@ -193,7 +193,7 @@ MoveCDFile (const char *fname, const char *base, int nstrip, const char *dest)
 // Attempt to open the input file.
 //
 	FixFName (fname, base, nstrip, realname);
-	cout << "File " << realname;
+//	cout << "File " << realname;
 	if ((ifd = open (realname, O_RDONLY)) < 0)
 	{
 		cerr << "Unable to open " << realname << ".\n";
@@ -204,8 +204,8 @@ MoveCDFile (const char *fname, const char *base, int nstrip, const char *dest)
 //
 	const char *slash = strrchr (fname, '/') + 1;
 	sprintf (realname, "%s/%s", dest, slash);
-	cout << "\n\t-> " << realname << ".\n";
-	cout.flush ();
+//	cout << "\n\t-> " << realname << ".\n";
+//	cout.flush ();
 	if ((ofd = open (realname, O_WRONLY | O_CREAT, 0666)) < 0)
 	{
 		cerr << "Unable to create " << realname << ".\n";
@@ -515,7 +515,7 @@ ExtractTapeFile (Tape &tape, char *plat, TarHeader *tp)
 	char fname[200], *cp = strrchr (hdr.th_name, '/');
 	strcpy (fname, destdir);
 	strcat (fname, cp);
-	cout << "Extr " << hdr.th_name << " to " << fname << ".\n";
+//	cout << "Extr " << hdr.th_name << " to " << fname << ".\n";
 //
 // Create the file.
 //
