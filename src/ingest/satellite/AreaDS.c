@@ -15,9 +15,8 @@
 # include <ingest.h>
 
 # include "Area.h"
-# include "mcidas.h"
 
-RCSID("$Id: AreaDS.c,v 1.1 1997-06-22 21:00:57 granger Exp $")
+RCSID("$Id: AreaDS.c,v 1.2 1997-12-08 18:18:27 burghart Exp $")
 
 
 

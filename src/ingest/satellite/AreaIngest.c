@@ -12,10 +12,10 @@
 # include <defs.h>
 # include <message.h>
 
+# include <mcidas_nav.h>
 # include "Area.h"
-# include "mcidas.h"
 
-RCSID("$Id: AreaIngest.c,v 1.4 1997-06-22 21:00:58 granger Exp $")
+RCSID("$Id: AreaIngest.c,v 1.5 1997-12-08 18:18:28 burghart Exp $")
 
 
 static inline unsigned char
@@ -148,7 +148,7 @@ SetAreaLimits (AreaFile *f, AreaGrid *ag)
 	{
 		return (0);
 	}
-	if (nvxini (1, nav_cod) < 0)
+	if (nvxini (nav_cod) < 0)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Bad navigation initialization for file '%s'", 
@@ -333,7 +333,7 @@ DoFile (AreaFile *f, const char *spec, const AreaGrid *ag, unsigned char *map)
 /*
  * Initialize the navigation stuff
  */
-	if (nvxini (1, nav_cod) < 0)
+	if (nvxini (nav_cod) < 0)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Bad navigation initialization for file '%s'", 
