@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.10 1993-10-14 20:21:48 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.11 1993-12-14 03:22:44 granger Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -567,7 +567,7 @@ int frame, pixmap;
  *  Update important FrameFile values.
  */
 # ifdef SHM
-	if(GWShmPossible(Graphics))
+	if(GWFrameShared(Graphics, pixmap))
 		framesize = GWHeight(Graphics) * GWGetBPL(Graphics, pixmap);
  	else
 # endif
@@ -610,7 +610,7 @@ int frame, pixmap;
  *  Transfer frame data from FrameFile to pixmap.
  */
 #ifdef SHM
-	if(GWShmPossible(Graphics))
+	if(GWFrameShared(Graphics, pixmap))
 	{
 		if(read(FrameFile, GWGetFrameAddr(Graphics, pixmap), 
 			framesize) != framesize)
@@ -667,7 +667,7 @@ int frame;
  *  Update important FrameFile values.
  */
 # ifdef SHM
-	if(GWShmPossible(Graphics))
+	if(GWFrameShared(Graphics, FCache[frame].fc_index))
 		framesize = GWHeight(Graphics) * GWGetBPL(Graphics, 
 			FCache[frame].fc_index);
 	else
@@ -702,7 +702,7 @@ int frame;
  *  pixmaps if possible.
  */
 #ifdef SHM
-	if(GWShmPossible(Graphics))
+	if(GWFrameShared(Graphics, FCache[frame].fc_index))
 	{
 		if(write(FrameFile, GWGetFrameAddr(Graphics, 
 			FCache[frame].fc_index), framesize) != framesize)
