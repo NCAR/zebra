@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.6 1999-10-15 03:55:21 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.7 1999-11-22 20:37:39 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -21,6 +21,14 @@
   apparently class_ingest accounts for files stored in reverse chronological
   order.  We can account for this by testing after samples are stored and
   calling sort samples if necessary.
+
+  fix for positive offset in first line: if launch offset on first line is
+  0 < 10000, then it is a negative launch time whose negative sign has been
+  truncated by field width.  Change it to a negative time rather than
+  skipping it, since that line is the surface data, and the surface data
+  should still be ok.  If >= 10000, then the launch button was not pressed,
+  so we don't know what time to assign to the surface data.  Use -999 as a
+  valid pre-launch time which hopefully flags the unusual circumstances.
 
 */
 
@@ -62,7 +70,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.6 1999-10-15 03:55:21 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.7 1999-11-22 20:37:39 granger Exp $")
 
 #include "ZTime.hh"
 #include "FieldClass.h"
@@ -123,7 +131,7 @@ typedef struct _SiteTrans {
 
 static SiteTranslation	*SiteTransList = (SiteTranslation *) 0;
 
-extern const char *FT_VWind;	// Bug in Field.h left this out
+extern const char *FT_VWind;	// Bug in older versions of Field.h
 
 /*
  * Define the field types we need to represent soundings.
@@ -405,27 +413,13 @@ static void	SetPlatform (DataChunk *dc, char PlatformName[]);
 static void 	GetPlatformName (const Sounding &snd, char plat[]);
 static void	BuildTranslationTable (const char *tfilename);
 static void	ParseCommandLineOptions (int *argc, char *argv[]);
-// static void   	ParseFieldNames (int argc, char *argv[],
-// 			         FieldId *fields, int *nfields);
 static char *	GetNextString (char *, char*);
 extern "C"	void Usage(char *prog_name);
 
-
-//static ZebTime *GetTimes FP((int *npts));
-//static void	SetLocations FP((DataChunk *dc, int nsamples));
-
-//static void 	LoadFieldData FP((DataChunk *dc, ZebTime *times,
-//			int nsamples, FieldId *fields, int nfields,
-//			bool reverse));
-//static void	FixBadTimes FP ((float *, int));
-
-//# define BUFLEN	5000
 # define MAX_FIELDS 32
 
 static const char *INGEST_NAME = "glass_ingest";
-
 static const float BADVAL = -999.0; 	/* Specific to GLASS files? */
-
 static const int ZEB_PROBLEM = 1;
 static const int FILE_PROBLEM = 8;
 static const int PROBLEM = 99;
@@ -443,22 +437,6 @@ static char	*Tfilename = NULL;
  */
 static float	QualThresh = 1.5;
 
-
-#ifdef notdef
-/*
- * Define all large data buffers globally:
- */
-float	Pres[BUFLEN]; 		/* Holds pressure fields */
-float	QPres[BUFLEN];		/* Holds pressure quality fields */
-float	Buf[BUFLEN];		/* Used to read in the samples of 
-				 * of data from the data file */
-int	BadPts[BUFLEN];		/* Holds an index to each of the bad
-				 * data points out of a file's list
-				 * of data points.  Each field for each
-				 * point included
-				 * in this array is assigned BADVAL 
-				 * when read */
-#endif
 
 /*
  * Global debugging flags set from command line
@@ -671,170 +649,6 @@ SetPlatform (DataChunk *dc, char PlatformName[])
 
 
 
-#ifdef notdef
-/* GetTimes ------------------------------------------------------------
- *   Allocate and fill in an array of ZebTime's for each point in the 
- *   sounding file, returning the array and the number of points
- */
-static ZebTime *
-GetTimes (int *npts)
-{
-	date	start, t, snd_time ();
-	int	i, hours, minutes, seconds, delta, snd_get_data ();
-	int 	Npts;
-	ZebTime *times;
-
-/*
- * Get the start time and the time data for the sounding
- */
-	start = snd_time (SND);
-
-	Npts = snd_get_data (SND, Buf, BUFLEN, fd_num("time"), BADVAL);
-/*
- * Bad-value times do really nasty things to the result in the data
- * store.  You don't wanna know.  Fix them up here.
- */
-	FixBadTimes (Buf, Npts);
-/*
- * Allocate the times array
- */
-	times = (ZebTime *) malloc (Npts * sizeof(ZebTime));
-/*
- * Convert the sounding times, which are in seconds from sounding launch,
- * into absolute times and then convert them to ZebTime
- */
-	for (i = 0; i < Npts; i++)
-	{
-		t = start;
-
-		if (Buf[i] >= 0)
-		{
-			hours = (int)(Buf[i] / 3600);
-			minutes = (int)((Buf[i] - 3600 * hours) / 60);
-			seconds = (int)(Buf[i] - 3600 * hours - 60 * minutes);
-			delta = 10000 * hours + 100 * minutes + seconds;
-			pmu_dadd (&t.ds_yymmdd, &t.ds_hhmmss, delta);
-		}
-
-		TC_UIToZt( &t, times+i );
-	}
-
-	*npts = Npts;
-	return (times);
-}
-#endif
-
-
-
-#ifdef notdef
-static void
-FixBadTimes (times, ntime)
-float *times;
-int ntime;
-/*
- * Interpolate in for bad-value times.
- */
-{
-	int t, fwd, fix, nfix = 0;
-/*
- * First time has gotta be good.
- */
-	if (times[0] == BADVAL)
-		times[0] = 0;	/* XXXXX */
-/*
- * Plow through looking for bad ones.
- */
-	for (t = 1; t < ntime; t++)
-	{
-		if (times[t] == BADVAL)
-		{
-			for (fwd = t + 1; fwd < ntime; fwd++)
-				if (times[fwd] != BADVAL)
-					break;
-			if (fwd >= ntime)
-			{
-				for (fwd = t; fwd < ntime; fwd++) /* XXX */
-					times[fwd] = times[fwd - 1] + 1;
-				nfix += ntime - t;
-				break;
-			}
-			else
-			{
-				for (fix = t; fix < fwd; fix++)
-					times[fix] = times[t-1] +
-						(times[fwd]-times[t-1])*
-						(fix - t + 1)/(fwd - t + 1);
-				nfix += fwd - t;
-			}
-		}
-	}
-	if (nfix)
-		msg_ELog (EF_INFO, "%d times thrashed", nfix);
-}
-#endif
-
-
-
-#ifdef notdef
-/* SetLocations ---------------------------------------------------------
- *   Read the location of each data sample in the sounding file and set
- *   the location in the data chunk
- */
-static void
-SetLocations (dc, Npts)
-	DataChunk *dc;
-	int Npts;
-{
-	float	snd_s_lat (), snd_s_lon (), snd_s_alt ();
-	int	snd_get_data ();
-	int 	i;
-	Location *locns;
-
-	locns = (Location *) malloc (Npts * sizeof(Location));
-
-#ifdef notdef  /* WHAT DO I DO WITH THE SITE LOCATION??? */
-/*
- * Put in the site location
- */
-	Dobj.do_loc.l_lat = snd_s_lat (SND);
-	Dobj.do_loc.l_lon = snd_s_lon (SND);
-	Dobj.do_loc.l_alt = 0.001 * snd_s_alt (SND);
-#endif
-
-/*
- * Get the latitude data
- */
-	snd_get_data (SND, Buf, BUFLEN, fd_num ("latitude"), BADVAL);
-
-	for (i = 0; i < Npts; i++)
-		locns[i].l_lat = Buf[i];
-/*
- * Get the longitude data
- */
-	snd_get_data (SND, Buf, BUFLEN, fd_num ("longitude"), BADVAL);
-
-	for (i = 0; i < Npts; i++)
-		locns[i].l_lon = Buf[i];
-/*
- * Get the altitude data, converting from m to km
- */
-	snd_get_data (SND, Buf, BUFLEN, fd_num ("altitude"), BADVAL);
-
-	for (i = 0; i < Npts; i++)
-		locns[i].l_alt = 0.001 * Buf[i];
-
-/*
- * Now store the locns in the data chunk for each sample
- */
-	for (i = 0; i < Npts; i++)
-		dc_SetLoc(dc, i, locns+i);
-	
-	free (locns);
-}
-#endif
-
-
-
 /* GetPlatformName ----------------------------------------------------
  *   Opens 'classfile' and extracts an all-lowercase platform name
  */
@@ -964,150 +778,6 @@ Usage (char *prog)
 	printf ("   %s -fields -class\n\n", prog);
 }
 
-
-#ifdef notdef
-/* ParseFieldNames ----------------------------------------------------
- *    Fill in a FieldId array from field names starting with argv[2]
- */
-static void
-ParseFieldNames(int argc, char *argv[], FieldId fields[], int *nfields)
-{
-	*nfields = 0;
-/*
- * The field names start with argv[2] ...
- */
-	CheckForField check;
-	GlassFileRecord rec;
-	int f;
-	for (f = 2; f < argc; f++)
-	{
-	    int c;
-	/*
-	 * Make sure this field is among those available from a CLASS file,
-	 * then get an id and stash it in our field list.
-	 */
-	    rec.enumerate (check.find (argv[f]));
-	    const ZField *field = check.found ();
-	    if (! field)
-	    {
-		IngestLog(EF_PROBLEM,
-			  "%s not a recognized field.", argv[f]);
-	    }
-	    else
-	    {
-		fields[*nfields] = field->fieldId();
-		IngestLog(EF_DEBUG,"%s: Field %s has id %d", argv[1],
-			  argv[f], fields[*nfields]);
-		++(*nfields);
-	    }		    
-#ifdef notdef
-	    for (c = 0; c < NClassFields; c++)
-		if (! strcmp (argv[f], ClassFields[c].name))
-		    break;
-
-	    if (c == NClassFields)
-	    {
-		IngestLog(EF_PROBLEM,
-			  "%s: %s not a recognized field.", argv[1], argv[f]);
-	    }
-	    else
-	    {
-		struct _ClassField *cf = ClassFields + c;
-		
-		fields[*nfields] = F_Field (cf->name, cf->type, 
-					    cf->description, cf->units);
-
-		IngestLog(EF_DEBUG,"%s: Field %s has id %d", argv[1],
-			  argv[f], fields[*nfields]);
-		++(*nfields);
-	    }
-#endif
-	}
-}
-#endif
-
-
-#ifdef notdef
-/* LoadFieldData --------------------------------------------------------
- *    Load data from the sounding file for each FieldId in the fields array
- *    into the DataChunk dc.
- *    Each field has nsamples, and times holds the time of each sample
- *    The order of samples should be reversed if 'reverse' is true
- */
-static void
-LoadFieldData(dc, times, nsamples, fields, nfields, reverse)
-	DataChunk *dc;
-	ZebTime *times;
-	int nsamples;
-	FieldId *fields;
-	int nfields;
-	bool reverse;
-{
-	int nbad = 0;
-	int i, f;
-	float temp;
-/*
- * Get pressure and pressure quality fields to build a data removal
- * list
- */
-	snd_get_data (SND, Pres, BUFLEN, fd_num ("pres"), BADVAL);
-	snd_get_data (SND, QPres, BUFLEN, fd_num ("qpres"), BADVAL);
-
-	for (i = 0; i < nsamples; i++)
-		if (Pres[i] == BADVAL 	|| 
-		    QPres[i] == BADVAL 	|| 
-		    Pres[i] == 0.0 	|| 
-				(QPres[i] > QualThresh && QPres[i] != 77 
-						&& QPres[i] != 88
-						&& QPres[i] != 99))
-			BadPts[nbad++] = i;
-
-	/* Report the number of bad points found */
-	IngestLog(EF_INFO, "number of bad points found: %d", nbad);
-
-	/* If there are no good points in this file, say so */
-	if (nbad == nsamples)
-	{
-		IngestLog(EF_PROBLEM,"no good samples in file");
-		throw AppException ("No good points to ingest");
-	}
-/*
- * For each field id in the fields array, read data into the buffer,
- * correct for bad value points, and store in dc
- */
-	for (f=0; f < nfields; ++f)
-	{
-	/*
-	 * Read the nsamples of data into Buf for the current field id
-	 */
-		snd_get_data (SND, Buf, BUFLEN, 
-			      fd_num(F_GetName(fields[f])), BADVAL);
-	/*
-	 * Remove the bad points
-	 */
-		for (i = 0; i < nbad; i++)
-			Buf[BadPts[i]] = BADVAL;
-	/*
-	 * Reverse samples if necessary
-	 */
-		if (reverse)
-		{
-			for (i = 0; i < nsamples / 2; i++)
-			{
-				temp = Buf[i];
-				Buf[i] = Buf[nsamples - i - 1];
-				Buf[nsamples - i - 1] = temp;
-			}
-		}
-
-	/*
-	 * Store the data in the DataChunk dc (it will be copied from Buf)
-	 */
-		dc_AddMultScalar(dc, times, 0, nsamples, fields[f], Buf);
-
-	} /* on to the next field... */
-}
-#endif
 
 
 
@@ -1277,10 +947,6 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 		// header labels.
 		sprintf (attr, "header%02d", lino);
 		dc_SetGlobalAttr (dc, attr, const_cast<char *>(line.c_str()));
-#ifdef notdef
-		dc_SetGlobalAttr (dc, const_cast<char *>(left.c_str()),
-				  const_cast<char *>(right.c_str()));
-#endif
 		// Now check for expected attributes.
 		int year, mon, day, hour, min, sec;
 		if (left.find("GMT Launch Time") != string::npos)
@@ -1443,11 +1109,29 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			continue;
 		}			
 
-		// Now we should have the fields we need to insert a sample.
-		// We check for bad launch deltas, and ignore any leading
-		// lines with deltas further than a minute.
-		if (snd.tdelta() == BADVAL ||
-		    (when == 0 && snd.tdelta() > 60))
+		// Fix for positive offset in first line: 
+		// -------------------------------------------------------
+		// If launch offset on first line is 0 < 10000, then it is
+		// a negative launch time whose negative sign has been
+		// truncated by field width.  Change it to a negative time
+		// rather than skipping it, since that line is the surface
+		// data, and the surface data should still be ok.  If >=
+		// 10000, then the launch button was not pressed, so we
+		// don't know what time to assign to the surface data.  Use
+		// -999 as a valid pre-launch time which hopefully flags
+		// the unusual circumstances.
+		if (when == 0 && snd.tdelta() > 0)
+		{
+			if (snd.tdelta() < 10000)
+			{
+				snd.tdelta() = 0 - snd.tdelta();
+			}
+			else
+			{
+				snd.tdelta() = -999;
+			}
+		}
+		else if (when != 0 && snd.tdelta() == BADVAL)
 		{
 			IngestLog (EF_DEBUG, 
 				   "Bad time value on line %d: %s",
@@ -1455,13 +1139,16 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			++badlines;
 			continue;
 		}
+
+		// Now we should have the fields we need to insert a sample.
 		when = snd.tlaunch;
 		when += snd.tdelta();
 
-		// If the pressure value is bad, store all fields as bad.
 		if (snd.pres() == BADVAL)
 		{
 #ifdef notdef
+			// If the pressure value is bad, store all fields
+			// as bad.
 			SetRecord sr(BADVAL);
 			snd.enumerate (sr);
 #endif
