@@ -10,6 +10,7 @@ p_rg_winds
 	representation:	vector
 	u-field:	u_wind
 	v-field:	v_wind
+	altitude-control:	true
 	arrow-scale:	0.01
 	color:		red
 	icon-left-menu:		standard-cap-left-menu
