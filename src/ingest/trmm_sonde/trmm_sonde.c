@@ -13,13 +13,17 @@
  * line contains the same station id).  The program will issue warnings
  * if this is not true and skip the offending stations.
  *
- * The wind file contains lines flagged with AAXX source codes.  It is 
- * unkown what this means, but such lines seem to have times 1 hour before
- * the time of the next series of sounding samples, and they seem to be
- * the only lines with a valid temperature and dew point.  For now,
- * they'll just be skipped.  Samples will be assumed to occur chronologically
- * in the file.  For that matter, just skip soundings which only have
- * one sample in them.
+ * The wind file contains lines flagged with AAXX source codes, different
+ * from the majority of codes.  These lines have times 1 hour after the
+ * time of the next series of sounding samples, and they seem to be the
+ * only lines with a valid temperature and dew point.  This program assumes
+ * these singleton lines contain baseline data, and ingests this data as the
+ * first level of the sounding.  Samples will be assumed to occur
+ * chronologically in the file, except for the baseline<->sounding series
+ * pattern, in which case the time of the baseline data is decremented by
+ * one hour to match the times of the rest of the samples in the sounding.
+ * Each sample in a sample is arbitrarily given a time one second after
+ * the previous sample.
  */
 /*
  *		Copyright (C) 1993 UCAR
@@ -42,7 +46,7 @@
 
 # ifndef lint
 static char *rcsid = 
-	"$Id: trmm_sonde.c,v 1.2 1993-06-07 19:00:23 granger Exp $";
+	"$Id: trmm_sonde.c,v 1.3 1993-06-12 08:53:14 granger Exp $";
 # endif
 
 # include <time.h>
@@ -346,7 +350,6 @@ char *platform;
 		 */
 			locn.l_lat = station->lat;
 			locn.l_lon = station->lon;
-			
 		}
 	/*
 	 * Else verify the station number
@@ -373,7 +376,7 @@ char *platform;
 		 * in a new file, as long as there is something worth
 		 * storing.
 		 */
-			if (nsample > 1)
+			if (nsample > 0)
 			{
 				IngestLog (EF_DEBUG, 
 					   "Storing sounding of %d samples",
@@ -385,10 +388,6 @@ char *platform;
 						   station->id);
 				}
 			}
-			else
-				IngestLog (EF_DEBUG,
-				   "Skipping '%s' sounding of %d samples",
-				   source, nsample);
 		/*
 		 * Start a whole new datachunk for the next sounding
 		 */
@@ -397,6 +396,16 @@ char *platform;
 			dc = InitializeDC (platform, nfields, fids);
 			if (!dc)
 				break;
+		/*
+		 * Assume the first line of a sounding with the 'AAXX' code
+		 * is base line data, and that its time needs to be
+		 * decremented by one hour to get the time of the rest of
+		 * the sounding samples to follow.  Lines without AAXX
+		 * do not have their times adjusted.  No matter what, the
+		 * next sounding should have the same time as zt_sounding.
+		 */
+			if (!strcmp(source,"AAXX"))
+				zt_now.zt_Sec -= 60*60;
 			zt_sounding = zt_now;
 			nsample = 0;
 			seconds = 0;
