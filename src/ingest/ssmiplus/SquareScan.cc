@@ -1,5 +1,6 @@
-/*
- * $Id: SquareScan.cc,v 1.3 1994-02-02 23:49:47 burghart Exp $
+/* -*- C++ -*-
+ *
+ * $Id: SquareScan.cc,v 1.4 1994-11-16 19:31:29 granger Exp $
  *
  * Functions for manipulating scans and square-scans
  */
