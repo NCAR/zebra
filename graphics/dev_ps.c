@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.7 1991-11-15 17:14:44 burghart Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.8 1992-06-18 15:05:55 burghart Exp $";
 /*
  * The tag structure
  */
@@ -371,17 +371,19 @@ ps_finish_page (ptp)
 struct ps_tag	*ptp;
 {
 	char	command[80];
+	static int	pagecount = 0;
 /*
  * Finish this page
  */
 	ps_out_s (ptp, "showpage\n");
 	ps_buf_out (ptp);
 /*
- * If we're piping the output, close and reopen the pipe at each
+ * If we're piping the output, close and reopen the pipe every other
  * page so we don't run into printer queue size limits.  (This makes
- * each page a separate printer job)
+ * each page a separate printer job.  It used to be every page, but now
+ * we have a duplexing printer.  Hooray!)
  */
-	if (ptp->pt_pipe)
+	if (ptp->pt_pipe && (pagecount++ % 2))
 	{
 		pclose (ptp->pt_file);
 
