@@ -16,6 +16,7 @@ p_model
 	icon:		SOMETHING
 	label-blanking:	false
 	line-width:	2
+	limit-proc:	contour-putup-adj
 	icon-left-menu:	standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 	posicon-middle-menu:	FieldMenu
