@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.5 1992-04-28 06:24:28 issadmin Exp $
+ * $Id: is_vars.h,v 1.6 1992-07-06 17:31:15 issadmin Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -36,24 +36,13 @@ enum CONFIG_TYPE {
 	IS_FTYPE, IS_CTYPE, IS_PTYPE
 };
 
-/*
- * the following defines entries in a linked list of process identifiers. A
- * given configuration may (in the future) have more than one process running
- * at a given time. It doesn't make sense to allow this yet since the data
- * store cannot deal with data older than the youngest objects
- */
-struct proc_entry {
-	int             pid;
-	struct proc_entry *next;
-};
-
 /* the following defines an ingest scheduler configuration */
 struct is_config {
 	enum CONFIG_TYPE type;	/* either file type or serial type */
 	char           *name;	/* configuration name */
 	char           *platform;	/* platform name */
-	char           *filename;	/* filename to match against
-					 * (file type only) */
+	char           *filename;	/* filename to match against (file
+					 * type only) */
 	char           *movedir;/* directory to move finished files to, null
 				 * for no move (file type only) */
 	char            delete;	/* true if file delete after ingest (file
@@ -70,7 +59,7 @@ struct is_config {
 				 * this configuration */
 	char            ingest_file[MAX_FILE_NAME];	/* complet path name of
 							 * file to ingest */
-	struct proc_entry *proc;/* linked list of the active processes */
+	int             pid;	/* process id of running ingestor */
 	char            basename[MAX_FILE_NAME];	/* just the basename of
 							 * the file to ingest */
 	char            rollover;	/* true if an ingester was rerun
