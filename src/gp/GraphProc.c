@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.36 1993-12-01 17:00:16 burghart Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.37 1993-12-14 03:23:16 granger Exp $")
 
 /*
  * Default resources.
@@ -163,9 +163,10 @@ GPShutDown ()
 	pdm_Finish ();
 # ifdef SHM
 	RP_ZapSHMImage (Graphics);
-	if(GWShmPossible(Graphics))
+	if (GWShmPossible (Graphics))
 		for(i = 0; i < FrameCount; i++)
-			GWZapShmPixmap(Graphics, i);
+			if (GWFrameShared (Graphics, i))
+				GWZapShmPixmap(Graphics, i);
 # endif
 /*
  * Is this necessary?
