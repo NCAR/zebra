@@ -3,6 +3,7 @@
 !
 global
 	pd-name:	tseries-template
+	add-data-command: tseries-add
 	plot-type:	xygraph
 	plot-mode:	history
 	plot-time:	now
