@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.26 1991-02-20 21:07:56 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.27 1991-03-05 23:16:41 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -49,6 +49,8 @@ char Ourname[40];	/* What is our process name?	*/
 Widget	Top;				/* The top level widget		*/
 Widget	Graphics, GrShell;		/* The graphics widget		*/
 Display	*Disp;				/* Our display			*/
+char 	FrameFilePath[40];		/* Path to FrameFile		*/
+int	FrameFileFlag = 0;		/* True when file should be opened */
 int	FrameCount = 1;			/* Number of frames		*/
 int	DisplayFrame = 0;		/* Frame being displayed	*/
 int	DrawFrame = 0;			/* Frame to draw next		*/
@@ -107,10 +109,18 @@ GPShutDown ()
  * Finish up and quit.
  */
 {
+	int i;
+	char filename[50];
+	
 	ui_finish ();
 # ifdef SHM
 	RP_ZapSHMImage (Graphics);
+	if(GWShmPossible(Graphics))
+		for(i = 0; i < FrameCount; i++)
+			GWZapShmPixmap(Graphics, i);
 # endif
+	sprintf(filename, "%s/%sFrameFile", FrameFilePath, Ourname);
+	unlink(filename);
 	exit (0);
 }
 
