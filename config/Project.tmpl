@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.4 1993-09-27 18:20:18 case Exp $
+/**/# $Id: Project.tmpl,v 1.5 1994-01-04 20:45:39 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -120,6 +120,14 @@
 #define RDSSLibDir $(TOP)/lib
 #endif
 
+#ifndef SOLOLibDir
+#define SOLOLibDir $(TOP)/lib
+#endif
+
+#ifndef SOLOBinDir
+#define SOLOBinDir $(TOP)/bin
+#endif
+
 #ifndef UseOpenWindows
 #define UseOpenWindows NO
 #endif
@@ -142,6 +150,10 @@
 
 #ifndef UseNetCDF
 #define UseNetCDF NO
+#endif
+
+#ifndef BuildDoradeReorder
+#define BuildDoradeReorder NO
 #endif
 
 
@@ -196,11 +208,20 @@
 #define RADARInclude $(RDSSDIR)/radar/h
 #endif
 
-#if SystemV4
+#if SystemV
 #  ifndef UseSystemVDev
 #     define UseSystemVDev YES
 #  endif
 #endif
+
+/*
+ * For Solo
+ */
+
+#ifndef SOLOInclude
+#define SOLOInclude $(RDSSDIR)/solo/include
+#endif
+
 
 
 /*///////////////////////////////////////////////////// Libraries //////////////*/
@@ -259,7 +280,11 @@ LoaderLibPrefix -lX11
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #       endif
 #    else
-#       define XLibraries /**/
+#       if (OldOpenWin)
+#define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lX11
+#       else
+#define XLibraries /**/
+#       endif         
 #    endif 
 #  endif
 #endif /* ifndef XLibraries */
@@ -443,6 +468,8 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
         CONFIGDIR = ConfigDir		/* build configuration information */
       OPENWINHOME = OpenWinHome         /* OpenWindows home */
           DESTDIR =                     /* Nothing */
+       SOLOBINDIR = SOLOBinDir          /* For Solo executables */
+       SOLOLIBDIR = SOLOLibDir          /* For Solo libraries */
 
 
 /* 
@@ -479,6 +506,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
      NETCDFINCDIR = NetCDFIncDir
       RADARINCDIR = RADARInclude
+       SOLOINCDIR = SOLOInclude
 
 /*
  * Directory include options; only the TOP_INCLUDES option will always exist
@@ -490,6 +518,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
    NETCDFINCLUDES = NetCDFIncludes
    CONFIGINCLUDES =
     RADARINCLUDES = -I$(RADARINCDIR)
+     SOLOINCLUDES = -I$(SOLOINCDIR)
 
 /* 
  * Project-wide include directories.  Local Imakefiles use the INCLUDES variable
@@ -503,12 +532,45 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  * or EXTRA_FDEFINES for Fortran defines
  */
 
-#ifdef SGIArchitecture
-          DEFINES = -DUNIX -cckr
+#if defined (SGIArchitecture) && !UseGcc
+/*
+ * use cckr option because the default xansi does not compile.  This should
+ * be looked into time permitting.
+ */
+ 
+          DEFINES = -DUNIX -cckr 
 #else
           DEFINES = -DUNIX
 #endif
-         FDEFINES = -DUNIX
+
+#if defined (SGIArchitecture)
+
+/*
+ * SGI FORTRAN does not automatically initialize storage to zero.  We need to
+ * add the -static option.  Since this must be included on all SGI compiles,
+ * it's being defined here instead of site-def.h.
+ */
+          FDEFINES = -DUNIX -static
+
+#else  
+          FDEFINES = -DUNIX
+
+#endif
+
+
+/*
+ * HP's Fort77 works more like the the f77 we're used to,
+ * but it still needs a lot of options to find
+ * routines we need.  For now, all the options are included here for
+ * simplicity and to make sure they are used.
+ */
+
+#ifdef HPArchitecture
+
+               FC = fort77 +ppu +U77 -K +E1
+
+#endif
+
 
 
 /*
@@ -555,8 +617,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
         CCOPTIONS = CCOptions 
       CSTATICFLAG = CCStaticOption
          C++FLAGS = CccOptions $(CFLAGS)
-          C++LIBS = CccLibs /* variable should be explicitly included in 	*/
-                            /* targets for c++ progs 				*/
+          C++LIBS = CccLibs /* variable should be explicitly included */
+                            /* in targets for c++ progs */
+
 /*
  * Only set the Fortran compiler explicitly if a value has been defined.
  * Otherwise we'll default to Make's implicit rule value
@@ -581,6 +644,17 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
 .cc.o:
 	$(C++) $(C++FLAGS) -c $<
+
+
+/*
+ * For those unfortunate Makes who don't understand .F rules
+ */
+
+.SUFFIXES:	.F
+
+.F.o:
+	$(FC) $(FCFLAGS) -c $<
+
 
 /*
  * Rules specific to the RDSS Libraries project.  Some of these override rules
