@@ -21,6 +21,8 @@
  */
 # include <stdio.h>
 # include <unistd.h>
+# include <sys/types.h>
+# include <time.h>
 # include <math.h>
 # include <fcntl.h>
 # include <signal.h>
@@ -43,7 +45,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.74 2000-11-07 18:09:50 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.75 2000-11-29 18:45:28 granger Exp $")
 
 /*
  * Pick a help browser.
@@ -133,6 +135,7 @@ static int dm_shutdown FP ((void));
 static int dm_cycle FP ((void));
 static int WaitForDeath FP ((struct message *msg, void *param));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
+static int HasData FP ((int, SValue *, int *, SValue *, int *));
 static void MakeWindowList FP ((char *));
 static void MakeDefaultMap FP ((void));
 static void FreeButtonMaps FP ((void));
@@ -335,6 +338,7 @@ char *argv[];
 	uf_def_function ("pd_complist", 1, type, pd_complist);
 	uf_def_function ("nvalue", 3, type, nvalue);
 	uf_def_function ("realplatform", 1, type, RealPlatform);
+	uf_def_function ("hasdata", 1, type, HasData);
 	type[1] = SYMT_INT;
 	uf_def_function ("nthcomp", 2, type, NthComponent);
 /*
@@ -1662,6 +1666,33 @@ SValue *argv, *retv;
 	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
 	*rett = SYMT_BOOL;
 	return (0);
+}
+
+
+
+
+static int
+HasData (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * The "hasdata" command line function -- return true if a data file exists
+ * for this platform.  This is meant to be a quick function and hence tries
+ * to avoid actually opening any files to get sample times or anything like
+ * that.  It merely tests for the existence of data from any source.
+ */
+{
+    int result = 0;
+
+    PlatformId pid = ds_LookupPlatform (argv->us_v_ptr);
+    if (pid != BadPlatform)
+    {
+	result = (ds_LastFile (SRC_ALL, pid) != 0);
+    }
+
+    retv->us_v_int = result;
+    *rett = SYMT_BOOL;
+    return (0);
 }
 
 
