@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: SendWidget.c,v 1.4 1992-04-09 18:36:17 granger Exp $";
+static char *rcsid = "$Id: SendWidget.c,v 1.5 1993-10-20 22:46:25 burghart Exp $";
 
 # include <stdio.h>
 # include <signal.h>
@@ -40,25 +40,14 @@ static char *rcsid = "$Id: SendWidget.c,v 1.4 1992-04-09 18:36:17 granger Exp $"
 /*
  * Private prototypes
  */
-# ifdef __STDC__
-	void sw_DialMode (int);
-	void sw_SendMode (int);
-	void sw_DialRadar (Widget, XtPointer, XtPointer);
-	void sw_SendScan (Widget, XtPointer, XtPointer);
-	void sw_Timeout (void);
-	void sw_KermitCheck (void);
-	void sw_MakeFile (int, char *, char *);
-	void sw_KillKermit (int);
-# else
-	void sw_DialMode ();
-	void sw_SendMode ();
-	void sw_DialRadar ();
-	void sw_SendScan ();
-	void sw_Timeout ();
-	void sw_KermitCheck ();
-	void sw_MakeFile ();
-	void sw_KillKermit ();
-# endif
+static void sw_DialMode FP ((int));
+static void sw_SendMode FP ((int));
+static void sw_DialRadar FP ((Widget, XtPointer, XtPointer));
+static void sw_SendScan FP ((Widget, XtPointer, XtPointer));
+static void sw_Timeout FP ((void));
+static void sw_KermitCheck FP ((void));
+static void sw_MakeFile FP ((int, char *, char *));
+static void sw_KillKermit FP ((int));
 
 /*
  * How long do we wait before we fail a file send? or a connection?
@@ -197,12 +186,14 @@ int	r;
 /*
  * Remove both possible callbacks
  */
-	XtRemoveCallback (WButton[r], XtNcallback, sw_DialRadar, r);
-	XtRemoveCallback (WButton[r], XtNcallback, sw_SendScan, r);
+	XtRemoveCallback (WButton[r], XtNcallback, sw_DialRadar, 
+			  (XtPointer) r);
+	XtRemoveCallback (WButton[r], XtNcallback, sw_SendScan, 
+			  (XtPointer) r);
 /*
  * Put in the dial callback
  */
-	XtAddCallback (WButton[r], XtNcallback, sw_DialRadar, r);
+	XtAddCallback (WButton[r], XtNcallback, sw_DialRadar, (XtPointer) r);
 /*
  * Put "Not Connected" on the status widget
  */
@@ -232,12 +223,14 @@ int	r;
 /*
  * Remove both possible callbacks
  */
-	XtRemoveCallback (WButton[r], XtNcallback, sw_DialRadar, r);
-	XtRemoveCallback (WButton[r], XtNcallback, sw_SendScan, r);
+	XtRemoveCallback (WButton[r], XtNcallback, sw_DialRadar, 
+			  (XtPointer) r);
+	XtRemoveCallback (WButton[r], XtNcallback, sw_SendScan, 
+			  (XtPointer) r);
 /*
  * Put in the send callback
  */
-	XtAddCallback (WButton[r], XtNcallback, sw_SendScan, r);
+	XtAddCallback (WButton[r], XtNcallback, sw_SendScan, (XtPointer) r);
 /*
  * Put "Connected" on the status widget
  */

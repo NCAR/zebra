@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: CommandWidget.c,v 1.3 1991-09-17 14:46:13 burghart Exp $";
+static char *rcsid = "$Id: CommandWidget.c,v 1.4 1993-10-20 22:46:15 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -42,23 +42,13 @@ static Widget	WBot, WTop, WTime, WAsap;
 /*
  * Private prototypes
  */
-# ifdef __STDC__
-	void	cw_ShowParams (void);
-	void	cw_Exit (Widget, XtPointer, XtPointer);
-	void	cw_TextChange (Widget, XtPointer, XtPointer);
-	void	cw_ExecChanges (Widget, XtPointer, XtPointer);
-	void	cw_DiscardChanges (Widget, XtPointer, XtPointer);
-	void	cw_TimeASAP (Widget, XtPointer, XtPointer);
-	void	cw_EnableButtons (int);
-# else
-	void	cw_ShowParams ();
-	void	cw_Exit ();
-	void	cw_TextChange ();
-	void	cw_ExecChanges ();
-	void	cw_DiscardChanges ();
-	void	cw_TimeASAP ();
-	void	cw_EnableButtons ();
-# endif
+static void	cw_ShowParams FP ((void));
+static void	cw_Exit FP ((Widget, XtPointer, XtPointer));
+static void	cw_TextChange FP ((Widget, XtPointer, XtPointer));
+static void	cw_ExecChanges FP ((Widget, XtPointer, XtPointer));
+static void	cw_DiscardChanges FP ((Widget, XtPointer, XtPointer));
+static void	cw_TimeASAP FP ((Widget, XtPointer, XtPointer));
+static void	cw_EnableButtons FP ((int));
 
 
 

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Boundary.c,v 1.5 1992-11-25 18:11:13 burghart Exp $";
+static char *rcsid = "$Id: Boundary.c,v 1.6 1993-10-20 22:46:11 burghart Exp $";
 
 # include <math.h>
 # include <defs.h>
@@ -39,7 +39,7 @@ static char *rcsid = "$Id: Boundary.c,v 1.5 1992-11-25 18:11:13 burghart Exp $";
  */
 static void	bnd_SetLimits FP ((float *, float *, int));
 static void	bnd_CheckAzRng FP ((Radar *, double, double, double, double));
-static void	bnd_NewBoundary FP ((PlatformId, int, time *));
+static void	bnd_NewBoundary FP ((PlatformId, int, ZebTime *));
 static bool	bnd_GetBoundary FP ((PlatformId));
 
 
@@ -162,7 +162,7 @@ static void
 bnd_NewBoundary (pid, global, t)
 PlatformId	pid;
 int		global;
-time		*t;
+ZebTime		*t;
 /*
  * The data store has a new boundary for us, so go get it
  */

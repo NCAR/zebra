@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ScanOptions.c,v 1.4 1992-11-25 18:12:25 burghart Exp $";
+static char *rcsid = "$Id: ScanOptions.c,v 1.5 1993-10-20 22:46:22 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -516,7 +516,8 @@ Widget	parent;
 		w = WOpt[i+3] = XtCreateManagedWidget (name, 
 			commandWidgetClass, form, args, n);
 
-		XtAddCallback (w, XtNcallback, so_DisplayCallback, i);
+		XtAddCallback (w, XtNcallback, so_DisplayCallback, 
+			       (XtPointer) i);
 
 		w_above = w;
 	}

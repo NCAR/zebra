@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: RadarWidget.c,v 1.4 1991-11-22 20:46:04 kris Exp $";
+static char *rcsid = "$Id: RadarWidget.c,v 1.5 1993-10-20 22:46:20 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -27,6 +27,8 @@ static char *rcsid = "$Id: RadarWidget.c,v 1.4 1991-11-22 20:46:04 kris Exp $";
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/AsciiText.h>
+
+# include <defs.h>
 
 # include "prototypes.h"
 # include "radar.h"
@@ -46,35 +48,19 @@ static Widget	WHits, WStep, WPrf, WMinRng, WMinElev;
 /*
  * Private prototypes
  */
-# ifdef __STDC__
-	Widget	rw_ParamWidget (Widget);
-	Widget	rw_EnableWidget (Widget);
-	void	rw_ShowParams (void);
-	void	rw_ChangeRad (Widget, XtPointer, XtPointer);
-	void	rw_ChangeType (Widget, XtPointer, XtPointer);
-	void	rw_ChangeStatus (Widget, XtPointer, XtPointer);
-	void	rw_ChangeHits (Widget, XtPointer, XtPointer);
-	void	rw_ChangeStep (Widget, XtPointer, XtPointer);
-	void	rw_TextChange (Widget, XtPointer, XtPointer);
-	void	rw_ExecChanges (Widget, XtPointer, XtPointer);
-	void	rw_DiscardChanges (Widget, XtPointer, XtPointer);
-	void	rw_AllowRadChange (int);
-	void	rw_ToggleEnable (Widget, XtPointer, XtPointer);
-# else
-	Widget	rw_ParamWidget ();
-	Widget	rw_EnableWidget ();
-	void	rw_ShowParams ();
-	void	rw_ChangeRad ();
-	void	rw_ChangeType ();
-	void	rw_ChangeStatus ();
-	void	rw_ChangeHits ();
-	void	rw_ChangeStep ();
-	void	rw_TextChange ();
-	void	rw_ExecChanges ();
-	void	rw_DiscardChanges ();
-	void	rw_AllowRadChange ();
-	void	rw_ToggleEnable ();
-# endif
+static Widget	rw_ParamWidget FP ((Widget));
+static Widget	rw_EnableWidget FP ((Widget));
+static void	rw_ShowParams FP ((void));
+static void	rw_ChangeRad FP ((Widget, XtPointer, XtPointer));
+static void	rw_ChangeType FP ((Widget, XtPointer, XtPointer));
+static void	rw_ChangeStatus FP ((Widget, XtPointer, XtPointer));
+static void	rw_ChangeHits FP ((Widget, XtPointer, XtPointer));
+static void	rw_ChangeStep FP ((Widget, XtPointer, XtPointer));
+static void	rw_TextChange FP ((Widget, XtPointer, XtPointer));
+static void	rw_ExecChanges FP ((Widget, XtPointer, XtPointer));
+static void	rw_DiscardChanges FP ((Widget, XtPointer, XtPointer));
+static void	rw_AllowRadChange FP ((int));
+static void	rw_ToggleEnable FP ((Widget, XtPointer, XtPointer));
 
 
 
@@ -428,7 +414,7 @@ Widget	parent;
 		w = XtCreateManagedWidget (name, commandWidgetClass, 
 			form, args, n);
 
-		XtAddCallback (w, XtNcallback, rw_ToggleEnable, r);
+		XtAddCallback (w, XtNcallback, rw_ToggleEnable, (XtPointer) r);
 
 		w_above = w;
 	}
