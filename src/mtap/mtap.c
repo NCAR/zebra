@@ -42,7 +42,9 @@ static char *Std_protos[] =
 #endif
 
 
-void print_dfe FP((DataFile *dfe));
+void	DumpDSProto FP((Message *msg));
+void	DumpLog FP((Message *msg));
+void	print_dfe FP((DataFile *dfe));
 
 
 int
@@ -117,14 +119,17 @@ char *mtdata;
 	   case MT_DATASTORE:
 	   	DumpDSProto (msg);
 		break;
+	   case MT_LOG:
+	   case MT_ELOG:
+		DumpLog (msg);
+		break;
 	}
 	fflush(stdout);
 }
 
 
 
-
-
+void
 DumpDSProto (msg)
 Message *msg;
 /*
@@ -302,4 +307,23 @@ DataFile *dfe;
 	printf ("\tRev: %li, nsample: %d\n",
 		dfe->df_rev,
 		dfe->df_nsample);
+}
+
+
+void
+DumpLog (msg)
+Message *msg;
+/*
+ * Print the log message
+ */
+{
+	struct msg_elog *el = (struct msg_elog *) msg->m_data;
+
+	if (msg->m_proto == MT_ELOG)
+	{
+		if (! (el->el_flag & EF_SETMASK))
+			printf ("\t'%s'\n", el->el_text);
+	}
+	else
+		printf ("\t'%s'\n", (char *)msg->m_data);
 }
