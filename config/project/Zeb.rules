@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.7 1993-07-01 20:11:41 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.8 1993-11-30 02:01:36 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -263,6 +263,8 @@ program: objects deplibs						@@\
 									@@\
 SaberProgramTarget(program,program.c,objects,deplibs locallibs,syslibs) @@\
 									@@\
+TestCenterTarget(program,objects,deplibs,locallibs,syslibs)		@@\
+									@@\
 clean::									@@\
 	$(RM) program
 #endif /* TestProgramTarget */
@@ -430,9 +432,23 @@ InstallProgram(program,$(BINDIR))					@@\
 									@@\
 SaberProgramTarget(program,$(SRCS),objects,deplibs locallibs,syslibs)	@@\
 									@@\
+TestCenterTarget(program,objects,deplibs,locallibs,syslibs)		@@\
+									@@\
 clean::									@@\
 	$(RM) program
 #endif /* NormalProgramTarget */
+
+
+#ifndef TestCenterTarget
+#define	TestCenterTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+									@@\
+program.tc: objects deplibs						@@\
+	RemoveTargetProgram($@)						@@\
+	$(PROOF) $(CC) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
+									@@\
+clean::									@@\
+	$(RM) program.tc
+#endif /* TestCenterTarget */
 
 
 /* 
