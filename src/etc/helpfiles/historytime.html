@@ -26,7 +26,7 @@ href=iconbar.html>IconBar</a>.  The widget is displayed below. <p>
 
 <img src=time-widget.gif><p>
 
-The Time Widget can be separated into four sections:<p>
+The Time Widget can be separated into five sections:<p>
 
 <img src=time-widget-window.gif> 
 Window control,<p>
@@ -38,20 +38,23 @@ Setting the date and time, <p>
 Setting the mode, <p>
 
 <img src=time-widget-skip.gif> 
-and Skipping. <p>
+Skipping by some interval, <p>
+
+<img src=time-widget-hot.gif> <br>
+and Choosing from and Adding to a customized menu of times. <p>
 
 <h3> Window Control</h3>
 <img src=time-widget-window.gif> <p>
 
 This section of the Time Widget consists of a single button.  Clicking on
-the button toggles control between either "All" windows associated with the
-display or "One" window.  If "All" is selected, then the actions performed
-in the Time Widget will affect all of the graphics windows simultaneously.
-If "One" is selected, then an individual window must be chosen as the
-target for each action performed in the Time Widget.  When a graphics
-window needs to be selected, the cursor will transform into a cross-hair
-symbol.  Simply move the cursor to the window you wish to affect and click
-the left mouse button.<p>
+the button pops down a menu of the sets of windows which can be controlled
+simultaneously.  The first option in the menu is always "All Windows".  If
+"All Windows" is selected from the menu, then the actions performed in the
+Time Widget will affect all of the graphics windows simultaneously.  Each
+of the rest of the menu options are the name of a currently active graphics
+window.  If one of the window names is selected, then that individual
+window will be affected by each action performed in the Time Widget, and
+that window only.  </p>
 
 <h3> Setting Date and Time </h3>
 
@@ -62,43 +65,74 @@ displays a date and time.  This date and time can be modified by either
 clicking on the arrow buttons or by typing in the text window.  Changes in
 the date and time in this section of the Time Widget do NOT take effect
 until the user sets the <b>history mode</b> and time described in the next
-paragraph.<p>
+paragraph.  If you choose to type the time into the text window, you can
+just press <b>Return</b> to set the time as the new history time.  If the
+time in the text window cannot be understood, a message will appear in the
+label window in the bottom left corner of the time control window.</p>
 
 <h3> Setting Mode </h3>
 <img src=time-widget-mode.gif> <p>
 
-This section of the Time Widget contains two buttons.  One labeled <b>Real
-Time</b> and the other labelled <b>History</b>.  Clicking on the
-<b>History</b> button directs that the date and time entered in the Time
-Widget be used as the new history time.  If the scope of the time change is
-a single window (window control is "One"), the window must be clicked with
-the cursor as described above.  If the scope of control is "All" windows,
-every graphics window will be set to the new history time.  This
-automatically puts each of those windows in history mode.  To return the
-window(s) to real-time mode, click on the <b>Real Time</b> button.<p>
+This section of the Time Widget contains two buttons: one labeled <b>Real
+Time</b> and the other labelled <b>Set Time</b>.  Clicking on the <b>Set
+Time</b> button directs that the date and time entered in the Time Widget
+be used as the new history time.  If the scope of window control is a
+single window (one window name in the window control box), then only that
+window's time will change.  If the scope of control is all windows, every
+graphics window will be set to the new history time, and each window
+automatically enters history mode.  To return the window(s) to real-time
+mode, click on the <b>Real Time</b> button.</p>
 
 <h3> Skipping </h3>
 <img src=time-widget-skip.gif> <p>
 
-While the system is in history mode, the history
-time can be 'skipped' either forward or backward a preset
-number of minutes.  This is done by entering the desired
-number of minutes in the text window within the "Skipping"
-section of the Time Widget.  Enter the desired skip
-interval, then click on either the left or right arrow to
-move backward or forward that number of minutes in time. 
-If the scope of control is "All", every window will be set
-to the new history time as the time is incremented or
-decremented.  Otherwise a single window must be selected as
-the target for each time change.<p>
+While the system is in history mode, the history time can be 'skipped'
+either forward or backward a preset number of minutes.  This is done by
+entering the desired number of minutes in the text window within the
+"Skipping" section of the Time Widget.  Enter the desired skip interval,
+then click on either the left or right arrow to move backward or forward
+that number of minutes in time.  If the scope of control is all windows,
+every window will be set to the new history time as the time is incremented
+or decremented.  Otherwise only the time of the currently selected window
+will change.</p>
+
+<h3> Customizing the Menu of Times </h3>
+<img src=time-widget-hot.gif>
+
+<p> The time control tool contains a customizable menu of times and
+descriptions.  Any time can be remembered and associated with a label.
+Once a time has been chosen using one of the methods above, type a
+description or title for the particular period in the label window. <img
+src=time-widget-hotlabel.gif> To actually add the time to the menu, hit the
+<b>Return</b> key in the label window or press the <b>Remember</b> button.
+</p>
+
+<p> Any times added to the menu will appear in the popdown menu under the
+<b>Select</b> button.  Selecting a time from this menu is similar to manually
+entering a time and then pressing <b>Set Time</b>.  The time label will change
+to the description associated with the selected time, and the selected time
+becomes the current history time.  The windows currently under control will
+change to the selected time.</p>
+
+<p>At the furthest right, the <b>Forget</b> button pops down the menu of
+times and will delete whichever time is selected.  The current time and the
+last description appearing in the time label will not change, so
+accidentally deleting a time can often be undone by pressing
+<b>Remember</b> again.</p>
+
+<p>Some project configurations save the customized times into a file so
+that the menu persists between different sessions of Zebra.  For those
+configurations that do not save the times, the menu will be empty at the
+start of each new session.</p>
 
 <h3> Quitting</h3>
 
+<p>
 To remove the time widget from the display,
 click the <b> Dismiss </b> button to the immediate right of the
 <b>Help</b> button at the top of the widget.  The Time Widget
 can be popped up again at any time using the steps
-described above.<p>
+described above.</p>
 
 
 <h2>Using a data available menu</h2>
@@ -118,9 +152,7 @@ associated with the selected time will be displayed.<p>
 Select the "Real time" entry from a Data Available menu to
 return the graphics window to real time mode.<p>
 
-
-
 <a href=time.html><img src=la.gif></a>
 <a href=overlay-time.html><img src=ra.gif> Next: Getting get data times</a><p>
 <i>Return to <a href=index.html> Zeb Help Index</i></a>
-<h6>$Id: historytime.html,v 1.2 1994-11-30 17:24:23 corbet Exp $</h6>
+<h6>$Id: historytime.html,v 1.3 1995-07-10 14:22:16 granger Exp $</h6>
