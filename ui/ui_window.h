@@ -1,4 +1,4 @@
-/* $Id: ui_window.h,v 1.3 1990-04-20 14:23:25 corbet Exp $ */
+/* $Id: ui_window.h,v 1.4 1990-06-04 14:50:34 corbet Exp $ */
 /*
  * Definitions for windowing code.
  */
@@ -110,7 +110,7 @@ struct frame_widget
 # define WF_POPPED	0x0004	/* This widget is actually displayed	*/
 # define WF_INIT	0x0008	/* Was this widget created during init? */
 # define WF_OVERRIDE	0x0010	/* This is an OVERRIDE widget		*/
-# define WF_NODEC	0x0020	/* Do not decorate this widget		*/
+# define WF_NOFRAME	0x0020	/* Do not add a frame to this widget	*/
 
 /*
  * Internal functions.
