@@ -49,7 +49,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.57 1999-03-01 02:04:31 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.58 2000-10-18 20:34:17 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1391,4 +1391,47 @@ ParseFieldList (char *string, char **substrings)
     }
 
     return (nsubs);
+}
+
+
+
+/*
+ * Print a numeric label trying to narrow its printed precision without
+ * making it indistinguishable from neighboring values a 'step' apart and
+ * without resorting to exponential format until the magnitude is several
+ * places from the decimal point in either direction.  The precision is
+ * chosen according to the magnitude of the step rather than cval.
+ * Essentially we try to print two significant digits in cval on the same
+ * order as the step on the thinking that should differentiate values
+ * differing by 'step'.
+ */
+void
+LabelStep (char *lbl, double step, double cval)
+{
+    int mag = 1;    /* Steps of zero will default to a precision of one. */
+
+    if (step != 0.0)
+    {
+	double lg = log10(fabs(step));
+	mag = (lg < 0) ? - (int) ceil ( -lg ) : (int) ceil (lg);
+    }
+    if (mag <= -6)
+    {
+	sprintf (lbl, "%.2g", cval);
+    }
+    else if (mag <= 0)
+    {
+	int prec = 1 - mag;
+	sprintf (lbl, "%.*f", prec, cval);
+    }
+    else if (mag < 6)
+    {
+	int prec = 2 - mag;
+	prec = (prec < 0) ? 0 : prec;
+	sprintf (lbl, "%.*f", prec, cval);
+    }
+    else
+    {
+	sprintf (lbl, "%.2g", cval);
+    }
 }

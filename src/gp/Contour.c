@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.22 2000-04-10 20:22:00 burghart Exp $")
+RCSID("$Id: Contour.c,v 2.23 2000-10-18 20:34:17 granger Exp $")
 
 typedef short	cbool;
 
@@ -150,9 +150,8 @@ int	dolabels, linewidth;
  * wide line).
  */
 {
-	int		cndx, cndx_min, cndx_max, prec, dummy, i;
-	float		min, max, maxabs, ptest, min_ndx_f, max_ndx_f;
-	char		testlabel[16];
+	int		cndx, cndx_min, cndx_max, dummy, i;
+	float		min, max, min_ndx_f, max_ndx_f;
 	unsigned int	udummy;
 	Window		win;
 /*
@@ -270,36 +269,12 @@ int	dolabels, linewidth;
 	 */
 		if (DoLabels)
 		{
-		/*
-		 * Play around to get the shortest label which will 
-		 * unambiguously identify this contour
-		 */
-			prec = -(int) (log10 (cstep));
-
-			ptest = fabs (fmod (ccenter, cstep)) / cstep;
-			if (ptest > 0.1 && ptest < 0.9)
-			prec += 1;
-
-			ptest = cstep / pow (10.0, (double)(-prec)) - 1.0;
-
-			if (prec < 0)
-				prec = 0;
-			else if (ptest < -0.0001)
-				prec += 1;
-
-			sprintf (Label, " %.*f ", prec, Cval);
-
-			maxabs = fabs (max) > fabs (min) ? 
-				fabs (max) : fabs (min);
-			prec = (int) (log10 (maxabs / cstep));
-			sprintf (testlabel, " %.*E ", prec, Cval);
-			if ((int)strlen (testlabel) < (int)strlen (Label))
-				strcpy (Label, testlabel);
+		    LabelStep (Label, cstep, Cval);
 		/*
 		 * Alternate the toggle so that adjacent contours have slightly
 		 * offset labels
 		 */
-			Ltoggle = ! Ltoggle;
+		    Ltoggle = ! Ltoggle;
 		}
 	/*
 	 * Find the contours for this contour value

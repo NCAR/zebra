@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.35 1999-05-28 16:43:04 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.36 2000-10-18 20:34:16 granger Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -853,7 +853,9 @@ int datalen, begin, space;
         for (i = 0; i < ncolors; i += limit)
         {
                 cval = center + ((ncolors - 1) / 2 - i) * step;
-                sprintf (string, "%.1f", cval);
+
+		LabelStep (string, step, cval);
+
                 XSetForeground (XtDisplay (Graphics), AnGcontext,
 				colors[ncolors - i - 1].pixel);
                 DrawText (Graphics, GWFrame (Graphics), AnGcontext, left + 15,
@@ -907,23 +909,15 @@ int datalen, begin, space;
 
 	for (i = ncolors - 1; i >= 0; i -= limit)
 	{
-		int prec;
-
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
 				colors[i].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
 				AnGcontext, left, (int) begin, 10, barHeight);
 
 		cval = center + (i - ncolors/2) * step;
-	/*
-	 * The precision of the color value should be enough to differentiate
-	 * between each step.
-	 */
-		if ((step < -1.0) || (step > 1.0) || (step == 0.0))
-			prec = 1;
-		else
-			prec = 1 - (int)log10(fabs((double)step));
-		sprintf (string, "%.*f", prec, cval);
+
+		LabelStep (string, step, cval);
+
 		XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
 		DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
 			  left + 15, (int) (begin + barHeight/2), string,

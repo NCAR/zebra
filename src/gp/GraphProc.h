@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.68 2000-04-10 22:12:00 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.69 2000-10-18 20:34:17 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -410,6 +410,8 @@ extern void ov_Feature FP ((struct ui_command *cmds));
 /* Defined in Utilities.c */
 extern int nint FP ((double x));
 # endif
+void LabelStep FP ((char *lbl, double step, double cval));
+
 
 typedef struct _WindInfo {
 	int wi_polar;		/* 0 == use uwind/vwind; 1 == use wspd/wdir */
