@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.3 1993-08-05 15:40:42 case Exp $
+/**/# $Id: Project.tmpl,v 1.4 1993-09-27 18:20:18 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -74,7 +74,7 @@
 #endif
 
 #ifndef DependDir
-#define DependDir $(UTILSRC)/makedepend
+#define DependDir $(TOP)/Makedepend
 #endif
 
 #ifndef RemoveTargetProgramByMoving
@@ -142,10 +142,6 @@
 
 #ifndef UseNetCDF
 #define UseNetCDF NO
-#endif
-
-#ifndef HaveMakeDepend
-#define HaveMakeDepend NO
 #endif
 
 
@@ -251,20 +247,22 @@
 #  if (UseXWindows)
 #define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
-#  elif (UseOpenWindows && !OldOpenWin)
-#    if !SystemV4
+#  else
+#    if (UseOpenWindows && !OldOpenWin)
+#       if !SystemV4
 #define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw \
 $(OPENWINHOME)/lib/libXmu.a \
 -L$(XLIBDIR) LoaderLibPrefix -lXt LoaderLibPrefix -lXext \
 LoaderLibPrefix -lX11
-#    else
+#       else
 #define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
-#    endif
-#  else
-#    define XLibraries /**/
+#       endif
+#    else
+#       define XLibraries /**/
+#    endif 
 #  endif
-#endif
+#endif /* ifndef XLibraries */
 
 
 #ifndef XLib
@@ -423,15 +421,6 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 # endif
 #endif
 
-/*/////////////////////////////////////// Defaults for build options /////////*/
-/*----------------------------------------------------------------------------*/
-#if HaveMakeDepend
-#define BuildMakedepend NO
-#else
-#define BuildMakedepend YES
-#endif
-
-
 
 /**/# ------------------------------------------------------------------------------
 /**/# RDSS software make variables; these are coordinated with site-def.h and the above defaults
@@ -457,11 +446,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 
 
 /* 
- * At the moment, this section sets the DEPEND command to an installed version,
- * while IMAKE and MKDIRHIER are set to the distributed locations
+ * This section sets the DEPEND, IMAKE and MKDIRHIER to the  
+ * distributed locations.
  */
             IMAKE = $(IMAKESRC)/imake
-           DEPEND = makedepend		/* Assumes in path */
+           DEPEND = $(DEPENDSRC)/makedepend
         MKDIRHIER = BourneShell $(SCRIPTSRC)/mkdirhier.sh
 
         CONFIGSRC = $(TOP)/config
@@ -475,7 +464,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 
          IRULESRC = $(CONFIGDIR)
 
-   MAKEDEPEND_CMD = cd $(MAKEDEPENDSRC); $(RM) Makefile.bak; $(MV) Makefile Makefile.bak; $(MAKE) $(MFLAGS) -f Makefile.bak Makefile; $(MAKE) $(MFLAGS) Makefiles; $(MAKE) $(MFLAGS) clean; $(MAKE) $(MFLAGS) $(WORLDOPTS) install; $(MAKE) $(MFLAGS) depend
+   MAKEDEPEND_CMD = cd $(MAKEDEPENDSRC); $(RM) Makefile.bak; $(MV) Makefile Makefile.bak; $(MAKE) $(MFLAGS) -f Makefile.bak Makefile; $(MAKE) $(MFLAGS) Makefiles; $(MAKE) $(MFLAGS) clean; $(MAKE) $(MFLAGS) $(WORLDOPTS) all; $(MAKE) $(MFLAGS) depend
         IMAKE_CMD = $(NEWTOP)$(IMAKE) $(IMAKE_INCLUDES) $(IMAKE_DEFINES)
      ICONFIGFILES = $(CONFIGSRC)/Project.tmpl $(CONFIGSRC)/RDSSLib.rules \
                     $(CONFIGSRC)/site-def.h $(IMAKESRC)/Imake.tmpl \
