@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.31 1995-06-08 21:26:52 burghart Exp $
+ * $Id: DataStore.h,v 3.32 1995-06-29 21:34:39 granger Exp $
  *
  * Public data store definitions.
  */
@@ -376,6 +376,8 @@ DataChunk 	*dc_CreateDC FP((DataClass));
 void		dc_DestroyDC FP((DataChunk *));
 void		dc_DumpDC FP((DataChunk *));
 void 		Dc_RawAdd FP((DataChunk *, int));
+void		dc_AddADE FP((DataChunk *dc, DataPtr data, DataClass class,
+			      int subtype, int len, int free));
 void		dc_ForceClosure FP ((void));
 void		dc_SetGlobalAttr FP ((DataChunk *, char *, char *));
 char 		*dc_GetGlobalAttr FP ((DataChunk *, char *));
@@ -543,6 +545,8 @@ void		dc_IRSetup FP((DataChunk *, int, PlatformId *, Location *,
 			int, FieldId *));
 void		dc_IRAddGrid FP((DataChunk *, ZebTime *, int, FieldId,
 			void *));
+void		dc_IRAddMultGrid FP((DataChunk *dc, ZebTime *t, int begin,
+				     int nsample, FieldId field, void *data));
 void		dc_IRAddScalarDC FP((DataChunk *irgrid_dc, 
 				     DataChunk *scalar_dc, int sample,
 				     int nsample, int nfield, FieldId *fids));
@@ -763,5 +767,9 @@ void		ds_LockPlatform FP ((PlatformId));
 void		ds_UnlockPlatform FP ((PlatformId));
 void 		ds_ForceRescan FP ((PlatformId platform, int all));
 void		ds_ForceClosure FP ((void));
+
+#ifdef _ZEB_MESSAGE_H_ /* protect for programs which don't need message.h */
+int             ds_DSMessage FP ((struct message *));
+#endif
 
 # endif	/* !__zeb_DataStore_h_ */
