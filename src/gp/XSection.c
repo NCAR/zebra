@@ -1,8 +1,13 @@
 /*
  * Vertical cross-sectioning
  *
- * $Revision: 2.0 $ $Date: 1991-07-18 23:00:21 $ $Author: corbet $
+ * $Revision: 2.1 $ $Date: 1991-08-07 21:53:55 $ $Author: corbet $
  */
+
+# include <config.h>
+
+# if C_PT_XSECT
+
 # include <math.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -1505,3 +1510,6 @@ char	*name;
  */
 	Tracelen = 0;
 }
+
+
+# endif  /* C_PT_XSECT */
