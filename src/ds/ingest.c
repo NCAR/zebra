@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.15 1997-01-14 17:54:33 granger Exp $
+/* $Id: ingest.c,v 1.16 1997-10-16 23:24:59 burghart Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -33,7 +33,6 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <varargs.h>
 #include "ingest.h"
 
 /*
@@ -45,7 +44,7 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.15 1997-01-14 17:54:33 granger Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.16 1997-10-16 23:24:59 burghart Exp $")
 #endif
 
 
@@ -58,7 +57,6 @@ bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, int newfile,
 				dsDetail *details, int ndetail));
 PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 void _Ingest_ds_DeleteData FP((PlatformId platform, int leave));
-void IngestLog ();
 void IngestUsage ();
 void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
 void IngestParseOptions FP((int *argc, char *argv[], 
@@ -475,87 +473,3 @@ _Ingest_ds_DeleteData(platform, leave)
 	return;
 }
 # endif
-
-
-#ifdef notdef
-void
-IngestLog(va_alist) 
-va_dcl
-/*
- * Send messages to the event logger and to stdout, according
- * to the global IngestLogFlags variable
- */
-{
-	va_list args;
-	int flags;
-	struct msg_elog *el;
-	static char cbuf[1024];
-	char *fmt;
-	char note; 	/* Signifies what type of message being logged */
-
-	va_start(args);
-	flags = va_arg(args, int);
-	fmt = va_arg(args, char *);
-
-	if (flags & EF_EMERGENCY)
-		note = 'E';
-	else if (flags & EF_PROBLEM)
-		note = 'P';
-	else if (flags & EF_CLIENT)
-		note = 'C';
-	else if (flags & EF_INFO)
-		note = 'I';
-	else if (flags & EF_DEBUG)
-		note = 'D';
-	else if (flags & EF_DEVELOP)
-		note = 'V';
-	else
-		note = '-';
-
-	/*
-	 * First check our local debug flag, which indicates which events
-	 * should get sent to stderr
-	 */
-	if (IngestLogFlags & flags)
-	{
-		sprintf(cbuf,"%c",note);
-		if (ShowIngestName)
-			sprintf(cbuf+strlen(cbuf)," %s: ",IngestName);
-		else
-			sprintf(cbuf+strlen(cbuf),": ");
-		vsprintf(cbuf+strlen(cbuf), fmt, args);
-		strcat(cbuf, "\n");
-		fprintf(stderr, cbuf);
-	}
-
-	/*
-	 * Now create the message to the event logger, so that we can
-	 * end the varargs list before returning
-	 */
-	el = (struct msg_elog *) cbuf;
-	vsprintf(el->el_text, fmt, args);
-	va_end(args);
-
-	/*
-	 * Remove the EF_DEVELOP flag, and if no flag remains, don't
-	 * bother actually sending this message to the EventLogger
-	 */
-	flags &= (~(long)EF_DEVELOP);
-	if (!flags)
-		return;
-
-	/*
-	 * Send the message iff NoEventLogger == 0
-	 */
-	if (!NoEventLogger)
-	{
-		/*
-		 * Send the message
-		 */
-		el->el_flag = flags;
-		msg_send("Event logger", MT_ELOG, 0, el,
-			sizeof(*el) + strlen(el->el_text));
-	}
-}
-#endif /* notdef */
-
