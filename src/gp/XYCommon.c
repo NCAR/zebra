@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.9 1993-03-11 16:44:22 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.10 1993-03-25 22:02:10 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -560,22 +560,21 @@ ZebTime            *bTimeReq,*eTimeReq;
 }
 
 void
-xy_GetDataMinMax(update, min, max, data, npts)
-bool    update;
+xy_GetDataMinMax(haveminmax, min, max, data, npts)
+bool   haveminmax;
 DataValPtr      min,max;
 DataValPtr      data;
 int             npts;
 /*
  * Get the min and max data value for an array of data.
- * If update is false, min and max will be reset and their returned
+ * If haveminmax is false, min and max will be reset and their returned
  * values will be the true min and max of the data set.
- * If update is true, min and max will be left as their current (passed in)
+ * If haveminmax is true, min and max will be left as their current (passed in)
  * values and will only be changed if the values in the current data
  * set exceed them.
  */
 {
    int  i;
-   bool haveminmax = !update;
 
    for (i = 0; i < npts; i++)
    {
