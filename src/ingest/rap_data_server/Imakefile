@@ -1,0 +1,50 @@
+/*		Copyright (C) 1987-92 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 1993-07-07 16:30:18 burghart Exp $"
+
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(FLIBS)
+
+DEPLIBS = $(LIBZEB) $(LIBZEBDS)
+
+SRCS = RAP_DsIngest.c freeform.c get_server_data.c print_stuff.c \
+	sock_subs.c test_server.c time_date.c
+
+OBJS = freeform.o get_server_data.o print_stuff.o sock_subs.o time_date.o
+
+DISTFILES = Imakefile $(SRCS) RAP_DsIngest.state example.input \
+	    cdata_server.h ds_cmds.h
+
+/*---------------------------------------------------------------------*/
+#if BuildIngest && BuildRAPDataServerIngest
+
+NormalProgramTarget(RAP_DsIngest,RAP_DsIngest.o $(OBJS),
+		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+TestProgramTarget(test_server,test_server.o $(OBJS),
+		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UICppLoadFileTarget(RAP_DsIngest.lf,RAP_DsIngest.state,ds_cmds.h)
+
+LintTarget()
+DependTarget()
+/*---------------------------------------------------------------------*/
+#else
+OmitBuildRules(RAP data server ingest)
+#endif
+
+DistfilesTarget($(DISTFILES))

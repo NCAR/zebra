@@ -1,0 +1,72 @@
+!
+! Data server ingest configuration language.
+!
+!
+!		Copyright (C) 1987,88,89,90,91 by UCAR
+!	University Corporation for Atmospheric Research
+!		   All rights reserved
+!
+! No part of this work covered by the copyrights herein may be reproduced
+! or used in any form or by any means -- graphic, electronic, or mechanical,
+! including photocopying, recording, taping, or information storage and
+! retrieval systems -- without permission of the copyright owner.
+! 
+! This software and any accompanying written materials are provided "as is"
+! without warranty of any kind.  UCAR expressly disclaims all warranties of
+! any kind, either express or implied, including but not limited to the
+! implied warranties of merchantibility and fitness for a particular purpose.
+! UCAR does not indemnify any infringement of copyright, patent, or trademark
+! through use or modification of this software.  UCAR does not provide 
+! maintenance or updates for its software.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'go' 1
+		next ust$no_more
+	endinput
+	input 'field' 2
+		next field-name
+	endinput
+enddef
+
+
+define state field-name
+	input string
+		lowercase
+		next field-num
+	endinput
+enddef
+
+define state field-num
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+set ui$initial_state "initial"
+
+procedure ui$init
+!
+! Set up for TREC.
+!
+	set host		'brainiac.rap.ucar.edu'
+	set port		63001
+	set frequency		180
+	set levels		1
+	set levelspacing	2
+!
+! If there was a command file specified, we just read it and go
+! straight into run mode.  Otherwise we expect to be interactive.
+!
+	if (defined ("CommandFile"))
+		local rcmd "read"
+		message 'Reading command file'
+		#rcmd #CommandFile
+		go
+	else
+		message 'No command file'
+	endif
+endprocedure
