@@ -1,0 +1,132 @@
+
+Aircraft Ingesting Guidelines:
+==============================
+
+ o	Samples within the same netCDF file should occur chronologically at
+	exactly 1-second intervals.
+
+ o	A missing sample is one of the following:
+
+	1) A sample time which is required to meet the 1-second sample
+	   frequency requirement but is nonexistent in the data file.
+
+	2) A sample whose field values are ALL missing value flags.
+
+ o	A GAP is a continuous series of missing samples between two valid
+	samples.
+
+ o	Gaps of 5 or less seconds are stored with interpolated location
+	fields (lat, lon, and alt) and bad values for all of the fields.
+
+ o 	Gaps of more than 5 seconds in duration cause the data to be split
+	into separate files: one file for the valid samples up the 
+	beginning of the gap and one file for the valid samples following
+	the gap.
+
+ o	Samples with at least one valid field value are stored "as is",
+	even if a location field---latitude, longitude, or altitude---equals
+	the bad value flag.
+
+ o	If a missing sample is being filled in through interpolation, a location
+	field is not interpolated if the location field before or after the
+	gap has a bad value in that field.  Instead, a bad value is used for that
+	location field in all of the interpolated samples in the gap.
+
+C-130 netCDF files:
+===================
+
+1)	Where gaps of 5 or less seconds occur, the missing samples'
+	locations---latitude, longitude, and altitude---are interpolated
+	over the missing seconds and all of the fields in the sample are
+	stored as bad values.  The original data file indicates that the
+	bad value flag is -99.0.  However, where this value is detected 
+	the field value is immediately changed to -9999.0, since this value
+	is invalid for all of the fields AND the lat and lon fields.
+	It is unusual for Zeb to store location with bad values for lat and
+	lon, so this fact is noted in the global attributes of the netCDF
+	file.  Three global attributes, "lat_bad_value", "lon_bad_value", and
+	"alt_bad_value", are set to character arrays representing the value
+	used for each field to signify a missing value.  Missing location
+	fields only occur where there was some good data in the original
+	data file despite bad values for location fields.
+
+2)	For gaps greater than 5 seconds, the netCDF file is split.  The 
+	samples following the gap will be written to a new netCDF file.
+
+3)	The field names and units are taken from the two lines following the
+	header line of the original data files.  The description of the field
+	(the "long_name" attribute in the netCDF files) is taken from the
+	"parameters" file supplied with the original data files.  Note that
+	according to the parameters file the time field is "local time".
+	However, the time stored in the netCDF files is GMT.  See Table 1
+	for a complete list of fields.
+
+4)	Latitude is taken from the 'latgps' field, longitude from 'longps',
+	and altitude from 'palt'.  Latitude is in degrees North, 
+	longitude in degrees East, and altitude in km.
+
+5)	The description and units of each field, as described in (3), are
+	stored as character attributes in the netCDF file: "units" and
+	"long_name", respectively.  The value which indicates a "missing
+	value" or "bad value" is stored as the "missing_value" floating
+	point attribute.
+
+6)	Other global attributes:
+
+	The "zeb_platform" attribute stores the name of the platform under
+	which the data was ingested as, and "zeb_ingestor" is the name and
+	version of the program which did the ingesting.  The "part" attribute
+	gives sequence information for data files which are split into multiple
+	netCDF files.
+
+7)	Use with WINDS software:
+	
+	WINDS prefers short filenames (5 or less letters, excluding the extension),
+	so the netCDF files have been renamed using the four-digit flight number
+	and an alphabetical 'flight part'.  So the first part of flight 1520 will
+	be named '1520a.cdf'.  If there were other parts to the same flight, 
+	these would be '1520b.cdf', '1520c.cdf', and so on.  This name is 
+	generated in the ingest program and stored in the netCDF global attribute
+	'winds_filename'.
+
+	WINDS has problems with missing (or bad) latitude, longitude and
+	altitude values.  In the interest of completeness, the netCDF files
+	contain bad value flags for lat, lon, and alt if there were bad
+	values in those fields in the original file.  These "gaps" of bad
+	location values can be larger than 30 seconds.  However, if you are
+	not interested in formally correct or legitimate location data, you
+	can interpolate over the bad values using the program
+	'cdf_interpolate'.  This program will read the bad value flag from
+	the netCDF attributes and interpolate over any lat or lon (not alt)
+	values it finds "missing" (i.e. flagged with a bad value).  This
+	program directly changes the netCDF data file, and it will
+	indiscriminately interpolate and extrapolate over gaps of any size,
+	so use it with care.  Once 'cdf_interpolate' has been run on a
+	file, the file should be much more compatible with WINDS'
+	requirements.
+
+	The 'time_offset' variable, in accordance with WINDS' requirement,
+	is defined to be of type float.  Also, samples are guaranteed to
+	occur at contiguous, 1-second intervals.
+
+
+
+Table 1. Fields ingested from C-130 data files, 
+	 not including alt, lat, and lon:
+
+FIELD	   UNITS           DESCRIPTION
+---------- --------------- ------------------------------------
+pstat      mb              static pressure                                   
+wspd       m/s             wind speed                                        
+wdir       deg             wind direction                                    
+tstat      deg C           static temperature                                
+dp         deg C           dew point                                         
+theta      deg C           potential temperature                             
+thtae      deg C           equivalent potential temperature                  
+lwjw0      gm/m^3          liquid water from JW probe                        
+lwkg       gm/m^3          liquid water from King probe                      
+oipc1      #/l             ice particle rate                                 
+fsprt      #/cm^3          FSSP particle rate                                
+turb       cm^(2/3)/s      turbulence                                        
+
+The field names correspond to the variable names in the netCDF files.

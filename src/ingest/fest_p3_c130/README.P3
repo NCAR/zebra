@@ -1,0 +1,193 @@
+
+Aircraft Ingesting Guidelines:
+==============================
+
+ o	Samples within the same netCDF file should occur chronologically at
+	exactly 1-second intervals.
+
+ o	A missing sample is one of the following:
+
+	1) A sample time which is required to meet the 1-second sample
+	   frequency requirement but is nonexistent in the data file.
+
+	2) A sample whose field values are ALL missing value flags.
+
+ o	A GAP is a continuous series of missing samples between two valid
+	samples.
+
+ o	Gaps of 5 or less seconds are stored with interpolated location
+	fields (lat, lon, and alt) and bad values for all of the fields.
+
+ o 	Gaps of more than 5 seconds in duration cause the data to be split
+	into separate files: one file for the valid samples up the 
+	beginning of the gap and one file for the valid samples following
+	the gap.
+
+ o	Samples with at least one valid field value are stored "as is",
+	even if a location field---latitude, longitude, or altitude---equals
+	the bad value flag.
+
+ o	If a missing sample is being filled in through interpolation, a location
+	field is not interpolated if the location field before or after the
+	gap has a bad value in that field.  Instead, a bad value is used for that
+	location field in all of the interpolated samples in the gap.
+
+P-3 netCDF files:
+=================
+
+1)	The error flags found in words 10 and 11 of type 5 records in the
+	original data files are stored in the "err_flags" variable as FLOATS.
+	This is because of some limitations in Zeb's data handling.  This
+	means that the values are stored as machine-independent floating
+	point values rather than machine-independent unsigned long
+	integers.  On machines which do not use 4-byte IEEE floating point
+	format, the floating point values retrieved from netCDF calls will
+	have to be converted to the 4-byte IEEE equivalent before being
+	interpreted as a 4-byte unsigned long.
+
+	The 4-byte bit field corresponds to the two words in the original
+	file as follows: the most significant word of the bit field is FL1
+	and the least significant word is FL2.  The error flags are
+	included in the netCDF files because no handling of these flags is
+	done in converting the original files to netCDF.  For example,
+	values flagged as possibly bad in the original file are not stored
+	with the "bad value flag". Instead the value retrieved from the
+	original file is copied directly, and the error flags are instead
+	provided in the netCDF files.
+
+2)	The sample location---latitude, longitude, and altitude---is taken
+	from words 11 through 16 of type 5 records.  Altitude is taken
+	directly from the "radar altitude (m)" (RA) field.  Error flags for
+	the altitude field are reported as problems to the event logger;
+	other than that the flags are ignored.  Experience shows that the
+	altitude is usually consistent, though it may not be completely
+	accurate.
+
+	The locations stored in the netCDF file are in the following
+	units:
+
+	latitude:	degrees East (i.e. West is negative)
+	longitude:	degrees North
+	altitude:	km
+
+2)	When gaps greater than 5 seconds occur in the original data file,
+	the file is split into separate netCDF files.  Wherever possible,
+	one flight corresponds to one netCDF file.  Gaps of 5 or less
+	seconds are filled in with interpolated locations and bad values
+	for each of the fields.  Gap detection is done independent of the
+	error flags stored with the P-3 data, since these flags were not
+	found to be completely reliable.
+
+3)	No action is taken for fields flagged as possibly erroneous other
+	than the logging of the error flag.  This is especially important
+	when considering lat, lon, and altitude fields.  Errors in these
+	fields are reported, but usually these errors are simply the cause
+	of time gaps which are handled as mentioned above.
+
+4)	The units and descriptions of each of the fields are derived from
+	documentation of the P-3 format and conventional practice.
+	Unitless fields have empty unit names ("").  Units which could not
+	be found or reasonably guessed are marked "unknown".  The field
+	names correspond exactly to the 2- to 5-character codes listed in
+	the P-3 documentation.  See Table 1 for a complete listing of fields.
+
+5)	Each netCDF variable (field) has three conventional attributes:
+	"missing_value", "units", and "long_name".  The "long_name" is the
+	field description mentioned in (3).  The "missing_value" is the Zeb
+	default and is not actually taken from the data file (see (1)).
+	There are two additional field attributes.  "word_index" is the
+	word from which this field is taken in the Type 5 records of the
+	original data file.  For fields whose errors were flagged in the
+	original file, "error_bit_mask" masks the bit in the 32-bit error
+	bit field which indicates an error in that field.
+
+6)	All of the information from the header record is stored in the
+	netCDF file as global attributes.  These attributes are:
+
+	"flight_begin_time"		<day-Mon-yr,hr:mn:sc>
+	"flight_end_time"		<day-Mon-yr,hr:mn:sc>
+	"aircraft_number"		43
+	"part"				The part no. of this file in relation
+					to the original data file (for files
+					which get split up)
+
+	Additional global attributes include the conventional "history"
+	attribute, which gives the time that the netCDF file was created
+	by Zeb.  
+
+	The "zeb_platform" attribute stores the name of the platform under
+	which the data was ingested as, and "zeb_ingestor" is the name and
+	version of the program which did the ingesting.
+
+7)	Use with WINDS software:
+
+	The netCDF files have been given names of 5 or less characters for 
+	the benefit of WINDS.  All of WINDS requirements for data files should
+	be met by the netCDF files.  There are no, or very few, bad location 
+	values, and samples are guaranteed to occur at contiguous 1-second
+	intervals.  Also, the 'time_offset' variable in the netCDF file is
+	defined as type float.
+
+
+
+Table 1. P-3 field names, units, and descriptions, except for the lat, lon,
+	 and alt location fields.
+
+FIELD	   UNITS           DESCRIPTION
+---------- --------------- ------------------------------------
+ps         mb              Pressure                                          
+ta         C               Ambient Temperature                               
+tw1        C               Dewpoint Sensor                                   
+rd         C               Radiometer (Down)                                 
+rs         C               Radiometer (Side)                                 
+gs         m/s             Ground Speed                                      
+ts         m/s             True Airspeed                                     
+wgs        m/s             A/C Vertical velocity                             
+tk         deg             Track                                             
+hd         deg             Heading (true)                                    
+pc         deg             Pitch                                             
+rl         deg             Roll                                              
+aa         deg             Attack Angle                                      
+sa         deg             Slip Angle                                        
+lw         g/m3            Liquid Water Content                              
+pq         mb              Dynamic Pressure                                  
+td         C               Dewpoint Temperature                              
+ru         C               Radiometer Up                                     
+utail      m/s             E/W Velocity of Tail                              
+vtail      m/s             N/S Velocity of Tail                              
+wtail      m/s             Vertical Velocity of Tail                         
+ga         m               Geopotential Altitude                             
+pa         m               Pressure Altitude                                 
+dv         m               D Value                                           
+ht         m               Height Standard Pres Surface                      
+sp         mb              Surface Pressure                                  
+rh         %               Relative Humidity                                 
+tv         K               Virtual Temperature                               
+was        m/s             Vertical Airspeed                                 
+gm                         Ratio Specific Heats                              
+ama        dim             Mach Number                                       
+da         deg             Drift Angle                                       
+gsx        m/s             E/W Ground Speed                                  
+gsy        m/s             N/S Ground Speed                                  
+tx         m/s             E/W True Airspeed                                 
+ty         m/s             N/S True Airspeed                                 
+wx         m/s             E/W Wind Speed                                    
+wy         m/s             N/S Wind Speed                                    
+wz         m/s             Vertical Wind Speed                               
+ws         m/s             Wind Speed                                        
+wd         deg             Wind Direction                                    
+ee         mb              Vapor Pressure                                    
+mr         g/kg            Mixing Ratio                                      
+pt         K               Potential Temperature                             
+et         K               Equivalent Potential Temperature                  
+wxb        m/s             E/W Average Wind                                  
+wyb        m/s             N/S Average Wind                                  
+wsb        m/s             Average Wind Speed                                
+wdb        deg             Average Wind Direction                            
+av1        unknown         Vertical Accelerometer #1                         
+av2        unknown         Vertical Accelerometer #2                         
+wac        secs            Seconds Wind Averaged Over                        
+bt1        unknown         AXBT1                                             
+bt2        unknown         AXBT2                                             
+bt3        unknown         AXBT3                                             
+err_flags  ulong bit field Error flags (words 10 and 11) of orig data records

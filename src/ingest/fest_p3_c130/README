@@ -1,0 +1,57 @@
+
+Two ingest programs: c130fest_ingest, p3fest_ingest
+
+Both programs require a running DataStore.  Also, they are not using
+the mainline DataStore source, so if you see any problems running these
+programs let me know.  In the DataStore config file, the p3 and storm4 (c130)
+platforms should have 'maxamples' set to 65000.
+
+Usage:
+------
+c130fest_ingest <data file> <parameters>
+
+p3fest_ingest <data file>
+
+Examples:
+---------
+ c130fest_ingest flt1518.dmp /dt/granger/parameters
+
+ p3fest_ingest p301.dat
+
+For p3fest_ingest, the first four letters of the data file name should
+unique among all of the p3 flight files.  The ingestor uses the first four
+letters to generate a name suitable for the WINDS program.
+
+The P-3 files are stored directly on the tape.  To retrieve a file, use
+
+cat </dev/nexa >p3-1.dat
+
+Suggested file names for P3 files are p301.dat, p302.dat, ..., p313.dat, 
+and so on.
+
+The C-130 data is in tar format:
+
+tar xvf /dev/nexa
+
+Names are of the form flt15??.dmp.  It does not matter what file name is
+used with c130fest_ingest.
+
+For both ingestors, the WINDS name is stored as a global attribute,
+"winds_filename", in the netCDF file.  The program 'windsname' writes the
+value of this attribute to stdout.  The script cdf2winds uses this program
+to rename all of the netCDF files on its command line to the correct WINDS
+name.  This script should be run on the DataStore directory once all of the
+data files have been ingested into netCDF files.  It does not hurt to run
+the script more than once; files which are already correctly named are 
+ignored.  Example:
+
+cdf2winds /scr/framboise/fest/p3/*.cdf
+
+There are lots of debugging options in the ingest programs, use the -help
+option to see them.
+
+The program acqual can be used to make sure the ingest programs are
+producing correct netCDF files, and also to measure things like
+out-of-range values and number of bad-value-flags in fields lat, lon, and
+alt.  Just type 'acqual' to find out more.
+

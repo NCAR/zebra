@@ -1,0 +1,118 @@
+The following quick-look works rather well:
+
+cat </dev/exa1H >p3_flightline.dat
+od -i p3_*.dat | l
+ (-i for signed, -d for unsigned)
+
+A type 1 record is very obvious and plain at the beginning of
+the file, but the 18th word, 16384, I cannot reconcile.  A good
+example of a type 4 record can be found by searching for 222,
+the number of words in that type of record.
+
+It should be relatively easy to cull whatever data is necessary
+by mmap()'ing the data file and assembling field values from
+the appropriate offsets for each type of record.  On a curiosity
+note, can mmap() be simulated for machines which do not have
+mmap()?
+
+Still needed:
+ - help understanding the format of the data file from tape,
+   i.e. the question above about that 18th word.  And which
+   type of data is desired: the raw or the converted or both?
+
+ - can it be determined exactly which record types need to be
+   handled without trying to handle all of them?
+
+ - the U of Washington C-130 data
+
+ - some idea of how much data is on each tape so that I can be
+   sure I get all of the data off tape with the cat method.
+
+References:
+
+ - Mark Bradford, of the STORM Project Office, created the tape.
+
+   Mark Bradford:	x8969, FL3 2042, MMM
+   Steve Williams:	x8164, FL3 2039, MMM
+
+ - Jon may have info about converting the data read from the tape.
+
+10/15/92
+Mark Bradford spoke with Steve Williams, who says Cindy already has 
+the C-130 data.  The documentation I have for the P-3 is all that
+SFPO had; I should talk to Steve if I need more info or need to
+know how to reach someone who knows about the format of the P-3
+data file.
+
+Next step for header.c: Find out how much space is skipped between
+successive recognized records; flag those that are nonzero.
+
+Dick knows the name of the person from NOAA who could put me in
+touch with someone who knows the P3 data format.  The P-3 flies
+out of NOAA's Miami Hurricane Center.
+
+10/19
+Cindy lost the C-130 data; she'll try to get yet another copy from
+Steve Williams tomorrow.  
+Question: a p3 platform already existed during StormFEST, corresponding
+to data retrieved by phone for real time P3 data, yes?  Will the data
+from the P3 file override this platform, or will it be assigned a
+distinct platform name?
+
+
+On the search to find more info about P3 standard tape format:
+Steve Williams directed me to Jose Meitin (NOAA/NSSL) at 497-6341,
+but he was in Norman the week of this writing.  Steve also suggested
+NSSL Norman, (405)366-3462, but this number was out of service(?)
+
+Cindy contacted Irv Watson (497-6630) who suggested I contact
+Bob Hueftle (MMM) (497-6630, hueftle@ncar.ucar.edu).  Bob knew of 
+some code (FORTRAN) converting P3 tape data to ascii, but he said the
+code was written by Dave Jorgensen.  Dave was in TOGA-COARE at this writing
+as was the person he knew at AOC in Miami.  Bob has sent him email to see if
+he has any further info or knows the location of more code.  Bob put 
+the code he found at aftp@mrd3.mmm.ucar.edu (128.117.88.200) in ~ftp/pub.
+These are the files copyoao_data.f, listoao_data.f, and oao_subs.f.  
+A routine called PACK is missing; it does some bit-shifting for some of the
+fields.  It probably isn't very critical, but Bob says it can be obtained
+from AOC Miami.
+
+I can't compile the code, and looking through it I see lots of familiar
+info but no handling of the error flags in fields 10 and 11 of records type 5.
+
+After investigating an example file, most of the error flags present are for
+ambient temperature or pressure, and the values of the fields do not seem to
+be in error.  Anyway, all of the fields will be stored as they are stored in
+the original tape file, and the flags fields will be stored as well.  The
+two flags FL1 and FL2, in words 10 and 11 of type 5 records, are packed into
+an unsigned long and stored as the "err_flags" field in the DataChunk.
+(Since sizeof(ulong) == sizeof(float) == 4.)  The big problem will be handling
+errors in time, lat, and lon.  My example file flags such errors once, in
+a record following a 21 second gap in data.  Cindy would like the data
+split into two separate files, one before and one after the gap.
+
+Cindy also thinks people will want to use WINDS with P3 and UW data.  It will
+probably be assumed that WINDS can be configured to use the field names given
+to the parameters in the data file and carried through to the netCDF file.
+
+Some comparisons of mmap versus fread performance:
+time p3dat_ingest -log pi -blow p3-1.dat >& p3-mapped.out 
+45.595u 2.759s 0:51:64 93.6% 0+5594k 2+57io 156pf+0w
+time csh -c "cat p3-1.dat | p3dat_ingest -log pi -blow - >& p3-read.out"
+44.97u  5.629s 0:53:49 94.5% 0+3042k 14+55io 373pf+0w
+Not much difference, eh?  Hmmm...
+
+The platform for the planes will be the STORM id used during fest,
+i.e. Storm 1, Storm 2, ... I think the P3 is n43rf, Storm3, and
+the U of Wash C-130 might be n327uw, Storm 4.
+
+[ 11/20  The P-3 will be platform "p3" since it was not given a storm id
+         and the real-time data will not be included.  C-130 will be "storm4". ]
+
+QUESTION: The 'parameters' file for the C-130 flight data describes the
+timeh field as 'local time'!!!  What's this?  Does this mean the times
+stored in the file are in CST, or CDT, or what?  How am I gonna find out?
+The quest continues...
+
+According to STORM-FEST data summary, the times in the C-130 data are in GMT.
+

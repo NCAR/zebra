@@ -1,0 +1,9 @@
+#!/bin/csh
+
+foreach f ($*)
+	if (`basename $f` == `windsname $f`.cdf) continue
+	set cmd="mv $f `dirname $f`/`windsname $f`.cdf"
+	echo "$cmd"
+	$cmd
+end
+
