@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.8 1991-02-14 19:57:55 corbet Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.9 1992-01-30 21:10:32 corbet Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -773,7 +773,7 @@ bool *ambig;
  */
 	names.test = zapcase (usy_string (tok->tk_string));
  	names.n1[0] = names.n2[0] = '\0';
-	usy_traverse (Ui_command_table, uip_check_cmd, &names, FALSE);
+	usy_traverse (Ui_command_table, uip_check_cmd, (long) &names, FALSE);
 	usy_rel_string (names.test);
 /*
  * Check for the multiple and no match situations.

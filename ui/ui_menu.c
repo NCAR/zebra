@@ -1,5 +1,5 @@
 /* 12/87 jc */
-/* $Id: ui_menu.c,v 1.3 1989-09-25 14:52:15 corbet Exp $ */
+/* $Id: ui_menu.c,v 1.4 1992-01-30 21:10:32 corbet Exp $ */
 /*
  * Menuing functions are handled here.
  */
@@ -161,7 +161,7 @@ char *name;
  */
  	ERRORCATCH
 		ui_subcommand ("ust$within_menu", "Menu>", um_within_menu,
-			mp);
+			(long) mp);
 	ON_ERROR
 		relvm (mp->m_choices);
 		relvm (mp);
@@ -244,7 +244,7 @@ struct ui_command *cmds;
  * Time to enter an even further restricted parser state to grab the rest
  * of the choice info.
  */
-	ui_subcommand ("ust$menu_choice", "Choice> ", um_choice, chp);
+	ui_subcommand ("ust$menu_choice", "Choice> ", um_choice, (long) chp);
 	return (TRUE);
 }
 

@@ -100,7 +100,7 @@ struct ui_command *cmds;
  */
 	ERRORCATCH
 		ui_subcommand ("ust$input_initial", "State>", ust_int_state,
-					ste);
+					(long) ste);
 	ON_ERROR
 		if (ste->sta_nkw)
 			relvm (ste->sta_kw);
@@ -308,7 +308,8 @@ struct ui_command *cmds;
  * OK, somewhere in that mess above, we have come up with an action pointer.
  * Now we enter yet another subcommand to fill that structure in.
  */
- 	ui_subcommand ("ust$within_input", "Input>", ust_within_input, &s);
+ 	ui_subcommand ("ust$within_input", "Input>", ust_within_input,
+			(long) &s);
 }
 
 
