@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  *
- * $Id: GraphicsW.c,v 1.8 1991-04-10 23:06:13 kris Exp $
+ * $Id: GraphicsW.c,v 1.9 1991-06-03 21:26:09 corbet Exp $
  */
 # include <stdio.h>
 # include <errno.h>
@@ -299,8 +299,11 @@ GraphicsWidget	w;
 	
 /*
  * If we don't have frames, just return 
+ * 6/91 (!) jc -- if we don't have a window, this stuff doesn't make a
+ * 	 	  whole hell of a lot of sense.  How it worked until now
+ *		  I will never know.
  */
-	if (! have_frames)
+	if (! have_frames || ! w->core.window)
 		return;
 
 /*
