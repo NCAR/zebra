@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.48 1996-12-31 23:36:42 burghart Exp $")
+RCSID ("$Id: message.c,v 2.49 1997-01-21 18:20:27 granger Exp $")
 
 /*
  * Symbol tables.
@@ -64,7 +64,7 @@ static stbl InetAvoidTable;	/* Machines which time out and slow us down */
 /*
  * The master sockets for incoming connections.
  */
-static int M_un_socket;		/* Unix domain socket		*/
+static int M_un_socket = -1;	/* Unix domain socket		*/
 static int M_in_socket = -1;	/* Internet domain socket	*/
 static char UnSocketName[120];	/* Name of Un socket		*/
 /*
@@ -476,15 +476,17 @@ char **argv;
 			perror ("Select");
 			break;		/* XXX */
 		}
-	 	listen (M_un_socket, 5);	/* XXXX?? */
-		/* printf ("Sel done, nsel %d\r\n", nsel); */
 	/*
 	 * If it's from our master socket, accept a new connection.
 	 */
-		if (FD_ISSET (M_un_socket, &fds))
+		if (M_un_socket >= 0)
 		{
-			new_un_connection ();
-			nsel--;
+			listen (M_un_socket, 5);	/* XXXX?? */
+			if (FD_ISSET (M_un_socket, &fds))
+			{
+				new_un_connection ();
+				nsel--;
+			}
 		}
 	/*
 	 * Look for Internet connections too.
@@ -859,15 +861,15 @@ again:
 	 	if (errno == EADDRINUSE)
 		{
 			if (ntry++ == 0)
-				printf ("Waiting for IN socket to clear");
+				printf ("Waiting for INET socket to clear");
 			printf (".");
 			fflush (stdout);
 			sleep (5);
 			goto again;
 		}
-		perror ("IN Socket bind");
-		log (EF_PROBLEM, "bind error %d, continuing with no IN socket",
-		     errno);
+		perror ("INET Socket bind");
+		log (EF_PROBLEM, "bind error %d, %s", errno,
+		     "continuing with no INET socket");
 		M_in_socket = -1;
 	}
 	if (ntry)
@@ -1017,13 +1019,13 @@ NewInConnection ()
 	if (conn < 0)
 	{
 		perror ("Accept error on UNIX internet-domain socket");
-		send_log (EF_PROBLEM, "error %d accepting IN domain socket",
+		send_log (EF_PROBLEM, "error %d accepting INET domain socket",
 			  errno);
 		return;
 	}
 	inaddr = ntohl(saddr.sin_addr.s_addr);
 	send_log (EF_DEBUG, "%s %d, %lu.%lu.%lu.%lu:%d", 
-		  "accepted IN connection", conn,
+		  "accepted INET connection", conn,
 		  (inaddr & 0xff000000) >> 24,
 		  (inaddr & 0x00ff0000) >> 16,
 		  (inaddr & 0x0000ff00) >> 8,
@@ -1690,20 +1692,15 @@ SValue *v;
 
 
 static void
-die ()
-/*
- * Give up the ghost.
- */
+SendShutdown ()
 {
 	struct message msg;
 	struct mh_template tmpl;
 /*
  * Send out a message saying that it's all over.  Note that we do not
- * explicitly broadcast to inet connections, or we could take down the
- * entire net.
+ * explicitly broadcast to inet connections (they are not in the Everybody
+ * group), else we could take down the entire net.
  */
-	send_log (EF_DEBUG, "%s; going down in %d seconds",
-		  "broadcasting shutdown", SHUTDOWN_DELAY);
 	strcpy (msg.m_to, MSG_EVERYBODY);
 	strcpy (msg.m_from, MSG_MGR_NAME);
 	msg.m_proto = MT_MESSAGE;
@@ -1713,19 +1710,41 @@ die ()
 	msg.m_data = (char *) &tmpl;
 	tmpl.mh_type = MH_SHUTDOWN;
 	broadcast (&msg, 0);
+}
+
+
+
+static void
+die ()
+/*
+ * Give up the ghost.
+ */
+{
+	send_log (EF_DEBUG, "%s; going down in %d seconds",
+		  "broadcasting shutdown", SHUTDOWN_DELAY);
+	SendShutdown ();
 /*
  * Get rid of the socket now.  That means nobody can connect during the
  * remaining up time, but it also means that we get out of the way.
- * Do likewise with our internet socket?
  */
 	unlink (UnSocketName);
-#ifdef notdef
+	if (M_un_socket >= 0)
+	{
+		shutdown (M_un_socket, 2);
+		close (M_un_socket);
+		FD_CLR (M_un_socket, &Allfds);
+		M_un_socket = -1;
+	}
+/*
+ * Likewise stop listening to our inbound internet socket.
+ */
 	if (M_in_socket >= 0)
 	{
+		send_log (EF_DEBUG, "closing inbound inet socket");
 		close (M_in_socket);
+		FD_CLR (M_in_socket, &Allfds);
 		M_in_socket = -1;
 	}
-#endif
 /*
  * Now set an alarm and continue to operate for a little while longer so that
  * processes can communicate while they shut down.
@@ -1744,33 +1763,34 @@ ReallyDie ()
  */
 {
 	int i;
+	int deadbeats = 0;
 
 	Dying = TRUE;
-	log (EF_DEBUG, "exiting now");
+/*
+ * Forcibly close any remaining client connections before closing
+ * network connections, in case any network hosts are interested in
+ * the demise of any of our clients.
+ */
+	send_log (EF_DEBUG, "closing remaining client connections...");
+	for (i = 0; i < FD_MAP_SIZE; i++)
+	{
+		if (Fd_map[i] && (Fd_map[i]->c_inet == 0))
+		{
+			++deadbeats;
+			deadconn (i);
+		}
+	}
+	send_log (EF_DEBUG, "%d client connections forced close", deadbeats);
 /*
  * Close out network connections.
  */
+	send_log (EF_DEBUG, "closing inet connections...");
 	usy_traverse (Inet_table, CloseInet, 0, FALSE);
-/*
- * Clear out our sockets, release our memory, and quit.
- */
-	shutdown (M_un_socket, 2);
-	close (M_un_socket);
-	if (M_in_socket >= 0)
-	{
-		if (shutdown (M_in_socket, 2) < 0)
-			perror ("shutdown internet socket");
-		close (M_in_socket);
-	}
 	for (i = 0; i < FD_MAP_SIZE; i++)
 	{
 		if (Fd_map[i])
 		{
-			close (i);
-			usy_traverse (Group_table, clear_group, 
-				      (int)Fd_map[i], FALSE);
-			FreeTap (i);
-			FreeConnection (Fd_map[i]);
+			deadconn (i);
 		}
 	}
 	FreeHosts ();
@@ -1789,6 +1809,7 @@ ReallyDie ()
 /* 
  * And finally exit
  */
+	log (EF_DEBUG, "exiting");
 	exit (0);
 }
 
@@ -2129,7 +2150,7 @@ struct message *msg;
  */
 	at = strrchr (msg->m_from, '@');
 	if (! at || strcmp (conp->c_name, at + 1))
-		send_log (EF_PROBLEM, "IN machine %s thinks its '%s'!", 
+		send_log (EF_PROBLEM, "INET machine %s thinks its '%s'!", 
 			  conp->c_name, at ? at + 1 : msg->m_from);
 }
 
@@ -2666,16 +2687,18 @@ struct connection *conp;
 
 
 
-
 static void
-ce_connect (conp)
+ce_send (conp, event, group)
 struct connection *conp;
+int event;
+char *group;
 /*
- * Send out a client event noting that this client has connected.
+ * Give notice to all of this client event.
  */
 {
 	struct message msg;
 	struct mh_client cl;
+	int i;
 /*
  * Fill in our message.
  */
@@ -2687,13 +2710,44 @@ struct connection *conp;
 	msg.m_len = sizeof (cl);
 	msg.m_data = (char *) &cl;
 	strcpy (cl.mh_client, conp->c_name);
+	cl.mh_group[0] = '\0';
+	if (group)
+		strcpy (cl.mh_group, group);
 	cl.mh_type = MH_CLIENT;
-	cl.mh_evtype = MH_CE_CONNECT;
+	cl.mh_evtype = event;
 	cl.mh_inet = conp->c_inet;
 /*
- * Broadcast it.
+ * First broadcast locally, if we're not in the process of shutting down.
  */
- 	broadcast (&msg, conp);
+	if (! Dying)
+	{
+		strcpy (cl.mh_client, conp->c_name);
+		broadcast (&msg, conp);
+	}
+/*
+ * Then send it out over any network connections we may have.  We rely on 
+ * send_msg to restore our m_from field after each call.
+ */
+	strcpy (cl.mh_client, conp->c_name);
+	strcat (cl.mh_client, "@");
+	strcat (cl.mh_client, Hostname);
+	for (i = MINFD; i < Nfd; i++)
+	{
+		if (Fd_map[i] && Fd_map[i]->c_inet)
+			send_msg (Fd_map[i], &msg);
+	}
+}
+
+
+
+static void
+ce_connect (conp)
+struct connection *conp;
+/*
+ * Send out a client event noting that this client has connected.
+ */
+{
+	ce_send (conp, MH_CE_CONNECT, NULL);
 }
 
 
@@ -2705,48 +2759,13 @@ struct connection *conp;
  * Send out a client disconnect message.
  */
 {
-	struct message msg;
-	struct mh_client cl;
-	int i;
 /*
  * Don't announce the demise of internet connections, though there is some
  * info here that might be useful...
  */
 	if (conp->c_inet)
 		return;
-/*
- * Fill in our message.
- */
-	msg.m_proto = MT_MESSAGE;
-	strcpy (msg.m_from, MSG_MGR_NAME);
-	strcpy (msg.m_to, MSG_CLIENT_EVENTS);
-	msg.m_seq = conp->c_fd;
-	msg.m_flags = MF_BROADCAST;
-	msg.m_len = sizeof (cl);
-	msg.m_data = (char *) &cl;
-	cl.mh_type = MH_CLIENT;
-	cl.mh_evtype = MH_CE_DISCONNECT;
-	cl.mh_inet = conp->c_inet;
-/*
- * Send it out over any network connections we may have.  We rely on 
- * send_msg to restore our m_from field after each call.
- */
-	strcpy (cl.mh_client, conp->c_name);
-	strcat (cl.mh_client, "@");
-	strcat (cl.mh_client, Hostname);
-	for (i = MINFD; i < Nfd; i++)
-	{
-		if (Fd_map[i] && Fd_map[i]->c_inet)
-			send_msg (Fd_map[i], &msg);
-	}
-/*
- * Also broadcast it locally, if we're not in the process of shutting down.
- */
-	if (! Dying)
-	{
-		strcpy (cl.mh_client, conp->c_name);
-		broadcast (&msg, conp);
-	}
+	ce_send (conp, MH_CE_DISCONNECT, NULL);
 }
 
 
@@ -2759,27 +2778,7 @@ char *group;
  * Send out a client group join message.
  */
 {
-	struct message msg;
-	struct mh_client cl;
-/*
- * Fill in our message.
- */
-	msg.m_proto = MT_MESSAGE;
-	strcpy (msg.m_from, MSG_MGR_NAME);
-	strcpy (msg.m_to, MSG_CLIENT_EVENTS);
-	msg.m_seq = conp->c_fd;
-	msg.m_flags = MF_BROADCAST;
-	msg.m_len = sizeof (cl);
-	msg.m_data = (char *) &cl;
-	strcpy (cl.mh_client, conp->c_name);
-	strcpy (cl.mh_group, group);
-	cl.mh_type = MH_CLIENT;
-	cl.mh_evtype = MH_CE_JOIN;
-	cl.mh_inet = conp->c_inet;
-/*
- * Broadcast it.
- */
- 	broadcast (&msg, conp);
+	ce_send (conp, MH_CE_JOIN, group);
 }
 
 
@@ -3184,11 +3183,6 @@ va_dcl
 	struct message msg;
 	struct msg_elog *el;
 	int len;
-#ifdef notdef
-	int type;
-	union usy_value v;
-	struct connection *conp;
-#endif
 /*
  * Format the message.
  */
@@ -3202,16 +3196,6 @@ va_dcl
 			 el->el_text);
 	if ((flags & EMask) == 0)
 		return;
-#ifdef notdef
-/*
- * If there is no event logger, there is no point in the rest.
- */
- 	if (Dying || ! usy_g_symbol (Proc_table, EVENT_LOGGER_NAME, &type, &v))
-		return;
-	conp = (struct connection *) v.us_v_ptr;
-	if (strcmp (conp->c_name, EVENT_LOGGER_NAME))
-		return;	/* Event logger not finished connecting? */
-#endif
 /*
  * Now broadcast this message to the event logger group.
  */
