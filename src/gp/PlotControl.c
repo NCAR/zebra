@@ -1,11 +1,10 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.4 1991-03-05 23:13:38 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.5 1991-03-28 18:26:47 kris Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
-
 # include "../include/GraphicsW.h"
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -15,13 +14,6 @@ static char *rcsid = "$Id: PlotControl.c,v 1.4 1991-03-05 23:13:38 kris Exp $";
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-
-
-
-/*
- * Local stuff.
- */
-static int	MovieEvent = -1;
 
 # ifdef __STDC__
 	int pc_TimeTrigger (char *);
@@ -42,7 +34,6 @@ static int	MovieEvent = -1;
 # endif
 
 
-
 /*
  * The coordinate stack.
  */
@@ -58,9 +49,7 @@ CoordStack *O_coords = 0;
 /*
  * The following table is a rudimentary attempt to rule-ize the special
  * treatment of PD parameter changes.  Someday it should be smarter.
- */
-
-/*
+ *
  * The default action when a parameter change comes in is to (1) invalidate
  * the frame cache, (2) (not) wipe out the icon bar, and (3) do a complete 
  * redraw.  These flags can change that.
@@ -70,11 +59,9 @@ CoordStack *O_coords = 0;
 # define F_MOVIEUPD		0x0004	/* Update movie parameters	*/
 # define F_ICONS		0x0008	/* Redo the icons		*/
 
+
 /*
- * The structure describing PD parameters.  We should probably read this
- * from a file, eventually.  If necessary, an action procedure could be
- * added which would allow the calling of an outside procedure for truly
- * special cases.
+ * The structure describing PD parameters. 
  */
 struct ParamAction
 {
@@ -82,11 +69,13 @@ struct ParamAction
 	int	pa_flags;		/* Flags saying what to do	*/
 };
 
+
 /*
- * Here is the table.
+ * Here is the table.  We should probably read this from a file, eventually.  
+ * If necessary, an action procedure could be added which would allow the 
+ * calling of an outside procedure for truly special cases.
  */
-static struct ParamAction
-PActions[] =
+static struct ParamAction PActions[] =
 {
 	{ "altitude",		F_NOINVALIDATE				},
 	{ "disable",		F_ICONS					},
@@ -106,7 +95,6 @@ PActions[] =
 };
 
 
-
 void
 pc_PlotHandler ()
 /*
@@ -114,14 +102,12 @@ pc_PlotHandler ()
  */
 {
 	char	pmstring[80];
-	time	ptime;
 	Arg	arg;
-
 /*
  * Cancel all existing timer requests.
  */
- 	tl_AllCancel ();
-	ds_CancelNotify ();
+ 		tl_AllCancel ();
+		ds_CancelNotify ();
 /*
  * Get the plot mode
  */
@@ -135,19 +121,26 @@ pc_PlotHandler ()
 		PlotMode = History;
 	else
 		msg_log ("Unknown plot mode '%s' -- real-time used", pmstring);
+	msg_ELog(EF_DEBUG, "PlotMode: %s", (PlotMode == History) ? "History" :
+		"RealTime");
 /*
  * Movie mode?
  */
 	MovieMode = FALSE;
-	pda_Search (Pd, "global", "movie-mode", 0, &MovieMode, SYMT_BOOL);
+	pda_Search (Pd, "global", "movie-mode", 0, (char *) &MovieMode, 
+		SYMT_BOOL);
+	msg_ELog(EF_DEBUG, "Movie mode: %s", MovieMode ? "TRUE" : "FALSE");
 /*
  * Get the path to the FrameFile from the plot description.
  */
-	if(! pda_Search (Pd, "global", "file-path", NULL, FrameFilePath,
-		SYMT_STRING))
-		strcpy(FrameFilePath, "/dt/tmp");
-	FrameFileFlag = TRUE;
-	fc_CreateFrameFile();
+	if(! FrameFileFlag)
+	{
+		if(! pda_Search (Pd, "global", "file-path", NULL, 
+			FrameFilePath, SYMT_STRING))
+			strcpy(FrameFilePath, "/dt/tmp");
+		FrameFileFlag = TRUE;
+		fc_CreateFrameFile();
+	}
 /*
  * Figure out how many frames we need the frame cache to have and the
  * maximum number of pixmaps the graphics widget may have.
@@ -171,6 +164,16 @@ pc_PlotHandler ()
  */
 	if (PlotMode == RealTime && WindowState == UP)
 		pc_SetUpTriggers ();
+
+/*
+ *  If a movie is running, keep it running, so the changes can be incorporated
+ *  into the movie.
+ */		
+	if((PlotMode == History) && MovieMode)
+	{
+		mc_PDChange();
+		return;
+	}
 /*
  * If we're in history mode, find the plot time and do a global plot now
  */
@@ -190,15 +193,7 @@ pc_PlotHandler ()
  */
 	if (WindowState == UP)
 		Eq_AddEvent (PDisplay, pc_Plot, "global", 7, Override);
-/*
- * If we're in movie mode, set up the movie trigger
- */
-	if (MovieMode && WindowState == UP)
-		pc_DoMovie ();
-	
 }
-
-
 
 
 void
@@ -208,7 +203,6 @@ char	*param;
  * Deal with a parameter change in the PD
  */
 {
-	bool invalidate = TRUE;
 	struct ParamAction *pa = PActions;
 /*
  * Try to find this parameter in our table.
@@ -221,10 +215,14 @@ char	*param;
 	if (! pa->pa_param)
 	{
 		msg_ELog (EF_DEBUG, "Change '%s' -- no entry", param);
-		ct_FreeColors ();	/* Release all colors	*/
-		fc_InvalidateCache ();  /* Invalidate cache	*/
-		pc_PlotHandler ();	/* Schedule an update	*/
-		return;			/* That's enough	*/
+		ct_FreeColors ();		/* Release all colors	*/
+		fc_InvalidateCache ();  	/* Invalidate cache	*/
+		if(! MovieMode)
+		{
+			pc_PlotHandler ();	/* Schedule an update	*/
+			return;			/* That's enough	*/
+		}
+		else mc_ParamChange();
 	}
 /*
  * Otherwise do what it says.
@@ -239,11 +237,14 @@ char	*param;
 		mc_LoadParams ();
 	if (pa->pa_flags & F_ICONS)
 		I_DoIcons ();
-	if ((pa->pa_flags & F_NOREDRAW) == 0)
+	if (((pa->pa_flags & F_NOREDRAW) == 0) && ! MovieMode)
+	{
 		pc_PlotHandler ();
+		return;
+	}
+	if(MovieMode)
+		mc_ParamChange();
 }
-
-
 
 
 pc_SetUpTriggers ()
@@ -270,9 +271,6 @@ pc_SetUpTriggers ()
 }
 
 
-
-
-
 pc_DoTrigger (trigger, comp)
 char *trigger, *comp;
 /*
@@ -297,8 +295,6 @@ char *trigger, *comp;
 }
 
 
-
-
 int pc_TimeTrigger (trigger)
 char *trigger;
 /*
@@ -321,9 +317,6 @@ char *trigger;
 	else
 		return (0);
 }
-
-
-
 
 
 static void
@@ -370,8 +363,6 @@ char *param;
 }
 
 
-
-
 static void
 pc_PlotAlarm (t, comp)
 time *t;
@@ -385,9 +376,6 @@ char *comp;
 	Eq_AddEvent (PDisplay, pc_Plot, comp, 1 + strlen (comp),
 		(strcmp (comp, "global") ? Bounce : Override));
 }
-
-
-
 
 
 static void
@@ -408,9 +396,6 @@ time *t;
 }
 
 
-
-
-
 static void
 pc_Plot (comp)
 char	*comp;
@@ -418,28 +403,9 @@ char	*comp;
  * Actually execute the plot of the given component
  */
 {
-	 msg_ELog (EF_DEBUG, "pc_Plot (%s)", comp); 
-/*
- * Stop movie mode until the plot is done
- */
-	if (MovieEvent >= 0)
-	{
-		tl_Cancel (MovieEvent);
-		MovieEvent = -1;
-	}
-/*
- * Plot
- */
+	msg_ELog (EF_DEBUG, "pc_Plot (%s)", comp); 
 	px_PlotExec (comp);
-/*
- * Turn on the movie again if necessary
- */
-	if (MovieMode)
-		pc_DoMovie ();
 }
-
-
-
 
 
 void
@@ -461,72 +427,6 @@ pc_CancelPlot ()
 }
 
 
-
-
-pc_DoMovie ()
-/*
- * Get a movie going
- */
-{
-	float	fr;	/* Movie rate in frames/second */
-	int	millisecs;
-/*
- * Deal with a one frame movie
- */
-	if (FrameCount == 1)
-	{
-		msg_log ("One frame movie!");
-		return;
-	}
-/*
- * Find the frame rate
- */
-	fr = 2.0;	/* default to 2 frames/second */
-	pda_Search (Pd, "global", "frame-rate", 0, (char *)(&fr), SYMT_FLOAT);
-/*
- * Set up the timer
- */
-	if (MovieEvent >= 0)
-		tl_Cancel (MovieEvent);
-
-	millisecs = (int)(1000 / fr);
-	MovieEvent = tl_AddRelativeEvent (pc_FrameAlarm, NULL, 0, 
-		(millisecs*INCFRAC)/1000);
-}
-
-
-
-
-static void
-pc_FrameAlarm ()
-/*
- * Queue an event to display the next frame
- */
-{
-	Eq_AddEvent (PDisplay, pc_NextFrame, NULL, 0, Bounce);
-}
-
-
-
-
-static void
-pc_NextFrame ()
-/*
- * Display the next frame
- */
-{
-	int index;
-
-	DisplayFrame++;
-	DisplayFrame %= FrameCount;
-	GWDisplayFrame (Graphics, DisplayFrame);
-	XSync (XtDisplay (Top), False);
-}
-
-
-
-
-
 static void
 pc_SetCoords (x0, y0, x1, y1)
 float x0, y0, x1, y1;
@@ -545,12 +445,10 @@ float x0, y0, x1, y1;
 /*
  * Now get a replot done, and ship the PD back to the display manager.
  */
-	fc_InvalidateCache ();  /* Invalidate cache	*/
+	fc_InvalidateCache ();
 	Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
 }
-
-
 
 
 pc_PushCoords (cmds)
@@ -602,8 +500,6 @@ struct ui_command *cmds;
 }
 
 
-
-
 pc_PopCoords ()
 /*
  * Pop one level of coords off the stack.
@@ -624,4 +520,71 @@ pc_PopCoords ()
 	pc_SetCoords (cs->cs_x0, cs->cs_y0, cs->cs_x1, cs->cs_y1);
 	O_coords = cs->cs_next;
 	free (cs);
+}
+
+
+/*======================================================================*/
+/*
+ *  Old Movie Routines
+ */
+/*======================================================================*/
+
+
+static int	MovieEvent = -1;
+
+
+pc_DoMovie ()
+/*
+ * Get a movie going
+ */
+{
+	float	fr;	/* Movie rate in frames/second */
+	int	millisecs;
+/*
+ * Deal with a one frame movie
+ */
+	if (FrameCount == 1)
+	{
+		msg_log ("One frame movie!");
+		return;
+	}
+/*
+ * Find the frame rate
+ */
+	fr = 2.0;	/* default to 2 frames/second */
+	pda_Search (Pd, "global", "frame-rate", 0, (char *)(&fr), SYMT_FLOAT);
+/*
+ * Set up the timer
+ */
+	if (MovieEvent >= 0)
+		tl_Cancel (MovieEvent);
+
+	millisecs = (int)(1000 / fr);
+	MovieEvent = tl_AddRelativeEvent (pc_FrameAlarm, NULL, 0, 
+		(millisecs*INCFRAC)/1000);
+}
+
+
+static void
+pc_FrameAlarm ()
+/*
+ * Queue an event to display the next frame
+ */
+{
+	Eq_AddEvent (PDisplay, pc_NextFrame, NULL, 0, Bounce);
+}
+
+
+static void
+pc_NextFrame ()
+/*
+ * Display the next frame
+ */
+{
+	int index;
+
+	DisplayFrame++;
+	DisplayFrame %= FrameCount;
+	GWDisplayFrame (Graphics, DisplayFrame);
+	XSync (XtDisplay (Top), False);
 }
