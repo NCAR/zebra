@@ -60,6 +60,7 @@ extern void	GWText (/* GraphicsWidget, String, int, int, float,
 extern void	GWClearFrame (/* GraphicsWidget, int */);
 extern void	GWDrawInFrame (/* GraphicsWidget, int */);
 extern void	GWDisplayFrame (/* GraphicsWidget, int */);
+extern int	GwGetByteOrder ( );
 extern GC	GWGetGC(/* GraphicsWidget */);
 extern Pixmap	GWGetFrame(/* GraphicsWidget, int */);
 extern char 	*GWGetFrameAddr(/* GraphicsWidget, int frame */);

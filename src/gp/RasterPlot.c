@@ -74,7 +74,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.31 1998-03-17 18:30:05 corbet Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.32 1998-03-17 22:27:49 corbet Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -180,6 +180,7 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   int bdepth));
 
 static void RP_MakeColorMap FP ((float, float, Pixel *));
+static void RP_FixCMap FP ((Pixel *, int, int));
 
 
 # ifdef MAP_PROJECTIONS
@@ -1057,6 +1058,7 @@ RGrid *rg;
 	{
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
 		destimg += yhi * GWGetBPL(w, frame) + xlo*bdepth;
+		RP_FixCMap (cmap, GWGetByteOrder (w, frame), bdepth);
 		RP_ImageRasterize (destimg, width, height, grid, cmap, toprow, 
 				   leftcol, rowinc, colinc, xd, yd,
 				   GWGetBPL (w, frame) - width*bdepth, bdepth);
@@ -1073,6 +1075,7 @@ RGrid *rg;
 	 * Get an XImage, fill it, and stuff it in.
 	 */
 		image = RP_GetXImage(w, width, height);
+		RP_FixCMap (cmap, image->byte_order, bdepth);
 		RP_ImageRasterize ((unsigned char *)(image->data), 
 				   width, height, grid, cmap, toprow, leftcol,
 				   rowinc, colinc, xd, yd,
@@ -1301,6 +1304,7 @@ RGrid *rg;
 		shm = TRUE;
 		yoff = 0;  /* x and y correspond to graphics frame */
 		xoff = x0;
+		RP_FixCMap (cmap, GWGetByteOrder (w, frame), bdepth);
 	}
 	else
 # endif
@@ -1313,6 +1317,7 @@ RGrid *rg;
 		shm = FALSE;
 		yoff = y0;  /* x and y must be translated to image coords */
 		xoff = 0;
+		RP_FixCMap (cmap, image->byte_order, bdepth);
 	}
 /*
  * Now we plow through the pixels, reverse map each one, and assign the
@@ -1365,6 +1370,50 @@ RGrid *rg;
 }
 # endif /* MAP_PROJECTIONS */
 
+
+static void
+RP_FixCMap (cmap, serverorder, bdepth)
+Pixel *cmap;
+int serverorder, bdepth;
+/*
+ * Fix up this color map to match the servers byte ordering, if need be.
+ */
+{
+	int cmentry;
+	int ourorder = BigEndian () ? MSBFirst : LSBFirst;
+	short *scmap;
+/*
+ * Maybe we don't need to do anything?
+ */
+	msg_ELog (EF_DEBUG, "FixCMap, us %d server %d depth %d", ourorder,
+			serverorder, bdepth);
+	if (bdepth == 1 || ourorder == serverorder)
+		return;
+	msg_ELog (EF_DEBUG, "Flipping...");
+/*
+ * Oh well.  Flip this one around.
+ */
+	switch (bdepth)
+	{
+	    case 2:
+		scmap = (short *) cmap;
+		if (ourorder == MSBFirst)
+			scmap++;	/* To LSB part of word */
+		for (cmentry = 0; cmentry < 256; cmentry++)
+		{
+			swap2 (scmap);
+			scmap += 2;
+		}
+		break;
+	    case 4:
+		for (cmentry = 0; cmentry < 256; cmentry++)
+			swap4 (cmap + cmentry);
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "Bad bdepth: %d", bdepth);
+		break;
+	}
+}
 
 
 

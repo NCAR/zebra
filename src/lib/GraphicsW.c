@@ -40,7 +40,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-RCSID("$Id: GraphicsW.c,v 2.23 1998-03-17 18:27:22 corbet Exp $")
+RCSID("$Id: GraphicsW.c,v 2.24 1998-03-17 22:27:57 corbet Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -926,6 +926,20 @@ int p;
 
 
 
+/*
+ * What byte order does our memory frame need?
+ */
+int
+GWGetByteOrder (w, p)
+GraphicsWidget w;
+int p;
+{
+	if (w->graphics.image)
+		return (w->graphics.image[p]->byte_order);
+	else
+		return (0); /* hopeless at this point */
+}
+			     
 
 
 
