@@ -41,10 +41,12 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.23 1993-05-26 19:56:00 granger Exp $")
+
+# ifndef lint
+MAKE_RCSID ("$Id: Track.c,v 2.24 1993-05-27 10:45:56 granger Exp $")
+# endif
 
 # define ARROWANG .2618 /* PI/12 */
-
 
 /*
  * Forwards.
@@ -56,13 +58,35 @@ static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
 		char *, bool *, char *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
-		char *, double, double, double, char *, bool));
+		char *, float, float, float, char *, bool));
 static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable));
 static void tr_DoTimeAnnot FP((Drawable, int, int, char *, char *, double, 
-		XColor, ZebTime, double));
-static float tr_FigureRot FP ((double, double, double, double));
+		XColor, ZebTime, double rot, int justify));
+static float tr_FigureRot FP ((float, float, float, float, int *));
 static int tr_LocateAnnot FP ((DataChunk *dc, int sample,
-			       ZebTime *a_time, int *x, int *y, float *rot));
+			       ZebTime *a_time, int *x, int *y, 
+			       float *rot, int *justify));
+
+
+static float
+tr_GetBadval (dc)
+DataChunk *dc;
+{
+	if (dc_IsSubClassOf (dc->dc_Class, DCC_MetData))
+		return (dc_GetBadval (dc));
+	else
+	{
+		char *abad;
+		float badvalue;
+
+		abad = dc_GetGlobalAttr (dc, "bad_value_flag");
+		if (!abad)	/* trouble */
+			return (-99999.0);
+		sscanf (abad,"%f",&badvalue);
+		return (badvalue);
+	}
+}
+
 
 
 void
@@ -76,15 +100,15 @@ bool update;
 	int period, nc, lwidth, pid, index;
 	int dskip = 0, i, a_int, numfields = 0, afield;
 	int x0, y0, x1, y1;
-	int samp0 = -1;		/* sample at which (x0,y0) last set  */
+	int samp0;		/* sample at which (x0,y0) last set  */
 	long vectime;	/* the time, multiple of the arrow interval */
 		        /* a_int, for which last vector arrow drawn */
 	int npt;   	/* number pts read so far, for data-skipping */
-	int a_lwidth, nfld, nsamp;
+	int a_lwidth, nsamp;
 	bool arrow, showposition, annot_time;
 	bool mono, shifted, a_invert;
 	ZebTime begin, zt;
-	float *data, base, incr, a_scale, *a_xdata, *a_ydata;
+	float *data, base, incr, a_scale;
 	float unitlen, center, step;
 	Drawable d;
 	XColor xc, *colors, outrange, a_clr;
@@ -126,7 +150,7 @@ bool update;
 		numfields += 2;
 	} 
 /*
- * Figure the begin time.
+ * Figure the begin time and fetch data.
  */
 	if (period) {
 
@@ -150,7 +174,7 @@ bool update;
 	      }
 	      msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
 		       begin.zt_Sec, PlotTime.zt_Sec);
-	      dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, 
+	      dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
 			     &begin, &PlotTime, fields, numfields, 0, 0);
 
 	    } else {
@@ -163,7 +187,7 @@ bool update;
 		dc = NULL;
 	      } else {
 		msg_ELog(EF_DEBUG,"global, FetchObs for %d", begin.zt_Sec);
-		dc = ds_FetchObs(pid, numfields ? DCC_Scalar : DCC_Location, 
+		dc = ds_FetchObs(pid, numfields ? DCC_Scalar : DCC_Location,
 				 &begin, fields, numfields, 0, 0);
 	      }
 	    }
@@ -190,7 +214,7 @@ bool update;
 	}
 	shifted = ApplySpatialOffset (dc, comp, &PlotTime);
 	nsamp = dc_GetNSample (dc);
-	badvalue = dc_GetBadval (dc);
+	badvalue = tr_GetBadval (dc);
 /*
  * Fix up some graphics info.
  */
@@ -207,6 +231,7 @@ bool update;
  */
 	vectime = 0;
 	npt = 0;
+	samp0 = -1;
 	for (i = 0; i < nsamp; i++)
 	{
 		float u, v;		/* vector component values	     */
@@ -333,6 +358,7 @@ Drawable	d;
 	float	label_scale, rot;
 	XColor	x_color;
 	ZebTime	when, t;
+	int	justify;
 /*
  * Get the time interval. 
  */
@@ -413,9 +439,10 @@ Drawable	d;
 		 * Figure out where the annotation is supposed to go, and
 		 * do the annotation if possible.
 		 */
-			if (tr_LocateAnnot (dc, i, &t, &x, &y, &rot))
+			if (tr_LocateAnnot (dc, i, &t, &x, &y, &rot, &justify))
 				tr_DoTimeAnnot (d, x, y, icon, label, 
-						label_scale, x_color, t, rot);
+						label_scale, x_color, t, 
+						rot, justify);
 		/*
 		 * Decrement the time to the next interval multiple.
 		 */
@@ -427,6 +454,48 @@ Drawable	d;
 
 
 
+
+static float
+tr_FigureRot (x0, y0, x1, y1, justify)
+float	x0, y0, x1, y1;
+int *justify;
+/*
+ * Figure a rotation factor (in degrees) which is perpendicular to the 
+ * line defined by (x0, y0) and (x1, y1).
+ */
+{
+	double	theta;
+/*
+ * Find the angle, -pi to pi, defined by the right-hand perpendicular of
+ * the line (x0,y0) - (x1,y1).
+ */
+	if ((x0 - x1 == 0) && (y1 - y0 == 0))	/* to avoid DOMAIN warnings */
+		theta = 0.0;
+	else
+		theta = atan2 ( (double)(x0 - x1), (double)(y1 - y0) );
+/*
+ * Always label the "right" side of line, depending upon direction, putting
+ * labels perpendicular to line but right-side-up, and justifying according
+ * to the side.
+ */
+	if ((theta > M_PI/2.0) || (theta < -(M_PI)/2.0)) /* in Quads II,III */
+	{
+		*justify = JustifyRight;
+		theta += M_PI;
+	}
+	else
+	{
+		*justify = JustifyLeft;
+	}
+	if (theta < 0)
+		theta += 2*M_PI;
+	return ((float)(theta * 180.0 / M_PI));
+}
+
+
+
+
+#ifdef notdef
 static float
 tr_FigureRot (x0, y0, x1, y1)
 float	x0, y0, x1, y1;
@@ -437,28 +506,34 @@ float	x0, y0, x1, y1;
 {
 	float	sub_x = (x1 - x0), sub_y = (y1 - y0);
 	float	degrees;
-	double	radians, temp;
+	double	radians, temp, sine;
 
 	temp = (double) (sub_x * sub_x + sub_y * sub_y);
-	if (temp == 0.0) temp = 1.0;
-	radians = asin ((double) sub_y / sqrt (temp));
+	sine = 
+	if ((temp == 0.0) ||
+	    (fabs((float)((double) sub_y / sqrt (temp))) > 1.0))
+		radians = 0.0;
+	else
+		radians = asin ((double) sub_y / sqrt (temp));
 	degrees = (float) radians * 180.0 / M_PI;
 	if (degrees >= 0.0) degrees -= 90.0;
 	else degrees += 90.0;
 	if (degrees < 0.0) degrees += 360.0;
 	return (degrees); 
 }
+#endif
 
 
 
 static void
-tr_DoTimeAnnot (d, x, y, icon, label, label_scale, x_color, t, rot)
+tr_DoTimeAnnot (d, x, y, icon, label, label_scale, x_color, t, rot, justify)
 Drawable	d;
 int		x, y;
 char		*icon, *label;
 float		label_scale, rot;
 XColor		x_color;
 ZebTime		t;
+int		justify;
 /*
  * Draw the icon and place the text for a time annotation.
  */
@@ -473,18 +548,26 @@ ZebTime		t;
  */
 	if (strcmp (label, "time") == 0)
 	{
-		TC_EncodeTime (&t, TC_TimeOnly, label_str);
 	/*
-	 * Get rid of seconds.
+	 * Insert some space before the time
+	 */
+		strcpy (label_str, "  ");
+		TC_EncodeTime (&t, TC_TimeOnly, label_str + strlen(label_str));
+	/*
+	 * Get rid of seconds, and add a space for right-justified times.
 	 */
 		label_str[strlen (label_str) - 3] = '\0';
+		strcat (label_str, "  ");
 	}
 	else if (strcmp (label, "none") == 0)
 		return;
 	else 
-		strcpy (label_str, label);
+	{
+		strncpy (label_str, label, sizeof(label_str));
+		label_str[sizeof(label_str) - 1] = '\0';
+	}
 	DrawText (Graphics, d, Gcontext, x, y, label_str, rot, label_scale, 
-		JustifyLeft, JustifyCenter);
+		  justify, JustifyCenter);
 }
 
 
@@ -597,14 +680,19 @@ int *samp1;
  * sample after the given sample with a valid location.  samp0 and samp1
  * return as -1 if a good location could not be found meeting the
  * requirements.
+ *
+ * As an added bonus, we'll look a few seconds into the future (or to the
+ * very end, whichever comes first) in an attempt to smooth the slope
+ * determined by loc0 and loc1.
  */
 {
 	float badval;
 	Location loc;
+	ZebTime t0, t1;
 	int i;
 	int nsample;
 
-	badval = dc_GetBadval (dc);
+	badval = tr_GetBadval (dc);
 	i = sample + 1;
 	*samp0 = -1;
 	while (--i >= 0)
@@ -616,6 +704,7 @@ int *samp1;
 		{
 			*samp0 = i;
 			*loc0 = loc;
+			dc_GetTime (dc, i, &t0);
 			break;
 		}
 	}
@@ -630,9 +719,15 @@ int *samp1;
 			continue;
 		else
 		{
+		/*
+		 * Try to get closest to 5 seconds into the future without
+		 * going past.  Otherwise we take the first that's valid.
+		 */
+			dc_GetTime (dc, i, &t1);
+			if ((*samp1 >= 0) && (t1.zt_Sec - t0.zt_Sec > 5))
+				break;
 			*samp1 = i;
 			*loc1 = loc;
-			break;
 		}
 	}
 }
@@ -641,12 +736,13 @@ int *samp1;
 
 
 static int
-tr_LocateAnnot (dc, sample, a_time, x, y, rot)
+tr_LocateAnnot (dc, sample, a_time, x, y, rot, justify)
 DataChunk *dc;
 int sample;		/* Current sample about where annot needs plotting */
 ZebTime *a_time;	/* Time desired for annotation */
 int *x, *y;		/* Pixel location to put annotation */
 float *rot;		/* Rotation angle to use for annotation */
+int *justify;		/* Justification to use for annotation */
 /*
  * Given the dc and the sample, find a location, interpolating over bad
  * values if necessary, for the annotation and the rotation to use for the
@@ -655,7 +751,6 @@ float *rot;		/* Rotation angle to use for annotation */
 {
 	ZebTime t0, t1;
 	float fx, fy, fx0, fy0, fx1, fy1;
-	int i;
 	Location loc0, loc1;
 	int samp0, samp1;
 /*
@@ -701,9 +796,12 @@ float *rot;		/* Rotation angle to use for annotation */
  * determine the slope, just supply a default.
  */
 	if (samp1 >= 0)
-		*rot = tr_FigureRot (fx, fy, fx1, fy1);
+		*rot = tr_FigureRot (fx, fy, fx1, fy1, justify);
 	else
+	{
 		*rot = 0;
+		*justify = JustifyLeft;
+	}
 	return (1);
 }
 
