@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.3 1990-09-04 08:45:37 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.4 1990-11-14 10:51:25 burghart Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -60,7 +60,7 @@ bool update;
 /*
  * Get our platform first, since that's what is of interest to us.
  */
-	if (! px_GetParam (comp, "platform", NULL, platform, SYMT_STRING))
+	if (! pda_ReqSearch (comp, "platform", NULL, platform, SYMT_STRING))
 		return;
 /*
  * Pull out other parameters of interest.
@@ -285,9 +285,9 @@ float *base, *incr;
 /*
  * Get our color coding parameters.
  */
-	if (! px_GetParam (comp, "track-center", ccfield, (char *) &center,
+	if (! pda_ReqSearch (comp, "track-center", ccfield, (char *) &center,
 		SYMT_FLOAT) ||
-	    ! px_GetParam (comp, "track-step", ccfield, (char *) &step,
+	    ! pda_ReqSearch (comp, "track-step", ccfield, (char *) &step,
 	    	SYMT_FLOAT))
 		return (FALSE);
 	if (! tr_GetParam (comp, "out-of-range-color", ccfield, orc,
