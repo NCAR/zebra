@@ -82,7 +82,7 @@ librdssgraph_a_SOURCES = \
 	clip.c color.c control.c device.c dev_null.c \
 	dev_ps.c dev_psc.c dev_x11.c image.c messages.c oplist.c \
 	overlay.c pixel.c pixel_font_0.c sfont_0.c sfont_1.c \
-	text.c tty.c util.c vpt.c \
+	text.c util.c \
 	\
 	color.h device.h graphics.h image.h oplist.h overlay.h \
 	param.h pixel.h pxl.h tty.h workstation.h
@@ -94,12 +94,14 @@ gt_SOURCES = gt.c
 
 ov_test_SOURCES = ov_test.c
 
+vpt_SOURCES = vpt.c
+
 DEFS = -DCOLORDB=\"${rdssgraphdir}/rgb.txt\"
 
 #
 # Only generate targets if we have X11
 #
-@WITH_X_TRUE@noinst_PROGRAMS = aspect gt ov_test
+@WITH_X_TRUE@noinst_PROGRAMS = aspect gt ov_test vpt
 
 @WITH_X_TRUE@lib_LIBRARIES = librdssgraph.a 
 
@@ -123,10 +125,10 @@ am_librdssgraph_a_OBJECTS = clip.$(OBJEXT) color.$(OBJEXT) \
 	image.$(OBJEXT) messages.$(OBJEXT) oplist.$(OBJEXT) \
 	overlay.$(OBJEXT) pixel.$(OBJEXT) pixel_font_0.$(OBJEXT) \
 	sfont_0.$(OBJEXT) sfont_1.$(OBJEXT) text.$(OBJEXT) \
-	tty.$(OBJEXT) util.$(OBJEXT) vpt.$(OBJEXT)
+	util.$(OBJEXT)
 librdssgraph_a_OBJECTS = $(am_librdssgraph_a_OBJECTS)
 @WITH_X_TRUE@noinst_PROGRAMS = aspect$(EXEEXT) gt$(EXEEXT) \
-@WITH_X_TRUE@	ov_test$(EXEEXT)
+@WITH_X_TRUE@	ov_test$(EXEEXT) vpt$(EXEEXT)
 @WITH_X_FALSE@noinst_PROGRAMS =
 PROGRAMS = $(noinst_PROGRAMS)
 
@@ -147,6 +149,12 @@ ov_test_LDADD = $(LDADD)
 ov_test_DEPENDENCIES = librdssgraph.a ../ui/librdssui.a \
 	../util/librdssutil.a
 ov_test_LDFLAGS =
+am_vpt_OBJECTS = vpt.$(OBJEXT)
+vpt_OBJECTS = $(am_vpt_OBJECTS)
+vpt_LDADD = $(LDADD)
+vpt_DEPENDENCIES = librdssgraph.a ../ui/librdssui.a \
+	../util/librdssutil.a
+vpt_LDFLAGS =
 DEFAULT_INCLUDES =  -I. -I$(srcdir)
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
@@ -163,15 +171,14 @@ am__depfiles_maybe = depfiles
 @AMDEP_TRUE@	./$(DEPDIR)/overlay.Po ./$(DEPDIR)/pixel.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/pixel_font_0.Po ./$(DEPDIR)/sfont_0.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/sfont_1.Po ./$(DEPDIR)/text.Po \
-@AMDEP_TRUE@	./$(DEPDIR)/tty.Po ./$(DEPDIR)/util.Po \
-@AMDEP_TRUE@	./$(DEPDIR)/vpt.Po
+@AMDEP_TRUE@	./$(DEPDIR)/util.Po ./$(DEPDIR)/vpt.Po
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 CFLAGS = @CFLAGS@
 DIST_SOURCES = $(librdssgraph_a_SOURCES) $(aspect_SOURCES) $(gt_SOURCES) \
-	$(ov_test_SOURCES)
+	$(ov_test_SOURCES) $(vpt_SOURCES)
 DATA = $(rdssgraph_DATA)
 
 HEADERS = $(include_HEADERS)
@@ -179,7 +186,7 @@ HEADERS = $(include_HEADERS)
 DIST_COMMON = $(include_HEADERS) ../depcomp ../install-sh ../missing \
 	../mkinstalldirs Makefile.am Makefile.in aclocal.m4 configure \
 	configure.in
-SOURCES = $(librdssgraph_a_SOURCES) $(aspect_SOURCES) $(gt_SOURCES) $(ov_test_SOURCES)
+SOURCES = $(librdssgraph_a_SOURCES) $(aspect_SOURCES) $(gt_SOURCES) $(ov_test_SOURCES) $(vpt_SOURCES)
 
 all: all-am
 
@@ -248,6 +255,9 @@ gt$(EXEEXT): $(gt_OBJECTS) $(gt_DEPENDENCIES)
 ov_test$(EXEEXT): $(ov_test_OBJECTS) $(ov_test_DEPENDENCIES) 
 	@rm -f ov_test$(EXEEXT)
 	$(LINK) $(ov_test_LDFLAGS) $(ov_test_OBJECTS) $(ov_test_LDADD) $(LIBS)
+vpt$(EXEEXT): $(vpt_OBJECTS) $(vpt_DEPENDENCIES) 
+	@rm -f vpt$(EXEEXT)
+	$(LINK) $(vpt_LDFLAGS) $(vpt_OBJECTS) $(vpt_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT) core *.core
@@ -275,7 +285,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sfont_0.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sfont_1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/text.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tty.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vpt.Po@am__quote@
 
