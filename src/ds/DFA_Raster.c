@@ -5,7 +5,6 @@
 # include <errno.h>
 # include <fcntl.h>
 # include <unistd.h>
-# include <memory.h>
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -14,6 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.0 1992-03-31 20:28:50 corbet Exp $")
 
 
 
@@ -27,6 +27,7 @@ typedef struct _RFTag
 	RFHeader	rt_hdr;		/* The file header		*/
 	RFToc		*rt_toc;	/* The table of contents	*/
 	int		rt_fd;		/* The associated file descr	*/
+	FieldId		*rt_fids;	/* Translated fields		*/
 } RFTag;
 
 
@@ -41,23 +42,13 @@ static int NSbuf = 0;
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static void	drf_WSync (RFTag *);
-	static int	drf_FindOffset (DataObject *, int);
-	static int	drf_WriteImage (RFTag *, DataObject *, int, int);
-	static int	drf_FldOffset (RFHeader *, char *);
-	static int	drf_TimeIndex (const RFTag *, const time *);
-	static void	drf_GetField (const RFTag *, const RFToc *,int,char *);
-	static void	drf_ReadOldToc (RFTag *);
-# else
-	static void	drf_WSync ();
-	static int	drf_FindOffset ();
-	static int	drf_WriteImage ();
-	static int	drf_FldOffset ();
-	static int	drf_TimeIndex ();
-	static void	drf_GetField ();
-	static void	drf_ReadOldToc ();
-# endif
+static void	drf_WSync FP ((RFTag *));
+static int	drf_FindOffset FP ((DataObject *, int));
+static int	drf_WriteImage FP ((RFTag *, DataObject *, int, int));
+static int	drf_FldOffset FP ((RFHeader *, char *));
+static int	drf_TimeIndex FP ((const RFTag *, const ZebTime *));
+static void	drf_GetField FP ((const RFTag *, const RFToc *,int));
+static void	drf_ReadOldToc FP ((RFTag *));
 
 
 
@@ -98,6 +89,7 @@ void **rtag;
  */
 {
 	RFTag *tag = ALLOC (RFTag);
+	int fld;
 /*
  * Open up the actual disk file.
  */
@@ -144,6 +136,14 @@ void **rtag;
 	else
 		read (tag->rt_fd, tag->rt_toc,
 				tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
+/*
+ * Make a translated set of fields.
+ */
+	tag->rt_fids = (FieldId *)
+			malloc (tag->rt_hdr.rf_NField * sizeof (FieldId));
+	for (fld = 0; fld < tag->rt_hdr.rf_NField; fld++)
+		tag->rt_fids[fld] =
+				F_Lookup (tag->rt_hdr.rf_Fields[fld].rff_Name);
 /*
  * Good enough.  Return the tag info and we're done.
  */
@@ -193,6 +193,7 @@ RFTag *tag;
 {
 	close (tag->rt_fd);
 	free (tag->rt_toc);
+	free (tag->rt_fids);
 	free (tag);
 }
 
@@ -515,13 +516,63 @@ RFTag *tag;
 
 
 
-int
-drf_Setup (gp)
+DataChunk *
+drf_Setup (gp, fields, nfield, class)
 GetList *gp;
+FieldId *fields;
+int nfield;
+DataClass class;
 /*
- * Get set up for this piece of a data grab.
+ * Initialize for a data snarf.
  */
 {
+	RFTag *tag;
+	RFHeader *hdr;
+	DataChunk *dc;
+	ScaleInfo *sc;
+	int ufield, ffield;
+/*
+ * Verify that the class makes sense,
+ * and create a nice, empty data chunk for it.
+ */
+	if (class != DCC_Image)
+	{
+		msg_ELog (EF_PROBLEM, "Non-image fetch from raster fmt");
+		return (NULL);
+	}
+	dc = dc_CreateDC (DCC_Image);
+/*
+ * Now we need to find the first file so we can pull out the scale info.
+ */
+	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
+		return (FALSE);
+	hdr = &tag->rt_hdr;
+	sc = (ScaleInfo *) malloc (nfield * sizeof (ScaleInfo));
+/*
+ * Pass through each user field and field the equivalent file field.
+ */
+	for (ufield = 0; ufield < nfield; ufield++)
+	{
+	/*
+	 * Find this field and grab the scale info.
+	 */
+	 	for (ffield = 0; ffield < hdr->rf_NField; ffield++)
+			if (fields[ufield] == tag->rt_fids[ffield])
+				break;
+		if (ffield >= hdr->rf_NField)
+			msg_ELog (EF_PROBLEM, "Field %s not in rfile",
+					F_GetName (fields[ufield]));
+		else
+		 	sc[ufield] = hdr->rf_Fields[ffield].rff_Scale;
+	}
+/*
+ * Now we init the data chunk and we're done.
+ */
+	dc_ImgSetup (dc, nfield, fields, sc);
+	free (sc);
+	return (dc);
+
+# ifdef notdef
 	RFTag *tag;
 	int tbegin, tend, sample;
 /*
@@ -545,26 +596,29 @@ GetList *gp;
 	}
 	gp->gl_nsample = tend - tbegin + 1;
 	return (TRUE);
+# endif
 }
 
 
 
 
 static int
-drf_TimeIndex (tag, begin)
+drf_TimeIndex (tag, zbegin)
 const RFTag * const tag;
-const time * const begin;
+const ZebTime * const zbegin;
 /*
  * Find the index of this sample.
  */
 {
 	int offset;
 	RFToc *toc = tag->rt_toc;
+	time begin;
 /*
  * Yet another dumb sequential search loop.
  */
+	TC_ZtToUI (zbegin, &begin);
 	for (offset = tag->rt_hdr.rf_NSample - 1; offset >= 0; offset--)
-		if (DLE (toc[offset].rft_Time, *begin))
+		if (DLE (toc[offset].rft_Time, begin))
 			return (offset);
 	return (0);
 }
@@ -574,19 +628,22 @@ const time * const begin;
 
 
 int 
-drf_GetData (gp)
+drf_GetData (dc, gp)
+DataChunk *dc;
 const GetList *gp;
 /*
  * Retrieve the data called for here.
  */
 {
-	DataObject *dobj = gp->gl_dobj;
 	RFToc *toc;
 	RFTag *tag;
 	RFHeader *hdr;
-	RastImg *rip = &dobj->do_desc.d_img;
+	/* RastImg *rip = &dobj->do_desc.d_img; */
 	int tbegin, tend, sample, fld, rfld;
-	int fieldmap[MAXFIELD], offset = 0;
+	int fieldmap[MAXFIELD], offset = 0, nfield;
+	int dcsamp = dc_GetNSample (dc);
+	FieldId *fids = dc_GetFields (dc, &nfield);
+	ZebTime t_hack;
 /*
  * Open the file.
  */
@@ -603,30 +660,24 @@ const GetList *gp;
  * of time, we may have to go to an stbl or something, but I don't think
  * it matters.
  */
-	for (fld = 0; fld < dobj->do_nfield; fld++)
+	for (fld = 0; fld < nfield; fld++)
 	{
 	/*
 	 * Search for this field in the list of those available.
 	 */
 		for (rfld = 0; rfld < hdr->rf_NField; rfld++)
-			if (! strcmp (dobj->do_fields[fld],
-					hdr->rf_Fields[rfld].rff_Name))
+			if (tag->rt_fids[rfld] == fids[fld])
 				break;
 	/*
 	 * If it's there, fill in the info; otherwise complain and mark
 	 * it absent.
+	 * (Don't complain any more, since drf_Setup will have already
+	 *  done a sufficient amount of griping).
 	 */
 		if (rfld < hdr->rf_NField)
-		{
 			fieldmap[fld] = rfld;
-			rip->ri_scale[fld] = hdr->rf_Fields[rfld].rff_Scale;
-		}
 		else
-		{
-			msg_ELog (EF_PROBLEM, "Unknown RF field: %s", 
-					dobj->do_fields[fld]);
 			fieldmap[fld] = -1;
-		}
 	}
 /*
  * Now we plow through and pull in the data.
@@ -634,18 +685,26 @@ const GetList *gp;
 	for (sample = tbegin; sample <= tend; sample++)
 	{
 		toc = tag->rt_toc + sample;
+		TC_UIToZt (&toc->rft_Time, &t_hack);
 	/*
 	 * Go through and pull in each field.
 	 */
-		for (fld = 0; fld < dobj->do_nfield; fld++)
+		for (fld = 0; fld < nfield; fld++)
 		{
-			char *dp = offset + (char *) gp->gl_data[fld];
+		/*
+		 * Get the data from the file.
+		 */
 			if (fieldmap[fld] >= 0)
-				drf_GetField (tag, toc, fieldmap[fld], dp);
+				drf_GetField (tag, toc, fieldmap[fld]);
 			else
-				memset (dp, 0,
-					toc->rft_Rg.rg_nX*toc->rft_Rg.rg_nY);
+				continue;
+		/*
+		 * Dump it into the data chunk.
+		 */
+		 	dc_ImgAddImage (dc, dcsamp, fids[fld],&toc->rft_Origin,
+				&toc->rft_Rg, &t_hack, Sbuf, 0);
 		}
+# ifdef notdef
 	/*
 	 * Fill in the location info.
 	 */
@@ -656,6 +715,8 @@ const GetList *gp;
 	 * Bump our offset for the next field.
 	 */
 		offset += toc->rft_Rg.rg_nX*toc->rft_Rg.rg_nY;
+# endif
+		dcsamp++;
 	}
 	return (TRUE);
 }
@@ -664,39 +725,44 @@ const GetList *gp;
 
 
 static void
-drf_GetField (tag, toc, field, dest)
+drf_GetField (tag, toc, field)
 const RFTag * const tag;
 const RFToc * const toc;
 const int field;
-char * const dest;
 /*
  * Pull in this field.
  */
 {
-/*	int nb = toc->rft_Rg.rg_nX * toc->rft_Rg.rg_nY; */
+	int fnb = toc->rft_Rg.rg_nX * toc->rft_Rg.rg_nY;
 	int nb = toc->rft_Size[field];
-
-/*	lseek (tag->rt_fd, toc->rft_Offset + field*nb, SEEK_SET); */
+/*
+ * Move to the right place in the file.
+ */
 	lseek (tag->rt_fd, toc->rft_Offset[field], SEEK_SET);
 /*
  * Without compression, we read straight into the destination array.
  */
 	if ((tag->rt_hdr.rf_Flags & RFF_COMPRESS) == 0)
 	{
-		if (read (tag->rt_fd, dest, nb) != nb)
+		GetScratch (nb);
+		if (read (tag->rt_fd, Sbuf, nb) != nb)
 			msg_ELog (EF_PROBLEM, "Read error %d on rast file",
 					errno);
 	}
 /*
  * Otherwise we read into Sbuf and decompress into our destination.
+ * Now that we always go into sbuf, things are a bit different.  To try
+ * minimize memory use, we read into the far end of Sbuf, and decompress
+ * in place.
  */
 	else
 	{
-		GetScratch (nb);
-		if (read (tag->rt_fd, Sbuf, nb) != nb)
+		int rpos = fnb - nb + 100;
+		GetScratch (fnb + 100);
+		if (read (tag->rt_fd, Sbuf + rpos, nb) != nb)
 			msg_ELog (EF_PROBLEM, "Read error %d on rast file",
 					errno);
-		RL_Decode ((unsigned char *) dest, Sbuf, nb);
+		RL_Decode (Sbuf, Sbuf + rpos, nb);
 	}
 }
 
@@ -707,7 +773,7 @@ char * const dest;
 int 
 drf_DataTimes (dfindex, t, which, ntime, dest)
 int dfindex, ntime;
-time *t, *dest;
+ZebTime *t, *dest;
 TimeSpec which;
 /*
  * Return a list of available times.
@@ -726,12 +792,14 @@ TimeSpec which;
 	begin = drf_TimeIndex (tag, t);
 	if (which == DsBefore)
 		for (i = 0; begin >= 0 && i < ntime; i++)
-			*dest++ = tag->rt_toc[begin--].rft_Time;
+			TC_UIToZt (&tag->rt_toc[begin--].rft_Time, dest++);
+			/* *dest++ = tag->rt_toc[begin--].rft_Time; */
 	else if (which == DsAfter)
 	{
 		begin++;
 		for (i = 0; begin < tag->rt_hdr.rf_NSample; i++)
-			*dest++ = tag->rt_toc[begin++].rft_Time;
+			TC_UIToZt (&tag->rt_toc[begin++].rft_Time, dest++);
+			/* *dest++ = tag->rt_toc[begin++].rft_Time; */
 	}
 	return (i);
 }
@@ -743,7 +811,7 @@ TimeSpec which;
 int
 drf_GetObsSamples (dfile, times, locs, max)
 int dfile, max;
-time *times;
+ZebTime *times;
 Location *locs;
 /*
  * Return sample info.
@@ -763,7 +831,8 @@ Location *locs;
 	toc = tag->rt_toc;
 	for (i = 0; i < tag->rt_hdr.rf_NSample && i < max; i++)
 	{
-		*times++ = toc[i].rft_Time;
+		/* *times++ = toc[i].rft_Time; */
+		TC_UIToZt (&toc[i].rft_Time, times++);
 		*locs++ = toc[i].rft_Origin;
 	}
 	return (i);
@@ -775,7 +844,7 @@ Location *locs;
 int
 drf_GetFields (dfile, t, nfld, flist)
 int dfile, *nfld;
-time *t;
+ZebTime *t;
 char **flist;
 /*
  * Return a list of fields available from this file at this time.
@@ -806,7 +875,7 @@ char **flist;
 char *
 drf_GetAttrs (dfile, t, len)
 int dfile, *len;
-time *t;
+ZebTime *t;
 /*
  * Pull out the attributes, if any.
  */
