@@ -34,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.2 1992-06-09 19:18:00 corbet Exp $")
 
 
 
@@ -51,7 +51,7 @@ static void	mh_message FP ((struct message *));
 static void	ds_message FP ((char *, struct dsp_Template *));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
 static void	dp_AbortNewFile FP ((struct dsp_AbortNewFile *));
-static void	dp_UpdateFile FP ((struct dsp_UpdateFile *));
+static void	dp_UpdateFile FP ((char *, struct dsp_UpdateFile *));
 static void	dp_DeleteData FP ((Platform *, int));
 static void	ZapDF FP ((DataFile *));
 static void	SetUpEvery FP ((struct ui_command *));
@@ -525,7 +525,7 @@ struct dsp_Template *dt;
 	 * File updating -- they've added data.
 	 */
 	   case dpt_UpdateFile:
-	   	dp_UpdateFile ((struct dsp_UpdateFile *) dt);
+	   	dp_UpdateFile (from, (struct dsp_UpdateFile *) dt);
 		break;
 	/*
 	 * Delete -- get rid of data.
@@ -643,7 +643,8 @@ struct dsp_AbortNewFile *request;
 
 
 static void
-dp_UpdateFile (request)
+dp_UpdateFile (from, request)
+char *from;
 struct dsp_UpdateFile *request;
 /*
  * Deal with a file update notification.
@@ -652,6 +653,7 @@ struct dsp_UpdateFile *request;
 	DataFile *df = DFTable + request->dsp_FileIndex;
 	Platform *plat = PTable + df->df_platform;
 	int append = FALSE;
+	struct dsp_Template ack;
 /*
  * Mark the changes in the datafile entry.  Update the rev count so that
  * reader processes know things have changed.
@@ -681,6 +683,11 @@ struct dsp_UpdateFile *request;
 		dt_AddToPlatform (plat, df, TRUE);
 	}
 	ShmUnlock ();
+/*
+ * Send an ack back to the updating process.
+ */
+	ack.dsp_type = dpt_R_UpdateAck;
+	msg_send (from, MT_DATASTORE, FALSE, &ack, sizeof (ack));
 /*
  * Now we do data available notifications.
  */
