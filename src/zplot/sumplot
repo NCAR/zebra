@@ -1,0 +1,77 @@
+#! /bin/sh
+#
+# $Id: sumplot,v 1.1 2000-08-02 20:19:12 granger Exp $
+#
+# Collect all the images of a given pattern, reduce their size, and
+# put them into a table in the current directory.
+#
+
+if [ $# -ne 4 ]; then
+
+    echo "Usage: $0 <project> <pattern> <basedir> <destdir>"
+    echo "Finds all image files of the given <pattern> under <basedir>,"
+    echo "creates thumbnails and a html table in <destdir>."
+    exit 1
+
+fi
+
+project=$1
+pattern=$2
+basedir=$3
+destdir=$4
+
+if [ ! -d $destdir ]; then
+    echo "$destdir does not exist."
+    exit 1
+fi
+
+(echo "<html><head><title>$project Plot Summary for $pattern</title></head><body>"
+
+cat <<EOF
+<body bgcolor="#ffffff">
+
+<h1><IMG alt="National Center for Atmospheric Research" 
+     SRC="http://www.atd.ucar.edu/gif/ncar_ban_sml.gif">
+<br>
+<A HREF="http://www.atd.ucar.edu/welcome.html"><IMG valign=center alt="ATD..." 
+   SRC="http://www.atd.ucar.edu/gif/atd_ban_sml.gif"></a>
+$project Plot Summary for $pattern
+</h1>
+<hr>
+EOF
+
+
+echo "<p>Click on an image to view the full-size plot.</p>"
+echo "<table border="0" cellspacing=4 cellpadding=4><tr>"
+
+i=0
+find $basedir -name "*${pattern}*" | while read path ; do
+
+    image=`basename $path`
+    (set -x; \
+     convert -geometry 140x140 -modulate 20 $path $destdir/tn_$image) 1>&2
+    echo '<td bgcolor="#f0f0f0">'
+    echo "<p><strong>$image</strong><p><a href=$path><img src=tn_$image></a>"
+    echo "</td>"
+    i=`expr $i + 1`
+    if [ $i -eq 4 ]; then
+    i=0
+    echo "</tr><tr>"
+    fi
+
+done
+
+echo "</tr></table>"
+echo "</p>"
+cat <<EOF
+<HR SIZE=6 NOSHADE ALIGN=LEFT>
+<FONT SIZE=1>&copy;
+NCAR/Atmospheric Technology Division<br>
+Email: <a href="mailto:granger@atd.ucar.edu">granger@atd.ucar.edu</a>
+<br><HR WIDTH="100%"><BR>
+<P><FONT SIZE=-2>
+Created `date`
+</FONT></p>
+EOF
+echo "</body></html>") > $destdir/summary-$pattern.html
+
