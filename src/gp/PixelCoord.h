@@ -66,11 +66,11 @@
 
 
 /*
- * Macros to convert user coordinates into pixel locations
+ * Plotting space.  We leave an area for annotation on all sides
  */
 # define F_X0 0.05
 # define F_X1 0.85
-# define F_Y0 0.00
+# define F_Y0 0.05
 # define F_Y1 0.90
 
 /*
