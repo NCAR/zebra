@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.36 1994-05-19 21:00:10 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.37 1994-05-20 20:04:27 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -275,6 +275,11 @@ extern void GetRange FP ((float *, int, double, float *, float *));
 extern void CalcCenterStep FP ((double, double, int, float *, float *));
 extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
+extern void FindWindsFields FP ((PlatformId, ZebTime *, char *, char *,
+		FieldId *));
+extern void GetWindData FP ((FieldId *, float *, float *, float));
+
+
 
 /* This stuff contains window system oriented stuff, so is only brought
    in if this module is doing X things. */

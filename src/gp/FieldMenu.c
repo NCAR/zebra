@@ -36,13 +36,13 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.9 1994-04-26 20:03:35 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.10 1994-05-20 20:04:25 corbet Exp $")
 
 
 /*
  * Stuff for the SME menu.
  */
-# define MAXENTRY 40
+# define MAXENTRY 100
 static Widget Menu, Entries[MAXENTRY];
 static char Platform[40];	/* Platform of interest	*/
 static FieldId Fields[MAXENTRY];
@@ -282,6 +282,14 @@ SetupFields ()
 	{
 		usy_g_symbol (VTable, "icon_platform", &type, &v);
 		strcpy (Platform, v.us_v_ptr);
+	/*
+	 * XXX: If we're running in the station plot annotation area, it
+	 * 	has "quadN" kludged into the platform field.  Kludge our
+	 *	way back to the real platform.  Ugly.
+	 */
+		if (! strncmp (Platform, "quad", 4) && Platform[5] == '\0')
+			pd_Retrieve (Pd, IComp, "platform", Platform,
+					SYMT_STRING);
 	}
 /*
  * If we are dealing with a comma-separated list of platforms, just

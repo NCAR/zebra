@@ -29,7 +29,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.21 1994-05-19 21:00:13 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.22 1994-05-20 20:04:31 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -41,6 +41,9 @@ static char *ImgRules[] =
 	"xwd2ps -I",				/* pscolor */
 	"xwd2ps -I -m",				/* psmono */
 };
+
+
+# define DEG_TO_RAD(deg) ((deg)*0.017453292) /* Deg to Rad conv. */
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -671,6 +674,77 @@ char *file;
 
 
 
+
+
+void
+FindWindsFields (plat, zt, ufield, vfield, fids)
+PlatformId plat;
+ZebTime *zt;
+char *ufield, *vfield;
+FieldId *fids;
+/*
+ * Figure out what fields to snarf for winds.
+ */
+{
+	FieldId afids[128];
+	int nfid = 128, i;
+/*
+ * Look up the u component and see if we can really get it.
+ */
+	fids[0] = F_Lookup (ufield);
+	ds_GetFields (plat, zt, &nfid, afids);
+	for (i = 0; i < nfid; i++)
+		if (fids[0] == afids[i])
+		{
+			msg_ELog (EF_INFO, "Found U");
+			fids[1] = F_Lookup (vfield);
+			return;
+		}
+/*
+ * Nope.  Instead, we need to ask for speed and direction and hope it
+ * is available.
+ */
+	msg_ELog (EF_INFO, "Going for speed/direction");
+	fids[0] = F_Lookup ("wspd");	/* XXX should parameterize */
+	fids[1] = F_Lookup ("wdir");
+}
+
+
+
+
+
+void
+GetWindData (fids, u, v, badval)
+FieldId *fids;
+float *u, *v, badval;
+/*
+ * Return the actual wind data.
+ */
+{
+	int wsfid = F_Lookup ("wspd");
+	float wspd, wdir;
+/*
+ * If we already have u/v, just return it.
+ */
+	if (fids[0] != wsfid)
+		return;
+/*
+ * Nope gotta calculate it.
+ */
+	if (*u == badval || *v == badval)
+	{
+		*u = *v = badval;	/* get both */
+		return;
+	}
+	wspd = *u;
+	wdir = *v;
+	*u = -wspd * sin (DEG_TO_RAD (wdir));
+	*v = -wspd * cos (DEG_TO_RAD (wdir));
+}
+
+
+
+
 void
 ChangeCursor (w, cursor)
 Widget	w;
@@ -706,3 +780,4 @@ Cursor	cursor;
 	if (rlevel == 0)
 		eq_sync ();
 }
+

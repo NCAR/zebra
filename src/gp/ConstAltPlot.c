@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.40 1994-05-02 20:20:07 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.41 1994-05-20 20:04:22 corbet Exp $")
 
 
 /*
@@ -115,6 +115,16 @@ static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
 			int));
 static void	CAP_AddStatusLine FP ((char *, char *, char *, double, 
 				       AltUnitType, ZebTime *));
+static void	CAP_StPlotVector FP ((char *, int, ZebTime *, int, int,
+		PlatformId, char *, XColor *, int, float *, float *, float,
+		float, XColor *, int, float *[4], int));
+static DataChunk *CAP_StGetData FP ((char *, PlatformId, FieldId *, int,
+		int *));
+static void	CAP_StDoIRGrid FP ((char *, DataChunk *, char *, FieldId *,
+		int, XColor *, XColor *, ZebTime *, char *, int, float, int));
+static void	CAP_StDoScalar FP ((char *, DataChunk *, char *, FieldId *,
+		int, XColor *, XColor *, ZebTime *, char *, int, float, int));
+
 
 
 
@@ -480,51 +490,24 @@ bool update;
  * Deal with a station plot.
  */
 {
-	char	uname[20], vname[20], cname[30], platform[40], annot[120];
+	char	uname[20], vname[20], cname[30], platform[512], annot[120];
 	char	quadrants[4][20], *quads[6], quadclr[30], string[10];
 	char	data[100], sticon[40];
-	char	*strchr ();
-	static const int offset_x[4] = { -15, 15, -15, 15 };
-	static const int offset_y[4] = { -10, -10, 10, 10 };
-	PlatformId pid, *platforms;
-	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
-	int linewidth, numquads = 0, shifted, npts, i, j, pix_x0, pix_y0;
-	bool	filter = FALSE, tacmatch, stationname = FALSE, quad = FALSE;
+	char	*strchr (), *pnames[100];
+	PlatformId pid;
+	float vscale, unitlen, badvalue;
+	int linewidth, numquads = 0, shifted, i, nplat;
+	bool	tacmatch, stationname = FALSE, quad = FALSE;
 	ZebTime zt;
 	XColor	color, qcolor;
 	FieldId	fields[6];
 	DataChunk	*dc;
-	Location	*locations;
-	StInfo		*sinfo;
 /*
  * Get necessary parameters from the plot description
  */
 	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
 			&linewidth, &unitlen, &color))
 		return;
-/*
- * See about position icons.
- */
-	if (! pda_Search (Pd, c, "station-icon", platform, sticon,
-			   SYMT_STRING))
-		strcpy (sticon, "pam-loc");
-/*
- * Get the platform ID.
- */
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
-		return;
-	}
-/*
- * See when there is data available.
- */
-	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
-	{
-		msg_ELog(EF_INFO,"No data available at all for '%s'",
-			platform);
-		return;
-	}
 /*
  * Look up quadrant info.
  */
@@ -575,130 +558,75 @@ bool update;
 /*
  * Create the field list for our data fetch.
  */
+# ifdef notdef
 	fields[0] = F_Lookup (uname);
 	fields[1] = F_Lookup (vname);
+# endif
 	for (i = 0; i < numquads; i++)
 		fields[i + 2] = F_Lookup (quads[i]);
 /*
- * Get the data.
+ * Maybe start with top annotation.
  */
-	if (! (dc = ds_Fetch (pid, DCC_IRGrid, &zt, &zt, fields, 2 + numquads,
-			NULL, 0)))
+	if (! update)
 	{
-		msg_ELog (EF_INFO, "Get failed on '%s'", platform);
-		return;
-	}
-	shifted = ApplySpatialOffset (dc, c, &PlotTime);
-/*
- * Get some info out of the data chunk.
- */	
-	npts = dc_IRGetNPlatform (dc);
-	platforms = (PlatformId *) malloc (npts * sizeof (PlatformId));
-	locations = (Location *) malloc (npts * sizeof (Location));
-	dc_IRGetPlatforms (dc, platforms, locations);
-	badvalue = dc_GetBadval (dc);
-/*
- * Convert locations and such.
- */
-	sinfo = CAP_StationInfo (dc, locations, npts);
-/*
- * Get the u and v components, and possibly quadrants.
- */
-	ugrid = dc_IRGetGrid (dc, 0, fields[0]);
-	vgrid = dc_IRGetGrid (dc, 0, fields[1]);
-	for (i = 0; i < numquads; i++)
-		qgrid[i] = dc_IRGetGrid (dc, 0, fields[i + 2]);
-/*
- * Apply spatial thinning if they want it.
- */
-	if (pda_Search (Pd, c, "spatial-filter", platform, CPTR (filter),
-			SYMT_BOOL) && filter)
-	{
-		int res = 50;
-
-		pda_Search (Pd, c, "filter-resolution", platform, CPTR (res),
-				SYMT_INT);
-		if (res <= 0)
-		{
-			msg_ELog (EF_PROBLEM,
-				  "invalid filter resolution for %s:%s, using 50",
-				  c, platform);
-			res = 50;
-		}
-		CAP_SpFilter (ugrid, vgrid, &badvalue, sinfo, npts, res);
+		if (pda_Search (Pd, c, "ta-color-match", NULL, (char *)
+				&tacmatch, SYMT_BOOL) && tacmatch)
+			An_TopAnnot ("Vector winds plot (", color.pixel);
+		else
+			An_TopAnnot ("Vector winds plot (", Tadefclr.pixel);
 	}
 /*
- * Graphics context stuff.
+ * Go through all the platforms.
  */
-	ResetGC ();
-	XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
-/*
- * Draw the vectors.
- */
-	for (i = 0; i < npts; i++)
+	nplat = CommaParse (platform, pnames);
+	for (i = 0; i < nplat; i++)
 	{
 	/*
-	 * Look at our station info and see if we want to plot this
-	 * one at all.
+	 * Get the platform ID.
 	 */
-		if (sinfo[i].si_excl)
+		if ((pid = ds_LookupPlatform (pnames[i])) == BadPlatform)
+		{
+			msg_ELog (EF_PROBLEM, "Bad platform '%s'", pnames[i]);
 			continue;
-		pix_x0 = sinfo[i].si_x;
-		pix_y0 = sinfo[i].si_y;
-	/*
-	 * Place an icon at the station location.
-	 */
-		I_PositionIcon (c, ds_PlatformName (platforms[i]), &zt,
-				sticon, pix_x0, pix_y0, color.pixel);
-	/*
-	 * Plot the arrow.
-	 */
-		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
-			linewidth, LineSolid, CapButt, JoinMiter);
-		if ((ugrid[i] != badvalue) && (vgrid[i] != badvalue))
-			draw_vector (XtDisplay (Graphics),
-				GWFrame (Graphics), Gcontext, pix_x0, pix_y0, 
-				ugrid[i], vgrid[i], unitlen);
-		XSetForeground (XtDisplay (Graphics), Gcontext, qcolor.pixel);
-	/*
-	 * Do quadrants if necessary.
-	 */
-		for (j = 0; j < numquads; j++)
-		{
-			if (qgrid[j][i] == badvalue)
-				continue;
-			sprintf(string, "%.1f", qgrid[j][i]); 
-			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				pix_x0 + offset_x[j], pix_y0 + offset_y[j],
-				string, 0.0, Sascale, JustifyCenter,
-				JustifyCenter);
 		}
+		FindWindsFields (pid, &PlotTime, uname, vname, fields);
 	/*
-	 * Station name too if that's what they wanted.
+	 * See about position icons.
 	 */
-	 	if (stationname)
+		if (! pda_Search (Pd, c, "station-icon", pnames[i], sticon,
+				SYMT_STRING))
+			strcpy (sticon, "pam-loc");
+	/*
+	 * Get the data.
+	 */
+		dc = CAP_StGetData (c, pid, fields, numquads + 2, &shifted);
+		if (! dc)
+			continue;
+		badvalue = dc_GetBadval (dc);
+		dc_GetTime (dc, 0, &zt);
+	/*
+	 * Throw it on to the screen.
+	 */
+		if (dc->dc_Class == DCC_IRGrid)
+			CAP_StDoIRGrid (c, dc, pnames[i], fields, numquads,
+					&color,	&qcolor, &zt, sticon,
+					linewidth, unitlen, stationname);
+		else
+			CAP_StDoScalar (c, dc, pnames[i], fields, numquads,
+					&color,	&qcolor, &zt, sticon,
+					linewidth, unitlen, stationname);
+		dc_DestroyDC (dc);
+	/*
+	 * Overlay times and annotation.
+	 */
+		if (! update)
 		{
-			char *slash = ds_PlatformName (platforms[i]);
-			if (strchr (slash, '/'))
-				slash = strchr (slash, '/') + 1;
-			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				pix_x0 + offset_x[3], pix_y0 + offset_y[3],
-				slash, 0.0, Sascale, JustifyCenter,
-				JustifyCenter);
+			CAP_AddStatusLine (c, pnames[i], "(station)", 0.0,
+					AU_kmAGL, &zt);
+			sprintf (annot, "%s%s", (i == 0) ? "" : " ",pnames[i]);
+			An_TopAnnot (annot, Tadefclr.pixel);
 		}
-	/*
-	 * Tweak the foreground back.
-	 */
-		XSetForeground (XtDisplay (Graphics), Gcontext,
-				color.pixel);
 	}
-/*
- * Free the data.
- */
-	free (sinfo);
-	free (platforms);
-	free (locations);
-	dc_DestroyDC (dc);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -708,52 +636,26 @@ bool update;
 /*
  * Top annotation
  */
-	if (pda_Search (Pd, c, "ta-color-match", NULL, (char *) &tacmatch,
-			SYMT_BOOL) && tacmatch)
-		An_TopAnnot ("Vector winds", color.pixel);
-	else
-		An_TopAnnot ("Vector winds", Tadefclr.pixel);
-	sprintf (annot, " plot (%s)", platform);
-	An_TopAnnot (annot, Tadefclr.pixel);
 	if (shifted)
-		An_TopAnnot (" (SHIFTED)", Tadefclr.pixel);
-	An_TopAnnot (".", Tadefclr.pixel);
+		An_TopAnnot (" [SHIFTED]", Tadefclr.pixel);
+	An_TopAnnot (").", Tadefclr.pixel);
 /*
  * Side annotation.
  */
-# ifdef notdef
-	if (numquads > 0)
-	{
-# endif
-		sprintf (data, "%s %d %d %f %d ", "10m/sec", 
+	sprintf (data, "%s %d %d %f %d ", "10m/sec", 
 			color.pixel, qcolor.pixel, unitlen, numquads);
-		for (i = 0; i < 4; i++)
-			if (i < numquads)
-			{
-				strcat (data, quads[i]);
-				strcat (data, " ");
-			}
-			else if (i == 3 && stationname)
-				strcat (data, "station ");
-		        else
-				strcat (data, "none ");
-		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
+	for (i = 0; i < 4; i++)
+		if (i < numquads)
+		{
+			strcat (data, quads[i]);
+			strcat (data, " ");
+		}
+		else if (i == 3 && stationname)
+			strcat (data, "station ");
+		else
+			strcat (data, "none ");
+	An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
 			strlen (data), 90, FALSE, FALSE);
-# ifdef notdef
-	}
-	else
-	{
-		sprintf (data, "%s %d %d %f %d %s %s %s %s", "10m/sec", 
-			color.pixel, 0, unitlen, numquads, "none",
-			"none", "none", "none");
-		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
-			strlen (data), 40, FALSE, FALSE);
-	}
-# endif
-/*
- * Add to the overlay times widget and we are done.
- */
-	CAP_AddStatusLine (c, platform, "(station)", 0.0, AU_kmAGL, &zt);
 }
 
 
@@ -796,6 +698,268 @@ int nsta;
 	}
 	return (sinfo);
 }
+
+
+
+
+static void
+CAP_StPlotVector (c, pt, zt, x0, y0, plat, sticon, color, linewidth, ugrid,
+		vgrid,	badvalue, unitlen, qcolor, numquads, qgrid,
+		stationname)
+char *c, *sticon;
+ZebTime *zt;
+int x0, y0, linewidth, numquads, stationname, pt;
+PlatformId plat;
+XColor *color, *qcolor;
+float *ugrid, *vgrid, badvalue, unitlen, *qgrid[4];
+/*
+ * Actually plot some station plot info.
+ */
+{
+	char string[10];
+	static const int offset_x[4] = { -15, 15, -15, 15 };
+	static const int offset_y[4] = { -10, -10, 10, 10 };
+	int j;
+/*
+ * Place an icon at the station location.
+ */
+	I_PositionIcon (c, ds_PlatformName (plat), zt, sticon, x0, y0,
+			color->pixel);
+/*
+ * Plot the arrow.
+ */
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
+			linewidth, LineSolid, CapButt, JoinMiter);
+	if ((ugrid[pt] != badvalue) && (vgrid[pt] != badvalue))
+		draw_vector (XtDisplay (Graphics),
+				GWFrame (Graphics), Gcontext, x0, y0, 
+				ugrid[pt], vgrid[pt], unitlen);
+	XSetForeground (XtDisplay (Graphics), Gcontext, qcolor->pixel);
+/*
+ * Do quadrants if necessary.
+ */
+	for (j = 0; j < numquads; j++)
+	{
+		if (qgrid[j][pt] == badvalue)
+			continue;
+		sprintf(string, "%.1f", qgrid[j][pt]); 
+		DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				x0 + offset_x[j], y0 + offset_y[j],
+				string, 0.0, Sascale, JustifyCenter,
+				JustifyCenter);
+	}
+/*
+ * Station name too if that's what they wanted.
+ */
+	if (stationname)
+	{
+		char *slash = ds_PlatformName (plat);
+		if (strchr (slash, '/'))
+			slash = strchr (slash, '/') + 1;
+		DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				x0 + offset_x[3], y0 + offset_y[3],
+				slash, 0.0, Sascale, JustifyCenter,
+				JustifyCenter);
+	}
+/*
+ * Tweak the foreground back.
+ */
+	XSetForeground (XtDisplay (Graphics), Gcontext,	color->pixel);
+}
+
+
+
+
+static DataChunk *	
+CAP_StGetData (c, plat, fields, nfield, shifted)
+char *c;
+PlatformId plat;
+FieldId *fields;
+int nfield, *shifted;
+/*
+ * Get some data.
+ */
+{
+	ZebTime zt;
+	DataOrganization org = ds_PlatformDataOrg (plat);
+	DataChunk *dc;
+/*
+ * Make sure this makes sense.
+ */
+	if (org != OrgIRGrid && org != OrgScalar)
+	{
+		msg_ELog (EF_PROBLEM, "Funky org on plat %s",
+				ds_PlatformName (plat));
+		return (0);
+	}
+/*
+ * See when there is data available.
+ */
+	if (! ds_DataTimes (plat, &PlotTime, 1, DsBefore, &zt))
+	{
+		msg_ELog(EF_INFO,"No data available at all for '%s'",
+			ds_PlatformName (plat));
+		return (0);
+	}
+/*
+ * Get the data.
+ */
+	if (! (dc = ds_Fetch (plat, (org==OrgIRGrid) ? DCC_IRGrid : DCC_Scalar,
+			&zt, &zt, fields, nfield, NULL, 0)))
+	{
+		msg_ELog (EF_INFO, "Get failed on '%s'",ds_PlatformName(plat));
+		return (0);
+	}
+	*shifted = ApplySpatialOffset (dc, c, &PlotTime);
+	return (dc);
+}
+
+
+
+
+
+static void
+CAP_StDoIRGrid (c, dc, platform, fields, numquads, color, qcolor, zt, sticon,
+		linewidth, unitlen, stationname)
+char *c, *platform, *sticon;
+DataChunk *dc;
+FieldId *fields;
+int numquads, linewidth, stationname;
+XColor *color, *qcolor;
+ZebTime *zt;
+float unitlen;
+/*
+ * Plot up an IRGrid.
+ */
+{
+	int npts, i;
+	PlatformId *platforms;
+	Location	*locations;
+	StInfo		*sinfo;
+	float *ugrid, *vgrid, *qgrid[4], badvalue;
+	bool filter = FALSE;
+/*
+ * Get some info out of the data chunk.
+ */	
+	badvalue = dc_GetBadval (dc);
+	npts = dc_IRGetNPlatform (dc);
+	platforms = (PlatformId *) malloc (npts * sizeof (PlatformId));
+	locations = (Location *) malloc (npts * sizeof (Location));
+	dc_IRGetPlatforms (dc, platforms, locations);
+/*
+ * Convert locations and such.
+ */
+	sinfo = CAP_StationInfo (dc, locations, npts);
+/*
+ * Get the u and v components, and possibly quadrants.
+ */
+	ugrid = dc_IRGetGrid (dc, 0, fields[0]);
+	vgrid = dc_IRGetGrid (dc, 0, fields[1]);
+	for (i = 0; i < numquads; i++)
+		qgrid[i] = dc_IRGetGrid (dc, 0, fields[i + 2]);
+/*
+ * Apply spatial thinning if they want it.
+ */
+	if (pda_Search (Pd, c, "spatial-filter", platform, CPTR (filter),
+			SYMT_BOOL) && filter)
+	{
+		int res = 50;
+
+		pda_Search (Pd, c, "filter-resolution", platform, CPTR (res),
+				SYMT_INT);
+		if (res <= 0)
+		{
+			msg_ELog (EF_PROBLEM,
+			       "invalid filter resolution for %s:%s, using 50",
+				  c, platform);
+			res = 50;
+		}
+		CAP_SpFilter (ugrid, vgrid, &badvalue, sinfo, npts, res);
+	}
+/*
+ * Graphics context stuff.
+ */
+	ResetGC ();
+	XSetForeground (XtDisplay (Graphics), Gcontext, color->pixel);
+/*
+ * Draw the vectors.
+ */
+	for (i = 0; i < npts; i++)
+	{
+	/*
+	 * Look at our station info and see if we want to plot this
+	 * one at all.
+	 */
+		if (sinfo[i].si_excl)
+			continue;
+		GetWindData (fields, ugrid + i, vgrid + i, badvalue);
+		CAP_StPlotVector (c, i, zt, sinfo[i].si_x, sinfo[i].si_y,
+				platforms[i], sticon, color, linewidth,
+				ugrid, vgrid, badvalue, unitlen, qcolor,
+				numquads, qgrid, stationname);
+	}
+/*
+ * Free the data.
+ */
+	free (sinfo);
+	free (platforms);
+	free (locations);
+}
+
+
+
+
+
+static void
+CAP_StDoScalar (c, dc, platform, fields, numquads, color, qcolor, zt, sticon,
+		linewidth, unitlen, stationname)
+char *c, *platform, *sticon;
+DataChunk *dc;
+FieldId *fields;
+int numquads, linewidth, stationname;
+XColor *color, *qcolor;
+ZebTime *zt;
+float unitlen;
+/*
+ * Plot up a scalar value
+ */
+{
+	float u, v, badvalue, x0, y0;
+	Location loc;
+	int i;
+/*
+ * Ugly kludgery to fit the interface oriented around IRGrids.
+ */
+	static float qv[4];
+	static float *qgrid[4] = { qv, qv + 1, qv + 2, qv + 3 };
+/*
+ * Get some info out of the data chunk.
+ */	
+	badvalue = dc_GetBadval (dc);
+	dc_GetLoc (dc, 0, &loc);
+	cvt_ToXY (loc.l_lat, loc.l_lon, &x0, &y0);
+/*
+ * Get the u and v components, and possibly quadrants.
+ */
+	u = dc_GetScalar (dc, 0, fields[0]);
+	v = dc_GetScalar (dc, 0, fields[1]);
+	GetWindData (fields, &u, &v, badvalue);
+	for (i = 0; i < numquads; i++)
+		qgrid[i][0] = dc_GetScalar (dc, 0, fields[i + 2]);
+/*
+ * Graphics context stuff.
+ */
+	ResetGC ();
+	XSetForeground (XtDisplay (Graphics), Gcontext, color->pixel);
+/*
+ * Draw the vectors.
+ */
+	CAP_StPlotVector (c, 0, zt, XPIX (x0), YPIX (y0), dc->dc_Platform,
+			sticon, color, linewidth, &u, &v, badvalue, unitlen,
+			qcolor, numquads, qgrid, stationname);
+}
+
+
 
 
 

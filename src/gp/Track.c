@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.29 1994-04-15 21:26:33 burghart Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.30 1994-05-20 20:04:29 corbet Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -145,8 +145,12 @@ bool update;
 		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
 			&a_invert, &a_int, a_color, &a_clr, a_type, 
 			a_xfield, a_yfield);
+# ifdef notdef
 		fields[numfields] = F_Lookup (a_xfield);
 		fields[numfields + 1] = F_Lookup (a_yfield);
+# endif
+		FindWindsFields (pid, &PlotTime, a_xfield, a_yfield,
+				fields + numfields);
 		afield = numfields;
 		numfields += 2;
 	} 
@@ -287,17 +291,18 @@ bool update;
 			dc_GetTime (dc, i, &zt);
 			timenow = TC_ZtToSys (&zt);
 			if(((timenow % a_int) == 0) || 
-			   ((vectime + a_int) < timenow))
+					((vectime + a_int) < timenow))
 			{
 				u = dc_GetScalar (dc, i, fields[afield]);
 				v = dc_GetScalar(dc, i, fields[afield+1]);
+				GetWindData (fields + afield, &u, &v,badvalue);
 				if (u != badvalue && v != badvalue) {
-				  vectime = timenow - timenow % a_int;
-				  FixForeground (a_clr.pixel);
-				  FixLWidth (a_lwidth);
-				  draw_vector (Disp, d, Gcontext, 
-					       x1, y1, u, v, unitlen);
-				  FixLWidth (lwidth);
+					vectime = timenow - timenow % a_int;
+					FixForeground (a_clr.pixel);
+					FixLWidth (a_lwidth);
+					draw_vector (Disp, d, Gcontext, 
+							x1, y1, u, v, unitlen);
+					FixLWidth (lwidth);
 				}
 			}
 		}
