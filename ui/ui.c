@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.5 1989-07-12 09:23:35 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.6 1989-07-12 09:37:48 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -142,9 +142,9 @@ bool interact, nokeypad;
 			SYMT_STRING, 100);
 	usy_c_indirect (Ui_variable_table, "ui$prompt", Prompt,
 			SYMT_STRING, 100);
-	usy_c_indirect (Ui_variable_table, "ui$bailout", &Bailout, SYMT_BOOL,
+	usy_c_indirect (Ui_variable_table, "ui$bailout", &Bail, SYMT_BOOL,
 			0);
-	Bailout = TRUE;
+	Bail = TRUE;
 /*
  * Finally, if an initialization procedure exists, execute it.
  */
@@ -297,7 +297,7 @@ ui_do_cmode ()
 				}
 			ON_ERROR
 				ui_reset (TRUE);
-				if (Bailout && ! ut_interactive ())
+				if (Bail && ! ut_interactive ())
 				{
 					uii_clear_handler (ui_cc);
 					ui_epop ();
@@ -360,7 +360,7 @@ bool exec;
  */
 	ON_ERROR
 		ui_reset (TRUE);
-		if (Bailout && ! ut_interactive ())
+		if (Bail && ! ut_interactive ())
 		{
 			uii_clear_handler (ui_cc);
 			ui_epop ();
@@ -823,7 +823,7 @@ ui_reset ()
  */
 {
 	ut_breakout ();
-	while (Bailout && Cs && Cs->cs_type != CST_MODE)
+	while (Bail && Cs && Cs->cs_type != CST_MODE)
 		ucs_pop_cstack ();
 }
 

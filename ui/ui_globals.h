@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui_globals.h,v 1.2 1989-07-12 09:10:22 corbet Exp $ */
+/* $Id: ui_globals.h,v 1.3 1989-07-12 09:38:29 corbet Exp $ */
 /*
  * Global variable definitions.
  */
@@ -52,5 +52,5 @@ var struct cs_entry *Cs;
 /*
  * TRUE iff we should bail out of command files on errors.
  */
-var bool Bailout;
+var bool Bail;
 # endif
