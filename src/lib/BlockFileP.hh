@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFileP.hh,v 1.5 1998-03-05 04:54:15 granger Exp $
+ * $Id: BlockFileP.hh,v 1.6 1998-05-28 21:57:41 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
  * such as auxiliary block classes.
@@ -77,7 +77,7 @@ struct BlockFileHeader : virtual public TranslateBlock
 	// ---------------- Override SyncBlock methods ----------------
 
 	// Never need allocation, and we'll never grow
-	void allocate () { }
+	virtual void allocate (BlkSize) { }
 
 	// Always read the header when asked
 	int needsRead ()
@@ -87,16 +87,46 @@ struct BlockFileHeader : virtual public TranslateBlock
 
 	void updateRev ()
 	{
-		// Take note of a new revision after reading
+		// Take note of a new revision in our block
 		block.revision = revision;
 	}
 
-	void mark (int _marked = 1)
+#ifdef notdef
+	void newRev ()
 	{
-		// Keep the revision in the header in sync with changes
-		SyncBlock::mark (_marked);
+		// Take note of a new revision after reading
 		revision = block.revision;
 	}
+#endif
+
+	void mark (int _marked = 1)
+	{
+		// The first time we are marked, advance our revision
+		if (clean() && _marked)
+			++revision;
+
+		SyncBlock::mark (_marked);
+	}
+
+	/*
+	 * Override write() in SerialBlock to use the BlockFile internal
+	 * write, which avoids recording each header write in the journal.
+	 */
+	virtual void write ()
+	{
+		// Encode ourself onto a serial buffer from the block file.
+		// Be careful to size and allocate before encoding, in
+		// case the object changes (e.g., FreeList) when allocated.
+		SerialBuffer *sbuf = bf->writeBuffer (block.length);
+		unsigned long growth = encodedSize (*sbuf);
+		sbuf->Need (growth);
+
+		// Now make sure we have space, then write into it.
+		allocate (growth);
+		encode (*sbuf);
+		bf->write (block.offset, sbuf);
+	}		
+
 };
 
 

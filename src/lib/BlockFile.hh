@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.7 1998-05-15 19:36:46 granger Exp $
+ * $Id: BlockFile.hh,v 1.8 1998-05-28 21:57:40 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -93,7 +93,10 @@ public:
 	int Errno ();
 
 	// Set an application offset in the global header
-	int setHeader (Block &b);
+	int setHeader (Block &b, unsigned long app_magic = 0);
+
+	// Get the application header,
+	int getHeader (Block *b, unsigned long *app_magic = 0);
 
 	int Open (const char *path, unsigned long app_magic = 0, 
 		  int flags = 0);
@@ -174,7 +177,7 @@ private:
 	void recover (BlkOffset addr);
 	BlkOffset alloc (BlkSize size, BlkSize *actual);
 	void free (BlkOffset addr, BlkSize len);
-	int top () { return (lock == 1); }
+	//int top () { return (lock == 1); }
 
 	void init ();
 };

@@ -3,12 +3,15 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <iostream.h>
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.7 1998-05-15 21:47:22 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.8 1998-05-28 21:57:39 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -104,6 +107,9 @@ int
 BlockFile::Open (const char *path, unsigned long app_magic = 0, 
 		 int flags = BF_NONE)
 {
+	if (fp)			// Close any currently open file
+		Close();
+
 	int create = 0;		// non-zero when we're creating a new file
 	status = COULD_NOT_OPEN;
 
@@ -111,16 +117,21 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 			   "Opening", path));
 
 	// Initialize path
-	status = OK;
 	this->path = (char *) malloc (strlen(path)+1);
 	strcpy (this->path, path);
 
-	if ((create = (flags & BF_CREATE)))
+	// Create (truncate an existing) file iff explicitly requested
+	// or the file entry does not already exist.
+	struct stat st;
+	create = (flags & BF_CREATE) || 
+		(stat (path, &st) < 0 && ::errno == ENOENT);
+
+	if (create)
 		WriteLock ();
 	else
 		ReadLock ();
 
-	// First try to open a file pointer on the given path
+	// Try to open a file pointer on the given path
 	fp = fopen (path, create ? "w+" : "r+");
 	if (! fp)
 	{
@@ -128,8 +139,10 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 		Unlock ();
 		::free (this->path);
 		this->path = 0;
+		status = COULD_NOT_OPEN;
 		return (status);
 	}
+	status = OK;
 
 	// Allocate space for the header
 	header = new BlockFileHeader (*this, app_magic);
@@ -176,11 +189,32 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
  * Set the application's header block.
  */
 int
-BlockFile::setHeader (Block &b)
+BlockFile::setHeader (Block &b, unsigned long app_magic)
 {
 	WriteLock ();
 	header->app_header = b;
+	if (app_magic)
+		header->app_magic = app_magic;
 	header->mark();
+	Unlock ();
+	return (0);
+}
+
+
+
+
+
+/*
+ * Get the application's header block.
+ */
+int
+BlockFile::getHeader (Block *b, unsigned long *app_magic)
+{
+	ReadLock ();
+	if (b)
+		*b = header->app_header;
+	if (app_magic)
+		*app_magic = header->app_magic;
 	Unlock ();
 	return (0);
 }
@@ -196,11 +230,10 @@ BlockFile::setHeader (Block &b)
 int
 BlockFile::Close ()
 {
-	log->Debug (Printf("Closing '%s'", path ? path : "<no file>"));
-
 	// Release file-specific resources
 	if (fp)
 	{
+		log->Debug (Printf("Closing '%s'", path ? path : "<no file>"));
 		WriteSync ();	// should be no-op unless we're exclusive
 		fclose (fp);
 		fp = 0;
@@ -360,38 +393,11 @@ BlockFile::DumpHeader (ostream& out)
 	b = &(h->journal);
 	out << "Journal     = " << b->length << " bytes @ " <<
 		b->offset << " rev " << b->revision << endl;
+	journal->Show (out);
 	b = &(h->freelist);
 	out << "Free list   = " << b->length << " bytes @ " <<
 		b->offset << " rev " << b->revision << endl;
-	FreeStats fs = freelist->Stats();
-	out << "           nfree: " << fs.nfree << endl;
-	out << "      bytes free: " << fs.bytesfree << endl;
-	out << "        nrequest: " << fs.nrequest << endl;
-	out << "   bytes request: " << fs.bytesrequest << endl;
-	out << "     bytes alloc: " << fs.bytesalloc << endl;
-	out << "     bytes freed: " << fs.bytesfreed << endl;
-	long slop = fs.bytesalloc - fs.bytesrequest;
-	out << "            slop: " << slop << " bytes";
-	if (fs.bytesalloc > 0)
-	{
-		float sloppct = (float)slop/fs.bytesalloc*100.0;
-		out << ", " << sloppct << "%";
-	}
-	out << endl;
-	if (fs.nrequest > 0)
-	{
-		out << "     avg request: " 
-		    << (float)fs.bytesrequest/fs.nrequest 
-		    << " bytes" << endl;
-	}
-	out << "        pct free: " << (float)fs.bytesfree/h->bf_length*100.0 
-	    << "%" << endl;
-	if (fs.nfree > 0)
-	{
-		out << "  avg free block: "
-		    << (float)fs.bytesfree/fs.nfree
-		    << " bytes" << endl;
-	}
+	freelist->Show (out);
 	return (out);
 }
 
@@ -452,6 +458,7 @@ BlockFile::Free (BlkOffset addr, BlkSize len)
 {
 	WriteLock ();
 	free (addr, len);
+	journal->Record (Journal::BlockRemoved, addr, len);
 	Unlock ();
 }
 
@@ -475,11 +482,12 @@ int
 BlockFile::Write (BlkOffset block, void *buf, BlkSize len)
 {
 	WriteLock ();
-	if (top())
-	{
-		// Only record changes from outside our implementation
-		journal->Record (Journal::BlockChanged, block, len);
-	}
+
+	// Make sure the revision number has been advanced
+	header->mark();
+
+	// Only record changes from outside our implementation
+	journal->Record (Journal::BlockChanged, block, len);
 	write (block, buf, len);
 	Unlock ();
 	return (status == OK ? 0 : -1);
@@ -574,7 +582,7 @@ BlockFile::recover (BlkOffset off)
 {
 	header->bf_length = off;
 	header->mark();
-	// ftruncate (header->bf_length);
+	ftruncate (fileno (fp), header->bf_length);
 	log->Debug (Printf("Truncated to %d", off));
 }
 
