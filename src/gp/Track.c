@@ -41,7 +41,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.21 1993-02-17 19:02:30 granger Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.22 1993-03-25 20:26:36 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -332,6 +332,16 @@ Drawable	d;
 	else
 	{
 		interval_sec = pc_TimeTrigger (interval);
+	}
+/*
+ * Make sure the user hasn't given us a bad interval
+ */
+	if (!interval_sec)
+	{
+		msg_ELog (EF_PROBLEM,
+			  "bad annotation interval for aircraft track %s, using 1h",
+			  comp);
+		interval_sec = 3600;
 	}
 /*
  * Label to use.  May be either "none", "time", or a string.
