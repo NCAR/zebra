@@ -153,4 +153,14 @@ nvxeas (float xpar, float ypar, float zpar,
 }
 
 
+/*
+ * squak.f calls ABORT(), but IRIX doesn't have it, and we don't really
+ * need it, so we provide our own definition here.
+ */
+
+void
+fname (abort) ()
+{
+	exit (1);
+}
 
