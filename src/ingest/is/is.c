@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.23 2000-04-12 20:05:12 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.24 2000-07-21 08:17:32 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -819,13 +819,13 @@ cfg_go (struct is_config *cfg)
 	for (i = 0; i < MAX_PROC_ARGS; i++)
 		new_args[i] = NULL;
 
-	for (i = 0; i < cfg->n_proc_args; i++)
-		if (strstr(cfg->proc_args[i], "$p"))
-			new_args[i] = substitute(cfg->proc_args[i], "$p", cfg->platform);
-		else if (strstr(cfg->proc_args[i], "$f"))
-			new_args[i] = substitute(cfg->proc_args[i], "$f", cfg->ingest_file);
-		else
-			new_args[i] = cfg->proc_args[i];
+ 	for (i = 0; i < cfg->n_proc_args; i++)
+	{
+	        char *sub;
+		sub = substitute(cfg->proc_args[i], "$p", cfg->platform);
+		new_args[i] = substitute(sub, "$f", cfg->ingest_file);
+		free (sub);
+	}
 
 	pid = fork();
 	if (pid == 0) {
@@ -924,6 +924,10 @@ cfg_go (struct is_config *cfg)
 				break;
 			}
 		}
+	}
+ 	for (i = 0; i < cfg->n_proc_args; i++)
+	{
+	    free (new_args[i]);
 	}
 }
 
@@ -1137,7 +1141,6 @@ cfg_done(cfg)
 	struct is_config *cfg;
 
 {
-	char           *move_file;
 	int             find_file();
 
 	cfg->pid = 0;
@@ -1153,7 +1156,9 @@ cfg_done(cfg)
 		 * been specified, merely delete it. Move will be honored
 		 * over delete.
 		 */
-		if (cfg->movedir) {
+		if (cfg->movedir) 
+		{
+			char *move_file;
 			move_file = malloc(strlen(cfg->movedir)
 					   + strlen(cfg->basename)
 					   + 2);
@@ -1166,6 +1171,7 @@ cfg_done(cfg)
 			if (rename(cfg->ingest_file, move_file))
 				msg_ELog(EF_PROBLEM, "Error %d Can't move %s\nto %s\n",
 					 errno, cfg->ingest_file, move_file);
+			free (move_file);
 
 		} else if (cfg->delete) {
 			if (unlink(cfg->ingest_file))
@@ -1288,6 +1294,7 @@ find_file(cfg)
 
 	if (!(dir_file = popen(ls_command, "r"))) {
 		msg_ELog(EF_PROBLEM, "Unable to popen for ls command: %s\n", ls_command);
+		free (ls_command);
 		return (FALSE);
 	}
 	while (!feof(dir_file)) {
