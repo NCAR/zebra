@@ -1,7 +1,6 @@
 /*
  * Low-level (FD) event management routines.
  */
-static char *rcsid = "$Id: LLEvent.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,11 +22,12 @@ static char *rcsid = "$Id: LLEvent.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
 # include <sys/time.h>
 # include <errno.h>
 
-# include "../include/defs.h"
+# include <defs.h>
+# include <message.h>
 # include "EventQueue.h"
 # include "LLEvent.h"
 
-
+RCSID ("$Id: LLEvent.c,v 2.2 1995-05-05 17:44:48 granger Exp $")
 
 /*
  * The master fd_set, which always holds the list of FD's that we are watching.
@@ -108,8 +108,10 @@ int block;
 		msg_DispatchQueued ();
 		xtEvent (0);	/* XXX */
 		fds = Mfd;
-		while ((status = select (Mfd_width + 1, &fds, 0, 0,
-			block ? (struct timeval *) 0 : &noblock)) < 0)
+		while ((status = select (Mfd_width + 1, (SelectSet *)&fds,
+					 (SelectSet *)0, (SelectSet *)0,
+					 block ? (struct timeval *) 0 : 
+					 &noblock)) < 0)
 		{
 		/*
 		 * Just do another select if we were stopped by
