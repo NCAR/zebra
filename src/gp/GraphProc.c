@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.28 1991-03-18 18:27:11 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.29 1991-03-22 16:02:28 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -486,7 +486,25 @@ struct ui_command *cmds;
 	   case GPC_POLYLINE:
 	   	rb_PolyLine (cmds + 1);
 		break;
-
+	/*
+	 * Move a component to a new position.
+	 */
+	   case GPC_MOVECOMP:
+		if (Pd)
+		{
+		   	pd_MoveComponent (Pd, UPTR (cmds[1]), UINT (cmds[2]));
+			fc_InvalidateCache ();
+			I_DoIcons ();
+			if (MovieMode)
+				mc_ParamChange (); /* Hope this works */
+			else
+				pc_PlotHandler ();
+			Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
+		}
+		break;
+	/*
+	 * "Should never happen"
+	 */
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
 		break;

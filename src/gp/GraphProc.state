@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.6 1991-02-21 16:09:16 corbet Exp $
+! $Id: GraphProc.state,v 1.7 1991-03-22 16:02:28 corbet Exp $
 !
 ! State entries for the graphics process.
 !
@@ -44,6 +44,9 @@ define state initial
 	endinput
 	input 'polyline' 17
 		next poly-platform
+	endinput
+	input 'movecomp' 18
+		next move-component
 	endinput
 enddef
 
@@ -202,6 +205,14 @@ define state poly-opt-edit
 	endinput
 	input EOS
 		done
+	endinput
+enddef
+
+
+
+define state move-component
+	input string
+		next ust$final_int
 	endinput
 enddef
 
