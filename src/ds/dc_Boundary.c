@@ -18,76 +18,103 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+# include <unistd.h>
+# include <stdio.h>
+
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Boundary.c,v 1.5 1994-01-03 07:17:58 granger Exp $")
+
+RCSID ("$Id: dc_Boundary.c,v 1.6 1996-11-19 09:31:56 granger Exp $")
 
 
 /*
  * TODO:	Make boundary subplatforms work right.
  */
 
-/*
- * AuxData structure for boundary samples.
- */
-typedef struct _BndSamp
+
+typedef struct _BoundaryDataChunk
 {
-	int	bs_NPoint;		/* Number of points in this boundary */
-} BndSamp;
+	RawDataChunkPart	rawpart;
+	TranspDataChunkPart	transpart;
+	BoundaryDataChunkPart	bndrypart;
 
+} BoundaryDataChunk;
 
+#define BP(dc) (&((BoundaryDataChunk *)(dc))->bndrypart)
 
 /*
  * Local routines.
  */
-static DataChunk *dc_BndCreate FP((DataClass));
-static void dc_BndDump FP((DataChunk *));
+static DataChunk *bnd_Create FP((DataChunk *));
+static void bnd_Dump FP((DataChunk *));
 
 /*
  * The basic methods structure.
  */
-# define SUPERCLASS DCC_Transparent
+#define SUPERCLASS ((DataClassP)&TranspMethods)
 
-RawDCClass BoundaryMethods =
+RawClass BoundaryMethods =
 {
+	DCID_Boundary,
 	"Boundary",
 	SUPERCLASS,		/* Superclass			*/
 	2,			/* Depth, Raw = 0		*/
-	dc_BndCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
-	dc_BndDump
+	bnd_Create,
+	0,			/* Destroy			*/
+	0,			/* Add				*/
+	bnd_Dump,		/* Dump				*/
+	0,
+	0,
+	sizeof (BoundaryDataChunk)
 };
 
+DataClassP DCP_Boundary = ((DataClassP)&BoundaryMethods);
 
-
-
+/*---------------------------------------------------------------------*/
+/* Boundary class methods */
 
 
 static DataChunk *
-dc_BndCreate (class)
-DataClass class;
+bnd_Create (dc)
+DataChunk *dc;
 /*
  * Create a boundary data chunk.
  */
 {
-	DataChunk *dc;
 /*
- * Start by creating a superclass chunk.
+ * No AuxData at all for boundaries.
  */
-	dc = DC_ClassCreate (SUPERCLASS);
-/*
- * No AuxData at all for boundaries, so we just set the class and return.
- */
-	dc->dc_Class = class;
 	return (dc);
 }
 
 
 
+static void
+bnd_Dump (dc)
+DataChunk *dc;
+/*
+ * Dump out this data chunk.
+ */
+{
+	int i, nbnd, pt;
+
+	printf ("BOUNDARY class, %d boundaries\n", nbnd = dc_GetNSample(dc));
+	for (i = 0; i < nbnd; i++)
+	{
+		Location *locs;
+		int len;
+		printf ("\t%2d: ", i);
+		locs = dc_BndGet (dc, i, &len);
+		for (pt = 0; pt < len; pt++)
+			printf ("[%.2f, %.2f] ",locs[pt].l_lat,locs[pt].l_lon);
+		printf ("\n");
+	}
+}
+
+/*=======================================================================*/
 
 
 void
@@ -128,8 +155,6 @@ int npt;
 
 
 
-
-
 Location *
 dc_BndGet (dc, sample, npt)
 DataChunk *dc;
@@ -148,27 +173,3 @@ int sample, *npt;
 }
 
 
-
-
-
-static void
-dc_BndDump (dc)
-DataChunk *dc;
-/*
- * Dump out this data chunk.
- */
-{
-	int i, nbnd, pt;
-
-	printf ("BOUNDARY class, %d boundaries\n", nbnd = dc_GetNSample(dc));
-	for (i = 0; i < nbnd; i++)
-	{
-		Location *locs;
-		int len;
-		printf ("\t%2d: ", i);
-		locs = dc_BndGet (dc, i, &len);
-		for (pt = 0; pt < len; pt++)
-			printf ("[%.2f, %.2f] ",locs[pt].l_lat,locs[pt].l_lon);
-		printf ("\n");
-	}
-}
