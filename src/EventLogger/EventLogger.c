@@ -42,7 +42,7 @@
 # include <config.h>
 # include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.27 1994-11-19 00:27:59 burghart Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.28 1995-04-07 16:45:56 corbet Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.27 1994-11-19 00:27:59 burghart Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.28 1995-04-07 16:45:56 corbet Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -1257,17 +1257,17 @@ char *text;
 	char code;
 	char *msg;
 
-	/*
-	 * If somebody's tweaking the event mask, we'll ignore it.
-	 */
-	 	if (flag & EF_SETMASK)
-			return;
-	/*
-	 * If this is in our mask, we log it.  Assume flags are in order of
-	 * importance, and take the first code character present in the
-	 * mask and exit the loop, rather than overwrite it with the
-	 * presence of less important flags.
-	 */
+/*
+ * If somebody's tweaking the event mask, we'll ignore it.
+ */
+	if (flag & EF_SETMASK)
+		return;
+/*
+ * If this is in our mask, we log it.  Assume flags are in order of
+ * importance, and take the first code character present in the
+ * mask and exit the loop, rather than overwrite it with the
+ * presence of less important flags.
+ */
 	code = '?';
 	for (i = 0; EMap[i].em_flag; i++)
 		if (EMap[i].em_flag & flag)
@@ -1275,15 +1275,15 @@ char *text;
 			code = EMap[i].em_code;
 			break;
 		}
-	/*
-	 * Things in the PROBLEM and EMERGENCY classes get sent back to 
-	 * mother.
-	 */
+/*
+ * Things in the PROBLEM and EMERGENCY classes get sent back to 
+ * mother.
+ */
 	if (Mother && (flag & (EF_PROBLEM | EF_EMERGENCY)))
 		SendToMother (code, from, text);
-	/*
-	 * If we need to log this message, format it
-	 */
+/*
+ * If we need to log this message, format it
+ */
 	if ((Emask & flag) || Emask == 0 ||
 	    PassDebug (flag, from))
 	{
@@ -1291,20 +1291,22 @@ char *text;
 		if (!msg)
 			return;
 	}
+/*
+ * Otherwise assume that somebody is out of sync with the
+ * event mask, and we send it out to the world.
+ */
 	else
 	{
-		/*
-		 * Otherwise assume that somebody is out of sync with the
-		 * event mask, and we send it out to the world.
-		 */
+# ifdef notdef
 		static int nsend = 0;
 		if ((nsend++ % 15) == 0)
 			BroadcastEMask ();
-			return;
+# endif
+		return;
 	}
-	/*
-	 * Now find out what gets this message and send it along
-	 */
+/*
+ * Now find out what gets this message and send it along
+ */
 	if ((flag & Log_mask) || PassDebug (flag, from))
 		AppendToLogFile (msg);
 	if (Windows && ((flag & Display_mask) || PassDebug (flag, from)))
