@@ -425,10 +425,22 @@ Highlight(w)
 	Widget w;
 {
 	SmeMenuObject entry = (SmeMenuObject) w;
-	extern void _XawPositionMenu();
+	extern void RdssPositionMenu();
 	XPoint loc;
-
-	if (entry->sme_menu.menu && !entry->sme_menu.up) {
+	Window junkW;
+	int x, y, junkI, wantup;
+	unsigned int junkU;
+/*
+ * Decide whether we want the menu up or not.
+ */
+	if (! XQueryPointer (XtDisplay (XtParent (w)), XtWindow (XtParent (w)),
+			&junkW, &junkW, &junkI, &junkI, &x, &y, &junkU))
+		return;
+	wantup = x > ((2*entry->rectangle.width)/3);
+/*
+ * If we do want it up, and it's not, put it up.
+ */
+	if (entry->sme_menu.menu && wantup && !entry->sme_menu.up) {
 		Widget root;
 		Position x, y;
 
@@ -472,9 +484,17 @@ Highlight(w)
 		entry->sme_menu.up = TRUE;
 		entry->sme_menu.needflip = TRUE;
 		loc.x = x; loc.y = y;
-		_XawPositionMenu(entry->sme_menu.popup, &loc);
+		RdssPositionMenu(entry->sme_menu.popup, &loc);
 		XtPopup(entry->sme_menu.popup, XtGrabNonexclusive);
 		FlipColors(w);
+	}
+/*
+ * If it is up, and we don't want that, bring it back down.
+ */
+ 	else if (entry->sme_menu.menu && entry->sme_menu.up && ! wantup)
+	{
+		entry->sme_menu.up = FALSE;
+		XtPopdown (entry->sme_menu.popup);
 	}
 }
 
