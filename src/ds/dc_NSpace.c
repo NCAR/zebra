@@ -146,7 +146,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.4 1994-01-03 07:18:12 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.5 1994-01-29 03:30:24 granger Exp $")
 #endif
 
 /*
@@ -1102,6 +1102,12 @@ dc_NSGetSample(dc, sample, field, size)
  * Returns pointer to field's data at sample.  If size non-NULL, returns
  * length of data array (number of elements) in *size.  Array is in row-major
  * order, just as it was stored.  If the data is not found, NULL is returned.
+ *
+ * GJG 1/28/94: Allow static variable data to be returned by this function.
+ * Static data will be the same for every sample.  However, if the sample
+ * number is invalid, then an error is logged and NULL returned.  We don't
+ * have to check sample number for dynamic fields since GetMData does it
+ * for us.
  */
 {
 	int len;
@@ -1114,15 +1120,19 @@ dc_NSGetSample(dc, sample, field, size)
 	if (!(finfo = FindFieldByID (dc, NULL, field, "NSGetSample")))
 		return NULL;
 
-	/*
-	 * Make sure this field is dynamic
-	 */
-	if (!CheckStatic (finfo, FALSE, "NSGetSample"))
-		return NULL;
+	data = NULL;
+	if (!IsStatic (finfo))
+		data = dc_GetMData (dc, sample, field, &len);
+	else if ((sample < 0) || (sample >= dc_GetNSample(dc)))
+		msg_ELog (EF_PROBLEM, "NSGetSample: %s, sample %d invalid",
+			  "static retrieval", sample);
+	else if (OffsetValid(finfo))
+		data = (DataPtr) ((char *)dc->dc_Data + finfo->nsf_StOffset);
 
-	data = dc_GetMData (dc, sample, field, &len);
-	if (size)
-		*size = finfo->nsf_Size;
+	if (size && data)
+		*size = (unsigned long) (finfo->nsf_Size);
+	else if (size)
+		*size = 0;
 	return ((void *)data);
 }
 /*------------------------------------------------ end: dc_NSGetSample ----*/

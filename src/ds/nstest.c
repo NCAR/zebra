@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.8 1994-01-03 07:18:27 granger Exp $
+ * $Id: nstest.c,v 1.9 1994-01-29 03:30:31 granger Exp $
  */
 
 /*
@@ -75,17 +75,20 @@ struct message *msg;
 /* #define ZNF_TESTING */
 #endif
 
+#ifdef notdef
 #define TRANSPARENT
 #define SCALAR
 #define GETFIELDS
 #define GRID_BLOCKS
 /* #define DELETE_OBS */	/* test observation deletes */
+#endif
 #define NSPACE
 
 #ifdef notdef
 /* #define DUMMY_FILES */
 #endif
 
+#ifdef notdef
 #define TEST4_STORE
 #define SCALAR_NSPACE
 #define FIELD_TYPES
@@ -96,6 +99,7 @@ struct message *msg;
 
 #define DUMMY_FILES
 #define DATA_TIMES
+#endif
 
 #ifdef BACKWARDS
 
@@ -133,6 +137,7 @@ struct TestPlatform {
 	PlatformId platid;
 } TestPlatforms[] = 
 {
+#ifdef notdef
 	{ "t_transparent", 500, "zeb", FALSE, "transparent" },
 	{ "t_scalar" }, 
 	{ "t_blocks" },
@@ -141,10 +146,14 @@ struct TestPlatform {
 	{ "t_1dgrid_cdf" },
 	{ "t_irgrid_znf" },
 	{ "t_1dgrid_znf" },
+#endif
+#ifdef NSPACE
 	{ "t_nspace" },
-	{ "t_test6" },
 	{ "t_nsscalar" },
 	{ "t_nsblocks" },
+	{ "t_test6" },
+#endif
+#ifdef notdef
 	{ "t_virtual" },
 	{ "t_getfields_cdf" },
 	{ "t_getfields_znf" },
@@ -154,6 +163,7 @@ struct TestPlatform {
 	{ "t_aeri_types_znf" },
 	{ "t_fieldtypes" },
 	{ "t_att_types_cdf" }
+#endif
 };
 
 	
@@ -850,19 +860,28 @@ ZebTime *now;
 		EXPECT(1);
 		dc_NSAddSample (dc, &when, 0, sfield, test_data+1000);
 		dc_NSAddSample (dc, &when, 0, field, test_data+1000);
-		dc_SetSampleAttr (dc, 0, "test_key", "test_value");
-		dc_SetSampleAttr (dc, 0, "test_key2", "test_value2");
-		dc_SetSampleAttr (dc, 1, "sample_number", "0");
 		EXPECT(1);
 		dc_NSAddStatic (dc, field, test_data);
 		dc_NSAddStatic (dc, sfield, test_data);
+		dc_SetSampleAttr (dc, 0, "test_key", "test_value");
+		dc_SetSampleAttr (dc, 0, "test_key2", "test_value2");
+		dc_SetSampleAttr (dc, 1, "sample_number", "0");
 		++when.zt_Sec;
 		dc_NSAddSample (dc, &when, 1, field, test_data+1005);
 		dc_SetSampleAttr (dc, 1, "sample_number", "1");
 		dc_DumpDC (dc);
 
 		/* retrieve data and compare */
+		printf ("retrieving static data with GetStatic...");
 		retrieve = dc_NSGetStatic (dc, sfield, &size);
+		T_CompareData(retrieve, test_data, size);
+		printf ("retrieving static data with GetSample(1)...");
+		retrieve = dc_NSGetSample (dc, 1, sfield, &size);
+		T_CompareData(retrieve, test_data, size);
+		EXPECT(1);
+		printf ("retrieving static data with GetSample(100)...");
+		retrieve = dc_NSGetSample (dc, 100, sfield, &size);
+		T_CompareData(retrieve, test_data, size);
 		retrieve = dc_NSGetSample (dc, 1, field, &size);
 		printf ("dc_NSGetSample(%s) returns size = %lu,", 
 			F_GetName(field), size);
@@ -975,8 +994,8 @@ ZebTime *now;
 		dc_DumpDC (dc);
 
 		/* test some retrieval */
-		EXPECT(1);
-		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should fail*/
+		EXPECT(0);
+		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should pass*/
 		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
 		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
 		printf ("dc_NSGetStatic(%s) returns size = %lu,", 
@@ -1018,8 +1037,8 @@ ZebTime *now;
 
 		/* re-test some retrieval */
 		printf ("Comparing fetched data with stored data...\n");
-		EXPECT(1);
-		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should fail*/
+		EXPECT(0);
+		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should pass*/
 		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
 		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
 		printf ("dc_NSGetStatic(%s) returns size = %lu,", 
