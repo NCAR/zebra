@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.42 1996-11-19 07:51:48 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.43 1996-12-03 22:03:01 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -319,6 +319,13 @@ msg_disconnect ()
 	 */
 	while (Mq)
 		msg_RemQueue (Mq);
+	while (Mq_free)
+	{
+		struct mqueue *mq = Mq_free->mq_next;
+		free (Mq_free);
+		Mq_free = mq;
+	}
+
 	/*
 	 * Close the message socket
 	 */
