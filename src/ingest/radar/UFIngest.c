@@ -45,7 +45,7 @@ int	XRes = 800, YRes = 800;
 int	XRadar = 400, YRadar = 400;
 float	AzFill = 0.6;
 float	PixScale = 5.0;		/* Pixels per kilometer		*/
-float	RadarLat = 0, RadarLon = 0;
+float  	CurLat = 0, CurLon = 0;
 float	ElTolerance = 1.0;	/* Elevation difference tolerance, deg. */
 int	MinSweep = 25;
 int	GMTOffset = 0;
@@ -167,8 +167,6 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "y_resolution", &YRes, SYMT_INT, 0);
 	usy_c_indirect (vtable, "x_radar", &XRadar, SYMT_INT, 0);
 	usy_c_indirect (vtable, "y_radar", &YRadar, SYMT_INT, 0);
-	usy_c_indirect (vtable, "radar_lat", &RadarLat, SYMT_FLOAT, 0);
-	usy_c_indirect (vtable, "radar_lon", &RadarLon, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "azimuth_fill", &AzFill, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "el_tolerance", &ElTolerance, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "pixels_per_km", &PixScale, SYMT_FLOAT, 0);
@@ -378,14 +376,12 @@ Go ()
 	if (Niceness)
 		setpriority (PRIO_PROCESS, 0, Niceness);
 /*
- * Origin setting.
- */
-	cvt_Origin (RadarLat, RadarLon);
-/*
  * Now plow through the beams.
  */
 	while ((beam = UFGetBeam (FIndex, Scale, NField)) != NULL)
 	{
+		CurLat = beam->b_hk->latitude * BIN_TO_DEG;
+		CurLon = beam->b_hk->longitude * BIN_TO_DEG;
 	/*
 	 * Rasterize it.
 	 */
@@ -440,6 +436,7 @@ int newvol, left, right, up, down, mode;
 	rg.rg_nY = YRes;
 	rg.rg_nZ = rg.rg_Zspacing = 0;
 
+	cvt_Origin (CurLat, CurLon);
 	cvt_ToLatLon (-XRadar / PixScale, -YRadar / PixScale, &loc.l_lat,
 			&loc.l_lon);
 	loc.l_alt = alt;
