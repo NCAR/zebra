@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: dc_RGrid.c,v 3.2 1992-06-11 20:15:59 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -225,7 +225,7 @@ float *data;
  */
 	else if (sample == nsamples)
 	{
-		int newlen = nsamples*sizeof (GridGeometry);
+		int newlen = (nsamples + 1)*sizeof (GridGeometry);
 		gg = (GridGeometry *) realloc (gg, newlen);
 		gg[sample].gg_Loc = *origin;
 		gg[sample].gg_Rg = *rg;
