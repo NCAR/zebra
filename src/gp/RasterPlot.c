@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.14 1995-04-17 22:17:03 granger Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.15 1995-05-01 16:07:20 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -34,7 +34,7 @@ static char *rcsid = "$Id: RasterPlot.c,v 2.14 1995-04-17 22:17:03 granger Exp $
 # include <sys/time.h>
 # include <sys/resource.h>
 # endif
-
+# include <byteorder.h>
 /*
  * Shared memory ximages, if we can.
  */
@@ -77,6 +77,21 @@ static float	Datamin, Datamax, Datarange;
  * Clipping rectangle
  */
 static XRectangle	Clip;
+
+/*
+ * Kludgery of sorts: some of the raster code uses "fake floats" -- 32-bit
+ * ints where the least-significant two bytes contain the fractional part
+ * of a floating point number.  The point of all this is to allow floating
+ * point precision (sort of) precision while making the integer part really
+ * fast to get at.
+ *
+ * Here we give the offset (in shorts) to the integer part of such a number.
+ */
+# ifdef LITTLE_ENDIAN
+# define FF_OFFSET 1
+# else
+# define FF_OFFSET 0
+# endif
 
 
 /*--------------------------------------------------
@@ -650,10 +665,10 @@ int		xdim, pad;
 	int i, j, icolinc;
 # ifdef __STDC__
 	static int col;
-	static const short *s_col = (short *) &col;
+	static const short *s_col = FF_OFFSET + (short *) &col;
 # else
 	int col;
-	short *s_col = (short *) &col;
+	short *s_col = FF_OFFSET + (short *) &col;
 # endif
 /*
  * Set up our integer values, which are simply the FP values scaled by 
@@ -837,12 +852,13 @@ int		xdim, pad;
  */
 {
 	int i, j, icolinc;
+
 # ifdef __STDC__
 	static int col;
-	static const short *s_col = (short *) &col;
+	static const short *s_col = FF_OFFSET + (short *) &col;
 # else
 	int col;
-	short *s_col = (short *) &col;
+	short *s_col = FF_OFFSET + (short *) &col;
 # endif
 /*
  * Set up our integer values, which are simply the FP values scaled by 

@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.28 1995-04-17 21:16:32 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.29 1995-05-01 16:07:22 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -648,8 +648,10 @@ int np;
 	
 
 
-
-# if defined(hpux) || defined(SVR4)
+/*
+ * This test seems wrong -- is it really !sunos?
+ */
+# if defined(hpux) || defined(SVR4) || defined (linux)
 int
 nint (x)
 double x;

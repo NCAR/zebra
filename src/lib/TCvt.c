@@ -25,7 +25,7 @@
 
 # include "defs.h"
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.15 1995-04-15 00:15:42 granger Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.16 1995-05-01 16:06:50 corbet Exp $")
 
 /*
  * The months of the year.
@@ -64,7 +64,7 @@ const UItime *fcc;
  */
 {
 	struct tm t;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
         char tz[20];
 #endif
 
@@ -74,7 +74,7 @@ const UItime *fcc;
 	t.tm_hour = fcc->ds_hhmmss/10000;
 	t.tm_min = (fcc->ds_hhmmss/100) % 100;
 	t.tm_sec = fcc->ds_hhmmss % 100;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
         strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;
@@ -147,7 +147,7 @@ ZebTime *zt;
  */
 {
 	struct tm t;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
 	char tz[20];
 #endif
 	t.tm_year = ui->ds_yymmdd/10000;
@@ -157,7 +157,7 @@ ZebTime *zt;
 	t.tm_min = (ui->ds_hhmmss/100) % 100;
 	t.tm_sec = ui->ds_hhmmss % 100;
 	zt->zt_MicroSec = 0;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;
@@ -326,7 +326,7 @@ int year, month, day, hour, minute, second, microsec;
  */
 {
 	struct tm t;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
 	char tz[20];
 #endif
 
@@ -339,7 +339,7 @@ int year, month, day, hour, minute, second, microsec;
 	t.tm_min = minute;
 	t.tm_sec = second;
 	zt->zt_MicroSec = microsec;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined(linux)
 	strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;

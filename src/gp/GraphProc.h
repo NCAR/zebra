@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.46 1995-04-17 21:59:30 granger Exp $ */
+/* $Id: GraphProc.h,v 2.47 1995-05-01 16:07:19 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -282,7 +282,6 @@ extern char	*ot_GetString FP ((void));
 extern int GetLocation FP ((char *, ZebTime *, Location *));
 extern int AgeCheck FP ((char *, char *, ZebTime *));
 extern long GetSec FP(( UItime ));
-extern void sync FP ((void));
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));

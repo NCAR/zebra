@@ -8,16 +8,16 @@
 # include <string.h>
 # include <memory.h>
 
-# include "defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.11 1995-02-10 00:49:13 granger Exp $")
+# include <byteorder.h>
 
-
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.12 1995-05-01 16:07:03 corbet Exp $")
 
 
 
@@ -62,6 +62,13 @@ static void	drf_FindSpace FP ((RFTag *, RFToc *, int, int, int));
 static int	drf_ProcAttr FP ((char *, char *));
 static void	drf_WriteAttrs FP ((RFTag *, RFToc *, DataChunk *, int, int));
 
+# ifdef LITTLE_ENDIAN
+static void	drf_SwapHeader FP ((RFHeader *));
+static void	drf_SwapTOC FP ((RFToc *, int));
+static void	drf_SwapRG FP ((RGrid *));
+static void	drf_SwapLoc FP ((Location *));
+static void	drf_SwapLArray FP ((long *, int));
+# endif
 
 
 
@@ -125,6 +132,12 @@ void **rtag;
                 return (FALSE);
         }
 /*
+ * Swap if need be.
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapHeader (&tag->rt_hdr);
+# endif
+/*
  * Check it.
  */
 	if (tag->rt_hdr.rf_Magic != RF_MAGIC &&
@@ -149,6 +162,12 @@ void **rtag;
 	else
 		read (tag->rt_fd, tag->rt_toc,
 				tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
+/*
+ * Do we need to swap this thing too??
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
+# endif
 /*
  * Make a translated set of fields.
  */
@@ -245,10 +264,25 @@ int *nsample;
                 return (FALSE);
         }
 /*
+ * Swap if need be.
+ *
+ * You know...this routine never checks the magic flag.  It should really
+ * ought to do that.
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapHeader (&hdr);
+# endif 
+/*
  * Now get the table of contents.
  */
 	toc = (RFToc *) malloc (hdr.rf_MaxSample*sizeof(RFToc));
 	read (fd, toc, hdr.rf_MaxSample*sizeof(RFToc));
+/*
+ * Do we need to swap this thing too??
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapTOC (toc, hdr.rf_MaxSample);
+# endif
 /*
  * Return the info, clean up, and we're done.
  */
@@ -358,8 +392,26 @@ RFTag *tag;
  */
 {
 	lseek (tag->rt_fd, 0, SEEK_SET);
+/*
+ * Put out the header.
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapHeader (&tag->rt_hdr);
+# endif
 	write (tag->rt_fd, &tag->rt_hdr, sizeof (RFHeader));
+# ifdef LITTLE_ENDIAN
+	drf_SwapHeader (&tag->rt_hdr);
+# endif
+/*
+ * Now the TOC.
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
+# endif
 	write (tag->rt_fd, tag->rt_toc,tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
+# ifdef LITTLE_ENDIAN
+	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
+# endif
 }
 
 
@@ -668,7 +720,13 @@ RFTag *tag;
  */
 	lseek (tag->rt_fd, 0, SEEK_SET);
 	read (tag->rt_fd, &tag->rt_hdr, sizeof (RFHeader));
+# ifdef LITTLE_ENDIAN
+	drf_SwapHeader (&tag->rt_hdr);
+# endif
 	read (tag->rt_fd, tag->rt_toc, tag->rt_hdr.rf_NSample*sizeof (RFToc));
+# ifdef LITTLE_ENDIAN
+	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_NSample);
+# endif
 }
 
 
@@ -900,6 +958,7 @@ DataChunk *dc;
 		dc_SetGlobalAttr (dc, aname, avalue);
 		aname = avalue + strlen (avalue) + 1;
 	}
+	free (adata);
 }
 
 
@@ -1088,3 +1147,101 @@ ZebTime *t;
 		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
 	return (ret);
 }
+
+
+
+
+
+/*
+ * The following is swapping code needed for little-endian machines only.
+ */
+# ifdef LITTLE_ENDIAN
+
+static void
+drf_SwapHeader (hdr)
+RFHeader *hdr;
+/*
+ * Swap a header to/from native order.
+ */
+{
+	int field;
+	swap4 (&hdr->rf_Magic);
+	swap4 (&hdr->rf_MaxSample);
+	swap4 (&hdr->rf_NSample);
+	swap4 (&hdr->rf_NField);
+	swap4 (&hdr->rf_Flags);
+	for (field = 0; field < MaxRFField; field++)
+	{
+		swap4 (&hdr->rf_Fields[field].rff_Scale.s_Scale);
+		swap4 (&hdr->rf_Fields[field].rff_Scale.s_Offset);
+	}
+}
+
+
+
+static void
+drf_SwapTOC (toc, ntoc)
+RFToc *toc;
+int ntoc;
+/*
+ * Fix up a table of contents.
+ */
+{
+	for (; ntoc > 0; ntoc--)
+	{
+		swap4 (&toc->rft_Time.ds_yymmdd);
+		swap4 (&toc->rft_Time.ds_hhmmss);
+		drf_SwapLArray (toc->rft_Offset, MaxRFField);
+		drf_SwapLArray (toc->rft_Size, MaxRFField);
+		drf_SwapRG (&toc->rft_Rg);
+		drf_SwapLoc (&toc->rft_Origin);
+		swap4 (&toc->rft_AttrLen);
+		swap4 (&toc->rft_AttrOffset);
+		toc++;
+	}
+}
+
+
+
+static void
+drf_SwapLArray (array, n)
+long *array;
+int n;
+/*
+ * Swap an array of longs.
+ */
+{
+	for (; n > 0; n--)
+		swap4 (array++);
+}
+
+
+
+
+static void
+drf_SwapRG (rg)
+RGrid *rg;
+/*
+ * Fix up an rgrid structure.
+ */
+{
+	swap4 (&rg->rg_Xspacing);
+	swap4 (&rg->rg_Yspacing);
+	swap4 (&rg->rg_Zspacing);
+	swap4 (&rg->rg_nX);
+	swap4 (&rg->rg_nY);
+	swap4 (&rg->rg_nZ);
+}
+
+
+static void
+drf_SwapLoc (loc)
+Location *loc;
+{
+	swap4 (&loc->l_lat);
+	swap4 (&loc->l_lon);
+	swap4 (&loc->l_alt);
+}
+
+
+# endif  /* LITTLE_ENDIAN */

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# if defined(SUNOS_4_1) || defined(SVR4)
+# if defined(SUNOS_4_1) || defined(SVR4) || defined(linux)
 # include <unistd.h>
 # else
 # include <sys/file.h>
@@ -27,7 +27,7 @@
 # include "message.h"
 
 
-RCSID("$Id: Sound_lib.c,v 2.3 1995-04-15 00:13:12 granger Exp $")
+RCSID("$Id: Sound_lib.c,v 2.4 1995-05-01 16:06:49 corbet Exp $")
 
 
 void

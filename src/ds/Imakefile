@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.26 1995-04-20 20:25:23 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.27 1995-05-01 16:07:05 corbet Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -74,7 +74,7 @@ HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state
 
-NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
+NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),\
 		    $(DEPLIBS), $(LIBS), /**/)
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
@@ -93,7 +93,7 @@ BuildIncludes($(HEADERS),.,.)
  */
 NormalProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
 
-NormalProgramTarget (zfdump, zfdump.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS), 
+NormalProgramTarget (zfdump, zfdump.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS), \
 		     $(LIBS), /**/)
 
 NormalProgramTarget (GRIBdump, GRIBdump.o GRIB.o, $(DEPLIBS), $(LIBS), /**/)
@@ -101,7 +101,7 @@ NormalProgramTarget (GRIBdump, GRIBdump.o GRIB.o, $(DEPLIBS), $(LIBS), /**/)
 /*
  * Test routines.
  */
-TestProgramTarget (nstest, nstest.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),
+TestProgramTarget (nstest, nstest.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),\
 		  $(LIBS), $(SYSLIBS))
 
 cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
@@ -113,7 +113,7 @@ cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 
 CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 
-TestProgramTarget (aline, aline.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),
+TestProgramTarget (aline, aline.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),\
 		   $(LIBS), $(SYSLIBS))
 
 /*

@@ -46,7 +46,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.51 1995-04-17 22:02:44 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.52 1995-05-01 16:07:16 corbet Exp $")
 
 /*
  * Default resources.
@@ -146,6 +146,8 @@ static void SendGeometry FP((struct dm_msg *dmm));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void Enqueue FP ((EQpriority, char *));
 static int dmgr_message ();
+static void gp_sync FP ((void));
+
 
 
 GPShutDown ()
@@ -1014,7 +1016,7 @@ enum wstate new;
 	else
 		XtPopdown (GrShell);
 	WindowState = new;
-	sync ();
+	gp_sync ();
 }
 
 
@@ -1095,9 +1097,8 @@ eq_ReturnPD ()
 
 
 
-
-void
-sync ()
+static void
+gp_sync ()
 /*
  * Arrange for a synchronize to happen.
  */

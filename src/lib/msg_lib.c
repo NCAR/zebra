@@ -32,7 +32,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.26 1995-04-25 20:19:56 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.27 1995-05-01 16:06:52 corbet Exp $")
 # endif
 
 /*
@@ -121,6 +121,7 @@ static void msg_abort FP ((void));
 static int msg_xf_ack FP ((struct message *msg));
 static void msg_PError FP ((/* char *s, ... */));
 static void msg_SendLog FP ((struct msg_elog *el));
+static int msg_netwrite FP ((int, void *, int));
 
 /*
  * How much data we write at once.
@@ -1006,20 +1007,22 @@ struct message *msg;
 	int len;
 	int fail = 0;
 
-	if (write (Msg_fd, msg, sizeof (Message)) < sizeof (Message))
+	if (msg_netwrite (Msg_fd, msg, sizeof (Message)) < sizeof (Message))
 	{
 		perror ("Message structure write");
 		fail = 1;
 	}
 /*
- * Now send the data, in chunks.
+ * Now send the data, in chunks.  Chunking may no longer be necessary,
+ * with msg_netwrite in place, but what the heck...it works...
  */
 	nsent = 0;
 	while ((!fail) && (nsent < msg->m_len))
 	{
 		len = ((msg->m_len - nsent) > DCHUNK) ? DCHUNK : 
 				(msg->m_len - nsent);
-		if (write (Msg_fd, ((char *)msg->m_data) + nsent, len) < len)
+		if (msg_netwrite (Msg_fd, ((char *)msg->m_data) + nsent, len)
+				< len)
 		{
 			perror ("Message data write");
 			fail = 1;
@@ -1033,6 +1036,35 @@ struct message *msg;
 	}
 	return (! fail);
 }
+
+
+
+
+
+static int
+msg_netwrite (fd, data, len)
+int fd, len;
+void *data;
+/*
+ * Do a network-reliable write.
+ */
+{
+	int nwrote = 0;
+/*
+ * Things are done this way because writes can fail for a number of
+ * nonfatal reasons.  Linux will even fail them with errno=0.
+ */
+	while (nwrote < len)
+	{
+		nwrote += write (fd, (char *) data + nwrote, len - nwrote);
+		if (nwrote < len && errno != 0 && errno != EAGAIN &&
+				errno != EINTR)
+			return (-1);
+	}
+	return (nwrote);
+}
+
+
 
 
 

@@ -17,8 +17,9 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
+# include <byteorder.h>
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.6 1995-02-10 00:49:12 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.7 1995-05-01 16:07:01 corbet Exp $")
 
 
 
@@ -77,7 +78,9 @@ static void	dgr_CalcTime FP ((GradsTag *, int, ZebTime *));
 static int	dgr_FindIndex FP ((GradsTag *, FieldId));
 static off_t	dgr_FOffset FP ((GradsTag *, int, int, int));
 static int	dgr_TimeIndex FP  ((GradsTag *, ZebTime *));
-
+# ifdef LITTLE_ENDIAN
+static void	dgr_SwapFloats FP ((float *, int));
+# endif
 
 
 /*
@@ -785,12 +788,32 @@ int ndetail;
 					(level > 0) ? level : 0);
 			lseek (tag->gt_dfd, offset, SEEK_SET);
 			read (tag->gt_dfd, grid, lvlsize*nlev);
+# ifdef LITTLE_ENDIAN
+			dgr_SwapFloats (grid, (lvlsize*nlev)/sizeof (float));
+# endif
 			dc_NSAddSample (dc, &zt, sample, fids[field], grid);
 		}
 	}
 	free (grid);
 	return (TRUE);
 }
+
+
+
+
+# ifdef LITTLE_ENDIAN
+static void
+dgr_SwapFloats (grid, n)
+float *grid;
+int n;
+/*
+ * Swap up an array of floats.
+ */
+{
+	for (; n > 0; n--)
+		swap4 (grid++);
+}
+# endif
 
 
 

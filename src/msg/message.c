@@ -27,6 +27,7 @@
 # include <netdb.h>
 # include <fcntl.h>
 # include <sys/types.h>
+# include <sys/time.h>
 # include <sys/socket.h>
 # include <sys/un.h>
 # include <sys/uio.h>
@@ -44,7 +45,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.29 1995-04-28 21:21:48 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.30 1995-05-01 16:07:09 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -1029,8 +1030,8 @@ struct message *msgp;
  */
 {
 	struct iovec iov[2];
-	int nwrote, nwant;
 	char *at = NULL;
+	int nwrote, nwant;
 /*
  * If this message is going out over the net, we need to append
  * our host name to the from field.  But don't overrun our memory to do it.
@@ -1075,7 +1076,12 @@ struct message *msgp;
 		DelayWrite (conp, iov, 2, 0);
 	else if ((nwrote = writev (conp->c_fd, iov, 2)) == nwant)
 		/* do nothing and return below */ ;
-	else if (errno == EWOULDBLOCK)
+/*
+ * Linux will fail a write with errno=0.  Hmph.
+ */
+	else if (errno == 0)
+		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
+	else if (errno == EWOULDBLOCK || errno == 0)
 		DelayWrite (conp, iov, 2, nwrote > 0 ? nwrote : 0);
 	else if (errno == ECONNREFUSED)	/* weird */
 	{
@@ -1279,7 +1285,7 @@ Connection *cp;
  * No go.  If this is another WOULDBLOCK error, we make a note of what we
  * were able to get rid of and wait again.
  */
-	if (errno == EWOULDBLOCK)
+	if (errno == EWOULDBLOCK || errno == 0)
 	{
 		if (nwrote > 0)
 		{
@@ -1358,7 +1364,7 @@ int fd;
 {
 	Connection *cp = Fd_map [fd];
 	struct message *msg = &cp->c_msg;
-	int nb;
+	int nb, nread;
 /*
  * If there is not currently a read in progress, we will read in a
  * message header.  The header is short enough that we assume we can
@@ -1416,8 +1422,18 @@ int fd;
  * Pull in the message text.
  */
 	if (msg->m_len > 0)
-		cp->c_nread += msg_netread (fd, msg->m_data + cp->c_nread,
-					    msg->m_len - cp->c_nread);
+	{
+		if ((nread = msg_netread (fd, msg->m_data + cp->c_nread,
+		       msg->m_len - cp->c_nread)) <= 0 && errno != EWOULDBLOCK)
+		{
+			deadconn (fd);
+			return (0);
+		}
+		cp->c_nread += nread;
+	}
+/*
+ * If we're done, mark that no read is in progress and return the message.
+ */
 	if (cp->c_nread >= msg->m_len)
 	{
 		cp->c_inprog = FALSE;

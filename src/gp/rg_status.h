@@ -15,12 +15,18 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# ifdef notdef
 /*
  * RGRID return values
  */
-# endif
 
 # define RG_OK		0	/* Success 			*/
 # define RG_NOTENUFPTS	1	/* Not enough good data points	*/
 # define RG_COLLINEAR	2	/* Points are collinear		*/
+
+/*
+ * Useful place for this.  When g77 is in use, we need to add another
+ * underscore to do_rgrid -- they changed the interface...sigh...
+ */
+# ifdef linux
+# define do_rgrid_ do_rgrid__
+# endif
