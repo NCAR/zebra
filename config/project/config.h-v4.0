@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.7 1993-06-08 16:38:32 granger Exp $
+/**/# $Id: config.h-v4.0,v 1.8 1993-06-25 07:51:52 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -81,23 +81,18 @@
 # ifdef MAKING_MAKEFILE	 	/* use unquoted definitions for Makefiles */
 
 # define BaseDir	/zeb
-# define LibDir		BaseDir/lib
-# define EtcDir		BaseDir/etc	/* Shouldn't really be used for much */
 # define BinDir		BaseDir/bin
+# define LibDir		BaseDir/lib
 # define DataDir	/zeb/data
 # define RDSSDir	/rdss
-# define RDSSIncDir	RDSSDir/include
 
 # else 		/* use the quoted versions for inclusion in source files */
 
 # define BASEDIR	"/zeb"
-# define ZEBDIR		BASEDIR
-# define FCCDIR		BASEDIR
-# define RDSSDIR	"/rdss"
-# define LIBDIR		"/zeb/lib"
-# define ETCDIR		"/zeb/etc"
 # define BINDIR		"/zeb/bin"
+# define LIBDIR		"/zeb/lib"
 # define DATADIR	"/zeb/data"
+# define RDSSDIR	"/rdss"
 
 # endif /* MAKING_MAKEFILE */
 /*=======================================================================*/
@@ -460,3 +455,9 @@
 #define BUILD_OPTIMIZER BuildOptimizer
 #define BUILD_INGEST BuildIngest
 
+#ifndef MAKING_MAKEFILE
+
+#   define ZEBDIR	BASEDIR
+#   define FCCDIR	BASEDIR
+
+#endif
