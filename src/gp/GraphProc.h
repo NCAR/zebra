@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.5 1991-03-05 23:20:27 kris Exp $ */
+/* $Id: GraphProc.h,v 1.6 1991-03-08 00:48:01 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -118,12 +118,18 @@ extern void Ue_ResetOverride (void);
 extern void An_ResetAnnot (int);
 extern void An_SetScale (double);
 extern void An_AnnotLimits (int *, int *, int *, int *);
+extern void An_SAUsed (int);
 extern float *ga_GetGrid (time *, char *, char *, int *, int *, float *,
 		float *, float *, float *, float *);
 extern void cvt_ToXY (double, double, float *, float *);
 extern void cvt_ToLatLon (double, double, float *, float *);
 extern void cvt_GetOrigin (float *, float *);
 extern bool cvt_Origin (double, double);
+extern int GetLocation (char *, time *, Location *);
+extern void SetClip (int);
+extern int CommaParse (char *, char **);
+extern void ResetGC (void);
+extern void SetColor (char *, char *, char *, char *);
 # ifdef _XtIntrinsic_h
 	extern bool ct_LoadTable (char *, XColor**, int *);
 	extern void ct_FreeColors (void);
@@ -167,11 +173,17 @@ extern bool cvt_Origin (double, double);
 	extern void Ue_ResetOverride ();
 	extern void An_ResetAnnot ();
 	extern void An_AnnotLimits ();
+	extern void An_SAUsed ();
 	extern float *ga_GetGrid ();
 	extern void cvt_ToXY ();
 	extern void cvt_ToLatLon ();
 	extern void cvt_GetOrigin ();
 	extern bool cvt_Origin ();
+	extern int GetLocation ();
+	extern void SetClip ();
+	extern int CommaParse ();
+	extern void ResetGC ();
+	extern void SetColor ();
 # ifdef _XtIntrinsic_h
 	extern bool ct_LoadTable ();
 	extern void ct_FreeColors ();
