@@ -2,7 +2,7 @@
  * Replace missing values in the latitude or longitude fields of a
  * netcdf file with interpolated values. 
  */
-static char *rcsid = "$Id: cdf_interpolate.c,v 1.2 1992-11-05 23:21:57 kris Exp $";
+static char *rcsid = "$Id: cdf_interpolate.c,v 1.3 1992-12-15 00:55:43 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -36,6 +36,7 @@ static char *rcsid = "$Id: cdf_interpolate.c,v 1.2 1992-11-05 23:21:57 kris Exp 
  */
 static float	interpolate FP ((float *, int, double));
 static float	extrapolate FP ((float *, int, double));
+static void	get_missing_value FP ((int cdfid, int varid, float *value));
 
 main (argc, argv)
 int	argc;
@@ -48,6 +49,8 @@ char	**argv;
 	long	start[1], count[1];
 	float	missing_lat, missing_lon;
 	float	*latitudes, *longitudes;
+	int	nlat = 0, nlon = 0;		/* gap measurements */
+		
 /*
  * Check arguments.
  */
@@ -87,31 +90,54 @@ char	**argv;
 	count[0] = num_records;
 	ncvarget (cdfid, latid, start, count, latitudes);
 	ncvarget (cdfid, lonid, start, count, longitudes);
-/*
- * Get the missing values.
- */
-# ifdef notdef
-	ncattget (cdfid, latid, "missing_value", &missing_lat);
-	ncattget (cdfid, lonid, "missing_value", &missing_lon);
-# endif
-	missing_lat = MISSING;
-	missing_lon = MISSING;
+
+	get_missing_value( cdfid, latid, &missing_lat );
+	get_missing_value( cdfid, lonid, &missing_lon );
+	printf("missing lat = %f,    missing lon = %f\n",
+	       missing_lat, missing_lon);
 /*
  * Test for a missing initial value and extrapolate.
  */
 	if (latitudes[0] == missing_lat)
+	{
+		printf("Extrapolating lat\n");
 		latitudes[0] = extrapolate (latitudes, 0, missing_lat);
+	}
 	if (longitudes[0] == missing_lon)
+	{
+		printf("Extrapolating lon\n");
 		longitudes[0] = extrapolate (longitudes, 0, missing_lon);
+	}
 /*
  * Search for missing values and interpolate.
  */
+	nlat = nlon = 0;
 	for (i = 1; i < num_records; i++)
 	{
 		if (latitudes[i] == missing_lat)
-			latitudes[i] = interpolate(latitudes, i, missing_lat);
+		{
+			latitudes[i] = interpolate(latitudes,i,missing_lat);
+			++nlat;
+		}
+		else
+		{
+			if (nlat > 5)
+				printf("Warning -- %s gap of %i at %i\n",
+				       "Latitude", nlat, i - nlat);
+			nlat = 0;
+		}
 		if (longitudes[i] == missing_lon)
-			longitudes[i] = interpolate(longitudes, i, missing_lon);
+		{
+			++nlon;
+			longitudes[i] = interpolate(longitudes,i,missing_lon);
+		}
+		else
+		{
+			if (nlon > 5)
+				printf("Warning -- %s gap of %i at %i\n",
+				       "Longitude", nlon, i - nlon);
+			nlon = 0;
+		}
 	}
 /*
  * Store the lat/lon data.
@@ -120,6 +146,61 @@ char	**argv;
 	ncvarput (cdfid, lonid, start, count, longitudes);
 	ncclose (cdfid);
 }
+
+
+
+void
+get_missing_value( cdfid, varid, missing )
+int cdfid;
+int varid;
+float *missing;
+/*
+ * Get the missing values.
+ */
+{
+	char 	m_string[STRLEN];
+	double	m_double;
+	nc_type	m_type;
+        long	m_len;
+	int	opts = ncopts;
+	double	atof();
+
+	ncopts = 0;
+	if (ncattinq (cdfid, varid, "missing_value", &m_type, &m_len) >= 0)
+	{
+		switch (m_type)
+		{
+		   case NC_CHAR:
+			ncattget (cdfid, varid, "missing_value", m_string);
+			*missing = atof(m_string);
+			break;
+		   case NC_FLOAT:
+			ncattget (cdfid, varid, "missing_value", missing);
+			break;
+		   case NC_DOUBLE:
+			ncattget (cdfid, varid, "missing_value", &m_double);
+			*missing = (float)m_double;
+			break;
+		   default:
+			printf (
+			  "missing_value type not supported. Using %f.\n",
+			   MISSING);
+			*missing = MISSING;
+			break;
+		}
+	}
+	else if ((ncattinq (cdfid, NC_GLOBAL, "bad_value_flag",
+			   &m_type, &m_len) >= 0) && (m_type == NC_CHAR))
+	{
+		ncattget (cdfid, NC_GLOBAL, "bad_value_flag", m_string);
+		*missing = atof(m_string);
+	}
+	else
+		*missing = MISSING;
+
+	ncopts = opts;
+}
+
 
 static float
 interpolate (array, index, missing_value)
@@ -138,8 +219,6 @@ int	index;
 	x0 = (float) (index - 1);
 	y0 = array[index - 1];
 	while (array[index + (++i)] == missing_value);
-	if (i > 5)
-		printf ("Warning: Gap of %d at index %d.\n", i, index);
 	x1 = (float) (index + i);
 	y1 = array[index + i]; 
 	x = (float) index;
@@ -162,7 +241,6 @@ int	index;
 	float	x0, y0, x1, y1;
 	float	x;
 
-	printf ("Extrapolating\n");
 /*
  * Initialize x's and y's.
  */
