@@ -33,7 +33,7 @@ SOFTWARE.
 #include <X11/StringDefs.h>
 #include <X11/Xos.h>
 #include <X11/Xaw/XawInit.h>
-#include <X11/Xaw/LabelP.h>
+#include "LabelP.h"
 #include <X11/Xmu/Converters.h>
 #include <X11/Xmu/Drawing.h>
 #include <stdio.h>
