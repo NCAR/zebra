@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.13 1995-06-29 21:37:37 granger Exp $
+/* $Id: ingest.c,v 1.14 1996-11-19 09:18:33 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -32,6 +32,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <varargs.h>
 #include "ingest.h"
 
@@ -44,7 +45,7 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.13 1995-06-29 21:37:37 granger Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.14 1996-11-19 09:18:33 granger Exp $")
 #endif
 
 
