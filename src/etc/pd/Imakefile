@@ -1,12 +1,15 @@
 /*
  * PD library files.
  */
+
+INSTALLPD = $(INSTALL) $(INSTALLFLAGS) $(INSTDATFLAGS)
+
 all::	/* nothing */
 
 install::
 	MakeDir ($(LIBDIR)/pd)
 	for pd_file in *.pd ; do \
-		$(INSTALL) $${pd_file} $(LIBDIR)/pd ; \
+		$(INSTALLPD) $${pd_file} $(LIBDIR)/pd ; \
 	done
 
 DISTFILES = Imakefile *.pd

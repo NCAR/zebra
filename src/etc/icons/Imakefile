@@ -6,12 +6,14 @@
  * Hell if I'm going to type in all of those damn icon names.
  */
 
+INSTALLICON = $(INSTALL) $(INSTALLFLAGS) $(INSTDATFLAGS)
+
 all::
 
 install::
 	MakeDir ($(LIBDIR)/icons)
 	for icon_file in [0-9a-z]* ; do \
-		$(INSTALL) $${icon_file} $(LIBDIR)/icons ; \
+		$(INSTALLICON) $${icon_file} $(LIBDIR)/icons ; \
 	done
 
 DISTFILES = Imakefile [a-z]*
