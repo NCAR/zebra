@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "byteorder.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.30 1996-01-31 17:45:39 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.31 1996-08-21 22:45:39 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -155,6 +155,7 @@ bool local, rescan;
 				  "Created data dir %s (plat %s)", dir,
 				  p->dp_name);
 			p->dp_flags |= DPF_DIREXISTS;
+			p->dp_flags |= DPF_DIRTY;
 		}
 	}
 	else
@@ -236,7 +237,10 @@ Platform *pi;
 	}
 
 	if (succeed)
+	{
 		pi->dp_flags |= DPF_DIREXISTS;
+		pi->dp_flags |= DPF_DIRTY;
+	}
 	return (succeed);
 }
 
