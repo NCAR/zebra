@@ -22,11 +22,12 @@
 #include "BTree.hh"
 #include "BTreeStats.hh"
 #include <string>
+#include "Logger.hh"
 
 #include "BTreeFile.hh"
 
-typedef BTreeFile<ZTime,ZTime> TimeTree;
-typedef BTreeFile<string,string> StringTree;
+//typedef BTreeFile<ZTime,ZTime> TimeTree;
+//typedef BTreeFile<string,string> StringTree;
 
 /*
  * Choose the test_key type for the test trees.
@@ -36,9 +37,9 @@ typedef BTreeFile<string,string> StringTree;
 typedef ZTime test_key;
 
 typedef BTreeFile<test_key,test_key> test_tree;
+//typedef BTree<test_key,test_key> test_tree;
 
 static int Debug = 0;
-
 
 #ifdef linux
 extern "C" { int __getfpucw (); }
@@ -82,6 +83,7 @@ Summarize (ostream &out, BTree<K,T> &t)
 
 
 int TestTree (test_tree &tree, int N);
+int T_Traversal (test_tree &tree, int print = 0);
 
 
 int main (int argc, char *argv[])
@@ -90,6 +92,8 @@ int main (int argc, char *argv[])
 	int order = 3;
 
 	srand (1000);
+
+	Logger::SetPrototype (NullLogger("logging disabled"));
 
 	cout << "-----------------================----------------" << endl;
 	if (argc > 1)
@@ -101,6 +105,11 @@ int main (int argc, char *argv[])
 	if (argc > 1)
 	{{
 		test_tree tree(order, sizeof(test_key));
+		tree.Check();
+		tree.Print(cout);
+		err += T_Traversal (tree, 1);
+		tree.Check(1);
+		tree.Erase ();	// Start fresh
 		cout << "Testing tree of order " << tree.Order() 
 		     << " with " << N << " members..." << endl;
 		err += TestTree (tree, N);
@@ -116,6 +125,7 @@ int main (int argc, char *argv[])
 	for (int o = 3; o < N / 10; o *= 3)
 	{
 		test_tree tree(o, sizeof(test_key));
+		tree.Erase ();	// Start fresh
 		
 		cout << "Testing tree of order " << tree.Order() 
 		     << " with " << N << " members..." << endl;
@@ -432,7 +442,7 @@ T_ReverseRemoval (test_tree &tree)
 
 
 int
-T_Traversal (test_tree &tree)
+T_Traversal (test_tree &tree, int print = 0)
 {
 	// Build an ordered vector of keys by traversing the tree forwards.
 	vector<test_tree::key_type> keys;
@@ -441,14 +451,16 @@ T_Traversal (test_tree &tree)
 	int err = 0;
 
 	tree.First ();
-	//cout << "Traversal keys: ";
+	if (print)
+		cout << "Traversal keys: ";
 	while (tree.Current (&key))
 	{
-		//cout << key << " ";
+		if (print)
+			cout << key << " ";
 		keys.push_back (key);
 		tree.Next ();
 	}
-	//cout << endl;
+	if (print) cout << endl;
 
 	// Now do the same traversal backwards, and make sure we get the
 	// same keys coming the other direction.
@@ -514,6 +526,16 @@ T_Traversal (test_tree &tree)
 
 
 
+#ifdef notdef
+int
+Reopen (test_tree &tree)
+{
+	cout << " ### Re-opening tree ###" << endl;
+	delete
+}
+#endif
+
+
 
 int
 TestTree (test_tree &tree, int N)
@@ -535,6 +557,8 @@ TestTree (test_tree &tree, int N)
 	err += tree.Check ();
 	Summarize(cout, tree);
 	err += T_Traversal (tree);
+
+	//return (err);
 
 	// Ordered removal
 	cout << "Forward removal... " << endl;

@@ -5,11 +5,11 @@
 #include <iostream.h>
 #include <assert.h>
 
-#include <defs.h>
+//#include <defs.h>
 #include "BlockFile.hh"
 #include "Logger.hh"
 
-RCSID ("$Id: T_Block.cc,v 1.5 1997-12-17 03:50:28 granger Exp $")
+//RCSID ("$Id: T_Block.cc,v 1.6 1998-05-28 22:01:54 granger Exp $")
 
 static int TestStore (char *name);
 
