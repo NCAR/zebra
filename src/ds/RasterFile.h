@@ -1,4 +1,4 @@
-/* $Id: RasterFile.h,v 2.4 1997-06-19 20:19:31 granger Exp $ */
+/* $Id: RasterFile.h,v 2.5 1999-10-29 22:41:07 granger Exp $ */
 
 /*
  * This is the file for FCC native raster files.  Note that these are not
@@ -106,6 +106,15 @@ int drf_ReadHeader (int fd, RFHeader *hdr);
 RFToc *drf_ReadTOC (RFHeader *, int);
 void drf_SwapHeader (RFHeader *hdr);
 void drf_SwapTOC (RFToc *toc, int ntoc);
+unsigned char *drf_GetScratch (int size, int *nalloc);
+unsigned char *drf_Compress (unsigned char *data, int nb, int *newnb);
+unsigned char *drf_GetField (int fd, RFHeader *hdr, 
+			     const RFToc *const toc, const int field);
+void drf_WriteHeader (int fd, RFHeader *hdr, RFToc *toc);
+void drf_FindSpace (int fd, RFToc *toc, int fld, int nb, int reuse);
+void drf_ClearToc (RFHeader *hdr, RFToc *toc);
+int drf_WriteData (int fd, RFHeader *hdr, RFToc *toc, int dfield, 
+		   unsigned char *data, int nb, int reuse);
 
 
 # ifdef notdef /* ancient */

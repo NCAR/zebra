@@ -20,7 +20,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: Raster.c,v 3.2 1998-10-28 21:20:59 corbet Exp $")
+RCSID ("$Id: Raster.c,v 3.3 1999-10-29 22:41:06 granger Exp $")
 
 
 /*
@@ -30,6 +30,80 @@ static void	drf_FixOldHeader FP ((RFHeader *));
 static void	drf_SwapRG FP ((RGrid *));
 static void	drf_SwapLoc FP ((Location *));
 static void	drf_SwapLArray FP ((long *, int));
+
+
+
+/*
+ * Scratch buffer used for compression/decompression.
+ */
+static unsigned char *Sbuf = 0;
+static int NSbuf = 0;
+
+
+unsigned char *
+drf_GetScratch (int size, int *nalloc)
+/*
+ * Make sure our scratch space is at least this big, returning a pointer
+ * to the space.  If passed zero, return the buffer unchanged.  If alloc
+ * non-zero, return the number of bytes allocated in the buffer.
+ */
+{
+	if (NSbuf < size)
+	{
+		if (NSbuf > 0)
+			free (Sbuf);
+		/* 
+		 * Minimum size imposed here.  Experience shows we reach
+		 * this size anyway, this way we avoid fragmenting the
+		 * memory pool in the process.
+		 */
+		if (size < 700000)
+			size = 700000;
+		Sbuf = (unsigned char *) malloc (size);
+		NSbuf = size;
+	}
+	if (nalloc)
+		*nalloc = NSbuf;
+	return Sbuf;
+}
+
+
+
+void
+drf_ClearToc (RFHeader *hdr, RFToc *toc)
+/*
+ * Initialize this TOC entry to clear.
+ */
+{
+	memset (toc, 0, sizeof (RFToc));
+	toc->rft_Rg.rg_nX = toc->rft_Rg.rg_nY = toc->rft_Rg.rg_nZ = 1;
+}
+
+
+
+void
+drf_FindSpace (int fd, RFToc *toc, int fld, int nb, int reuse)
+/*
+ * Try to find a place to put this data.  Fills in the TOC entry and
+ * positions the file at the beginning of the space.
+ */
+{
+/*
+ * If we are trying to reuse space, see if the existing allocation is
+ * sufficient.  If so, just return it.
+ */
+	if (reuse && toc->rft_Size[fld] >= nb)
+		lseek (fd, toc->rft_Offset[fld], SEEK_SET);
+/*
+ * Otherwise we (for now) just grab something at the end.  If we were
+ * trying to reuse, this causes a fair amount of space to be wasted; 
+ * later we need some sort of way to keep track of free space.
+ */
+	else
+		toc->rft_Offset[fld] = lseek (fd, 0, SEEK_END);
+	toc->rft_Size[fld] = nb;
+}
+
 
 
 
@@ -85,6 +159,131 @@ drf_ReadHeader (int fd, RFHeader *hdr)
 	return (0);
 }
 
+
+
+
+unsigned char *
+drf_GetField (int fd, RFHeader *hdr, const RFToc *const toc, const int field)
+/*
+ * Pull in this field and return a pointer to the image, else 0.
+ */
+{
+	int fnb = toc->rft_Rg.rg_nX * toc->rft_Rg.rg_nY;
+	int nb = toc->rft_Size[field];
+
+	if (nb == 0 || toc->rft_Offset[field] == 0)
+		return (0);
+/*
+ * Move to the right place in the file.
+ */
+	lseek (fd, toc->rft_Offset[field], SEEK_SET);
+/*
+ * Without compression, we read straight into the destination array.
+ */
+	if ((hdr->rf_Flags & RFF_COMPRESS) == 0)
+	{
+		if (read (fd, drf_GetScratch (nb, 0), nb) != nb)
+			msg_ELog (EF_PROBLEM, "Read error %d on rast file",
+				  errno);
+	}
+/*
+ * Otherwise we read into Sbuf and decompress into our destination.
+ * Now that we always go into sbuf, things are a bit different.  To try
+ * minimize memory use, we read into the far end of Sbuf, and decompress
+ * in place.
+ */
+	else
+	{
+		int rpos = fnb - nb + 100;
+		drf_GetScratch (fnb + 100, 0);
+		if (read (fd, Sbuf + rpos, nb) != nb)
+		{
+			msg_ELog (EF_PROBLEM, "Read error %d on rast file",
+				  errno);
+		}
+		RL_Decode (Sbuf, Sbuf + rpos, nb);
+	}
+	return Sbuf;
+}
+
+
+
+unsigned char *
+drf_Compress (unsigned char *data, int nb, int *newnb)
+{
+	int junk;
+	int nsbuf;
+	unsigned char *sbuf = drf_GetScratch (nb, &nsbuf);
+	RL_Encode (data, sbuf, nb, nsbuf, &junk, newnb);
+	return sbuf;
+}
+
+
+
+void
+drf_WriteHeader (int fd, RFHeader *hdr, RFToc *toc)
+{
+    lseek (fd, 0, SEEK_SET);
+/*
+ * Put out the header.
+ */
+    if (LittleEndian())
+	drf_SwapHeader (hdr);
+
+    write (fd, hdr, sizeof (RFHeader));
+
+    if (LittleEndian())
+	drf_SwapHeader (hdr);
+/*
+ * Now the TOC.
+ */
+    if (LittleEndian())
+	drf_SwapTOC (toc, hdr->rf_MaxSample);
+
+    write (fd, toc, hdr->rf_MaxSample*sizeof(RFToc));
+
+    if (LittleEndian())
+	drf_SwapTOC (toc, hdr->rf_MaxSample);
+}
+
+
+
+int
+drf_WriteData (int fd, RFHeader *hdr, RFToc *toc, int dfield, 
+	       unsigned char *data, int nb, int reuse)
+/*
+ * Return zero on error.
+ */
+{
+	/*
+	 * Compress the data if called for.
+	 */
+	if (data && (hdr->rf_Flags & RFF_COMPRESS))
+	{
+		data = drf_Compress (data, nb, &nb);
+	}
+	/* 
+	 * If no data, mark the slot empty unless it already holds an image.
+	 */
+	if (! data)
+	{
+		if (! reuse)
+		{
+			toc->rft_Size[dfield] = 0;
+			toc->rft_Offset[dfield] = 0;
+		}
+	}
+	else
+	{
+		drf_FindSpace (fd, toc, dfield, nb, reuse);
+		if (write (fd, data, nb) < nb)
+		{
+			msg_ELog (EF_PROBLEM, "Error %d writing image", errno);
+			return (0);
+		}
+	}
+	return 1;
+}
 
 
 

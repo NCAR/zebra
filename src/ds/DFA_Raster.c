@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.25 1999-03-01 02:03:26 burghart Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.26 1999-10-29 22:41:06 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -141,12 +141,6 @@ static DataFormat cmpRasterFormatRec =
 DataFormat *cmpRasterFormat = (DataFormat *) &cmpRasterFormatRec;
 
 /*
- * Scratch buffer used for compression/decompression.
- */
-static unsigned char *Sbuf = 0;
-static int NSbuf = 0;
-
-/*
  * Buffer used for attribute encoding/decoding.
  */
 static char AttrBuf[2048];
@@ -159,42 +153,19 @@ static int AttrLen;
 static void	drf_WSync FP ((RFTag *));
 static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
 static int	drf_FldOffset FP ((RFTag *, FieldId));
+#ifdef notdef
 static int	drf_GetField FP ((const RFTag * const, const RFToc *const,
 				  const int));
-# ifdef notdef
 static void	drf_ReadOldToc FP ((RFTag *));
 # endif
 static void	drf_ReadAttrs FP ((RFTag *, RFToc *, int, DataChunk *));
+#ifdef notdef
 static void	drf_ClearToc FP ((RFHeader *, RFToc *));
 static void	drf_FindSpace FP ((RFTag *, RFToc *, int, int, int));
+#endif
 static int	drf_ProcAttr FP ((char *, char *));
 static void	drf_WriteAttrs FP ((RFTag *, RFToc *, DataChunk *, int, int));
 static void	drf_SyncTimes FP ((RFTag *tag));
-
-
-
-
-static void
-GetScratch (size)
-int size;
-/*
- * Make sure our scratch space is at least this big.
- */
-{
-	if (NSbuf >= size)
-		return;
-	if (NSbuf > 0)
-		free (Sbuf);
-/*
- * Minimum size imposed here.  Experience shows we reach this size anyway,
- * this way we avoid fragmenting the memory pool in the process.
- */
-	if (size < 700000)
-		size = 700000;
-	Sbuf = (unsigned char *) malloc (size);
-	NSbuf = size;
-}
-
 
 
 
@@ -405,6 +376,8 @@ RFTag *tag;
  * Write out changes to the file header.
  */
 {
+	drf_WriteHeader (tag->rt_fd, &tag->rt_hdr, tag->rt_toc);
+#ifdef notdef
 	lseek (tag->rt_fd, 0, SEEK_SET);
 /*
  * Put out the header.
@@ -426,6 +399,7 @@ RFTag *tag;
 
 	if (LittleEndian())
 	    drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
+#endif
 /*
  * Update internal array of times with new table of contents
  */
@@ -579,35 +553,9 @@ RFToc *toc;
 	 */
 		data = dc_ImgGetImage (dc, sample, fids[fld], &toc->rft_Origin,
 				       &toc->rft_Rg, &nb, &scale);
-	/*
-	 * Compress the data if called for.
-	 */
-		if (data && (hdr->rf_Flags & RFF_COMPRESS))
-		{
-			int junk;
-
-			GetScratch (nb);
-			RL_Encode (data, Sbuf, nb, NSbuf, &junk, &nb);
-			data = Sbuf;
-		}
-	/* 
-	 * If no data, mark the slot empty unless it already holds an image.
-	 */
-		if (! data)
-		{
-			if (! reuse)
-			{
-				toc->rft_Size[dfield] = 0;
-				toc->rft_Offset[dfield] = 0;
-			}
-			continue;
-		}
-		drf_FindSpace (tag, toc, dfield, nb, reuse);
-		if (write (tag->rt_fd, data, nb) < nb)
-		{
-			msg_ELog (EF_PROBLEM, "Error %d writing image", errno);
-			return (0);
-		}
+		if (! drf_WriteData (tag->rt_fd, &tag->rt_hdr, toc, 
+				     dfield, data, nb, reuse))
+			return 0;
 	}
 /*
  * Write out the attribute table if there is one.
@@ -673,56 +621,6 @@ char *name, *value;
 	strcpy (AttrBuf + AttrLen + strlen (name) + 1, value);
 	AttrLen += strlen (name) + strlen (value) + 2;
 	return (0);
-}
-
-
-
-
-
-
-
-static void
-drf_FindSpace (tag, toc, fld, nb, reuse)
-RFTag *tag;
-RFToc *toc;
-int fld, nb, reuse;
-/*
- * Try to find a place to put this data.  Fills in the TOC entry and
- * positions the file at the beginning of the space.
- */
-{
-/*
- * If we are trying to reuse space, see if the existing allocation is
- * sufficient.  If so, just return it.
- */
-	if (reuse && toc->rft_Size[fld] >= nb)
-		lseek (tag->rt_fd, toc->rft_Offset[fld], SEEK_SET);
-/*
- * Otherwise we (for now) just grab something at the end.  If we were
- * trying to reuse, this causes a fair amount of space to be wasted; 
- * later we need some sort of way to keep track of free space.
- */
-	else
-		toc->rft_Offset[fld] = lseek (tag->rt_fd, 0, SEEK_END);
-	toc->rft_Size[fld] = nb;
-}
-
-
-
-
-
-
-
-static void
-drf_ClearToc (hdr, toc)
-RFHeader *hdr;
-RFToc *toc;
-/*
- * Initialize this TOC entry to clear.
- */
-{
-	memset (toc, 0, sizeof (RFToc));
-	toc->rft_Rg.rg_nX = toc->rft_Rg.rg_nY = toc->rft_Rg.rg_nZ = 1;
 }
 
 
@@ -901,15 +799,17 @@ int ndetail;
 	 */
 		for (fld = 0; fld < nfield; fld++)
 		{
+			unsigned char *img = 0;
 		/*
 		 * Get the data from the file and dump it into the data chunk.
 		 */
 			if (fieldmap[fld] >= 0 &&
-			    drf_GetField (tag, toc, fieldmap[fld]))
+			    (img = drf_GetField (tag->rt_fd, &tag->rt_hdr, 
+						 toc, fieldmap[fld])))
 			{
 				dc_ImgAddImage (dc, dcsamp, fids[fld],
 						&toc->rft_Origin, &toc->rft_Rg,
-						&t_hack, Sbuf, 0);
+						&t_hack, img, 0);
 			}
 			else
 			{
@@ -993,7 +893,7 @@ DataChunk *dc;
 
 
 
-
+#ifdef notdef
 static int
 drf_GetField (tag, toc, field)
 const RFTag * const tag;
@@ -1039,7 +939,7 @@ const int field;
 	}
 	return (1);
 }
-
+#endif
 
 
 

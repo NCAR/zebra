@@ -21,17 +21,33 @@
 
 # include <stdio.h>
 # include <unistd.h>
+# include <errno.h>
 
 # include <defs.h>
 # include <byteorder.h>
 # include <message.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.8 1997-06-19 20:19:32 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.9 1999-10-29 22:41:07 granger Exp $")
 
 
-static int DumpFile (char *file);
+typedef struct s_RFile
+{
+	int fd;
+	RFHeader hdr;
+	RFToc *toc;
+} RFile;
 
+static int DumpFile (int fd, RFHeader *hdr, RFToc *toc);
+static void CloseFile (RFile *rf);
+static int OpenFile (char *file, RFile *rf);
+static void WriteFile (RFile *src, RFile *dst, char *fname, int decompress);
+
+static void Usage (char *p)
+{
+	printf ("Usage: %s [-help] [-decompress file] rasterfile ...\n", p);
+	exit (1);
+}
 
 int
 main (argc, argv)
@@ -40,18 +56,53 @@ char **argv;
 {
     int i;
     int status = 0;
+    int decompress = 1; /* default is always decompress for now */
+    char *dfile = 0;
+    RFile rf;
 
     if (argc < 2)
     {
-	printf ("Usage: %s rasterfile ...\n", argv[0]);
-	exit (1);
+	Usage (argv[0]);
     }
 
     msg_connect (NULL, "rfdump");
-    for (i = 1; i < argc; ++i)
+    i = 1;
+    while (i < argc)
     {
-        printf ("File: %s\n", argv[i]);
-	status += DumpFile (argv[i]);
+	int len = strlen (argv[i]);
+	if (len > 1 && ! strncmp ("-help", argv[i], len))
+	{
+	    Usage (argv[0]);
+	}
+	else if (len > 1 && ! strncmp ("-decompress", argv[i], len))
+	{
+	    ++i;
+	    if (i >= argc)
+		    Usage (argv[0]);
+	    dfile = argv[i];
+	}
+	else
+	{
+		RFile dst;
+		printf ("File: %s\n", argv[i]);
+		if (OpenFile (argv[i], &rf) >= 0)
+		{
+			if (dfile)
+			{
+				WriteFile (&rf, &dst, dfile, decompress);
+				DumpFile (dst.fd, &dst.hdr, dst.toc);
+				CloseFile (&dst);
+			}
+			else
+			{
+				status += DumpFile (rf.fd, &rf.hdr, rf.toc);
+			}
+			CloseFile (&rf);
+		}
+		dfile = 0;
+	}
+	++i;
+
     }
 
     exit (status);
@@ -59,13 +110,62 @@ char **argv;
 
 
 
+static void
+WriteFile (RFile *src, RFile *dst, char *fname, int decompress)
+{
+    int i, fld;
+
+    if ((dst->fd = open (fname, O_RDWR | O_CREAT | O_TRUNC, 0664)) < 0)
+    {
+	msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
+		  fname);
+	return;
+    }
+    dst->hdr = src->hdr;
+    dst->hdr.rf_Magic = RF_MAGIC;
+    /*
+     * Go ahead and trim the maxsamples to the actual number we need.
+     */
+    dst->hdr.rf_MaxSample = src->hdr.rf_NSample;
+    dst->toc = (RFToc *) malloc (dst->hdr.rf_MaxSample * sizeof(RFToc));
+    memcpy (dst->toc, src->toc, dst->hdr.rf_MaxSample * sizeof(RFToc));
+    if (decompress)
+    {
+	    dst->hdr.rf_Flags &= ! RFF_COMPRESS;
+    }
+    drf_WriteHeader (dst->fd, &dst->hdr, dst->toc);
+    /*
+     * Now loop through the fields and write them, each will be
+     * automatically decompressed and not re-compressed according to
+     * the dst header.
+     */
+    for (i = 0; i < src->hdr.rf_NSample; i++)
+    {
+	int fnb = src->toc[i].rft_Rg.rg_nX * src->toc[i].rft_Rg.rg_nY;
+	unsigned char *img;
+	for (fld = 0; fld < src->hdr.rf_NField; fld++)
+	{
+	    dst->toc[i].rft_Offset[fld] = dst->toc[i].rft_Size[fld] = 0;
+	    /* Get the field, then write it out. */
+	    img = drf_GetField (src->fd, &src->hdr, src->toc+i, fld);
+	    drf_WriteData (dst->fd, &dst->hdr, dst->toc+i, fld, img,
+			   fnb, 0/*reuse*/);
+	}
+	/*
+	 * We're not bothering to copy attributes just yet.
+	 */
+	dst->toc[i].rft_AttrLen = dst->toc[i].rft_AttrOffset = 0;
+    }
+    drf_WriteHeader (dst->fd, &dst->hdr, dst->toc);
+}
+
+
+
 
 static int
-DumpFile (char *file)
+OpenFile (char *file, RFile *rf)
 {
-    int fd, fld, i;
-    RFHeader hdr;
-    RFToc *toc;
+    int fd;
 /*
  * Open the file.
  */
@@ -77,38 +177,57 @@ DumpFile (char *file)
 /*
  * Get the header.
  */
-    if (drf_ReadHeader (fd, &hdr) < 0)
+    rf->fd = fd;
+    if (drf_ReadHeader (fd, &rf->hdr) < 0)
     {
 	msg_ELog (EF_PROBLEM, "Read header failed for '%s'", file);
 	close (fd);
 	return (-1);
     }
 /*
- * Print it.
- */
-    printf ("Header magic = 0x%x, platform '%s' %s\n", 
-	    hdr.rf_Magic, hdr.rf_Platform,
-	    hdr.rf_Flags & RFF_COMPRESS ? 
-	    "compressed" : "not compressed");
-    printf ("Currently %d of max %d samples, with %d fields\n", 
-	    hdr.rf_NSample, hdr.rf_MaxSample, 
-	    hdr.rf_NField);
-    for (fld = 0; fld < hdr.rf_NField; fld++)
-	printf ("\tField %d, '%s'\n", fld, 
-		hdr.rf_Fields[fld].rff_Name);
-/*
  * Get and read the table of contents.
  */
-    if (! (toc = drf_ReadTOC (&hdr, fd)))
+    if (! (rf->toc = drf_ReadTOC (&rf->hdr, fd)))
     {
 	    msg_ELog (EF_PROBLEM, "Read TOC failed for file '%s'", file);
 	    close (fd);
 	    return (-1);
     }
+    return fd;
+}
+
+
+
+static void
+CloseFile (RFile *rf)
+{
+	close (rf->fd);
+	free (rf->toc);
+}
+
+
+
+static int
+DumpFile (int fd, RFHeader *hdr, RFToc *toc)
+{
+    int fld, i;
 /*
- * Dump it out.
+ * Print the header.
  */
-    for (i = 0; i < hdr.rf_NSample; i++)
+    printf ("Header magic = 0x%x, platform '%s' %s\n", 
+	    hdr->rf_Magic, hdr->rf_Platform,
+	    hdr->rf_Flags & RFF_COMPRESS ? 
+	    "compressed" : "not compressed");
+    printf ("Currently %d of max %d samples, with %d fields\n", 
+	    hdr->rf_NSample, hdr->rf_MaxSample, 
+	    hdr->rf_NField);
+    for (fld = 0; fld < hdr->rf_NField; fld++)
+	printf ("\tField %d, '%s'\n", fld, 
+		hdr->rf_Fields[fld].rff_Name);
+/*
+ * Dump out the TOC.
+ */
+    for (i = 0; i < hdr->rf_NSample; i++)
     {
 	char attr[512];
 	printf ("%2d: %ld %06ld at %8ld, (%dx%d) "
@@ -122,6 +241,10 @@ DumpFile (char *file)
 		toc[i].rft_Origin.l_lat, 
 		toc[i].rft_Origin.l_lon,
 		toc[i].rft_Origin.l_alt);
+	for (fld = 0; fld < hdr->rf_NField; fld++)
+	    printf ("\tField %d, '%s' at offset: %d\n", fld, 
+		    hdr->rf_Fields[fld].rff_Name, toc[i].rft_Offset[fld]);
+
 	if (toc[i].rft_AttrLen > 0)
 	{
 	    char *c;
@@ -140,7 +263,6 @@ DumpFile (char *file)
 	    printf ("\n");
 	}
     }
-    free (toc);
     return (0);
 }
 
