@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.66 1999-03-01 02:04:23 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.67 1999-11-01 20:24:11 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -460,6 +460,7 @@ extern DataChunk *GetVorticity ( ZebTime *, char *, char *, FieldId, int *,
 		  XRectangle clip, double dmin, double dmax, 
 		  int highlight, double hvalue, XColor hcolor,
 		  double hrange));
+	void RP_Transparent (int setting);
 	void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
 			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
 			  double scale, double bias, Location *, RGrid *));
