@@ -249,7 +249,7 @@ FILE **fp;
    /* IF MODE IS READ ONLY, OPEN FILE FOR READ */
    if (mode == 'r' || mode == 'R') {
       mode = 'r';
-      if ((*fp = fopen(f_name,"rb+")) == NULL) return(0);
+      if ((*fp = fopen(f_name,"rb")) == NULL) return(0);
    }
    
    /* ELSE IF MODE IS WRITE, OPEN FILE FOR WRITE */
