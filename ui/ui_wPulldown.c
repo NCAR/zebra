@@ -1,9 +1,26 @@
-/* $Id: ui_wPulldown.c,v 1.2 1990-04-20 11:03:51 corbet Exp $ */
+(Message /home/corbet/Mail/inbox:43)
+Return-Path: corbet@gaia.UUCP
+Received: from handies.ucar.edu by stout.atd.ucar.EDU (5.61/ NCAR Mail Server 04/10/90)
+	id AA13025; Mon, 27 Aug 90 21:41:53 MDT
+Received: by ncar.ucar.EDU (5.64/ NCAR Central Post Office 04/10/90)
+	id AA29634; Mon, 27 Aug 90 21:41:49 MDT
+Received: by gaia. (4.0/SMI-4.0)
+	id AA00388; Mon, 27 Aug 90 21:38:43 MDT
+Date: Mon, 27 Aug 90 21:38:43 MDT
+From: corbet@gaia.UUCP (Jonathan Corbet)
+Message-Id: <9008280338.AA00388@gaia.>
+To: corbet@ncar.UUCP
+Subject: ui_WPulldown
+
 /*
  * Windowing code for pulldown menu widgets.
  */
 
 # ifdef XSUPPORT
+
+
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.3 1990-08-28 08:56:54 corbet Exp $";
+
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
  * Window system code.
@@ -12,7 +29,7 @@
 # include <X11/Xlib.h>
 # include <X11/cursorfont.h>
 # include <X11/Intrinsic.h>
-# include <X11/Cardinals.h>
+# include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
 
@@ -56,9 +73,16 @@ struct menubar_widget
 # define MAX_ENTRY	60	/* XXX Maximum # of entries		*/
 struct mb_menu
 {
+	int	mbm_type;		/* = WT_INTPOPUP		*/
+	struct gen_widget *mbm_nxt;	/* Next widget in the chain	*/
+	void (*mbm_create)();	/* The routine to create this thing	*/
+	void (*mbm_popup) ();	/* Popup routine			*/
+	void (*mbm_destroy) ();	/* The destroy method			*/
+	struct frame_widget *mw_frame;	/* The associated frame		*/
+	Widget	mbm_pulldown;		/* The actual pulldown		*/
+	/* -- end of gen_widget stuff */
 	char	mbm_name[MAXTITLE];	/* The name of the menu		*/
 	Widget	mbm_button;		/* The menu button		*/
-	Widget	mbm_pulldown;		/* The actual pulldown		*/
 	int	mbm_nentries;		/* The number of entries.	*/
 	char	*mbm_etext[MAX_ENTRY];	/* The text of each entry	*/
 	char	*mbm_eact[MAX_ENTRY];	/* The associated action command */
@@ -72,8 +96,19 @@ struct mb_menu
 	int	mbm_esel;		/* Currently selected entry	*/
 	bool	mbm_oom;		/* one-of-many selection	*/
 	bool	mbm_expr;		/* There are mark expressions	*/
+	bool	mbm_pixmap;		/* There is a pixmap 		*/
 };
 
+/*
+ * Forward routines.
+ */
+# ifdef __STDC__
+	static void uw_mbmcreate (struct mb_menu *menu, Widget parent);
+	static Pixmap uw_mbmPixmap (char *);
+# else
+	static void uw_mbmcreate ();
+	static Pixmap uw_mbmPixmap ();
+# endif
 
 
 
@@ -132,14 +167,24 @@ struct ui_command *cmds;
  * If this is an ENDDEF, we're done.
  */
 	if (UKEY (cmds[0]) == UIC_ENDDEF)
+	{
+		relvm (menu);
 		return (FALSE);
+	}
+	cmds++;
+/*
+ * If there is a keyword here, we want a pixmap.
+ */
+	if ((menu->mbm_pixmap = cmds[0].uc_ctype) == UTT_KW)
+		cmds++;
 /*
  * Initialize the menu structure, and add it to the list.
  */
  	menu->mbm_nmap = menu->mbm_nentries = 0;
 	menu->mbm_expr = FALSE;
 	menu->mbm_next = 0;
-	strcpy (menu->mbm_name, UPTR (cmds[1]));
+	menu->mbm_type = WT_MENUBUTTON;
+	strcpy (menu->mbm_name, UPTR (*cmds));
 	if (mb->mw_nmenus++ == 0)
 		mb->mw_menus = menu;
 	else
@@ -149,6 +194,7 @@ struct ui_command *cmds;
 			;
 		list->mbm_next = menu;
 	}
+	cmds++;
 /*
  * If this is a one-of-many menu, grab also the selector.
  */
@@ -161,6 +207,37 @@ struct ui_command *cmds;
 	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry, menu);
 	return (TRUE);
 }
+
+
+
+
+
+struct gen_widget *
+uw_DefIPU (name)
+char *name;
+/*
+ * Define an internal popup menu widget.
+ */
+{
+	struct mb_menu *menu = NEW (struct mb_menu);
+	int uw_in_mbentry ();
+/*
+ * Initialize the menu structure.
+ */
+ 	menu->mbm_nmap = menu->mbm_nentries = 0;
+	menu->mbm_expr = menu->mbm_oom = FALSE;
+	menu->mbm_next = 0;
+	menu->mbm_type = WT_INTPOPUP;
+	menu->mbm_create = uw_mbmcreate;
+	strcpy (menu->mbm_name, name);
+/*
+ * Deal with the actual entries now.
+ */
+	/* errorcatch? */
+	ui_subcommand ("ust$in-mb-entry", "MenuEntry>", uw_in_mbentry, menu);
+	return ((struct gen_widget *) menu);
+}
+
 
 
 
@@ -261,16 +338,16 @@ Widget parent;
  * Now go through and create each popup, and add it.
  */
  	for (menu = mw->mw_menus; menu; menu = menu->mbm_next)
-		uw_mbmcreate (mw, menu);
+		uw_mbmcreate (menu, mw->mw_w);
 }
 
 
 
 
-
-uw_mbmcreate (mw, menu)
-struct menubar_widget *mw;
+static void
+uw_mbmcreate (menu, parent)
 struct mb_menu *menu;
+Widget parent;
 /*
  * Actually create this menubar widget.
  */
@@ -281,11 +358,31 @@ struct mb_menu *menu;
 /*
  * Create the menubutton and the shell for the menu.
  */
-	XtSetArg (margs[0], XtNmenuName, menu->mbm_name);
-	menu->mbm_button = XtCreateManagedWidget (menu->mbm_name,
-		menuButtonWidgetClass, mw->mw_w, margs, ONE);
+	if (menu->mbm_type == WT_MENUBUTTON)
+	{
+	/*
+	 * Put in the menu name.  If there is a pixmap with this
+	 * menu, now is when we load it.
+	 */
+		XtSetArg (margs[0], XtNmenuName, menu->mbm_name); i = 1;
+		if (menu->mbm_pixmap)
+		{
+			Pixmap pm = uw_mbmPixmap (menu->mbm_name);
+			if (pm)
+			{
+				XtSetArg (margs[i], XtNbitmap, pm);
+				i++;
+			}
+		}
+	/*
+	 * Create the menu button.
+	 */
+		menu->mbm_button = XtCreateManagedWidget (menu->mbm_name,
+			menuButtonWidgetClass, parent, margs, i);
+		parent = menu->mbm_button;
+	}
 	menu->mbm_pulldown = XtCreatePopupShell (menu->mbm_name,
-		simpleMenuWidgetClass, menu->mbm_button, NULL, ZERO);
+		simpleMenuWidgetClass, parent, NULL, ZERO);
 /*
  * Go through and add each entry.
  */
@@ -324,6 +421,28 @@ struct mb_menu *menu;
 		uw_mb_set_marks (menu, TRUE);
 # endif
 }
+
+
+
+
+
+static Pixmap
+uw_mbmPixmap (name)
+char *name;
+/*
+ * Try to pull in this file as a pixmap.
+ */
+{
+	Pixmap ret;
+	unsigned int w, h;
+	int xh, yh;
+
+	if (XReadBitmapFile (XtDisplay (Top), RootWindow (XtDisplay (Top), 0),
+		name, &w, &h, &ret, &xh, &yh) == BitmapSuccess)
+		return (ret);
+	return (NULL);
+}
+
 
 
 
