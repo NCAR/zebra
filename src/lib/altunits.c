@@ -22,7 +22,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-MAKE_RCSID("$Id: altunits.c,v 2.5 1994-03-29 20:22:51 burghart Exp $")
+MAKE_RCSID("$Id: altunits.c,v 2.6 1995-04-15 00:17:29 granger Exp $")
 
 /*
  * 
@@ -34,7 +34,7 @@ static const struct _unames
 	char	*shortname;	/* default short name	*/
 	char	*longname;	/* default long name	*/
 	char	*format;	/* print format		*/
-	char	*aliases[5];	/* acceptable aliases	*/
+	char	*aliases[10];	/* acceptable aliases	*/
 } Unames[] =
 {
 	/* AU_kmMSL */
@@ -42,7 +42,7 @@ static const struct _unames
 	 {"km > MSL", "km", "kilometers", ""}},
 	/* AU_mMSL */
 	{"m MSL", "meters above Mean Sea Level", "%.0f", 
-	 {"m > MSL", "m", "meters", ""}},
+	 {"m > MSL", "m", "meters", "Meters, ASL", ""}},
 	/* AU_kmAGL */
 	{"km AGL", "km AGL", "%.2f", 
 	 {"km > AGL", ""}},
@@ -52,6 +52,12 @@ static const struct _unames
 	/* AU_mb */
 	{"mb", "millibars", "%.0f", 
 	 {"mbar", "hPa", "millibar", ""}},
+	/* AU_sigma */
+	{"sigma", "sigma", "%.4f",
+	 {""}},
+	/* AU_level */
+	{"level", "level", "%.0f",
+	 {"plane", "z", "index", ""}}
 };
 
 
