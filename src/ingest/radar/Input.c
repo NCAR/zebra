@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.5 1993-12-30 20:29:13 burghart Exp $";
+static char *rcsid = "$Id: Input.c,v 2.6 1994-09-06 20:30:38 burghart Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -48,7 +48,7 @@ static char InSource[200];
 /*
  * File input stuff.
  */
-# define BUFLEN 16384
+# define BUFLEN 32768
 static unsigned short Tbuffer[BUFLEN];
 
 /*
