@@ -2,6 +2,8 @@
 ! Raster display support
 !
 
+require ctr-step
+
 !
 ! The right button menu.
 !
@@ -128,6 +130,13 @@ define widget raster-center-step form 'Center and step adjustment'
 	button zap 'Dismiss' color red command 'popdown #ui$form'
 	newline
 !
+! Scale mode.
+!
+	label lmode 'Mode: '
+	button mode 'FUNKY' command 'ToggleMode' width 70
+	label comp 'comp' color gray95 
+	newline
+!
 ! The actual center and step if they want to tweak it.
 !
 	label lcenter 'Center: '
@@ -154,17 +163,38 @@ procedure raster-ctr-step-popup
 	local field pd_param(icon_component,'field','string')
 	local plat pd_param(icon_component, 'platform', 'string')
 !
+! Now see if they have auto scaling turned on.
+!
+	local mode pd_ParamSearch(icon_component, 'scale-mode', plat, 'string')
+	if (mode = 'auto' or mode = 'autoscale')
+		formtext #f mode 'auto'
+	else
+		formtext #f mode 'manual'
+	endif
+!
 ! Pull in the center/step/nstep values.
 !
 	local param concat(field, '-center')
 	local value pd_ParamSearch(icon_component, param, rep, 'string')
-	formtext #f center #value
+	if (value = '(Undefined)')
+		formtext #f center 0
+	else
+		formtext #f center #value
+	endif
 	local param concat(field, '-step')
 	local value pd_ParamSearch(icon_component, param, rep, 'string')
-	formtext #f step #value
+	if (value = '(Undefined)')
+		formtext #f step 1
+	else
+		formtext #f step #value
+	endif
 	local param concat(field, '-nsteps')
 	local value pd_ParamSearch(icon_component, param, rep, 'string')
-	formtext #f nsteps #value
+	if (value = '(Undefined)')
+		formtext #f nsteps 11
+	else
+		formtext #f nsteps #value
+	endif
 endprocedure
 
 
@@ -175,6 +205,8 @@ endprocedure
 procedure raster-ctr-step-apply
 	parameter global 'plot-hold' 'true'
 	local f ui$form
+	local mode getftext(f, 'mode')
+	parameter #icon_component 'scale-mode' #mode
 	local center getftext(f, 'center')
 	local step getftext(f, 'step')
 	local nsteps getftext(f, 'nsteps')
