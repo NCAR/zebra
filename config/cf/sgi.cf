@@ -93,7 +93,7 @@ XCOMM operating system:		OSName
 #define StandardDefines IntlDefines OSDefines
 
 #undef StandardIncludes
-#define StandardIncludes -I$(ROOT)/usr/include -I
+/* #define StandardIncludes -I$(ROOT)/usr/include -I */
 
 #if OSMajorVersion > 4
 #define ExtraLibraries
@@ -130,6 +130,9 @@ XCOMM operating system:		OSName
 #define ServerCCOptions sgiCCOptions ServerSymbolTables
 #define ConnectionFlags -DTCPCONN -DUNIXCONN -DSGI_SHM_TRANS
 #define PexCCOptions sgiCCOptions PexSymbolTables
+
+# define DoRanlibCmd YES
+# define RanlibCmd ar ts
 
 /*
  * The SGI (SYSV) make only sets $(MAKEFLAGS), while smake just sets
