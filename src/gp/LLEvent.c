@@ -9,6 +9,7 @@
 # include "EventQueue.h"
 # include "LLEvent.h"
 
+static char *rcsid = "$Id: LLEvent.c,v 1.2 1990-06-11 14:24:34 corbet Exp $";
 
 
 /*
@@ -49,42 +50,62 @@ lle_MainLoop ()
  * Run the main loop.
  */
 {
-	int status, i;
-	fd_set fds;
+	int did_work = TRUE;
 
 	for (;;)
 	{
 	/*
+	 * Check for input, blocking if there was nothing left in the
+	 * event queue.
+	 */
+		lle_DoInput (! did_work);
+	/*
 	 * Clear out the event queues.
 	 */
-		while (Eq_Execute ())
-			;
-	/*
-	 * Wait for something.
-	 */
-		fds = Mfd;
-		while ((status = select (Mfd_width + 1, &fds, 0, 0, 0)) < 0)
-		{
-		/*
-		 * Just do another select if we were stopped by
-		 * a signal
-		 */
-			if (errno == EINTR)
-				continue;
-		/*
-		 * Bad error, shut down
-		 */
-			msg_log ("Select error %d", errno);
-			shutdown ();
-		}
-	/*
-	 * Deal with what came in.
-	 */
-		for (i = 0; status && i <= Mfd_width; i++)
-			if (FD_ISSET (i, &fds))
-			{
-				status--;
-				(*Procs[i]) (i);
-			}
+		did_work = Eq_Execute ();
 	}
+}
+
+
+
+
+
+lle_DoInput (block)
+int block;
+/*
+ * Deal with our input streams.  We will block waiting for input iff
+ * "block" is true.
+ */
+{
+	int status, i, did_work = TRUE;
+	fd_set fds;
+	static struct timeval noblock = { 0, 0 };
+/*
+ * Wait for something.
+ */
+	fds = Mfd;
+	while ((status = select (Mfd_width + 1, &fds, 0, 0,
+		block ? (struct timeval *) 0 : &noblock)) < 0)
+	{
+	/*
+	 * Just do another select if we were stopped by
+	 * a signal
+	 */
+		if (errno == EINTR)
+			continue;
+	/*
+	 * Bad error, shut down
+	 */
+		msg_log ("Select error %d", errno);
+		GPShutDown ();
+	}
+/*
+ * Deal with what came in.
+ */
+	for (i = 0; status && i <= Mfd_width; i++)
+		if (FD_ISSET (i, &fds))
+		{
+			status--;
+			(*Procs[i]) (i);
+		}
 }
