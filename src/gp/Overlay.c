@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.28 1993-10-27 21:27:38 burghart Exp $";
+	"$Id: Overlay.c,v 2.29 1993-11-11 19:48:10 burghart Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -169,7 +169,7 @@ static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, bool *,
 			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
-			float *));
+			float *, bool *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 			char *, bool *, float *, int *));
@@ -1328,15 +1328,18 @@ int update;
  */
 {
 	Location loc;
+	bool dolabels;
 	float ringint, azint, rannot, aannot, maxrange, x, y, az, azoff;
-	int lastring, ring, lwidth, px, py, radius, farx, fary;
-	char platform[40];
+	float radius, azrad, textrot;
+	int lastring, ring, lwidth, px, py, pradius, farx, fary;
+	char platform[40], label[8];
 	XColor xc;
 /*
  * Get our information.
  */
 	if (! ov_RRInfo (comp, platform, &loc, &ringint, &azint, &rannot,
-			&aannot, &lastring, &maxrange, &xc, &lwidth, &azoff))
+			 &aannot, &lastring, &maxrange, &xc, &lwidth, &azoff,
+			 &dolabels))
 		return;
 /*
  * Set up the graphics context.
@@ -1346,35 +1349,66 @@ int update;
 			JoinMiter);
 	SetClip (FALSE);
 /*
- * Draw the rings.
+ * Draw the rings and range labels.
  */
 	cvt_ToXY (loc.l_lat, loc.l_lon, &x, &y);
 	for (ring = 1; ring <= lastring; ring++)
 	{
-		px = XPIX (x - ring*ringint); py = YPIX (y + ring*ringint);
-		radius = XPIX (x + ring*ringint) - XPIX (x);
+		radius = ring * ringint;
+	/*
+	 * Ring
+	 */
+		px = XPIX (x - radius); 
+		py = YPIX (y + radius);
+		pradius = XPIX (x + radius) - XPIX (x);
 		XDrawArc (Disp, GWFrame (Graphics), Gcontext, px, py, 
-			2*radius, 2*radius, 0, 360*64);
+			  2 * pradius, 2 * pradius, 0, 360 * 64);
+	/*
+	 * Label
+	 */
+		if (! dolabels)
+			continue;
+
+		sprintf (label, "%d", (int)(radius + 0.5));
+		
+		azrad = DEG_TO_RAD (90.0 - rannot);
+		px = XPIX (x + radius * cos (azrad));
+		py = YPIX (y + radius * sin (azrad));
+
+		textrot = sin (azrad) >= 0.0 ? -rannot : 180.0 - rannot;
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, px, py, 
+			  label, textrot, 0.02, JustifyCenter, JustifyCenter);
 	}
 /*
  * Draw the azimuth lines.
  */
-# ifdef ERNEST
-if (strcmp(platform,"mlb") == 0 || strcmp(platform,"orl") == 0 ||
-    strcmp(platform,"omn") == 0)
-az = 3;
-else
-az = 0;
-# endif
 	for (az = azoff ; az < 360 + azoff; az += azint)
 	{
-		float azrad = az*M_PI/180.0;
-		px = XPIX (x + ringint*cos (azrad));
-		py = YPIX (y + ringint*sin (azrad));
-		farx = XPIX (x + lastring*ringint * cos (azrad));
-		fary = YPIX (y + lastring*ringint * sin (azrad));
+		azrad = DEG_TO_RAD (90.0 - az);
+		px = XPIX (x + ringint * cos (azrad));
+		py = YPIX (y + ringint * sin (azrad));
+		farx = XPIX (x + lastring * ringint * cos (azrad));
+		fary = YPIX (y + lastring * ringint * sin (azrad));
 		XDrawLine (Disp, GWFrame (Graphics), Gcontext, px, py,
 			farx, fary);
+	/*
+	 * Label
+	 */
+		if (! dolabels)
+			continue;
+
+		sprintf (label, "%d", (int)(az - azoff + 0.5));
+		
+		px = XPIX (x + aannot * cos (azrad));
+		py = YPIX (y + aannot * sin (azrad));
+
+		textrot = cos (azrad) >= 0.0 ? 90.0 - az : 270.0 - az;
+		if (textrot = 0.0)
+			textrot = 0.5; /* force stroke text */
+
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, px, py, 
+			  label, cos (azrad) >= 0.0 ? 90.0 - az : 270.0 - az,
+			  0.02, JustifyCenter, JustifyCenter);
 	}
 /*
  * Clean up.
@@ -1388,12 +1422,13 @@ az = 0;
 
 static int
 ov_RRInfo (comp, platform, loc, ringint, azint, rannot, aannot, lastring,
-		maxrange, xc, lwidth, azoff)
+		maxrange, xc, lwidth, azoff, dolabels)
 char *comp, *platform;
 Location *loc;
 float *ringint, *maxrange, *azint, *rannot, *aannot, *azoff;
 int *lastring, *lwidth;
 XColor *xc;
+bool *dolabels;
 /*
  * Get all of the parameters which control the plotting of range rings.
  */
@@ -1402,8 +1437,10 @@ XColor *xc;
 /*
  * Get the platform, then turn that into a location.
  */
-	if (! pda_ReqSearch (Pd, comp, "platform","ring",platform,SYMT_STRING))
+	if (! pda_ReqSearch (Pd, comp, "platform", "ring", platform,
+			     SYMT_STRING))
 		return (FALSE);
+
 	if (! GetLocation (platform, &PlotTime, loc))
 	{
 		msg_ELog (EF_PROBLEM, "No location for %s", platform);
@@ -1412,21 +1449,13 @@ XColor *xc;
 /*
  * Intervals.
  */
-	if (! pda_Search (Pd, comp, "ring-interval", platform, (char *)ringint,
-			SYMT_FLOAT))
-		*ringint = 20.0;
-	if (! pda_Search (Pd, comp, "azimuth-interval", platform,
-			(char *) azint, SYMT_FLOAT))
-		*azint = 30.0;
-/*
- * Find out where to annotate.
- */
-	if (! pda_Search (Pd, comp, "ring-annot-azimuth", platform,
-			(char *) rannot, SYMT_FLOAT))
-		*rannot = 45;
-	if (! pda_Search (Pd, comp, "azimuth-annot-range", platform,
-			(char *) aannot, SYMT_FLOAT))
-		*aannot = 30;
+	*ringint = 20.0;
+	pda_Search (Pd, comp, "ring-interval", platform, (char *) ringint,
+		    SYMT_FLOAT);
+
+	*azint = 30.0;
+	pda_Search (Pd, comp, "azimuth-interval", platform, (char *) azint, 
+		    SYMT_FLOAT);
 /*
  * Kludge in the number of rings for now.
  */
@@ -1434,22 +1463,43 @@ XColor *xc;
 /*
  * VOR/DME rings have azimuth offsets.
  */
-	if (! pda_Search (Pd, comp, "azimuth-offset", platform, (char *) azoff,
-			SYMT_FLOAT))
-		*azoff = 0.0;
+	*azoff = 0.0;
+	pda_Search (Pd, comp, "azimuth-offset", platform, (char *) azoff,
+		    SYMT_FLOAT);
+/*
+ * Put on labels?
+ */
+	*dolabels = TRUE;
+	pda_Search (Pd, comp, "do-labels", "range-ring", (char *) dolabels,
+		    SYMT_BOOL);
+/*
+ * Find out where to annotate.
+ */
+	*rannot = *azoff + *azint * 1.5;
+	pda_Search (Pd, comp, "ring-annot-azimuth", platform, (char *) rannot,
+		    SYMT_FLOAT);
+
+	*aannot = *ringint * 1.5;
+	pda_Search (Pd, comp, "azimuth-annot-range", platform, (char *) aannot,
+		    SYMT_FLOAT);
 /*
  * Color.
  */
-	if (! pda_Search (Pd, comp, "color", "range-ring", color, SYMT_STRING))
-		strcpy (color, "white");
+	strcpy (color, "white");
+	pda_Search (Pd, comp, "color", "range-ring", color, SYMT_STRING);
+
 	if (! ct_GetColorByName (color, xc))
 	{
-		msg_ELog (EF_PROBLEM, "Unknown color: %s", color);
+		msg_ELog (EF_PROBLEM, "Bad range-ring color '%s'", color);
 		ct_GetColorByName ("white", xc);
 	}
-	if (! pda_Search(Pd, comp, "line-width", "range-ring", (char *) lwidth,
-			SYMT_INT))
-		*lwidth = 0;
+/*
+ * Line width
+ */
+	*lwidth = 0;
+	pda_Search (Pd, comp, "line-width", "range-ring", (char *) lwidth,
+		    SYMT_INT);
+
 	return (TRUE);
 }
 
