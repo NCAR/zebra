@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.40 1998-09-14 18:54:26 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.41 1998-09-22 22:36:08 burghart Exp $")
 
 
 /*
@@ -215,40 +215,40 @@ static struct s_GRB_FList
 } GRB_FList[] = 
 {
 	/* Pressure (Pa), scale to mb */
-	{ 1, OC_ANY, "pres", "Pressure", "mb", 100.0, 0.0 },
+	{ 1, OC_ANY, "pres", "pressure", "mb", 100.0, 0.0 },
 	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 2, OC_ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
+	{ 2, OC_ANY, "cpres0", "pressure reduced to MSL", "mb", 100.0, 0.0 },
 	/* Station pressure (Pa), scale to mb */
-	{ 4, OC_NCAR, "stn_pres", "Station pressure", "mb", 100.0, 0.0 },
+	{ 4, OC_NCAR, "stn_pres", "station pressure", "mb", 100.0, 0.0 },
 	/* NCAR MM5: Ground elevation (m) */
-	{ 5, OC_NCAR, "topography", "Ground elevation", "m", 1.0, 0.0 },
+	{ 5, OC_NCAR, "topography", "ground elevation", "m", 1.0, 0.0 },
 	/* Geopotential height (m) */
-	{ 7, OC_ANY, "gpalt", "Geopotential height", "m", 1.0, 0.0 },
+	{ 7, OC_ANY, "gpalt", "geopotential height", "m", 1.0, 0.0 },
 	/* Geometric height (m) */
-	{ 8, OC_ANY, "height", "Geometric height", "m", 1.0, 0.0 },
+	{ 8, OC_ANY, "height", "geometric height", "m", 1.0, 0.0 },
 	/* Temperature (K), scale to C */
-	{ 11, OC_ANY, "tdry", "Temperature", "degC", 1.0, -273.15 },
+	{ 11, OC_ANY, "tdry", "temperature", "degC", 1.0, -273.15 },
 	/* Virtual temperature (K) */
-	{ 12, OC_ANY, "vt", "Virtual temperature", "K", 1.0, 0.0 },
+	{ 12, OC_ANY, "vt", "virtual temperature", "K", 1.0, 0.0 },
 	/* Potential temperature (K) */
-	{ 13, OC_ANY, "pt", "Potential temperature", "K", 1.0, 0.0 },
+	{ 13, OC_ANY, "pt", "potential temperature", "K", 1.0, 0.0 },
 	/* Dew point temperature (K) */
-	{ 17, OC_ANY, "dp", "Dew point temperature", "K", 1.0, -273.15 },
+	{ 17, OC_ANY, "dp", "dew point temperature", "K", 1.0, -273.15 },
 	/* Dew point depression (K) */
-	{ 18, OC_ANY, "dp_depression", "Dew point depression", "K", 1.0, 
+	{ 18, OC_ANY, "dp_depression", "dew point depression", "K", 1.0, 
 	  -273.15 },
 	/* Wind direction (deg. true) */
-	{ 31, OC_ANY, "wdir", "Wind direction", "deg", 1.0, 0.0 },
+	{ 31, OC_ANY, "wdir", "wind direction", "deg", 1.0, 0.0 },
 	/* Wind speed (m/s) */
-	{ 32, OC_ANY, "wspd", "Wind speed", "m/s", 1.0, 0.0 },
+	{ 32, OC_ANY, "wspd", "wind speed", "m/s", 1.0, 0.0 },
 	/* u component of wind (m/s) */
 	{ 33, OC_ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
 	/* v component of wind (m/s) */
 	{ 34, OC_ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
 	/* Stream function */
-	{ 35, OC_ANY, "stream_fn", "Stream function", "km2/s", 1.0e6, 0.0 },
+	{ 35, OC_ANY, "stream_fn", "stream function", "km2/s", 1.0e6, 0.0 },
 	/* Montgomery stream function */
-	{ 37, OC_ANY, "monty_stream", "Montgomery stream function", 
+	{ 37, OC_ANY, "monty_stream", "montgomery stream function", 
 	  "m2 s-2", 1.0, 0.0 },
 	/* pressure vertical velocity (Pa/s) */
 	{ 39, OC_ANY, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 
@@ -257,57 +257,56 @@ static struct s_GRB_FList
 	{ 40, OC_ANY, "w_wind", "geometric vertical velocity", "m/s", 1.0, 
 	  0.0 },
 	/* Absolute vorticity (1/s) */
-	{ 41, OC_ANY, "vort", "Absolute vorticity", "1/s", 1.0, 0.0 },
+	{ 41, OC_ANY, "vort", "absolute vorticity", "1/s", 1.0, 0.0 },
 	/* Absolute divergence (1/s) */
-	{ 42, OC_ANY, "dvrg", "Absolute divergence", "1/s", 1.0, 0.0 },
+	{ 42, OC_ANY, "dvrg", "absolute divergence", "1/s", 1.0, 0.0 },
 	/* Relative vorticity (1/s) */
-	{ 43, OC_ANY, "rel_vort", "Relative vorticity", "1/s", 1.0, 0.0 },
+	{ 43, OC_ANY, "rel_vort", "relative vorticity", "1/s", 1.0, 0.0 },
 	/* Relative divergence (1/s) */
-	{ 44, OC_ANY, "rel_dvrg", "Relative divergence", "1/s", 1.0, 0.0 },
+	{ 44, OC_ANY, "rel_dvrg", "relative divergence", "1/s", 1.0, 0.0 },
 	/* Specific humidity */
-	{ 51, OC_ANY, "sph", "Specific humidity", "kg/kg", 1.0, 0.0 },
+	{ 51, OC_ANY, "sph", "specific humidity", "kg/kg", 1.0, 0.0 },
 	/* Relative humidity (%) */
-	{ 52, OC_ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	{ 52, OC_ANY, "rh", "relative humidity", "%", 1.0, 0.0 },
 	/* Humidity mixing ratio (kg/kg), scale to g/kg */
-	{ 53, OC_ANY, "mr", "Humidity mixing ratio", "g/kg", 0.001, 0.0 },
+	{ 53, OC_ANY, "mr", "humidity mixing ratio", "g/kg", 0.001, 0.0 },
 	/* Cloud ice (kg/m**2)	*/
-	{ 58, OC_ANY, "cloud_ice", "Cloud ice", "kg m-2", 1.0, 0.0 },
+	{ 58, OC_ANY, "cloud_ice", "cloud ice", "kg m-2", 1.0, 0.0 },
 	/* Precipitation rate kg m-2 s-1	*/
-	{ 59, OC_ANY, "precip_rate", "Precipitation rate", 
+	{ 59, OC_ANY, "precip_rate", "precipitation rate", 
 	  "kg m-2 s-1", 1.0, 0.0 },
 	/* Total precipitation (kg/m**2)	*/
-	{ 61, OC_ANY, "precip", "Total precipitation", "kg m-2", 1.0, 0.0 },
+	{ 61, OC_ANY, "precip", "total precipitation", "kg m-2", 1.0, 0.0 },
 	/* Large-scale precipitation */
-	{ 62, OC_ANY, "ls_precip", "Large-scale precipitation", "kg m-2", 
+	{ 62, OC_ANY, "ls_precip", "large-scale precipitation", "kg m-2", 
 	  1.0, 0.0 },
 	/* Convective precipitation (kg/m**2)	*/
-	{ 63, OC_ANY, "conv_precip", "Convective precipitation", "kg m-2", 
+	{ 63, OC_ANY, "conv_precip", "convective precipitation", "kg m-2", 
 	  1.0, 0.0 },
 	/* Surface roughness (m) */
-	{ 83, OC_ANY, "roughness", "Surface roughness", "m", 1.0, 0.0 },
+	{ 83, OC_ANY, "roughness", "surface roughness", "m", 1.0, 0.0 },
 	/* Soil temperature (scale to C) */
-	{ 85, OC_ANY, "soil_temp", "Soil temperature", "degC", 1.0, -273.15 },
+	{ 85, OC_ANY, "soil_temp", "soil temperature", "degC", 1.0, -273.15 },
 	/* Water runoff (kg m-2) */
-	{ 90, OC_ANY, "water_runoff", "Water runoff", "kg m-2", 1.0, 0.0 },
+	{ 90, OC_ANY, "water_runoff", "water runoff", "kg m-2", 1.0, 0.0 },
 	/* Ice concentration (ice = 0; no ice = 0) */
-	{ 91, OC_ANY, "ice", "Ice concentration", "degC", 1.0, 0.0 },
+	{ 91, OC_ANY, "ice", "ice concentration", "degC", 1.0, 0.0 },
 	/* Latent heat net flux (W m-2) */
-	{ 121, OC_ANY, "lhtfl", "Latent heat flux", "W m-2", 1.0, 0.0 },
+	{ 121, OC_ANY, "lhtfl", "latent heat flux", "W m-2", 1.0, 0.0 },
 	/* Sensible heat net flux (W m-2) */
-	{ 122, OC_ANY, "shtfl", "Sensible heat net flux", "W m-2", 1.0, 0.0 },
+	{ 122, OC_ANY, "shtfl", "sensible heat net flux", "W m-2", 1.0, 0.0 },
 	/* Momentum flux, u component (N m-2) */
-	{ 124, OC_ANY, "uflx", "Momentum flux, u", "N m-2", 1.0, 0.0 },
+	{ 124, OC_ANY, "uflx", "momentum flux, u", "N m-2", 1.0, 0.0 },
 	/* Momentum flux, v component (N m-2) */
-	{ 125, OC_ANY, "vflx", "Momentum flux, v", "N m-2", 1.0, 0.0 },
+	{ 125, OC_ANY, "vflx", "momentum flux, v", "N m-2", 1.0, 0.0 },
     /*
      * The rest of the values (128-254) are reserved for definition by the
      * individual originating centers.
      */
-	/* ECMWF: geopotential (m**2/s) (scale from ft**2/s)	*/
-	{ 129, OC_ECMWF, "geopotential", "Geopotential", "m2/s", 0.09290304, 
-	  0.0 },
+	/* ECMWF: geopotential (m2 s-2) */
+	{ 129, OC_ECMWF, "geopotential", "geopotential", "m2 s-2", 1.0, 0.0 },
 	/* ECMWF: temperature (K), scale to C 		*/
-	{ 130, OC_ECMWF, "temp", "Temperature", "deg C", 1.0, -273.15 },
+	{ 130, OC_ECMWF, "temp", "temperature", "degC", 1.0, -273.15 },
 	/* ECMWF: u component of wind (m/s)		*/
 	{ 131, OC_ECMWF, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
 	/* ECMWF: v component of wind (m/s)		*/
@@ -315,53 +314,53 @@ static struct s_GRB_FList
 	/* ECMWF: specific humidity		*/
 	{ 133, OC_ECMWF, "sph", "specific humidity", "kg/kg", 1.0, 0.0 },
 	/* ECMWF: surface pressure (Pa), scale to mb	*/
-	{ 134, OC_ECMWF, "sfc_pres", "Surface pressure", "hPa", 100.0, 0.0 },
+	{ 134, OC_ECMWF, "sfc_pres", "surface pressure", "hPa", 100.0, 0.0 },
 	/* ECMWF: pressure vertical velocity (Pa/s)	*/
 	{ 135, OC_ECMWF, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 
 	  0.0 },
 	/* ECMWF: vorticity	*/
 	{ 138, OC_ECMWF, "vort", "vorticity", "1/s", 1.0, 0.0 },
 	/* ECMWF: surface temperature (K), scale to C	*/
-	{ 139, OC_ECMWF, "sfc_temp", "Surface temperature", "deg C", 1.0, 
+	{ 139, OC_ECMWF, "sfc_temp", "surface temperature", "deg C", 1.0, 
 	  -273.15 },
 	/* ECMWF: convective precipitation	*/
 	{ 143, OC_ECMWF, "conv_precip", "convective precipitation", "m", 1.0, 
 	  0.0 },
 	/* NCAR MM5: Cloud water specific humidity (kg/kg) */
-	{ 144, OC_NCAR, "cloud_sph", "Cloud water specific humidity", 
+	{ 144, OC_NCAR, "cloud_sph", "cloud water specific humidity", 
 	  "kg/kg", 1.0, 0.0 },
 	/* NCAR MM5: Rain water specific humidity (kg/kg) */
-	{ 145, OC_NCAR, "rain_sph", "Rain water specific humidity", 
+	{ 145, OC_NCAR, "rain_sph", "rain water specific humidity", 
 	  "kg/kg", 1.0, 0.0 },
 	/* NCAR MM5: Snow specific humidity (kg/kg) */
-	{ 146, OC_NCAR, "snow_sph", "Snow specific humidity", "kg/kg", 1.0, 
+	{ 146, OC_NCAR, "snow_sph", "snow specific humidity", "kg/kg", 1.0, 
 	  0.0 },
 	/* NCAR MM5: Ice specific humidity (kg/kg) */
-	{ 147, OC_NCAR, "ice_sph", "Ice specific humidity", "kg/kg", 1.0, 
+	{ 147, OC_NCAR, "ice_sph", "ice specific humidity", "kg/kg", 1.0, 
 	  0.0 },
 	/* Zonal flux of gravity wave stress (N m-2)*/
-	{ 147, OC_NCEP, "u_gwd", "Zonal flux, gravity wave stress", 
+	{ 147, OC_NCEP, "u_gwd", "zonal flux, gravity wave stress", 
 	  "N m-2", 1.0, 0.0 },
 	/* Meriodonal flux of gravity wave stress (N m-2) */
-	{ 148, OC_NCEP, "v_gwd", "Meriodonal flux, gravity wave stress", 
+	{ 148, OC_NCEP, "v_gwd", "meriodonal flux, gravity wave stress", 
 	  "N m-2", 1.0, 0.0 },
 	/* ECMWF: pressure reduced to MSL (Pa), scale to mb */
-	{ 151, OC_ECMWF, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 
+	{ 151, OC_ECMWF, "cpres0", "pressure reduced to MSL", "mb", 100.0, 
 	  0.0 },
 	/* ECMWF: relative humidity (%) */
-	{ 157, OC_ECMWF, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	{ 157, OC_ECMWF, "rh", "relative humidity", "%", 1.0, 0.0 },
 	/* Turbulent kinetic energy (TKE) (J/kg) */
-	{ 158, OC_NCEP, "tke", "Turbulent kinetic energy", "J/kg", 1.0, 0.0 },
+	{ 158, OC_NCEP, "tke", "turbulent kinetic energy", "J/kg", 1.0, 0.0 },
 	/* Condenstation pressure (Pa) scale to mb */
-	{ 159, OC_NCEP, "condp", "Condenstation pressure", "mb", 100.0, 0.0 },
+	{ 159, OC_NCEP, "condp", "condenstation pressure", "mb", 100.0, 0.0 },
 	/* Clear sky upward solar flux (W m-2) */
-	{ 160, OC_NCEP, "csusf", "Clear sky upward solar flux", 
+	{ 160, OC_NCEP, "csusf", "clear sky upward solar flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* Clear sky downward solar flux (W m-2) */
-	{ 161, OC_NCEP, "csdsf", "Clear sky downward solar flux", 
+	{ 161, OC_NCEP, "csdsf", "clear sky downward solar flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* Clear sky downward longwave flux (W m-2) */
-	{ 163, OC_NCEP, "csdlf", "Clear sky downward longwave flux", 
+	{ 163, OC_NCEP, "csdlf", "clear sky downward longwave flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* ECMWF: u component of wind at 10m (m/s)	*/
 	{ 165, OC_ECMWF, "u_wind_10m", "u component of wind at 10m", 
@@ -395,7 +394,7 @@ static struct s_GRB_FList
 	{ 212, OC_NCEP, "ulwrf", "upward longwave radiation flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* Convective precipitation rate (kg m-2 s-1) */
-	{ 214, OC_NCEP, "cprat", "Convective precip rate", "kg m-2 s-1", 1.0, 
+	{ 214, OC_NCEP, "cprat", "convective precip rate", "kg m-2 s-1", 1.0, 
 	  0.0 },
 	/* ECMWF: total precipitation	*/
 	{ 228, OC_ECMWF, "precip", "total precipitation", "m", 1.0, 0.0 },
@@ -2215,7 +2214,7 @@ ScaleInfo	*sc;
 	int	i;
 	float	scale = 1.0, offset = 0.0;
 	char	fname[8];
-	FieldId	fid = BadField;
+	FieldId	fid;
 /*
  * Search through the field table first, to see if we've associated a
  * "real" name with the field.  Fields associated with the particular model
@@ -2228,18 +2227,16 @@ ScaleInfo	*sc;
 		    pds->field_id == GRB_FList[i].fnum)
 		{
 		/*
-		 * If the Data store doesn't know about this field yet, 
-		 * declare it properly with units.
+		 * Get a field id for this field/description/units combo and
+		 * grab the scale and offset info.
 		 */
-			fid = F_Declared (GRB_FList[i].fname);
-			if (fid == BadField)
-				fid = F_DeclareField (GRB_FList[i].fname,
-						      GRB_FList[i].fdesc,
-						      GRB_FList[i].funits);
+		    fid = F_DeclareField (GRB_FList[i].fname,
+					  GRB_FList[i].fdesc,
+					  GRB_FList[i].funits);
 				
-			scale = GRB_FList[i].scale;
-			offset = GRB_FList[i].offset;
-			break;
+		    scale = GRB_FList[i].scale;
+		    offset = GRB_FList[i].offset;
+		    break;
 		}
 	}
 /*
@@ -2249,7 +2246,7 @@ ScaleInfo	*sc;
 	if (i == GRB_FList_len)
 	{
 		sprintf (fname, "grib%d", pds->field_id);
-		fid = F_Lookup (fname);
+		fid = F_DeclareField (fname, fname, "unknown");
 		scale = 1.0;
 		offset = 0.0;
 	}
