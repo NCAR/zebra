@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.26 2001-10-01 20:51:59 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.27 2001-10-30 22:50:58 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -22,6 +22,7 @@ static char    *rcsid = "$Id: is.c,v 1.26 2001-10-01 20:51:59 granger Exp $";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <varargs.h>
@@ -1074,7 +1075,7 @@ terminating. If it does matche, do the following:
 				msg_ELog(EF_PROBLEM,
 					 " wait4() or waitpid returned %d, pid %d, errno is %d:%s",
 					 wait_ret, pid, wait_err,
-					 sys_errlist[wait_err]);
+					 strerror(wait_err));
 			} else {
 
 				/*
