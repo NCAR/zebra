@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.67 1997-10-16 22:51:55 burghart Exp $
+XCOMM $Id: Project.tmpl,v 1.68 1997-12-09 16:46:02 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -820,12 +820,14 @@ XCOMM -----------------------------------------------------------------------
 /*
  * Dependency generation variables
  */
-    DEPEND_OPTION = -M		/* compiler option to generate dependencies */
+    DEPEND_OPTION = -M	/* C compiler option to generate dependencies */
+CXX_DEPEND_OPTION = -M
 #ifdef SolarisArchitecture
 #if ! UseGcc
     DEPEND_OPTION = -xM1
 #endif
 #endif
+
 #ifdef AIXArchitecture
 #if ! UseGcc
     DEPEND_OPTION = -M -P
@@ -833,7 +835,7 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
         CC_DEPEND = $(CC) $(DEPEND_OPTION)
-       CXX_DEPEND = $(CXX) $(DEPEND_OPTION)
+       CXX_DEPEND = $(CXX) $(CXX_DEPEND_OPTION)
            MDFILE = Makefile.dep	/* File to append dependencies to */
 /*
  * The depend rule is specially written so that if there are no dependencies
