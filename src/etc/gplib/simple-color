@@ -1,6 +1,8 @@
 !
-! Simple color menus.
+! Simple color menus.  One to tweak the pd directly, and one to just tweak
+! an entry on a form.
 !
+
 !
 ! A color menu for components with a simple "color" component.
 !
@@ -9,7 +11,6 @@ define widget simple-color intmenu 'simple colors'
 	line
 	entry 'white' 'do_simple_color white'
 	entry 'black' 'do_simple_color black'
-	entry 'lavender' 'do_simple_color lavender'
 	entry 'blue' 'do_simple_color blue'
 	entry 'cyan' 'do_simple_color cyan'
 	entry 'green' 'do_simple_color green'
@@ -54,3 +55,42 @@ procedure do_simple_color color string
 		endif
 	endif
 endprocedure
+
+
+
+!
+! Menu for changing color strings on a form, to be used as a form pulldown
+! (looks like the simple-color menu but tweaks a form instead of the pd)
+!
+define widget form-color-menu intmenu 'simple colors'
+	title 'Change Color'
+	line
+	entry 'white' 'formtext #ui$form #ui$formentry white'
+	entry 'black' 'formtext #ui$form #ui$formentry black'
+	entry 'blue' 'formtext #ui$form #ui$formentry blue'
+	entry 'cyan' 'formtext #ui$form #ui$formentry cyan'
+	entry 'green' 'formtext #ui$form #ui$formentry green'
+	entry 'khaki' 'formtext #ui$form #ui$formentry khaki'
+	entry 'yellow' 'formtext #ui$form #ui$formentry yellow'
+	entry 'tan' 'formtext #ui$form #ui$formentry tan'
+	entry 'brown' 'formtext #ui$form #ui$formentry brown'
+	entry 'orange' 'formtext #ui$form #ui$formentry orange'
+	entry 'red' 'formtext #ui$form #ui$formentry red'
+	entry 'pink' 'formtext #ui$form #ui$formentry "HotPink"'
+	entry 'violet' 'formtext #ui$form #ui$formentry violet'
+	submenu 'Gray scales' 'form-gray-menu'
+endmenu
+
+define widget form-gray-menu intmenu ''
+	title 'Gray scale colors'
+	line
+	entry '10-Percent' 'formtext #ui$form #ui$formentry gray10'
+	entry '20-Percent' 'formtext #ui$form #ui$formentry gray20'
+	entry '30-Percent' 'formtext #ui$form #ui$formentry gray30'
+	entry '40-Percent' 'formtext #ui$form #ui$formentry gray40'
+	entry '50-Percent' 'formtext #ui$form #ui$formentry gray50'
+	entry '60-Percent' 'formtext #ui$form #ui$formentry gray60'
+	entry '70-Percent' 'formtext #ui$form #ui$formentry gray70'
+	entry '80-Percent' 'formtext #ui$form #ui$formentry gray80'
+	entry '90-Percent' 'formtext #ui$form #ui$formentry gray90'
+endmenu
