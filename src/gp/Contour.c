@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.2 1992-03-17 22:52:31 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,6 +22,7 @@ static char *rcsid = "$Id: Contour.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
+# include <defs.h>
 # include <message.h>
 # include "Contour.h"
 # include "DrawText.h"
