@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.31 1995-05-24 21:59:31 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.32 1995-06-09 17:11:22 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -243,8 +243,42 @@ int full;
 
 
 
+int
+Intersects (x0, y0, x1, y1)
+float x0, y0, x1, y1;
+/*
+ * Return non-zero if the line (x0, y0) <-> (x1, y1) intersects the plot's
+ * grid in the kilometer domain.
+ */
+{
+	float m;
+	int set;
+	int intersects;
+#	define XOR(a,b) ((!(a) && (b)) || ((a) && !(b)))
+#	define INSIDE(x,y) (Xlo<=(x)&&(x)<=Xhi&&Ylo<=(y)&&(y)<=Yhi)
 
-
+	/*
+	 * If neither point is in the region, then don't count the line between
+	 * them as intersecting.
+	 */
+	if (!INSIDE(x0,y0) && !INSIDE(x1,y1))
+		return (0);
+	if (fabs (x1 - x0) < 0.0001)
+	{
+		return ((Xlo <= x0) && (x0 <= Xhi));
+	}
+	m = (y1 - y0) / (x1 - x0);
+	/*
+	 * The line intersects the region if at least one of the corners
+	 * is in the set { (x,y): y < m * (x - x0) + y0 } 
+	 * while one other is not.
+	 */
+	set = (Ylo <= (m * (Xlo - x0) + y0));
+	intersects = XOR((Ylo <= (m * (Xhi - x0) + y0)), set);
+	intersects |= XOR((Yhi <= (m * (Xlo - x0) + y0)), set);
+	intersects |= XOR((Yhi <= (m * (Xhi - x0) + y0)), set);
+	return (intersects);
+}
 
 
 
