@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.10 1992-06-02 20:08:56 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.11 1992-06-04 20:40:03 kris Exp $")
 
 
 /*
@@ -423,7 +423,7 @@ Boolean	update;
 /*
  * See if they want to degrade the grid.
  */
-	if (! pda_Search (pd, c, "degrade", platform, (char *) &degrade,
+	if (! pda_Search (Pd, c, "degrade", platform, (char *) &degrade,
 			SYMT_INT))
 		degrade = 0;
 /*
