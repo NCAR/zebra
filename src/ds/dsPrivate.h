@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.27 1995-02-10 01:21:03 granger Exp $
+ * $Id: dsPrivate.h,v 3.28 1995-04-20 20:26:53 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -569,3 +569,17 @@ struct dsp_ProtoVersion
 	enum dsp_Types dsp_type;	/* == dpt_ProtoVersion	*/
 	int	dsp_version;
 };
+
+
+/*
+ * Data application notifications --- they go here rather than dsDaemon.h
+ * since other programs (e.g. prt_Notify), and they only rely on the
+ * protocol structures defined above.
+ */
+void dap_Init FP ((void));
+void dap_Request FP ((char *, struct dsp_NotifyRequest *));
+void dap_Cancel FP ((char *client));
+void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
+void dap_Copy FP ((char *));
+int dap_IsInterest FP ((int pid));
+

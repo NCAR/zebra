@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.19 1995-04-17 22:36:54 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.20 1995-04-20 20:26:51 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -153,15 +153,6 @@ void dc_SubPlatform FP((struct ui_command *cmds));
 void dc_DefSubPlats FP((char *target, char *classname, 
 			struct ui_command *cmds));
 void dc_DefInstances FP((char *classname, struct ui_command *cmds));
-
-/*
- * Data application notifications
- */
-void dap_Init FP ((void));
-void dap_Request FP ((char *, struct dsp_NotifyRequest *));
-void dap_Cancel FP ((char *, struct dsp_Template *));
-void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
-void dap_Copy FP ((char *));
 
 /*
  * Daemon public routines
