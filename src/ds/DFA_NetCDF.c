@@ -26,13 +26,13 @@
 
 # include <math.h>
 # include <sys/time.h>
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.11 1992-11-17 03:27:49 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.12 1992-11-19 19:58:56 granger Exp $")
 
 # include "netcdf.h"
 
@@ -1695,8 +1695,8 @@ ZebTime *zt;
 	date t;
 
 	TC_ZtToUI (zt, &t);
-	sprintf (dest, "%s.%06d.%04d.cdf", platform, t.ds_yymmdd,
-		t.ds_hhmmss / 100);
+	sprintf (dest, "%s.%06d.%06d.cdf", platform, t.ds_yymmdd,
+		t.ds_hhmmss);
 }
 
 
@@ -1807,7 +1807,7 @@ NCTag **rtag;
 		sprintf(history,"created by Zeb DataStore, ");
 		(void)gettimeofday(&tv, NULL);
 		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.11 $\n");
+		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.12 $\n");
 		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
 			       NC_CHAR, strlen(history)+1, history);
 	}
