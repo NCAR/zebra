@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.27 1992-12-22 18:33:43 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.28 1993-03-25 20:22:08 granger Exp $")
 
 
 /*
@@ -537,8 +537,16 @@ bool update;
 			SYMT_BOOL) && filter)
 	{
 		int res = 50;
+
 		pda_Search (Pd, c, "filter-resolution", platform, CPTR (res),
 				SYMT_INT);
+		if (res <= 0)
+		{
+			msg_ELog (EF_PROBLEM,
+				  "invalid filter resolution for %s:%s, using 50",
+				  c, platform);
+			res = 50;
+		}
 		CAP_SpFilter (ugrid, vgrid, &badvalue, sinfo, npts, res);
 	}
 /*
