@@ -1,7 +1,8 @@
-/* $Id: GraphProc.h,v 2.48 1995-06-09 16:51:13 granger Exp $ */
+/* $Id: GraphProc.h,v 2.49 1995-06-29 23:44:43 granger Exp $ */
 /*
  * Graphics process definitions.
  */
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,6 +26,7 @@
  */
 #include <defs.h>
 #include <DataStore.h>
+#include <dm.h>
 
 #define PathLen CFG_FILEPATH_LEN
 
@@ -84,8 +86,8 @@ extern int  MaxFrames;		/* Maximun number of frames		*/
 /*
  * Our plot type and user plot limits
  */
-/* extern int	PlotType; */  /* PlotExec only - why was it here?? */
 extern float	Xlo, Xhi, Ylo, Yhi;
+
 /*
  * Search path for icon and map files.
  */
@@ -108,7 +110,7 @@ enum wstate { UP, DOWN };
 extern enum wstate WindowState;
 
 /*
- * A couple of variables for passing event locationns out of UserEvent.  You
+ * A couple of variables for passing event locations out of UserEvent.  You
  * should only use these if your are sure you're being called as a result
  * of a user event -- preferably a pointer event -- or they may fool you.
  */
@@ -167,13 +169,17 @@ extern int TriggerGlobal;
  * Routines of interest.
  */
 /* Basic graphic utilities */
+extern int GetLocation FP ((char *, ZebTime *, Location *));
+extern int FancyGetLocation FP ((char *c, char *platform, ZebTime *when,
+				 ZebTime *actual, Location *loc));
 extern int SetLWidth FP((char *, char *, char *, int));
 extern void FixLWidth FP((int));
 extern void FixForeground FP((long));
 extern void SetClip FP ((int));
-extern int Intersects FP ((float x0, float y0, float x1, float y1));
+extern int Intersects FP ((double x0, double y0, double x1, double y1));
 extern void ResetGC FP ((void));
 extern void SetColor FP ((char *, char *, char *, char *));
+extern void ImageDump FP ((int format, char *file));
 
 /* Plot control modules. */
 extern void pc_CancelPlot FP ((void));
@@ -181,6 +187,10 @@ extern void pc_PlotHandler FP ((void));
 extern void pc_ParamChange FP ((char *));
 extern int pc_TimeTrigger FP ((char *));
 extern void pc_TriggerGlobal FP ((void));
+extern void pc_PushCoords FP ((struct ui_command *cmds));
+extern void pc_PopCoords FP ((void));
+extern void pc_UnZoom FP ((void));
+extern void pc_Zoom FP ((struct ui_command *cmds));
 
 /* Plot executive modules. */
 extern void px_PlotExec FP ((char *));
@@ -188,6 +198,8 @@ extern void px_GlobalPlot FP ((ZebTime *));
 extern void px_FixPlotTime FP ((ZebTime *));
 extern char *px_FldDesc FP ((char *));
 extern char *px_ModelTimeLabel FP ((void));
+extern void px_SetEOPHandler FP ((void (*handler) ()));
+extern void px_ClearEOPHandler FP ((void));
 
 /* Grid access */
 extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
@@ -209,23 +221,30 @@ extern void fc_AddFrame FP ((ZebTime *, int));
 extern int fc_LookupFrame FP ((ZebTime *, char **));
 extern int fc_GetFrame FP ((void));
 extern void fc_MarkFrames FP ((ZebTime *, int));
+extern void fc_MarkFramesByOffset FP ((int *offsets, int noffsets));
 
 /* Movie control */
 extern void mc_DefMovieWidget FP ((void));
 extern void mc_ParamChange FP ((char *));
 extern void mc_PDChange FP ((void));
 extern void mc_Dial FP ((int));
+extern void mc_MovieStop FP ((void));
 
 /* Model widget */
+extern void mw_DefModelWidget FP ((void));
 extern void mw_ParamChange FP ((char *));
 extern void mw_Update FP ((void));
 
+/* Colors */
+extern void ct_Init FP ((void));
+
 /* Icons */
+extern void I_init FP ((void));
 extern void I_DoIcons FP ((void));
 extern void I_ColorIcons FP ((char *));
 extern void I_PositionIcon FP ((char *, char *, ZebTime *, char *, int, 
 				int, int));
-extern void I_ClearPosIcon FP (());
+extern void I_ClearPosIcons FP ((void));
 extern int ov_PositionIcon FP ((char *, int, int, int));
 extern void I_ActivateArea FP ((int, int, int, int, char *, char *, char *,
 				char *));
@@ -238,6 +257,9 @@ void	alt_Step FP ((int));
 extern void Ue_Override FP ((void (*) (), void (*) (), void (*) ()));
 extern void Ue_ResetOverride FP ((void));
 extern void Ue_UnHighlight FP ((void));
+extern void Ue_ResetHighlight FP ((void));
+extern void Ue_Init FP ((void));
+extern void Ue_NewBinding FP((struct dm_ebchange *dmsg));
 
 /* Annotation utilities */
 extern void An_AddAnnotProc FP ((void (*) (), char *, char *, int, int,
@@ -258,15 +280,6 @@ extern void An_SAUsed FP ((int));
 extern void An_XYGString FP ((char *, char *, int, int, int));
 extern void An_XYZGString FP ((char *, char *, int, int, int));
 
-#ifdef notdef /* prototypes finally added to defs.h where they belong */
-
-/* Coord space transformations */
-extern void cvt_ToXY FP ((double, double, float *, float *));
-extern void cvt_ToLatLon FP ((double, double, float *, float *));
-extern void cvt_GetOrigin FP ((float *, float *));
-extern bool cvt_Origin FP ((double, double));
-#endif
-
 /* PLot description monitor protocol */
 extern void pdm_Init FP ((void));
 extern void pdm_ScheduleUpdate FP ((void));
@@ -279,22 +292,56 @@ extern void	ot_Append FP ((char *));
 extern void	ot_AddStatusLine FP ((char *, char *, char *, ZebTime *));
 extern char	*ot_GetString FP ((void));
 
+/* Limit widgets */
+extern void lw_InitWidgets FP ((void));
+extern void lw_ActivateWidget FP ((int type, struct ui_command *cmds));
+
+/* Init functions */
+extern void InitFieldMenu FP ((void));
+extern void InitDataMenu FP ((void));
+extern void iw_Initialize FP ((void));
+
+/* Annotation widget */
+extern void aw_InitAnnot FP ((void));
+extern void aw_SetLoc FP ((void));
+
+/* Position widget */
+extern void pw_InitPos FP ((void));
+extern void pw_PosStatus FP ((void));
+
+/* Rubber bands */
+extern void rb_Box FP ((struct ui_command *cmds));
+extern void rb_Line FP ((struct ui_command *cmds));
+extern void rb_PolyLine FP ((struct ui_command *cmds));
+
 /* Other stuff */
-extern int GetLocation FP ((char *, ZebTime *, Location *));
+extern void ChangePD FP ((struct dm_pdchange *dmp));
+extern void GPShutDown FP ((void));
+extern int dispatcher FP ((int junk, struct ui_command *cmds));
+extern void parameter FP ((char *comp, char *param, char *value));
+extern int xtEvent FP ((int fd));
 extern int AgeCheck FP ((char *, char *, ZebTime *));
 extern long GetSec FP(( UItime ));
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
+extern void eq_sync FP ((void));
 extern void tr_InitAcWidget FP ((void));
 extern void Require FP ((char *));
 extern void DoRequires FP ((void));
-extern void GetRange FP ((float *, int, double, float *, float *));
+extern void GetRange FP ((float *, int, double, float *min, float *max));
+extern void GetByteRange FP((unsigned char *, int np, float *min, float *max));
 extern void CalcCenterStep FP ((double, double, int, float *, float *));
 extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
 			       ZebTime *dtime));
+extern void ov_Feature FP ((struct ui_command *cmds));
+
+# if defined(hpux) || defined(SVR4) || defined (linux)
+/* Defined in Utilities.c */
+extern int nint FP ((double x));
+# endif
 
 typedef struct _WindInfo {
 	int wi_polar;		/* 0 == use uwind/vwind; 1 == use wspd/wdir */
@@ -324,10 +371,14 @@ extern void GetWindData FP ((WindInfo *, float *, float *, double));
 	extern void An_DoTopAnnot FP ((char *, Pixel, char *, char *));
 	extern void An_GetTopParams FP ((XColor *, int *));
 	extern Widget LeftRightButtons FP ((Widget, void *,XtTranslations));
-	extern void draw_vector FP ((Display *, Drawable, GC, int, int,
-		double, double, double));
+	extern void WindGrid FP((Widget w, Drawable d, GC Gcontext, 
+				 float *u_array, float *v_array, int xdim, 
+				 int ydim, int xlo, int ylo, int xhi, int yhi, 
+				 double vlen, double bad, XColor color, 
+				 int degrade, int vector));
 	extern Pixmap I_GetPMap FP ((char *, int *, int *, int *, int *));
 	extern void I_RepositionMenu FP ((Widget w));
+	extern void I_RedirectButton FP ((Window win, XEvent *ev));
 
 	void RasterPlot FP ((Widget w, Drawable d, float *array, 
 		     int xdim, int ydim,

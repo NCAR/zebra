@@ -45,8 +45,9 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "LayoutControl.h"
+# include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.53 1995-05-05 22:46:23 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.54 1995-06-29 23:44:38 granger Exp $")
 
 /*
  * Default resources.
@@ -125,9 +126,9 @@ static char RequirePath[PathLen];
 /*
  * Forward routine definitions.
  */
-int	msg_handler (), dispatcher (), xtEvent ();
+int	msg_handler ();
 void	SendEndpoints ();
-XtCallbackProc WMResize ();
+static void WMResize ();
 static void PopdownWidgets ();
 
 static void UiErrorReport (), UiPfHandler ();
@@ -140,6 +141,7 @@ extern void Ue_MotionEvent ();
  */
 void eq_reconfig (), eq_sync ();
 
+static void finish_setup FP ((void));
 static void NewTime FP ((ZebTime *));
 static int AnswerQuery FP ((char *));
 static void SendGeometry FP((struct dm_msg *dmm));
@@ -147,9 +149,17 @@ static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void Enqueue FP ((EQpriority, char *));
 static int dmgr_message ();
 static void gp_sync FP ((void));
+static void ChangeState FP ((enum wstate new));
+static void ChangeParam FP ((struct dm_parchange *dmp));
+static void ChangeDefaults FP ((struct dm_pdchange *dmp));
+static void HistoryMode FP ((ZebTime *when));
+static void RealTimeMode FP ((void));
+static void DialEvent FP ((struct dm_dial *dmd));
+static void DialTime FP ((int motion));
 
 
 
+void
 GPShutDown ()
 /*
  * Finish up and quit.
@@ -179,7 +189,7 @@ GPShutDown ()
 
 
 
-
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -202,7 +212,7 @@ char **argv;
 	}
 	msg_join (dm_GroupName());
 	msg_join ("TimeChange");
-	msg_DeathHandler (GPShutDown);
+	msg_DeathHandler ((int (*)()) GPShutDown);
 	msg_SetQueryHandler (AnswerQuery);
 /*
  * Hand off our information to the UI, and initialize things.
@@ -231,7 +241,7 @@ char **argv;
 
 
 
-
+static void
 finish_setup ()
 /*
  * Finish the rest of the setup, now that the UI has been initialized and
@@ -342,8 +352,8 @@ finish_setup ()
 /*
  * Set up our event handlers.
  */
-	lle_AddFD (msg_get_fd (), msg_incoming);
-	lle_AddFD (XConnectionNumber (Disp), xtEvent);
+	lle_AddFD (msg_get_fd (), (void (*)()) msg_incoming);
+	lle_AddFD (XConnectionNumber (Disp), (void (*)()) xtEvent);
 /*
  * Command line functions.
  */
@@ -408,7 +418,7 @@ finish_setup ()
 
 
 
-XtCallbackProc
+static void
 WMResize (w, junk, stuff)
 Widget w;
 XtPointer junk, stuff;
@@ -529,6 +539,7 @@ greet_dm ()
 
 
 /* ARGSUSED */
+int
 dispatcher (junk, cmds)
 int junk;
 struct ui_command *cmds;
@@ -819,9 +830,10 @@ struct dm_msg *dmsg;
 	 */
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown DM Message type: %d",
-			dmsg->dmm_type);
+			  dmsg->dmm_type);
 		break;
 	}
+	return (0);
 }
 
 
@@ -999,7 +1011,7 @@ int len;
 
 
 
-
+static void
 ChangeState (new)
 enum wstate new;
 /*
@@ -1119,7 +1131,7 @@ eq_ResetAbort ()
 
 
 
-
+void
 ChangePD (dmp)
 struct dm_pdchange *dmp;
 /*
@@ -1164,7 +1176,7 @@ struct dm_pdchange *dmp;
 
 
 
-
+static void
 ChangeParam (dmp)
 struct dm_parchange *dmp;
 /*
@@ -1197,7 +1209,7 @@ struct dm_parchange *dmp;
 
 
 
-
+void
 parameter (comp, param, value)
 char *comp, *param, *value;
 /*
@@ -1232,6 +1244,7 @@ char *comp, *param, *value;
 
 
 
+static void
 ChangeDefaults (dmp)
 struct dm_pdchange *dmp;
 /*
@@ -1259,8 +1272,7 @@ struct dm_pdchange *dmp;
 
 
 
-
-
+static void
 HistoryMode (when)
 ZebTime *when;
 /*
@@ -1303,7 +1315,7 @@ ZebTime *when;
 
 
 
-
+static void
 DialEvent (dmd)
 struct dm_dial *dmd;
 /*
@@ -1329,7 +1341,7 @@ struct dm_dial *dmd;
 
 
 
-
+static void
 DialTime (motion)
 int motion;
 /*
@@ -1343,11 +1355,7 @@ int motion;
 
 
 
-
-
-
-
-
+static void
 RealTimeMode ()
 /*
  * Go into real time mode.
@@ -1407,6 +1415,7 @@ ZebTime *t;
 
 
 /* ARGSUSED */
+int
 pd_defined (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1424,10 +1433,12 @@ union usy_value *argv, *retv;
 	else 
 		retv->us_v_int = pd_Retrieve (Pd, argv[0].us_v_ptr,
 			argv[1].us_v_ptr, junk, SYMT_STRING);
+	return (0);
 }
 
 
 /* ARGSUSED */
+int
 pd_removeparam (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1450,7 +1461,7 @@ union usy_value *argv, *retv;
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
-
+	return (0);
 }
 
 
@@ -1459,6 +1470,7 @@ union usy_value *argv, *retv;
 
 
 /* ARGSUSED */
+int
 pd_param (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1491,11 +1503,13 @@ union usy_value *argv, *retv;
 		*rett = type;
 		memcpy (retv, tmp, sizeof (date));	/* XXX */
 	}
+	return (0);
 }
 	
 
 
 /* ARGSUSED */
+int
 pd_paramsearch (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -1523,11 +1537,13 @@ union usy_value *argv, *retv;
 		*rett = type;
 		memcpy (retv, tmp, sizeof (date));	/* XXX */
 	}
+	return (0);
 }
 
 
 
 /* ARGSUSED */
+int
 substr_remove (narg, argv, argt, retv, rett)
 int 	narg, *argt, *rett;
 union usy_value	*argv, *retv;
@@ -1549,13 +1565,14 @@ union usy_value	*argv, *retv;
 	{
 		if (strcmp (string[i], argv[1].us_v_ptr) == 0)
 			continue;
-		if (strlen (tmp) > 0)
+		if (strlen (tmp) > (unsigned)0)
 			tmp = strcat (tmp, ",");
 		tmp = strcat (tmp, string[i]);
 	}
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (tmp);
 	free (tmp);
+	return (0);
 }
 	
 
@@ -1581,7 +1598,7 @@ char *line;
  * Handle ui_printf'd stuff.
  */
 {
-	char *nl, *strchr ();
+	char *nl;
 	char tbuf[400];
 /*
  * Clean out NL's.
@@ -1740,6 +1757,7 @@ SValue *argv, *retv;
 {
 	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
 	*rett = SYMT_BOOL;
+	return (0);
 }
 
 
@@ -1852,9 +1870,10 @@ SValue *argv, *retv;
 		if (! strcmp (elems[i], argv[0].us_v_ptr))
 		{
 			retv->us_v_int = i;
-			return;
+			return (0);
 		}
 	retv->us_v_int = -1;
+	return (0);
 }
 
 
@@ -1884,6 +1903,7 @@ SValue *argv, *retv;
 		}
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = ret;
+	return (0);
 }
 
 
@@ -1908,6 +1928,7 @@ SValue *argv, *retv;
 	}
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = ret;
+	return (0);
 }
 
 
@@ -1942,6 +1963,7 @@ SValue *argv, *retv;
 	*rp = '\0';
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (retstr);
+	return (0);
 }
 
 

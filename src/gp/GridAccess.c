@@ -19,6 +19,8 @@
  * maintenance or updates for its software.
  */
 # include <math.h>
+# include <string.h>
+
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
@@ -26,7 +28,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.25 1995-04-17 21:56:09 granger Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.26 1995-06-29 23:44:46 granger Exp $")
 
 
 
@@ -1167,4 +1169,5 @@ FieldId *fid;		/* Returned FieldId of coordinate variable 	*/
 	*fid = field;
 	return (TRUE);
 }
+
 
