@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1997-06-28 16:29:12 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1999-03-01 21:16:08 granger Exp $"
 
 /* #define IHaveSubdirs */
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -33,7 +33,7 @@ SRCS = cbd2zebra.c dem2zebra.c dlg2zebra.c map_decimate.c \
 
 DISTSRCS = $(SRCS) drawmap.c
 
-DISTFILES = Imakefile $(DISTSRCS) README DEM_records.txt cbd_world.gif \
+DISTFILES = Imakefile $(DISTSRCS) README DEM.txt cbd_world.gif \
             dlg_sdts.ps.gz
 
 DEPEND_DEFINES=$(NETCDFINCLUDES)
