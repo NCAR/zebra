@@ -18,10 +18,173 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-
+# include <stdio.h>
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
 # include "pdmon.h"
 
-MAKE_RCSID ("$Id: pdmon.c,v 1.1 1992-09-15 15:54:41 corbet Exp $")
+MAKE_RCSID ("$Id: pdmon.c,v 1.2 1993-02-25 17:20:21 corbet Exp $")
+
+char *Process;
+
+
+/*
+ * Forwards.
+ */
+int Handler FP ((Message *));
+int Input FP ((int));
+void MonitorMsg FP ((pdmTemplate *));
+
+
+
+
+main (argc, argv)
+int argc;
+char **argv;
+/*
+ * pdmon process
+ */
+{
+	char pname[MAX_NAME_LEN];
+	pdmTemplate pt;
+/*
+ * See that they know what they are doing.
+ */
+	if (argc != 2)
+	{
+		printf ("Usage: pdmon process\n");
+		exit (1);
+	}
+	Process = argv[1];
+/*
+ * Hook into the message system.
+ */
+	sprintf (pname, "pdmon-%s", Process);
+	msg_connect (Handler, pname);
+	msg_add_fd (0, Input);
+/*
+ * Connect to the process.
+ */
+	pt.pt_Type = pdm_HookIn;
+	msg_send (Process, MT_PDMON, FALSE, &pt, sizeof (pt));
+/*
+ * Wait.
+ */
+	msg_await ();
+}
+
+
+
+
+int
+Handler (msg)
+Message *msg;
+/*
+ * Here is a message.
+ */
+{
+	switch (msg->m_proto)
+	{
+	   case MT_PDMON:
+	   	MonitorMsg ((pdmTemplate *) msg->m_data);
+		break;
+	}
+	return (0);
+}
+
+
+
+
+void
+MonitorMsg (pt)
+pdmTemplate *pt;
+/*
+ * Deal with a monitor message.
+ */
+{
+	pdmPD *ppd;
+
+	switch (pt->pt_Type)
+	{
+	   case pdm_Exit:
+	   	printf ("$Exit: Graphics process exit.\n");
+		exit (0);
+
+	   case pdm_MyPD:
+	   	ppd = (pdmPD *) pt;
+		printf ("%d\n", ppd->pt_Len);
+		fflush (stdout);
+		write (1, ppd->pt_Pd, ppd->pt_Len);
+		break;
+	}
+}
+
+
+
+
+
+int
+Input (fd)
+int fd;
+/*
+ * Some sort of input from the editor.
+ */
+{
+	char line[100];
+	int len, nread;
+	char *bp;
+	pdmPD *ppd;
+/*
+ * Pull in the length line.
+ */
+	if (!gets (line))
+	{
+		UnHook ();
+		exit (0);
+	}
+	if (! sscanf (line, "%d", &len))
+	{
+		printf ("Bad length line\n");
+		exit (1);
+	}
+/*
+ * Get some space and read in the PD.
+ */
+	ppd = (pdmPD *) malloc (sizeof (pdmPD) + len);
+	ppd->pt_Type = pdm_NewPD;
+	ppd->pt_Len = len;
+	bp = ppd->pt_Pd;
+	for (nread = 0; nread < len; )
+	{
+		int thisread = read (0, bp, len - nread);
+		if (thisread <= 0)
+		{
+			UnHook ();
+			printf ("Read error\n");
+			exit (1);
+		}
+		nread += thisread;
+		bp += thisread;
+	}
+/*
+ * Ship it off to the process.
+ */
+	msg_send (Process, MT_PDMON, FALSE, ppd, sizeof (pdmPD) + len);
+	free (ppd);
+}
+
+
+
+
+
+UnHook ()
+/*
+ * Disconnect from the monitored process.
+ */
+{
+	pdmTemplate pt;
+
+	pt.pt_Type = pdm_UnHook;
+	msg_send (Process, MT_PDMON, FALSE, &pt, sizeof (pt));
+}

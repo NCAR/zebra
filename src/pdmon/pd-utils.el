@@ -1,7 +1,7 @@
 ;;
 ;; Utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils.el,v 1.1 1992-09-16 16:20:44 corbet Exp $"
+(defvar pd::rcsid "$Id: pd-utils.el,v 1.2 1993-02-25 17:20:21 corbet Exp $"
  "The RCS id")
 ;
 ; Our position when scanning through the PD.
@@ -131,7 +131,7 @@
 ; Enforce some conventions on component names.
 ;
 (defun pd::check-comp-name (name) "Check a component name"
-	(if (not (string-match "^[a-zA-Z0-9_\-]+$" name))
+	(if (not (string-match "^[a-zA-Z0-9_.\-]+$" name))
 		(pd::gripe "Bad component name"))
 )
 
@@ -143,7 +143,7 @@
     (let (rule)
 	(cond
 	    ((null (string-match "^\t+[a-zA-Z0-9_\-]+:[ \t]+.*$" line)) nil)
-	    ((setq rule (pd::find-rule (pd::pname line))) 
+	    ((setq rule (pd::prop-find-rule (pd::pname line))) 
 	    	(pd::rule-check (pd::pvalue line) rule) t)
 	    (t (pd::mark-line (point) pd::unk-param-style) t)
 	)
@@ -244,6 +244,10 @@
 ;; The plot-type and representation, if non-nil, restrict the application
 ;; of this rule to situations where they match.
 ;;
+;; At this point, with the (much faster) property-list-based rule lookup
+;; scheme, the plot-type and representation are not used for rule matches.
+;; If it is worthwhile, that capability can be restored at some point.
+;;
 
 (defmacro pd::r-param (rule) (list 'nth '0 rule))
 (defmacro pd::r-ptype (rule) (list 'nth '1 rule))
@@ -268,15 +272,29 @@ of the radar, in degrees."
 parameter (qualified by field name) is mostly useful for fields with a range
 where the default %.2f format does not make sense.")
 
+	("annot-height"		"cap"	"overlay"	pd::ck-float
+	 "The height of grid overlay annotation as a portion of the height
+of the whole window.")
+
 	("arrow"		"cap"	"track"		pd::ck-bool
 	 "Determines whether wind vectors are added onto an aircraft track.")
+
+	("arrow-color"		"cap"	"track"		nil
+	 "The color to use in drawing arrows on tracks.")
 
 	("arrow-interval"	"cap"	"track"		pd::ck-interval
 	 "The time interval at which arrows are placed along an aircraft
 track, if the ARROW parameter is TRUE")
 
+	("arrow-line-width"	"cap"	"track"		pd::ck-int
+	 "The width of lines used to draw arrows on aircraft tracks."
+	 (0 . 10))
+
 	("arrow-scale"		nil		nil	pd::ck-float
 	 "The scale factor used to determine the length of the arrows.")
+
+	("axis-color"		"tseries"	nil	nil
+	 "The color to use in drawing time series axes.")
 
 	("azimuth-interval"	"cap"	"overlay"	pd::ck-float
 	 "The spacing between azimuth lines, in degrees")
@@ -294,8 +312,14 @@ field name, then the plot representation, yielding something like
 	 "For boundary overlays, determines whether the boundary will be 
 drawn closed (first point connected to the last) or not.")
 
+	("ta-color"		nil		nil	nil
+	 "The color to use for annotation at the top of the screen.")
+
 	("color"		nil		nil	nil
 	 "The color used to draw this overlay")
+
+	("color-mono"		"cap"		"contour"	pd::ck-bool
+	 "TRUE if the contours drawn in this overlay should be monochromatic")
 
 	("color-table"		nil		nil	nil
 	 "The name of the color table to use to encode the data")
@@ -303,9 +327,25 @@ drawn closed (first point connected to the last) or not.")
 	("comment"	nil		nil	nil
 	 "Just a comment -- not interpreted by anybody")
 
+	("ct-limit"		"cap"		"contour"	pd::ck-int
+	 "Used to cut down on the number of colors which appear in the 
+side annotation.  A CT-LIMIT value of N means only show every Nth value."
+	 ( 1 . 20 ))
+
 	("data-available-command"	nil	nil	nil
 	 "The command to run when a time is selected out of the data
 available menu.")
+
+	("data-skip"		"cap"	"track"		pd::ck-int
+	 "Specifies an optional thinning of data for aircraft tracks.  If
+this value is set to N, only one out of every N points will be plotted."
+	 (1 . 100))
+
+	("degrade"		"cap"	"vector"	pd::ck-int
+	 "Specifies an optional thinning of vector grid data.  If degrade
+is set to N, only one out of every N points (in both dimensions) will be
+plotted."
+	 (1 . 20))
 
 	("desc"			nil	nil	nil
 	 "A long description of a field (used to qualify the name).  This
@@ -320,6 +360,13 @@ replotted.  If it is FALSE (default) the overlay will be visible.")
 	("disabled-icon-background"	nil	nil	nil
 	 "The background color to use for icons representing disabled
 	  overlays.")
+
+	("do-feet"		"skewt"	nil		pd::ck-bool
+	 "True if skew-t plots should be annotated in feed; otherwise
+kilometers are used.")
+
+	("do-labels"		"cap"	"contour"	pd::ck-bool
+	 "TRUE if contours should be labelled with their numeric values.")
 
 	("every-sweep"		nil	nil		pd::ck-bool
 	 "If true, and radar-space is in effect, then every sweep of
@@ -337,6 +384,10 @@ files, in particular).")
 	 "Attribute used to test observations for inclusion in the 
 data available menu.  Is also used by the raster plot module to filter out
 uninteresting (i.e. non-surveillance) sweeps.")
+
+	("flip-time"		"tseries" nil		pd::ck-bool
+	 "TRUE if the time sense in time-series plots should be reversed,
+so that time proceeds from right to left.")
 
 	("frame-rate"		nil	nil		pd::ck-int
 	 "The default frame rate to appear in the movie control widget."
@@ -381,9 +432,32 @@ the icon for this overlay")
 	 "The menu to be displayed when the right button is pressed in
 the icon for this overlay")
 
+	("highlight"		"cap"	"raster"	pd::ck-float
+	 "The data value which should be drawn in the highlight color.")
+
+	("highlight-color"	"cap"	"raster"	nil
+	 "The color to use in drawing the highlighted data value.")
+
+	("highlight-range"	"cap"	"raster"	nil
+	 "The range of data (around the highlight value) which should be
+drawn in the highlight color.")
+
 	("label"		"cap"	"overlay"	nil
 	 "Determines whether labels are drawn on certain overlay plots 
 (such as locations and boundaries) or not.")
+
+	("label-blanking"	"cap"	"contour"	pd::ck-bool
+	 "TRUE if the area underneath contour labels should be blanked
+out to improve their readability (at the cost of losing the underlying
+data.")
+
+	("label-size"		nil		nil	pd::ck-float
+	 "The size of labelling, as a portion of the size of the window
+as a whole.  Typical values are 0.02 or so...")
+
+	("lat-lon"		"cap"	"overlay"	pd::ck-bool
+	 "TRUE if grid overlays should be done as a latitude-longitude
+grid; if false, an X/Y (kilometer) grid is drawn instead")
 
 	("limit-proc"		nil		nil	nil
 	 "The name of a procedure to run when 'adjust limits' is selected
@@ -426,6 +500,10 @@ base overlay.")
 	("origin-lon"		nil		nil	pd::ck-float
 	 "The longitude of the origin.")
 
+	("out-of-range-color"	"cap"	"track"		nil
+	 "The color to use for the track when the data used for color coding
+is out of the range allowed.")
+
 	("pd-name"		nil	nil	nil
 	 "The name of this plot description.  This parameter MUST appear
 in the global component.")
@@ -449,6 +527,10 @@ plot), skewt, xsect, tseries, and xygraph"
 	("pos-origin"		nil		nil	nil
 	 "A comma-separated list of possible origins for the position widget")
 
+	("position-icon"	"cap"	"track"		nil
+	 "The name of a file containing the icon to display at the platform
+position on a track.")
+
 	("post-proc-mode"	nil		nil	pd::ck-bool
 	 "TRUE if the system is running in the post processing mode.  This
 	  parameter has a number of effects on how the system views times.")
@@ -457,10 +539,21 @@ plot), skewt, xsect, tseries, and xygraph"
 	 "An interval specifying what the skip time should be in the 
 	  display manager time controller.")
 	
+	("quad-color"		"cap"	"vector"	nil
+	 "The color to use when annotating quadrants around station vectors.")
+
+	("quadrants"		"cap"	"vector"	nil
+	 "A comma-separated list of fields to display in the four quadrants
+around the arrow in station plots.")
+
 	("radar-space"		"cap"	nil	pd::ck-bool
 	 "Controls whether the window operates in radar space.  In the radar
 space mode, altitudes are interpreted in degrees, and image selection 
 criteria are a bit different.")
+
+	("range"		"cap"	"overlay"	pd::ck-float
+	 "The range to which the azimuth limits overlay is drawn from
+the origin.")
 
 	("range-min"		nil	nil	pd::ck-float
 	 "The minimum acceptable data value before the data will be treated
@@ -479,6 +572,13 @@ listed here later on.")
 	("ring-interval"	"cap"	"overlay"	pd::ck-float
 	 "The interval between rings in the range rings display, in km.")
 
+	("sa-scale"		nil	nil		pd::ck-float
+	 "The size of side annotation, as a portion of the size of the window
+as a whole.")
+
+	("show-position"	"cap"	"track"		pd::ck-bool
+	 "TRUE if the position of the aircraft is to be shown on the track.")
+
 	("solid"		nil	nil		pd::ck-bool
 	 "If true, cartesian grids are drawn as solid lines; otherwise they
 are drawn as tics at the grid points.")
@@ -488,6 +588,10 @@ are drawn as tics at the grid points.")
 selection of contour values.  This parameter is qualified first by the
 field name, then the plot representation, yielding something like
 'raster-velocity-step'")
+
+	("ta-color-match"	nil	nil	pd::ck-bool
+	 "TRUE if the color of the annotation at the top of the screen
+should match the color of the data, if possible.")
 
 	("time-frames"	nil		nil	nil
 	 "The number of pixmap frames to be kept in memory")
@@ -511,6 +615,10 @@ a global trigger.")
 	("x-min"		nil	nil		pd::ck-float
 	 "The southernmost extent of the window from the origin, in km")
 
+	("x-spacing"		"cap"	"overlay"	pd::ck-float
+	 "The spacing between vertical grid lines, in degrees longitude if
+lat-lon is TRUE; kilometers otherwise.")
+
 	("xorvalue"		nil	nil		pd::ck-int
 	 "A bitwise value used for exclusive oring against the display when
 rubber-banding is being done.  Best not to mess with it.")
@@ -520,6 +628,10 @@ rubber-banding is being done.  Best not to mess with it.")
 
 	("y-min"		nil	nil		pd::ck-float
 	 "The southernmost extent of the window from the origin, in km")
+
+	("y-spacing"		"cap"	"overlay"	pd::ck-float
+	 "The spacing between horizontal grid lines, in degrees latitude if
+lat-lon is TRUE; kilometers otherwise.")
 ))
 
 
@@ -572,6 +684,36 @@ rubber-banding is being done.  Best not to mess with it.")
 		(pd::retrieve pd::component "representation"))))
 )
 
+
+
+;;
+;; Attempt to deal with rules through property lists.
+;;
+(defun pd::prop-rules (rules) "Put the rules into a property list."
+    (let ((rule rules))
+        (while rule
+		(put (intern (pd::r-param (car rule))) 'rule (car rule))
+    		(setq rule (cdr rule))
+	)
+    )
+)
+
+;
+; Actually store it all now.
+;
+(pd::prop-rules pd::ParamRules)
+
+;
+; Look up a rule via the property list.
+;
+(defun pd::prop-find-rule (param)
+    (cond
+    	((get (intern param) 'rule))	; Found it
+	((string-match "-" param)
+	    (pd::prop-find-rule (substring param (+ (match-beginning 0) 1))))
+	(t nil)
+    )
+)
 
 
 
@@ -710,9 +852,9 @@ rubber-banding is being done.  Best not to mess with it.")
     		(concat "*pdmon-" process "-control*")))
     (setq pd::mon-screen (or
 	    (car (epoch::screens-of-buffer pd::mon-buffer))
-	    (create-screen pd::mon-buffer
-	    		(list '(title . (buffer-name pd::mon-buffer))))
-    ))
+	    (create-screen pd::mon-buffer nil)
+	    		(list '(title . "Plot description monitor")))
+    )
 ;
 ; Get the screen up on the display and put the buffer there.
 ;
@@ -805,6 +947,8 @@ rubber-banding is being done.  Best not to mess with it.")
     (process-send-eof "pdmon")
     (delete-screen pd::mon-screen)
     (if pd::help-screen (delete-screen pd::help-screen))
+    (kill-buffer pd::mon-buffer)
+    (kill-buffer pd::control-buffer)
     (setq pd::help-screen nil)
 )
 
@@ -850,7 +994,7 @@ rubber-banding is being done.  Best not to mess with it.")
 	    (setq pd::help-screen (or
 		(car (epoch::screens-of-buffer pd::help-buffer))
 		(create-screen pd::help-buffer
-	    		(list '(title . (buffer-name pd::help-buffer))
+	    		(list '(title . "Plot description help")
 				'(geometry . "80x16")))
     	    ))
 	)
@@ -892,7 +1036,7 @@ rubber-banding is being done.  Best not to mess with it.")
 	    (insert "Lines beginning with ! are comments"))
 	((eq (string-to-char line) ?\t)
 	    (insert (pd::pname line) "\n\n")
-	    (let ((rule (pd::find-rule (pd::pname line) t)))
+	    (let ((rule (pd::prop-find-rule (pd::pname line))))
 	        (insert (if rule (pd::r-descr rule) 
 			"I do not know about this parameter, sorry."))
 	    )
