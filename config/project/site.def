@@ -144,8 +144,8 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
  */
 #ifndef InstallCmd		/* hack should be in project */
 #if SystemV || SystemV4
-#ifdef UseInstalled		/* assume BINDIR in path */
-#define InstallCmd install.sh
+#if UseInstalledImake
+#define InstallCmd $(BINDIR)/install.sh
 #else
 #define InstallCmd $(SHELL) $(CONFIGSRC)/util/install.sh
 #endif
