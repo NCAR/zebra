@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.40 1999-08-12 14:33:18 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.41 2000-03-01 20:35:51 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -302,12 +302,13 @@ XCOMM --- Deciding C compiler and options
   * 84" flag suppresses warnings about libraries not used to resolve any
   * symbols.  We also suppress warning 131 (Multiply defined weak
   * symbol), since this is a very common warning when using C++
-  * templates.  Finally, The "-rpath" allows us to avoid requiring
+  * templates.  Suppress warning 47 about possible branch instruction 
+  * performance hits.  Finally, The "-rpath" allows us to avoid requiring
   * everybody to have a LD_LIBRARY_PATH set to run stuff linked to
   * locally-built shared libraries. 
   */
 # define ExtraLoadOptions -Wl,-woff,85 -Wl,-woff,84 -Wl,-woff,131 \
-	-Wl,-rpath,/usr/local/lib StaticLoadOption
+	-Wl,-woff,47 -Wl,-rpath,/usr/local/lib StaticLoadOption
 #endif
 
 
