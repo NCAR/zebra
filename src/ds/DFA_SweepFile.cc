@@ -25,7 +25,7 @@
 # include "DataFormat.h"
 
 
-RCSID ("$Id: DFA_SweepFile.cc,v 3.3 2000-04-10 19:59:27 burghart Exp $")
+RCSID ("$Id: DFA_SweepFile.cc,v 3.4 2002-04-20 22:11:10 vanandel Exp $")
 
 //
 // From here down only if sweepfile access is enabled.
@@ -235,16 +235,25 @@ dsf_QueryTime (const char *file, ZebTime *begin, ZebTime *end, int *nsample)
 //
 // Open up the file.
 //
-	int ok = dsf_NameFilter (file) && 
-		 sfile.access_sweepfile (file, &mapper);
+	int ok = dsf_NameFilter (file); 
 	if (! ok)
+	{
+		msg_ELog (EF_INFO, "dsf_NameFilter failure on %s", file);
 		return (FALSE);
-//
+	}
+	ok = sfile.access_sweepfile (file, &mapper);
+	if (! ok) 
+	{
+		msg_ELog (EF_INFO, "sfile.access_sweepfile failure on %s", file);
+		return (FALSE);
+	}
+ 
 // Let's just be sure the file isn't empty.  Barring that, it will have
 // exactly one sample in it.
 //
 	if (mapper.rays_in_sweep () < 10)
 	{
+		msg_ELog (EF_INFO, "< 10 rays in %s", file);
 		sfile.close_sweepfile ();
 		return (FALSE);
 	}
