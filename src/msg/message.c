@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.10 1993-07-20 20:08:16 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.11 1993-07-20 20:42:27 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -290,7 +290,7 @@ MakeUnixSocket ()
 		perror ("Unable to bind UNIX socket");
 		exit (1);
 	}
-	strcpy (UnSocketName, sn);
+	strcpy (UnSocketName, sn ? sn : UN_SOCKET_NAME);
 /*
  * Tell the system that we want connections.
  */
