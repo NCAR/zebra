@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 1.3 1991-02-26 19:02:10 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -32,6 +32,7 @@ typedef struct _nctag
 	RGrid	nc_rgrid;	/* Regular grid info		*/
 	int	nc_nPlat;	/* Number of platforms		*/
 	PlatformId nc_plat;	/* The base platform ID		*/
+	PlatformId *nc_subplats;/* IRGRID subplatform ID's	*/
 } NCTag;
 
 
@@ -61,6 +62,12 @@ static bool SPMapInited = FALSE;
 	static void	dnc_MakeCoords (NCTag *, DataObject *, int *, int *);
 	static void	dnc_LoadLocation (NCTag *, GetList *, int, int);
 	static int	dnc_BuildPMap (NCTag *);
+	static void 	dnc_CFMakeDims (NCTag *, DataObject *, int *, int *);
+	static void	dnc_CFMakeVars (NCTag *, DataObject *);
+	static void	dnc_CFScalarVars (NCTag *, DataObject *);
+	static void	dnc_CFGridVars (NCTag *, DataObject *);
+	static void	dnc_CFIRGridVars (NCTag *, DataObject *);
+	static void 	dnc_PDTimes (NCTag *, DataObject *, int, int, int *);
 # else
 	static void 	dnc_NCError ();
 	static int	dnc_OFTimes ();
@@ -70,6 +77,12 @@ static bool SPMapInited = FALSE;
 	static void 	dnc_GField ();
 	static void	dnc_LoadLocation ();
 	static int	dnc_BuildPMap ();
+	static void 	dnc_CFMakeDims ();
+	static void	dnc_CFMakeVars ();
+	static void	dnc_CFScalarVars ();
+	static void	dnc_CFGridVars ();
+	static void	dnc_CFIRGridVars ();
+	static void 	dnc_PDTimes ();
 # endif
 
 
@@ -83,9 +96,10 @@ static bool SPMapInited = FALSE;
 
 
 int
-dnc_QueryTime (file, begin, end)
+dnc_QueryTime (file, begin, end, nsamp)
 char *file;
 time *begin, *end;
+int *nsamp;
 /*
  * Query the times on this file.
  */
@@ -121,6 +135,7 @@ time *begin, *end;
 /*
  * Clean up and return.
  */
+	*nsamp = maxrec;
 	ncclose (id);
 	return (TRUE);
 }
@@ -130,8 +145,9 @@ time *begin, *end;
 
 
 int
-dnc_OpenFile (dp, rtag)
+dnc_OpenFile (dp, write, rtag)
 DataFile *dp;
+int write;
 NCTag **rtag;
 /*
  * Try to open this file.
@@ -143,7 +159,8 @@ NCTag **rtag;
  * Try to open the file.
  */
 	ncopts = 0;		/* Change default error behavior	*/
-	if ((tag->nc_id = ncopen (dp->df_name, NC_NOWRITE)) < 0)
+	if ((tag->nc_id = ncopen (dp->df_name, write ? NC_WRITE : NC_NOWRITE))
+			< 0)
 	{
 		free (tag);
 		dnc_NCError ("file open");
@@ -392,12 +409,15 @@ bool threed;
 		return (FALSE);
 	}
 	ncdiminq (tag->nc_id, d, (char *) 0, &tag->nc_rgrid.rg_nY);
-	if ((d = ncdimid (tag->nc_id, "z")) < 0)
+	if (tag->nc_org == Org3dGrid)
 	{
-		dnc_NCError ("No z dimension");
-		return (FALSE);
+		if ((d = ncdimid (tag->nc_id, "z")) < 0)
+		{
+			dnc_NCError ("No z dimension");
+			return (FALSE);
+		}
+		ncdiminq (tag->nc_id, d, (char *) 0, &tag->nc_rgrid.rg_nZ);
 	}
-	ncdiminq (tag->nc_id, d, (char *) 0, &tag->nc_rgrid.rg_nZ);
 /*
  * Finally the grid spacings.
  */
@@ -413,12 +433,15 @@ bool threed;
 		return (FALSE);
 	}
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_rgrid.rg_Yspacing);
-	if ((v = ncvarid (tag->nc_id, "z_spacing")) < 0)
+	if (tag->nc_org == Org3dGrid)
 	{
-		dnc_NCError ("No 'z_spacing' variable");
-		return (FALSE);
+		if ((v = ncvarid (tag->nc_id, "z_spacing")) < 0)
+		{
+			dnc_NCError ("No 'z_spacing' variable");
+			return (FALSE);
+		}
+		ncvarget1 (tag->nc_id, v, 0, &tag->nc_rgrid.rg_Zspacing);
 	}
-	ncvarget1 (tag->nc_id, v, 0, &tag->nc_rgrid.rg_Zspacing);
 	return (TRUE);
 }
 
@@ -556,7 +579,8 @@ NCTag *tag;
  */
 {
 	ncsync (tag->nc_id);
-	msg_ELog (EF_PROBLEM, "NC sync, but I'm not really ready");
+	/* msg_ELog (EF_PROBLEM, "NC sync, but I'm not really ready"); */
+	return (TRUE);
 }
 
 
@@ -576,7 +600,7 @@ GetList *gp;
 /*
  * Start by opening the file.
  */
-	if (! dfa_OpenFile (gp->gl_dfindex, (void *) &tag))
+	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return;
 /*
  * Find the time indices of the desired data range and stuff in the
@@ -639,7 +663,7 @@ GetList *gp;
 /*
  * Open the data file.
  */
-	if (! dfa_OpenFile (gp->gl_dfindex, (void *) &tag))
+	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return;
 /*
  * Get the time indices.
@@ -849,7 +873,6 @@ int *start, *count;
 				start[1] = 0;
 			else if (start[1] >= tag->nc_rgrid.rg_nZ)
 				start[1] = tag->nc_rgrid.rg_nZ - 1;
-msg_ELog (EF_DEBUG, "Alt %.2f -> level %d", dobj->do_loc.l_alt, start[1]);
 			dobj->do_loc.l_alt = tag->nc_sloc.l_alt + 
 				start[1]*tag->nc_rgrid.rg_Zspacing;
 			count[1] = 1;
@@ -868,6 +891,13 @@ msg_ELog (EF_DEBUG, "Alt %.2f -> level %d", dobj->do_loc.l_alt, start[1]);
 		start[2] = start[3] = 0;
 		count[2] = tag->nc_rgrid.rg_nY;
 		count[3] = tag->nc_rgrid.rg_nX;
+		break;
+	/*
+	 * Two dimensional grids.
+	 */
+	   case Org2dGrid:
+	   	start[1] = 0; count[1] = tag->nc_rgrid.rg_nY;
+		start[2] = 0; count[2] = tag->nc_rgrid.rg_nX;
 		break;
 	/*
 	 * Scalar files index only by time, so we do nothing here.
@@ -953,7 +983,7 @@ int dfindex;
 {
 	NCTag *tag;
 
-	if (! dfa_OpenFile (dfindex, (void *) &tag))
+	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (0);
 	return (tag->nc_nPlat);
 }
@@ -973,7 +1003,7 @@ Location *loc;
 {
 	NCTag *tag;
 
-	if (! dfa_OpenFile (dfindex, (void *) &tag))
+	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return;
 	memcpy (loc, tag->nc_locs, tag->nc_nPlat*sizeof (Location));
 }
@@ -998,7 +1028,7 @@ RGrid *rg;
 /*
  * Do some checking.
  */
-	if (! dfa_OpenFile (dfindex, (void *) &tag))
+	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
 	if (tag->nc_org != Org2dGrid && tag->nc_org != Org3dGrid)
 	{
@@ -1035,7 +1065,7 @@ TimeSpec which;
 /*
  * Get the file open.
  */
-	if (! dfa_OpenFile (index, (void *) &tag))
+	if (! dfa_OpenFile (index, FALSE, (void *) &tag))
 		return;
 	t = dnc_TimeIndex (tag, when);
 /*
@@ -1049,4 +1079,418 @@ TimeSpec which;
 		t--;
 	}
 	return (i);
+}
+
+
+
+
+dnc_MakeFileName (dir, platform, t, dest)
+char *dir, *platform, *dest;
+time *t;
+/*
+ * Generate a file name.
+ */
+{
+	sprintf (dest, "%s/%s.%06d.%04d.cdf", dir, platform, t->ds_yymmdd,
+		t->ds_hhmmss/100);
+}
+
+
+
+
+
+
+dnc_CreateFile (df, dobj, rtag)
+DataFile *df;
+DataObject *dobj;
+NCTag **rtag;
+/*
+ * This is the hairy routine wherein we try to create properly data files
+ * for all of the organizations we know.
+ */
+{
+	NCTag *tag = ALLOC (NCTag);
+	Platform *plat = PTable + df->df_platform;
+	int ndim, dims[6], vars[MAXFIELD], var, vbase;
+/*
+ * We might as well start by creating the actual file.  After all, that, 
+ * at least, is common to all of the organizations.
+ */
+	if ((tag->nc_id = nccreate (df->df_name, NC_CLOBBER)) < 0)
+	{
+		free (tag);
+		dnc_NCError ("File create");
+		return (FALSE);
+	}
+/*
+ * Fill in some basic tag info.
+ */
+	tag->nc_times = (float *) 0;
+	tag->nc_ntime = tag->nc_nrec = 0;
+	tag->nc_org = plat->dp_org;
+	tag->nc_locs = (Location *) 0;
+	tag->nc_plat = dobj->do_id;
+/*
+ * Create the time dimension.  If this platform has the "discrete" flag
+ * set, or it's an IRGRID organization, then we make time unlimited.  Otherwise
+ * we wire time to the maxsample value, in hopes of getting better performance
+ * out of large, scalar data.
+ *
+ * XXX WIRE IT UNLIMITED FOR NOW, UNTIL WE FIGURE OUT HOW TO KEEP TRACK OF
+ *     HOW MANY SAMPLES ARE ACTUALLY WRITTEN.
+ */
+	if (TRUE || plat->dp_org == OrgIRGrid || plat->dp_flags & DPF_DISCRETE)
+		tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
+	else
+		tag->nc_dTime = ncdimdef (tag->nc_id, "time",plat->dp_maxsamp);
+	tag->nc_dTOffset = tag->nc_dTime;
+/*
+ * Create the other dimensions that we need for variables.
+ */
+	ndim = 1;
+	dims[0] = tag->nc_dTime;
+	dnc_CFMakeDims (tag, dobj, &ndim, dims);
+/*
+ * Make the time variables.
+ */
+	vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
+	tag->nc_vTime = ncvardef (tag->nc_id, "time_offset", NC_FLOAT,
+					1, &tag->nc_dTime);
+	tag->nc_base = TC_FccToSys (&dobj->do_begin);
+/*
+ * Create the actual fields that we are storing here.  Add the bad value
+ * flag for now.  Eventually we should get the other info in here as well
+ * (units, description, etc).
+ */
+	for (var = 0; var < dobj->do_nfield; var++)
+	{
+		vars[var] = ncvardef (tag->nc_id, dobj->do_fields[var],
+				NC_FLOAT, ndim, dims);
+		(void) ncattput (tag->nc_id, vars[var], "missing_value",
+				NC_FLOAT, 1, &dobj->do_badval);
+	}
+/*
+ * Create the organization-specific variables.  Since some of these need
+ * to be initialized here, this routine also takes us out of definition
+ * mode, so we can put in the base time thereafter.
+ */
+ 	dnc_CFMakeVars (tag, dobj);
+	ncvarput1 (tag->nc_id, vbase, 0, &tag->nc_base);
+	*rtag = tag;
+	return (TRUE);
+}
+
+
+
+
+
+
+static void
+dnc_CFMakeDims (tag, dobj, ndim, dims)
+NCTag *tag;
+DataObject *dobj;
+int *ndim, *dims;
+/*
+ * Create the dimensions for this file organization.
+ */
+{
+	RGrid *rg = &dobj->do_desc.d_rgrid;
+
+	switch (tag->nc_org)
+	{
+	/*
+	 * Scalar files are easy -- we're done!
+	 */
+	   case OrgScalar:
+		break;
+	/*
+	 * Regular grid files need to have the grid dimensions defined.
+	 */
+	   case Org3dGrid:
+	   	dims[(*ndim)++] = ncdimdef (tag->nc_id, "z", rg->rg_nZ);
+	   case Org2dGrid:
+	   	dims[(*ndim)++] = ncdimdef (tag->nc_id, "y", rg->rg_nY);
+	   	dims[(*ndim)++] = ncdimdef (tag->nc_id, "x", rg->rg_nX);
+		break;
+	/*
+	 * IRGrids are funky.
+	 */
+	   case OrgIRGrid:
+		tag->nc_nPlat = dobj->do_desc.d_irgrid.ir_npoint;
+		tag->nc_locs = (Location *) malloc (tag->nc_nPlat *
+							sizeof (Location));
+		dims[(*ndim)++] = ncdimdef (tag->nc_id, "platform",
+				tag->nc_nPlat);
+		(void) ncdimdef (tag->nc_id, "fldlen", 20);
+		break;
+	}
+}
+
+
+
+
+
+void
+dnc_CFMakeVars (tag, dobj)
+NCTag *tag;
+DataObject *dobj;
+/*
+ * Make the organization-specific variables.
+ */
+{
+	int vlat, vlon, valt;
+/*
+ * Just farm this obnoxious stuff out, depending on the organization.
+ */
+	switch (tag->nc_org)
+	{
+	/*
+	 * For scalar data, we need location info, which, in turn, is
+	 * different depending on whether we have a mobile platform or not.
+	 */
+	   case OrgScalar:
+		dnc_CFScalarVars (tag, dobj);
+		break;
+	/*
+	 * Grids have origin and spacing info.
+	 */
+	   case Org2dGrid:
+	   case Org3dGrid:
+	   	dnc_CFGridVars (tag, dobj);
+		break;
+	/*
+	 * Irregular grids have all that funky platform information.
+	 */
+	   case OrgIRGrid:
+	   	dnc_CFIRGridVars (tag, dobj);
+		break;
+	}
+}
+
+
+
+
+
+static void
+dnc_CFScalarVars (tag, dobj)
+NCTag *tag;
+DataObject *dobj;
+/*
+ * Create the variables for a scalar organization file.
+ */
+{
+	int vlat, vlon, valt, ndim = 0, tdim = tag->nc_dTime;
+/*
+ * If this is a static platform, then our position info is also static.
+ * Otherwise it is indexed by our time variable.
+ */
+	if (ds_IsMobile (dobj->do_id))
+		ndim = 1;
+	vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, ndim, &tdim);
+	vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, ndim, &tdim);
+	valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndim, &tdim);
+/*
+ * If we are static, initialize the location info now.
+ */
+	ncendef (tag->nc_id);
+	if (! ds_IsMobile (dobj->do_id))
+	{
+		ncvarput1 (tag->nc_id, vlat, 0, &dobj->do_loc.l_lat);
+		ncvarput1 (tag->nc_id, vlon, 0, &dobj->do_loc.l_lon);
+		ncvarput1 (tag->nc_id, valt, 0, &dobj->do_loc.l_alt);
+	}
+}
+
+
+
+
+static void
+dnc_CFGridVars (tag, dobj)
+NCTag *tag;
+DataObject *dobj;
+/*
+ * Get the grid-specific variables set up.  For now, we make the questionable
+ * assumption that platforms returning grids are not mobile.  We'll get away
+ * with it, I think, until ELDORA comes on line.
+ */
+{
+	int vlat, vlon, valt, vx, vy, vz;
+
+	tag->nc_rgrid = dobj->do_desc.d_rgrid;
+/*
+ * Create variables for the origin and spacing information.
+ */
+	vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, 0, 0);
+	vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, 0, 0);
+	valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, 0, 0);
+	vx = ncvardef (tag->nc_id, "x_spacing", NC_FLOAT, 0, 0);
+	vy = ncvardef (tag->nc_id, "y_spacing", NC_FLOAT, 0, 0);
+	if (tag->nc_org == Org3dGrid)
+		vz = ncvardef (tag->nc_id, "z_spacing", NC_FLOAT, 0, 0);
+/*
+ * Now, out of definition mode and initialize all of those variables.
+ */
+	ncendef (tag->nc_id);
+	ncvarput1 (tag->nc_id, vlat, 0, &dobj->do_loc.l_lat);
+	ncvarput1 (tag->nc_id, vlon, 0, &dobj->do_loc.l_lon);
+	ncvarput1 (tag->nc_id, valt, 0, &dobj->do_loc.l_alt);
+	ncvarput1 (tag->nc_id, vx, 0, &tag->nc_rgrid.rg_Xspacing);
+	ncvarput1 (tag->nc_id, vy, 0, &tag->nc_rgrid.rg_Yspacing);
+	if (tag->nc_org == Org3dGrid)
+		ncvarput1 (tag->nc_id, vz, 0, &tag->nc_rgrid.rg_Zspacing);
+}
+
+
+
+
+
+static void
+dnc_CFIRGridVars (tag, dobj)
+NCTag *tag;
+DataObject *dobj;
+/*
+ * Make the IRGrid variables.
+ */
+{
+	int dims[2], vplat, plat, vlat, vlon, valt, start[2], count[2];
+	char *name, *subname, *strrchr ();
+	IRGrid *irg = &dobj->do_desc.d_irgrid;
+/*
+ * Look up a couple of dimensions that we have already made, then create
+ * the variables to hold the platform names and locations.
+ */
+	dims[0] = ncdimid (tag->nc_id, "platform");
+	dims[1] = ncdimid (tag->nc_id, "fldlen");
+	vplat = ncvardef (tag->nc_id, "platform", NC_CHAR, 2, dims);
+	vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, 1, dims);
+	vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, 1, dims);
+	valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, 1, dims);
+/*
+ * Store the information for each platform.
+ */
+	ncendef (tag->nc_id);
+	for (plat = 0; plat < tag->nc_nPlat; plat++)
+	{
+	/*
+	 * Find and store the name of this platform.  Trim off any leading
+	 * path components, leaving just the subplatform name part.
+	 */
+		name = ds_PlatformName (irg->ir_subplats[plat]);
+		if ((subname = strrchr (name, '/')) == 0)
+			subname = name;
+		else
+			subname++;	/* Go past / */
+		start[0] = plat; count[0] = 1;
+		start[1] = 0; count[1] = strlen (subname) + 1;
+		ncvarput (tag->nc_id, vplat, start, count, subname);
+	/*
+	 * Deal with the location info too.
+	 */
+		tag->nc_locs[plat] = irg->ir_loc[plat];
+		ncvarput1 (tag->nc_id, vlat, &plat, &tag->nc_locs[plat].l_lat);
+		ncvarput1 (tag->nc_id, vlon, &plat, &tag->nc_locs[plat].l_lon);
+		ncvarput1 (tag->nc_id, valt, &plat, &tag->nc_locs[plat].l_alt);
+	}
+/*
+ * If necessary, we'll work on the platform map as well.
+ */
+	if (! SPMapInited)
+	{
+		for (plat = 0; plat < MAXPLAT; plat++)
+			SPMap[plat] = UNKNOWN;
+		SPMapInited = TRUE;
+	}
+	if (SPMap[dobj->do_id] != BASEDONE)
+	{
+		for (plat = 0; plat < tag->nc_nPlat; plat++)
+			SPMap[irg->ir_subplats[plat]] = plat;
+		SPMap[dobj->do_id] = BASEDONE;
+	}
+}
+
+
+
+
+
+dnc_PutData (dfile, dobj, begin, end)
+int dfile, begin, end;
+DataObject *dobj;
+/*
+ * Put data into this file.
+ */
+{
+	NCTag *tag;
+	int start[4], count[4], vfield, field;
+/*
+ * Gotta open up the file before we do anything.
+ */
+	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
+		return;
+/*
+ * Figure we're going to tack the stuff on to the end of the file -- higher
+ * levels should have already checked that this is the case, for now.  Extend
+ * the time array accordingly.
+ */
+	dnc_PDTimes (tag, dobj, begin, end, start);
+	count[0] = 1 + end - begin;
+/*
+ * Now that we have times under control, we can use our handy routine to 
+ * figure out what the coords should be.
+ */
+ 	dnc_MakeCoords (tag, dobj, start, count);
+/*
+ * Time for the humungo write to dump it all into the file.
+ */
+	for (field = 0; field < dobj->do_nfield; field++)
+	{
+		if ((vfield = ncvarid (tag->nc_id, dobj->do_fields[field])) <0)
+		{
+			msg_ELog (EF_PROBLEM, "(PUT) Can't find fld %s",
+					dobj->do_fields[field]);
+			continue;
+		}
+		if (ncvarput (tag->nc_id, vfield, start, count,
+					dobj->do_data[field]) < 0)
+			dnc_NCError ("Data write");
+	}
+/*
+ * Synchronize.
+ */
+	dnc_SyncFile (tag);
+}
+
+
+
+
+
+
+static void
+dnc_PDTimes (tag, dobj, begin, end, start)
+NCTag *tag;
+DataObject *dobj;
+int begin, end, *start;
+/*
+ * Handle the time aspect of this data put request.
+ */
+{
+	int nnew = 1 + end - begin, t;
+/*
+ * Allocate a time array.
+ */
+	if (tag->nc_ntime)
+		tag->nc_times = (float *) realloc (tag->nc_times,
+			(tag->nc_ntime + nnew)*sizeof (float));
+	else
+		tag->nc_times = (float *) malloc (nnew*sizeof (float));
+	*start = tag->nc_ntime;
+	tag->nc_ntime += nnew;
+/*
+ * Fill in the values, and update the file.
+ */
+	for (t = 0; t < nnew; t++)
+		tag->nc_times[t + *start] = (float)
+		     (TC_FccToSys (dobj->do_times + t + begin) - tag->nc_base);
+	if (ncvarput (tag->nc_id, tag->nc_vTime, start, &nnew,
+				tag->nc_times + *start) < 0)
+		dnc_NCError ("New time write");
 }
