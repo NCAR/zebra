@@ -1,7 +1,14 @@
-! $Id: FccClock.ad,v 1.1 1993-05-26 19:40:37 corbet Exp $
+! $Id: FccClock.ad,v 1.2 1994-05-24 00:17:47 granger Exp $
 !
 ! fccclock application defaults file
 ! Do Not modify if this is the library installed copy
 !
-*grshell*transient:		True
-*grshell*overrideRedirect:	False
+*fccclock*input:		True
+*fccclock.title:		GMT Clock
+*fccclock.geometry:		250x35+5-5
+*fccclock.clock.width:		250
+*fccclock.clock.height:		35
+*fccclock.transient:		True
+*fccclock.overrideRedirect:	False
+*fccclock.allowShellResize:	True
+*fccclock*resizable:		True

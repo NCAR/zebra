@@ -27,14 +27,15 @@
 # include <ui_symbol.h>
 # include <ui_date.h>
 
-# include "defs.h"
-# include "message.h"
-# include "dm.h"
-# include "GraphicsW.h"
-# include "copyright.h"
-# include "timer.h"
-# include "pd.h"
-MAKE_RCSID ("$Id: fccclock.c,v 2.5 1993-10-21 20:12:30 corbet Exp $");
+# include <defs.h>
+# include <message.h>
+# include <dm.h>
+# include <GraphicsW.h>
+# include <copyright.h>
+# include <timer.h>
+# include <pd.h>
+
+MAKE_RCSID ("$Id: fccclock.c,v 2.6 1994-05-24 00:17:49 granger Exp $");
 
 /*
  * Default resources.
@@ -58,6 +59,7 @@ enum wstate { UP, DOWN };
 enum wstate WindowState = DOWN;
 
 int Height;
+int WindowSent = 0;	/* True once we've sent our window ID to dm */
 unsigned long Fg = -1, Bg;
 Colormap Cm;
 /*
@@ -67,6 +69,7 @@ int msg_handler ();
 int xtEvent ();
 static void DMButton ();
 void NewTime ();
+static void SendGeometry FP((struct dm_msg *dmm));
 
 /*
  * Our plot description.
@@ -96,30 +99,25 @@ char **argv;
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
  */
-	XtSetArg (args[0], XtNinput, False);
-# ifdef notdef
-	XtSetArg (args[1], XtNoverrideRedirect, True);
-# endif
-	GrShell = XtCreatePopupShell ("grshell", applicationShellWidgetClass,
-		Top, args, 1);
+	XtSetArg (args[0], XtNallowShellResize, True);
+	GrShell = XtCreatePopupShell ("fccclock", applicationShellWidgetClass,
+				      Top, args, 1);
 /*
  * Inside this shell goes the label widget to hold the time.
  */
-	XtSetArg (args[0], XtNinput, False);
-	XtSetArg (args[1], XtNwidth, 100);
-	XtSetArg (args[2], XtNheight, 30);
-	XtSetArg (args[3], XtNframeCount, 1);
+	XtSetArg (args[0], XtNinput, True);
+	XtSetArg (args[1], XtNframeCount, 1);
 	Graphics = XtCreateManagedWidget ("clock", graphicsWidgetClass,
-		GrShell, args, 4);
+					  GrShell, args, 2);
 /*
- * Tell DM that we're here.
+ * Tell DM that we're here, but we don't have a window yet
  */
-	greet_dm ();
+	greet_dm (None);
+	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xtEvent);
+	tl_ChangeHandler (NewTime);
 /*
  * Now wait for things.
  */
-	tl_ChangeHandler (NewTime);
-	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xtEvent);
 	msg_await ();
 	exit (0);
 }
@@ -183,7 +181,8 @@ int fd;
 
 
 
-greet_dm ()
+greet_dm (win)
+Window win;
 /*
  * Send the greeting to the display manager.
  */
@@ -191,11 +190,26 @@ greet_dm ()
 	struct dm_hello dmh;
 
 	dmh.dmm_type = DM_HELLO;
-	dmh.dmm_win = 0;
+	dmh.dmm_win = win;
 	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
 }
 
 
+
+
+
+send_window (win)
+Window win;
+/*
+ * Send the greeting to the display manager.
+ */
+{
+	struct dm_hello dmh;
+
+	dmh.dmm_type = DM_WINDOW;
+	dmh.dmm_win = win;
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
+}
 
 
 
@@ -238,6 +252,10 @@ struct dm_msg *dmsg;
 	   	ParamChange ((struct dm_parchange *) dmsg);
 		break;
 
+	   case DM_GEOMETRY:
+		SendGeometry ((struct dm_msg *) dmsg);
+		break;
+
 	   case DM_DEFAULTS:
 	   case DM_REALTIME:
 	   case DM_HISTORY:
@@ -255,6 +273,39 @@ struct dm_msg *dmsg;
 
 
 
+static void
+SendGeometry (dmm)
+struct dm_msg *dmm;
+{
+	struct dm_msg reply;
+	Dimension width, height;
+	Position x, y;
+	Arg args[5];
+	int n;
+
+	reply.dmm_type = DM_R_GEOMETRY;
+
+/*
+ * Generate an expose event, which should set
+ * our current geometry in the shell widget.
+ */
+	XMapRaised (XtDisplay (Top), XtWindow (GrShell));
+	sync ();
+	n = 0;
+	XtSetArg (args[n], XtNx, (XtArgVal)&x);	n++;
+	XtSetArg (args[n], XtNy, (XtArgVal)&y);	n++;
+	XtSetArg (args[n], XtNwidth, &width);	n++;
+	XtSetArg (args[n], XtNheight, &height);	n++;
+	XtGetValues (GrShell, args, n);
+	reply.dmm_x = x;
+	reply.dmm_y = y;
+	reply.dmm_dx = width;
+	reply.dmm_dy = height;
+
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+}
+
+
 
 
 reconfig (dmsg)
@@ -265,15 +316,6 @@ struct dm_msg *dmsg;
 {
 	Arg args[10];
 /*
- * Go through and set the new values for the shell.
- */
- 	XtSetArg (args[0], XtNx, dmsg->dmm_x);
-	XtSetArg (args[1], XtNy, dmsg->dmm_y);
-	XtSetArg (args[2], XtNwidth, dmsg->dmm_dx);
-	XtSetArg (args[3], XtNheight, dmsg->dmm_dy);
-	XtSetValues (GrShell, args, FOUR);
-	Height = dmsg->dmm_dy;
-/*
  * If we are not currently on-screen, put it there.
  */
 	if (WindowState == DOWN)
@@ -282,10 +324,24 @@ struct dm_msg *dmsg;
 		StartUpdate ();
 	}
 /*
- * Force the window to the bottom.
+ * Then reconfigure our shell geometry.
  */
-/*	XLowerWindow (XtDisplay (Top), XtWindow (GrShell)); */
+	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
+	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
+	XtSetValues (Graphics, args, (Cardinal)2 );
+	Height = dmsg->dmm_dy;
+
+ 	XtSetArg (args[0], XtNx, dmsg->dmm_x);
+	XtSetArg (args[1], XtNy, dmsg->dmm_y);
+	XtSetValues (GrShell, args, (Cardinal)2 );
+	sync();
+
 	XClearWindow (XtDisplay (Top), XtWindow (Graphics));
+/*
+ * The raise window is to get us an expose event to the graphics widget
+ */
+	XMapRaised (XtDisplay (Top), XtWindow (GrShell));
+	sync();
 }
 
 
@@ -304,7 +360,17 @@ enum wstate new;
 	if (new == WindowState)
 		return;
 	else if (new == UP)
+	{
 		XtPopup (GrShell, XtGrabNone);
+	/*
+	 * If this is the first pop-up, let dm know our window id
+	 */
+		if (! WindowSent)
+		{
+			WindowSent = 1;
+			send_window (XtWindow(GrShell));
+		}
+	}
 	else
 	{
 		XtPopdown (GrShell);
@@ -383,7 +449,10 @@ int junk;
  */
 {
 	char dbuf[40];
-
+/*
+ * A resize may have given us a new height which we should be aware of
+ */
+	Height = GWHeight (Graphics);
 	/* ud_format_date (dbuf, t, UDF_FULL); */
 	TC_EncodeTime (t, TC_Full, dbuf);
 	strcat (dbuf, "  ");
