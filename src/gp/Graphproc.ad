@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.1 1992-08-20 06:45:42 granger Exp $
+! $Id: Graphproc.ad,v 1.2 1992-12-15 18:25:04 corbet Exp $
 !
 ! The Graphics process resource file.
 !
@@ -7,6 +7,7 @@
 ! menus and the movie controller work right.
 !
 *SimpleMenu*overrideRedirect:	True
+*RdssMenu*overrideRedirect:	True
 *movie*overrideRedirect:	False
 *movie*transient:		False
 *overlay*overrideRedirect:	False
