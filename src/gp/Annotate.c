@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.8 1992-07-22 21:11:01 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.9 1992-09-18 18:15:36 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -719,7 +719,7 @@ int datalen, begin, space;
                 cval = center + (ncolors / 2 - i) * step;
                 sprintf (string, "%.1f", cval);
                 XSetForeground (XtDisplay (Graphics), AnGcontext,
-                        colors[i].pixel);
+                        colors[ncolors - i - 1].pixel);
                 DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                         left + 15, (int) begin, string,
                         0.0, scale, JustifyLeft, JustifyTop);
@@ -739,7 +739,8 @@ int datalen, begin, space;
 	int i, limit, left, ncolors, match, barHeight;
 	char string[40], ctable[40];
 	XColor xc, *colors;
-	float scale, center, step, cval, maxval, used;
+
+float scale, center, step, cval, maxval, used;
 /*
  * Get top and side annotation plot description parameters.
  */
@@ -777,13 +778,14 @@ int datalen, begin, space;
 			(int) begin, 10, barHeight);
 
 /** Andy's change;  don't know if it's necessary. Was (i - ncolors / 2) * step) **/
-		cval = center + (ncolors / 2 - i) * step;
+/*		cval = center + (i - ncolors/2) * step; */
+		cval = center + (ncolors/2 - i) * step;
 	
 		sprintf (string, "%.1f", cval);
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
 			xc.pixel);
 		DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
-			left + 15, (int) begin, string,
+			left + 15, (int) (begin + barHeight/3), string,
 			0.0, scale, JustifyLeft, JustifyTop);
 		begin += barHeight;
 	}
