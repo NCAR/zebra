@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.37 2000-11-13 17:21:06 granger Exp $
+! $Id: dm.widgets,v 1.38 2000-12-01 23:00:19 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -381,6 +381,7 @@ procedure ShipScalar platform string field string target_win string
 ! to this window.  If there is, we just pass control off there and
 ! forget about it.
 !
+	local qfield quote(field)
 	local ptype PDParam(target_win, 'global', 'plot-type')
 	local addcmd PDParam(target_win, 'global', 'add-data-command')
 	if (addcmd = '(Undefined)')
@@ -389,7 +390,7 @@ procedure ShipScalar platform string field string target_win string
 	endif
 	if (addcmd <> '(Undefined)')
 		require #addcmd
-		#addcmd #platform #field #target_win
+		#addcmd #platform #qfield #target_win
 		return
 	endif
 !
@@ -398,14 +399,14 @@ procedure ShipScalar platform string field string target_win string
 !
 	if (ptype = 'CAP')
 		parameter p_track p_track platform #platform
-		parameter p_track p_track field #field
+		parameter p_track p_track field #qfield
 		sendout p_track #target_win
 		return
 	endif
 	if (ptype = 'skewt')
 		local addcmd "sk-add-data"
 		require #addcmd
-		#addcmd #platform #field #target_win
+		#addcmd #platform #qfield #target_win
 		return
 	endif
 !
@@ -454,7 +455,7 @@ procedure ShipScalar platform string field string target_win string
 	else
 		set ntrace (ntrace + 1)
 		parameter p_xytrace p_xytrace platform #platform
-		parameter p_xytrace p_xytrace y-field #field
+		parameter p_xytrace p_xytrace y-field #qfield
 		if (leftaxis)
 			parameter p_xytrace p_xytrace axis-left true
 			parameter p_xytrace p_xytrace axis-right false
@@ -934,5 +935,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.37 2000-11-13 17:21:06 granger Exp $'
+	local '$Id: dm.widgets,v 1.38 2000-12-01 23:00:19 granger Exp $'
 endprocedure
