@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.14 1993-11-30 02:00:50 granger Exp $
+/**/# $Id: Project.tmpl,v 1.15 1993-11-30 23:30:39 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -342,6 +342,22 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define FortOptions -O
 #endif
 
+/*////////////////////////////////////////////// Miscellaneous ////////////*/
+/*-------------------------------------------------------------------------*/
+
+#ifndef HaveEmacs
+#define HaveEmacs NO
+#endif
+#ifndef EmacsPath
+#define EmacsPath emacs
+#endif
+#ifndef HaveEmacs19
+#define HaveEmacs19 NO
+#endif
+#ifndef Emacs19Path
+#define Emacs19Path emacs
+#endif
+
 /*/////////////////////////////////// Defaults for build options /////////*/
 /*------------------------------------------------------------------------*/
 
@@ -427,6 +443,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
            INCDIR = IncDir		/* The build and install includes  */
            LIBDIR = LibDir		/* Zeb project library */
           DESTDIR = 
+       DISTCURDIR = $(CURRENT_DIR)	/* Default, usually on cmd-line */
         CONFIGDIR = ConfigDir		/* build configuration information */
       XAPPLOADDIR = XAppLoadDir         /* Resource file installation dir */
           RDSSDIR = RDSSDir		/* Top of RDSS installation */
@@ -553,6 +570,10 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
 /*          PROOF = /net/CenterLine/bin/proof	*/
             PROOF = proof
+        PROOFOPTS = /* nothing */
+
+            EMACS = EmacsPath
+          EMACS19 = Emacs19Path
 
 /*
  * Our own implicit rules, such as for C++ files (.cc extension)
