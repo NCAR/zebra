@@ -25,13 +25,14 @@
 # include <defs.h>
 # include <message.h>
 
-MAKE_RCSID("$Id: msg_ping.c,v 2.3 1994-11-17 07:08:04 granger Exp $")
+MAKE_RCSID("$Id: msg_ping.c,v 2.4 1995-04-20 07:50:39 granger Exp $")
 
 #define DEFAULT_DELAY 	20
 
 #define EXIT_OK		0
 #define EXIT_TIMEOUT 	1
 #define NO_CONNECT 	2
+#define EXIT_SHUTDOWN	3
 #define ERR_UNKNOWN	9
 #define BAD_OPTION	99
 
@@ -166,7 +167,17 @@ Message *msg;
  * Deal with responses.
  */
 {
-	if (msg->m_proto != MT_PING)
+	if ((msg->m_proto == MT_MESSAGE) && (msg->m_len > 0))
+	{
+		struct mh_template *tm;
+		tm = (struct mh_template *) msg->m_data;
+		if (tm->mh_type == MH_SHUTDOWN)
+		{
+			printf ("msg_ping: shutdown received\n");
+			exit (EXIT_SHUTDOWN);
+		}
+	}
+	else if (msg->m_proto != MT_PING)
 	{
 		printf ("Strange response protocol %d.\n", msg->m_proto);
 		exit (ERR_UNKNOWN);
