@@ -46,7 +46,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.34 1996-08-16 20:45:09 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.35 1996-08-20 19:55:40 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -97,7 +97,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.34 1996-08-16 20:45:09 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.35 1996-08-20 19:55:40 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -193,9 +193,11 @@ char *Mother = 0;
  */
 void	SendToMother FP((int code, char *from, char *text));
 Widget	MakeDbgButton FP ((Widget));
-void	NewProc FP ((char *));
-void	DeadProc FP ((char *));
-void	ToggleProc FP ((Widget, XtPointer, XtPointer));
+static void GroupList FP ((struct mh_members *mh));
+static void AddProc FP ((char *));
+static void NewProc FP ((char *));
+static void DeadProc FP ((char *));
+static void ToggleProc FP ((Widget, XtPointer, XtPointer));
 static void ChangeMask FP ((int op));
 static void SendEverybody FP ((int flag));
 static void BroadcastEMask FP ((int op));
@@ -585,8 +587,10 @@ char **argv;
 		sprintf (buf, "No log file specified.");
 	LogMessage (EF_INFO, LOGNAME, buf);
 /*
- * Now we wait and process messages as we get them.
+ * Request a list of clients, then wait and process messages as we get them.
  */
+	msg_ListGroup (NULL);
+	AddProc (MSG_MGR_NAME);
 	Wait();
 	return (0);	/* to keep compilers happy */
 }
@@ -634,7 +638,6 @@ Wait()
 	printf ("EventLogger: Message error or disconnect, aborting.\n");
 	exit(1);
 }
-
 
 
 
@@ -1240,7 +1243,8 @@ struct message *msg;
  */
 {
 	struct mh_client *client = (struct mh_client *) msg->m_data;
-	char mb[200];
+	struct mh_members *mg;
+	char mb[256];
 /*
  * Check for log messages.
  */
@@ -1304,8 +1308,14 @@ struct message *msg;
 				client->mh_group, msg->m_seq);
 			break;
 		}
-		if (Emask & EF_CLIENT || Emask == 0)
-			LogMessage (EF_CLIENT, client->mh_client, mb);
+		LogMessage (EF_CLIENT, client->mh_client, mb);
+		break;
+	   case MH_GROUP:
+		mg = (struct mh_members *) msg->m_data;
+		GroupList (mg);
+		sprintf (mb, "Received list of %d members in %s",
+			 mg->mh_nclient, mg->mh_group);
+		LogMessage (EF_CLIENT, "EventLogger", mb);
 		break;
 	   case MH_SHUTDOWN:
 		exit (0);
@@ -1330,6 +1340,23 @@ struct message *msg;
 
 
 static void
+GroupList (mh)
+struct mh_members *mh;
+/*
+ * Add each of the clients in the group to our process table.
+ */
+{
+	int i;
+	
+	for (i = 0; i < mh->mh_nclient; ++i)
+	{
+		AddProc (mh->mh_client[i]);
+	}
+}
+
+
+
+static void
 LogMessage (flag, from, text)
 int flag;
 char *from;
@@ -1349,7 +1376,7 @@ char *text;
 	{
 		if ((flag | Emask) != flag)
 			BroadcastEMask (EF_ORMASK);
-		else
+		else if ((flag | EF_DEBUG) != flag)
 			usy_search (ProcTable, SendDbgMask, 0, FALSE, 0);
 		return;
 	}
@@ -1380,8 +1407,7 @@ char *text;
 /*
  * If we need to log this message, format it first then do so
  */
-	if ((Emask & flag) || Emask == 0 ||
-	    PassDebug (flag, from))
+	if ((Emask & flag) || PassDebug (flag, from))
 	{
 		msg = FormatMessage (code, from, text);
 		if (!msg)
@@ -1712,7 +1738,7 @@ struct dm_msg *dmm;
 	reply.dmm_dx = width;
 	reply.dmm_dy = height;
 
-	msg_send (DISPLAY_MANAGER, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+	msg_send(DISPLAY_MANAGER,MT_DISPLAYMGR,FALSE,&reply,sizeof(reply));
 }
 
 
@@ -1887,7 +1913,8 @@ int op;	/* either EF_SETMASK or EF_ORMASK */
  * Now go through and fix up any processes for which debugging has been
  * requested.
  */
-	usy_search (ProcTable, SendDbgMask, 0, FALSE, 0);
+	if ((Emask & EF_DEBUG) == 0)
+		usy_search (ProcTable, SendDbgMask, 0, FALSE, 0);
 }
 
 
@@ -1963,21 +1990,44 @@ char *text;
 
 
 
-
-void
+static void 
 NewProc (name)
+char *name;
+/*
+ * Add this process, and send it the mask of messages we want from it.
+ */
+{
+	AddProc (name);
+	SendEMask (name, EF_ORMASK);
+}
+
+
+
+static void
+AddProc (name)
 char *name;
 /*
  * Deal with a new process.
  */
 {
-	ProcInfo *pinfo = ALLOC (ProcInfo);
+	ProcInfo *pinfo = NULL;
+	char buf[256];
 	Arg args[4];
 	int n;
+	int type;
 	SValue v;
-
+/*
+ * Make sure we don't already know about this process, and make sure this
+ * process is not us.
+ */
+	if ((strcmp (name, msg_myname()) == 0) || 
+	    usy_g_symbol (ProcTable, name, &type, &v))
+		return;
+	pinfo = ALLOC (ProcInfo);
 	pinfo->pi_enabled = FALSE;
 	strcpy (pinfo->pi_name, name);
+	sprintf (buf, "Adding process %s", name);
+	LogMessage (EF_DEBUG, "EventLogger", buf);
 /*
  * Create the widget for this process.
  */
@@ -2012,16 +2062,12 @@ char *name;
 			XtCallCallbacks (TimestampEntry, XtNcallback, 0);
 #endif
 	}		
-/*
- * Finally, let this process know what messages we want from it.
- */
-	SendEMask (pinfo->pi_name, EF_ORMASK);
 }
 
 
 
 
-void
+static void
 DeadProc (name)
 char *name;
 /*
@@ -2061,7 +2107,7 @@ char *name;
 
 
 /*ARGSUSED*/
-void
+static void
 ToggleProc (w, proc, xpinfo)
 Widget w;
 XtPointer proc, xpinfo;
@@ -2102,9 +2148,10 @@ XtPointer proc, xpinfo;
  * sending out OR's for their masks and debug bits.  We could just broadcast
  * the SETMASK, but this method will save us sending messages to the 
  * processes whose masks we aren't changing.  Note we don't call ChangeMask
- * because a per-process debug flag does not affect our global mask.
+ * because a per-process debug flag does not affect our global mask.  We also
+ * needn't do anything if our global mask still includes debugging.
  */
-	else
+	else if ((Emask & EF_DEBUG) == 0)
 	{
 		int flag = Emask | EF_SETMASK;
 		msg_send (proc, MT_ELOG, FALSE, &flag, sizeof (flag));
