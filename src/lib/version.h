@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 2.5 2002-02-12 23:36:22 granger Exp $
+ * $Id: version.h,v 2.6 2002-07-23 21:14:27 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -137,6 +137,7 @@ extern char V_buffer[];
 #else
 #if V_STDC
 #define RCSID(id) \
+static const char* Z_rcsid() GCC_UNUSED; \
 static const char* \
 Z_rcsid() \
 { \
@@ -154,8 +155,8 @@ Z_rcsid() \
  */
 
 #define RCSID(id) \
-static char* \
-Z_rcsid() { \
+static char* Z_rcsid() GCC_UNUSED; \
+static char* Z_rcsid() { \
     static char i_sccsid[4] = { '@', '(', '#', ')' }; \
     static char rcs_id[] = id ; \
     static char buf[256]; \

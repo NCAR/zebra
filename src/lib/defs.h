@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.43 2000-06-07 20:25:51 granger Exp $ */
+/* $Id: defs.h,v 2.44 2002-07-23 21:14:27 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -53,6 +53,12 @@ extern "C"
 
 # if ! __GNUC__ && ! defined(__cplusplus)
 #  define inline
+# endif
+
+# if __GNUC__
+#  define GCC_UNUSED __attribute__ ((__unused__))
+# else
+#  define GCC_UNUSED
 # endif
 
 # include "version.h"
