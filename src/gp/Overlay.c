@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.17 1992-11-10 04:38:12 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.18 1992-11-10 18:31:36 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -124,16 +124,16 @@ static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
 			float *, float *));
 static int 	ov_FindWBReply FP ((struct message *, struct dm_rp_wbounds *));
 static void 	ov_Boundary FP ((char *, int));
-static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, int *,
+static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, bool *,
 			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
 			float *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, OvIcon **, LabelOpt *,
-			char *, int *, float *));
-static void	ov_SGSetup FP ((char *, float *, float *, float *, int *,
-			int *, int *, float *, float *));
+			char *, bool *, float *));
+static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
+			int *, bool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
 			double, int, double, double));
 static void	ov_TicGrid FP ((int, int, int, int, double, double,
@@ -975,9 +975,10 @@ int update;
 	char platform[500], label[20], *pnames[40];
 	char iconname[40], *lat, *lon;
 	PlatformId pid;
-	int lwidth, npt, closed, nplats, i;
+	int lwidth, npt, nplats, i;
 	int pt, total_pts;
 	int showicon, adjust;
+	bool closed;
 	short first_valid;
 	ZebTime t, target;
 	DataChunk *dc;
@@ -1181,7 +1182,8 @@ ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize,
 	showicon, iconname, adjust)
 char	*comp, *platform, *label, *iconname;
 XColor	*xc;
-int	*lwidth, *closed, *showicon;
+int	*lwidth, *showicon;
+bool	*closed;
 LabelOpt *opt;
 float	*asize;
 int	*adjust;
@@ -1406,7 +1408,8 @@ int update;
  */
 {
 	char *plist[100], label[40];
-	int nplat, plat, px, py, tlabel;
+	int nplat, plat, px, py;
+	bool tlabel;
 	OvIcon *icon;
 	Location loc;
 	float x, y, asize;
@@ -1499,7 +1502,8 @@ int update;
 static int
 ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize)
 char *comp, **plist, *label;
-int *nplat, *tlabel;
+int *nplat;
+bool *tlabel;
 OvIcon **icon;
 LabelOpt *opt;
 float *asize;
@@ -1632,7 +1636,8 @@ int update;
  */
 {
 	float xs, ys, theight, xoff, yoff;
-	int top, bottom, left, right, aint, solid, tic, ll;
+	int top, bottom, left, right, aint, tic;
+	bool solid, ll;
 /*
  * Dig out our info.
  */
@@ -1814,8 +1819,8 @@ float xs, ys, theight;
 			{
 				sprintf (label, "%d  ", (int) ypos);
 				DrawText (Graphics, frame, Gcontext, left - 1,
-					yp, label, 0.0, theight/1.2,
-					JustifyRight, JustifyBottom);
+					yp, label, 0.0, theight, JustifyRight, 
+					JustifyBottom);
 				sprintf (label, "%d' %d\"", (int) (ypos*60)%60,
 					(int) (ypos*3600)%60);
 				DrawText (Graphics, frame, Gcontext, left - 1,
@@ -1833,8 +1838,9 @@ float xs, ys, theight;
 				label, 0.0, theight,JustifyCenter, JustifyTop);
 			sprintf (label, "%d' %d\"", (int)(-xpos*60)%60,
 					(int) (-xpos*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, top + 14,
-				label, 0.0, theight,JustifyCenter, JustifyTop);
+			DrawText (Graphics, frame, Gcontext, xp, 
+				top + theight * GWHeight(Graphics), label, 0.0,
+				theight, JustifyCenter, JustifyTop);
 		}
 	}
 }
@@ -1902,7 +1908,8 @@ ov_SGSetup (comp, xs, ys, theight, solid, ticwidth, ll, xoff, yoff)
 char *comp;
 float *xs, *ys;
 float *theight, *xoff, *yoff;
-int *solid, *ticwidth, *ll;
+int *ticwidth;
+bool *solid, *ll;
 /*
  * Get everything set up to draw a grid.
  */
@@ -1937,7 +1944,6 @@ int *solid, *ticwidth, *ll;
 /*
  * Solidness.
  */
-	*solid = 0;
 	if (! pda_Search(Pd, comp, "solid", "grid", (char *) solid, SYMT_BOOL))
 		*solid = FALSE;
 	if (! pda_Search (Pd, comp, "tic-width", "grid", (char *) ticwidth,
