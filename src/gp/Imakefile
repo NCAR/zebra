@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.6 1993-05-03 21:44:41 burghart Exp $ 
+/**/# $Id: Imakefile,v 1.7 1993-05-14 16:58:21 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -31,7 +31,7 @@ CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a
 #endif
 
 OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
-	PlotExec.o UserEvent.o GraphicsW.o Contour.o FillContour.o \
+	PlotExec.o UserEvent.o Contour.o FillContour.o \
 	DrawText.o RasterPlot.o VectorGrid.o derive.o \
 	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
 	FrameCache.o MovieControl.o rgrid.o bints.o cfit.o AltControl.o \
@@ -43,7 +43,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 
 SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
-	EventQueue.c FillContour.c FrameCache.c GraphProc.c GraphicsW.c \
+	EventQueue.c FillContour.c FrameCache.c GraphProc.c \
 	GridAccess.c Icons.c InsertWidget.c LLEvent.c Label.c \
 	LayoutControl.c Lightning.c LimitWidgets.c MovieControl.c \
 	Overlay.c PlotControl.c PlotExec.c PlotPrim.c PositionWidget.c \
@@ -53,7 +53,7 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	PDMonitor.c
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
-	GraphicsW.h GraphicsWP.h LLEvent.h Label.h LabelP.h \
+	LLEvent.h Label.h LabelP.h \
 	LayoutControl.h PixelCoord.h XYCommon.h derive.h getpagesize.h \
 	gp_cmds.h rg_status.h rgrid.h xdr_infinity.h
 
@@ -62,15 +62,11 @@ FSRCS = cfit.F mudras.f rgrid.F bints.f
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad offset.w
 
-HEADERS = GraphicsW.h GraphicsWP.h
-
 NormalProgramTarget(gp,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), $(SYSLIBS))
 
 InstallObjectsIntoLibrary(ZebLibrary,GraphicsW.o)
 
 UILoadFileTarget(graphproc.lf, GraphProc.state)
-
-BuildIncludes($(HEADERS),.,.)
 
 InstallAppDefaults(Graphproc)
 
