@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.25 2001-09-18 21:56:40 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.26 2001-10-01 20:51:59 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -879,7 +879,7 @@ cfg_go (struct is_config *cfg)
 		sigsetmask(0);
 #endif
 
-		execv(cfg->process, new_args);
+		execvp(cfg->process, new_args);
 		printf("Unable to exec %s\n", cfg->process);
 		perror(cfg->process);
 		exit(1);
