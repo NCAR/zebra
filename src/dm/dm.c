@@ -3,7 +3,7 @@
  */
 # include <stdio.h>
 # include <varargs.h>
-# include <X11/Xlib.h>
+# include <X11/Intrinsic.h>
 
 # include <ui.h>
 # include <ui_error.h>
@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.5 1990-07-08 12:59:14 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.6 1990-07-09 10:37:18 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -35,6 +35,7 @@ char **argv;
 	int dm_dispatcher (), dm_msg_handler (), msg_incoming (), get_pd ();
 	int is_active (), type[4], pd_param (), pd_defined (), tw_cb ();
 	char loadfile[100];
+	Widget top;
 /*
  * Hook into the message handler.
  */
@@ -73,20 +74,22 @@ char **argv;
 	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "dm$config",
 		Cur_config, SYMT_STRING, MAXNAME);
 	tty_watch (msg_get_fd (), msg_incoming);
-/*
- * Open the display.
- */
-	if (! (Dm_Display = XOpenDisplay (NULL)))
-	{
-		ui_printf ("Unable to open the display!\n");
-		dm_shutdown ();
-	}
 # ifdef titan
 /*
  * Hook into the dialbox.
  */
 	dlb_Init ();
 # endif
+/*
+ * Push into window mode, and get our display.
+ */
+ 	uw_ForceWindowMode ((char *) 0, &top, (XtAppContext *) 0);
+	Dm_Display = XtDisplay (top);
+/*
+ * If a file appears on the command line, open it.
+ */
+	if (argc > 1)
+		ut_open_file (argv[1], TRUE);
 /*
  * Interpret commands.
  */
