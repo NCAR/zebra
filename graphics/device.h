@@ -13,7 +13,7 @@ struct device
 	int	gd_ncolor;		/* Number of colors		*/
 	int	gd_xres;		/* X resolution			*/
 	int	gd_yres;		/* Y resolution			*/
-	float	gd_aspect;		/* Screen aspect ratio		*/
+	float	gd_aspect;		/* Pixel aspect ratio		*/
 	int	gd_xb;			/* X block size (see pixel)	*/
 	int	gd_yb;			/* Y block size			*/
 	int	gd_nbutton;		/* Number of target buttons	*/
