@@ -10,13 +10,20 @@
 
 #ifndef lint
 static char *rcsid[2] = { (char *)rcsid,
-   "$Id: hdflook.c,v 3.1 1995-06-29 21:43:11 granger Exp $" };
+   "$Id: hdflook.c,v 3.2 1996-02-05 15:35:10 granger Exp $" };
 #endif
 
+#if __STDC__
 static void show_vdata (int32 fid, int32 id, int depth);
 static void show_vgroup (int32 fid, int32 vgid, int depth);
 static void show_sd (int32 fid, int32 ref, int depth);
 static void indent (int depth);
+#else
+static void show_vdata ();
+static void show_vgroup ();
+static void show_sd ();
+static void indent ();
+#endif
 
 int
 main (argc, argv)

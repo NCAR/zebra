@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.7 1996-01-23 04:54:30 granger Exp $
+ * $Id: apple.c,v 3.8 1996-02-05 15:35:06 granger Exp $
  */
 
 /*
@@ -996,11 +996,12 @@ ZebTime when;
 	int nfield = DCT_String - 1;	/* exclude String and Unknown */
 	int i;
 	DataChunk *dc;
-	ZebTime begin = when;
+	ZebTime begin;
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	PlatformId plat_id = NeedPlatform ("t_fieldtypes");
 	int err = 0;
 
+	begin = when;
 	Announce ("Testing field types interfaces");
 	for (i = 1; i < nfield+1; ++i)
 	{
@@ -1129,12 +1130,13 @@ ZebTime *begin;
 	int i, n, fld;
 	float value;
 	Location loc;
-	ZebTime when = *begin;
+	ZebTime when;
 	dsDetail details[5];
 	int ndetail;
 	char buf[128];
 	int errors = 0;
 
+	when = *begin;
 	plat_id = NeedPlatform(pname);
 	n = 0;
 	fields[n] = F_Lookup("pres"); ++n;
@@ -1287,12 +1289,13 @@ ZebTime *begin;
 	int i, n, fld;
 	float value;
 	Location loc;
-	ZebTime when = *begin;
+	ZebTime when;
 	dsDetail details[5];
 	int ndetail;
 	char buf[128];
 	int err = 0;
 
+	when = *begin;
 	Announce ("Copying one datachunk to another, adding one field");
 	plat_id = NeedPlatform(pname);
 	n = 0;
@@ -1411,15 +1414,16 @@ ZebTime *now;
 	DataChunk *dc, *ndc;
 	int i;
 	static Location loc = { 40.0, -160.0, 5280.0 };
-	ZebTime when = *now;
-	ZebTime end = *now;
-	ZebTime begin = *now;
+	ZebTime when;
+	ZebTime end;
+	ZebTime begin;
 	float *retrieve;
 	unsigned long size;
 	FieldId *fields;
 	int nfield;
 	int errors = 0;
 
+	begin = when = end = *now;
 	plat_id = NeedPlatform("t_nspace");
 	Announce("Testing NSpace interface and storage");
 
@@ -2135,7 +2139,7 @@ bool addatts;		/* per-sample atts only 	*/
  * Tests the hint functions.
  */
 {
-	char *text[] = {
+	static char *text[] = {
 "burghart        - Died on level   8. Started on level   1.  Score:     7532.",
 "Died on level  17",
 "You are quite disappointing:",
@@ -2338,11 +2342,12 @@ ZebTime *now;
 	DataChunk *dc;
 	char *data = "Transparent chunk holding text and newline\n";
 	char buf[128];
-	ZebTime when = *now;
+	ZebTime when;
 	bool atts = FALSE;
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	int errors = 0;
 
+	when = *now;
 	sprintf(buf,"Testing transparent datachunks on '%s'",platform);
 	Announce (buf);
 	dc = dc_CreateDC (DCC_Transparent);
@@ -2395,12 +2400,13 @@ ZebTime *start;
 {
 	PlatformId t_delete_id;
 	DataChunk *dc;
-	ZebTime when, begin = *start;
+	ZebTime when, begin;
 	int i;
 	char *dsdump;
 	char cmd[256];
 	int errors = 0;
 
+	begin = *start;
 	Announce ("Testing deletion: creating 10 files in t_deletes");
 	dc = T_SimpleScalarChunk (&begin, 1, 10, 4, TRUE, TRUE);
 	t_delete_id = NeedPlatform("t_deletes");
@@ -2782,7 +2788,7 @@ ZebTime when;
 #define N_SAMPLE 16
 	DataChunk *dc, *ndc;
 	PlatformId plat_id;
-	ZebTime begin = when;
+	ZebTime begin;
 	int i;
 	FieldId fields[10];
 	int nfield = 10;
@@ -2791,15 +2797,15 @@ ZebTime when;
 		0x00, 0x01, 0x80, 0x01, 0xc0, 0x00, 0x60, 0x00,
 		0x31, 0x00, 0x1b, 0x00, 0x0e, 0x00, 0x04, 0x00
 	};
-	char *bitmap_names[] = { "row", "col8" };
-	unsigned long bitmap_sizes[] = { 8, 2 };
+	static char *bitmap_names[] = { "row", "col8" };
+	static unsigned long bitmap_sizes[] = { 8, 2 };
 	FieldId bitmap_id;
-	char *text_dim[] = { "text" };
-	unsigned long text_size[] = { 256 };
+	static char *text_dim[] = { "text" };
+	static unsigned long text_size[] = { 256 };
 	FieldId obs_id;
 	char obs[256];
-	char *process_dims[] = { "bin", "name" };
-	unsigned long process_sizes[] = { 7, 32 };
+	static char *process_dims[] = { "bin", "name" };
+	static unsigned long process_sizes[] = { 7, 32 };
 	FieldId process_id;
 	static char process_names[7][32] = {
 		"process one", "process two", "process three",
@@ -2817,6 +2823,7 @@ makes the beauty of your eyes glow with irresistable radiance",
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	int err = 0;
 
+	begin = when;
 	Announce ("Testing a typed AERI NSpace DataChunk");
 	dc = dc_CreateDC (DCC_NSpace);
 	plat_id = NeedPlatform ("t_aeri_types_cdf");
@@ -2983,11 +2990,11 @@ ZebTime when;
 	int natts, nval, i;
 	DC_ElemType type;
 #	define NUM(ra) (sizeof(ra)/(sizeof((ra)[0])))
-	double ddata[] = { 0.0, 1.0, 2.0, 4.0, 8.0 };
+	static double ddata[] = { 0.0, 1.0, 2.0, 4.0, 8.0 };
 	double *dget;
-	float fdata[] = { -1.2, -3.4, -5.6, -6.7, -8.9, -10.0 };
-	unsigned char bytes[] = { 1, 3, 7, 15, 31, 63, 127, 255 };
-	short sdata[] = { 512, 1024, 2048, 4096, 8192, 16384, 32767 };
+	static float fdata[] = { -1.2, -3.4, -5.6, -6.7, -8.9, -10.0 };
+	static unsigned char bytes[] = { 1, 3, 7, 15, 31, 63, 127, 255 };
+	static short sdata[] = { 512, 1024, 2048, 4096, 8192, 16384, 32767 };
 	short *sget;
 	char *cdata = "array of characters";
 	char *cptr;
@@ -3412,7 +3419,7 @@ ZebTime *begin;
 	char buf[256];
 	dsDetail details[10];
 	int ndetail = 0;
-	char *units[] = {
+	static char *units[] = {
 		"seconds since 1992-10-8 15:15:42.5 -6:00",
 		"seconds depuis 1992-10-8 15:15:42.5 -6:00",
 		"seconds",
