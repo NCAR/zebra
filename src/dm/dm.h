@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.11 1994-05-25 19:52:13 granger Exp $ */
+/* $Id: dm.h,v 2.12 1994-11-17 08:45:07 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -246,7 +246,7 @@ void	SetTimeMode FP ((char *, int, ZebTime *));
 void	badwin FP((char *name));
 int	list_cfg FP((char *name, int type, union usy_value *v, int junk));
 void	def_bmap FP((char *name));
-void	list ();
+void	list FP((char *opt_name));
 void	WritePD FP((char *name, char *filename));
 void	def_pd FP((struct ui_command *cmds));
 void	def_config FP((struct ui_command *cmds));

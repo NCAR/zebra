@@ -46,7 +46,7 @@ static bool UseXHelp = TRUE;
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.50 1994-10-18 23:23:38 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.51 1994-11-17 08:45:06 granger Exp $")
 
 
 /*
@@ -271,10 +271,16 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_LIST:
-	   	list ();
+	   	list (cmds[1].uc_ctype == UTT_END ? NULL : UPTR (cmds[1]));
 		break;
 
 	   case DMC_NEWPD:
+		if (cmds[1].uc_vptype != SYMT_STRING || 
+		    cmds[2].uc_vptype != SYMT_STRING)
+		{
+			ui_error ("both expressions must be strings; %s",
+				  "enclose string constants in quotes");
+		}
 	   	newpd (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 
@@ -287,6 +293,12 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_EXCHANGE:
+		if (cmds[1].uc_vptype != SYMT_STRING || 
+		    cmds[2].uc_vptype != SYMT_STRING)
+		{
+			ui_error ("both expressions must be strings; %s",
+				  "enclose string constants in quotes");
+		}
 	   	exchange (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 
@@ -865,14 +877,20 @@ char *window, *pdesc;
  * Change the plot description for this window.
  */
 {
-	struct cf_window *win = lookup_win (window, TRUE);
+	struct cf_window *win;
 	plot_description pd;
 	struct dm_pdchange dmp;
+
+	win = lookup_win (window, TRUE);
 /*
  * Only mapped windows, for now.
  */
  	if (! win)
-		ui_error ("Window '%s' is not currently active", window);
+	{
+		msg_ELog (EF_PROBLEM, "NEWPD: Window '%s' is %s", 
+			  window, "not currently active");
+		return;
+	}
 /*
  * Find this pd.
  */
@@ -1177,6 +1195,12 @@ struct ui_command *cmds;
 /*
  * Update the masses.
  */
+	if (cmds[1].uc_vptype != SYMT_DATE)
+	{
+		msg_ELog (EF_PROBLEM,
+			"HISTORY error -- time must be a date expression");
+		return;
+	}
 	TC_UIToZt (&UDATE (cmds[1]), &when);
 	SetTimeMode (all ? 0 : dwin->cfw_name, TRUE, &when);
 /*

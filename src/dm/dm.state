@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.22 1994-09-15 21:48:57 corbet Exp $
+! $Id: dm.state,v 1.23 1994-11-17 08:45:09 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -34,7 +34,7 @@ define state dm-initial
 		next dm-disp-config
 	endinput
 	input 'list' 3
-		next ust$no_more
+		next dm-opt-name
 	endinput
 	input 'newpd' 8
 		next dm-newpd-win

@@ -28,7 +28,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.8 1994-05-25 19:52:17 granger Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.9 1994-11-17 08:45:10 granger Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -136,7 +136,9 @@ struct ui_command *cmds;
 	   case DMC_WIDGET:
 		win = cfg->c_wins + cfg->c_nwin;
 		strcpy (win->cfw_name, UPTR (cmds[1]));
+		strcpy (win->cfw_prog, "popup");
 		win->cfw_win = 0;
+		win->cfw_nongraph = win->cfw_forcepd = FALSE;
 		win->cfw_x = UINT (cmds[2]);
 		win->cfw_y = UINT (cmds[3]);
 		win->cfw_dx = UINT (cmds[4]);
@@ -410,14 +412,32 @@ char *filename;	/* path of file to write to, NULL for stdout	*/
 
 
 void
-list ()
+list (name)
+char *name;
 /*
- * List out the known configs.
+ * List out the known configs, or a single config if name is non-NULL.
  */
 {
-	int list_cfg ();
+	struct config *cfg;
+	SValue v;
+	int type;
 
-	usy_traverse (Configs, list_cfg, 0, FALSE);
+	if (name)
+	{
+		if (! (cfg = LookupConfig (name)))
+		{
+			ui_error ("could not find config '%s'", name);
+		}
+		else
+		{
+			if (usy_g_symbol (Configs, name, &type, &v))
+				(void) list_cfg (name, type, &v, 0);
+		}
+	}
+	else
+	{
+		usy_traverse (Configs, list_cfg, 0, FALSE);
+	}
 }
 
 
@@ -440,10 +460,18 @@ int junk;
 	{
 		struct cf_window *win = cfg->c_wins + i;
 
-		ui_nf_printf ("\tWin '%s':\tat (%d, %d) size %dx%d, prog %s\n",
+		ui_nf_printf ("\tWin '%s':\tat (%d, %d) size %dx%d, ",
 			win->cfw_name, win->cfw_x, win->cfw_y, win->cfw_dx,
-			win->cfw_dy, win->cfw_prog);
-		ui_nf_printf ("\t\tPD: %s\n", win->cfw_desc);
+			win->cfw_dy);
+		if (win->cfw_flags & CF_WIDGET)
+			ui_nf_printf ("popup %s\n", win->cfw_name);
+		else
+			ui_nf_printf ("id %i, prog %s\n", 
+				      win->cfw_win, win->cfw_prog);
+		if (win->cfw_nongraph || (win->cfw_flags & CF_WIDGET))
+			ui_nf_printf ("\t\tPD: Nongraphic.\n");
+		else
+			ui_nf_printf ("\t\tPD: %s\n", win->cfw_desc);
 	}
 	ui_printf ("\n");
 	return (TRUE);
@@ -705,8 +733,10 @@ SValue *argv, *retv;
 	struct cf_window *win = lookup_win (argv->us_v_ptr, TRUE);
 	
  	*rett = SYMT_STRING;
-	retv->us_v_ptr = win ? usy_string (win->cfw_desc) :
-			       usy_string ("INACTIVE");
+	retv->us_v_ptr = win ? (win->cfw_nongraph ? 
+				usy_string ("NONGRAPHIC") :
+				usy_string (win->cfw_desc)) :
+			usy_string ("INACTIVE");
 	return (0);
 }
 
