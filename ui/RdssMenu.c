@@ -1,4 +1,4 @@
-/* $XConsortium: SimpleMenu.c,v 1.39 91/06/22 18:03:29 rws Exp $ */
+/* $Id: RdssMenu.c,v 1.8 1993-04-12 18:38:51 granger Exp $ */
 /*
  * Hacked up version of SimpleMenu to provide some useful stuff -- in
  * particular, better cascading menus.
@@ -25,7 +25,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
+/* From the original, before being hacked up:
+ *------------------------------------------------------
  * SimpleMenu.c - Source code file for SimpleMenu widget.
  *
  * Date:    April 3, 1989
@@ -112,30 +113,32 @@ static XtResource resources[] = {
 #undef offset
 
 /*
- * We want <BtnUp> to cause more recent modal popups to popdown first,
- * but we also don't want any EnterNotify events caused by submenus
- * popping down to execute a highlight method.  The disable-highlight() action
- * sets an internal flag disabling any further highlight actions.  Highlighting
+ * We want <BtnUp> to cause more recent modal popups to popdown first, but
+ * we also don't want any EnterNotify events caused by submenus popping
+ * down to execute a highlight method.  The disable-highlight() action sets
+ * an internal flag disabling any further highlight actions.  Highlighting
  * is automatically enabled on popup via an XtNpopupCallback.
  *
  * The other method, perhaps more direct, is to insert a call to action
- * "unmap()" before the "notify()" in the <BtnUp> translation.  The biggest difference
- * between this method and the above is the order the menu windows disappear
- * from the screen.  Unmap() will unmap the window before unhighlighting its
- * SME children, whereas using "disable-unhighlight" will popdown tree post-order
- * traversal while ignoring the resulting <EnterNotify> events in the parent
- * widgets (those further up the modal cascade).
+ * "unmap()" before the "notify()" in the <BtnUp> translation.  The biggest
+ * difference between this method and the above is the order the menu
+ * windows disappear from the screen.  Unmap() will unmap the window before
+ * unhighlighting its SME children, whereas using "disable-unhighlight"
+ * will popdown tree post-order traversal while ignoring the resulting
+ * <EnterNotify> events in the parent widgets (those further up the modal
+ * cascade).
  *
- * Examples of both methods are below.  If you change the method here, you may also
- * want to change the method used by SmeMenu in its Unhighlight method so that
- * submenus are consistent.
+ * Examples of both methods are below.  If you change the method here, you
+ * may also want to change the method used by SmeMenu in its Unhighlight
+ * method so that submenus are consistent.
  */
 #ifndef USE_UNMAP
 static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
-     <BtnUp>:           disable-highlight() notify() unhighlight() MenuPopdown()";
+     <BtnUp>:           disable-highlight() notify() \
+                        unhighlight() MenuPopdown()";
 #else
 static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
@@ -331,7 +334,7 @@ Widget request, new;
  */
   XtAddCallback(new, XtNpopupCallback, ChangeCursorOnGrab, NULL);
 /*
- * And for making sure highlighting enabled.
+ * And for making sure everything is re-initialized to our start state
  */
   XtAddCallback(new, XtNpopupCallback, EnableHighlight, NULL);
 
@@ -659,9 +662,10 @@ Cardinal *num_params;
 		{
 			char error_buf[BUFSIZ];
 			sprintf(error_buf, "%s: %s",
-				"Xaw - RdssMenuWidget",
-				"position menu action could not retrieve menuName");
-			XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
+			  "Xaw - RdssMenuWidget",
+			  "position menu action could not retrieve menuName");
+			XtAppWarning(XtWidgetToApplicationContext(w), 
+				     error_buf);
 			return(NULL);
 		}
 	}
@@ -672,8 +676,9 @@ Cardinal *num_params;
 	else
 	{
 		char error_buf[BUFSIZ];
-		sprintf(error_buf, "%s %s",
-			"Xaw - RdssMenuWidget: position menu action expects zero or one",
+		sprintf(error_buf, "%s: %s %s",
+			"Xaw - RdssMenuWidget",
+			"position menu action expects zero or one",
 			"parameter which is the name of the menu.");
 		XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
 		return (NULL);
@@ -681,12 +686,12 @@ Cardinal *num_params;
 	
 	if ((menu = FindMenu(w, menu_name)) == NULL) {
 		char error_buf[BUFSIZ];
-		sprintf(error_buf, "%s '%s'",
-			"Xaw - RdssMenuWidget: could not find menu named: ", menu_name);
+		sprintf(error_buf, "%s: %s '%s'",
+			"Xaw - RdssMenuWidget",
+			"could not find menu named: ", menu_name);
 		XtAppWarning(XtWidgetToApplicationContext(w), error_buf);
 		return (NULL);
 	}
-
 	return (menu);
 }
 
@@ -824,7 +829,8 @@ Cardinal * num_params;
 	 */
 	if (dx || dy)
 	{
-		XWarpPointer (XtDisplay(menu), RootWindowOfScreen(XtScreen(menu)), 
+		XWarpPointer (XtDisplay(menu), 
+			      RootWindowOfScreen(XtScreen(menu)), 
 			      None, 0, 0, 0, 0, dx, dy);
 	}
 	
@@ -1531,6 +1537,7 @@ XtPointer junk, garbage;
 			     smw->rdss_menu.cursor, 
 			     XtLastTimestampProcessed(XtDisplay(w)));
 }
+
 
 
 /*      Function Name: MakeSetValuesRequest
