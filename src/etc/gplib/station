@@ -7,14 +7,25 @@
 ! Toggle quadrants on a station plot.  Intended to be called out of the
 ! field menu.
 !
+! This thing is becoming misnamed as it gets called from numerous contexts,
+! only one of which calls for traditional "toggling"....
+!
 procedure p_toggle_quadrant field string
 !
 ! Check and see if this dude is being called out of a position icon;
 ! if so, we really want to ship the result out elsewhere.
 !
-	if (position_icon)
+	if (area_type = "posicon")
 		local cmd quote(concat4 ('putscalar ',icon_platform,' ',field))
 		dm #cmd
+		return
+	endif
+!
+! Maybe it's even coming from the annotation??  If so the "platform" is really
+! the quad number and we just stuff it in directly.
+!
+	if (area_type = "annot")
+		parameter #icon_component #icon_platform #field
 		return
 	endif
 !

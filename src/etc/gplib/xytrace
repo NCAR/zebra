@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-
+! $Id: xytrace,v 1.2 1993-10-18 19:30:35 corbet Exp $
 
 define widget xytrace-right intmenu 'x'
 	title 'XYGraph options'
@@ -76,4 +76,110 @@ procedure xytrace-color color string
 	local clist PDParam(icon_component,'field-color')
 	local clist ReplElement(clist, pos, color)
 	parameter #icon_component field-color #clist
+endprocedure
+
+
+
+!
+! Adjust limits stuff.
+!
+procedure xytrace-adjust comp string
+	popup xytrace-limits
+endprocedure
+
+
+define widget xytrace-limits form 'xytrace adjuster'
+	popup xyta-popup
+	noheader
+!
+! Title line.
+!
+	label title 'Adjust time series limits'
+	button 'apply' 'Apply' command xyta-apply
+	button 'dismiss' 'Dismiss' color red command 'popdown #ui$form'
+	label comp 'comp' color gray95 width 1
+	newline
+!
+! time period
+!
+	label l1 'Time period:'
+	blank time 'funky' width 60 command xyta-apply
+	label l2 's = seconds, m = minutes, h = hours, d = days'
+	newline
+!
+! Scale mode.
+!
+	label l3 'Scale mode:'
+	button mode 'weird' command 'xyta-ToggleMode' width 70
+!	newline
+!
+! Manual values
+!
+	label l4 'Manual scale min:'
+	blank min 'min' width 60 command xyta-apply
+	label l5 'max:'
+	blank max 'max' width 60 command xyta-apply
+enddef
+
+
+procedure xyta-popup
+	local c icon_component
+	local f PDParam(c,'y-field')
+	formtext #ui$form comp #c
+!
+! Do the time period.
+!
+	local period PDParam('global','xy-series-span')
+	formtext #ui$form time #period
+!
+! Fill in the scale mode.
+!
+	local mode PDSearch(c,'scale-y-mode','xy')
+	if (mode = '(Undefined)')
+		local mode 'autoscale'
+	endif
+	formtext #ui$form mode #mode
+!
+! And the manual values.
+!
+	local min PDSearch(c,'scale-y-min',f)
+	if (min = "(Undefined)")
+		local min "0.0"
+	endif
+	formtext #ui$form min #min
+	local max PDSearch(c,'scale-y-max',f)
+	if (max = "(Undefined)")
+		local max "0.0"
+	endif
+	formtext #ui$form max #max
+endprocedure
+
+
+procedure xyta-apply
+	local c getftext(ui$form,'comp')
+	local t getftext(ui$form,'time')
+	local f PDParam(c,'y-field')
+
+	parameter 'global' 'xy-series-span' #t
+	local mode getftext(ui$form,'mode')
+	parameter #c 'scale-y-mode' #mode
+	local min getftext(ui$form,'min')
+	local param concat(f,'-scale-y-min')
+	parameter 'global' #param #min
+	local max getftext(ui$form,'max')
+	local param concat(f,'-scale-y-max')
+	parameter 'global' #param #max
+endprocedure
+
+
+!
+! Tweak autoscale mode.
+!
+procedure xyta-ToggleMode
+	local current getftext(ui$form, 'mode')
+	if (current = 'manual')
+		formtext #ui$form 'mode' 'autoscale'
+	else
+		formtext #ui$form 'mode' 'manual'
+	endif
 endprocedure
