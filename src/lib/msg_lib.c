@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.7 1991-05-30 17:41:04 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 1.8 1991-06-14 22:11:57 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
@@ -58,12 +58,14 @@ ProtoHandlers[MAXPROTO] = { 0 };
 	static int msg_SrchAck (struct message *, struct mh_ack *);
 	static int msg_ELHandler (struct message *);
 	static int msg_PingHandler (Message *);
+	static void msg_SendPID (void);
 # else
 	static struct mqueue *msg_NewMq ();
 	static void msg_RemQueue ();
 	static int msg_SrchAck ();
 	static int msg_ELHandler ();
 	static int msg_PingHandler ();
+	static void msg_SendPID ();
 # endif
 
 /*
@@ -161,9 +163,25 @@ char *ident;
  */
 	msg_AddProtoHandler (MT_ELOG, msg_ELHandler);
 	msg_AddProtoHandler (MT_CPING, msg_PingHandler);
+	msg_SendPID ();
  	return (TRUE);
 }
 
+
+
+
+static void
+msg_SendPID ()
+/*
+ * Tell the handler what our PID is.
+ */
+{
+	struct mh_pid pid;
+
+	pid.mh_type = MH_PID;
+	pid.mh_pid = getpid ();
+	msg_send (MSG_MGR_NAME, MT_MESSAGE, FALSE, &pid, sizeof (pid));
+}
 
 
 
