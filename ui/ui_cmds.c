@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.6 1989-06-05 16:06:52 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.7 1989-09-25 16:59:44 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -441,7 +441,7 @@ int init;
  	if ((bfget (lun, &marker, 1) != 1) || marker != LF_HDR)
 	{
 		bfclose (lun);
-		ui_error ("'%s' is not a UI load file", file);
+		ui_error ("'%s' is not a current UI load file", file);
 	}
 /*
  * Now go through the various segments of the file.
