@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.47 1995-05-01 16:07:19 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.48 1995-06-09 16:51:13 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -171,6 +171,7 @@ extern int SetLWidth FP((char *, char *, char *, int));
 extern void FixLWidth FP((int));
 extern void FixForeground FP((long));
 extern void SetClip FP ((int));
+extern int Intersects FP ((float x0, float y0, float x1, float y1));
 extern void ResetGC FP ((void));
 extern void SetColor FP ((char *, char *, char *, char *));
 
