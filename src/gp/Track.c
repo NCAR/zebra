@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.48 1999-03-01 02:04:30 burghart Exp $")
+RCSID ("$Id: Track.c,v 2.49 1999-11-01 20:46:28 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -1130,7 +1130,15 @@ TrackParams *tparams;
 					comp, "but no icon or arrow");
 		}
 	}
-	return (TRUE);
+/*
+ * A few should be intialized, especially for annotation use later on
+ * (i.e. shifted), even if no data are plotted.
+ */
+	tparams->tp_LWidth = 1;
+	tparams->tp_UnitLen = 0;
+	tparams->tp_Vectime = 0;
+	tparams->tp_BadValue = 0;
+	tparams->tp_Shifted = FALSE;
 }
 
 
