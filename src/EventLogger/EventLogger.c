@@ -40,7 +40,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.15 1993-05-13 09:48:13 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.16 1993-05-13 15:03:49 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -77,7 +77,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.15 1993-05-13 09:48:13 granger Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.16 1993-05-13 15:03:49 granger Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -369,10 +369,11 @@ int deflt;
 	Widget button, menu, entry;
 	Arg args[10];
 	int n, i;
-	static int periods[10] = { 0, 5, 10, 30, 60, 300, 600, 1800 };
-	static char *pnames[10] = { "None", "5 seconds", "10 seconds",
-				   "30 seconds", "1 minute",
-				   "5 minutes", "10 minutes", "30 minutes" };
+#	define NPERIOD_ENTRIES	9
+	static int periods[10] = { 0, 1, 5, 10, 30, 60, 300, 600, 1800 };
+	static char *pnames[10] = { "None", "1 second", "5 seconds", 
+				    "10 seconds", "30 seconds", "1 minute",
+				    "5 minutes", "10 minutes", "30 minutes" };
 /*
  * Create the menu button to start with.
  */
@@ -395,7 +396,7 @@ int deflt;
 				   Top, args, n);
 	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
 	XtSetArg (args[0], XtNleftMargin, check_width + 7);
-	for (i = 0; i < 8; ++i)
+	for (i = 0; i < NPERIOD_ENTRIES; ++i)
 	{
 		n = 1;
 		XtSetArg (args[n], XtNlabel, pnames[i]); ++n;
