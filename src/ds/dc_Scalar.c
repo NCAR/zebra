@@ -25,14 +25,14 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Scalar.c,v 1.5 1993-02-25 23:10:13 granger Exp $")
+MAKE_RCSID ("$Id: dc_Scalar.c,v 1.6 1994-01-03 07:18:17 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
 /*
  * Our class-specific AuxData structure types.
  */
-# define ST_FLDINFO	1000
+# define ST_FLDINFO	1
 
 
 /*
@@ -44,6 +44,7 @@ RawDCClass ScalarMethods =
 {
 	"Scalar",
 	SUPERCLASS,		/* Superclass			*/
+	3,			/* Depth, Raw = 0		*/
 	dc_ScCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
@@ -66,7 +67,7 @@ DataClass class;
  * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
  * add any field info here, because we don't know it yet.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 	dc->dc_Class = class;
 	return (dc);
 }
@@ -86,7 +87,12 @@ FieldId *fields;
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "SetScalarFields"))
 		return;
-	dc_SetupUniformFields (dc, 0, nfield, fields, sizeof (float));
+/*
+ * Our parent class knows enough to set the sample size hints, and we don't
+ * have any per-sample overhead to add.  Scalar organization dictates only 1
+ * element per field per sample.
+ */
+	dc_SetupUniformOrg (dc, 0, nfield, fields, 1);
 }
 
 
@@ -99,14 +105,14 @@ DataChunk *dc;
 ZebTime *t;
 int sample;
 FieldId field;
-float *value;
+void *value;
 /*
  * Add this scalar datum to the data chunk.
  */
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
 		return;
-	dc_AddMData (dc, t, field, sizeof (float), sample, 1, value);
+	dc_AddMData (dc, t, field, dc_SizeOf (dc, field), sample, 1, value);
 }
 
 
@@ -119,14 +125,17 @@ DataChunk *dc;
 ZebTime *t;
 int begin, nsample;
 FieldId field;
-float *values;
+void *values;
 /*
  * Add a set of values to this data chunk.
  */
 {
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
 		return;
-	dc_AddMData (dc, t, field, sizeof (float), begin, nsample, values);
+/*
+ * We let MetData take care of hinting to our superclasses.
+ */
+	dc_AddMData(dc, t, field, dc_SizeOf(dc,field), begin, nsample, values);
 }
 
 
@@ -138,14 +147,60 @@ DataChunk *dc;
 int sample;
 FieldId field;
 /*
- * Get a scalar value back from this DC.
+ * Get a scalar value back from this DC.  Assumes the field is type DCT_Float.
  */
 {
 	float *ret;
 
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalar"))
 		return (0.0);
+	if (dc_Type (dc, field) != DCT_Float)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "cannot use GetScalar to get non-float data");
+		return (0.0);
+	}
 	if (! (ret = (float *) dc_GetMData (dc, sample, field, NULL)))
 		return (dc_GetBadval (dc));
 	return (*ret);
 }
+
+
+
+
+void *
+dc_GetScalarData (dc, sample, field)
+DataChunk *dc;
+int sample;
+FieldId field;
+/*
+ * Get a pointer to a scalar value in this DC.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalarData"))
+		return (NULL);
+	return ((void *) dc_GetMData (dc, sample, field, NULL));
+}
+
+
+
+
+DC_Element
+dc_GetScalarElement (dc, sample, field)
+DataChunk *dc;
+int sample;
+FieldId field;
+/*
+ * Get a pointer to a scalar value in this DC.
+ */
+{
+	DC_Element ret;
+
+	ret.dcv_longdbl = 0.0;
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalarElement"))
+		return (ret);
+	dc_AssignElement (&ret, dc_Type(dc, field),
+			  (void *) dc_GetMData (dc, sample, field, NULL));
+	return (ret);
+}
+

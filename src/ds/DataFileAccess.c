@@ -35,7 +35,7 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.13 1993-09-23 08:25:06 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.14 1994-01-03 07:17:40 granger Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -147,10 +147,12 @@ void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
  *	of the parameter list, they do not need to be explicitly named in calls
  *	to the file format's create method.  But they're there if you need 'em.
  *
- * f_PutSample (dfile, dc, sample, wc)
+ * f_PutSample (dfile, dc, sample, wc, details, ndetail)
  * int dfile, sample;
  * DataChunk *dc;
  * WriteCode wc;
+ * dsDetail *details;
+ * int ndetail;
  *
  *	Write the given sample from the DC into the indicated file, as
  *	controlled by the write code:
@@ -159,17 +161,23 @@ void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
  *		wc_OverWrite	Overwrite an existing sample.
  *	Returns true iff the data write was successful.
  *
- * f_PutBlock (dfile, dc, sample, nsample, wc)
+ *	10/4/93 gg Added dsDetail parameters.  See note under f_CreateFile.
+ *
+ * f_PutBlock (dfile, dc, sample, nsample, wc, details, ndetail)
  * int dfile;
  * DataChunk *dc;
  * int sample;
  * int nsample;
  * WriteCode wc;
+ * dsDetail *details;
+ * int ndetail;
  *
  * 	Write a block of 'nsample' samples, beginning at 'sample'
  *	in the data chunk, using write code 'wc', into the file
  * 	'dfile'.  A block is a contiguous series of samples
  *	to be written to the same file.
+ *
+ *	10/4/93 gg Added dsDetail parameters.  See note under f_CreateFile.
  *
  * f_PutData (dfile, dobj, begin, end)  This is no longer real
  * int *dfile;
@@ -398,7 +406,10 @@ typedef struct _OpenFile
 	int	of_dfindex;		/* DF structure index		*/
 	struct _OpenFile *of_next;	/* Next in chain		*/
 	int	of_write;		/* File open for write access	*/
+	long	of_dfrev;		/* Revision we're sync'd to	*/
+#ifdef notdef
 	DataFile of_dfe;		/* The data file entry		*/
+#endif
 } OpenFile;
 
 static OpenFile *OpenFiles = 0;		/* Open file list head		*/
@@ -633,10 +644,12 @@ DataObject *dobj;
 
 
 int
-dfa_PutSample (dfile, dc, sample, wc)
+dfa_PutSample (dfile, dc, sample, wc, details, ndetail)
 int dfile, sample;
 DataChunk *dc;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Add data to this file.
  */
@@ -644,16 +657,19 @@ WriteCode wc;
 	DataFile dfe;
 	ds_GetFileStruct (dfile, &dfe);
 
-	return ((*Formats[dfe.df_ftype].f_PutSample) (dfile, dc, sample,wc));
+	return ((*Formats[dfe.df_ftype].f_PutSample) (dfile, dc, sample, wc,
+						      details, ndetail));
 }
 
 
 int
-dfa_PutBlock (dfile, dc, sample, nsample, wc)
+dfa_PutBlock (dfile, dc, sample, nsample, wc, details, ndetail)
 int dfile;
 DataChunk *dc;
 int sample, nsample;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * If the file's format has a f_PutBlock() method, call it.
  * Otherwise call dfa_PutSample() for each sample in the block.
@@ -665,7 +681,7 @@ WriteCode wc;
 	ds_GetFileStruct (dfile, &dfe);
 	if (Formats[dfe.df_ftype].f_PutBlock)
 		return ((*Formats[dfe.df_ftype].f_PutBlock)
-			(dfile, dc, sample, nsample, wc));
+			(dfile, dc, sample, nsample, wc, details, ndetail));
 /*
  * otherwise loop through the samples in the block
  */
@@ -673,7 +689,7 @@ WriteCode wc;
 		  Formats[dfe.df_ftype].f_name, nsample);
 	result = TRUE;
 	for (i = sample; i < sample + nsample; ++i)
-		result &= dfa_PutSample(dfile, dc, i, wc);
+		result &= dfa_PutSample(dfile, dc, i, wc, details, ndetail);
 /*
  * Return FALSE if any of the dfa_PutSample() calls failed
  */
@@ -800,11 +816,14 @@ void *tag;
  * Fill in the file structure and add it to the list.
  */
 	ofp->of_dfindex = dfindex;
+	ofp->of_dfrev = df->df_rev;
 	ofp->of_lru = OF_Lru++;
 	ofp->of_tag = tag;
 	ofp->of_next = OpenFiles;
 	ofp->of_write = write;
+#ifdef notdef
 	ofp->of_dfe = *df;
+#endif
 	OpenFiles = ofp;
 /*
  * If we have exceeded the maximum number of open files, we have to close
@@ -855,6 +874,9 @@ OpenFile *victim;
  */
 {
 	OpenFile *prev;
+	DataFile df;
+
+	ds_GetFileStruct (victim->of_dfindex, &df);
 /*
  * Find this guy in the open file list and yank him.
  */
@@ -868,7 +890,7 @@ OpenFile *victim;
 		if (! prev->of_next)
 		{
 			msg_ELog (EF_PROBLEM, "OF entry 0x%x (%s) missing",
-				victim, victim->of_dfe.df_name);
+				victim, df.df_name);
 			return;
 		}
 		prev->of_next = victim->of_next;
@@ -876,7 +898,7 @@ OpenFile *victim;
 /*
  * Get the actual file closed.
  */
-	(*Formats[victim->of_dfe.df_ftype].f_CloseFile) (victim->of_tag);
+	(*Formats[df.df_ftype].f_CloseFile) (victim->of_tag);
 	OF_NOpen--;
 /*
  * Release the structure, and we're done.
@@ -959,19 +981,46 @@ int dfindex;
 
 
 void
-dfa_NoteRevision (p, dfindex)
-Platform *p;
+dfa_NoteRevision (dfindex, rev)
 int dfindex;
+long rev;
 /*
- * Note that a revision has been signalled on this file.
+ * Note that a revision has been signalled on this file
  */
 {
 	OpenFile *ofp = dfa_FileIsOpen (dfindex);
 
 	if (ofp)
-		ofp->of_dfe.df_rev = dfa_GetRevision (p, &ofp->of_dfe);
-		/* ofp->of_rev++; */
+		ofp->of_dfrev = rev;
 }
+
+
+
+
+
+long
+dfa_NewRevision (p, dfindex)
+Platform *p;
+int dfindex;
+/*
+ * Note that this client has signalled a revision on this file.  Calculate
+ * a new revision number and store it in our open file structure,
+ * indicating that the open file's tag is in sync with the file (which
+ * makes sense if this client is the one changing the file and signalling
+ * the revision).  Return the new revision number.
+ */
+{
+	OpenFile *ofp = dfa_FileIsOpen (dfindex);
+	DataFile dfe;
+	long revision;
+
+	ds_GetFileStruct (dfindex, &dfe);
+	revision = dfe.df_rev + 1;
+	if (ofp)
+		ofp->of_dfrev = revision;
+	return (revision);
+}
+
 
 
 
@@ -1001,13 +1050,18 @@ void **tag;
 			dfa_CloseFile (ofp);
 		else
 		{
-			if (df.df_rev > ofp->of_dfe.df_rev)
+			if (df.df_rev > ofp->of_dfrev)
 			{
+			/*
+			 * The latest data file entry has a new revision,
+			 * so our open file's tag must be out of date.  Thus
+			 * we must sync the file.
+			 */
 				msg_ELog (EF_DEBUG, "Out of rev file %s",
-					df.df_name);
+					  df.df_name);
 				retv = (*Formats[df.df_ftype].f_SyncFile)
 						(*tag);
-				ofp->of_dfe.df_rev = df.df_rev;
+				ofp->of_dfrev = df.df_rev;
 			}
 			return (retv);
 		}
@@ -1017,7 +1071,7 @@ void **tag;
  */
 	ds_GetPlatStruct (df.df_platform, &p, FALSE);
 	if (! (*Formats[df.df_ftype].f_OpenFile) (dfa_FilePath (&p, &df), &df,
-						write, tag))
+						  write, tag))
 		retv = FALSE;
 	else 	/* success */
 		dfa_AddOpenFile (dfindex, &df, write, *tag);
@@ -1049,11 +1103,11 @@ DataFile *df;
 
 
 long 
-dfa_GetRevision (p, df)
+dfa_StatRevision (p, df)
 Platform *p;
 DataFile *df;
 /*
- * Get a revision count for this file.
+ * Get a revision count for this file from its modification time
  */
 {
 	struct stat sbuf;

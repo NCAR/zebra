@@ -31,9 +31,10 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Image.c,v 1.4 1992-04-14 22:22:48 kris Exp $")
+MAKE_RCSID ("$Id: dc_Image.c,v 1.5 1994-01-03 07:18:03 granger Exp $")
 
 # define SUPERCLASS DCC_RGrid
+# define CLASSDEPTH 4
 
 /*
  * Our class-specific AuxData structure types.
@@ -51,6 +52,7 @@ RawDCClass ImageMethods =
 {
 	"Image",
 	SUPERCLASS,		/* Superclass			*/
+	CLASSDEPTH,		/* Depth, Raw = 0		*/
 	dc_ImgCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
@@ -73,7 +75,7 @@ DataClass class;
  * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
  * add any info here, because we don't know it yet.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 	dc->dc_Class = class;
 	return (dc);
 }
@@ -102,15 +104,21 @@ ScaleInfo *scale;
  */
 {
 	ScaleInfo *sc;
+	int i;
 /*
  * Checking time.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Image, "ImgSetup"))
 		return;
 /*
- * Do the RGrid setup.
+ * Do the RGrid setup.  Set all of our types to unsigned char so that the
+ * sample size can be correctly calculated by superclasses, and prevent further
+ * changes of the element type.
  */
 	dc_RGSetup (dc, nfld, fields);
+	for (i = 0; i < nfld; ++i)
+		dc_SetType (dc, fields[i], DCT_UnsignedChar);
+	dc_BlockChanges (dc);
 /*
  * Tack on our scalinfo structure.
  */
@@ -159,7 +167,7 @@ unsigned char *data;
  */
 	if (len == 0)
 		len = rg->rg_nX*rg->rg_nY;
-	dc_RGAddGrid (dc, sample, field, origin, rg, t, (float *) data, len);
+	dc_RGAddGrid (dc, sample, field, origin, rg, t, (void *) data, len);
 }
 
 
@@ -178,7 +186,7 @@ ScaleInfo *scale;
  * Retrieve an image from this DC.
  */
 {
-	float *gret;
+	void *gret;
 	ScaleInfo *sc;
 	int findex, nfield;
 	FieldId *flds;

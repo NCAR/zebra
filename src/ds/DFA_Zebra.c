@@ -36,7 +36,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.19 1993-12-22 18:22:04 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.20 1994-01-03 07:17:27 granger Exp $")
 # endif
 
 /*
@@ -48,6 +48,7 @@ typedef struct _znTag
 	int		zt_Fd;		/* Descriptor of open file	*/
 	int		zt_Sync;	/* Which pieces need synching	*/
 	int		zt_Write;	/* File open for write access	*/
+	int		zt_Append;	/* Append all new blocks to end */
 	ZebTime		*zt_Time;	/* The time array		*/
 	zn_Sample	*zt_Sample;	/* Sample array			*/
 	FieldId		*zt_Fids;	/* The field array		*/
@@ -111,6 +112,7 @@ static void	zn_WriteSync FP ((znTag *));
 static void	zn_CFMakeStations FP ((znTag *, DataChunk *));
 static int	zn_FindDest FP ((znTag *, ZebTime *, int nsample, WriteCode));
 static void	zn_ExpandTOC FP ((znTag *, int increase));
+static void	zn_ReallocTOC FP ((znTag *tag, int newns));
 static void	zn_OpenSlot FP ((znTag *, int));
 static int	zn_WrBoundary FP ((znTag *, DataChunk *, int, zn_Sample *,
 			 WriteCode, int));
@@ -156,7 +158,7 @@ static long	zn_WriteBlock FP((znTag *tag, DataChunk *dc, int fsample,
 static void	zn_LoopBlock FP((znTag *tag, DataChunk *dc, int fsample, 
 				 int sample, int nsample, WriteCode wc,
 				 int *index, FieldId *fids, int nfield));
-static int	zn_FreeSampleBlock FP((znTag *tag, DataChunk *dc, int fsample,
+static int	zn_DetectDataBlock FP((znTag *tag, DataChunk *dc, int fsample,
 				       int nsample, int *index, int nfield,
 				       long *roffset, int *rsize));
 static void*	zn_WrScalarBlock FP((znTag *tag, DataChunk *dc, int fsample,
@@ -194,7 +196,7 @@ static void	zn_FreeSpace FP ((znTag *, long, int));
 static void	zn_TruncateFreeBlock FP ((znTag *, long offset, zn_Free *fb));
 
 static int 	zn_SASize FP ((zn_Header *, int));
-static zn_Sample * zn_FindSampStr FP ((znTag *, int));
+static zn_Sample *zn_FindSampStr FP ((znTag *, int));
 
 
 
@@ -237,11 +239,13 @@ int sample;
 
 
 int
-zn_CreateFile (fname, df, dc, rtag)
+zn_CreateFile (fname, df, dc, rtag, details, ndetail)
 char *fname;
 DataFile *df;
 DataChunk *dc;
 char **rtag;
+dsDetail *details;
+int ndetail;
 /*
  * Create a new zeb native file.
  */
@@ -249,8 +253,11 @@ char **rtag;
 	znTag *tag = ALLOC (znTag);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int ssize, asize;
-	bool grid;
+	bool grid, hint;
 	void *ablock;
+	SValue svalue;
+	int res_size, reserved = -1;
+	int grain = ZN_GRAIN;
 /*
  * Create the file itself before we go anywhere.
  */
@@ -268,6 +275,7 @@ char **rtag;
 	tag->zt_Sample = 0; tag->zt_Fids = 0;
 	tag->zt_Fields = 0; tag->zt_Ids = 0; tag->zt_Locs = 0;
 	tag->zt_Write = TRUE;
+	tag->zt_Append = FALSE;
 	tag->zt_Attr = 0;
 	tag->zt_GlAttr = 0;
 	tag->zt_Rg = 0;
@@ -282,7 +290,8 @@ char **rtag;
 	hdr->znh_OffLoc = -1;
 	hdr->znh_OffStation = -1;
 	hdr->znh_NStation = 0;
-	hdr->znh_OffGlAttr = hdr->znh_OffAttr = -1;
+	hdr->znh_OffGlAttr = -1;
+	hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
 	hdr->znh_OffRg = -1;
 /*
@@ -291,11 +300,39 @@ char **rtag;
 	(void) zn_GetSpace (tag, sizeof (zn_Header)); /* Know it's at 0 */
 	zn_WriteSync (tag);
 /*
+ * Check for any space reservation requests
+ */
+	if (ds_GetDetail (DD_ZN_RESERVE_BLOCK, details, ndetail, &svalue) &&
+	    (svalue.us_v_int > 0))
+	{
+	/*
+	 * Get a block and hold it while other stuff is allocated.  This
+	 * prevents the block from being immediately truncated since it
+	 * lies at the end of the file.  We free the block at the end of
+	 * this function.
+	 */
+		reserved = zn_GetSpace (tag, svalue.us_v_int);
+		res_size = svalue.us_v_int;
+		msg_ELog (EF_DEBUG, "znf createfile: reserving %d bytes",
+			  svalue.us_v_int);
+	}
+/*
+ * Check for hints about the number of samples for which we should prepare, but
+ * don't let them go below a reasonable default (protects against < 0 also)
+ */
+	if (ds_GetDetail (DD_ZN_HINT_NSAMPLES, details, ndetail, &svalue) &&
+	    (svalue.us_v_int > grain))
+	{
+		hint = TRUE;
+		grain = svalue.us_v_int;
+		msg_ELog (EF_DEBUG, "znf: creating file for %d samples",grain);
+	}
+/*
  * Allocate the time array.
  */
-	tag->zt_Time = (ZebTime *) malloc (ZN_GRAIN * sizeof (ZebTime));
-	hdr->znh_OffTime = zn_GetSpace (tag, ZN_GRAIN*sizeof (ZebTime));
-	hdr->znh_NSampAlloc = ZN_GRAIN;
+	tag->zt_Time = (ZebTime *) malloc (grain * sizeof (ZebTime));
+	hdr->znh_OffTime = zn_GetSpace (tag, grain * sizeof (ZebTime));
+	hdr->znh_NSampAlloc = grain;
 	tag->zt_Sync |= SF_HEADER | SF_TIME;
 /*
  * Allocate and fill in the field info array.
@@ -304,11 +341,23 @@ char **rtag;
 /*
  * Allocate the sample offset array.
  */
-	ssize = zn_SASize (hdr, ZN_GRAIN);
-/*	ssize = ZN_GRAIN*hdr->znh_NField*sizeof (zn_Sample); */
+	ssize = zn_SASize (hdr, grain);
 	tag->zt_Sample = (zn_Sample *) malloc (ssize);
 	hdr->znh_OffSample = zn_GetSpace (tag, ssize);
-	tag->zt_Sync |= SF_SAMPLE;
+	tag->zt_Sync |= SF_HEADER | SF_SAMPLE;
+/*
+ * If we're being hinted about the number of samples, then allocate the
+ * sample attribute offset array as well, just in case they eventually
+ * want attributes.  Some day this could be a hint, if so desired.
+ */
+	if (hint)
+	{
+		int size = grain * sizeof (zn_Sample);
+		hdr->znh_OffAttr = zn_GetSpace (tag, size);
+		tag->zt_Attr = (zn_Sample *) malloc (size);
+		memset (tag->zt_Attr, 0, size);
+		tag->zt_Sync |= SF_HEADER | SF_ATTR;
+	}
 /*
  * Does this file involve grids?
  */
@@ -319,10 +368,10 @@ char **rtag;
  */
 	if (dc->dc_Class == DCC_IRGrid)		/* IRGRID station array	*/
 		zn_CFMakeStations (tag, dc);
-	if (grid || ds_IsMobile (dc->dc_Platform)) /* Locations		*/
+	else if (grid || ds_IsMobile (dc->dc_Platform)) /* Locations	*/
 	{
-		tag->zt_Locs = (Location *) malloc (ZN_GRAIN*sizeof(Location));
-		hdr->znh_OffLoc = zn_GetSpace (tag, ZN_GRAIN*sizeof(Location));
+		tag->zt_Locs = (Location *) malloc (grain * sizeof(Location));
+		hdr->znh_OffLoc = zn_GetSpace (tag, grain * sizeof(Location));
 		tag->zt_Sync |= SF_LOCATION;
 	}
 	else
@@ -332,8 +381,8 @@ char **rtag;
  */
 	if (grid)
 	{
-		tag->zt_Rg = (RGrid *) malloc (ZN_GRAIN*sizeof (RGrid));
-		hdr->znh_OffRg = zn_GetSpace (tag, ZN_GRAIN*sizeof (RGrid));
+		tag->zt_Rg = (RGrid *) malloc (grain * sizeof (RGrid));
+		hdr->znh_OffRg = zn_GetSpace (tag, grain * sizeof (RGrid));
 		tag->zt_Sync |= SF_RGRID;
 	}
 /*
@@ -347,6 +396,11 @@ char **rtag;
 		tag->zt_GlAttr = malloc (asize);
 		memcpy (tag->zt_GlAttr, ablock, asize);
 	}
+/*
+ * Release any space we reserved above.
+ */
+	if (reserved > 0)
+		zn_FreeSpace (tag, reserved, res_size);
 /*
  * Sync up and we are done.
  */
@@ -618,10 +672,12 @@ ZebTime *t;
 
 
 int
-zn_PutSample (dfile, dc, sample, wc)
+zn_PutSample (dfile, dc, sample, wc, details, ndetail)
 int dfile, sample;
 DataChunk *dc;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Dump a sample's worth of data into the file.
  */
@@ -634,12 +690,34 @@ WriteCode wc;
 	zn_Header *hdr;
 	void *ablock;
 	char atime[30];
+	SValue svalue;
 /*
  * Open up the file.
  */
 	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
 		return (0);
 	hdr = &tag->zt_Hdr;
+/*
+ * Check for hints about the number of samples we should have alloc'ed
+ */
+	if (ds_GetDetail (DD_ZN_HINT_NSAMPLES, details, ndetail, &svalue) &&
+	    (svalue.us_v_int > hdr->znh_NSampAlloc))
+	{
+		msg_ELog (EF_DEBUG, "znf: realloc'ing file for %d samples", 
+			  svalue.us_v_int);
+		zn_ReallocTOC (tag, svalue.us_v_int);
+	}
+#ifdef notdef
+/*
+ * Check for any space reservation requests
+ */
+	if (ds_GetDetail (DD_ZN_RESERVE_BLOCK, details, ndetail, &svalue) &&
+	    (svalue.us_v_int > 0))
+	{
+		int offset = zn_GetSpace (tag, svalue.us_v_int);
+		zn_FreeSpace (tag, offset, svalue.us_v_int);
+	}
+#endif
 /*
  * Figure out where this sample is to be written.
  */
@@ -658,9 +736,15 @@ WriteCode wc;
 		zn_GetFieldIndex (tag, fids, nfield, index, TRUE);
 	}
 /*
+ * Check whether this sample is supposed to be appended
+ */
+	if (ds_GetDetail (DD_ZN_APPEND_SAMPLES, details, ndetail, NULL))
+		tag->zt_Append = TRUE;
+/*
  * Now get the data out by "looping" over the one sample.
  */
 	zn_LoopBlock (tag, dc, fsample, sample, 1, wc, index, fids, nfield);
+	tag->zt_Append = FALSE;
 /*
  * We also have to add the time to the time array.  We flush the individual
  * time out here rather than dirty up and sync the entire array.
@@ -692,11 +776,13 @@ WriteCode wc;
 
 
 int
-zn_PutSampleBlock (dfile, dc, sample, nsample, wc)
+zn_PutSampleBlock (dfile, dc, sample, nsample, wc, details, ndetail)
 int dfile; 
 DataChunk *dc;
 int sample, nsample;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Dump a block of samples into the file.
  *
@@ -718,6 +804,11 @@ WriteCode wc;
  * the space cannot be freed without introducing lots of fragmentation in
  * the file, the samples are overwritten in place using the same method as
  * zn_PutSample().
+ *
+ * To avoid too much fragmentation, and to make block overwrites faster in
+ * the long run, look for a dsDetail which tells us how many samples we can
+ * expect in this file.  At some point we might want to provide the option
+ * of wiring this to the platform's maxsamples limit.
  */
 {
 	int fsample, alen;
@@ -729,12 +820,34 @@ WriteCode wc;
 	zn_Header *hdr;
 	void *ablock;
 	char atime[30];
+	SValue svalue;
 /*
  * Open up the file.
  */
 	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
 		return (0);
 	hdr = &tag->zt_Hdr;
+/*
+ * Check for hints about the number of samples we should have alloc'ed
+ */
+	if (ds_GetDetail (DD_ZN_HINT_NSAMPLES, details, ndetail, &svalue) &&
+	    (svalue.us_v_int > hdr->znh_NSampAlloc))
+	{
+		msg_ELog (EF_DEBUG, "znf: realloc'ing file for %d samples", 
+			  svalue.us_v_int);
+		zn_ReallocTOC (tag, svalue.us_v_int);
+	}
+#ifdef notdef
+/*
+ * Check for any space reservation requests
+ */
+	if (ds_GetDetail (DD_ZN_RESERVE_BLOCK, details, ndetail, &svalue) &&
+	    (svalue.us_v_int > 0))
+	{
+		int offset = zn_GetSpace (tag, svalue.us_v_int);
+		zn_FreeSpace (tag, offset, svalue.us_v_int);
+	}
+#endif
 /*
  * Figure out where the first sample is to be written. zn_FindDest()
  * will automatically adjust the sizes of our sample arrays if needed.
@@ -746,8 +859,14 @@ WriteCode wc;
 		  "znf PutBlock, wc %d, %d samples at fsample %d, %s", wc,
 		  nsample, fsample, atime);
 
+/*
+ * Check whether this sample is supposed to be appended
+ */
+	if (ds_GetDetail (DD_ZN_APPEND_SAMPLES, details, ndetail, NULL))
+		tag->zt_Append = TRUE;
 	(void) zn_WriteBlock (tag, dc, fsample, sample, nsample, wc,
 			      &block_size);
+	tag->zt_Append = FALSE;
 /*
  * We calculate and flush the affected times out here rather than
  * dirty up and sync the entire array, but only if the times are new.
@@ -810,7 +929,7 @@ unsigned long *size;
  * size of the block.
  *
  * When overwriting, if we cannot free the target samples efficiently, as
- * determined by zn_FreeSampleBlock(), we bail and loop over each sample
+ * determined by zn_DetectDataBlock(), we bail and loop over each sample
  * and overwrite it in place using the per-sample functions.
  */
 {
@@ -847,7 +966,7 @@ unsigned long *size;
 	 */
 	freed = FALSE;
 	if (wc == wc_Overwrite)
-		freed = zn_FreeSampleBlock (tag, dc, fsample, nsample, index, 
+		freed = zn_DetectDataBlock (tag, dc, fsample, nsample, index, 
 					    nfield, &offset, &freed_size);
 	block = NULL;
 	block_size = 0;
@@ -1031,7 +1150,7 @@ int nfield;
 
 
 #ifdef notdef	/* 
-		 * Decommisioned until such time, if any, as someone thinks
+		 * Decommissioned until such time, if any, as someone thinks
 		 * it may provide a real time savings for their purposes.
 		 * Maybe use of this function could be a dsDetail. 
 		 */
@@ -1137,7 +1256,7 @@ int fsample, sample, nsample;
 
 
 static int
-zn_FreeSampleBlock (tag, dc, fsample, nsample, index, nfield, roffset, rsize)
+zn_DetectDataBlock (tag, dc, fsample, nsample, index, nfield, roffset, rsize)
 znTag *tag;
 DataChunk *dc;
 int fsample, nsample;
@@ -1146,21 +1265,21 @@ int nfield;
 long *roffset;
 int *rsize;
 /*
- * Release all of the space held by the given block of samples and fields.
- * We try to make this somewhat intelligent by looking for series of
- * zn_Sample structures which can be "freed" as a whole contiguous block
- * rather than a bunch of little ones.  This will provide improvement
- * especially when overwriting samples which were written as a block.
- * The larger the blocks passed to zn_FreeSpace(), the fewer reads, writes,
- * and merges needed of free block nodes.
+ * Verify that the desired fields of the desired samples all occur
+ * contiguously in the file as one block.  Essentially this means that the
+ * sample data occurs in the same order in the file as the zn_Sample
+ * structures.  So for fixed-scalar, field order does not matter; only
+ * sample order in the file matters.  For scalar orgs, the samples must
+ * be in order, and within each sample the field data must be in the order
+ * of the zn_Sample entries for each field, which is the order in the
+ * file headers field list.
  *
- * In essence, the goal is to minimize fragmentation of the file.  If we
- * can't free all of the space being overwritten by the block at once, then
- * we may as well overwrite in place.  Otherwise we end up with fragments
- * of free space which are not big enough to hold the block to be written,
- * and the block ends up going at the end of the file.  If it is possible
- * free all of the samples as a block, return TRUE.  Otherwise return
- * FALSE, meaning the samples will have to be overwritten in place.
+ * If a block is detected, the offset of the block and its size are returned
+ * in *roffset and *rsize, and then function returns TRUE.  Otherwise
+ * *roffset and *rsize are zero, and the function returns FALSE.
+ *
+ * This function is used to minimize writes when overwriting existing data,
+ * and to reduce reads to a single zn_GetBlock whenever possible.
  */
 {
 	zn_Sample *samp;
@@ -1229,19 +1348,6 @@ int *rsize;
 			++samp;
 		}
 	}
-#ifdef notdef	/* 
-		 * Don't free the block, give the caller the option of
-		 * re-using it first.  We also can't free it for
-		 * fixed-scalar orgs since the write routine needs the old
-		 * data to create the new block.
-		 */
-	/*
-	 * We get to free all of the samples we're overwriting as one block,
-	 * so by all means do it.
-	 */
-	if (size)
-		zn_FreeSpace (tag, offset, size);
-#endif
 	*roffset = offset;
 	*rsize = size;
 	return (TRUE);
@@ -1280,13 +1386,22 @@ void *ablock;
 		tag->zt_Sync |= SF_HEADER | SF_ATTR;
 	}
 /*
- * If there is already an attribute array, free it up.
+ * If there is already an attribute block there, free it up.  If there was
+ * nothing there before, and we're not adding anything, then we don't
+ * have to sync anything, so we just return.
  */
 	zs = tag->zt_Attr + sample;
-	if (zs->znf_Size > 0)
+	if ((zs->znf_Size == 0) && (ablock == NULL))
+		return;
+	else if ((ablock != NULL) && (zs->znf_Size == alen))
+	{
+		zn_PutBlock (tag, zs->znf_Offset, ablock, alen);
+		return;
+	}
+	else if (zs->znf_Size > 0)
 		zn_FreeSpace (tag, zs->znf_Offset, zs->znf_Size);
 /*
- * Allocate the new space and fill it in.
+ * Allocate new space and fill it in, or reset the entry to "empty"
  */
 	if (ablock)
 	{
@@ -1454,17 +1569,17 @@ zn_ExpandTOC (tag, n)
 znTag *tag;
 int n;
 /*
- * Make the contents information in this file 'n' entries bigger.  Try to
- * do it strategically to cause as little fragmentation as possible.  Free
- * all of the old space before allocating new space.
+ * Make the contents information in this file 'n' entries bigger.  We just
+ * take care of the growth algorithm for used sample entries, the actual
+ * expansion of the alloc'ed TOC space is handled in a separate function.
  */
 {
 	zn_Header *hdr = &tag->zt_Hdr;
-	int newns, oldns = hdr->znh_NSampAlloc;
+	int newns;
 /*
  * The easy case is when the tables are already big enough.
  */
-	if ((hdr->znh_NSample + n) < hdr->znh_NSampAlloc)
+	if ((hdr->znh_NSample + n) <= hdr->znh_NSampAlloc)
 	{
 		hdr->znh_NSample += n;
 		tag->zt_Sync |= SF_HEADER;
@@ -1476,17 +1591,45 @@ int n;
  * (12/92 jc) try doubling the TOC size instead of just slowly growing it,
  * so as to reduce fragmentation problems.
  *
- * (8/27 gg) try doubling up to 1024, and from there increase by 512,
- * otherwise platforms with just more than 1024 samples and tens of fields
+ * (8/93 gg) try doubling up to 1024, and from there increase by 512,
+ * otherwise platforms with just over 1024 samples and tens of fields
  * (such as NEXUS soundings) waste alot of space.
  */
-/*	newns = (hdr->znh_NSampAlloc += ZN_GRAIN); */
+/*	newns = hdr->znh_NSampAlloc + ZN_GRAIN; */
+	newns = hdr->znh_NSampAlloc;
 	do {
-		hdr->znh_NSampAlloc += (hdr->znh_NSampAlloc >= 1024) ? 
-			512 : hdr->znh_NSampAlloc;
-		newns = hdr->znh_NSampAlloc;
+		newns += (newns >= 1024) ? 512 : newns;
 	} 
 	while ((hdr->znh_NSample + n) > newns);
+/*
+ * Now pass the actual realloc process to somewhere else
+ */
+	zn_ReallocTOC (tag, newns);
+	hdr->znh_NSample += n;
+}
+
+
+
+
+static void
+zn_ReallocTOC (tag, newns)
+znTag *tag;
+int newns;
+/*
+ * Expand the TOC arrays to at least 'newns' entries.  Try to do it
+ * strategically to cause as little fragmentation as possible.  Free all of
+ * the old space before allocating new space.
+ */
+{
+	zn_Header *hdr = &tag->zt_Hdr;
+	int oldns = hdr->znh_NSampAlloc;
+/*
+ * The easy case is when the tables are already big enough.
+ */
+	if (newns <= hdr->znh_NSampAlloc)
+		return;
+
+	hdr->znh_NSampAlloc = newns;
 /*
  * Release all of the old space first, in the hopes of merging some free
  * space into larger and more easily parcelled blocks 
@@ -1546,10 +1689,7 @@ int n;
 		zn_PutBlock (tag, hdr->znh_OffAttr, tag->zt_Attr,
 				newns*sizeof (zn_Sample));
 	}
-	hdr->znh_NSample += n;
 }
-
-
 
 
 
@@ -1959,6 +2099,10 @@ FieldId *fids;
 		}
 	zn_DataWrite (tag, fdata, hdr->znh_NField*sizeof (float), samp, wc);
 /*
+ * Free the data.  Way to go, TestCenter!
+ */
+	free (fdata);
+/*
  * Put out the location if necessary.
  */
 	zn_WrLocations (tag, dc, fsample, dcsample, 1);
@@ -1988,12 +2132,21 @@ unsigned long *size;
 	zn_Sample *samp;
 	float *data, *di;
 	int i, fld;
+	bool no_init;
 	float bad = dc_GetBadval (dc);
 	zn_Header *hdr = &tag->zt_Hdr;
 
 	*size = nsample * hdr->znh_NField * sizeof(float);
 	data = (float *) malloc (*size);
 	samp = zn_FindSampStr (tag, fsample);
+/*
+ * Do a quick check to see if we're writing every field.  If so, we can
+ * avoid some overhead inside the loop, especially when overwriting.
+ */
+	no_init = (nfield == hdr->znh_NField);
+	for (i = 0; (i < nfield) && no_init; ++i)
+		if (index[i] < 0)
+			no_init = FALSE;
 /*
  * Write out the data for each field.
  */
@@ -2006,7 +2159,11 @@ unsigned long *size;
 		 * file to bad values, since not all of the file's fields
 		 * may be in the DataChunk.
 		 */
-		if ((wc == wc_Append) || (wc == wc_Insert))
+		if (no_init)
+		{
+			/* fall through */
+		}
+		else if ((wc == wc_Append) || (wc == wc_Insert))
 		{
 			for (fld = 0; fld < hdr->znh_NField; fld++)
 				*(di + fld) = bad;
@@ -2729,6 +2886,7 @@ int ndetail;
 	float badval;
 	int tbegin, tend, dcsamp = dc_GetNSample (dc), samp;
 	bool metdata = dc_IsSubClassOf (dc->dc_Class, DCC_MetData);
+	int nsample;
 	SValue v;
 /*
  * Get the file open for starters.
@@ -2759,8 +2917,15 @@ int ndetail;
  */
 	tbegin = zn_TimeIndex (tag, &gp->gl_begin);
 	tend = zn_TimeIndex (tag, &gp->gl_end);
+	nsample = tend - tbegin + 1;
 	msg_ELog (EF_DEBUG, "znf GetData (%d) tbegin=%d to tend=%d",
 		  gp->gl_dfindex, tbegin, tend);
+/*
+ * For all but Boundary class, we create space in our datachunk here.  The
+ * Boundary class does it itself because it knows the size of its boundaries.
+ */
+	if (dc->dc_Class != DCC_Boundary)
+		dc_AddMoreSamples (dc, nsample, 0);
 /*
  * Now things get organization-specific.
  */
@@ -2830,6 +2995,7 @@ int tbegin, tend;
 {
 	Location *locs;
 	int max = 0, samp;
+	int nsamp = tend - tbegin + 1;
 /*
  * Find the biggest boundary we need to pull in, and allocate sufficient
  * memory for that.
@@ -2838,6 +3004,10 @@ int tbegin, tend;
 		if (tag->zt_Sample[samp].znf_Size > max)
 			max = tag->zt_Sample[samp].znf_Size;
 	locs = (Location *) malloc (max);
+/*
+ * Use the max boundary size to allocate space in the DataChunk
+ */
+	dc_AddMoreSamples (dc, nsamp, max);
 /*
  * Now we just pass through and do it.
  */
@@ -2863,11 +3033,15 @@ int dcsamp, tbegin, tend;
 float badval;
 {
 	int sample, *index, nfield, fld, offset = 0, plat;
+	long boffset;
+	int bsize;
 	FieldId *fids;
 	zn_Sample *zs;
 	zn_Header *hdr = &tag->zt_Hdr;
-	float *data = (float *) malloc ((tend - tbegin + 1)*sizeof (float));
-	float *dp;
+	int nsamp = tend - tbegin + 1;
+	float *data = (float *) malloc (nsamp * sizeof (float));
+	float *block = NULL;
+	float *dp, *bp;
 	bool fixed = (hdr->znh_Org == OrgFixedScalar);
 /*
  * If we are pulling a single station out of an irgrid, figure out 
@@ -2894,6 +3068,23 @@ float badval;
 	index = (int *) malloc (nfield*sizeof (int));
 	zn_GetFieldIndex (tag, fids, nfield, index, FALSE);
 /*
+ * For now, only scalar attempts this: check for a block,
+ * and if we get one, read it and collect data from there instead of separate
+ * zn_GetBlock calls for each one.
+ */
+	if (zn_DetectDataBlock (tag, dc, tbegin, nsamp, index, nfield,
+				&boffset, &bsize))
+	{
+		/*
+		 * Allocate and then read the block
+		 */
+		block = (float *) malloc (bsize);
+		zn_GetBlock (tag, boffset, (void *)block, bsize);
+		msg_ELog (EF_DEBUG, "znf readscalar: data block detected");
+	}
+	else
+		msg_ELog (EF_DEBUG, "znf readscalar: no data block detected");
+/*
  * Go through and get the entire set of data for the given field.
  */
 	for (fld = 0; fld < nfield; fld++)
@@ -2902,12 +3093,23 @@ float badval;
 	 * Now we get each sample.
 	 */
 		dp = data;
+		bp = block;
 	 	for (sample = tbegin; sample <= tend; sample++)
 		{
 			zs = zn_FindSampStr (tag, sample) + 
-						(fixed ? 0 : index[fld]);
+				(fixed ? 0 : index[fld]);
 			if (index[fld] < 0 || zs->znf_Size <= 0)
 				*dp = badval;
+			else if (block && fixed)
+			{
+				*dp = bp[ index[fld] ];
+				bp += hdr->znh_NField;
+			}
+			else if (block)
+			{
+				*dp = *(float *)((char *)block + 
+					 zs->znf_Offset + offset - boffset);
+			}
 			else if (fixed)
 				zn_GetBlock (tag, zs->znf_Offset + 
 					index[fld]*sizeof (float), dp,
@@ -2921,7 +3123,7 @@ float badval;
 	 * Dump it into the data chunk.
 	 */
 	 	dc_AddMultScalar (dc, tag->zt_Time + tbegin, dcsamp,
-			tend - tbegin + 1, fids[fld], data);
+				  nsamp, fids[fld], data);
 	}
 /*
  * Time to deal with locations.  If it is static, life is easy.
@@ -2932,12 +3134,12 @@ float badval;
  * Otherwise we need to copy the locs over.
  */
 	else
-		for (sample = tbegin; sample <= tend; sample++)
-			dc_SetLoc (dc, dcsamp + sample - tbegin, 
-				tag->zt_Locs + sample);
+		dc_SetMLoc (dc, dcsamp, nsamp, tag->zt_Locs + tbegin);
 /*
  * Clean up and we are done.
  */
+	if (block)
+		free (block);
 	free (index);
 	free (data);
 }
@@ -2985,9 +3187,7 @@ int dcsamp, tbegin, tend;
  * Time to deal with locations.
  */
 	if (ds_IsMobile (dc->dc_Platform))
-		for (sample = tbegin; sample <= tend; sample++)
-			dc_SetLoc (dc, dcsamp + sample - tbegin, 
-				tag->zt_Locs + sample);
+		dc_SetMLoc (dc, dcsamp, tend-tbegin+1, tag->zt_Locs+tbegin);
 /*
  * Clean up and we are done.
  */
@@ -3415,9 +3615,13 @@ int size;
  * for any existing blocks in which the space will fit, next try for a free
  * block at the end of the file, and finally just add space to the end of the
  * file.
+ *
+ * If the tag's Append flag is set, just return a block at the end of the
+ * file.
  */
 	last = -1;
-	for (free = hdr->znh_Free; free > 0; free = fb.znf_Next)
+	for (free = hdr->znh_Free; free > 0 && !tag->zt_Append;
+	     free = fb.znf_Next)
 	{
 	/*
 	 * Pull up this block and see if it is big enough or at the end of
@@ -3434,11 +3638,11 @@ int size;
 		prev = free;
 	}
 			
-	if (free > 0)			/* normal case */
+	if (free > 0 && !tag->zt_Append)	/* normal case */
 	{
 		return (zn_GetFromFree (tag, size, free, &fb, prev));
 	}
-	else if (last > 0)		/* take from end of file */
+	else if (last > 0 && !tag->zt_Append)	/* take free space at end */
 	{
 	/*
 	 * Increase file length and remove free block at the end of the file
@@ -3451,7 +3655,8 @@ int size;
 	else				/* append to end of file */
 	{
 	/*
-	 * None of that worked, so we'll just allocate it at the end.
+	 * None of that worked, or we're forced to append, 
+	 * so we'll just allocate the space at the end.
 	 */
 		free = hdr->znh_Len;
 		hdr->znh_Len += size;
@@ -3695,9 +3900,10 @@ int len;
 			after = free;
 		last = free;
 	}
-# ifdef notdef
-ui_printf ("Free %d at %ld, before %ld, after %ld\n", len, offset, before, after);
-zn_DumpFL (tag, hdr);
+# ifdef DEBUG_FREE_LIST
+	ui_printf ("Free %d at %ld, before %ld, after %ld\n", 
+		   len, offset, before, after);
+	zn_DumpFL (tag, hdr);
 # endif
 /*
  * If there is a free block ahead of this one, we merge them.
@@ -3782,8 +3988,8 @@ zn_DumpFL (tag, hdr);
  */
 	if ((offset + fb.znf_Size >= hdr->znh_Len) && (fb.znf_Size >= 8192))
 		zn_TruncateFreeBlock (tag, offset, &fb);
-# ifdef notdef
-zn_DumpFL (tag, hdr);
+# ifdef DEBUG_FREE_LIST
+	zn_DumpFL (tag, hdr);
 # endif
 }
 
@@ -3971,7 +4177,8 @@ char *fname;
 	hdr->znh_NSample = hdr->znh_NField = 0;
 	hdr->znh_Org = OrgScalar;
 	hdr->znh_OffLoc = -1;
-	hdr->znh_OffGlAttr = hdr->znh_OffAttr = -1;
+	hdr->znh_OffGlAttr = -1;
+	hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
 	hdr->znh_OffRg = -1;
 /*

@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 3.3 1992-09-25 15:44:45 corbet Exp $")
+MAKE_RCSID ("$Id: dc_RGrid.c,v 3.4 1994-01-03 07:18:15 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -56,6 +56,7 @@ RawDCClass RGridMethods =
 {
 	"RGrid",
 	SUPERCLASS,		/* Superclass			*/
+	3,			/* Depth, Raw = 0		*/
 	dc_RGCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
@@ -78,7 +79,7 @@ DataClass class;
  * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
  * add any info here, because we don't know it yet.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 	dc->dc_Class = class;
 	return (dc);
 }
@@ -135,7 +136,7 @@ DataChunk *dc;
  * Get the grid info.
  */
 	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid,
-							ST_GRID_GEOM, NULL)))
+						 ST_GRID_GEOM, NULL)))
 	{
 		msg_ELog (EF_PROBLEM, "Grid geometry block vanished!");
 		return;
@@ -160,12 +161,13 @@ DataChunk *dc;
 void
 dc_RGAddGrid (dc, sample, field, origin, rg, t, data, len)
 DataChunk *dc;
-int sample, len;
+int sample;
 FieldId field;
 Location *origin;
 RGrid *rg;
 ZebTime *t;
-float *data;
+void *data;
+int len;
 /*
  * Add this field to the DC.
  * Entry:
@@ -184,6 +186,7 @@ float *data;
 {
 	GridGeometry *gg;
 	int nsamples = dc_GetNSample (dc);
+	int numgg, newlen, newsamp;
 /*
  * Checking time.
  */
@@ -198,6 +201,8 @@ float *data;
 			sample, nsamples);
 		return;
 	}
+	if (len == 0)
+		len = rg->rg_nX * rg->rg_nY * rg->rg_nZ * dc_SizeOf(dc, field);
 /*
  * If there is no data in this grid, create our geometry information now.
  */
@@ -210,32 +215,50 @@ float *data;
 		gg->gg_Rg = *rg;
 		dc_AddADE (dc, gg, DCC_RGrid, ST_GRID_GEOM,
 				sizeof (GridGeometry), TRUE);
+	/*
+	 * Set some sample size hints, assuming that all of the samples will
+	 * have the same grid geometry (which is usually a safe assumption).
+	 * If this is a bad assumption, the application should change the hint,
+	 * or reset it to zero so that the per-sample average is used.
+	 */
+		dc_HintSampleSize (dc, len * dc_GetNField(dc), FALSE);
 	}
 /*
  * This is not the first data, so there should already be a GridGeometry
  * structure.
  */
 	else if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid,
-							ST_GRID_GEOM, NULL)))
+						      ST_GRID_GEOM, &numgg)))
 	{
 		msg_ELog (EF_PROBLEM, "Grid geometry block vanished!");
 		return;
 	}
 /*
- * If they are adding a new sample to the DC, expand our grid info now.
+ * If they are adding a new sample to the DC, expand our grid info now.  Use
+ * the growth hint to try to reduce the number of realloc's we have to do.
+ * Note that (sample == nsamples) only for the first field stored for a 
+ * particular sample, so we aren't trying to grow every time a field is added
+ * the last sample in the chunk.  We only check for growth when trying to
+ * add to a sample which at present does not exist.
  */
 	else if (sample == nsamples)
 	{
-		int newlen = (nsamples + 1)*sizeof (GridGeometry);
-		gg = (GridGeometry *) realloc (gg, newlen);
-		gg[sample].gg_Rg = *rg;
-		dc_ChangeADE (dc, gg, DCC_RGrid, ST_GRID_GEOM, newlen);
+		numgg /= sizeof(GridGeometry);
+	/*
+	 * We need at least one more slot, but perhaps there's hints for more
+	 */
+		newsamp = dc_NSamplesGrowthHint (dc, 1);
+		if (numgg < newsamp)
+		{
+			newlen = (newsamp)*sizeof (GridGeometry);
+			gg = (GridGeometry *) realloc (gg, newlen);
+			dc_ChangeADE (dc, gg, DCC_RGrid, ST_GRID_GEOM, newlen);
+		}
 	}
 /*
  * Otherwise, everything is set up.  Now we just add the new data.
  */
-	if (len == 0)
-		len = rg->rg_nX * rg->rg_nY * rg->rg_nZ * sizeof (float);
+	gg[sample].gg_Rg = *rg;
 	dc_AddMData (dc, t, field, len, sample, 1, data);
 	dc_SetLoc (dc, sample, origin);
 }
@@ -243,13 +266,14 @@ float *data;
 
 
 
-float *
+void *
 dc_RGGetGrid (dc, sample, field, origin, rg, len)
 DataChunk *dc;
-int sample, *len;
+int sample;
 FieldId field;
 Location *origin;
 RGrid *rg;
+int *len;
 /*
  * Retrieve a grid from this DC.
  */
@@ -270,7 +294,7 @@ RGrid *rg;
  * Now look up our dimension info.
  */
 	if (! (origin || rg))  /* Maybe they don't want it. */
-		return ((float *) data);
+		return ((void *) data);
 	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid, ST_GRID_GEOM, 
 					NULL)))
 	{
@@ -284,7 +308,7 @@ RGrid *rg;
 		dc_GetLoc (dc, sample, origin);
 	if (rg)
 		*rg = gg[sample].gg_Rg;
-	return ((float *) data);
+	return ((void *) data);
 }
 
 

@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.25 1993-12-22 21:34:29 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.26 1994-01-03 07:17:16 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -74,8 +74,6 @@ typedef struct _nctag
 
 static int      SPMap[MAXPLAT] = {0};
 static bool     SPMapInited = FALSE;
-static NCTag *Tag;	/* for passing tag parameter to dnc_PutAttribute */
-static int VarId;	/* ditto */
 /*
  * We also maintain a subplatform list for IRGrid platforms, which ends up in
  * the ir_subplats field of the data object eventually.
@@ -115,6 +113,14 @@ static struct CO_Compat
 # define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
 
 /*
+ * Structure for passing attribute info among process functions
+ */
+struct AttArg {
+	NCTag *tag;
+	int varid;
+};
+
+/*
  * Locally used stuff.
  */
 static void     dnc_NCError FP ((char *));
@@ -132,6 +138,8 @@ static void     dnc_CFIRGridVars FP ((NCTag *, DataChunk *));
 static bool     dnc_OverheadField FP ((char *const));
 static int	dnc_OrgClassCompat FP ((DataOrganization, DataClass));
 static void	dnc_ConvTimes FP ((NCTag *, int, int, ZebTime *));
+static void	dnc_ScalarSetup FP ((NCTag *tag, DataChunk *dc, int nfield,
+				     FieldId *fields));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
 				    int nfield, FieldId *fields));
 static int 	dnc_ReadScalar FP ((DataChunk *, NCTag *, long, long, FieldId *,
@@ -164,11 +172,14 @@ static int	dnc_DefineNSpaceVar FP ((NCTag *tag, DataChunk *dc,
 static void	dnc_DefineLocVars FP ((NCTag *tag, int ndims, int *dims,
 				       int *vlat, int *vlon, int *valt));
 static void	dnc_PutGlobalAttributes FP ((NCTag *tag, DataChunk *dc));
-static int	dnc_PutAttribute FP ((char *key, char *value));
+static int	dnc_PutAttribute FP ((char *key, void *value, int nval,
+				      DC_ElemType type, void *arg));
 static void	dnc_FillArray FP ((float *, int, double));
 static int	dnc_FindTimes FP ((NCTag *tag, DataChunk *dc, int sample, 
 				   int count, WriteCode wc, long *start));
 static char *	dnc_ValueToString FP ((void *value, nc_type type, int len));
+static DC_ElemType dnc_ElemType FP ((nc_type type));
+static nc_type	dnc_NCType FP ((DC_ElemType type));
 static char *	dnc_GetStringAtt FP ((int cdfid, int varid, char *att_name, 
 				      char *att_val, int len));
 int		dnc_PutBlock FP ((int dfile, DataChunk *dc, int sample,
@@ -363,8 +374,8 @@ NCTag *tag;
 {
 	int ndim, nvar, natt, rdim, fld;
 	char *cp = FldBuf;
-	char longname[100];	/* anything bigger we'll just ignore */
-	char units[50];
+	char longname[256];	/* anything bigger we'll just ignore */
+	char units[256];
 /*
  * Do an inquire to see how many vars there are.
  */
@@ -388,9 +399,9 @@ NCTag *tag;
 		sprintf (longname, cp);
 		sprintf (units, "unknown");
 		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_LONGNAME, 
-					longname, 100);
+					longname, 256);
 		(void)dnc_GetStringAtt (tag->nc_id, fld, VATT_UNITS, 
-					units, 50);
+					units, 256);
 		tag->nc_FMap[fld] = F_DeclareField (cp, longname, units);
 	}
 	return (TRUE);
@@ -451,14 +462,6 @@ NCTag *tag;
 
 	if (ncvarget (tag->nc_id, lon, &start, &stop, pos) < 0)
 		msg_ELog (EF_PROBLEM, "Lon get failure %d", ncerr);
-#ifdef notdef	
-	/* 
-	 * With the advent of projects like TOGA-COARE, Zeb has gone global;
-	 * we can no longer assume Zeb is operating in the Western hemisphere
-	 */
-	for (i = 0; i < tag->nc_nPlat; i++)
-		tag->nc_locs[i].l_lon = (pos[i] > 0) ? -pos[i] : pos[i];
-#endif
 	for (i = 0; i < tag->nc_nPlat; i++)
 		tag->nc_locs[i].l_lon = pos[i];
 
@@ -640,6 +643,7 @@ NCTag *tag;
 /*
  * Finally the grid spacings.
  */
+	tag->nc_rgrid.rg_Yspacing = tag->nc_rgrid.rg_Zspacing = 0.0;
 	if ((v = ncvarid (tag->nc_id, "x_spacing")) < 0)
 	{
 		dnc_NCError ("No 'x_spacing' variable");
@@ -938,10 +942,10 @@ DataClass class;
 	   	dc_RGSetup (dc, nfield, fields);
 		break;
 	/*
-	 * Similar with Scalars.
+	 * Scalars need to know the type of the fields.
 	 */
 	   case DCC_Scalar:
-	   	dc_SetScalarFields (dc, nfield, fields);
+		dnc_ScalarSetup (tag, dc, nfield, fields);
 		break;
 	/*
 	 * NSpace must inquire about dimensions for each field
@@ -980,6 +984,44 @@ DataClass class;
 
 
 
+
+
+static void
+dnc_ScalarSetup (tag, dc, nfield, fields)
+NCTag *tag;
+DataChunk *dc;
+int nfield;
+FieldId *fields;
+/*
+ * Inquire the type of our variables and set the types in our DataChunk
+ */
+{
+	int i;
+	int varid;
+	int ndims, natts, nsdims;
+	nc_type vtype;
+	int dims[ MAX_VAR_DIMS ];
+	DC_ElemType types[ MAX_NC_VARS ];
+
+	/*
+	 * For each field, see if its varid is in the tag.  If not,
+	 * skip it.  Else inquire the varid and get its type.
+	 */
+	for (i = 0; i < nfield; ++i)
+	{
+		types[i] = DCT_Unknown;
+		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
+			continue;
+		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, dims, &natts);
+		types[i] = dnc_ElemType (vtype);
+	}
+	dc_SetScalarFields (dc, nfield, fields);
+	dc_SetFieldTypes (dc, nfield, fields, types);
+}
+
+
+
+
 static void
 dnc_NSpaceSetup (tag, dc, nfield, fields)
 NCTag *tag;
@@ -1004,6 +1046,7 @@ FieldId *fields;
 	unsigned long sizes[ MAX_NC_DIMS ];
 	char dim_names[ MAX_NC_DIMS ][ MAX_NC_NAME ];
 	char *names[ MAX_NC_DIMS ];
+	DC_ElemType types[ MAX_NC_VARS ];
 
 	for (i = 0; i < MAX_NC_DIMS; ++i)
 		names[i] = &(dim_names[i][0]);
@@ -1033,14 +1076,15 @@ FieldId *fields;
 		/*
 		 * Have all the dimensions.  Define the field.
 		 */
+		types[i] = dnc_ElemType (vtype);
 		dc_NSDefineField (dc, fields[i], nsdims,
 				  names, sizes, is_static);
 	}
 	/*
-	 * All done.  Close it out.
+	 * All done.  Close it out and set the types.
 	 */
 	dc_NSDefineComplete (dc);
-	return;
+	dc_SetFieldTypes (dc, nfield, fields, types);
 }
 
 
@@ -1083,6 +1127,11 @@ int ndetail;
 	tbegin = dnc_TimeIndex (tag, &gp->gl_begin);
 	tend = dnc_TimeIndex (tag, &gp->gl_end);
 	nsamp = tend - tbegin + 1;
+/*
+ * Prepare the DataChunk for the samples we're about to add using the current
+ * sample size hint.
+ */
+	dc_AddMoreSamples (dc, nsamp, /*sample size*/ 0 );
 /*
  * Now we have to split out based on the class they want.
  */
@@ -1145,9 +1194,9 @@ float badval;
  * Retrieve scalar data from this file.
  */
 {
-	float *temp;
+	void *temp;
 	long start[4], count[4];
-	int field, vfield, sbegin = dc_GetNSample (dc), i;
+	int field, vfield, sbegin = dc_GetNSample (dc);
 	ZebTime *t;
 /*
  *  Figure out our coords.
@@ -1194,7 +1243,7 @@ float badval;
 /*
  * Now we can actually pull out the data.
  */
-	temp = (float *) malloc (nsamp*sizeof (float));
+	temp = (void *) malloc (nsamp * DC_ElemTypeMaxSize);
 	for (field = 0; field < nfield; field++)
 	{
 	/*
@@ -1204,11 +1253,12 @@ float badval;
 		if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0) ||
 			(ncvarget(tag->nc_id, vfield, start, count, temp) < 0))
 		{
-			dnc_FillArray (temp, nsamp, badval);
 			if (vfield >= 0)
 				dnc_NCError ("Scalar read");
+			if (dc_Type(dc, fids[field]) == DCT_Float)
+				dnc_FillArray (temp, nsamp, badval);
 		}
-		else
+		else if (dc_Type (dc, fids[field]) == DCT_Float)
 			dnc_ApplyBadval (tag, vfield, dc, fids[field],
 					 badval, temp, nsamp);
 	/*
@@ -1225,8 +1275,7 @@ float badval;
 	{
 		Location *locs = (Location *) malloc (nsamp*sizeof (Location));
 		dnc_LoadLocation (tag, locs, begin, nsamp);
-		for (i = 0; i < nsamp; i++)
-			dc_SetLoc (dc, sbegin + i, locs + i);
+		dc_SetMLoc (dc, sbegin, nsamp, locs);
 		free (locs);
 	}
 	else if (tag->nc_org == OrgIRGrid)
@@ -1253,7 +1302,6 @@ float badval;
  * organization and add the data to the NSpace datachunk.
  */
 {
-	int i;
 	int sbegin = dc_GetNSample (dc);
 	ZebTime *t;
 
@@ -1284,8 +1332,7 @@ float badval;
 	{
 		Location *locs = (Location *) malloc (nsamp*sizeof (Location));
 		dnc_LoadLocation (tag, locs, begin, nsamp);
-		for (i = 0; i < nsamp; i++)
-			dc_SetLoc (dc, sbegin + i, locs + i);
+		dc_SetMLoc (dc, sbegin, nsamp, locs);
 		free (locs);
 	}
 	else
@@ -1314,8 +1361,9 @@ float badval;
 	long start[ MAX_VAR_DIMS ];
 	long count[ MAX_VAR_DIMS ];
 	unsigned long sizes[ DC_MaxDimension ];
-	float *temp;
+	void *temp;
 	unsigned long size, tempsize;
+	int elemsize;
 	int field, i;
 	int varid;
 	int sbegin = dc_GetNSample (dc);
@@ -1350,15 +1398,16 @@ float badval;
 			size *= sizes[i];
 		}
 
+		elemsize = dc_SizeOf (dc, fids[field]);
 		if (!temp)
 		{
-			temp = (float *) malloc (size * sizeof(float));
-			tempsize = size;
+			tempsize = size * elemsize;
+			temp = (void *) malloc (tempsize);
 		}
-		else if (size > tempsize)
+		else if (size * elemsize > tempsize)
 		{
-			temp = (float *) realloc (temp, size * sizeof(float));
-			tempsize = size;
+			tempsize = size * elemsize;
+			temp = (void *) realloc (temp, tempsize);
 		}
 
 		if (((varid = dnc_GetFieldVar (tag, fids[field])) < 0) ||
@@ -1367,24 +1416,20 @@ float badval;
 			msg_ELog (EF_PROBLEM, 
 				  "dnc_ReadNSpace, error on field %i", 
 				  fids[field]);
-			dnc_FillArray (temp, size, badval);
+			if (dc_Type(dc, fids[field]) == DCT_Float)
+				dnc_FillArray ((float *)temp, size, badval);
 		}
-		else
+		else if (dc_Type (dc, fids[field]) == DCT_Float);
 			dnc_ApplyBadval (tag, varid, dc, fids[field],
-					 badval, temp, size);
+					 badval, (float *)temp, size);
 		/*
 		 * Add the data to the data chunk.
 		 */
 		if (is_static)
 			dc_NSAddStatic (dc, fids[field], temp);
 		else
-		{
-			for (i = 0; i < nsamp; ++i)
-			   dc_NSAddSample (dc, t+i, sbegin+i, 
-				fids[field], 
-				temp + ((unsigned long)(i * size) /
-					(unsigned long)nsamp) );
-		}
+			dc_NSAddMultSamples (dc, t, sbegin, nsamp,
+					     fids[field], temp);
 	}
 	free (temp);
 }
@@ -1527,6 +1572,7 @@ dsDetail *dets;
  */
 	origin = tag->nc_sloc;
 	rg = tag->nc_rgrid;
+	dc_SetStaticLoc (dc, &tag->nc_sloc);
 /*
  * If the file contains 3d grids, they may wish to subsection things.
  */
@@ -2170,6 +2216,7 @@ int *dims;
 	char *attr;
 	int var;
 	long varid;
+	struct AttArg attarg;
 /*
  * If the DC is NSpace, we have some dimensions to define first
  */
@@ -2180,6 +2227,7 @@ int *dims;
 	fids = dc_GetFields (dc, &nfield);
 	for (var = 0; var < nfield; var++)
 	{
+		nc_type type = dnc_NCType (dc_Type(dc, fids[var]));
 	/*
 	 * NSpace fields may have dimensions in addition to the base
 	 * dimensions, and static fields will have only their NSpace
@@ -2193,18 +2241,18 @@ int *dims;
 		else
 		{
 			varid = ncvardef (tag->nc_id, F_GetName (fids[var]),
-					  NC_FLOAT, ndim, dims);
+					  type, ndim, dims);
 		}
 	/*
 	 * Add the conventional attributes first.  Similarly-named attributes
 	 * in the DataChunk are explicitly blocked from overwriting the values
 	 * from the fields table by the dnc_PutAttribute() function.
 	 */
-		attr = F_GetUnits(fids[var]);
-		(void) ncattput (tag->nc_id, varid, VATT_UNITS,
-				NC_CHAR, strlen(attr)+1, attr);
 		attr = F_GetDesc(fids[var]);
 		(void) ncattput (tag->nc_id, varid, VATT_LONGNAME,
+				NC_CHAR, strlen(attr)+1, attr);
+		attr = F_GetUnits(fids[var]);
+		(void) ncattput (tag->nc_id, varid, VATT_UNITS,
 				NC_CHAR, strlen(attr)+1, attr);
 	/*
 	 * Add the missing_value attribute.  This one must be written as
@@ -2212,15 +2260,17 @@ int *dims;
 	 * dnc_PutAttribute() will not store any like-named attribute keys 
 	 * from the DataChunk.
 	 */
-		(void) ncattput (tag->nc_id, varid, VATT_MISSING,
-				NC_FLOAT, 1, &badval);
+		if (type == NC_FLOAT)
+			(void) ncattput (tag->nc_id, varid, VATT_MISSING,
+					 NC_FLOAT, 1, &badval);
 	/* 
 	 * Add the field attributes from the DataChunk,
 	 * passing the tag and varid via global variables.  
 	 */
-		Tag = tag;
-		VarId = varid;
-		dc_ProcessFieldAttrs(dc, fids[var], NULL, dnc_PutAttribute);
+		attarg.tag = tag;
+		attarg.varid = varid;
+		dc_ProcFieldAttrArrays(dc, fids[var], NULL, 
+				       dnc_PutAttribute, (void *)&attarg);
 	}
 }
 
@@ -2255,6 +2305,7 @@ int *dims;
 {
 	int alldims[ MAX_VAR_DIMS ];
 	int nalldim, nfdim;
+	nc_type type;
 	int i;
 	char *names[ DC_MaxDimension ];
 /*
@@ -2277,8 +2328,9 @@ int *dims;
 		alldims[ nalldim ] = ncdimid (tag->nc_id, names[i]);
 	}
 
+	type = dnc_NCType ( dc_Type(dc, fid) );
 	return (ncvardef (tag->nc_id, F_GetName (fid),
-			  NC_FLOAT, nalldim, alldims));
+			  type, nalldim, alldims));
 }
 
 
@@ -2289,21 +2341,20 @@ NCTag *tag;
 DataChunk *dc;
 /*
  * Add global attributes from the data chunk and create the global
- * 'history' attribute.
- * Presently, this only happens when a file is created.  Any additional
- * datachunks' global attributes will not be written.  XXX What would the
- * behavior be if the same global attribute was given different values
- * in different datachunks?
- * Unfortunately, dc_ProcessAttrs does not provide for a 'tag' argument
- * to the function, so the tag must be passed via a global variable.
+ * 'history' attribute.  Presently, this only happens when a file is
+ * created.  Any additional datachunks' global attributes will not be
+ * written.  XXX What would the behavior be if the same global attribute
+ * was given different values in different datachunks?
  */
 {
 	char *attr, history[256];
 	struct timeval tv;
+	struct AttArg attarg;
 
-	Tag = tag;
-	VarId = NC_GLOBAL;
-	(void)dc_ProcessAttrs(dc, NULL, dnc_PutAttribute);
+	attarg.tag = tag;
+	attarg.varid = NC_GLOBAL;
+	dc_ProcessAttrArrays (dc, NULL, dnc_PutAttribute, (void *)&attarg);
+
 	attr = ds_PlatformName(dc->dc_Platform);
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
 		       NC_CHAR, strlen(attr)+1, attr);
@@ -2311,7 +2362,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.25 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.26 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2320,22 +2371,32 @@ DataChunk *dc;
 
 
 static int
-dnc_PutAttribute(key, value)
+dnc_PutAttribute(key, value, nval, type, arg)
 char *key;
-char *value;
+void *value;
+int nval;
+DC_ElemType type;
+void *arg;
 /*
  * Add this datachunk attribute to the file's attributes for VarId
  */
 {
+	struct AttArg *attarg = (struct AttArg *)arg;
+
 	/*
 	 * Ignore certain attributes so that we don't override the
-	 * legitimate ones.
+	 * legitimate ones, but only for non-global attributes.
 	 */
-	if (strcmp(key, VATT_MISSING) && strcmp(key, VATT_LONGNAME) &&
-	    strcmp(key, VATT_UNITS))
+	if ((attarg->varid == NC_GLOBAL) || 
+	    (strcmp(key, VATT_MISSING) && 
+	     strcmp(key, VATT_LONGNAME) && strcmp(key, VATT_UNITS)))
 	{
-		(void)ncattput(Tag->nc_id, VarId,
-			       key, NC_CHAR, strlen(value)+1, value);
+		if (type == DCT_String)
+			(void)ncattput(attarg->tag->nc_id, attarg->varid,
+				       key, NC_CHAR, strlen(value)+1, value);
+		else
+			(void)ncattput(attarg->tag->nc_id, attarg->varid,
+				       key, dnc_NCType(type), nval, value);
 	}
 	return(0);
 }
@@ -2719,7 +2780,7 @@ WriteCode wc;
 	 */
 		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
 		{
-			msg_ELog (EF_PROBLEM, "(PUT) Can't find fld %s",
+			msg_ELog (EF_PROBLEM, "PutSample: Can't find fld %s",
 						 F_GetName (fids[field]));
 			continue;
 		}
@@ -2921,20 +2982,7 @@ WriteCode wc;
  * Time for the humungo write to dump it all into the file.
  */
 	fids = dc_GetFields (dc, &nfield);
-/*
- * XXX We happen to know that all of fields are created as type float
- * in dnc_CreateFile().  We take advantage of this here.  However,
- * according to a strict interpretation of DataChunks, we can't be
- * sure of the size (i.e. type) of a field value without retrieving
- * it from the data chunk.  The size of the field is available from
- * the data chunk, but since this does not imply a variable type for
- * storage with netCDF, we must use the float assumption.
- *
- * Theoretically we could allocate the data array once to the DataLen
- * of the DC, but this might be some sort of violation.  And for 70
- * fields, we actually only need 1/70 of the space in the DC.  For now
- * we'll do the first alloc inside the loop.
- */
+
 	datasize = 0;
 	data = NULL;
 	for (field = 0; field < nfield; field++)
@@ -2946,7 +2994,7 @@ WriteCode wc;
 		idata = 0;
 		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
 		{
-			msg_ELog (EF_PROBLEM, "(PUT) Can't find fld %s",
+			msg_ELog (EF_PROBLEM, "PutBlock: Can't find fld %s",
 						 F_GetName (fids[field]));
 			continue;
 		}
@@ -2965,7 +3013,7 @@ WriteCode wc;
 				mdata = (char *)dc_NSGetStatic (dc, 
 								fids[field], 
 								&mdatasize);
-				mdatasize *= sizeof(float);
+				mdatasize *= dc_SizeOf (dc, fids[field]);
 			}
 
 			if (! data)
@@ -3231,6 +3279,69 @@ int len;
 
 
 
+static DC_ElemType
+dnc_ElemType (type)
+nc_type type;
+/*
+ * Convert the netCDF type to corresponding DC_ElemType.
+ */
+{
+	switch(type)
+	{
+	   case NC_BYTE:
+		return (DCT_UnsignedChar);
+	   case NC_CHAR:
+		return (DCT_Char);
+	   case NC_SHORT:
+		return (DCT_ShortInt);
+	   case NC_LONG:
+		return (DCT_LongInt);
+	   case NC_FLOAT:
+		return (DCT_Float);
+	   case NC_DOUBLE:
+		return (DCT_Double);
+	   default:
+		return(DCT_Unknown);
+	}
+}
+
+
+
+
+
+static nc_type
+dnc_NCType (type)
+DC_ElemType type;
+/*
+ * Convert the DC_ElemType type to corresponding nc_type.
+ */
+{
+	switch(type)
+	{
+	   case DCT_Float:
+		return (NC_FLOAT);
+	   case DCT_Double:
+	   case DCT_LongDouble:
+		return (NC_DOUBLE);
+	   case DCT_Char:
+		return (NC_CHAR);
+	   case DCT_UnsignedChar:
+		return (NC_BYTE);
+	   case DCT_ShortInt:
+	   case DCT_UnsignedShort:
+		return (NC_SHORT);
+	   case DCT_Integer:
+	   case DCT_UnsignedInt:
+	   case DCT_LongInt:
+	   case DCT_UnsignedLong:
+		return (NC_LONG);
+	   default:
+		return (0);
+	}
+}
+
+
+
 
 static int
 dnc_ReadGlobalAtts(dc,tag)
@@ -3263,13 +3374,16 @@ NCTag *tag;
 	 * now allocate space for the value, and get that too
 	 */
 		value = (void *) malloc (len*nctypelen(gltype));
-		ncattget(tag->nc_id, NC_GLOBAL, key, (void *) value);
+		ncattget(tag->nc_id, NC_GLOBAL, key, value);
 	/* 
-	 * now just stuff it into the data chunk.  The value is first
-	 * passed through dnc_ValueToString in case some non-char
-	 * attributes have been added to the file outside of Zeb.
+	 * Add the attribute.  Try to detect character arrays which are
+	 * intended to be strings.
 	 */
-		dc_SetGlobalAttr(dc,key,dnc_ValueToString(value, gltype, len));
+		if (gltype == NC_CHAR && ((char *)value)[len - 1] == '\0')
+			dc_SetGlobalAttrArray (dc, key, DCT_String, 1, value);
+		else
+			dc_SetGlobalAttrArray (dc, key, dnc_ElemType(gltype),
+					       len, value);
 		free(value);
 	}
 	return(nglatt);
@@ -3354,12 +3468,17 @@ int nfield;
 		 * now allocate space for the value, and get that too 
 		 */
 			value = (void *) malloc (len*nctypelen(ftype));
-			ncattget(tag->nc_id, var, key, (void *) value);
+			ncattget(tag->nc_id, var, key, value);
 		/* 
-		 * now just stuff it into the data chunk
+		 * Now just stuff it into the data chunk, doing our best to
+		 * detect character arrays intended to be strings.
 		 */
-			dc_SetFieldAttr(dc,fids[f],key,
-					dnc_ValueToString(value, ftype, len));
+			if (ftype == NC_CHAR && ((char *)value)[len-1] == '\0')
+				dc_SetFieldAttrArray (dc, fids[f], key,
+						      DCT_String, 1, value);
+			else
+				dc_SetFieldAttrArray (dc, fids[f], key,
+					      dnc_ElemType(ftype), len, value);
 			free(value);
 		}
 	}  /* nfields */

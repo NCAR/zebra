@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Boundary.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Boundary.c,v 1.5 1994-01-03 07:17:58 granger Exp $")
 
 
 /*
@@ -55,6 +55,7 @@ RawDCClass BoundaryMethods =
 {
 	"Boundary",
 	SUPERCLASS,		/* Superclass			*/
+	2,			/* Depth, Raw = 0		*/
 	dc_BndCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
@@ -77,7 +78,7 @@ DataClass class;
 /*
  * Start by creating a superclass chunk.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 /*
  * No AuxData at all for boundaries, so we just set the class and return.
  */

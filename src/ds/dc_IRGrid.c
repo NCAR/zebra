@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_IRGrid.c,v 3.2 1993-05-25 07:08:31 granger Exp $")
+MAKE_RCSID ("$Id: dc_IRGrid.c,v 3.3 1994-01-03 07:18:01 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -58,6 +58,7 @@ RawDCClass IRGridMethods =
 {
 	"IRGrid",
 	SUPERCLASS,		/* Superclass			*/
+	3,			/* Depth, Raw = 0		*/
 	dc_IRGCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
@@ -80,7 +81,7 @@ DataClass class;
  * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
  * add any info here, because we don't know it yet.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 	dc->dc_Class = class;
 	return (dc);
 }
@@ -119,7 +120,7 @@ FieldId *fields;
 /*
  * Do the field setup.
  */
-	dc_SetupUniformFields (dc, 0, nfld, fields, nplat*sizeof (float));
+	dc_SetupUniformOrg (dc, 0, nfld, fields, nplat);
 /*
  * Allocate the platform space and set that up too.
  */
@@ -167,7 +168,7 @@ DataChunk *dc;
 ZebTime *t;
 int sample;
 FieldId field;
-float *data;
+void *data;
 /*
  * Add data for one field, one sample to this data chunk.  The data is assumed
  * to be NPLAT samples, in the same order as the platform list.
@@ -188,7 +189,7 @@ float *data;
 /*
  * Just do the add.
  */
-	dc_AddMData (dc, t, field, nplat*sizeof (float), sample, 1, data);
+	dc_AddMData (dc, t, field, nplat*dc_SizeOf(dc, field), sample, 1, data);
 }
 
 
@@ -202,7 +203,7 @@ DataChunk *dc;
 ZebTime *t;
 int begin, nsample;
 FieldId field;
-float *data;
+void *data;
 /*
  * Add data for one field, multiple samples to this data chunk.
  * The data is assumed
@@ -224,7 +225,8 @@ float *data;
 /*
  * Just do the add.
  */
-	dc_AddMData (dc, t, field, nplat*sizeof (float), begin, nsample, data);
+	dc_AddMData (dc, t, field, nplat * dc_SizeOf(dc, field), 
+		     begin, nsample, data);
 }
 
 
@@ -282,6 +284,10 @@ FieldId *fields;
 		sample = 0;
 		nsample = dc_GetNSample (scalar_dc);
 	}
+/*
+ * Let the IRGrid dc know we'll need space for at least 'nsample' samples
+ */
+	dc_HintNSamples (irgrid_dc, nsample, FALSE);
 	fids = fields;
 	if (fids == NULL || nfield == 0)
 	{
@@ -336,6 +342,13 @@ FieldId *fields;
  */
 	for (f = 0; f < nfield; ++f)
 	{
+		if (dc_Type (scalar_dc, fids[f]) != DCT_Float ||
+		    dc_Type (irgrid_dc, fids[f]) != DCT_Float)
+		{
+			msg_ELog (EF_PROBLEM, "cannot add non-float fid %d %s",
+				  fids[f], "to non-float irgrid field");
+			continue;
+		}
 		for (i = sample; i < sample + nsample; ++i)
 		{
 			dc_GetTime (scalar_dc, i, &sc_zt);
@@ -444,7 +457,7 @@ Location *locs;
 
 
 
-float *
+void *
 dc_IRGetGrid (dc, sample, field)
 DataChunk *dc;
 int sample;
@@ -468,7 +481,7 @@ FieldId field;
 /*
  * Get the info.
  */
-	return ((float *) dc_GetMData (dc, sample, field, NULL));
+	return ((void *) dc_GetMData (dc, sample, field, NULL));
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.1 1993-09-14 17:54:53 granger Exp $
+ * $Id: aline.c,v 3.2 1994-01-03 07:17:47 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -30,7 +30,7 @@
 #include <sys/types.h>
 
 #define PLATFORM	"t_scalar"	/* platform to use for now	*/
-#define INVENTORY	600		/* number to produce		*/
+#define INVENTORY	20		/* number to produce		*/
 #define INTERVAL	3		/* seconds between writes	*/
 
 
@@ -45,6 +45,9 @@ char *FieldNames[] = {
 };
 
 FieldId Fields[NFIELDS];
+
+int ConsumerNumber = -1;
+char OurName[50];
 
 /*
  * Forwards
@@ -83,13 +86,14 @@ char *name;
 	if (!msg_connect (msg_handler, name) ||
 	    !ds_Initialize())
 	{
-		printf ("%s: Cannot connect nor initialize DS!", name);
+		printf ("%s: Cannot connect nor initialize DS!\n", name);
 		exit(1);
 	}
 	/*
 	 * Otherwise let everyone know we're here
 	 */
 	msg_ELog (EF_INFO, "Hello from '%s'", name);
+	strcpy (OurName, name);
 	for (i = 0; i < NFIELDS; ++i)
 		Fields[i] = F_Lookup(FieldNames[i]);
 	for (i = NFIELDS; i < NFIELDS+10; ++i)
@@ -130,6 +134,7 @@ main (argc, argv)
 			 * to create any of our own children.
 			 */
 			sprintf (name, "Consumer_%d", i);
+			ConsumerNumber = i;
 			Init(name);
 			Consume();		/* shouldn't return */
 			return (0);
@@ -144,12 +149,7 @@ main (argc, argv)
 	/*
 	 * Produce our inventory, then wait for our children to exit.
 	 */
-	Produce();
-
-	msg_ELog (EF_INFO, "Producer finished, waiting for consumers");
-	for (i = 0; i < nconsumers; ++i)
-		wait(0);
-	msg_ELog (EF_INFO, "Consumer children signalled, exiting");
+	Produce(nconsumers);
 
 	return(0);
 }
@@ -158,7 +158,8 @@ main (argc, argv)
 
 
 void
-Produce()
+Produce(nconsumers)
+int nconsumers;
 /*
  * Create INVENTORY number of samples, writing them to PLATFORM every 
  * INTERVAL seconds.
@@ -166,11 +167,22 @@ Produce()
 {
 	DataChunk *dc;
 	int i, fld;
-	ZebTime when;
+	ZebTime when, now;
 	float value;
 	PlatformId plat_id;
 	Location loc;
+	dsDetail details[5];
+	int ndetail = 0;
 
+	details[ndetail++].dd_Name = DD_ZN_APPEND_SAMPLES;
+	details[ndetail].dd_Name = DD_ZN_RESERVE_BLOCK;
+	details[ndetail].dd_V.us_v_int = 150 * INVENTORY;
+	ndetail++;
+	details[ndetail].dd_Name = DD_ZN_HINT_NSAMPLES;
+	details[ndetail].dd_V.us_v_int = 2 * INVENTORY;
+	ndetail++;
+	
+	dc_CheckClass (FALSE);
 	plat_id = ds_LookupPlatform(PLATFORM);
 
 	value = 0.0;
@@ -189,15 +201,29 @@ Produce()
 		loc.l_lon = -180.0 + i*360.0/1000.0;
 		loc.l_alt = i;
 		dc_SetLoc (dc, 0, &loc);
-		ds_StoreBlocks (dc, (i == 0)?TRUE:FALSE, NULL, 0);
+		dc_SetSampleAttr (dc, 0, "creator", "producer");
+		ds_StoreBlocks (dc, (i == 0)?TRUE:FALSE, details, ndetail);
 		dc_DestroyDC (dc);
 		value = (int)value + 1.0;
 		sleep(rnd(INTERVAL)+1);		/* wait at least 1 second */
 	}
+
+	msg_ELog (EF_INFO, "Producer finished, waiting for consumers");
+	for (i = 0; i < nconsumers; ++i)
+		wait(0);
+	msg_ELog (EF_INFO, "Consumer children signalled, exiting");
+	printf ("Final state of observation:\n");
+	tl_Time (&now);
+	ds_GetObsTimes (plat_id, &now, &when, 1, NULL);
+	dc = ds_FetchObs (plat_id, DCC_Scalar, &when, Fields, NFIELDS,
+			  NULL, 0);
+	dc_DumpDC(dc);
+	dc_DestroyDC (dc);
+
 	/*
 	 * We've stored all of our chunks, so we're done
 	 */
-	dfa_ForceClosure();
+	ds_ForceClosure();
 }
 
 
@@ -214,13 +240,19 @@ UpdCode ucode;
  * Fetch the data we have been notified about
  */
 {
-	static nreceived = 0;
+	static nreceived = 0;	/* number of samples processed so far */
 	static ZebTime begin = { 0, 0 };
         float check, value;	/* to check our data values */
 	DataChunk *dc;
-	char atime[TIME_LEN];
+	char atime[128];
 	int fld, i;
 
+	/*
+	 * Ignore notifications which have no new samples.  We only want
+	 * notifications from the producer, in which there are new samples.
+	 */
+	if (nsample == 0)
+		return;
 	if (!begin.zt_Sec)
 		begin = *when;
 	TC_EncodeTime (when, TC_Full, atime);
@@ -251,6 +283,14 @@ UpdCode ucode;
 		}
 		value = (int)value + 1.0;
 	    }
+	    /*
+	     * Add a sample attribute to the most recent sample
+	     */
+	    dc_SetSampleAttr (dc, i - 1, OurName, "consumed");
+	    /*
+	     * Re-store this chunk with the added attribute
+	     */
+	    ds_StoreBlocks (dc, FALSE, NULL, 0);
 	    dc_DestroyDC(dc);
 	}
 
@@ -261,7 +301,7 @@ UpdCode ucode;
 	if (nreceived >= INVENTORY)
 	{
 		msg_ELog (EF_INFO, "Consumer finished.");
-		dfa_ForceClosure();
+		ds_ForceClosure();
 		exit (0);
 	}
 }
@@ -279,6 +319,7 @@ Consume()
 
 	plat_id = ds_LookupPlatform(PLATFORM);
 
+	dc_CheckClass (FALSE);
 	ds_RequestNotify (plat_id, 0, ReceiveNotify);
 
 	/*

@@ -1,6 +1,56 @@
 /*
- * $Id: nstest.c,v 1.7 1993-09-14 17:56:09 granger Exp $
+ * $Id: nstest.c,v 1.8 1994-01-03 07:18:27 granger Exp $
  */
+
+/*
+ * Attempt to modularize the testing process:
+ *
+ * Provide routines for each of the different DataChunk classes which
+ * create test DataChunks (perhaps these tests should be in the class
+ * itself---perhaps even a DataChunk method).  The caller provides the
+ * starting time, whether the chunk is mobile or stationary, and the number
+ * of samples wanted, and maybe whether or not to add attributes, etc.
+ *
+ * Provide routines which store a given DataChunk to a named platform,
+ * then fetch the DataChunk and compare it with the original.  This should
+ * be independent of platform and datachunk class (especially if DataChunk
+ * instance comparison we're also made a class method).
+ *
+ * At some point, it would be nice to construct a ds.config file from here
+ * given what test we want to make, and then fork() and exec() a dsDaemon
+ * on the config file ourselves.  Keep the "t_" prefix convention for all test
+ * platforms.
+ *
+ * Bind the test functions to Tcl commands.  Each call to a Tcl command 
+ * registers the desire to run that test, then on 'begin', the ds.config is
+ * generated and the test routines are run.  Could we then pipe some output
+ * to 'expect'?
+ *
+ * See /zeb/gary/nspace/README.TESTS
+ */
+
+/* #define MARK */
+/*
+ * #include <prof.h>
+ */
+#ifndef MARK
+#define MARK(L) {}
+#else
+#undef MARK
+#define MARK(L) {\
+                asm("   .reserve        ."#L"., 4, \"data\", 4");\
+                asm("M."#L":");\
+                asm("   sethi   %hi(."#L".), %o0");\
+                asm("   call    mcount");\
+                asm("   or      %o0, %lo(."#L".), %o0");\
+                }
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/timeb.h>
+#include <assert.h>
 
 #include <defs.h>
 #include <message.h>
@@ -17,51 +67,158 @@ struct message *msg;
 	return (0);
 }
 
+#define EXPECT(N) \
+	msg_ELog (EF_INFO, "Expect %d problem(s):", N)
+
+#ifdef notdef
+/* #define BACKWARDS */		/* backwards compatibility */
 /* #define ZNF_TESTING */
+#endif
+
+#define TRANSPARENT
 #define SCALAR
-/* #define GETFIELDS_ONLY */
-/* #define BLOCKS */
-#define TRANSP
+#define GETFIELDS
+#define GRID_BLOCKS
 /* #define DELETE_OBS */	/* test observation deletes */
-/* #define NSPACE */
-/* #define ds_StoreBlocks ds_Store */
+#define NSPACE
+
+#ifdef notdef
+/* #define DUMMY_FILES */
+#endif
+
+#define TEST4_STORE
+#define SCALAR_NSPACE
+#define FIELD_TYPES
+#define AERI_TYPES
+#define ATTRIBUTES
+#define NEXUS
+#define RGRID	/* test DC RGrid interface */
+
+#define DUMMY_FILES
+#define DATA_TIMES
+
+#ifdef BACKWARDS
+
+#define dc_CheckClass(a)		{}
+#define DD_ZN_HINT_NSAMPLES		""
+#define dc_HintNSamples(dc,n,b)		{}
+#define dc_HintSampleSize(dc,s,b)	{}
+#define dc_HintMoreSamples(dc,m,b)	{}
+#define dc_AddMoreSamples(dc,n,b)	{}
+
+#endif
+
+struct TestField {
+	char *name;
+	char *desc;
+	char *units;
+} TestFields[] = {
+	"scalar",	"Test Field",			"none",
+	"field2",	"Test Field, too",		"none",
+	"fld3",		"field #3",			"none",
+	"no4",		"Number 4 field",		"none",
+	"pres",		"Pressure",		       	"mb",
+	"temp",		"Temperature",			"degC",
+	"rh",		"Relative humidity",		"pct",
+	"dpt",		"Dewpoint",			"K"
+};
+
+
+struct TestPlatform {
+	char *name;
+	long maxsamples;
+	char *ftype;
+	bool mobile;
+	char *org;
+	PlatformId platid;
+} TestPlatforms[] = 
+{
+	{ "t_transparent", 500, "zeb", FALSE, "transparent" },
+	{ "t_scalar" }, 
+	{ "t_blocks" },
+	{ "t_fixed" },
+	{ "t_irgrid_cdf" },
+	{ "t_1dgrid_cdf" },
+	{ "t_irgrid_znf" },
+	{ "t_1dgrid_znf" },
+	{ "t_nspace" },
+	{ "t_test6" },
+	{ "t_nsscalar" },
+	{ "t_nsblocks" },
+	{ "t_virtual" },
+	{ "t_getfields_cdf" },
+	{ "t_getfields_znf" },
+	{ "t_nsvsc_scalar" },
+	{ "t_nsvsc_nspace" },
+	{ "t_aeri_types_cdf" },
+	{ "t_aeri_types_znf" },
+	{ "t_fieldtypes" },
+	{ "t_att_types_cdf" }
+};
+
+	
+
+#define NUM_PLATFORMS	(sizeof(TestPlatforms)/sizeof(TestPlatforms[0]))
+#define NUM_TESTFIELDS 	(sizeof(TestFields)/sizeof(TestFields[0]))
 
 static float test_data[10000];
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/timeb.h>
 
-#ifdef notdef
+DataChunk *T_SimpleScalarChunk FP ((ZebTime *start, int nsample, int nfield,
+				    bool is_mobile, bool addatts));
+DataChunk *T_ScalarNSpaceChunk FP((ZebTime *start, int nsample, int nfield,
+				   bool is_mobile, bool addatts));
 
-#include "/zeb/src/ds/dsPrivate.h"
 
+static void
+Announce(header)
+char *header;
 /*
- * Test of observation delete kludge
+ * Announce beginning of test sequence to event logger and to stdout
  */
-void 
-ds_deleteObs (PlatformId pid, ZebTime when)
 {
-
-    /*
-     * when -  The start time of the observation
-     */
-    Platform        plat;
-    DataFile        df;
-    int             dfi;
-
-    ds_LockPlatform (pid);
-    ds_GetPlatStruct (pid, &plat, FALSE);
-    dfi = ds_FindDF (pid, &when, 0);
-    if (dfi >= 0) {
-	ds_GetFileStruct (dfi, &df);
-	unlink (dfa_FilePath (&plat, &df));
-	ds_ForceRescan (pid, FALSE);
-    }
-    ds_UnlockPlatform (pid);
+	msg_ELog (EF_INFO, "%s", header);
+	printf ("%s\n", header);
 }
-#endif
+
+
+
+static void
+InitializePlatforms()
+{
+	int i;
+	PlatformId platid;
+	ZebTime now;
+	struct timeb tp;
+
+	Announce ("initializing data, erasing platforms");
+	ftime(&tp);
+	now.zt_Sec = tp.time;
+	now.zt_MicroSec = 0;
+	for (i = 0; i < NUM_PLATFORMS; ++i)
+	{
+		platid = ds_LookupPlatform (TestPlatforms[i].name);
+		TestPlatforms[i].platid = platid;
+		ds_DeleteData (platid, &now);
+	}
+}
+
+	
+
+static void
+Initialize()
+{
+	usy_init();
+	F_Init();
+	if (!msg_connect (msg_handler, "Test") ||
+	    !ds_Initialize())
+	{
+		printf ("Cannot connect nor initialize DS!");
+		exit(1);
+	}
+	InitializePlatforms();
+}
+
 
 
 /*ARGSUSED*/
@@ -73,6 +230,7 @@ main (argc, argv)
 	DataChunk *dc, *ndc;
 	int i,j;
 	ZebTime when, begin, end;
+	ZebTime now;
 	struct timeb tp;
 	FieldId *fields;
 	int nfield;
@@ -82,324 +240,594 @@ main (argc, argv)
 	float *retrieve;
 	PlatformId plat_id;
 	PlatformId t_delete_id;
-	dsDetail ra_details[1];
-	dsDetail *details;
-	int ndetail;
 
-#ifdef CLOSURE
-	ra_details[0].dd_Name = DD_FORCE_CLOSURE;
-	details = ra_details;
-	ndetail = 1;
-#else
-	details = NULL;
-	ndetail = 0;
-#endif
-
-	usy_init();
-	F_Init();
-	if (!msg_connect (msg_handler, "Test") ||
-	    !ds_Initialize())
-	{
-		printf ("Cannot connect nor initialize DS!");
-		exit(1);
-	}
+	Initialize();
 
 #ifdef ZNF_TESTING
-	/* Call znf free block testing routine */
-	if (argc < 2)
-		zn_TestFreeBlocks ("test.znf");
-	else
-		zn_TestFreeBlocks (argv[2]);
-	fflush (stdout);
-	fflush (stderr);
-#endif /* ZNF_TESTING */
+	T_ZnfBlocks();
+#endif
 
-	ftime(&tp);
-	when.zt_Sec = tp.time - 3600*24;
-	when.zt_MicroSec = 0;
+	TC_ZtAssemble (&when, 93, 1, 1, 0, 0, 0, 0);
 	begin = when;
 	end = when;
 
 	for (i = 0; i < sizeof(test_data)/sizeof(test_data[0]); ++i)
 		test_data[i] = i;
 
-	plat_id = ds_LookupPlatform("t_nspace");
-
-#ifdef TRANSP /* quick test of transparent chunks in ZNF files */
-	{
-		char *data = "Transparent chunk holding text\n";
-		dc = dc_CreateDC (DCC_Transparent);
-		dc->dc_Platform = ds_LookupPlatform ("t_transparent");
-		dc_AddSample (dc, &when, data, strlen(data)+1);
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		dc_DestroyDC(dc);
-	}
-#endif /* TRANSP */
-
-#if defined(SCALAR)	/* Use only scalar chunks, for testing znf */
-	{
-		FieldId fids[5];
-		float value;
-		int fld;
-		int i;
-		static Location loc = { 40.0, -160.0, 5280.0 };
-
-		/*
-		 * First a real simple test
-		 */
-		msg_ELog (EF_INFO, "t_scalar: 4 fields, 5 samples");
-		plat_id = ds_LookupPlatform("t_scalar");
-		dc = dc_CreateDC (DCC_Scalar);
-		dc->dc_Platform = plat_id;
-		fids[0] = F_DeclareField ("scalar","Test field", "none");
-		fids[1] = F_DeclareField ("field2","Test field, too", "none");
-		fids[2] = F_DeclareField ("fld3","field #3", "none");
-		fids[3] = F_DeclareField ("no4","Number 4 field", "none");
-		dc_SetScalarFields (dc, 4, fids);
-		dc_SetBadval (dc, -999.0);
-		dc_SetStaticLoc (dc, &loc);
-		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
-		dc_SetGlobalAttr (dc, "date", "today");
-		begin = when;
-		value = 1.0;
-		for (i = 0; i < 10; ++i)
-		{
-			for (fld = 0; fld < 4; ++fld, ++value)
-				dc_AddScalar (dc, &when, i, 
-					      fids[fld], &value); 
-			++when.zt_Sec;
-			value -= 4;
-			value *= 2.0;
-		}
-		dc_SetSampleAttr (dc, 0, "key", "first sample");
-		dc_SetSampleAttr (dc, 3, "sample_number", "3");
-		dc_SetSampleAttr (dc, 2, "median", "middle");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		/*
-		 * Quick test of ds_GetFields() while we have a file
-		 */
-		dc->dc_Platform = ds_LookupPlatform("testcdf");
-		ds_Store (dc, TRUE, details, ndetail);
-		nfield = 5;
-		if (!ds_GetFields(dc->dc_Platform, &begin, &nfield, fids))
-		{
-			msg_ELog (EF_PROBLEM, 
-				  "ds_GetFields('t_scalar') failed");
-		}
-		else
-		{
-			msg_ELog (EF_INFO,
-				  "ds_GetFields() returns %d fields",
-				  nfield);
-		}
-#ifdef GETFIELDS_ONLY
-		dc_DestroyDC(dc);
-		return(0);
+#ifdef TRANSPARENT
+	T_Transparent ("t_transparent", &begin);
 #endif
+
+#ifdef GETFIELDS
+	/*
+	 * Test ds_GetFields() for ZNF and netCDF
+	 */
+	T_GetFields (&begin, "t_getfields_cdf");
+	T_GetFields (&begin, "t_getfields_znf");
+#endif
+		
 #ifdef DELETE_OBS
-		/*
-		 * Here's an idea: use a platform whose maxsamples=1 to
-		 * create a bunch of observations, each of which contains
-		 * only one sample.  Then test out dsdelete and ds_DeleteObs
-		 * on that platform.
-		 */
-		t_delete_id = ds_LookupPlatform("t_deletes");
-		dc->dc_Platform = t_delete_id;
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		system("dsdump t_deletes");
-		fflush (stdout);
-		fflush (stderr);
-		printf ("Deleting even-second obs with DeleteObs\n");
-		when = begin;
-		for (i = 0; i < 10; ++i)
-		{
-			if (when.zt_Sec % 2 == 0)
-				ds_DeleteObs (t_delete_id, &when);
-			++when.zt_Sec;
-		}
-		printf ("Finished deleting with DeleteObs\n");
-		fflush (stdout);
-		fflush (stderr);
-		system("dsdump t_deletes");	
-		fflush (stdout);
-		fflush (stderr);
-		printf ("Trying to do the same deletes again.\n");
-		when = begin;
-		for (i = 0; i < 10; ++i)
-		{
-			if (when.zt_Sec % 2 == 0)
-				ds_DeleteObs (t_delete_id, &when);
-			++when.zt_Sec;
-		}
-		printf ("Storing the DataChunk again...\n");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		printf ("Test extremes: time earlier than all obs,\n");
-		when.zt_Sec = begin.zt_Sec - 3600*24;
-		ds_DeleteObs (t_delete_id, &when);
-		printf ("Time later than all obs,\n");
-		when.zt_Sec = begin.zt_Sec + 3600*12;
-		ds_DeleteObs (t_delete_id, &when);
-		printf ("Using DeleteObs to delete all files...\n");
-		when = begin;
-		for (i = 0; i < 10; ++i)
-		{
-			ds_DeleteObs (t_delete_id, &when);
-			++when.zt_Sec;
-		}
-		fflush (stdout);
-		fflush (stderr);
-		system("dsdump t_deletes");
-		fflush (stdout);
-		fflush (stderr);
-		printf ("Done deletes test.  Should be 0 files left.\n");
+	T_Deletes (&begin);
 #endif
-		dc_DestroyDC (dc);
 
-		/*
-		 * Now really put it through the ringer.  Start 30 seconds
-		 * back so that we precede the previous data, then overwrite
-		 * it, and finally append the rest.  Note that the sample
-		 * attributes should be deleted on the overwrite, since they 
-		 * won't correspond to the samples with atts here.
-		 */
-		msg_ELog (EF_INFO, 
-		   "t_scalar: 4 fields, 3000 samples, starting 30 secs back");
-		when.zt_Sec -= 30;
-		dc = dc_CreateDC (DCC_Scalar);
-		dc->dc_Platform = plat_id;
-		dc_SetScalarFields (dc, 4, fids);
-		dc_SetBadval (dc, -999.0);
-#ifdef notdef
-		dc_SetStaticLoc (dc, &loc);
-#endif
-		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
-		dc_SetGlobalAttr (dc, "date", "today");
-		value = 0.0;
-		for (i = 0; i < 3000; ++i)
-		{
-			char c[2];
+#ifdef DUMMY_FILES
+{
+#	define NS (60*10)	/* 10 60-sample files */
+	ZebTime reftime;
+	ZebTime times[NS];
+	ZebTime first, next;
+	PlatformId pid;
+	int n;
+	char buf[128];
 
-			c[0] = (i % 10) + '0'; c[1] = '\0';
-			for (fld = 0; fld < 4; ++fld, ++value)
-				dc_AddScalar (dc, &when, i, 
-					      fids[fld], &value); 
-			/* dc_SetSampleAttr (dc, i, "ones", c); */
-			loc.l_lat = -90.0 + i*180.0/3000.0;
-			loc.l_lon = -180.0 + i*360.0/3000.0;
-			loc.l_alt = i;
-			dc_SetLoc (dc, i, &loc);
-			++when.zt_Sec;
-			value -= 4;
-			value += 10.0;
-		}
-		dc_SetSampleAttr (dc, 0, "key", "first sample");
-		dc_SetSampleAttr (dc, 3, "sample_number", "3");
-		dc_SetSampleAttr (dc, 27, "overwrote", "old_median");
-		dc_SetSampleAttr (dc, 28, "sample_number", "28");
-		dc_SetSampleAttr (dc, 1500, "median", "middle");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		msg_ELog (EF_INFO, 
-		   "t_fixed: storing same datachunk as for t_scalar");
-		dc->dc_Platform = ds_LookupPlatform("t_fixed");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		dc_DestroyDC (dc);
-
-		/*
-		 * Now overwrite a huge block of the previously stored data.
-		 */
-		msg_ELog (EF_INFO, 
-		   "t_scalar: 4 fields, 1500 samples, 1500 secs prior to end");
-		when.zt_Sec -= 1500;
-		dc = dc_CreateDC (DCC_Scalar);
-		dc->dc_Platform = plat_id;
-		dc_SetScalarFields (dc, 4, fids);
-		dc_SetBadval (dc, -999.0);
-#ifdef notdef
-		dc_SetStaticLoc (dc, &loc);
-#endif
-		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
-		dc_SetGlobalAttr (dc, "date", "today");
-		value = 0.0;
-		for (i = 0; i < 1500; ++i)
-		{
-			char c[2];
-
-			/* c[0] = (i % 10) + '0'; c[1] = '\0'; */
-			for (fld = 0; fld < 4; ++fld, value += 0.0001)
-				dc_AddScalar (dc, &when, i, 
-					      fids[fld], &value); 
-			/* dc_SetSampleAttr (dc, i, "ones", c); */
-			loc.l_lat = -90.0 + i*180.0/1500.0;
-			loc.l_lon = -180.0 + i*360.0/1500.0;
-			loc.l_alt = i;
-			dc_SetLoc (dc, i, &loc);
-			++when.zt_Sec;
-			value += 1.0;
-		}
-		dc_SetSampleAttr (dc, 0, "key", "first sample, 2nd block");
-		dc_SetSampleAttr (dc, 1499, "key", "last sample, 2nd block");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		msg_ELog (EF_INFO, 
-		   "t_fixed: same datachunk as for t_scalar above");
-		dc->dc_Platform = ds_LookupPlatform("t_fixed");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		dc_DestroyDC (dc);
-
-		/*
-		 * Now overwrite, but only with a subset of the fields
-		 * and in a different order in the DataChunk
-		 */
-		msg_ELog (EF_INFO, 
-		   "t_scalar: 3 fields, 1000 samples, 1250 secs prior to end");
-		when.zt_Sec -= 1250;
-		dc = dc_CreateDC (DCC_Scalar);
-		dc->dc_Platform = plat_id;
-		fids[1] = fids[3];
-		dc_SetScalarFields (dc, 3, fids);
-		dc_SetBadval (dc, -999.0);
-#ifdef notdef
-		dc_SetStaticLoc (dc, &loc);
-#endif
-		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
-		dc_SetGlobalAttr (dc, "date", "today");
-		value = 0.0;
-		for (i = 0; i < 1000; ++i)
-		{
-			char c[2];
-
-			/* c[0] = (i % 10) + '0'; c[1] = '\0'; */
-			for (fld = 0; fld < 3; ++fld, value += 0.1)
-				dc_AddScalar (dc, &when, i, 
-					      fids[fld], &value); 
-			/* dc_SetSampleAttr (dc, i, "ones", c); */
-			loc.l_lat = -90.0 + i*180.0/1000.0;
-			loc.l_lon = -180.0 + i*360.0/1000.0;
-			loc.l_alt = i;
-			dc_SetLoc (dc, i, &loc);
-			++when.zt_Sec;
-			value += 1.0;
-		}
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		msg_ELog (EF_INFO, 
-		   "t_fixed: same datachunk as for t_scalar above");
-		dc->dc_Platform = ds_LookupPlatform("t_fixed");
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
-		dc_DestroyDC (dc);
-
+	ftime(&tp);
+	now.zt_Sec = tp.time - NS;
+	now.zt_MicroSec = 0;
+	first = now;
+	dc = T_SimpleScalarChunk (&now, NS, 4, FALSE, FALSE);
+	pid = ds_LookupPlatform("t_dummy");
+	dc->dc_Platform = pid;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+#   ifdef DATA_TIMES 	/* use the dummy files to test ds_DataTimes */
+	/*
+	 * To test ds_DataTimes, lets pass it now as the reference time,
+	 * and space for all of the times, and make sure we get the right
+	 * times back.  Then try doing smaller sets of times.
+	 */
+	Announce ("--------- Testing ds_DataTimes()...");
+	tl_Time (&now);
+	n = ds_DataTimes (pid, &now, NS, DsBefore, times);
+	if (n != NS)
+		printf ("DataTimes: returning %d times, expecting %d\n",
+			n, NS);
+	printf ("DataTimes: printing all times found:\n");
+	for (i = 0; i < n; ++i) 
+	{
+		TC_EncodeTime (times+i, TC_Full, buf);
+		printf ("%s\n", buf);
 	}
+	printf ("DataTimes: most recent two times:\n");
+	n = ds_DataTimes (pid, &now, 2, DsBefore, times);
+	for (i = 0; i < n; ++i) 
+	{
+		TC_EncodeTime (times+i, TC_Full, buf);
+		printf ("%s\n", buf);
+	}
+	printf ("DataTimes: 2 times before first sample time:\n");
+	n = ds_DataTimes (pid, &first, 2, DsBefore, times);
+	for (i = 0; i < n; ++i) 
+	{
+		TC_EncodeTime (times+i, TC_Full, buf);
+		printf ("%s\n", buf);
+	}
+	printf ("DataTimes: 2 times before first time of second file:\n");
+	next = first;
+	next.zt_Sec += 60;
+	n = ds_DataTimes (pid, &next, 2, DsBefore, times);
+	for (i = 0; i < n; ++i) 
+	{
+		TC_EncodeTime (times+i, TC_Full, buf);
+		printf ("%s\n", buf);
+	}
+	printf ("DataTimes: 5 times before first time of third file:\n");
+	next.zt_Sec += 60;
+	n = ds_DataTimes (pid, &next, 5, DsBefore, times);
+	for (i = 0; i < n; ++i) 
+	{
+		TC_EncodeTime (times+i, TC_Full, buf);
+		printf ("%s\n", buf);
+	}
+	Announce ("------------ DataTimes: done ------------");
+#   endif
+}
 #endif
+
+#ifdef SCALAR
+	Announce ("t_scalar: 4 fields, 10 samples, mobile, attributes");
+	dc = T_SimpleScalarChunk (&begin, 10, 4, TRUE, TRUE);
+	plat_id = ds_LookupPlatform("t_scalar");
+	dc->dc_Platform = plat_id;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+
+	/*
+	 * Now really put it through the ringer.  Start 30 seconds
+	 * back so that we precede the previous data, then overwrite
+	 * it, and finally append the rest.  Note that the sample
+	 * attributes should be deleted on the overwrite, since they 
+	 * won't correspond to the samples with atts here.
+	 */
+	Announce("t_scalar: 4 fields, 3000 samples, starting 30 secs back");
+	when.zt_Sec -= 30;
+	dc = T_SimpleScalarChunk (&when, 3000, 4, TRUE, TRUE);
+	dc->dc_Platform = plat_id;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	msg_ELog (EF_INFO, 
+		  "t_fixed: storing same datachunk as for t_scalar");
+	dc->dc_Platform = ds_LookupPlatform("t_fixed");
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+	when.zt_Sec += 3000;
+
+	/*
+	 * Now overwrite a huge block of the previously stored data.
+	 */
+	Announce("t_scalar: 4 fields, 1500 samples, 1500 secs prior to end");
+	when.zt_Sec -= 1500;
+	dc = T_SimpleScalarChunk (&when, 1500, 4, TRUE, TRUE);
+	dc->dc_Platform = plat_id;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	Announce("t_fixed: same datachunk as for t_scalar above");
+	dc->dc_Platform = ds_LookupPlatform("t_fixed");
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+	when.zt_Sec += 1500;
+
+	/*
+	 * Now overwrite, but only with a subset of the fields
+	 */
+	Announce("t_scalar: 3 fields, 1000 samples, 1250 secs prior to end");
+	when.zt_Sec -= 1250;
+	dc = T_SimpleScalarChunk (&when, 1000, 3, TRUE, TRUE);
+	dc->dc_Platform = plat_id;
+	{
+		struct TestField tf;
+		tf = TestFields[1];
+		TestFields[1] = TestFields[3];
+		TestFields[3] = tf;
+	}
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	Announce("t_fixed: same datachunk as for t_scalar above");
+	dc->dc_Platform = ds_LookupPlatform("t_fixed");
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+	when.zt_Sec += 1000;
+#endif /* SCALAR */
 
 #ifdef NSPACE
-	printf("----------------------------------------------------test1\n");
+	T_NSpace (&begin);
+#endif
+
+#ifdef NEXUS
+	/* test nexus-specific considerations, such as big, block overwrites */
+	T_Nexus (&begin);
+#endif
+
+#ifdef GRID_BLOCKS
+	printf ("---------------------------------------------block tests\n");
+	T_IRGridStoreBlocks();
+	T_1DGridStoreBlocks();
+#endif
+
+#ifdef FIELD_TYPES
+	T_FieldTypes (begin);
+#endif
+
+#ifdef AERI_TYPES
+	T_AeriTypes (begin);
+#endif
+
+#ifdef SCALAR_NSPACE
+	T_ScalarNSpace (begin);
+#endif
+
+#ifdef ATTRIBUTES
+	T_Attributes (begin);
+#endif
+
+#ifdef RGRID
+	T_RGrid (begin);
+#endif
+
+	ds_ForceClosure();
+	
+	return(0);
+}
+
+
+
+
+T_ScalarNSpace (begin)
+ZebTime begin;
+{
+	DataChunk *dc;
+	PlatformId plat_id;
+	FieldId fields[10];
+	int nfield;
+	float value;
+	int i, f;
+	char *sc_plat = "t_nsvsc_scalar";
+	char *ns_plat = "t_nsvsc_nspace";
+#	define NUMS 1000
+
+	dc_CheckClass (FALSE);
+
+	MARK(scbld);
+	Announce ("t_nsvsc_scalar: 8 fields, mobile, attributes");
+	dc = T_SimpleScalarChunk (&begin, NUMS, 8, TRUE, TRUE);
+	plat_id = ds_LookupPlatform(sc_plat);
+	dc->dc_Platform = plat_id;
+	MARK(scsto);
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+	printf ("fetching the entire observation from '%s'...\n", sc_plat);
+	nfield = 10;
+	ds_GetFields (plat_id, &begin, &nfield, fields);
+	MARK(scfet);
+	dc = ds_FetchObs (plat_id, DCC_Scalar, &begin, 
+			  fields, nfield, NULL, 0);
+	printf ("Done.\n");
+	MARK(scacc);
+	for (i = 0; i < NUMS; ++i)
+		for (f = 0; f < nfield; ++f)
+			value = dc_GetScalar (dc, i, fields[f]);
+	dc_DumpDC (dc);
+	dc_DestroyDC(dc);
+
+	MARK(nsbld);
+	Announce ("t_nsvsc_nspace: 8 fields, mobile, attributes");
+	dc = T_ScalarNSpaceChunk (&begin, NUMS, 8, TRUE, TRUE);
+	plat_id = ds_LookupPlatform(ns_plat);
+	dc->dc_Platform = plat_id;
+	MARK(nssto);
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+	printf ("fetching the entire observation from '%s'...\n", ns_plat);
+	nfield = 10;
+	ds_GetFields (plat_id, &begin, &nfield, fields);
+	MARK(nsfet);
+	dc = ds_FetchObs (plat_id, DCC_NSpace, &begin, 
+			  fields, nfield, NULL, 0);
+	printf ("Done.\n");
+	MARK(nsacc);
+	for (i = 0; i < NUMS; ++i)
+		for (f = 0; f < nfield; ++f)
+			value = *(float *)dc_NSGetSample (dc, i, fields[f], 0);
+	dc_DumpDC (dc);
+	dc_DestroyDC(dc);
+
+	dc_CheckClass (TRUE);
+}
+
+
+
+
+
+#ifdef FIELD_TYPES
+T_AddTypedScalarSample (dc, when, sample, fields)
+DataChunk *dc;
+ZebTime when;
+int sample;
+FieldId *fields;
+{
+	static char cvalue = 'A';
+	static int ivalue = 1024;
+	static double dvalue = 1.2345678901234;
+	static short svalue = 1;
+	static float fvalue = -1.1;
+
+	dc_AddScalar (dc, &when, sample, fields[DCT_Float-1], &fvalue);
+	fvalue -= 2.1;
+	dc_AddScalar (dc, &when, sample, fields[DCT_Double-1], &dvalue);
+	dvalue *= 2;
+	dc_AddScalar (dc, &when, sample, fields[DCT_LongDouble-1], &dvalue);
+	dvalue *= 2;
+	dc_AddScalar (dc, &when, sample, fields[DCT_Char-1], &cvalue);
+	++cvalue;
+	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedChar-1], &cvalue);
+	++cvalue;
+	dc_AddScalar (dc, &when, sample, fields[DCT_ShortInt-1], &svalue);
+	svalue <<= 1;
+	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedShort-1], &svalue);
+	svalue += 1;
+	dc_AddScalar (dc, &when, sample, fields[DCT_Integer-1], &ivalue);
+	++ivalue;
+	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedInt-1], &ivalue);
+	ivalue *= 2.0;
+	dc_AddScalar (dc, &when, sample, fields[DCT_LongInt-1], &ivalue);
+	++ivalue;
+	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedLong-1], &ivalue);
+	++ivalue;
+}
+#endif /* FIELD_TYPES */
+
+
+
+#ifdef FIELD_TYPES
+T_FieldTypes(when)
+ZebTime when;
+/*
+ * Test definition of DataChunks with multiple field types.  Just define
+ * the chunk as usual, change the field type, and dump the DC.  No storage
+ * done yet.  We cheat and access the global sizes and names table to make
+ * this easier.
+ */
+{
+	FieldId fields[20];
+	DC_ElemType types[20];
+	int nfield = DCT_String - 1;	/* exclude String and Unknown */
+	int i;
+	DataChunk *dc;
+	ZebTime begin = when;
+	static Location loc = { 40.0, -160.0, 5280.0 };
+	PlatformId plat_id = ds_LookupPlatform ("t_fieldtypes");
+
+	Announce ("------------ Testing field types interfaces ---------");
+	for (i = 1; i < nfield+1; ++i)
+	{
+		printf ("type name: %s, size %d\n", dc_TypeName(i), 
+			dc_SizeOfType(i));
+		fields[i-1] = F_DeclareField ((char *)dc_TypeName(i),
+					    "Typed field","none");
+		types[i-1] = i;
+	}
+
+	/*
+	 * Now add all of these fields to each class of DataChunk and dump it
+	 */
+	dc_CheckClass (FALSE);
+	dc = dc_CreateDC (DCC_Scalar);
+	dc->dc_Platform = plat_id;
+	dc_SetStaticLoc (dc, &loc);
+	dc_HintNSamples (dc, 10, FALSE);
+	dc_SetScalarFields (dc, nfield, fields);
+	dc_SetFieldTypes (dc, nfield, fields, types);
+	T_AddTypedScalarSample (dc, when, 0, fields);
+	printf ("nsamples hint should be 10, but only 1 sample allocated\n");
+	dc_DumpDC (dc);
+	++when.zt_Sec;
+	T_AddTypedScalarSample (dc, when, 1, fields);
+	printf ("nsamples allocated should now be 10, \n");
+	printf ("space for 8 samples between NextOffset and DataLen:\n");
+	++when.zt_Sec;
+	dc_DumpDC (dc);
+	for (i = 2; i < 10; ++i, ++when.zt_Sec)
+		T_AddTypedScalarSample (dc, when, i, fields);
+	dc_DumpDC (dc);
+	fflush (stdout);
+
+	Announce ("ds_Store()'ing the typed DataChunk to t_fieldtypes");
+	ds_Store (dc, TRUE, 0, 0);
+	dc_DestroyDC (dc);
+	Announce ("Fetching the typed scalar observation");
+	dc = ds_FetchObs (plat_id, DCC_Scalar, &begin, fields, nfield, 0, 0);
+	dc_DumpDC (dc);
+	dc_DestroyDC (dc);
+}
+#endif /* FIELD_TYPES */
+
+
+
+
+void
+T_Dedit (begin, platid)
+ZebTime begin;
+PlatformId platid;
+{
+	FieldId fields[30];
+	int nfield = 30;
+	DataChunk *dc;
+	int i;
+	char attval[128];
+
+	Announce("simulating dedit read and overwrite with sample attributes");
+	ds_GetFields (platid, &begin, &nfield, fields);
+	dc = ds_FetchObs (platid, DCC_Scalar, &begin, fields, nfield, NULL, 0);
+
+	/*
+	 * Add some sample attributes
+	 */
+	for (i = 0; i < dc_GetNSample(dc); i += 5)
+	{
+		sprintf (attval, "sample %d", i);
+		dc_SetSampleAttr (dc, i, "key", attval);
+	}
+
+	/* 
+	 * now store it all back, overwriting what's already there
+	 */
+	ds_StoreBlocks (dc, FALSE, 0, 0);
+	dc_DestroyDC(dc);
+
+	/*
+	 * Now do the fetch/store cycle several times to make sure it
+	 * doesn't mess up the reserve space
+	 */
+	Announce ("performing repeated fetch/store cycles");
+	for (i = 0; i < 50; ++i)
+	{
+		dc = ds_FetchObs (platid, DCC_Scalar, &begin, fields, 
+				  nfield, NULL, 0);
+		ds_StoreBlocks (dc, FALSE, 0, 0);
+		dc_DestroyDC(dc);
+	}
+	Announce ("t_dedit done.");
+}
+
+
+
+
+T_Nexus (begin)
+ZebTime *begin;
+/*
+ * The idea is this: create single-sample DataChunks and store them
+ * individually to a single ZNF file, then fetch a DataChunk for the entire
+ * file, then overwrite the entire file, and see what's so slow about it.
+ * Halfway through, rewrite the current contents of the file and include
+ * some sample attributes (ala dedit).
+ */
+{
+	DataChunk *dc;
+	char *pname = "t_virtual";
+	PlatformId plat_id;
+	FieldId fields[40];
+	int i, n, fld;
+	float value;
+	Location loc;
+	ZebTime when = *begin;
+	dsDetail details[5];
+	int ndetail;
+	char buf[128];
+
+	plat_id = ds_LookupPlatform(pname);
+	n = 0;
+	fields[n] = F_Lookup("pres"); ++n;
+	fields[n] = F_Lookup("rh"); ++n;
+	fields[n] = F_Lookup("uwind"); ++n;
+	fields[n] = F_Lookup("vwind"); ++n;
+	fields[n] = F_Lookup("wspd"); ++n;
+	fields[n] = F_Lookup("wdir"); ++n;
+	fields[n] = F_Lookup("temp"); ++n;
+	fields[n] = F_Lookup("dpt"); ++n;
+	fields[n] = F_Lookup("tdry"); ++n;
+	fields[n] = F_Lookup("twet"); ++n;
+	fields[n] = F_Lookup("Qpres"); ++n;
+	fields[n] = F_Lookup("Qtdry"); ++n;
+	fields[n] = F_Lookup("Qu"); ++n;
+	fields[n] = F_Lookup("Qv"); ++n;
+	fields[n] = F_Lookup("alt"); ++n;
+	fields[n] = F_Lookup("theta"); ++n;
+	fields[n] = F_Lookup("range"); ++n;
+	fields[n] = F_Lookup("azimuth"); ++n;
+	fields[n] = F_Lookup("elev"); ++n;
+	fields[n] = F_Lookup("latitude"); ++n;
+	fields[n] = F_Lookup("longitude"); ++n;
+	fields[n] = F_Lookup("ascent"); ++n;
+	fields[n] = F_Lookup("mr"); ++n;
+	loc.l_lat = 40.0;
+	loc.l_lon = -120.0;
+	loc.l_alt = 1600.0;
+	ndetail = 0;
+#if !defined(BACKWARDS)
+#ifdef DD_ZN_APPEND_SAMPLES
+	details[ndetail++].dd_Name = DD_ZN_APPEND_SAMPLES;
+#endif
+#endif /* !BACKWARDS */
+
+	/*
+	 * Set some optimization parameters
+	 */
+	dc_CheckClass (FALSE);
+
+	/* now begin creating a single sample DataChunk and storing it */
+	sprintf (buf, "creating '%s' observation of 500 samples, 1 at a time",
+		pname);
+	Announce (buf);
+	for (i = 0; i < 500; ++i)
+	{
+		dc = dc_CreateDC (DCC_Scalar);
+		dc->dc_Platform = plat_id;
+		dc_SetScalarFields (dc, n, fields);
+		dc_SetBadval (dc, 999.9);
+		/* dc_SetGlobalAttr (dc, "global_key", "global_value"); */
+
+		for (fld = 0; fld < n; ++fld)
+		{
+			value = i*10.0 + fld*0.1;
+			dc_AddScalar (dc, &when, 0, fields[fld], &value);
+		}
+		dc_SetLoc (dc, 0, &loc);
+
+		/*
+		 * For the first store, which creates the file, we have a
+		 * few extra details to send.
+		 */
+		if (i == 0)
+		{
+#if !defined(BACKWARDS)
+			details[ndetail].dd_Name = DD_ZN_HINT_NSAMPLES;
+			details[ndetail].dd_V.us_v_int = 1000;
+			++ndetail;
+			details[ndetail].dd_Name = DD_ZN_RESERVE_BLOCK;
+			/* Reserve space for 100 sample atts of 50 bytes */
+			details[ndetail].dd_V.us_v_int = 100*50;
+			++ndetail;
+#endif /* !BACKWARDS */
+			ds_StoreBlocks (dc, TRUE, details, ndetail);
+#if !defined(BACKWARDS)
+			ndetail -= 2;
+#endif /* !BACKWARDS */
+		}
+		else
+			ds_StoreBlocks (dc, FALSE, details, ndetail);
+		dc_DestroyDC(dc);
+		loc.l_alt += 5.0;
+		when.zt_Sec += 4;
+
+		/*
+		 * If we're halfway, simulate interjection by dedit
+		 */
+		if (i == 250)
+			T_Dedit (*begin, plat_id);
+	}
+
+	/* now have a file of 500 samples, try to fetch the whole thing */
+	printf ("fetching the entire observation from '%s'...\n", pname);
+	dc = ds_FetchObs (plat_id, DCC_Scalar, begin, fields, n, NULL, 0);
+	dc_DumpDC (dc);
+	/* now store it all back, overwriting what's already there; this
+	 * is so that we can verify the fetch through what's in the file */
+	printf ("overwriting observation with fetched datachunk... \n");
+	ds_StoreBlocks (dc, FALSE, details, ndetail);
+	printf ("Done.\n");
+	dc_DestroyDC(dc);
+}
+
+
+
+
+#ifdef NSPACE
+T_NSpace(now)
+ZebTime *now;
+{
+	PlatformId plat_id;
+	DataChunk *dc, *ndc;
+	int i;
+	static Location loc = { 40.0, -160.0, 5280.0 };
+	ZebTime when = *now;
+	ZebTime end = *now;
+	ZebTime begin = *now;
+	float *retrieve;
+	long size;
+	FieldId *fields;
+	int nfield;
+
+
+	plat_id = ds_LookupPlatform("t_nspace");
+	Announce("Testing NSpace interface and storage");
+
+	Announce("------------------- test1 ------------------------");
 	{	/* an empty NSpace data chunk */
 		
 		dc = dc_CreateDC (DCC_NSpace);
 		dc->dc_Platform = plat_id;
 		dc_DumpDC (dc);
+		dc_SetStaticLoc (dc, &loc);
 		ds_Store (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-	printf("----------------------------------------------------test2\n");
+	Announce("-------------------- test2 -----------------------");
 	{	/* simple non-static variable over two dimensions */
 
 		FieldId field, sfield;
@@ -419,11 +847,13 @@ main (argc, argv)
 		dc_NSDefineField (dc, sfield, 2, dim_names, dim_sizes, TRUE);
 		dc_DumpDC (dc);
 
+		EXPECT(1);
 		dc_NSAddSample (dc, &when, 0, sfield, test_data+1000);
 		dc_NSAddSample (dc, &when, 0, field, test_data+1000);
 		dc_SetSampleAttr (dc, 0, "test_key", "test_value");
 		dc_SetSampleAttr (dc, 0, "test_key2", "test_value2");
 		dc_SetSampleAttr (dc, 1, "sample_number", "0");
+		EXPECT(1);
 		dc_NSAddStatic (dc, field, test_data);
 		dc_NSAddStatic (dc, sfield, test_data);
 		++when.zt_Sec;
@@ -432,9 +862,10 @@ main (argc, argv)
 		dc_DumpDC (dc);
 
 		/* retrieve data and compare */
-		retrieve = dc_NSGetStatic (dc, field, &size);
+		retrieve = dc_NSGetStatic (dc, sfield, &size);
 		retrieve = dc_NSGetSample (dc, 1, field, &size);
-		printf ("dc_NSGetStatic() returns size = %lu,", size);
+		printf ("dc_NSGetSample(%s) returns size = %lu,", 
+			F_GetName(field), size);
 		T_CompareData(retrieve, test_data+1005, size);
 
 		T_NSGetField(dc, field);
@@ -442,6 +873,7 @@ main (argc, argv)
 		/* T_NSGetAllDimensions(dc, field); */
 
 		printf("Storing... "); fflush(stdout);
+		dc_SetStaticLoc (dc, &loc);
 		ds_Store (dc, TRUE, 0, 0);
 		printf("Destroying... ");
 		dc_DestroyDC (dc);
@@ -456,17 +888,37 @@ main (argc, argv)
 		/* retrieve data and compare */
 		T_NSGetField(dc, field);
 		T_NSGetField(dc, sfield);
+		printf ("Comparing retrieved dynamic data...\n");
+		retrieve = dc_NSGetSample (dc, 0, field, &size);
+		T_CompareData(retrieve, test_data+1005, size);
 		printf ("Comparing retrieved static data...\n");
 		retrieve = dc_NSGetStatic (dc, sfield, &size);
 		printf ("dc_NSGetStatic() returns size = %lu,", size);
 		T_CompareData(retrieve, test_data, size);
+		dc_DestroyDC (dc);
+
+		/* now try again but with fields in reverse order */
+		printf("Fetching data, fields reversed...  "); fflush(stdout);
+		fids[0] = sfield;
+		fids[1] = field;
+		dc = ds_Fetch (plat_id, DCC_NSpace, &when, &when,
+			       fids, 2, NULL, 0);
+		printf("DataChunk returned by ds_Fetch():\n");
+		dc_DumpDC (dc);
+
+		/* retrieve data and compare */
+		T_NSGetField(dc, field);
+		T_NSGetField(dc, sfield);
 		printf ("Comparing retrieved dynamic data...\n");
 		retrieve = dc_NSGetSample (dc, 0, field, &size);
 		T_CompareData(retrieve, test_data+1005, size);
-
+		printf ("Comparing retrieved static data...\n");
+		retrieve = dc_NSGetStatic (dc, sfield, &size);
+		printf ("dc_NSGetStatic() returns size = %lu,", size);
+		T_CompareData(retrieve, test_data, size);
 		dc_DestroyDC (dc);
         }
-	printf("----------------------------------------------------test3\n");
+	Announce("------------------ test3 -----------------");
 	{	/* ARM SOW example using explicit dimn defs with field ids */
 
 		FieldId wnum_id, therm_id;
@@ -504,14 +956,17 @@ main (argc, argv)
 		/* Test some storage */
 		begin = end = when;
 		dc_NSAddStatic (dc, wnum_id, test_data+50);
+		EXPECT(2);
 		dc_NSAddStatic (dc, mean_rad_id, test_data+50);
 		dc_NSAddSample (dc, &begin, 0, wnum_id, test_data);
+		EXPECT(0);
 		dc_NSAddSample (dc, &begin, 0, therm_id, test_data);
 		dc_NSAddSample (dc, &begin, 0, mean_rad_id, test_data);
 		dc_NSAddSample (dc, &begin, 0, sd_rad_id, test_data);
 
 		/* store it, then add more data, and store again later  */
 		/* with newfile flag FALSE				*/
+		dc_SetStaticLoc (dc, &loc);
 		ds_Store (dc, TRUE, 0, 0);
 		++end.zt_Sec;
 		dc_NSAddSample (dc, &end, 1, therm_id, test_data+100);
@@ -520,6 +975,7 @@ main (argc, argv)
 		dc_DumpDC (dc);
 
 		/* test some retrieval */
+		EXPECT(1);
 		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should fail*/
 		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
 		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
@@ -536,6 +992,7 @@ main (argc, argv)
 			F_GetName(mean_rad_id), size);
 		T_CompareData (retrieve, test_data+100, size);
 
+		EXPECT(1);
 		retrieve = dc_NSGetSample (dc, 0, BadField, NULL);
 		printf("GetSample(2,BadField): data=%s\n",
 		       (retrieve)?"non-NULL":"NULL");
@@ -561,6 +1018,7 @@ main (argc, argv)
 
 		/* re-test some retrieval */
 		printf ("Comparing fetched data with stored data...\n");
+		EXPECT(1);
 		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should fail*/
 		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
 		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
@@ -577,6 +1035,7 @@ main (argc, argv)
 			F_GetName(mean_rad_id), size);
 		T_CompareData (retrieve, test_data+100, size);
 
+		EXPECT(1);
 		retrieve = dc_NSGetSample (dc, 0, BadField, NULL);
 		printf("GetSample(2,BadField): data=%s\n",
 		       (retrieve)?"non-NULL":"NULL");
@@ -590,7 +1049,7 @@ main (argc, argv)
 		ds_StoreBlocks (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-	printf("----------------------------------------------------test4\n");
+	Announce("------------------ test4 -------------------");
 	{	/* ARM SOW example with implicit dimn defs */
 
 		FieldId mean_rad_id, sd_rad_id, wnum_id, therm_id;
@@ -626,20 +1085,22 @@ main (argc, argv)
 
 #ifdef TEST4_STORE
 		/* Add lots of data and try to push some limits */
-		printf ("Adding 750 samples to datachunk... "); 
+		printf ("Adding 500 samples to datachunk... "); 
 		fflush(stdout);
 		when.zt_Sec += 60;
 		begin = when;
-		for (i = 0; i < 750; ++i)
+		dc_SetStaticLoc (dc, &loc);
+		for (i = 0; i < 500; ++i)
 		{
-			++when.zt_Sec;
 			dc_NSAddSample (dc, &when, i, wnum_id, test_data+i);
 			dc_NSAddSample (dc, &when, i, therm_id, test_data+i);
 			dc_NSAddSample (dc, &when, i, mean_rad_id, 
 					test_data+i);
 			dc_NSAddSample (dc, &when, i, sd_rad_id, test_data+i);
+			++when.zt_Sec;
 		}
 		end = when;
+		--end.zt_Sec;
 		printf ("Done.\nPutSample to 't_nspace' ... "); fflush(stdout);
 		ds_Store (dc, TRUE, 0, 0);
 		printf ("and PutBlock to plat 't_nsblocks' ... "); 
@@ -647,23 +1108,44 @@ main (argc, argv)
 		dc->dc_Platform = ds_LookupPlatform ("t_nsblocks");
 		ds_StoreBlocks (dc, TRUE, 0, 0);
 		printf ("Done storing.\n");
-		fields = dc_GetFields (dc, &nfield);
-		dc_DestroyDC (dc);
 
 		/* now try to fetch what we just stored and see what we get */
-		printf("Fetching from 't_nspace' ....   "); fflush(stdout);
-		dc = ds_Fetch (plat_id, DCC_NSpace, &begin, &end,
-			       fields, nfield, NULL, 0);
+		/* remember to keep the dc around which is holds the fields */
+		fields = dc_GetFields (dc, &nfield);
+		printf("Fetching from '%s' ....   \n", 
+		       ds_PlatformName(plat_id));
+		ndc = ds_Fetch (plat_id, DCC_NSpace, &begin, &end,
+				fields, nfield, NULL, 0);
+		/* compare the data we retrieved */
+		for (i = 0; i < 500; i+=100)
+		{
+			printf ("Sample %d: ", i);
+			retrieve = dc_NSGetSample (ndc, i, fields[0], &size);
+			T_CompareData (retrieve, test_data+i, size);
+			retrieve = dc_NSGetSample (ndc, i, fields[2], &size);
+			T_CompareData (retrieve, test_data+i, size);
+		}
+		dc_DestroyDC (ndc);
 		printf("Done.\n");
-		dc_DestroyDC (dc);
-		printf("Fetching from 't_nsblocks' ..."); fflush(stdout);
-		dc = ds_Fetch (plat_id, DCC_NSpace, &begin, &end,
-			       fields, nfield, NULL, 0);
+		printf("Fetching from 't_nsblocks' ...\n");
+		ndc = ds_Fetch (ds_LookupPlatform("t_nsblocks"), 
+				DCC_NSpace, &begin, &end,
+				fields, nfield, NULL, 0);
+		/* compare the data we retrieved */
+		for (i = 0; i < 500; i+=75)
+		{
+			printf ("Sample %d: ", i);
+			retrieve = dc_NSGetSample (ndc, i, fields[0], &size);
+			T_CompareData (retrieve, test_data+i, size);
+			retrieve = dc_NSGetSample (ndc, i, fields[2], &size);
+			T_CompareData (retrieve, test_data+i, size);
+		}
+		dc_DestroyDC (ndc);
 #endif
 		printf("Done.\n");
 		dc_DestroyDC (dc);
 	}
-	printf("----------------------------------------------------test5\n");
+	Announce("------------------ test5 -----------------");
 	{	/* silly stuff */
 
 		FieldId fid, did;
@@ -683,20 +1165,25 @@ main (argc, argv)
 		did = F_DeclareField(dimname[1],"Dimension","u");
 
 		/* define a variable whose dimensions do not exist */
+		EXPECT(1);
 		dc_NSDefineVariable (dc, fid, 1, &did, TRUE);
 
 		/* try defining a dimension with a long name */
+		EXPECT(2);  	/* 2 dimn names too long */
 		dc_NSDefineField(dc, fid, 4, dimname, dimsize, FALSE);
 		dc_DumpDC (dc);
 		
 		/* now try redefining a dimension */
+		EXPECT(3); /* 1 too long, 1 for redefined, 1 for new id */
 		dc_NSDefineDimension(dc, did, dimsize[2]);
 		dc_DumpDC (dc);
 
 		/* redefine a variable */
+		EXPECT(2); /* 1 to redefine field, 1 for change in dimns */
 		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
 		dc_DumpDC (dc);
 
+		EXPECT(0);
 		/* test completion */
 		printf("dc_NSDefineIsComplete() returns %s\n",
 		       dc_NSDefineIsComplete(dc) ? "True" : "False");
@@ -707,20 +1194,21 @@ main (argc, argv)
 		       "After dc_NSDefineComplete()",
 		       dc_NSDefineIsComplete(dc) ? "True" : "False");
 
+		EXPECT(2);
 		/* try more definition after completion */
 		dc_NSDefineDimension(dc, did, dimsize[2]);
 		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
 
 		/* quick addition of data just to create a file */
 		when.zt_Sec += 60;
+		dc_SetStaticLoc (dc, &loc);
 		dc_NSAddSample (dc, &when, 0, fid, test_data+2000);
 		
 		dc_DumpDC (dc);
 		ds_StoreBlocks (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-#ifdef TEST6
-	printf("----------------------------------------------------test6\n");
+	Announce("------------------- test6 -------------------");
 	{	/* push limits of number of dims and fields in a chunk */
 
 		char name[ 10 ];
@@ -730,11 +1218,13 @@ main (argc, argv)
 		int i;
 
 		dc = dc_CreateDC (DCC_NSpace);
-		dc->dc_Platform = ds_LookupPlatform("test6");
+		dc->dc_Platform = ds_LookupPlatform("t_test6");
 
 		/* test dimn limit */
 		for (i = 0; i < DC_MaxDimension + 2; ++i)
 		{
+			if (i == DC_MaxDimension)
+			{ EXPECT(2); }
 			sprintf (name, "dimn%i", i);
 			did = F_DeclareField(name, "Dimension", "none");
 			size = i;
@@ -745,38 +1235,497 @@ main (argc, argv)
 		did = F_Lookup("dimn12");
 		for (i = 0; i < DC_MaxField + 2; ++i)
 		{
+			if (i == DC_MaxField)
+			{ EXPECT(2); }
 			sprintf (name, "field%i", i);
 			fid = F_DeclareField(name, "Field", "units");
 			dc_NSDefineVariable(dc, fid, 1, &did, i % 2);
 		}
 
+		EXPECT(1);
 		/* test field limit with DefineField */
 		dc_NSDefineField(dc, fid, 0, 0, 0, 0);
 
+		EXPECT(2); /* 1 for dimn limit, 1 for aborted field defn */
 		/* test dimn limit with DefineField by redefining field */
 		dc_NSDefineField(dc, F_Lookup("field1"), 1, 
 				 &namep, &size, TRUE);
 
-		dc_DumpDC (dc);
+		/* dc_DumpDC (dc); */
 
 		/* see what it looks like after closing definition */
 		dc_NSDefineComplete (dc);
-		dc_DumpDC (dc);
+		/* dc_DumpDC (dc); */
 
 		ds_Store (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-#endif /* TEST6 */
+	Announce("-------------------- test7 -----------------------");
+	{
+
+		FieldId field, sfield;
+		FieldId fids[3];
+		char *dim_names[2];
+		unsigned long dim_sizes[2];
+
+		dim_names[0] = "x";	dim_names[1] = "y";
+		dim_sizes[0] = 50;	dim_sizes[1] = 25;
+		fids[0] = F_DeclareField ("curl1","Long name","units");
+		fids[1] = F_DeclareField ("curl2","Long name","units");
+		fids[2] = F_DeclareField ("curl3","Long name","units");
+		dc = dc_CreateDC (DCC_NSpace);
+		dc->dc_Platform = plat_id;
+		dc_NSDefineField (dc, fids[0], 2, dim_names, dim_sizes, FALSE);
+		dc_NSDefineField (dc, fids[1], 2, dim_names, dim_sizes, FALSE);
+		dc_NSDefineField (dc, fids[2], 2, dim_names, dim_sizes, FALSE);
+		dc_NSDefineComplete (dc);
+		dc_NSAddSample (dc, &when, 0, fids[0], test_data);
+		printf ("dynamic fields of same sizes, should be UNIFORM:\n");
+		dc_DumpDC (dc);
+		dc_DestroyDC (dc);
+	}
+
+	T_Aeri();
+	fflush (stdout);
+}
 #endif /* NSPACE */
 
-#ifdef BLOCKS
-	printf ("---------------------------------------------block tests\n");
-	T_IRGridStoreBlocks();
-	T_1DGridStoreBlocks();
-#endif
 
-	return(0);
+
+
+DataChunk *
+T_ScalarNSpaceChunk (start, nsample, nfield, is_mobile, addatts)
+ZebTime *start;
+int nsample;
+int nfield;
+bool is_mobile;
+bool addatts;
+{
+	DataChunk *dc;
+	FieldId fids[50];
+	float value;
+	int fld;
+	int i;
+	ZebTime when;
+	struct TestField *tf;
+	static Location loc;
+
+	loc.l_lat = 40.0; loc.l_lon = -160.0; loc.l_alt = 5280.0;
+	if (nfield > 50)
+		nfield = 50;
+	if (nfield > NUM_TESTFIELDS)
+		nfield = NUM_TESTFIELDS;
+	dc = dc_CreateDC (DCC_NSpace);
+	for (i = 0; i < nfield; ++i)
+	{
+		tf = TestFields+i;
+		fids[i] = F_DeclareField (tf->name, tf->desc, tf->units);
+		dc_NSDefineField (dc, fids[i], 0, 0, 0, FALSE);
+	}
+	dc_NSDefineComplete (dc);
+	dc_SetBadval (dc, -999.0);
+	if (!is_mobile)
+		dc_SetStaticLoc (dc, &loc);
+
+	if (addatts)
+	{
+		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+		dc_SetGlobalAttr (dc, "date", "today");
+	}
+
+	when = *start;
+	value = 1.0;
+	dc_HintNSamples (dc, nsample, TRUE);
+	for (i = 0; i < nsample; ++i)
+	{
+		for (fld = 0; fld < nfield; ++fld, ++value)
+			dc_NSAddSample (dc, &when, i, 
+					fids[fld], &value); 
+		if (is_mobile)
+		{
+			loc.l_lat = -90.0 + i*180.0/3000.0;
+			loc.l_lon = -180.0 + i*360.0/3000.0;
+			loc.l_alt = i;
+			dc_SetLoc (dc, i, &loc);
+		}
+		++when.zt_Sec;
+		value -= nfield;
+		value += 1.0;
+	}
+	if (addatts)
+	{
+		dc_SetSampleAttr (dc, 0, "key", "first sample");
+		dc_SetSampleAttr (dc, 3, "sample_number", "3");
+		dc_SetSampleAttr (dc, i/2, "median", "middle");
+		dc_SetSampleAttr (dc, i-1, "key", "last sample");
+	}
+	return (dc);
 }
+
+
+
+
+DataChunk *
+T_SimpleScalarChunk (start, nsample, nfield, is_mobile, addatts)
+ZebTime *start;
+int nsample;
+int nfield;
+bool is_mobile;
+bool addatts;
+{
+	DataChunk *dc;
+	FieldId fids[50];
+	float value;
+	int fld;
+	int i;
+	ZebTime when;
+	struct TestField *tf;
+	static Location loc;
+
+	loc.l_lat = 40.0; loc.l_lon = -160.0; loc.l_alt = 5280.0;
+	if (nfield > 50)
+		nfield = 50;
+	if (nfield > NUM_TESTFIELDS)
+		nfield = NUM_TESTFIELDS;
+	dc = dc_CreateDC (DCC_Scalar);
+	for (i = 0; i < nfield; ++i)
+	{
+		tf = TestFields+i;
+		fids[i] = F_DeclareField (tf->name, tf->desc, tf->units);
+	}
+	dc_SetScalarFields (dc, nfield, fids);
+	dc_SetBadval (dc, -999.0);
+	if (!is_mobile)
+		dc_SetStaticLoc (dc, &loc);
+
+	if (addatts)
+	{
+		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+		dc_SetGlobalAttr (dc, "date", "today");
+	}
+
+	when = *start;
+	value = 1.0;
+	dc_HintNSamples (dc, nsample, TRUE);
+	for (i = 0; i < nsample; ++i)
+	{
+		for (fld = 0; fld < nfield; ++fld, ++value)
+			dc_AddScalar (dc, &when, i, 
+				      fids[fld], &value); 
+		/* {
+			char c[2];
+			c[0] = (i % 10) + '0'; c[1] = '\0';
+			dc_SetSampleAttr (dc, i, "ones", c);
+		} */
+		if (is_mobile)
+		{
+			loc.l_lat = -90.0 + i*180.0/3000.0;
+			loc.l_lon = -180.0 + i*360.0/3000.0;
+			loc.l_alt = i;
+			dc_SetLoc (dc, i, &loc);
+		}
+		++when.zt_Sec;
+		value -= nfield;
+		value += 1.0;
+	}
+	if (addatts)
+	{
+		dc_SetSampleAttr (dc, 0, "key", "first sample");
+		dc_SetSampleAttr (dc, 3, "sample_number", "3");
+		dc_SetSampleAttr (dc, i/2, "median", "middle");
+		dc_SetSampleAttr (dc, i-1, "key", "last sample");
+	}
+	return (dc);
+}
+
+
+
+T_TransparentAdd (dc, start, nsample, is_mobile, addatts)
+DataChunk *dc;
+ZebTime *start;
+int nsample;
+bool is_mobile;		/* Set locations 		*/
+bool addatts;		/* per-sample atts only 	*/
+/*
+ * Just adds variable length text as opaque samples of varying sizes.
+ * Tests the hint functions.
+ */
+{
+	char *text[] = {
+"burghart        - Died on level   8. Started on level   1.  Score:     7532.",
+"Died on level  17",
+"You are quite disappointing:",
+"Started on level   1.  Score:     9542.",
+" burghart        - Died on level   9. Started on level   1.  Score:     9542.
+ burghart        - Died on level  18. Started on level  12.  Score:     8583.
+ burghart        - Died on level   8. Started on level   1.  Score:     8420.
+ burghart        - Died on level  17. Started on level  12.  Score:     8153.
+ burghart        - Died on level  10. Started on level   1.  Score:     7905.
+ burghart        - Died on level   8. Started on level   1.  Score:     7800.",
+"You are quite disappointing: *granger" };
+	int ntext = sizeof(text)/sizeof(text[0]);
+	int i, len;
+	char *data, *src;
+	ZebTime when;
+	static Location loc = { 1.0, 2.0, 4.0 };
+
+	when = *start;
+	for (i = 0; i < nsample; ++i)
+	{
+		src = text[i%ntext];
+		dc_AddSample(dc, &when, src, strlen(src)+1);
+		if (is_mobile)
+			dc_SetLoc (dc, i, &loc);
+		if (addatts)
+			dc_SetSampleAttr(dc, i, "key", "value");
+		++when.zt_Sec;
+		data = dc_GetSample (dc, i, &len);
+		assert(len == strlen(src)+1);
+		assert(!strcmp(data, src));
+	}
+}
+
+
+
+
+T_Aeri()
+{
+	ZebTime begin, when;
+	char *pname = "Dsgpaeri1ch1.a1";
+	PlatformId pid = ds_LookupPlatform(pname);
+	FieldId fields[30];
+	float *retrieve;
+	DataChunk *dc;
+	int n, i;
+	unsigned long len;
+
+	Announce("----------- aeri -----------");
+	n = 0;
+	fields[n] = F_Lookup("lat"); ++n;
+	fields[n] = F_Lookup("lon"); ++n;
+	fields[n] = F_Lookup("alt"); ++n;
+	fields[n] = F_Lookup("hotBBTemp"); ++n;
+	fields[n] = F_Lookup("reflectedTemp"); ++n;
+	fields[n] = F_Lookup("thermistor0"); ++n;
+	fields[n] = F_Lookup("thermistor1"); ++n;
+	fields[n] = F_Lookup("thermistor5"); ++n;
+	fields[n] = F_Lookup("thermistor13"); ++n;
+	fields[n] = F_Lookup("pressure"); ++n;
+	fields[n] = F_Lookup("dataType"); ++n;
+	fields[n] = F_Lookup("wnum"); ++n;
+	fields[n] = F_Lookup("mean_rad"); ++n;
+	fields[n] = F_Lookup("wnum2"); ++n;
+	fields[n] = F_Lookup("standard_dev_mean_rad"); ++n;
+
+	/* find out the time of the data */
+	tl_Time (&begin);
+	ds_GetObsTimes (pid, &begin, &when, 1, NULL);
+
+	/* fetch a DC from the aeri platform and dump its data */
+	printf("Fetching %s data....   ", pname); fflush(stdout);
+	dc = ds_FetchObs (pid, DCC_NSpace, &when,
+			  fields, n, NULL, 0);
+	printf("DataChunk returned by ds_Fetch():\n");
+	dc_DumpDC (dc);
+
+	for (i = 0; i < n; ++i)
+		T_NSGetField(dc, fields[i]);
+		
+	/* retrieve data and dump it out */
+	retrieve = dc_NSGetStatic (dc, F_Lookup("wnum"), &len);
+	T_DumpData (retrieve, 12, len, "wnum");
+
+	retrieve = dc_NSGetSample (dc, 0, F_Lookup("mean_rad"), &len);
+	T_DumpData (retrieve, 12, len, "mean_rad");
+
+	retrieve = dc_NSGetStatic (dc, F_Lookup("wnum2"), &len);
+	T_DumpData (retrieve, 12, len, "wnum2");
+
+	retrieve = dc_NSGetStatic (dc, F_Lookup("lat"), &len);
+	printf ("Lat = %.2f, ", *retrieve);
+	retrieve = dc_NSGetStatic (dc, F_Lookup("lon"), &len);
+	printf ("Lon = %.2f, ", *retrieve);
+	retrieve = dc_NSGetStatic (dc, F_Lookup("alt"), &len);
+	printf ("Alt = %.2f\n", *retrieve);
+
+	retrieve = dc_NSGetSample (dc, 0, 
+				   F_Lookup("thermistor0"), &len);
+	T_DumpData (retrieve, 5, len, "thermistor0");
+	dc_DestroyDC(dc);
+}
+
+
+
+T_GetFields(start, plat)
+ZebTime *start;
+char *plat;
+{
+	FieldId fields[10];
+	FieldId *dc_fields;
+	DataChunk *dc;
+	int dc_nfield;
+	int nfield, i, j;
+	char buf[128];
+
+	/*
+	 * Quick test of ds_GetFields()
+	 */
+	sprintf (buf, "testing ds_GetFields() for platform '%s'", plat);
+	Announce (buf);
+	dc = T_SimpleScalarChunk (start, 10, 4, FALSE, FALSE);
+	dc->dc_Platform = ds_LookupPlatform(plat);
+	dc_fields = dc_GetFields (dc, &dc_nfield);
+	ds_Store (dc, TRUE, NULL, 0);
+	nfield = 10;
+	if (!ds_GetFields(dc->dc_Platform, start, &nfield, fields))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "ds_GetFields('%s') failed", plat);
+	}
+	else if (nfield != dc_nfield)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "ds_GetFields('%s') returned %d, expected %d",
+			  plat, nfield, dc_nfield);
+	}
+	else
+	{
+		for (i = 0; i < nfield; ++i)
+		{
+			for (j = 0; j < nfield; ++j)
+				if (fields[i] == dc_fields[j])
+					break;
+			if (j >= nfield)
+				break;
+		}
+		if (i < nfield)
+			msg_ELog (EF_PROBLEM,
+				  "ds_GetFields(): field %d incorrect", 
+				  fields[i]);
+	}
+	dc_DestroyDC(dc);
+}
+
+
+
+T_Transparent (platform, now)
+char *platform;
+ZebTime *now;
+{
+	DataChunk *dc;
+	char *data = "Transparent chunk holding text and newline\n";
+	char buf[128];
+	ZebTime when = *now;
+	bool atts = FALSE;
+	static Location loc = { 40.0, -160.0, 5280.0 };
+
+	sprintf(buf,"storing transparent datachunk to platform '%s'",platform);
+	Announce (buf);
+	dc = dc_CreateDC (DCC_Transparent);
+	dc->dc_Platform = ds_LookupPlatform (platform);
+	dc_SetStaticLoc (dc, &loc);
+	dc_AddSample (dc, &when, data, strlen(data)+1);
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC(dc);
+
+	/* Now get a much larger one and overwrite the first sample above */
+	dc = dc_CreateDC (DCC_Transparent);
+	dc->dc_Platform = ds_LookupPlatform (platform);
+	dc_SetStaticLoc (dc, &loc);
+	T_TransparentAdd (dc, &when, 100, TRUE, atts);
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	ds_Store (dc, TRUE, NULL, 0);
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC(dc);
+
+	/* Now try it with some hints set */
+	dc = dc_CreateDC (DCC_Transparent);
+	dc->dc_Platform = ds_LookupPlatform (platform);
+	dc_SetStaticLoc (dc, &loc);
+	dc_HintNSamples (dc, 25, FALSE);
+	T_TransparentAdd (dc, &when, 50, TRUE, atts);
+	when.zt_Sec += 25;
+	dc_HintNSamples (dc, 10, TRUE);
+	T_TransparentAdd (dc, &when, 10, TRUE, atts);
+	when.zt_Sec += 10;
+	dc_HintSampleSize (dc, 50, FALSE);
+	dc_HintMoreSamples (dc, 50, FALSE);
+	T_TransparentAdd (dc, &when, 50, TRUE, atts);
+	when.zt_Sec += 50;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+}
+
+
+
+T_Deletes (start)
+ZebTime *start;
+/*
+ * Here's an idea: use a platform whose maxsamples=1 to
+ * create a bunch of observations, each of which contains
+ * only one sample.  Then test out dsdelete and ds_DeleteObs
+ * on that platform.
+ */
+{
+	PlatformId t_delete_id;
+	DataChunk *dc;
+	ZebTime when, begin = *start;
+	int i;
+
+	dc = T_SimpleScalarChunk (&begin, 10, 4, TRUE, TRUE);
+	t_delete_id = ds_LookupPlatform("t_deletes");
+	dc->dc_Platform = t_delete_id;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	system("dsdump t_deletes");
+	fflush (stdout);
+	fflush (stderr);
+
+	printf ("Deleting even-second obs with DeleteObs\n");
+	when = begin;
+	for (i = 0; i < 10; ++i)
+	{
+		if (when.zt_Sec % 2 == 0)
+			ds_DeleteObs (t_delete_id, &when);
+		++when.zt_Sec;
+	}
+	printf ("Finished deleting with DeleteObs\n");
+	fflush (stdout);
+	fflush (stderr);
+	system("dsdump t_deletes");	
+	fflush (stdout);
+	fflush (stderr);
+	printf ("Trying to do the same deletes again.\n");
+	when = begin;
+	for (i = 0; i < 10; ++i)
+	{
+		if (when.zt_Sec % 2 == 0)
+			ds_DeleteObs (t_delete_id, &when);
+		++when.zt_Sec;
+	}
+	printf ("Storing the DataChunk again...\n");
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	printf ("Test extremes: time earlier than all obs,\n");
+	when.zt_Sec = begin.zt_Sec - 3600*24;
+	ds_DeleteObs (t_delete_id, &when);
+	printf ("Time later than all obs,\n");
+	when.zt_Sec = begin.zt_Sec + 3600*12;
+	ds_DeleteObs (t_delete_id, &when);
+	printf ("Using DeleteObs to delete all files...\n");
+	when = begin;
+	for (i = 0; i < 10; ++i)
+	{
+		ds_DeleteObs (t_delete_id, &when);
+		++when.zt_Sec;
+	}
+	fflush (stdout);
+	fflush (stderr);
+	system("dsdump t_deletes");
+	fflush (stdout);
+	fflush (stderr);
+	printf ("Done deletes test.  Should be 0 files left in 't_deletes'.\n");
+	dc_DestroyDC (dc);
+}
+
 
 
 T_CompareData(src1, src2, size)
@@ -792,6 +1741,26 @@ int size;
 	printf ("  %s at %i\n",
 		(i < size) ? "failed" : "succeeded", i);
 	
+}
+
+
+
+T_DumpData (retrieve, n, len, fname) 
+float *retrieve;
+int n;
+int len;
+char *fname;
+{
+	int i, j;
+
+	printf ("First %d '%s' values (len = %d):\n", n, fname, len);
+	for (i = 0; (i < n) && (i < len); ++i)
+		printf ("%9.2f%c", retrieve[i], (i+1)%7?' ':'\n');
+	printf ("\nLast %d '%s' values (len = %d):\n", n, fname, len);
+	for (i = 0, j = len-n+((n<=len)?0:(n-len));
+	     (i < n) && (j < len); ++i, ++j)
+		printf ("%9.2f%c", retrieve[j], (i+1)%7?' ':'\n');
+	printf ("\n");
 }
 
 
@@ -846,6 +1815,7 @@ DataChunk *dc;
 }
 
 
+
 T_NSGetAllVariables(dc)
 DataChunk *dc;
 {
@@ -880,6 +1850,7 @@ DataChunk *dc;
 }
 
 
+
 T_1DGridStoreBlocks()
 {
 	DataChunk *dc;
@@ -894,8 +1865,6 @@ T_1DGridStoreBlocks()
 	 * in the 't_1dgrid' platform.
 	 */
 	src_id = ds_LookupPlatform ("kapinga/prof915h");
-	dest_id = ds_LookupPlatform ("t_1dgrid");
-
 	fields[0] = F_Lookup("height");
 	fields[1] = F_Lookup("wspd");
 	fields[2] = F_Lookup("wdir");
@@ -907,10 +1876,15 @@ T_1DGridStoreBlocks()
 	fflush(stdout);
 	dc = ds_FetchObs (src_id, DCC_RGrid, &when, fields, nfield, 0, 0);
 	printf("Done\n");
-	printf("Storing via PutBlock to 't_1dgrid'... "); 
+	printf("Storing via PutBlock to 't_1dgrid_cdf' and 't_1dgrid_znf'... "); 
 	fflush(stdout);
+	dest_id = ds_LookupPlatform ("t_1dgrid_cdf");
 	dc->dc_Platform = dest_id;
 	ds_StoreBlocks (dc, TRUE, 0, 0);
+	dest_id = ds_LookupPlatform ("t_1dgrid_znf");
+	dc->dc_Platform = dest_id;
+	ds_StoreBlocks (dc, TRUE, 0, 0);
+	dc_DestroyDC (dc);
 	printf("Done.\n");
 }
 
@@ -928,9 +1902,6 @@ T_IRGridStoreBlocks()
 	 * Fetch some IRGrid data and store it using StoreBlocks
 	 */
 	src_id = ds_LookupPlatform ("t_mesonet");
-	dest_id = ds_LookupPlatform ("t_irgrid");
-
-
 	fields[0] = F_Lookup("pres");
 	fields[1] = F_Lookup("cpres0");
 	fields[2] = F_Lookup("tdry");
@@ -944,46 +1915,493 @@ T_IRGridStoreBlocks()
 	dc = ds_Fetch (src_id, DCC_IRGrid, &begin, &end, 
 		       fields, nfield, 0, 0);
 	printf("Done\n");
-	printf("Storing via PutBlock to 't_irgrid'... "); 
+	printf("PutBlock to 't_irgrid_cdf' and 't_irgrid_znf'... "); 
 	fflush(stdout);
+	dest_id = ds_LookupPlatform ("t_irgrid_cdf");
 	dc->dc_Platform = dest_id;
 	ds_StoreBlocks (dc, TRUE, 0, 0);
+	dest_id = ds_LookupPlatform ("t_irgrid_znf");
+	dc->dc_Platform = dest_id;
+	ds_StoreBlocks (dc, TRUE, 0, 0);
+	dc_DestroyDC (dc);
 	printf("Done.\n");
 }
 
 
 
 
-#ifdef notdef
-T_ArmAeri()
+T_RGrid (begin)
+ZebTime begin;
 {
 	DataChunk *dc;
-	PlatformId src_id;
+	FieldId fids[50];
+	int fld;
+	int i;
 	ZebTime when;
-	int nfield, i;
-	FieldId fields[5];
+	struct TestField *tf;
+	static Location loc;
+	int nsample = 5;
+	int nfield = 3;
+	RGrid rgrid;
 
-	/*
-	 * Try to fetch an N-space datachunk from ARM sample data files
-	 */
-	src_id = ds_LookupPlatform ("t_aeri");
+	loc.l_lat = 40.0; loc.l_lon = -160.0; loc.l_alt = 5280.0;
+	dc = dc_CreateDC (DCC_RGrid);
+	for (i = 0; i < nfield; ++i)
+	{
+		tf = TestFields+i;
+		fids[i] = F_DeclareField (tf->name, tf->desc, tf->units);
+	}
+	dc_RGSetup (dc, nfield, fids);
+	dc_SetBadval (dc, -999.0);
+	dc_SetStaticLoc (dc, &loc);
 
-	fields[0] = F_Lookup("height");
-	fields[1] = F_Lookup("wspd");
-	fields[2] = F_Lookup("wdir");
-	fields[3] = F_Lookup("u_wind");
-	fields[4] = F_Lookup("v_wind");
-	nfield = 5;
-	TC_ZtAssemble (&when, 92, 12, 2, 18, 50, 0, 0);
-	printf("Fetching observation from kapinga/prof915h... ");
-	fflush(stdout);
-	dc = ds_FetchObs (src_id, DCC_RGrid, &when, fields, nfield, 0, 0);
-	printf("Done\n");
-	printf("Storing via PutBlock to 't_1dgrid'... "); 
-	fflush(stdout);
-	dc->dc_Platform = dest_id;
-	ds_StoreBlocks (dc, TRUE, 0, 0);
-	printf("Done.\n");
+	dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+	dc_SetGlobalAttr (dc, "date", "today");
+
+	when = begin;
+	dc_HintNSamples (dc, nsample, TRUE);
+	rgrid.rg_Xspacing = 0.5;
+	rgrid.rg_Yspacing = 0.5;
+	rgrid.rg_Zspacing = 0.5;
+	rgrid.rg_nX = 20;
+	rgrid.rg_nY = 1;
+	rgrid.rg_nZ = 10;
+	for (i = 0; i < nsample; ++i)
+	{
+		for (fld = 0; fld < nfield; ++fld)
+			dc_RGAddGrid (dc, i, fids[fld], &loc, &rgrid,
+				      &when, (void *)(test_data + i*fld), 0);
+	}
+	dc_SetSampleAttr (dc, 0, "key", "first sample");
+	dc_SetSampleAttr (dc, 3, "sample_number", "3");
+	dc_SetSampleAttr (dc, i/2, "median", "middle");
+	dc_SetSampleAttr (dc, i-1, "key", "last sample");
+	dc_DumpDC (dc);
+	dc_DestroyDC (dc);
 }
 
+
+
+
+#ifdef ZNF_TESTING
+T_ZnfBlocks ()
+{
+	/* Call znf free block testing routine */
+	Announce ("Testing ZNF low-level free blocks, creating file 'test.znf'");
+	zn_TestFreeBlocks ("test.znf");
+	fflush (stdout);
+	fflush (stderr);
+}
 #endif
+
+
+
+T_AeriTypes(when)
+ZebTime when;
+/*
+ * Try a typical NSpace chunk, but include use of field types.
+ */
+{
+#define N_WNUM 65
+#define N_SAMPLE 128
+	DataChunk *dc, *ndc;
+	PlatformId plat_id;
+	ZebTime begin = when;
+	int i;
+	FieldId fields[10];
+	int nfield = 10;
+	FieldId bin_avg_id, wnum_id, mean_rad_id, therm_id, flags_id;
+	static const unsigned char Check_bits[] = {
+		0x00, 0x01, 0x80, 0x01, 0xc0, 0x00, 0x60, 0x00,
+		0x31, 0x00, 0x1b, 0x00, 0x0e, 0x00, 0x04, 0x00
+	};
+	char *bitmap_names[] = { "row", "col8" };
+	unsigned long bitmap_sizes[] = { 8, 2 };
+	FieldId bitmap_id;
+	char *text_dim[] = { "text" };
+	unsigned long text_size[] = { 256 };
+	FieldId obs_id;
+	char obs[256];
+	char *process_dims[] = { "bin", "name" };
+	unsigned long process_sizes[] = { 7, 32 };
+	FieldId process_id;
+	static char process_names[7][32] = {
+		"process one", "process two", "process three",
+		"process four", "process five", "process six", "process seven"
+	};
+	double *mean_rads;
+	static float bin_averages[] = { 0.0, 1.0, 2.0, 4.0, 2.0, 1.0, 0.0 };
+	static char obs_types[5][256] = {
+"overcast; light precipitation visible to the east",
+"the sun is out",
+"the moon is looking a brilliant yellow this evening, and it\
+makes the beauty of your eyes glow with irresistable radiance",
+"'twas brillig in the frothy toves...",
+"Oregon: 50 million gallons of water and no place to go on a Saturday" };
+	static Location loc = { 40.0, -160.0, 5280.0 };
+
+	Announce ("------ Testing a typed AERI NSpace DataChunk ------");
+	dc = dc_CreateDC (DCC_NSpace);
+	plat_id = ds_LookupPlatform ("t_aeri_types_cdf");
+	dc->dc_Platform = plat_id;
+	dc_SetStaticLoc (dc, &loc);
+
+	/*
+	 * A bitmap to represent this platform
+	 */
+	bitmap_id = F_DeclareField("bitmap", "Bitmap icon for this platform",
+				   "none");
+	dc_NSDefineField (dc, bitmap_id, 2, bitmap_names, bitmap_sizes, TRUE);
+
+	/*
+	 * Text: on-site observations
+	 */
+	obs_id = F_DeclareField("observation", "Field observations", "text");
+	dc_NSDefineField (dc, obs_id, 1, text_dim, text_size, FALSE);
+
+	/*
+	 * Example AERI data
+	 */
+	wnum_id = F_DeclareField("wnum", "Wave Number", "cm-1");
+	dc_NSDefineDimension (dc, wnum_id, N_WNUM);
+	dc_NSDefineVariable (dc, wnum_id, 1, &wnum_id, TRUE);
+	mean_rad_id = F_DeclareField ("mean_rad", 
+		      "Mean of radiance spectra ensemble", "mW/(m2 sr cm-1)");
+	dc_NSDefineVariable (dc, mean_rad_id, 1, &wnum_id, FALSE);
+	therm_id = F_DeclareField ("thermistor", "Thermistor", "C");
+	dc_NSDefineField (dc, therm_id, 0, 0, 0, FALSE);
+	process_id = F_DeclareField ("process", "Active process", "none");
+	dc_NSDefineField (dc, process_id, 2, process_dims, process_sizes, TRUE);
+	bin_avg_id = F_DeclareField ("bin_avg_rad", "Bin average radiance",
+				     "mW/(m2 sr cm-1)");
+	dc_NSDefineField (dc, bin_avg_id, 1, process_dims, process_sizes, FALSE);
+
+	/*
+	 * Store error flag masks for each sample time
+	 */
+	flags_id = F_DeclareField ("flags", "Error flags mask", "none");
+	dc_NSDefineField (dc, flags_id, 0, 0, 0, FALSE);
+
+	/*
+	 * Close out definition and set the non-float field types
+	 */
+	dc_NSDefineComplete (dc);
+	dc_SetType (dc, bitmap_id, DCT_UnsignedChar);
+	dc_SetType (dc, obs_id, DCT_Char);
+	dc_SetType (dc, flags_id, DCT_UnsignedShort);
+	dc_SetType (dc, mean_rad_id, DCT_Double);
+	dc_SetType (dc, process_id, DCT_Char);
+	dc_DumpDC (dc);
+
+	/*
+	 * Definition is complete.  Add the static data.
+	 */
+	dc_NSAddStatic (dc, bitmap_id, (void *)Check_bits);
+	dc_NSAddStatic (dc, wnum_id, (void *)test_data);
+	dc_NSAddStatic (dc, process_id, (void *)process_names);
+
+	/*
+	 * Add the dynamic data
+	 */
+	mean_rads = (double *)malloc(N_WNUM*sizeof(double));
+	for (i = 0; i < N_WNUM; ++i)
+		mean_rads[i] = (double)i/1000.0;
+	dc_HintNSamples (dc, N_SAMPLE, TRUE);
+	Announce ("Adding sample data...");
+	for (i = 0; i < N_SAMPLE; ++i)
+	{
+		float therm = (float)i;
+		short flag = (short)i%50;
+
+		dc_NSAddSample(dc, &when, i, obs_id, (void *)(obs_types[i%5]));
+		dc_NSAddSample(dc, &when, i, bin_avg_id, (void *)bin_averages);
+		dc_NSAddSample(dc, &when, i, therm_id, (void *)&therm);
+		dc_NSAddSample(dc, &when, i, flags_id, (void *)&flag);
+		dc_NSAddSample(dc, &when, i, mean_rad_id, (void *)mean_rads);
+		++when.zt_Sec;
+	}
+
+	/*
+	 * And finally store and destroy
+	 */
+	dc_DumpDC (dc);
+	Announce ("Storing and destroying.");
+	ds_StoreBlocks (dc, TRUE, 0, 0);
+	dc_DestroyDC (dc);
+	Announce ("Fetching...");
+	ds_GetFields (plat_id, &when, &nfield, fields);
+	dc = ds_FetchObs (plat_id, DCC_NSpace, &begin, fields, nfield, 0, 0);
+	dc_DumpDC (dc);
+	dc_DestroyDC (dc);
+	Announce ("AERI typed NSpace test done.");
+	free (mean_rads);
+}
+
+
+
+struct AttrDesc {
+	enum { Global, Field, Sample } which;
+	DataChunk *dc;
+	int sample;
+	FieldId field;
+};
+
+
+
+T_RemoveAttr (key, value, nval, type, arg)
+char *key;
+void *value;
+int nval;
+DC_ElemType type;
+void *arg;
+{
+	struct AttrDesc *ad = (struct AttrDesc *)arg;
+
+	switch (ad->which)
+	{
+	   case Global:
+		dc_RemoveGlobalAttr (ad->dc, key);
+		break;
+	   case Field:
+		dc_RemoveFieldAttr (ad->dc, ad->field, key);
+		break;
+	   case Sample:
+		dc_RemoveSampleAttr (ad->dc, ad->sample, key);
+		break;
+	}
+	return (0);
+}
+
+
+
+
+T_Attributes(when)
+ZebTime when;
+/*
+ * Create a simple DataChunk and add/remove/dump its attributes
+ */
+{
+	DataChunk *dc;
+	FieldId field;
+	char *pname = "t_att_types_cdf";
+	PlatformId plat = ds_LookupPlatform (pname);
+	static Location loc = { 40.0, -160.0, 5280.0 };
+	char key[30];
+	char value[50];
+	float data = 1.0;
+	char **keys;
+	char **values;
+	int natts, nval, i;
+	DC_ElemType type;
+#	define NUM(ra) (sizeof(ra)/(sizeof((ra)[0])))
+	double ddata[] = { 0.0, 1.0, 2.0, 4.0, 8.0 };
+	double *dget;
+	float fdata[] = { -1.2, -3.4, -5.6, -6.7, -8.9, -10.0 };
+	float *fget;
+	unsigned char bytes[] = { 1, 3, 7, 15, 31, 63, 127, 255 };
+	unsigned char *uget;
+	short sdata[] = { 512, 1024, 2048, 4096, 8192, 16384, 32767 };
+	short *sget;
+	struct AttrDesc ad;
+	int nfield = 10;
+	FieldId fields[10];
+
+	Announce ("------- testing DataChunk attributes ------------");
+	dc = dc_CreateDC(DCC_Scalar);
+	dc->dc_Platform = plat;
+	dc_SetStaticLoc (dc, &loc);
+	dc_SetGlobalAttr (dc, "global_key", "global_value");
+	dc_SetGlobalAttrArray (dc, "global_doubles", DCT_Double, 
+			       NUM(ddata), (void *)ddata);
+	dc_SetGlobalAttrArray (dc, "global_floats", DCT_Float, 
+			       NUM(fdata), (void *)fdata);
+	dc_SetGlobalAttrArray (dc, "global_bytes", DCT_UnsignedChar, 
+			       NUM(bytes), (void *)bytes);
+	dc_SetGlobalAttrArray (dc, "global_shorts", DCT_ShortInt, 
+			       NUM(sdata), (void *)sdata);
+	dc_SetGlobalAttrArray (dc, "global_string", DCT_String,
+			       1, "this is a global attribute string");
+	EXPECT(1);
+	dc_SetGlobalAttrArray (dc, "global_string", DCT_String,
+			       2, "this is a global attribute string");
+	/*
+	 * Get the typed arrays added above
+	 */
+	printf ("Double attribute: ");
+	dget = (double *)dc_GetGlobalAttrArray (dc, "global_doubles", 
+						&type, &nval);
+	for (i = 0; i < nval; ++i) printf (" %lf ", dget[i]);
+	printf ("\n");
+	printf ("Short attribute: ");
+	sget = (short *)dc_GetGlobalAttrArray (dc, "global_shorts", 
+					       &type, &nval);
+	for (i = 0; i < nval; ++i) printf (" %hd ", sget[i]);
+	printf ("\n");
+	field = F_Lookup ("temp");
+	dc_SetScalarFields (dc, 1, &field);
+	dc_AddScalar (dc, &when, 0, field, &data);
+	dc_SetFieldAttr (dc, field, "field_key", "field_value");
+	dc_SetSampleAttr (dc, 0, "sample_key", "sample_value");
+	printf ("printing dc, should include non-string attributes\n");
+	dc_DumpDC (dc);
+	/*
+	 * Now really crank out some attributes
+	 */
+	for (i = 0; i < 50; ++i)
+	{
+		sprintf (key, "key_%d", i);
+		sprintf (value, "value_%d", i);
+		dc_SetGlobalAttr (dc, key, value);
+		if (strcmp(dc_GetGlobalAttr(dc, key), value))
+			printf ("Global att error: '%s' should equal '%s'\n", 
+				key, value);
+		dc_SetFieldAttr (dc, field, key, value);
+		if (strcmp(dc_GetFieldAttr(dc, field, key), value))
+			printf ("Field att error: '%s' should equal '%s'\n", 
+				key, value);
+		sprintf (key, "sample_key_%d", i);
+		dc_SetSampleAttr (dc, 0, key, value);
+		if (strcmp(dc_GetSampleAttr(dc, 0, key), value))
+			printf ("Sample att error: '%s' should equal '%s'\n", 
+				key, value);
+	}
+	/*
+	 * Add some more typed attributes
+	 */
+	dc_SetFieldAttrArray (dc, field, "field_doubles", DCT_Double, 
+			       NUM(ddata), (void *)ddata);
+	dc_SetFieldAttrArray (dc, field, "field_floats", DCT_Float, 
+			       NUM(fdata), (void *)fdata);
+	dc_SetFieldAttrArray (dc, field, "field_bytes", DCT_UnsignedChar, 
+			       NUM(bytes), (void *)bytes);
+	dc_SetFieldAttrArray (dc, field, "field_shorts", DCT_ShortInt, 
+			       NUM(sdata), (void *)sdata);
+	dc_SetFieldAttrArray (dc, field, "field_string", DCT_String,
+			       1, "this is a field attribute string");
+	dc_SetSampleAttrArray (dc, 0, "sample_doubles", DCT_Double, 
+			       NUM(ddata), (void *)ddata);
+	dc_SetSampleAttrArray (dc, 0, "sample_floats", DCT_Float, 
+			       NUM(fdata), (void *)fdata);
+	dc_SetSampleAttrArray (dc, 0, "sample_bytes", DCT_UnsignedChar, 
+			       NUM(bytes), (void *)bytes);
+	dc_SetSampleAttrArray (dc, 0, "sample_shorts", DCT_ShortInt, 
+			       NUM(sdata), (void *)sdata);
+	dc_SetSampleAttrArray (dc, 0, "sample_string", DCT_String,
+			       1, "this is a sample attribute string");
+	dc_DumpDC (dc);
+	/*
+	 * Store this datachunk and see what we get in the file
+	 */
+	printf ("Storing datachunk to platform '%s'\n", pname);
+	ds_Store (dc, TRUE, 0, 0);
+	/*
+	 * Now try doing all of them again, which will cause them all to be
+	 * removed and then re-added.
+	 */
+	for (i = 0; i < 50; ++i)
+	{
+		sprintf (key, "key_%d", i);
+		sprintf (value, "value_%d", i);
+		dc_SetGlobalAttr (dc, key, value);
+		if (strcmp(dc_GetGlobalAttr(dc, key), value))
+			printf ("Global att error: '%s' should equal '%s'\n", 
+				key, value);
+		dc_SetFieldAttr (dc, field, key, value);
+		if (strcmp(dc_GetFieldAttr(dc, field, key), value))
+			printf ("Field att error: '%s' should equal '%s'\n", 
+				key, value);
+		sprintf (key, "sample_key_%d", i);
+		dc_SetSampleAttr (dc, 0, key, value);
+		if (strcmp(dc_GetSampleAttr(dc, 0, key), value))
+			printf ("Sample att error: '%s' should equal '%s'\n", 
+				key, value);
+	}
+	/*
+	 * Now just verify all at once
+	 */
+	for (i = 0; i < 50; ++i)
+	{
+		sprintf (key, "key_%d", i);
+		sprintf (value, "value_%d", i);
+		if (strcmp(dc_GetGlobalAttr(dc, key), value))
+			printf ("Global att error: '%s' should equal '%s'\n", 
+				key, value);
+		if (strcmp(dc_GetFieldAttr(dc, field, key), value))
+			printf ("Field att error: '%s' should equal '%s'\n", 
+				key, value);
+		sprintf (key, "sample_key_%d", i);
+		if (strcmp(dc_GetSampleAttr(dc, 0, key), value))
+			printf ("Sample att error: '%s' should equal '%s'\n", 
+				key, value);
+	}
+	printf ("Deleting the even keys...\n");
+	for (i = 0; i < 50; i += 2)
+	{
+		sprintf (key, "key_%d", i);
+		dc_RemoveGlobalAttr (dc, key);
+		dc_RemoveFieldAttr (dc, field, key);
+		sprintf (key, "sample_key_%d", i);
+		dc_RemoveSampleAttr (dc, 0, key);
+	}
+	printf ("Making sure they're gone...\n");
+	for (i = 0; i < 50; i += 2)
+	{
+		sprintf (key, "key_%d", i);
+		if (dc_GetFieldAttr (dc, field, key) != NULL)
+			printf ("   field key '%s' still exists\n", key);
+		if (dc_GetGlobalAttr (dc, key) != NULL)
+			printf ("   global key '%s' still exists\n", key);
+		sprintf (key, "sample_key_%d", i);
+		if (dc_GetSampleAttr (dc, 0, key) != NULL)
+			printf ("   sample key '%s' still exists\n", key);
+	}
+	if (dc_GetNGlobalAttrs(dc) != 56)
+		printf ("%d global attrs should be %d\n",
+			dc_GetNGlobalAttrs(dc), 51);
+	dc_DumpDC (dc);
+	/*
+	 * Test retrieval of an attribute list
+	 */
+	printf ("retrieving a key and value list for field attributes\n");
+	keys = dc_GetFieldAttrList(dc, field, NULL, &values, &natts);
+	if (natts != dc_GetNFieldAttrs (dc, field))
+		printf ("error: getlist returns %d natts != getn %d\n",
+			natts, dc_GetNFieldAttrs (dc, field));
+	for (i = 0; i < natts; ++i)
+		printf ("   %s=%s%c", keys[i], values[i], (i+1)%3 ? ' ':'\n');
+	printf ("\n");
+	/*
+	 * Now for a clincher: process each attribute list to remove each key
+	 */
+	printf ("trying to remove all attributes...\n");
+	ad.dc = dc;
+	ad.sample = 0;
+	ad.field = field;
+	ad.which = Global;
+	dc_ProcessAttrArrays (dc, NULL, T_RemoveAttr, (void *)&ad);
+	ad.which = Sample;
+	dc_ProcSampleAttrArrays (dc, 0, NULL, T_RemoveAttr, (void *)&ad);
+	ad.which = Field;
+	dc_ProcFieldAttrArrays (dc, field, NULL, T_RemoveAttr, (void *)&ad);
+	dc_DumpDC (dc);
+	printf ("Adding attributes with zero values and empty strings.\n");
+	dc_SetGlobalAttrArray (dc, "global_flag", 0, 0, NULL);
+	dc_SetGlobalAttr (dc, "global_empty", "");
+	dc_DumpDC (dc);
+	printf ("Deleting the empty- and zero-valued global atts\n");
+	ad.which = Global;
+	dc_ProcessAttrArrays (dc, NULL, T_RemoveAttr, (void *)&ad);
+	dc_DumpDC (dc);
+	dc_DestroyDC (dc);
+	/*
+	 * Fetch the previously stored file, hopefully including all of the
+	 * typed attributes, and dump it
+	 */
+	printf ("Fetching the attributes from '%s'\n", pname);
+	ds_GetFields (plat, &when, &nfield, fields);
+	dc = ds_FetchObs (plat, DCC_Scalar, &when, 
+			  fields, nfield, NULL, 0);
+	dc_DumpDC (dc);
+	dc_DestroyDC (dc);
+	Announce ("T_Attributes done.\n");
+}

@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 3.6 1993-09-30 18:24:48 granger Exp $";
+static char *rcsid = "$Id: GetList.c,v 3.7 1994-01-03 07:17:43 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -59,7 +59,11 @@ dgl_GetEntry ()
 	}
 	else
 		ret = ALLOC (GetList);
-	/* ret->gl_locs = 0; */
+
+	ret->gl_flags = 0;
+	ret->gl_npoint = 0;
+	ret->gl_nsample = 0;
+	ret->gl_sindex = 0;
 	return (ret);
 }
 
@@ -133,8 +137,8 @@ ZebTime *begin, *end;
 	list = dgl_GetEntry ();
 	list->gl_begin = *begin;
 	list->gl_end = *end;
+	list->gl_next = NULL;
 	list->gl_flags = 0;
-	list->gl_next = 0;
 /*
  * Now try to satisfy it against the platform lists.
  */

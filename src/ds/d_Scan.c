@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.8 1993-12-20 17:19:20 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.9 1994-01-03 07:17:56 granger Exp $")
 
 
 /*
@@ -39,6 +39,7 @@ static void	ScanDirectory FP ((Platform *, int, int));
 static void	ScanFile FP ((Platform *, char *, char *, int, int));
 static void	RescanPlat FP ((Platform *));
 static int	FileKnown FP ((Platform *, char *, char *, int));
+static int	FileChanged FP ((Platform *p, DataFile *df));
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
 
@@ -62,11 +63,21 @@ DataScan ()
 		if (p->dp_flags & DPF_SUBPLATFORM)
 			continue;
 	/*
-	 * Scan the local directory, and the local one if it exists.
+	 * Scan the local directory, and the remote one if it exists.
 	 */
 		ScanDirectory (p, TRUE, FALSE);
 		if (p->dp_flags & DPF_REMOTE)
 			ScanDirectory (p, FALSE, FALSE);
+	}
+/*
+ * Update the time of this scan if we're not using stat revisions
+ */
+	if (!StatRevisions)
+	{
+		ZebTime zt;
+
+		tl_Time (&zt);
+		LastScan = TC_ZtToSys (&zt);
 	}
 }
 
@@ -150,13 +161,18 @@ bool local, rescan;
  */
 	if (! (df = dt_NewFile ()))
 		return;	/* bummer */
-	/* sprintf (df->df_name, "%s/%s", dir, file); */
-	strcpy (df->df_name, file);
+	strncpy (df->df_name, file, sizeof(df->df_name));
+	df->df_name[sizeof(df->df_name) - 1] = '\0';
+	if (strlen(file) >= sizeof(df->df_name))
+		msg_ELog (EF_PROBLEM, "%s: scanned filename too long", file);
 	df->df_flags = DFF_Seen;
 	if (! local)
 		df->df_flags |= DFF_Remote;
 	df->df_platform = p - PTable;
-	df->df_rev = dfa_GetRevision (p, df);
+	if (StatRevisions)
+		df->df_rev = dfa_StatRevision (p, df);
+	else
+		df->df_rev = 0;
 /*
  * Find the times for this file.
  */
@@ -175,10 +191,6 @@ bool local, rescan;
 	TC_EncodeTime (&df->df_end, TC_TimeOnly, aend);
 	msg_ELog (EF_DEBUG, "%c File '%s', %s to %s ns %d",
 		local ? 'L' : 'C', file, abegin, aend, df->df_nsample);
-# ifdef notdef
-	TC_UIToZt (&begin, &df->df_begin);
-	TC_UIToZt (&end, &df->df_end);
-# endif
 /*
  * Finish the fillin and add it to this platform's list.
  */
@@ -282,13 +294,12 @@ bool local;
 		return (FALSE);
 	}
 /*
- * Now we need to see if maybe the file has changed on is.  If so,
+ * Now we need to see if maybe the file has changed on us.  If so,
  * we zap it from the list and start over.
  */
 	msg_ELog (EF_DEBUG, "File %s known dfi %d", file, dfi);
 	DFTable[dfi].df_flags |= DFF_Seen;
-	if (isconst ||
-		   (dfa_GetRevision(p, DFTable + dfi) == DFTable[dfi].df_rev))
+	if (isconst || (FileChanged (p, DFTable + dfi) == 0))
 		return (TRUE);
 	msg_ELog (EF_DEBUG, "File %s changed", file);
 	dt_RemoveDFE (p, dfi);
@@ -297,13 +308,40 @@ bool local;
 
 
 
+static int
+FileChanged (p, df)
+Platform *p;
+DataFile *df;
+/*
+ * Try to determine whether this file has been modified behind our back.
+ * Return non-zero if we think it has, zero otherwise.
+ */
+{
+	long rev = dfa_StatRevision(p, df);
+
+	/*
+	 * If we're using stat() revision numbers, the answer is easy
+	 */
+	if (StatRevisions)
+	{
+		return (rev == df->df_rev);
+	}
+	/*
+	 * Otherwise, compare the stat revision to the time of the last scan.
+	 */
+	else
+	{
+		return (rev > LastScan);
+	}
+}
 
 
 
 
 void
-Rescan (req)
-struct dsp_Rescan *req;
+Rescan (platid, all)
+PlatformId platid;
+int all;
 /*
  * Implement the rescan request.
  */
@@ -315,7 +353,7 @@ struct dsp_Rescan *req;
 /*
  * If they want everything done, then we need to pass through the list.
  */
-	if (req->dsp_all)
+	if (all)
 	{
 		int plat;
 		for (plat = 0; plat < NPlatform; plat++)
@@ -332,7 +370,17 @@ struct dsp_Rescan *req;
  * Otherwise just do the one they asked for.
  */
 	else
-		RescanPlat (PTable + req->dsp_pid);
+		RescanPlat (PTable + platid);
+/*
+ * Update the time for the last full scan when not using stat revisions
+ */
+	if (all && !StatRevisions)
+	{
+		ZebTime zt;
+
+		tl_Time (&zt);
+		LastScan = TC_ZtToSys (&zt);
+	}
 }
 
 

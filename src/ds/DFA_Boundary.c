@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.5 1993-08-04 17:15:30 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.6 1994-01-03 07:17:11 granger Exp $")
 
 
 
@@ -453,6 +453,7 @@ GetList *gp;
 /*
  * Get the information.
  */
+	dc_AddMoreSamples (dc, tend - tbegin + 1, 0);
 	for (sample = tbegin; sample <= tend; sample++)
 	{
 		struct BFBTable *bt = tag->bt_BTable + sample;

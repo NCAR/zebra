@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.11 1993-10-27 20:18:00 corbet Exp $
+! $Id: Daemon.state,v 2.12 1994-01-03 07:17:33 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -50,6 +50,9 @@ define state initial
 	endinput
 	input 'cache' 20
 		next cache-opt-dirty
+	endinput
+	input 'rescan' 21
+		next rescan-which
 	endinput
 enddef
 
@@ -232,6 +235,22 @@ define state cache-opt-dirty
 		done
 	endinput
 	input 'dirty' 0
+		next ust$no_more
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! Accept one option for rescan, either platform name or "all" qualifier
+!
+define state rescan-which
+	input EOS
+		done
+	endinput
+	input 'all' 0
 		next ust$no_more
 	endinput
 	input string

@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.4 1993-09-23 08:26:53 granger Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.5 1994-01-03 07:17:35 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -44,6 +44,7 @@ RawDCClass RawMethods =
 {
 	"Raw",
 	DCC_None,		/* No superclass	*/
+	0,			/* class depth		*/
 	Dc_RawCreate,
 	Dc_RawDestroy,
 	Dc_RawAdd,
@@ -59,7 +60,11 @@ extern RawDCClass TranspMethods, BoundaryMethods, MetDataMethods;
 extern RawDCClass ScalarMethods, IRGridMethods, RGridMethods;
 extern RawDCClass ImageMethods, LocationMethods, NSpaceMethods;
 
-static RawDCClass *ClassTable[] =
+/*
+ * We export the ClassTable to allow subclasses to directly call superclass
+ * create methods through the DC_ClassCreate macro.
+ */
+RawDCClass *ClassTable[] =
 {
 	0,			/* DCC_None		*/
 	&RawMethods,		/* DCC_Raw		*/
@@ -75,6 +80,15 @@ static RawDCClass *ClassTable[] =
 };
 
 
+bool _CheckClass = TRUE;
+
+
+void
+dc_CheckClass (on)
+bool on;
+{
+	_CheckClass = on;
+}
 
 
 
@@ -97,9 +111,8 @@ DataClass class, superclass;
 
 
 
-
 bool
-dc_ReqSubClassOf (class, superclass, op)
+_dc_ReqSubClassOf (class, superclass, op)
 DataClass class, superclass;
 char *op;
 /*
@@ -278,14 +291,31 @@ int subtype, len, free;
  */
 {
 	AuxDataChain ade = dc_GetADC ();
+	AuxDataChain next;
+	int hash = ADE_HASH_TYPE(subtype);
+	int depth = ClassTable[class]->dcm_Depth;
 
+	/*
+	 * Rather than insert new ADE's into the head of the chain, add
+	 * them to the back.  The more frequently accessed ADE's are added
+	 * first, and hence they should stay at the front.
+	 */
 	ade->dca_Class = class;
 	ade->dca_SubType = subtype;
 	ade->dca_Len = len;
 	ade->dca_Data = data;
-	ade->dca_Next = dc->dc_AuxData;
 	ade->dca_Free = free;
-	dc->dc_AuxData = ade;
+	ade->dca_Next = NULL;
+
+	next = dc->dc_AuxData[depth][hash];
+	if (!next)
+		dc->dc_AuxData[depth][hash] = ade;
+	else
+	{
+		while (next->dca_Next)
+			next = next->dca_Next;
+		next->dca_Next = ade;
+	}
 }
 
 
@@ -302,11 +332,51 @@ int subtype;
  */
 {
 	AuxDataChain ade;
+	int depth = ClassTable[class]->dcm_Depth;
 
-	for (ade = dc->dc_AuxData; ade; ade = ade->dca_Next)
-		if (ade->dca_Class == class && ade->dca_SubType == subtype)
+/*
+ * Find the ADE chain to search given the class and subtype.  We know we'll
+ * have the correct class, so we only need to test subtype.
+ */
+	ade = dc->dc_AuxData[depth][ADE_HASH_TYPE(subtype)];
+	for ( ; ade; ade = ade->dca_Next)
+		if (/* ade->dca_Class == class && */ ade->dca_SubType == subtype)
 			return (ade);
 	return (NULL);
+}
+
+
+
+
+
+static void
+dc_IntStatsADE (dc, count, len)
+DataChunk *dc;
+int *count;
+int *len;
+/*
+ * Find the AuxData entry corresponding to this stuff.
+ */
+{
+	AuxDataChain ade;
+	int i, j;
+
+/*
+ * Count the number of ADE's we're holding and total the data space
+ */
+	*len = 0;
+	*count = 0;
+	for (i = 0; i < ADE_DCC_LEVELS; ++i)
+		for (j = 0; j < ADE_HASH_SIZE; ++j)
+		{
+			ade = dc->dc_AuxData[i][j];
+			while (ade)
+			{
+				++(*count);
+				*len += ade->dca_Len;
+				ade = ade->dca_Next;
+			}
+		}
 }
 
 
@@ -377,22 +447,27 @@ dc_IntZapADE (dc, ade)
 DataChunk *dc;
 AuxDataChain ade;
 /*
- * Get rid of this ADE.
+ * Get rid of this ADE.  'top' is the head pointer of the chain containing
+ * this ADE.  This could change if we're deleting the first ADE in the chain.
  */
 {
 	AuxDataChain zap, last;
+	DataClass class = ade->dca_Class;
+	int hash = ADE_HASH_TYPE(ade->dca_SubType);
+	int depth = ClassTable[class]->dcm_Depth;
+	AuxDataChain top = dc->dc_AuxData[depth][hash];
 /*
  * First, we need to remove it from the list.
  */
-	if (dc->dc_AuxData == ade)
-		dc->dc_AuxData = ade->dca_Next;
+	if (top == ade)
+		dc->dc_AuxData[depth][hash] = ade->dca_Next;
 	else
 	{
 	/*
 	 * Find this entry in the chain.
 	 */
-		last = dc->dc_AuxData;
-		for (zap = dc->dc_AuxData->dca_Next; zap; zap = zap->dca_Next)
+		last = top;
+		for (zap = top->dca_Next; zap; zap = zap->dca_Next)
 		{
 			if (zap == ade)
 				break;
@@ -454,6 +529,7 @@ DataClass class;
  */
 {
 	DataChunk *dc;
+	int i, j;
 /*
  * Sanity check.
  */
@@ -470,7 +546,7 @@ DataClass class;
 	dc->dc_Platform = BadPlatform;	/* They have to set this themselves */
 	dc->dc_Data = (DataPtr) 0;	/* No data yet */
 	dc->dc_DataLen = 0;
-	dc->dc_AuxData = (AuxDataChain) 0;
+	memset ((void *)dc->dc_AuxData, 0, sizeof(dc->dc_AuxData));
 /*
  * That's it!
  */
@@ -488,16 +564,22 @@ DataChunk *dc;
  * Get rid of this data object.
  */
 {
+	int i, j;
 /*
  * Free up the data array.
  */
 	if (dc->dc_DataLen > 0)
 		free ((char *) dc->dc_Data);
 /*
- * Get rid of any remaining AuxData entries.
+ * Get rid of any remaining AuxData entries.  No sense in checking the
+ * AuxData slots for class DCC_None.
  */
-	while (dc->dc_AuxData)
-		dc_IntZapADE (dc, dc->dc_AuxData);
+	for (i = 0; i < ADE_DCC_LEVELS; ++i)
+		for (j = 0; j < ADE_HASH_SIZE; ++j)
+		{
+			while (dc->dc_AuxData[i][j])
+				dc_IntZapADE (dc, dc->dc_AuxData[i][j]);
+		}
 /*
  * Finally, zap the data chunk itself.
  */
@@ -521,6 +603,11 @@ int len;
 						dc->dc_DataLen + len);
 	else
 		dc->dc_Data = (DataPtr) malloc (len);
+	if (dc->dc_Data == NULL)
+		msg_ELog (EF_EMERGENCY, 
+		  "DC, class %s, plat '%s', malloc failed!",
+		  ClassTable[dc->dc_Class]->dcm_Name, 
+		  ds_PlatformName(dc->dc_Platform));
 	dc->dc_DataLen += len;
 }
 
@@ -530,15 +617,36 @@ int len;
 
 
 static int
-dc_PrintAttr (key, value)
-char *key, *value;
+dc_PrintAttr (key, value, nval, type, arg)
+char *key;
+void *value;
+int nval;
+DC_ElemType type;
+void *arg;
 /*
  * Print out an attribute value.
  */
 {
-	printf ("\t%s --> %s\n", key, value);
+	int i;
+
+	if (nval && (type == DCT_String))
+	{
+		printf ("\t%s --> '%s'\n", key, (char *)value);
+		return (0);
+	}
+	printf ("\t%s --> ", key);
+	for (i = 0; i < nval; ++i)
+	{
+		printf ("%s%s", dc_ElemToString(value, type),
+			(i == nval - 1) ? "\n" : ", ");
+		value = (char *)value + dc_SizeOfType (type);
+	}
+	if (nval == 0)
+		printf ("\n");
 	return (0);
 }
+
+
 
 
 
@@ -546,16 +654,55 @@ void
 Dc_RawDump (dc)
 DataChunk *dc;
 /*
- * Dump out this data chunk.
+ * Dump out this data chunk, and provide some statistics about storage
  */
 {
-	printf ("RAW class, class = '%s', platform %d, data len %d\n",
+	int n, len;
+
+	printf ("RAW, class '%s', plat %d (%s), data len %d, ",
 		ClassTable[dc->dc_Class]->dcm_Name, dc->dc_Platform,
-		dc->dc_DataLen);
+		ds_PlatformName (dc->dc_Platform), dc->dc_DataLen);
+	dc_IntStatsADE (dc, &n, &len);
+	printf ("%d ADE totaling %d\n", n, len);
+	printf ("internal class checking: %s\n",
+		(_CheckClass) ? "enabled" : "disabled");
 	printf ("Global attributes:\n");
-	dc_ProcessAttrs (dc, NULL, dc_PrintAttr);
+	dc_ProcessAttrArrays (dc, NULL, dc_PrintAttr, NULL);
 }
 
+
+
+
+
+void
+dc_SetGlobalAttrArray (dc, key, type, nval, values)
+DataChunk *dc;
+char *key;
+DC_ElemType type;
+int nval;
+void *values;
+/*
+ * Store a global attribute into this data chunk.
+ */
+{
+	dca_AddAttrArray (dc, DCC_Raw, ST_GLOBATTR, key, type, nval, values);
+}
+
+
+
+
+void *
+dc_GetGlobalAttrArray (dc, key, type, nval)
+DataChunk *dc;
+char *key;
+DC_ElemType *type;
+int *nval;
+/*
+ * Store a global attribute into this data chunk.
+ */
+{
+	return (dca_GetAttrArray (dc, DCC_Raw, ST_GLOBATTR, key, type, nval));
+}
 
 
 
@@ -573,7 +720,6 @@ char *key, *value;
 
 
 
-
 char *
 dc_GetGlobalAttr (dc, key)
 DataChunk *dc;
@@ -585,6 +731,37 @@ char *key;
 	return (dca_GetAttr (dc, DCC_Raw, ST_GLOBATTR, key));
 }
 
+
+
+
+int
+dc_ProcessAttrArrays (dc, pattern, func, arg)
+DataChunk *dc;
+char *pattern;
+int (*func) (/* char *key, void *vals, int nval, DC_ElemType, void *arg */);
+void *arg;
+/*
+ * Go through and look at a bunch of attributes.  If PATTERN is non-null,
+ * it is a regular expression used to filter out things.
+ */
+{
+	return (dca_ProcAttrArrays (dc, DCC_Raw, ST_GLOBATTR, 
+				    pattern, func, arg));
+}
+
+
+
+
+void
+dc_RemoveGlobalAttr (dc, key)
+DataChunk *dc;
+char *key;
+/*
+ * Remove this global attribute key from this data chunk.
+ */
+{
+	dca_RemoveAttr (dc, DCC_Raw, ST_GLOBATTR, key);
+}
 
 
 

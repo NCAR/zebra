@@ -1,5 +1,5 @@
 /*
- * $Id: commands.h,v 2.3 1992-08-10 17:30:54 corbet Exp $
+ * $Id: commands.h,v 2.4 1994-01-03 07:17:49 granger Exp $
  *
  * Command keywords for the data store daemon.
  */
@@ -41,3 +41,4 @@
 # define DK_RECEIVE	18
 # define DK_DAYSPLIT	19
 # define DK_CACHE	20
+# define DK_RESCAN	21

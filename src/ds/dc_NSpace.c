@@ -146,113 +146,33 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.3 1993-09-30 18:22:07 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.4 1994-01-03 07:18:12 granger Exp $")
 #endif
 
 /*
- * The DCC_NSpace public interface, aka, what is included in DataStore.h
+ * The DCC_NSpace public interface is included in DataStore.h, along with
+ * some useful introductory information.
  */
-#ifdef NSPACE_PUBLIC_INCLUDE
-
-/*-------------------------------------------------------------------------
- * Guidelines to the NSpace Interface
- *-------------------------------------------------------------------------
- * Numerical and Boolean parameters, except for the size of a dimension,
- * will be ints.  Dimension sizes and lengths of data arrays will always be
- * unsigned long.  The 'length' of a data array is the number of floating
- * point elements.  This will be true for both definition and information
- * retrieval.  For retrieval, strings will be returned as pointers to
- * memory inside the datachunk.  The memory pointed to will be valid for
- * the life of the datachunk, but it SHOULD NOT be freed or modified.  Any
- * parameters being passed by reference to hold return values can be passed
- * as NULL, in which case nothing will be returned for that parameter.
- *
- * Interface functions from the NSpace parent class, MetData, can also be
- * useful, but only for retrieving information and data, and only once
- * definition has been completed.  Definition is marked completed by adding
- * data to any of the fields; or, definition can be forced to completion by
- * calling dc_NSDefineComplete(dc).  Completion of the definition can be
- * tested with dc_NSDefineIsComplete(dc).  Once definition is completed, it
- * cannot be re-opened.  Some potentially useful MetData functions:
- *
- * dc_GetNField (dc) 	-- For getting the number of fields (aka variables),
- *			   both static and dynamic.
- * dc_GetFields (...)	-- For getting the fields and their field IDs, both
- * 			   static and dynamic.
- * dc_GetMData (...)	-- For retrieving data from a dynamic field at a
- *			   particular sample as an opaque block of bytes.
- *			   There is no way to retrieve static field data
- *			   outside of the NSpace interface.
- * dc_SetBadval(...), 
- * dc_GetBadval (...)	-- Bad values associated with fields (aka variables);
- *			   the bad value can only be set once definition is
- *			   complete.
- *
- * See the DataChunk documentation for specifics about the MetData functions.
- *---------------------------------------------------------------------------*/
-
-/*
- * NSpace Definition interface
- */
-void dc_NSDefineField FP((DataChunk *dc, FieldId field, int ndims, 
-			  char **dimnames,
-			  unsigned long *dimsizes,
-			  int is_static));
-void dc_NSDefineDimension FP((DataChunk *dc, FieldId field, 
-			      unsigned long size));
-
-void dc_NSDefineVariable FP((DataChunk *dc, FieldId field, 
-			     int ndims, FieldId *dims,
-			     int is_static));
-void dc_NSDefineComplete FP((DataChunk *dc));
-int dc_NSDefineIsComplete FP((DataChunk *dc));
-/*
- * NSpace Information retrieval
- */
-int dc_NSGetAllDimensions FP((DataChunk *dc, char **names, FieldId *fields, 
-			      unsigned long *sizes));
-int dc_NSGetAllVariables FP((DataChunk *dc, FieldId *fields, int *ndims));
-int dc_NSGetField FP((DataChunk *dc, FieldId field, int *ndims, 
-		      char **names, unsigned long *sizes, int *is_static));
-int dc_NSGetDimension FP((DataChunk *dc, FieldId dimn, char **name,
-			  unsigned long *size));
-int dc_NSGetVariable FP((DataChunk *dc, FieldId field, int *ndims, 
-			 FieldId *dims, int *is_static));
-int dc_NSIsStatic FP((DataChunk *dc, FieldId field));
-/*
- * NSpace Data addition
- */
-void dc_NSAddSample FP((DataChunk *dc, ZebTime *when, int sample, 
-			FieldId field, float *values));
-void dc_NSAddStatic FP((DataChunk *dc, FieldId field, float *values));
-/*
- * NSpace Data retrieval
- */
-float *dc_NSGetSample FP((DataChunk *dc, int sample, FieldId field, 
-			  unsigned long *size));
-float *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
-
-#endif /* NSPACE_PUBLIC_INCLUDE */
-
 
 /*------------------------------------------------------------------------
  * Semi-private routines.
  */
 static DataChunk *NSCreate FP((DataClass));
-static void NSDestroy FP((DataChunk *dc));
 static void NSDump FP((DataChunk *dc));
 
 /*------------------------------------------------------------------------
  * Initialization of class structure
  */
 #define SUPERCLASS DCC_MetData
+#define CLASSDEPTH 3
 
 RawDCClass NSpaceMethods =
 {
 	"NSpace",
 	SUPERCLASS,		/* Superclass			*/
+	CLASSDEPTH,		/* Class depth			*/
 	NSCreate,
-	NSDestroy,		/* No special destroy		*/
+	0,			/* No special destroy		*/
 	0,			/* Add??			*/
 	NSDump			/* Dump				*/
 };
@@ -260,17 +180,15 @@ RawDCClass NSpaceMethods =
 /*------------------------------------------------------------------------
  * Our class-specific AuxData structure types.
  */
-#define ST_NSPACE_INFO		1000	/* Our "global" info		*/
+#define ST_NSPACE_INFO		1	/* Our "global" info		*/
 
 /*
- * Dimensions are stored in order of definition starting at ST_NSPACE_DIMNS.
- * Fields are stored in order of definition starting at ST_NSPACE_FIELDS.
- * Fields reference a dimension by its index based from ST_NSPACE_DIMNS.
+ * Dimensions are stored in order of defn in the ADE of type ST_NSPACE_DIMNS.
+ * Fields are stored in order of definition in the ADE of type ST_NSPACE_FIELDS.
+ * Fields reference a dimension by its index in the array in ST_NSPACE_DIMNS.
  */
-#define ST_NSPACE_FIELDS	2000
-#define ST_NSPACE_DIMNS		3000
-#define NSDimn(index)		(ST_NSPACE_DIMNS + (index))
-#define NSFld(index)		(ST_NSPACE_FIELDS + (index))
+#define ST_NSPACE_FIELDS	2
+#define ST_NSPACE_DIMNS		3
 
 /*
  * Field bit flags
@@ -280,29 +198,21 @@ RawDCClass NSpaceMethods =
 
 #define IsNSpace(dc,fn) \
 	(dc_ReqSubClassOf (dc->dc_Class, DCC_NSpace, fn))
-#define AddInfo(dc,info) \
-	dc_AddADE (dc, (DataPtr) info, DCC_NSpace, ST_NSPACE_INFO, \
-		   sizeof (NSpaceInfo), TRUE)
-#define AddDimn(dc,dinfo,i)	\
-	dc_AddADE (dc, (DataPtr) dinfo, DCC_NSpace, NSDimn(i),	\
-		   sizeof (NSpaceDimInfo), TRUE)
-#define AddFld(dc,vinfo,i)	\
-	dc_AddADE (dc, (DataPtr) vinfo, DCC_NSpace, NSFld(i),	\
-		   sizeof (NSpaceFldInfo), TRUE)
 #define GetInfo(dc) \
 	(NSpaceInfo *) dc_FindADE (dc, DCC_NSpace, ST_NSPACE_INFO, 0)
-#define GetDimn(dc,i) \
-	(NSpaceDimInfo *) dc_FindADE (dc, DCC_NSpace, NSDimn(i), 0)
-#define GetFld(dc,i) \
-	(NSpaceFldInfo *) dc_FindADE (dc, DCC_NSpace, NSFld(i), 0)
+#define GetFldInfo(dc) \
+        (NSpaceFldInfo *) dc_FindADE (dc, DCC_NSpace, ST_NSPACE_FIELDS, 0)
+#define GetDimInfo(dc) \
+        (NSpaceDimInfo *) dc_FindADE (dc, DCC_NSpace, ST_NSPACE_DIMNS, 0)
+#define IsStatic(finfo) 	((finfo)->nsf_Flags & NSF_STATIC)
+#define OffsetValid(finfo) 	((finfo)->nsf_Flags & NSF_OFFSET)
 
 typedef struct _NSpaceInfo
 {
 	int		ns_NField;	/* number of fields	*/
 	int		ns_NDim;	/* no. of dimensions    */
-	struct _NSpaceFldInfo *ns_Fields[ DC_MaxField ];
-	struct _NSpaceDimInfo *ns_Dimns[ DC_MaxDimension ];
 	unsigned char	ns_Defined;	/* true once defn done	*/
+	unsigned char	ns_HaveData;	/* have data, space set */
 } NSpaceInfo;
 
 typedef struct _NSpaceFldInfo
@@ -311,10 +221,9 @@ typedef struct _NSpaceFldInfo
 	unsigned short	nsf_NDimn;	/* number of dimensions */
 	unsigned short	nsf_Dimns[DC_MaxDimension];
 	                                /* index from BASE      */
-	unsigned short	nsf_Index;	/* index of the ADE	*/
 	unsigned long	nsf_Size;	/* product of its dimns */
 	unsigned char	nsf_Flags;	/* flags		*/
-	void 		*nsf_StData;	/* Pointer to static data*/
+	unsigned long	nsf_StOffset;	/* Offset of static data*/
 } NSpaceFldInfo;
 
 typedef struct _NSpaceDimInfo
@@ -353,7 +262,8 @@ static NSpaceFldInfo *DefineField FP((DataChunk *dc, NSpaceInfo *info,
 				      FieldId field, int ndims,
 				      unsigned short *dim_indices, 
 				      short is_static, char *routine));
-static void SetFieldSizes FP((NSpaceInfo *info, char *routine));
+static void SetFieldSizes FP((NSpaceInfo *info, NSpaceFldInfo *finfo,
+			      NSpaceDimInfo *dinfo, char *routine));
 static int inline CheckStatic 
 	FP((NSpaceFldInfo *finfo, int test, char *routine));
 static int inline CheckOpen FP((NSpaceInfo *info, char *routine));
@@ -566,14 +476,18 @@ dc_NSDefineComplete (dc)
 	DataChunk *dc;
 /*
  * Marks the definition as completed, which blocks any further
- * definition changes, and then calls SetFieldsSizes() to calculate
+ * definition changes, and then calls SetFieldSizes() to calculate
  * the size of each field, as required by the data adding functions.
  * Does nothing if definition already complete.
  */
 {
 	NSpaceInfo *info;
-	int nfield;
+	NSpaceFldInfo *finfo;
+	NSpaceDimInfo *dinfo;
+	int nfield, i;
 	FieldId fields[ DC_MaxField ];
+	unsigned long fsize, ssize;
+	bool uniform;
 
 	if (! IsNSpace(dc,"NSDefineComplete"))
 		return;
@@ -581,10 +495,22 @@ dc_NSDefineComplete (dc)
 	info = GetInfo(dc);
 	if (! (info->ns_Defined))
 	{
+		/*
+		 * First set the field sizes, then if all of the fields
+		 * are dynamic and the same size, optimize our DC by using
+		 * dc_SetupUniformFields() rather than dc_SetupFields().
+		 * Using uniform sizes when one of the fields is static is
+		 * a waste of space.
+		 *
+		 * If we cannot use uniform fields, at least sum the field
+		 * sizes and set the sample size hint.
+		 */
+		finfo = GetFldInfo(dc);
+		dinfo = GetDimInfo(dc);
+		SetFieldSizes (info, finfo, dinfo, "NSDefineComplete");
 		nfield = dc_NSGetAllVariables (dc, fields, NULL);
 		dc_SetupFields (dc, nfield, fields);
 		info->ns_Defined = (unsigned char)TRUE;
-		SetFieldSizes (info, "NSDefineComplete");
 	}
 }
 /*--------------------------------------------- end: dc_NSDefineComplete --*/
@@ -658,15 +584,15 @@ dc_NSGetAllDimensions(dc, names, fields, sizes)
 	/*
 	 * Otherwise we must loop through the dimensions copying info
 	 */
+	dinfo = GetDimInfo(dc);
 	for (i = 0; i < info->ns_NDim; ++i)
 	{
-		dinfo = info->ns_Dimns[i];
 		if (sizes)
-			sizes[i] = dinfo->nsd_Size;
+			sizes[i] = dinfo[i].nsd_Size;
 		if (fields)
-			fields[i] = dinfo->nsd_Id;
+			fields[i] = dinfo[i].nsd_Id;
 		if (names)
-			names[i] = &(dinfo->nsd_Name[0]);
+			names[i] = &(dinfo[i].nsd_Name[0]);
 	}
 	
 	return (info->ns_NDim);
@@ -720,13 +646,13 @@ dc_NSGetAllVariables(dc, fields, ndims)
 	/*
 	 * Otherwise we must loop through the variables copying info
 	 */
+	finfo = GetFldInfo(dc);
 	for (i = 0; i < info->ns_NField; ++i)
 	{
-		finfo = info->ns_Fields[i];
 		if (ndims)
-			ndims[i] = finfo->nsf_NDimn;
+			ndims[i] = finfo[i].nsf_NDimn;
 		if (fields)
-			fields[i] = finfo->nsf_Id;
+			fields[i] = finfo[i].nsf_Id;
 	}
 	
 	return (info->ns_NField);
@@ -783,13 +709,13 @@ dc_NSGetField (dc, field, ndims, names, sizes, is_static)
 	/*
 	 * We have to traverse our dimensions and get info about them
 	 */
+	dinfo = GetDimInfo(dc);
 	for (i = 0; i < finfo->nsf_NDimn; ++i)
 	{
-		dinfo = info->ns_Dimns[ finfo->nsf_Dimns[i] ];
 		if (names)
-			names[i] = &(dinfo->nsd_Name[0]);
+			names[i] = &(dinfo[ finfo->nsf_Dimns[i] ].nsd_Name[0]);
 		if (sizes)
-			sizes[i] = dinfo->nsd_Size;
+			sizes[i] = dinfo[ finfo->nsf_Dimns[i] ].nsd_Size;
 	}
 	return (TRUE);
 }
@@ -814,7 +740,7 @@ dc_NSIsStatic (dc, field)
 	if (!(finfo = FindFieldByID (dc, NULL, field, "NSIsStatic")))
 		return (0);
 
-	return (finfo->nsf_Flags & NSF_STATIC);
+	return (IsStatic(finfo));
 }
 /*---------------------------------------------- end: dc_NSIsStatic() -----*/
 
@@ -898,15 +824,68 @@ dc_NSGetVariable (dc, field, ndims, dims, is_static)
 	if (! dims)
 		return TRUE;
 
+	if (finfo->nsf_NDimn)
+		dinfo = GetDimInfo(dc);
 	for (i = 0; i < finfo->nsf_NDimn; ++i)
 	{
-		dinfo = info->ns_Dimns[ finfo->nsf_Dimns[i] ];
-		dims[i] = dinfo->nsd_Id;
+		dims[i] = dinfo[ finfo->nsf_Dimns[i] ].nsd_Id;
 	}
 
 	return TRUE;
 }
 /*---------------------------------------------- end: dc_NSGetVariable ----*/
+
+
+
+/*------------------------------------------- begin: dc_NSOptimizeSpace ---*/
+static void
+dc_NSOptimizeSpace (dc, info)
+DataChunk *dc;
+NSpaceInfo *info;
+/*
+ * Set some optimization parameters in our superclasses if possible, and
+ * reserve space for our static fields.  We have to wait until adding data
+ * to do both of these functions since the field types may have changed
+ * between DefineComplete and the addition of data.  This is called the first
+ * time any data is added.
+ *
+ * We know each field size (i.e. number of elements) is fixed, so while 
+ * calculating sizes, store it in the sizes array.
+ */
+{
+	int sizes[DC_MaxField];
+	NSpaceFldInfo *finfo;
+	bool uniform;
+	unsigned long fsize;
+	int i;
+
+	finfo = GetFldInfo(dc);
+
+	uniform = TRUE;
+	for (i = 0; i < info->ns_NField; ++i)
+	{
+		if (IsStatic(finfo+i))
+		{
+			finfo[i].nsf_StOffset = dc_ReserveStaticSpace 
+				(dc, finfo[i].nsf_Size * 
+				 dc_SizeOf (dc, finfo[i].nsf_Id));
+			sizes[i] = 0;
+			uniform = FALSE;
+			continue;
+		}
+		if ((i > 0) && (finfo[i].nsf_Size != fsize))
+			uniform = FALSE;
+		fsize = finfo[i].nsf_Size;
+		sizes[i] = fsize;
+	}
+	if (uniform)
+	{
+		dc_SetUniformOrg (dc, fsize);
+	}
+	dc_FixFieldSizes (dc, sizes);
+	dc_BlockChanges (dc);
+}
+/*--------------------------------------------- end: dc_NSOptimizeSpace ---*/
 
 
 
@@ -918,7 +897,7 @@ dc_NSAddSample(dc, when, sample, field, values)
 	ZebTime *when;
 	int sample;
 	FieldId field;
-	float *values;
+	void *values;
 /*
  * Stores the array of 'values' at 'sample' associated with time 'when' for
  * variable 'field'.  The length of the values array equals the product of
@@ -954,12 +933,85 @@ dc_NSAddSample(dc, when, sample, field, values)
 		dc_NSDefineComplete (dc);
 
 	/*
+	 * If this is the first addition of data, reserve static space
+	 * and set optimizations
+	 */
+	if (! info->ns_HaveData)
+	{
+		dc_NSOptimizeSpace (dc, info);
+		info->ns_HaveData = TRUE;
+	}
+
+	/*
 	 * Now add the data, retrieving the size from the finfo structure.
 	 */
-	dc_AddMData (dc, when, field, ((finfo->nsf_Size) * sizeof(float)),
+	dc_AddMData (dc, when, field, 
+		     ((finfo->nsf_Size) * dc_SizeOf (dc, finfo->nsf_Id)),
 		     sample, /*nsample*/ 1, values);
 }
 /*---------------------------------------------------- end: dc_NSAddSample --*/
+
+
+
+/*------------------------------------------- begin: dc_NSAddMultSamples ----*/
+void
+dc_NSAddMultSamples(dc, when, begin, nsample, field, values)
+	DataChunk *dc;
+	ZebTime *when;		/* an array of times, one per sample	*/
+	int begin;		/* starting sample index	 	*/
+	int nsample;		/* number of samples to add		*/
+	FieldId field;
+	void *values;
+/*
+ * Just like dc_NSAddSample, except more than one sample can be added.
+ * The data in the values array should be in sample-major order, meaning
+ * the data for sample i, for begin <= i < begin+nsample, begins at 
+ *
+ * values + ((i - begin) * finfo->nsf_Size * dc_SizeOf(dc, finfo->nsf_Id))
+ */
+{
+	NSpaceInfo *info;
+	NSpaceFldInfo *finfo;
+
+	if (! IsNSpace(dc,"NSAddMultSamples"))
+		return;
+
+	info = GetInfo(dc);
+	if (!(finfo = FindFieldByID (dc, info, field, "NSAddMultSamples")))
+		return;
+
+	/*
+	 * Make sure this field is dynamic
+	 */
+	if (!CheckStatic (finfo, FALSE, "NSAddMultSamples"))
+		return;
+
+	/*
+	 * If this is the first addition of data to this datachunk,
+	 * we must define our fields to our superclass first, and
+	 * then we can add the data.
+	 */
+	if (! info->ns_Defined)
+		dc_NSDefineComplete (dc);
+
+	/*
+	 * If this is the first addition of data, reserve static space
+	 * and set optimizations
+	 */
+	if (! info->ns_HaveData)
+	{
+		dc_NSOptimizeSpace (dc, info);
+		info->ns_HaveData = TRUE;
+	}
+
+	/*
+	 * Now add the data, retrieving the size from the finfo structure.
+	 */
+	dc_AddMData (dc, when, field, 
+		     ((finfo->nsf_Size) * dc_SizeOf (dc, finfo->nsf_Id)),
+		     begin, nsample, values);
+}
+/*---------------------------------------------- end: dc_NSAddMultSamples ---*/
 
 
 
@@ -968,7 +1020,7 @@ void
 dc_NSAddStatic (dc, field, values)
 	DataChunk *dc;
 	FieldId field;
-	float *values;
+	void *values;
 /*
  * Same as above except no time or sample is associated with the data.  The
  * field must have been defined as a static variable.  Each successive call
@@ -1004,22 +1056,25 @@ dc_NSAddStatic (dc, field, values)
 		dc_NSDefineComplete (dc);
 
 	/*
-	 * If we don't already have some space, get it.  If we have space
-	 * already, then we'll just be copying over it.
+	 * If this is the first addition of data, reserve static space
+	 * and set optimizations
 	 */
-	if (!(finfo->nsf_StData) && values)
+	if (! info->ns_HaveData)
 	{
-		finfo->nsf_StData = 
-			(void *)malloc(finfo->nsf_Size * sizeof(float));
-		finfo->nsf_Flags |= NSF_OFFSET;
+		dc_NSOptimizeSpace (dc, info);
+		info->ns_HaveData = TRUE;
 	}
 
 	/*
-	 * Now copy the data
+	 * We already have space reserved, so write to it and validate offset
 	 */
 	if (values)
-		memcpy ((char *) (finfo->nsf_StData),
-			(char *) values, (finfo->nsf_Size * sizeof(float)));
+	{
+		char *dest = (char *)dc->dc_Data + finfo->nsf_StOffset;
+		memcpy (dest, (char *) values, 
+			(finfo->nsf_Size * dc_SizeOf (dc, finfo->nsf_Id)));
+		finfo->nsf_Flags |= NSF_OFFSET;
+	}
 }
 /*------------------------------------------------- end: dc_NSAddStatic ---*/
 
@@ -1037,7 +1092,7 @@ dc_NSAddStatic (dc, field, values)
 
 
 /*---------------------------------------------- begin: dc_NSGetSample ----*/
-float *
+void *
 dc_NSGetSample(dc, sample, field, size)
 	DataChunk *dc;
 	int sample;
@@ -1045,7 +1100,7 @@ dc_NSGetSample(dc, sample, field, size)
 	unsigned long *size;
 /*
  * Returns pointer to field's data at sample.  If size non-NULL, returns
- * length of data array (number of floats) in *size.  Array is in row-major
+ * length of data array (number of elements) in *size.  Array is in row-major
  * order, just as it was stored.  If the data is not found, NULL is returned.
  */
 {
@@ -1067,15 +1122,15 @@ dc_NSGetSample(dc, sample, field, size)
 
 	data = dc_GetMData (dc, sample, field, &len);
 	if (size)
-		*size = (unsigned long) (len / sizeof(float));
-	return ((float *)data);
+		*size = finfo->nsf_Size;
+	return ((void *)data);
 }
 /*------------------------------------------------ end: dc_NSGetSample ----*/
 
 
 
 /*---------------------------------------------- begin: dc_NSGetStatic ----*/
-float *
+void *
 dc_NSGetStatic (dc, field, size)
 	DataChunk *dc;
 	FieldId field;
@@ -1083,7 +1138,7 @@ dc_NSGetStatic (dc, field, size)
 /*
  * Basically, same as dc_NSGetSample() except sample parameter not required.
  * Returns pointer to field's data at sample.  If size non-NULL, returns
- * length of data array (number of floats) in *size.  Array is in row-major
+ * length of data array (number of elements) in *size.  Array is in row-major
  * order, just as it was stored.  If the data is not found or there is an
  * error, NULL is returned.
  */
@@ -1106,12 +1161,12 @@ dc_NSGetStatic (dc, field, size)
 	/*
 	 * Find our data, if there is any, and return a pointer to it
 	 */
-	if (finfo->nsf_StData)
+	if (OffsetValid(finfo))
 	{
-		data = (DataPtr) (finfo->nsf_StData);
+		data = (DataPtr) ((char *)dc->dc_Data + finfo->nsf_StOffset);
 		if (size)
 			*size = (unsigned long) (finfo->nsf_Size);
-		return ((float *)data);
+		return ((void *)data);
 	}
 	else
 	{
@@ -1145,7 +1200,7 @@ DataClass class;
 /*
  * The usual.  Make a superclass chunk and tweak it to look like us.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 	dc->dc_Class = class;
 /*
  * Create, initalize, and add our global info structure
@@ -1154,65 +1209,13 @@ DataClass class;
 	info->ns_NField = 0;
 	info->ns_NDim = 0;
 	info->ns_Defined = FALSE;
-	for (i = 0; i < DC_MaxField; ++i)
-		info->ns_Fields[i] = NULL;
-	for (i = 0; i < DC_MaxDimension; ++i)
-		info->ns_Dimns[i] = NULL;
-
-	AddInfo (dc, info);
+	info->ns_HaveData = FALSE;
+	dc_AddADE (dc, (DataPtr) info, DCC_NSpace, ST_NSPACE_INFO,
+		   sizeof (NSpaceInfo), TRUE);
 	return (dc);
 }
 /*-------------------------------------------------------- end: NSCreate() */
 
-
-
-
-
-/*----------------------------------------------------- begin: NSDestroy() */
-static void
-NSDestroy (dc)
-DataChunk *dc;
-/*
- * Destroy this DataChunk.  Free any static data and then pass the chunk off
- * as our parent class.
- */
-{
-	NSpaceInfo *info;
-	NSpaceFldInfo *finfo;
-	int i;
-
-#ifdef DEBUG
-	printf("Destroying NSpace chunk...\n");
-#endif
-/*
- * Find our general info.
- */
-	info = GetInfo(dc);
-	if (info)		/* can't destroy what we don't got */
-	{
-		for (i = 0; i < info->ns_NField; ++i)
-		{
-			finfo = info->ns_Fields[i];
-			if ((finfo) && (finfo->nsf_StData))
-			{
-#ifdef DEBUG
-				printf ("\tFreeing static field '%s'\n",
-					F_GetName(finfo->nsf_Id));
-#endif
-				free (finfo->nsf_StData);
-			}
-		}
-	}
-/*
- * Destroy the rest.
- */
-#ifdef DEBUG
-	printf("\tCalling superclass destroy method.\n");
-#endif
-	dc->dc_Class = SUPERCLASS;
-	dc_DestroyDC (dc);
-}
-/*------------------------------------------------------- end: NSDestroy() */
 
 
 
@@ -1230,7 +1233,7 @@ NSDump (dc)
 {
 	NSpaceInfo *info;
 	NSpaceFldInfo *finfo;
-	NSpaceDimInfo **dinfo;
+	NSpaceDimInfo *dinfo;
 	int i,j;
 
 	if (! IsNSpace(dc,"NSDump"))
@@ -1243,8 +1246,10 @@ NSDump (dc)
 		return;
 	}
 
+	finfo = GetFldInfo(dc);
+	dinfo = GetDimInfo(dc);
 	if (! info->ns_Defined)
-		SetFieldSizes (info, "NSDump");
+		SetFieldSizes (info, finfo, dinfo, "NSDump");
 	printf ("NSPACE class: definition %s",
 		(info->ns_Defined) ? "completed" : "open");
 	/*
@@ -1264,14 +1269,13 @@ NSDump (dc)
 	 * reference when printing out our fields
 	 */
 	/*printf ("Dimensions:\n");*/
-	dinfo = info->ns_Dimns;
 	for (i = 0; i < info->ns_NDim; ++i)
 	{
 		printf("   %35s: size %-6lu  -- ", 
-		       dinfo[i]->nsd_Name, dinfo[i]->nsd_Size);
-		if (dinfo[i]->nsd_Id != BadField)
+		       dinfo[i].nsd_Name, dinfo[i].nsd_Size);
+		if (dinfo[i].nsd_Id != BadField)
 			printf("field %i, '%s'\n", 
-			       dinfo[i]->nsd_Id, F_GetDesc(dinfo[i]->nsd_Id));
+			       dinfo[i].nsd_Id, F_GetDesc(dinfo[i].nsd_Id));
 		else
 			printf("no field id\n");
 	}
@@ -1283,16 +1287,18 @@ NSDump (dc)
 	/*printf ("Fields:\n");*/
 	for (i = 0; i < info->ns_NField; ++i)
 	{
-		finfo = info->ns_Fields[i];
-		printf("   %s ( ", F_GetName(finfo->nsf_Id));
+		printf("  %s %s ( ", (info->ns_Defined) ? 
+		       dc_TypeName (dc_Type(dc, finfo->nsf_Id)) : "",
+		       F_GetName(finfo->nsf_Id));
 		for (j = 0; j < finfo->nsf_NDimn; ++j)
-			printf("%s%s", dinfo[finfo->nsf_Dimns[j]]->nsd_Name,
+			printf("%s%s", dinfo[finfo->nsf_Dimns[j]].nsd_Name,
 			       (j == (finfo->nsf_NDimn - 1)) ? "" : ", ");
 		printf(" )");
-		printf("%s ", (finfo->nsf_Flags & NSF_STATIC) ? 
-		              " static," : "");
+		if (IsStatic(finfo))
+			printf(" static, offset=%d, ", finfo->nsf_StOffset);
 		printf("size = %lu, ", finfo->nsf_Size);
 		printf("'%s'\n", F_GetDesc(finfo->nsf_Id));
+		++finfo;
 	}
 	/* 
 	 * Done NSDump().
@@ -1363,10 +1369,10 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 	 * and re-define it.  If original did not have an id, add the one
 	 * given here.
 	 */
+	dinfo = GetDimInfo(dc);
 	for (i = 0; i < info->ns_NDim; ++i)
 	{
-		dinfo = info->ns_Dimns[i];
-		if (!strcmp(dinfo->nsd_Name, dim_name))
+		if (!strcmp(dinfo[i].nsd_Name, dim_name))
 			break;				/* match found */
 	}
 
@@ -1380,7 +1386,7 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 			msg_ELog (EF_PROBLEM, 
 				  "%s: dimension %s being re-defined", 
 				  routine, dim_name);
-		if (dinfo->nsd_Id != field)
+		if (dinfo[i].nsd_Id != field)
 		{
 			if (field != BadField)
 				msg_ELog (EF_PROBLEM, 
@@ -1390,17 +1396,14 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 				msg_ELog (EF_PROBLEM,
 					  "%s: dimn %s id removed",
 					  routine, dim_name);
-			dinfo->nsd_Id = field;
+			dinfo[i].nsd_Id = field;
 		}
 	}
-	else
+	else	/* i == info->ns_NDim */
 	{
 		/* 
 		 * New dimension gets whole new entry, but only if 
 		 * there's room.
-		 *
-		 * Note that i will be this dimn's ADE index for access
-		 * via NSDimn(i) 
 		 */
 		if (info->ns_NDim == DC_MaxDimension)
 		{
@@ -1414,13 +1417,23 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 			  routine, dim_name, size, field, 
 			  (field == BadField) ? 
 			  "id not used" : F_GetName(field));
-		dinfo = ALLOC(NSpaceDimInfo);
-		dinfo->nsd_Size = size;
-		dinfo->nsd_Id = field;
-		strcpy (dinfo->nsd_Name, dim_name);
-		dinfo->nsd_Index = i;
-		AddDimn(dc,dinfo,i);
-		info->ns_Dimns[ info->ns_NDim ] = dinfo;
+		if (!dinfo)
+		{
+			dinfo = ALLOC(NSpaceDimInfo);
+			dc_AddADE (dc, (DataPtr)dinfo, DCC_NSpace,
+			   ST_NSPACE_DIMNS, sizeof(NSpaceDimInfo), TRUE);
+		}
+		else
+		{
+			int len = (info->ns_NDim+1)*sizeof(NSpaceDimInfo);
+			dinfo = (NSpaceDimInfo *)realloc(dinfo, len);
+			dc_ChangeADE (dc, (DataPtr)dinfo, DCC_NSpace,
+				      ST_NSPACE_DIMNS, len);
+		}
+		dinfo[i].nsd_Size = size; 
+		dinfo[i].nsd_Id = field;
+		strcpy (dinfo[i].nsd_Name, dim_name);
+		dinfo[i].nsd_Index = i;
 		++(info->ns_NDim);
 	}
 
@@ -1429,7 +1442,7 @@ DefineDimension(dc, info, name, field, size, routine, warn_duplicates)
 	 * global info ADE has been updated in-place.  Done.  
 	 * Return pointer to the dimn info.
 	 */
-	return (dinfo);
+	return (dinfo+i);
 }
 /*-------------------------------------------------- end: DefineDimension() */
 
@@ -1446,14 +1459,16 @@ FindDimnByID (dc, info, id)
  * Returns NULL if dimn not found.
  */
 {
+	NSpaceDimInfo *dinfo;
 	int i;
 
 	if (!info)
 		info = GetInfo(dc);
+	dinfo = GetDimInfo(dc);
 	for (i = 0; i < info->ns_NDim; ++i)
 	{
-		if ((info->ns_Dimns[i])->nsd_Id == id)
-			return (info->ns_Dimns[i]);
+		if (dinfo[i].nsd_Id == id)
+			return (dinfo+i);
 	}
 	return NULL;
 }
@@ -1470,21 +1485,33 @@ FindFieldByID (dc, info, id, routine)
 	char *routine;
 /*
  * Return pointer to a field info structure for the field with specified id.
- * Returns NULL if field not found.
+ * Returns NULL if field not found.  If we've already completed definition,
+ * then we revert to the MetData method to get the index, which is faster.
  */
 {
+	NSpaceFldInfo *finfo;
 	int i;
 
 	if (!info)
 		info = GetInfo(dc);
-	for (i = 0; i < info->ns_NField; ++i)
+	finfo = GetFldInfo(dc);
+	if (info->ns_Defined)
+		i = dc_GetFieldIndex (dc, id);
+	else
 	{
-		if ((info->ns_Fields[i])->nsf_Id == id)
-			return (info->ns_Fields[i]);
+		for (i = 0; i < info->ns_NField; ++i)
+		{
+			if (finfo[i].nsf_Id == id)
+				break;
+		}
 	}
-	msg_ELog (EF_PROBLEM, "%s: no field %i in datachunk",
-		  routine, id);
-	return NULL;
+	if ((i < 0) || (i >= info->ns_NField))
+	{
+		msg_ELog (EF_PROBLEM, "%s: no field %i in datachunk",
+			  routine, id);
+		return NULL;
+	}
+	return (finfo+i);
 }
 /*-------------------------------------------------- end: FindFieldByID() -*/
 
@@ -1508,7 +1535,7 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 {
 	NSpaceFldInfo *finfo;
 	char *field_name = F_GetName(field);
-	int i;
+	int i, j;
 
 	if (info->ns_Defined)
 	{
@@ -1518,10 +1545,10 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 		return NULL;
 	}
 
+	finfo = GetFldInfo(dc);
 	for (i = 0; i < info->ns_NField; ++i)
 	{
-		finfo = info->ns_Fields[i];
-		if (finfo->nsf_Id == field)
+		if (finfo[i].nsf_Id == field)
 			break;				/* match found */
 	}
 
@@ -1534,29 +1561,29 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 		msg_ELog (EF_PROBLEM, 
 			  "%s: field %s being re-defined",
 			  routine, field_name);
-		if (finfo->nsf_NDimn != ndims)
+		if (finfo[i].nsf_NDimn != ndims)
 		{
 			msg_ELog (EF_PROBLEM,
 				  "%s: field %s now has %lu dimns",
 				  routine, field_name, ndims);
-			finfo->nsf_NDimn = ndims;
+			finfo[i].nsf_NDimn = ndims;
 		}
-		if ((finfo->nsf_Flags & NSF_STATIC) && (!is_static))
+		if (IsStatic(finfo+i) && (!is_static))
 		{
 			msg_ELog (EF_PROBLEM,
 				  "%s: field %s has changed to %s",
 				  routine, field_name, 
 				  (is_static) ? "static" : "dynamic");
-			finfo->nsf_Flags |= (is_static) ? NSF_STATIC : 0;
+			finfo[i].nsf_Flags |= (is_static) ? NSF_STATIC : 0;
 		}
 		/*
 		 * The dimensions will be copied into the ADE further on
 		 */
 	}
-	else
+	else	/* i == info->ns_NField */
 	{
 		/*
-		 * Create a new field ADE and fill it in, if space allows
+		 * Create new space in field ADE and fill it in, if space allows
 		 */
 		if (info->ns_NField == DC_MaxField)
 		{
@@ -1568,15 +1595,24 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 		}
 		msg_ELog (EF_DEBUG, "%s: defining field %s, id %i",
 			  routine, field_name, field);
-		finfo = ALLOC(NSpaceFldInfo);
-		finfo->nsf_NDimn = ndims;
-		finfo->nsf_Id = field;
-		finfo->nsf_Index = i;
-		finfo->nsf_Size = 0;
-		finfo->nsf_Flags = (is_static) ? NSF_STATIC : 0;
-		finfo->nsf_StData = NULL;
-		AddFld(dc,finfo,i);
-		info->ns_Fields[ info->ns_NField ] = finfo;
+		if (!finfo)
+		{
+			finfo = ALLOC(NSpaceFldInfo);
+			dc_AddADE (dc, (DataPtr)finfo, DCC_NSpace,
+			   ST_NSPACE_FIELDS, sizeof(NSpaceFldInfo), TRUE);
+		}
+		else
+		{
+			int len = (info->ns_NField+1)*sizeof(NSpaceFldInfo);
+			finfo = (NSpaceFldInfo *) realloc (finfo, len);
+			dc_ChangeADE (dc, (DataPtr)finfo, DCC_NSpace,
+				      ST_NSPACE_FIELDS, len);
+		}
+		finfo[i].nsf_NDimn = ndims;
+		finfo[i].nsf_Id = field;
+		finfo[i].nsf_Size = 0;
+		finfo[i].nsf_Flags = (is_static) ? NSF_STATIC : 0;
+		finfo[i].nsf_StOffset = 0;
 		++(info->ns_NField);
 	}
 
@@ -1585,15 +1621,15 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 	 * this is a new or re-defined variable.  Note that calculating
 	 * field size is held off until definition is complete.
 	 */
-	for (i = 0; i < ndims; ++i)
+	for (j = 0; j < ndims; ++j)
 	{
-		finfo->nsf_Dimns[i] = dim_indices[i];
+		finfo[i].nsf_Dimns[j] = dim_indices[j];
 	}
 
 	/*
 	 * All done.
 	 */
-	return (finfo);
+	return (finfo+i);
 }
 /*--------------------------------------------------- end: DefineField() -*/
 
@@ -1601,33 +1637,32 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 
 /*------------------------------------------------ begin: SetFieldSizes --*/
 static void
-SetFieldSizes (info, routine)
+SetFieldSizes (info, finfo, dinfo, routine)
 	NSpaceInfo *info;
+	NSpaceFldInfo *finfo;
+	NSpaceDimInfo *dinfo;
 	char *routine;		/* name of calling routine */
 /*
  * For each field, set its Size to the product of the sizes of
  * each of its dimensions.
  */
 {
-	NSpaceFldInfo *finfo;
-	NSpaceDimInfo *dinfo;
 	int i, j;
 	unsigned long size;
 
 	for (i = 0; i < info->ns_NField; ++i)	/* field loop */
 	{
 		size = 1;
-		finfo = info->ns_Fields[i];
 		for (j = 0; j < finfo->nsf_NDimn; ++j)	/* dimn loop */
 		{
-			dinfo = info->ns_Dimns[ finfo->nsf_Dimns[j] ];
-			size *= (dinfo->nsd_Size);
+			size *= dinfo[ finfo->nsf_Dimns[j] ].nsd_Size;
 		}					/* dimn loop */
 		finfo->nsf_Size = size;
 #ifdef DEBUG
 		msg_ELog (EF_DEBUG, "%s: field %s, size set to %lu",
 			  routine, F_GetName(finfo->nsf_Id), size);
 #endif
+		++finfo;
 	}					/* field loop */
 }
 /*------------------------------------------------- end: SetFieldSizes --*/

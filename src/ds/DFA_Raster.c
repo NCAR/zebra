@@ -13,7 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.6 1993-07-01 20:12:47 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.7 1994-01-03 07:17:22 granger Exp $")
 
 
 
@@ -786,6 +786,7 @@ const GetList *gp;
  */
 	tbegin = drf_TimeIndex (tag, &gp->gl_begin);
 	tend = drf_TimeIndex (tag, &gp->gl_end);
+	dc_AddMoreSamples (dc, tend - tbegin + 1, 0);
 /*
  * Go through and map the fields.  Ugly.  If this proves to take a lot
  * of time, we may have to go to an stbl or something, but I don't think

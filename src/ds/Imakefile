@@ -2,24 +2,29 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.17 1993-11-30 16:53:08 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.18 1994-01-03 07:17:45 granger Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
-LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
+LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
 /**/#LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 /**/#LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.1/libgcc.a
 LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
 CLIBS=$(LIBGCC)
-PROOF=/net/rsf_pkgs/CenterLine/bin/proof
-/* CCOPTIONS=-pipe -pg */
+/*PROOF=/net/CenterLine/bin/proof*/
+#EXTRA_DEFINES = -DDEBUG
+
+#CCOPTIONS=-pipe -pg
+#CCOPTIONS=-pg
+#LOCAL_LDFLAGS=-static
+#COMPILE_CC=$(CC)
+#COMPILE.c=$(COMPILE_CC) $(CFLAGS) $(CPPFLAGS) -c
 
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
 DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Notify.o d_Scan.o
 DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c
-
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
@@ -63,7 +68,7 @@ HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state
 
 NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS),$(LIBS) $(XLIBS), /**/)
+		    $(DEPLIBS), $(LIBS), /**/)
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
@@ -72,7 +77,7 @@ UILoadFileTarget(dsDaemon.lf,Daemon.state)
  */
 NormalLibraryTarget (ZebDS, $(DSLIBOBJS) $(DCOBJS))
 
-InstallLibrary (ZebDS, LibDir)
+InstallLibrary (ZebDS, $(LIBDIR))
 
 BuildIncludes($(HEADERS),.,.)
 
@@ -95,13 +100,6 @@ cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 		$(DEPLIBS) $(LIBS) $(SYS_LIBRARIES)  \
 		$(EXTRA_LIBRARIES)   $(CLIBS)
 	# link
-
-#ifdef notdef	/* original testcenter target now obsolete */
-nstest.tc:  nstest.o $(DSLIBOBJS) $(DCOBJS)  $(DEPLIBS)
-	$(RM) $@
-	$(PROOF) $(CC) -static -o $@  nstest.o $(DSLIBOBJS) $(DCOBJS) \
-		$(LDOPTIONS) $(LIBS) $(LDLIBS)   $(EXTRA_LOAD_FLAGS)
-#endif
 
 CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 

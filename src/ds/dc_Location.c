@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Location.c,v 1.3 1993-08-04 17:15:55 granger Exp $")
+MAKE_RCSID ("$Id: dc_Location.c,v 1.4 1994-01-03 07:18:05 granger Exp $")
 
 
 
@@ -41,11 +41,13 @@ static DataChunk *dc_LocCreate FP ((DataClass));
  * The basic methods structure.
  */
 # define SUPERCLASS DCC_Transparent
+# define CLASSDEPTH 2
 
 RawDCClass LocationMethods =
 {
 	"Location",
 	SUPERCLASS,		/* Superclass			*/
+	CLASSDEPTH,		/* Depth, Raw = 0		*/
 	dc_LocCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
@@ -68,7 +70,7 @@ DataClass class;
 /*
  * Start by creating a superclass chunk.
  */
-	dc = dc_CreateDC (SUPERCLASS);
+	dc = DC_ClassCreate (SUPERCLASS);
 /*
  * No AuxData at all for boundaries, so we just set the class and return.
  */

@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.10 1993-09-02 08:22:41 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.11 1994-01-03 07:17:53 granger Exp $")
 
 
 /*
@@ -138,17 +138,6 @@ char *name;
 		new->dp_flags = 0;
 		return (new);
 	}
-# ifdef notdef
-/*
- * Nope.  However, if we're done with defining platforms, we must gripe
- * severely.
- */
-	if (ShmHeader->sm_nDataTable)
-	{
-		msg_ELog (EF_EMERGENCY, "PANIC: new platform after closure");
-		Shutdown ();
-	}
-# endif
 /*
  * If the platform table is full expand it.  UGLINESS: we need to go 
  * and reset all of the platform name entries in the symbol table since
@@ -172,14 +161,19 @@ char *name;
  * Fill it in and return it.
  */
 	strcpy (new->dp_name, name);
+	new->dp_class[0] = '\0';
 	sprintf (new->dp_dir, "%s/%s", DefDataDir, name);
-	new->dp_Tfile = new->dp_flags = 0;
+	new->dp_rdir[0] = '\0';
+	new->dp_Tfile = 0;
+	new->dp_flags = 0;
 	new->dp_org = OrgUnknown;
 	new->dp_ftype = FTUnknown;
 	new->dp_keep = DefaultKeep;
 	new->dp_maxsamp = 60;
+	new->dp_NewSamps = 0;
+	new->dp_OwSamps = 0;
 	new->dp_LocalData = new->dp_RemoteData = 0;
-	new->dp_RLockQ = new->dp_WLockQ = 0;
+	new->dp_RLockQ = new->dp_WLockQ = NULL;
 /*
  * Consider automatically establishing a remote data dir.
  */
@@ -213,7 +207,15 @@ int full;
 
 
 
-
+void
+dt_SearchPlatforms (function, arg, sort, re)
+int (*function)();
+void *arg;
+bool sort;
+char *re;
+{
+	usy_search (Platforms, function, (int)arg, sort, re);
+}
 
 
 
