@@ -17,6 +17,7 @@
 # define DEV_X11		/* X window system, v11.n, OpenWindows	*/
 # define DEV_4010		/* Tektronix 4010		*/
 # define DEV_PS			/* PostScript printer		*/
+# define DEV_PSC		/* Color PostScript printer	*/
 # ifdef titan
 # define DEV_XTITAN		/* Titan Xd support		*/
 # endif
