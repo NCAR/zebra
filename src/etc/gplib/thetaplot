@@ -1,0 +1,193 @@
+!
+! Theta plot support.
+!
+! $Id: thetaplot,v 1.1 1997-05-21 21:17:47 corbet Exp $
+!
+require skewt
+
+!
+! The control menu
+!
+define widget theta-control intmenu 'x'
+	title 'Theta plot control options'
+	line
+	submenu 'Plot type' 'theta-plot-type'
+	submenu 'Wind data skip' 'skewt-data-skip'
+	entry 'Winds as barbs' 'skewt-toggle-wind' \
+		(PDParam (icon_component, 'wind-style') = 'barb')
+	entry 'Adjust plot limits...' 'popup theta-limits'
+endmenu
+
+
+
+define widget theta-plot-type intmenu 'x'
+	title 'Theta plot type'
+	line
+	entry 'Theta-E' 'parameter #icon_component representation thetae' \
+		(pdparam(icon_component,'representation') = 'thetae')
+	entry 'Theta-W' 'parameter #icon_component representation thetaw' \
+		(pdparam(icon_component,'representation') = 'thetaw')
+endmenu
+	
+
+set lwidth 80
+
+define widget theta-limits form 'Theta plot limits'
+	popup theta-l-popup
+	noheader
+	label title 'Theta plot limits'
+	label comp 'funky' color gray95 width 1
+!
+! The buttons to actually change something.
+!
+	button apply 'Apply' command theta-l-apply
+	button ad 'Apply and dismiss' command 'theta-l-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form' color red
+	newline
+!
+! Pressure stuff.
+!
+	label lpr 'Pressure' width lwidth
+	label lprmn 'min:'
+	blank pmin 'funky' width 50
+	label lprmx 'max:'
+	blank pmax 'funky' width 50
+	label lprs 'step:'
+	blank pstep 'funky' width 50
+	newline
+!
+! Theta stuff.
+!
+	label lth 'Theta' width lwidth
+	label lthmn 'min:'
+	blank thmin 'funky' width 50
+	label lthmx 'max:'
+	blank thmax 'funky' width 50
+	label ths 'step:'
+	blank thstep 'funky' width 50
+	newline
+!
+! Temperature stuff.
+!
+	label lte 'Temperature' width lwidth
+	label ltemn 'min:'
+	blank temin 'funky' width 50
+	label ltemx 'max:'
+	blank temax 'funky' width 50
+	label tes 'step:'
+	blank testep 'funky' width 50
+	newline
+endform
+
+
+
+procedure theta-l-popup
+!
+! Boilerplate.
+!
+	local f ui$form
+	local c icon_component
+	formtext #f comp #c
+!
+! Fill in the pressure limits.
+!
+	local p PDParam(c, 'pres-minval')
+	if (p = '(Undefined)')
+		local p '100'
+	endif
+	formtext #f pmin #p
+	local p PDParam(c, 'pres-maxval')
+	if (p = '(Undefined)')
+		local p '1000'
+	endif
+	formtext #f pmax #p
+	local p PDParam(c, 'pres-step')
+	if (p = '(Undefined)')
+		local p '100'
+	endif
+	formtext #f pstep #p
+!
+! Same thing with theta.
+!
+	local p PDParam(c, 'theta-minval')
+	if (p = '(Undefined)')
+		local p '270'
+	endif
+	formtext #f thmin #p
+	local p PDParam(c, 'theta-maxval')
+	if (p = '(Undefined)')
+		local p '470'
+	endif
+	formtext #f thmax #p
+	local p PDParam(c, 'theta-step')
+	if (p = '(Undefined)')
+		local p '20'
+	endif
+	formtext #f thstep #p
+!
+! And again with temperature.
+!
+	local p PDParam(c, 'temp-minval')
+	if (p = '(Undefined)')
+		local p '-70'
+	endif
+	formtext #f temin #p
+	local p PDParam(c, 'temp-maxval')
+	if (p = '(Undefined)')
+		local p '40'
+	endif
+	formtext #f temax #p
+	local p PDParam(c, 'temp-step')
+	if (p = '(Undefined)')
+		local p '10'
+	endif
+	formtext #f testep #p
+endprocedure
+
+
+
+
+procedure theta-l-apply
+!
+! Make the changes happen.
+!
+	local f ui$form
+	local c getftext(f, 'comp')
+!
+! Pressure.
+!
+	local p getftext(f, 'pmin')
+	parameter #c pres-minval #p
+	local p getftext(f, 'pmax')
+	parameter #c pres-maxval #p
+	local p getftext(f, 'pstep')
+	parameter #c pres-step #p
+!
+! Theta
+!
+	local p getftext(f, 'thmin')
+	parameter #c theta-minval #p
+	local p getftext(f, 'thmax')
+	parameter #c theta-maxval #p
+	local p getftext(f, 'thstep')
+	parameter #c theta-step #p
+! 
+! Temperature
+!
+	local p getftext(f, 'temin')
+	parameter #c temp-minval #p
+	local p getftext(f, 'temax')
+	parameter #c temp-maxval #p
+	local p getftext(f, 'testep')
+	parameter #c temp-step #p
+endprocedure
+
+
+
+procedure theta-limit-proc comp string
+!
+! For i_adjust.
+!
+	set icon_component comp
+	popup theta-limits
+endprocedure

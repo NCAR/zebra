@@ -1,0 +1,22 @@
+global
+	add-data-command:	theta-add
+	pd-name:	thetaplot-template
+	plot-mode:	history
+	plot-time:	now
+	plot-type:	thetaplot
+	rcs-id:		$Id: thetaplot-template.pd,v 1.1 1997-05-21 21:17:48 corbet Exp $
+thetaplot
+	color-table:	thetaplot
+	icon:	sounding
+	icon-middle-menu:	DataAvailable
+	icon-right-menu:	theta-control
+	limit-proc:		theta-limit-proc
+	platform:	null
+	pres-minval:	100
+	pres-maxval:	1000
+	temp-minval:	-70
+	temp-maxval:	40
+	representation:	thetae
+	trigger:	platform
+	require:	thetaplot
+	wind-style:	barb

@@ -1,0 +1,16 @@
+!
+! Color table for theta plots.
+! $Id: thetaplot,v 1.1 1997-05-21 21:17:37 corbet Exp $
+!
+colortable thetaplot
+	xcolor Black		! Black -- not currently used
+	xcolor White		! White, for annotation
+	xcolor Gray80		! Box and pressure/theta lines
+	xcolor Gray60		! Constant temperature lines
+	xcolor SkyBlue		! Dry adiabats
+	xcolor green		! Saturated adiabats
+	xcolor Cyan		! Theta 1
+	xcolor Red		! Theta 2
+	xcolor Magenta		! Theta 3
+	xcolor Gold		! Winds
+endtable
