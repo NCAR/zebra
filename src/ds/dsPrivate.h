@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 1.3 1991-02-26 19:12:09 corbet Exp $
+ * $Id: dsPrivate.h,v 1.4 1991-04-04 22:52:58 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -12,6 +12,7 @@ typedef enum {
 	FTUnknown = -1,
 	FTNetCDF = 0,
 	FTBoundary = 1,
+	FTRaster = 2,
 	/* ... */
 } FileType;
 
