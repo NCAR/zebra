@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.3 1990-07-08 12:54:56 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.4 1990-07-09 20:19:51 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -30,6 +30,7 @@ static char *rcsid = "$Id: MovieControl.c,v 1.3 1990-07-08 12:54:56 corbet Exp $
 static char Minutes[ATSLEN], Endt[ATSLEN], Frate[ATSLEN], Fskip[ATSLEN];
 static Widget StatusLabel;	/* Where the current status goes	*/
 static Widget Indicator;
+static Widget WEndt;
 
 /*
  * The actual movie control parameters.
@@ -87,9 +88,38 @@ mc_DefMovieWidget ()
  * Hook the movie widget into UI.
  */
 {
+	stbl vtbl = usy_g_stbl ("ui$variable_table");
+
 	uw_def_widget ("movie", "Movie control", mc_MWCreate, 0, 0);
+	usy_c_indirect (vtbl, "movietime", Endt, SYMT_STRING, ATSLEN);
+	usy_c_indirect (vtbl, "movieminutes", Minutes, SYMT_STRING, ATSLEN);
 }
 
+
+
+
+static void
+mc_LoadParams ()
+/*
+ * Load the movie params from the PD.
+ */
+{
+	time t;
+
+	if (! pda_Search (Pd, "global", "movie-minutes", NULL, Minutes, 
+			SYMT_STRING))
+		strcpy (Minutes, "30");
+	if (! pda_Search (Pd, "global", "movie-end-time", NULL, Endt, 
+			SYMT_STRING))
+	{
+		tl_GetTime (&t);
+		ud_format_date (Endt, &t, UDF_FULL);
+	}
+	if (! pda_Search (Pd, "global", "frame-rate", NULL, Frate,SYMT_STRING))
+		strcpy (Frate, "2");
+	if (! pda_Search (Pd, "global", "frame-skip", NULL, Fskip,SYMT_STRING))
+		strcpy (Fskip, "3");
+}
 
 
 
@@ -109,19 +139,7 @@ XtAppContext appc;
 /*
  * Load some defaults.
  */
-	if (! pda_Search (Pd, "global", "movie-minutes", NULL, Minutes, 
-			SYMT_STRING))
-		strcpy (Minutes, "30");
-	if (! pda_Search (Pd, "global", "movie-end-time", NULL, Endt, 
-			SYMT_STRING))
-	{
-		tl_GetTime (&t);
-		ud_format_date (Endt, &t, UDF_FULL);
-	}
-	if (! pda_Search (Pd, "global", "frame-rate", NULL, Frate,SYMT_STRING))
-		strcpy (Frate, "2");
-	if (! pda_Search (Pd, "global", "frame-skip", NULL, Fskip,SYMT_STRING))
-		strcpy (Fskip, "3");
+	mc_LoadParams ();
 /*
  * Create a form widget to hold everything.
  */
@@ -219,8 +237,8 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
 	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
-	w = XtCreateManagedWidget ("movieendt", asciiTextWidgetClass, form,
-		args, n);
+	WEndt = w = XtCreateManagedWidget ("movieendt", asciiTextWidgetClass,
+		form, args, n);
 /*
  * Next line: frame rate.
  */
@@ -333,6 +351,24 @@ XtAppContext appc;
 
 
 
+mc_UpdateWidgets ()
+/*
+ * Make the widgets reflect reality.
+ */
+{
+	Arg args[5];
+	int n = 0;
+
+	XtSetArg (args[n], XtNstring, Endt); n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
+	XtSetValues (WEndt, args, n);
+}
+
+
+
+
+
 void
 mc_MovieRun ()
 /*
@@ -354,6 +390,7 @@ mc_MovieRun ()
  */
 	tl_AllCancel ();
 	PlotMode = History;
+	mc_UpdateWidgets ();
 /*
  * Start the process of generating the movie frames.
  */
@@ -374,6 +411,8 @@ mc_SetupParams ()
 	int minutes;
 	union usy_value v;
 	char fskipk[ATSLEN];
+
+	mc_LoadParams ();
 /*
  * Figure out what is in the control widget now.
  */
@@ -404,8 +443,7 @@ mc_SetupParams ()
 	pd_Store (Pd, "global", "movie-end-time", (char *) &v.us_v_date,
 			SYMT_DATE);
 	pd_Store (Pd, "global", "frame-rate", (char *) &Rate, SYMT_INT);
-	sprintf (fskipk, "%dm", TimeSkip);
-	pd_Store (Pd, "global", "frame-skip", fskipk, SYMT_STRING);
+	pd_Store (Pd, "global", "frame-skip", (char *) &TimeSkip, SYMT_INT);
 /*
  * Now calculate our frame times.
  */
@@ -569,6 +607,8 @@ mc_MovieStop ()
 /*
  * Throw the system into history mode, showing the current frame.
  */
+	if (CurrentFrame >= Nframes)
+		CurrentFrame--;
 	HistoryMode (&Mtimes[CurrentFrame]);
 }
 
@@ -618,9 +658,15 @@ mc_NextFrame ()
 {
 	Eq_AddEvent (PDisplay, mc_DoNextFrame, &CurrentFrame, sizeof (int), 
 		Bounce);
-	if (++CurrentFrame >= Nframes)
+/*
+ * Increment the frame count.  We allow it to go one over the number of frames
+ * around, to implement a one-cycle pause at the end of the movie.
+ */
+	if (++CurrentFrame > Nframes)
 		CurrentFrame = 0;
 }
+
+
 
 
 
@@ -631,9 +677,12 @@ int *frame;
  * Actually display the next frame in the movie.
  */
 {
-	PlotTime = Mtimes[*frame];
-	mc_SetIndicator (*frame);
-	px_PlotExec ("global");
+	if (*frame >= 0 && *frame < Nframes)
+	{
+		PlotTime = Mtimes[*frame];
+		mc_SetIndicator (*frame);
+		px_PlotExec ("global");
+	}
 }
 
 
