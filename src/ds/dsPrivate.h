@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.29 1995-06-29 21:36:03 granger Exp $
+ * $Id: dsPrivate.h,v 3.30 1995-08-31 09:49:08 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -135,7 +135,9 @@ typedef struct ds_PlatformInstance
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
 	Lock	*dp_RLockQ;		/* Read locks held		*/
 	Lock	*dp_WLockQ;		/* The write lock 		*/
-} PlatformInstance, Platform;
+} PlatformInstance;
+
+typedef PlatformInstance Platform;
 
 /*
  * The platform structure used by the client library, which unifies the
@@ -180,7 +182,7 @@ typedef struct ds_ClientPlatform
 # define DPF_CLOADED	0x1000		/* Cache has been loaded	*/
 # define DPF_RCLOADED	0x2000		/* Remote cache loaded		*/
 # define DPF_DIRTY	0x4000		/* Cache needs updating		*/
-
+# define DPF_DIREXISTS	0x8000		/* Local data directory exists	*/
 
 /*
  * Blocks by which subplat allocated arrays are increased.
@@ -204,9 +206,6 @@ typedef struct ds_DataFile
 	int	df_BLink;		/* Data table backward link	*/
 	unsigned short df_nsample;	/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
-#ifdef DF_USE
-	short	df_use;			/* Structure use count		*/
-#endif
 	int	df_index;		/* Data file index		*/
 	char	df_flags;		/* File flags			*/
 } DataFile;
@@ -299,6 +298,14 @@ enum dsp_Types
  * protocol changes have been made.
  */
 # define DSProtocolVersion	0x950130
+
+/*
+ * Use the protocol version, NAMELEN, and FNAMELEN, the three parameters
+ * affecting compatibility of cache files, to create a pseudo-unique
+ * cache file key.
+ */
+# define CacheKey ((((unsigned long)DSProtocolVersion) << 8) + \
+	 (unsigned long)(NAMELEN + FNAMELEN))
 
 /*
  * Create a new data file.

@@ -38,7 +38,7 @@
 # include "dfa.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.26 1995-06-12 23:09:15 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.27 1995-08-31 09:49:04 granger Exp $")
 
 
 /*
@@ -50,7 +50,7 @@ static int	FileKnown FP ((Platform *, char *, int local));
 static int	FileChanged FP ((Platform *p, DataFile *df, ino_t *new_ino));
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
-static char     *CacheFileName FP((Platform *p, int local));
+static char     *CacheFileName FP((Platform *p, int local, int version));
 static int	MakeDataDir FP ((char *));
 
 static int ScanProto[] =
@@ -118,19 +118,25 @@ bool local, rescan;
 	struct dirent *ent;
 	int cloaded = FALSE, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
 /*
- * Try to load a cache file.
- */
-	if (! rescan)
-		cloaded = (p->dp_flags & cflag) || LoadCache (p, local);
-	if (cloaded && (local ? LDirConst : RDirConst))
-		return; /* Cache is gospel in this case */
-/*
- * Make sure there really is a directory.  If not, we'll create it, in which
- * case we won't need to scan it.
+ * Make sure there really is a directory.  If not, we may try to create it,
+ * in which case we won't need to scan it or check for cache files.
+ *
+ * XXX Which is faster: access() directory to make sure it exists, open it
+ * first but immediately close it if we don't need it, or the old way of
+ * trying to open three cache files before the directory and only then
+ * realizing the data directory didn't exist?
  */
 	if (! (dp = opendir (dir)))
 	{
-		if (! MakeDataDir (dir))
+		if (! local)		/* don't create remote directories */
+		{
+			msg_ELog(EF_DEBUG, "cannot access remote dir %s", dir);
+		}				  
+		else if (DelayDataDirs)	/* don't create local directories */
+		{
+			p->dp_flags &= ~DPF_DIREXISTS;
+		}
+		else if (! MakeDataDir (dir))
 		{
 			msg_ELog (EF_PROBLEM, 
 				  "Cannot open or create dir %s (plat %s)",
@@ -141,19 +147,39 @@ bool local, rescan;
 			msg_ELog (EF_INFO, 
 				  "Created data dir %s (plat %s)", dir,
 				  p->dp_name);
+			p->dp_flags |= DPF_DIREXISTS;
 		}
-# ifdef notdef
-		dp = opendir (dir);
-# endif
 	}
 	else
 	{
+		int count = 0;
+
+		if (local)
+			p->dp_flags |= DPF_DIREXISTS;
+	/*
+	 * Try to load a cache file.
+	 */
+		if (! rescan)
+			cloaded = (p->dp_flags & cflag) || LoadCache(p,local);
+		if (cloaded && (local ? LDirConst : RDirConst))
+		{
+			closedir (dp);
+			return; /* Cache is gospel in this case */
+		}
 	/*
 	 * Go through the files.
 	 */
 		while ((ent = readdir (dp)))
+		{
 			ScanFile (p, dir, ent->d_name, local, 
 				  rescan || cloaded);
+			if ((++count % 25) == 0)
+			{
+				while (msg_PollProto (0, NProto, ScanProto)
+				       != MSG_TIMEOUT)
+					/* handle messages */ ;
+			}
+		}
 		closedir (dp);
 	/*
 	 * If we loaded a cache, go through and preen out nonexistent files.
@@ -166,6 +192,49 @@ bool local, rescan;
 
 
 
+int
+CreateDataDir (pi)
+Platform *pi;
+/*
+ * Check whether this platform's local data directory exists, and if not
+ * try to create it.  If upon exit the directory exists and is accessible,
+ * set the platform's DPF_DIREXISTS flag so that we don't try this again.
+ */
+{
+	int succeed = 0;
+	int check;
+
+	check = access (pi->dp_dir, R_OK | W_OK | X_OK);
+	if (check == 0)
+	{
+		succeed = 1;
+	}
+	else if (errno == EACCES)
+	{
+		msg_ELog (EF_PROBLEM, "Access denied to path %s", pi->dp_dir);
+	}
+	else if (errno == ENOENT)
+	{
+		if ((succeed = MakeDataDir (pi->dp_dir)) != 0)
+			msg_ELog (EF_INFO, "Created data dir %s (plat %s)",
+				  pi->dp_dir, pi->dp_name);
+		else
+			msg_ELog (EF_PROBLEM, "Cannot create dir %s (plat %s)",
+				  pi->dp_dir, pi->dp_name);
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "access() error %d checking dir %s",
+			  errno, pi->dp_dir);
+	}
+
+	if (succeed)
+		pi->dp_flags |= DPF_DIREXISTS;
+	return (succeed);
+}
+
+
+
 
 static int
 MakeDataDir (dir)
@@ -174,7 +243,7 @@ char *dir;
  * Try to make the data directory.
  */
 {
-	char tmp[120];
+	char tmp[512];
 	char *slash = dir;
 /*
  * Go through and try to make all of the parent directories.
@@ -343,18 +412,17 @@ int local;
  * Attempt to pull in a cache file.
  */
 {
-	int fd, version;
- 	char fname[sizeof(p->dp_dir)+sizeof(p->dp_name)+20];
+	int fd;
+	unsigned long version;
 /*
- * See if we can get the cache file.  First try the new standard name,
- * then try the old form "<dir>/.ds_cache".
+ * See if we can get the cache file.  First try the newest standard name,
+ * which includes our protocol version, then the name without the version.
+ * We no longer check for the old form "<dir>/.ds_cache", since it is
+ * guaranteed to be the wrong version.
  */
- 	fname[0] = '\0';
-	if ((fd = open (CacheFileName(p, local), O_RDONLY)) < 0)
+	if ((fd = open (CacheFileName(p, local, TRUE), O_RDONLY)) < 0)
 	{
-		sprintf (fname, "%s/.ds_cache", 
-			 local ? p->dp_dir : p->dp_rdir);
-		if ((fd = open (fname, O_RDONLY)) < 0)
+		if ((fd = open (CacheFileName(p, local, FALSE), O_RDONLY)) < 0)
 		{
 			msg_ELog (EF_DEBUG, "No cache file for %s", 
 				  p->dp_name);
@@ -364,13 +432,13 @@ int local;
 /*
  * Pull in the protocol version number.
  */
-	if (read (fd, &version, sizeof (int)) < sizeof(int))
+	if (read (fd, &version, sizeof (long)) < sizeof (long))
 	{
 		msg_ELog (EF_PROBLEM, "corrupted cache file: %s", p->dp_name);
 		close (fd);
 		return (FALSE);
 	}
-	else if (version != DSProtocolVersion)
+	else if (version != CacheKey && version != DSProtocolVersion)
 	{
 		msg_ELog(EF_PROBLEM, "cache version mismatch: %s", p->dp_name);
 		close (fd);
@@ -456,15 +524,6 @@ ino_t *new_ino;
 {
 	ino_t inode;
 	long rev;
-
-#ifdef notdef
-	/*
-	 * Don't do anything if we've been told the files don't change
-	 */
-	*new_ino = 0;
-	if (isconst)
-		return (FALSE);
-#endif
 
 	rev = StatRevision(p, df, &inode);
 	/*
@@ -629,7 +688,8 @@ struct ui_command *cmd;
  * if "onlydirty" is set).
  */
 {
-	int plat, fd, df, version = DSProtocolVersion;
+	int plat, fd, df;
+	unsigned long version = CacheKey;
 	char *fname;
 	bool onlydirty = FALSE, onefile = FALSE;
 /*
@@ -645,7 +705,7 @@ struct ui_command *cmd;
 				  errno, UPTR (*cmd));
 			return;
 		}
-		write (fd, &version, sizeof (int));
+		write (fd, &version, sizeof (long));
 	}
 /*
  * Now plow through the platforms and do it.
@@ -668,7 +728,9 @@ struct ui_command *cmd;
 	 */
 		if (! onefile)
 		{
- 			fname = CacheFileName(p, TRUE);
+			if (! pi_DirExists (p))
+				continue; /* can't cache what's not there */
+ 			fname = CacheFileName(p, TRUE, TRUE);
 			if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC,
 					0664)) < 0)
 			{
@@ -676,8 +738,10 @@ struct ui_command *cmd;
 					  errno, fname);
 				continue;
 			}
+#ifdef notdef
 			msg_ELog (EF_DEBUG, "Cache %s opened", fname);
-			write (fd, &version, sizeof (int));
+#endif
+			write (fd, &version, sizeof (long));
 		}
 	/*
 	 * Otherwise put in the platform marker.
@@ -728,7 +792,8 @@ int local;
  * Pull in a big cache file.
  */
 {
-	int fd, version, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
+	int fd, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
+	unsigned long version;
 	Platform *p = NULL;
 /*
  * Open up the file and check the version number.
@@ -738,8 +803,8 @@ int local;
 		msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
 		return;
 	}
-	read (fd, &version, sizeof (int));
-	if (version != DSProtocolVersion)
+	read (fd, &version, sizeof (long));
+	if (version != CacheKey && version != DSProtocolVersion)
 	{
 		msg_ELog (EF_PROBLEM, "Cache version mismatch in %s", fname);
 		close (fd);
@@ -789,16 +854,17 @@ int local;
 
 
 static char *
-CacheFileName (p, local)
+CacheFileName (p, local, version)
 Platform *p;
 bool local;
+bool version;	/* include the cache key if non-zero */
 /*
  * Generate the cache file name for this platform.  The returned string
  * is only valid until the next call.  Follow the dfa_MakeFileName
  * convention of just removing the '/' characters.
  */
 {
-	static char fname[sizeof(p->dp_name)+sizeof(p->dp_dir)+20];
+	static char fname[sizeof(p->dp_name)+sizeof(p->dp_dir)+32];
 	char name[sizeof(p->dp_name)];
 	char *c;
 	int i = 0;
@@ -809,8 +875,12 @@ bool local;
 			name[i++] = *c;
 	}
 	name[i] = '\0';
-	sprintf (fname, "%s/%s.ds_cache", local ? p->dp_dir : p->dp_rdir,
-		 name);
+	if (version)
+		sprintf (fname, "%s/%s.%x.ds_cache", 
+			 local ? p->dp_dir : p->dp_rdir, name, CacheKey);
+	else
+		sprintf (fname, "%s/%s.ds_cache", 
+			 local ? p->dp_dir : p->dp_rdir, name);
 	return (fname);
 }
 

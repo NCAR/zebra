@@ -45,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.51 1995-06-29 21:37:26 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.52 1995-08-31 09:48:59 granger Exp $")
 
 
 /*
@@ -123,6 +123,8 @@ static Lock *FreeLocks = 0;
 
 bool InitialScan = TRUE;
 int PlatformsScanned = 0;
+
+bool DelayDataDirs = FALSE;
 
 time_t LastScan = 0;	/* Time of the most recent FULL scan */
 time_t LastCache = 0;	/* Time to which cache files are up-to-date */
@@ -231,6 +233,7 @@ char **argv;
 	usy_c_indirect (vtable, "LFileConst", &LFileConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "RFileConst", &RFileConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "CacheOnExit", &CacheOnExit, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "DelayDataDirs", &DelayDataDirs, SYMT_BOOL, 0);
 /*
  * Indirects for the tables too.
  */
@@ -774,18 +777,32 @@ struct dsp_CreateFile *request;
 {
 	struct dsp_R_CreateFile response;
 	DataFile *new;
+	int fail = 0;
+	Platform *pi = PTable + request->dsp_plat;
 /*
  * Get a new file entry to give back to them.  Make sure there isn't already
  * a tempfile sitting there from some other time -- if so we reuse it and
  * gripe.
  */
-	if (PTable[request->dsp_plat].dp_Tfile)
+	if (pi->dp_Tfile)
 	{
-		msg_ELog (EF_PROBLEM, "Plat %s reusing tfile!", 
-			PTable[request->dsp_plat].dp_name);
-		new = DFTable + PTable[request->dsp_plat].dp_Tfile;
+		msg_ELog (EF_PROBLEM, "Plat %s reusing tfile!", pi->dp_name);
+		new = DFTable + pi->dp_Tfile;
+	}
+/*
+ * Make sure the platform directory exists, and if not try to create it.
+ * If we can't create it then we must abort the new file.
+ */
+	else if (! pi_DirExists (pi) && ! CreateDataDir (pi))
+	{
+		msg_ELog (EF_PROBLEM, "Cannot create %s datadir for new file",
+			  pi->dp_name);
+		fail = 1;
 	}
 	else if ((new = dt_NewFile ()) == 0)
+		fail = 1;
+
+	if (fail)
 	{
 		response.dsp_type = dpt_R_NewFileFailure;
 		msg_send (from, MT_DATASTORE, FALSE, &response,
@@ -795,15 +812,15 @@ struct dsp_CreateFile *request;
 /*
  * Fill in the info and hook it into the platform.
  */
-	ClearLocks (PTable + request->dsp_plat);
+	ClearLocks (pi);
 	dt_SetString (new->df_name, request->dsp_file, sizeof(new->df_name),
 		      "request for new file");
 	new->df_begin = new->df_end = request->dsp_time;
 	new->df_rev = 0;
 	new->df_FLink = new->df_BLink = new->df_nsample = 0;
 	new->df_platform = request->dsp_plat;
-	new->df_ftype = pi_FileType(PTable+request->dsp_plat);
-	PTable[request->dsp_plat].dp_Tfile = new - DFTable;
+	new->df_ftype = pi_FileType (pi);
+	pi->dp_Tfile = new - DFTable;
 /*
  * Respond back to the requester and quit.
  */

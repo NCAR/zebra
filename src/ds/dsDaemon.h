@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.20 1995-04-20 20:26:51 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.21 1995-08-31 09:49:06 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -96,6 +96,11 @@ extern bool InitialScan;	/* True implies first data scan	*/
 extern int PlatformsScanned;
 
 /*
+ * Flag allowing the creation of data directories to be delayed until needed.
+ */
+extern bool DelayDataDirs;
+
+/*
  * Some useful timing information 
  */
 extern time_t LastScan;		/* Time of latest full scan	*/
@@ -170,6 +175,7 @@ void	WriteCache FP ((struct ui_command *));
 void	ReadCacheFile FP ((char *, int));
 void	RescanPlat FP ((Platform *));
 long	StatRevision FP ((Platform *, DataFile *, ino_t *));
+int	CreateDataDir FP ((Platform *pi));
 
 /*
  * Debuggin' routines
@@ -213,6 +219,7 @@ PlatformInstance *pi;
 /*
  * A bunch of boolean tests for class flags, which happen to be
  * copied into the instances also and thus can ge tested there.
+ * This may change.
  */
 static inline int pi_Subplatform (pi)
 PlatformInstance *pi;
@@ -260,6 +267,10 @@ PlatformInstance *pi;
 static inline int pi_RCacheLoaded (pi)
 PlatformInstance *pi;
 { return (pi->dp_flags & DPF_RCLOADED); }
+
+static inline int pi_DirExists (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_DIREXISTS); }
 
 /*
  * Access for other platform instance members
