@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.4 1992-11-19 02:15:20 granger Exp $
+ * $Id: p3fest_ingest.c,v 1.5 1992-12-09 22:58:15 granger Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -79,7 +79,9 @@
 #define AttAircraftNumber	"aircraft_number"
 #define AttFlightBeginTime	"flight_begin_time"
 #define AttFlightEndTime	"flight_end_time"
-#define AttIngestVersion	"ingest_version"
+#define AttIngestor		"zeb_ingestor"
+#define AttFilePart		"part"
+#define AttWindsFilename	"winds_filename"
 
 #define NUMBER(arr)	((unsigned long)(sizeof(arr)/sizeof(arr[0])))
 #define Abs(x)		(((x)>0)?(x):(-(x)))
@@ -160,8 +162,8 @@ p3_field_t P3_Fields[] =
 /*	{ 16, 	"Radar altitiude", 		"ra",		"m" },  */
 
 	{ 17, 	"Pressure", 			"ps",		"mb" },
-	{ 18, 	"Ambient temperature", 		"ta",		"C" },
-	{ 19, 	"Dewpoint sensor", 		"tw1",		"C" },
+	{ 18, 	"Ambient Temperature", 		"ta",		"C" },
+	{ 19, 	"Dewpoint Sensor", 		"tw1",		"C" },
 	{ 20, 	"Radiometer (Down)", 		"rd",		"C" },
 	{ 21, 	"Radiometer (Side)", 		"rs",		"C" },
 	{ 22, 	"Ground Speed", 		"gs",		"m/s" },
@@ -229,6 +231,7 @@ p3_field_t P3_Fields[] =
 FieldId P3_FieldIds[NUMBER(P3_Fields)+1];
 
 FieldId FlagsFid;
+char *DataFileName;
 
 /*
  * The global storage for the type 3 divisors
@@ -295,6 +298,7 @@ static void IngestDataRecord FP((DataChunk **dc, short buf[],
 				 short rtype, short rsize, P3_header_t *hdr));
 static void IngestRecords FP((FILE *p3file, P3_header_t *hdr));
 static long SeekFileSize FP((FILE *file));
+static void DumpFields FP((FieldId *fields, int nfields));
 extern void InterpolateGap
 	FP((DataChunk *dc, ZebTime *btime, Location *blocn,
 	    ZebTime *etime, Location *elocn, int *sample));
@@ -306,11 +310,13 @@ Usage(prog)
 	char *prog;
 {
 	fprintf(stderr,
-		"Usage: %s [ingest options] { -m[enus] | <datafile> }\n",prog);
+	"Usage: %s [ingest options] { -m[enus] | -f[ields] | <datafile> }\n",prog);
 	fprintf(stderr,
 		"   If <datafile> is '-', the data will be read from stdin\n");
 	fprintf(stderr,
-		"   -menus		Write out GP menus for P-3 fields\n");
+	  "   -menus		Write out GP menus for P-3 fields\n");
+	fprintf(stderr,
+	  "   -fields		Write out fields, units, and descriptions\n");
 	IngestUsage();
 }
 
@@ -330,6 +336,8 @@ main(argc, argv)
 {
 	P3_header_t hdr;
  	FILE *p3file;
+	int i;
+	int show_fields;
 
 	/* Parse any ingest options. */
 	IngestParseOptions(&argc, argv, Usage);
@@ -343,36 +351,34 @@ main(argc, argv)
 	/*
 	 * For the -menu option, nothing is required other than dumping our
 	 * field and menu info to stdout.  Do this and get out.
+	 * For the -fields option, we have to wait until we have initialized
+	 * our fields list
 	 */
-	if ((strlen(argv[1]) > 1) && !strncmp(argv[1],"-menu",strlen(argv[1])))
+	i = 1;
+	show_fields = 0;
+	while (i < argc)
 	{
-		PrintMenus(stdout);
-		exit(0);
+		if (strlen(argv[i]) <= 1)
+			++i;
+		else if (!strncmp(argv[i],"-menus",strlen(argv[i])))
+		{
+			PrintMenus(stdout);
+			exit(0);
+		}
+		else if (!strncmp(argv[i],"-fields",strlen(argv[i])))
+		{
+			show_fields = 1;
+			IngestRemoveOptions(&argc, argv, i, 1);
+			IngestSetDryRun();
+		}
+		else
+			++i;
 	}
 
 	/*
 	 * Initialize usy, message, DataStore, and Fields simultaneously
 	 */
 	IngestInitialize(INGEST_NAME);
-
-	/* 
-	 * The file to read will be argv[1].  A "-" will indicate
-	 * stdin.
-	 */
-	if (!strcmp(argv[1],"-"))
-	{
-		p3file = stdin;
-	}
-	else if ((p3file = fopen(argv[1],"r")) == NULL)
-	{
-		perror(argv[1]);
-		exit(1);
-	}
-
-	/*
-	 * We have our file open and ready, so go read the header.
-	 */
-	ReadHeader(p3file,&hdr);
 
 	/*
 	 * Define our fields to the DataStore and store the FieldIds in
@@ -390,6 +396,37 @@ main(argc, argv)
 	 * 3 records
 	 */
 	InitWordToFieldMapping();
+
+	/*
+	 * If desired by the user, dump our fields and be done with it
+	 */
+	if (show_fields)
+	{
+		DumpFields(P3_FieldIds, NUMBER(P3_FieldIds));
+		exit(0);
+	}
+
+	/* 
+	 * The file to read will be argv[1].  A "-" will indicate
+	 * stdin.
+	 */
+	if (!strcmp(argv[1],"-"))
+	{
+		p3file = stdin;
+		fprintf(stderr,"Warning: winds_filename will not be unique\n");
+	}
+	else if ((p3file = fopen(argv[1],"r")) == NULL)
+	{
+		perror(argv[1]);
+		exit(1);
+	}
+	DataFileName = (strcmp(argv[1],"-")?argv[1]:"stdin");
+	IngestLog(EF_INFO,"Ingesting data from file %s", DataFileName);
+
+	/*
+	 * We have our file open and ready, so go read the header.
+	 */
+	ReadHeader(p3file,&hdr);
 
 	/*
 	 * Now pull out the type 3 and 5 records.  The hdr is required to
@@ -410,6 +447,8 @@ void
 StoreDataChunk(dc)
 	DataChunk *dc;
 {
+	static dsDetail dsd = { DD_NC_TIME_FLOAT, 0 };
+
 	if (dc_GetNSample(dc) == 0)
 	{
 		/* Our DC is still empty for some reason */
@@ -422,7 +461,7 @@ StoreDataChunk(dc)
 	/*
 	 * Each raw p3 file will correspond to a single DataStore file
 	 */
-	ds_Store(dc, /*newfile*/ TRUE, /*details*/ NULL, /*ndetail*/ 0);
+	ds_StoreBlocks(dc, /*newfile*/ TRUE, &dsd, 1);
 	IngestLog(EF_INFO,"Done storing samples");
 }
 
@@ -1108,7 +1147,7 @@ InitializeFieldIds()
 		fid = F_DeclareField(P3_Fields[i].field_name,
 				     P3_Fields[i].long_name,
 				     P3_Fields[i].units);
-		IngestLog(EF_DEBUG, "Declaring %s, %s, (%s), id = %i",
+		IngestLog(EF_DEVELOP, "Declaring %s, %s, (%s), id = %i",
 			  P3_Fields[i].field_name,
 			  P3_Fields[i].long_name,
 			  P3_Fields[i].units,
@@ -1138,7 +1177,8 @@ DataChunk *
 CreateDataChunk(hdr)
 	P3_header_t *hdr;
 {
-	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.4 $";
+	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.5 $";
+	static int file_part = 0;
 	DataChunk *dc;
 	unsigned int nsamples;
 	int hours, minutes;
@@ -1173,7 +1213,23 @@ CreateDataChunk(hdr)
 	sprintf(attr,"%hu", hdr->p3header.aircraft);
 	dc_SetGlobalAttr(dc, AttAircraftNumber, attr);
 	IngestLog(EF_INFO,"%30s %s","Aircraft number:",attr);
-	dc_SetGlobalAttr(dc, AttIngestVersion, version_info);
+	dc_SetGlobalAttr(dc, AttIngestor, version_info);
+
+	/*
+	 * Keep some kind of part info for data files which get split
+	 */
+	file_part++;
+	sprintf(attr,"%i",file_part);
+	dc_SetGlobalAttr(dc, AttFilePart, attr);
+
+	/*
+	 * Take DataFileName[], trunc to 4 chrs, 
+	 * and add the part number as a letter
+	 */
+	if (strlen(DataFileName) > 4)
+		DataFileName[4] = '\0';
+	sprintf(attr, "%s%c", DataFileName, (char)('a' - 1 + file_part));
+	dc_SetGlobalAttr(dc, AttWindsFilename, attr);
 
 	/*
 	 * Initialize the scalar parts of the datachunk.
@@ -1198,6 +1254,27 @@ CreateDataChunk(hdr)
 	 */
 	dc_SetBadval(dc, BADVAL_DEFAULT);
 
+	/*
+	 * Add some per-field attributes
+	 */
+	{
+		int i;
+		char attr[20];
+
+		for (i = 0; i < NUMBER(P3_Fields); ++i)
+		{
+			sprintf(attr,"%i", P3_Fields[i].index);
+			dc_SetFieldAttr(dc, P3_FieldIds[i], "word_index", attr);
+		}
+
+		for (i = 0; i < NUMBER(P3_ErrorFields); ++i)
+		{
+			sprintf(attr,"%0#8x",BIT(P3_ErrorFields[i].bit));
+			dc_SetFieldAttr(dc, 
+			   P3_FieldIds[P3_WordToField[P3_ErrorFields[i].word]],
+			   "error_bit_mask", attr);
+		}
+	}
 #ifdef DEBUG
 	dc_DumpDC(dc);
 #endif
@@ -1319,10 +1396,56 @@ PrintOneMenu(out,menu,parm,comp)
 
 
 
+PrintColorCodeMenu(out)
+	FILE *out;
+{
+	int i;
+
+	fprintf(out,
+	   "\ndefine widget p3-aircraft-menu intmenu \"P-3 Aircraft Menu\"\n");
+	fprintf(out,"	title \"P-3 Aircaft Color Code Fields\"\n");
+	fprintf(out,"	line\n");
+	
+	fprintf(out,"	entry 'Radar Altitude' 'fldset \"alt\"'\n");
+	for (i = 0; i < NUMBER(P3_Fields); ++i)
+	{
+		fprintf(out,"	entry '%s' 'fldset \"%s\"'\n",
+			P3_Fields[i].long_name,
+			P3_Fields[i].field_name);
+	}
+	fprintf(out,"endmenu\n\n");
+}
+
+
+
 void
 PrintMenus(out)
 	FILE *out;
 {
 	PrintOneMenu(out, "time-p3-air-parts", "y-field", "c_xytime_air");
 	PrintOneMenu(out, "p3-air-parts", "x-field", "c_xy_air");
+	PrintColorCodeMenu(out);
 }
+
+
+
+
+/*
+ * Dump field info to stdout
+ */
+void
+DumpFields(fields, nfields)
+	FieldId *fields;
+	int nfields;
+{
+	int fld;
+
+	for (fld = 0; fld < nfields; ++fld)
+	{
+		printf("%-10s %-15s %-50s\n",
+		       F_GetName(fields[fld]),
+		       F_GetUnits(fields[fld]),
+		       F_GetDesc(fields[fld]));
+	}
+}
+
