@@ -1,10 +1,45 @@
-
-/*
+/* $Id: ingest.c,v 1.2 1992-07-03 18:31:05 granger Exp $
+ *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
+ *
+ * In general, it defines the IngestLog() function which allows its
+ * messages to be directed to stdout and/or to the EventLogger.
+ * stdou message can be screened with the command line option -log.
+ * Other command line options allow disabling the DataStore and message
+ * sending for testing and running in 'dryrun' mode.  Calls to
+ * ds_Store and ds_LookupPlatform are macro-defined in ingest.h
+ * to point to ingest.c's internal implementations.  These implementations
+ * flag ds_Store calls and failures, or ignores the calls when
+ * DryRun mode is in effect.  See IngestUsage for the full list
+ * of ingest options.
+ *
+ * An application using the ingest package should do the following:
+ *
+ * #include "ingest.h"
+ * Parse the ingest cmd-line options with IngestParseOptions()
+ * IngestInitialize(), which intializes the message and DataStore, unless
+ * these have been disabled by the application or command-line options.
+ * Call IngestUsage() from the application's uasge() function to show the
+ * user what the ingest options are.  Lastly, use IngestLog() rather than
+ * msg_ELog() to log messages with the EventLogger.
+ *
+ * IngestInitialize() also installs a default message handler which
+ * recognizes MH_SHUTDOWN calls.  This handler can be overridden by
+ * defining your own protocol handlers with the message library functions.
  */
 
+#if !defined(saber) && !defined(lint)
+static char rcsid[] = "$Id: ingest.c,v 1.2 1992-07-03 18:31:05 granger Exp $";
+#endif
+
 #include "ingest.h"
+
+/*
+ * Undefine the macros defined in ingest.h that we don't need here
+ */
+#undef ds_Store
+#undef ds_LookupPlatform
 
 #ifndef lint
 MAKE_RCSID("$Id")
@@ -12,20 +47,40 @@ MAKE_RCSID("$Id")
 
 
 /*
+ * Public Prototypes:
+ */
+bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
+			  dsDetail *details, int ndetail));
+PlatformId _Ingest_ds_LookupPlatform FP((char *name));
+void IngestLog ();
+void IngestUsage ();
+void RemoveOptions FP((int *argc, char *argv[], int i, int n));
+void IngestParseOptions FP((int *argc, char *argv[], 
+			   void (*usage)(/* char *prog */)));
+void IngestInitialize FP((char *name));
+
+/*
  * Private prototypes:
  */
-static int	incoming FP((struct message *));
+static int	IngestMsgHandler FP((struct message *));
 
 
 /* --------------------------------------------------------------------
  * Global variables :: IngestLogFlags declared external in ingest.h  */
 
-int IngestLogFlags = 0;		/* Specifies what types of messages are
+int IngestLogFlags = EF_EMERGENCY;
+				/* Specifies what types of messages are
 				 * written to the terminal */
+short NoEventLogger = 0;	/* True when -noel flag set, meaning
+				 * don't try to send messages to ELogger */
+short NoDataStore = 0;
+short NoMessageHandler = 0;
+short DryRun = 0;		/* -dryrun flag, don't connect to message
+				 * handler or send to DataStore,
+				 * ==> NoEventLogger */
 char *IngestName;		/* Message name of ingest module */
 
 /* ------------------------------------------------------------------*/
-
 
 
 void
@@ -48,41 +103,67 @@ va_dcl
 /*
  * First check our local debug flag
  */
-	if ((flags & EF_EMERGENCY) || (IngestLogFlags & flags))
+	if (IngestLogFlags & flags)
 	{
-		printf("%s: ",IngestName);
-		vprintf(fmt, args);
-		printf("\n");
+		fprintf(stderr,"%s: ",IngestName);
+		vfprintf(stderr,fmt, args);
+		fprintf(stderr,"\n");
 	}
 
 /*
- * Now create the message to the event logger
+ * Now create the message to the event logger, iff NoEventLogger == 0
  */
 	el = (struct msg_elog *) cbuf;
 	vsprintf(el->el_text, fmt, args);
 	va_end(args);
-
-/*
- * Send the message
- */
-	el->el_flag = flags;
-	msg_send("Event logger", MT_ELOG, 0, el,
-		sizeof(*el) + strlen(el->el_text));
+	if (!NoEventLogger)
+	{
+		/*
+		 * Send the message
+		 */
+		el->el_flag = flags;
+		msg_send("Event logger", MT_ELOG, 0, el,
+			sizeof(*el) + strlen(el->el_text));
+	}
 }
 
 
 static int
-incoming (msg)
+IngestMsgHandler (msg)
 struct message *msg;
 /*
- * Deal with incoming messages.
+ * Deal with IngestMsgHandler messages, especially MH_SHUTDOWN
  */
 {
+	struct mh_template *mh = (struct mh_template *)msg->m_data;
+
+	IngestLog(EF_DEBUG,
+	   "msg handling defaulting to IngestMsgHandler(proto %d)",
+	   msg->m_proto);
 	switch (msg->m_proto)
 	{
 	   case MT_TIMER:
 	   	tl_DispatchEvent ((struct tm_time *) msg->m_data);
 		break;
+	   case MT_MESSAGE:
+		switch(mh->mh_type)
+		{
+		   case MH_SHUTDOWN:
+			IngestLog(EF_EMERGENCY,
+				"Shutdown message received");
+			exit(0);
+			break;
+		   default:
+			IngestLog(EF_PROBLEM,
+			   "Message handler message %d not handled",
+			   mh->mh_type);
+		}
+		break;
+	   default:
+		IngestLog(EF_PROBLEM,
+			"Message protocol %d not handled",
+			msg->m_proto);
+
 	}
 	return (0);
 }
@@ -91,13 +172,20 @@ struct message *msg;
 void
 IngestUsage()
 {
-	printf ("General ingest options:\n");
-	printf ("   -log all|p|d|i	Set the log messages to write out\n");
-	printf ("	all: 	all\n");
-	printf ("	  p: 	problems\n");
-	printf ("	  d: 	debugging\n");
-	printf ("	  i: 	informational\n");
-	printf ("   -help		Show this information\n");
+   fprintf(stderr,"   -noel		Don't send to EventLogger\n");
+   fprintf(stderr,
+      "   -dryrun,-dry,-test	Don't connect to other processes, ");
+   fprintf(stderr,			"nor send to the DataStore\n");
+   fprintf(stderr,"   -log all|e|p|c|d|i	Set the messages which get ");
+   fprintf(stderr,			"echoed to the terminal\n");
+   fprintf(stderr,"			The default is emergencies only.\n");
+   fprintf(stderr,"			   all: all messages\n");
+   fprintf(stderr,"			   e:   emergencies\n");
+   fprintf(stderr,"			   p:   problems\n");
+   fprintf(stderr,"			   c:   clients\n");
+   fprintf(stderr,"			   d:   debugging\n");
+   fprintf(stderr,"			   i:   information\n");
+   fprintf(stderr,"   -help, -h		Show this information\n");
 }
 
 
@@ -107,17 +195,26 @@ IngestParseOptions(argc, argv, usage)
 	char *argv[];
 	void (*usage)(/* char *prog_name */);
 {
-	int i,j;
-	int get_msgs;
+	int i;
+	int nargs;
 	char *arg;
 
 	i = 1;
-	get_msgs = 0;
 	while (i < *argc)
 	{
-		if (get_msgs)
+		nargs = 1;
+
+		if (streq(argv[i],"-help") ||
+		    streq(argv[i],"-h"))
 		{
-		   arg = argv[i];
+		   if (usage)
+		   	usage(argv[0]);
+		   exit(0);
+		}
+		else if (streq(argv[i],"-log"))
+		{
+		   nargs = 2;
+		   arg = argv[i+1];
 		   if (streq(arg,"all"))
 		      IngestLogFlags = 0xff;
 		   else
@@ -126,6 +223,12 @@ IngestParseOptions(argc, argv, usage)
       		      {
          		 switch(*arg)
           		 {
+			    case 'e':
+			       IngestLogFlags |= EF_EMERGENCY;
+			       break;
+			    case 'c':
+			       IngestLogFlags |= EF_CLIENT;
+			       break;
     			    case 'd':
        			       IngestLogFlags |= EF_DEBUG;
 			       break;
@@ -141,17 +244,16 @@ IngestParseOptions(argc, argv, usage)
 			 ++arg;
       		      }
 		   }
-		   get_msgs = 0;
 		}
-		else if (streq(argv[i],"-help"))
+		else if (streq(argv[i],"-noel"))
 		{
-		   if (usage)
-		   	usage(argv[0]);
-		   exit(0);
+		   SetNoEventLogger();
 		}
-		else if (streq(argv[i],"-log"))
+		else if (streq(argv[i],"-dryrun") ||
+			 streq(argv[i],"-dry") ||
+			 streq(argv[i],"-test"))
 		{
-		   get_msgs = 1;
+		   SetDryRun();
 		}
 		else
 		{
@@ -159,12 +261,27 @@ IngestParseOptions(argc, argv, usage)
 		   continue;
 		}
 
-		/* Remove any options that are found */
-		--(*argc);
-		for (j = i; j < *argc; ++j) 
-		   argv[j] = argv[j+1];
+		RemoveOptions(argc, argv, i, nargs);
+
 	}
 }
+
+
+void
+RemoveOptions(argc, argv, i, n)
+	int *argc;
+	char *argv[];
+	int i;		/* position to start removing args from */
+	int n;		/* number of args to remove */
+{
+	int j;
+
+	(*argc) -= n;
+	for (j = i; j < *argc; ++j) 
+	   argv[j] = argv[j+n];
+
+}
+
 
 
 void
@@ -175,42 +292,86 @@ IngestInitialize(name)
 	IngestName = name;
 
 	usy_init ();
-	msg_connect (incoming, IngestName);
-	if (! ds_Initialize ())
+	if (!DryRun)
 	{
-		IngestLog(EF_EMERGENCY,"Error: ds_Initialize() failed.");
-		exit(1);
+		if (! msg_connect (IngestMsgHandler, IngestName))
+		{
+			SetNoMessageHandler();
+			IngestLog(EF_EMERGENCY, 
+			   "Error: msg_connect() failed.");
+			exit(1);
+		}
+		if (! ds_Initialize ())
+		{
+			SetNoDataStore();
+			IngestLog(EF_EMERGENCY,
+			   "Error: ds_Initialize() failed.");
+			exit(1);
+		}
+	}
+	else
+	{
+		fprintf(stderr,"Running in DryRun mode.  ");
+		fprintf(stderr,"No message connections attempted.\n");
 	}
 	F_Init();			/* Init field ID table */
 }
 
 
-void
-ListAvailableFields()
+bool 
+_Ingest_ds_Store (dc, newfile, details, ndetail)
+	DataChunk *dc;
+	bool newfile;
+	dsDetail *details;
+	int ndetail;
 {
-/*
- * Print a list of valid field names, as well as the maximum number of
- * fields which class_ingest can accept on the command line
- */
-/*
- * For now we have to cheat by knowing there cannot be more than
- * 128 fields.  It would be nice to have function in the Fields package
- * which returns the number of fields (i.e. the maximum field id)
- */
-/*
- * This should probably be changed to just list the fields available 
- * in a named sounding file...  how to do that?
- */
-	FieldId field;
-	char *field_name;
+	bool ret;
+	static short called_once = 0;
 
-	for (field = 0; field<128; ++field)
+	if (NoDataStore)
 	{
-		if ((field_name = F_GetName(field)))
-			printf("%-10s%-50s%-10s\n",
-				field_name,
-				F_GetDesc(field),
-				F_GetUnits(field));
+		if (!called_once)
+		{
+			++called_once;
+			IngestLog(EF_INFO,
+		   	   "DryRun: Calls to DataStore being ignored");
+		}
+		ret = TRUE;
 	}
+	else
+	{
+		IngestLog(EF_DEBUG,
+		   "Sending data to the DataStore...");
+		ret = ds_Store(dc, newfile, details, ndetail);
+		if (!ret)
+			IngestLog(EF_PROBLEM,
+			   "ds_Store() failed.");
+		else
+			IngestLog(EF_DEBUG,
+			   "ds_Store() successful.");
+	}
+	return(ret);
 }
+
+
+
+PlatformId 
+_Ingest_ds_LookupPlatform (name)
+	char *name;
+{
+	static short called_once = 0;
+
+	if (NoDataStore)
+	{
+		if (called_once) return(0);
+		++called_once;
+		IngestLog(EF_INFO,
+		   "DryRun: Calls to ds_LookupPlatform will return 0");
+		return(0);
+	}
+	else
+		return(ds_LookupPlatform(name));
+}
+
+
 
