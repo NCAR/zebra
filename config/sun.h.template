@@ -1,0 +1,27 @@
+/*
+ * Configuration file for Suns.
+ */
+
+
+/*
+ * Libraries needed to link Fortran code with the C compiler.  Be sure
+ * to check your system paths and correct this if necessary.
+ */
+# define FortranLibs -L/usr/lang/SC1.0.1 -lF77
+
+/*
+ * Flags for the C compiler.
+ */
+# define OtherCFlags -DUNIX 
+
+/*
+ * Flags for the FORTRAN compiler.
+ */
+# define OtherFFlags -DUNIX -cg87
+
+/*
+ * The Makefile architecture
+ */
+# define MakefileArch "sun"
+
+
