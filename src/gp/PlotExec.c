@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.9 1990-12-14 14:01:24 burghart Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.10 1991-01-14 23:40:17 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -124,8 +124,9 @@ static int	Comp_index;
 /*
  * Color stuff
  */
-static XColor	*Colors;
+static XColor	*Colors, Ctclr;
 static int	Ncolors;
+static int  	Monocolor;
 Pixel	White;
 
 /*
@@ -596,26 +597,38 @@ Boolean	update;
 /*
  * Side annotation
  */
+	
 	An_AnnotLimits (&top, &bottom, &left, &right);
 	left += 10;
 	top += 5;
 
 	wheight = GWHeight (Graphics);
 
-	for (i = 0; i <= Ncolors; i++)
+	if(! Monocolor)
 	{
-	/*
-	 * Numeric label
-	 */
-		cval = center + (i - Ncolors / 2) * step;
-		sprintf (string, "%.1f", cval);
+		for (i = 0; i <= Ncolors; i++)
+		{
+		/*
+		 * Numeric label
+		 */
+			cval = center + (i - Ncolors / 2) * step;
+			sprintf (string, "%.1f", cval);
 
-
-		XSetForeground (XtDisplay (Graphics), Gcontext, 
-			Colors[i].pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, top, 
-			string, 0.0, 0.02, JustifyLeft, JustifyTop);
-		top += (int)(1.2 * 0.02 * wheight);
+	
+			XSetForeground (XtDisplay (Graphics), Gcontext, 
+				Colors[i].pixel);
+			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+				left, top, string, 0.0, 0.02, JustifyLeft, 
+				JustifyTop);
+			top += (int)(1.2 * 0.02 * wheight);
+		}
+	}
+	else
+	{
+		XSetForeground(XtDisplay(Graphics), Gcontext, Ctclr.pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+				left, top, px_FldDesc(c, fname), 0.0, 0.02, 
+				JustifyLeft, JustifyTop);
 	}
 }
 
@@ -634,7 +647,7 @@ float	*center, *step;
  * description.
  */
 {
-	char	ctname[40], platform[40];
+	char	ctname[40], platform[40], ctcolor[40];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
@@ -650,7 +663,22 @@ float	*center, *step;
 		SYMT_FLOAT);
 	ok &= pda_ReqSearch (Pd, c, "contour-step", fname, (char *) step, 
 		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctname, 
+	Monocolor = FALSE;
+	pda_Search(Pd, c, "color-mono", "contour", (char *) &Monocolor,
+		SYMT_BOOL);
+	if(Monocolor)
+	{
+		ok &= pda_Search(Pd, c, "color", "contour", ctcolor,
+			SYMT_STRING);
+		if(! ct_GetColorByName(ctcolor, &Ctclr))
+		{
+			msg_ELog(EF_PROBLEM, "Can't get contour color '%s'.",
+				ctcolor);
+			strcpy(ctcolor,"white");
+			ct_GetColorByName(ctcolor, &Ctclr);
+		}
+	}
+	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctname, 
 		SYMT_STRING);
 
 	if (! ok)
@@ -668,7 +696,8 @@ float	*center, *step;
 /*
  * Grab the color table
  */
-	ct_LoadTable (ctname, &Colors, &Ncolors);
+	if(! Monocolor)
+		ct_LoadTable (ctname, &Colors, &Ncolors);
 /*
  * Get the data (pass in plot time, get back actual data time)
  */
@@ -715,8 +744,10 @@ float	*center, *step;
 			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
 		break;
 	    case LineContour:
-		CO_Init (Colors, Ncolors, Ncolors / 2, black, clip, TRUE, 
-			BADVAL);
+		if(! Monocolor)
+			CO_Init (Colors, Ncolors, Ncolors / 2, black, clip, 
+				TRUE, BADVAL);
+		else CO_InitMono (Ctclr, clip, TRUE, BADVAL);
 		Contour (Graphics, GWFrame (Graphics), grid, xdim, ydim,
 			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step, 
 			dolabels, linewidth);

@@ -16,7 +16,8 @@ static int	Use_flag = FALSE;
  * Color stuff
  */
 static int	Color_center = 1, Ncolor = 1;
-static XColor	*Colors, Color_outrange;
+static XColor	*Colors, Color_outrange, Color_mono;
+static int	Monoflag;
 
 /*
  * Clipping rectangle

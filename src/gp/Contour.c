@@ -54,7 +54,8 @@ static int	Ltoggle = FALSE;
  * Forward declarations
  */
 void	CO_MinMax (), CO_DoContours (), CO_DrawContour ();
-void	CO_Init (), CO_FollowContour (), CO_FirstPoint (), CO_AddPoint ();
+void	CO_Init (), CO_FollowContour (), CO_FirstPoint (), CO_AddPoint (),
+	CO_InitMono();
 
 /*
  * The size of our drawable
@@ -142,11 +143,14 @@ int	dolabels, linewidth;
 	cndx_min = (int) ceil ((min - ccenter) / cstep);
 	cndx_max = (int) floor ((max - ccenter) / cstep);
 
-	if (cndx_min < -(Ncolor / 2 + 6))
-		cndx_min = -(Ncolor / 2 + 6);
+	if(! Monoflag)
+	{
+		if (cndx_min < -(Ncolor / 2 + 6))
+			cndx_min = -(Ncolor / 2 + 6);
 
-	if (cndx_max > (Ncolor / 2 + 6))
-		cndx_max = (Ncolor / 2 + 6);
+		if (cndx_max > (Ncolor / 2 + 6))
+			cndx_max = (Ncolor / 2 + 6);
+	}
 /*
  * Loop through the contour values
  */
@@ -157,10 +161,12 @@ int	dolabels, linewidth;
 	 * Assign the color and grab a graphics context with this
 	 * color in the foreground and with the user's clip rectangle
 	 */
-		if (ABS (cndx) > (Ncolor - 1) / 2)
-			Pix = Color_outrange.pixel;
-		else
-			Pix = Colors[Color_center + cndx].pixel;
+		if(Monoflag)
+			Pix = Color_mono.pixel;
+		else if (ABS (cndx) > (Ncolor - 1) / 2)
+				Pix = Color_outrange.pixel;
+			else
+				Pix = Colors[Color_center + cndx].pixel;
 
 		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 		XSetForeground (XtDisplay (W), Gcontext, Pix);
@@ -246,6 +252,7 @@ float	flagval;
  * Center color index and number of colors.
  * Make sure Ncolor is odd, so the Color_center is actually at the center
  */
+	Monoflag = FALSE;
 	Color_center = center;
 	Ncolor = (count % 2) ? count : count - 1;
 	Colors = colors;
@@ -253,6 +260,39 @@ float	flagval;
  * Color index for out-of-range contours
  */
 	Color_outrange = c_outrange;
+/*
+ * Clip rectangle
+ */
+	Clip = clip;
+/*
+ * Handle data flagging, if any
+ */
+	Use_flag = flagged;
+	Badflag = flagval;
+}
+
+
+void
+CO_InitMono (color, clip, flagged, flagval)
+int	flagged;
+XColor	color;
+XRectangle	clip;
+float	flagval;
+/*
+ * Initialize monochrome color and data flagging
+ *
+ * CLIP		XRectangle structure describing the rectangle to use
+ *		for clipping the plot
+ * FLAGGED	Boolean value telling whether the bad values in the data
+ * 		will be flagged
+ * FLAGVAL	the bad value used to identify flagged data
+ */
+{
+/*
+ * Set the monochrome flag to true and save the color.
+ */
+	Monoflag = TRUE;
+	Color_mono = color;
 /*
  * Clip rectangle
  */
