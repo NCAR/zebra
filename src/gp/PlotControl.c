@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.6 1991-12-19 17:46:27 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.7 1992-01-02 16:56:10 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -34,6 +34,7 @@ static char *rcsid = "$Id: PlotControl.c,v 2.6 1991-12-19 17:46:27 kris Exp $";
 
 # ifdef __STDC__
 	int pc_TimeTrigger (char *);
+	void pc_TriggerGlobal();
 	static void pc_SetTimeTrigger (int, char *);
 	static void pc_PlotAlarm (time *, char *);
 	static void pc_FrameAlarm ();
@@ -43,6 +44,7 @@ static char *rcsid = "$Id: PlotControl.c,v 2.6 1991-12-19 17:46:27 kris Exp $";
 	static void pc_DoTrigger (char *, char *, int);
 # else
 	int pc_TimeTrigger ();
+	void pc_TriggerGlobal();
 	static void pc_SetTimeTrigger ();
 	static void pc_PlotAlarm ();
 	static void pc_FrameAlarm ();
@@ -664,4 +666,10 @@ pc_NextFrame ()
 	DisplayFrame %= FrameCount;
 	GWDisplayFrame (Graphics, DisplayFrame);
 	XSync (XtDisplay (Top), False);
+}
+
+void
+pc_TriggerGlobal()
+{
+    Eq_AddEvent (PDisplay, pc_Plot, "global", 7, Augment);
 }
