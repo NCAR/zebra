@@ -17,7 +17,7 @@ extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
 # ifdef DEV_X11
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
-extern int x11_pixel ();
+extern int x11_pixel (), x11_put_target ();
 # endif
 # ifdef DEV_RAMTEK
 extern int rm_open (), rm_clear (), rm_flush (), rm_poly (), rm_color_map ();
@@ -209,7 +209,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment end		*/
 		___,			/* (no) Segment attributes	*/
 		x11_target,		/* Read target			*/
-		___,			/* (no) Put target		*/
+		x11_put_target,		/* (no) Put target		*/
 		x11_casn,		/* Color assignment		*/
 		___,		/* Exposure checking		*/
 		___,		/* (no)	viewport adjustment	*/
