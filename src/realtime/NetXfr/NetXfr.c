@@ -19,17 +19,19 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 3.5 1994-11-17 06:44:13 granger Exp $";
+# include <signal.h>
+# include <string.h>
 
 # include <copyright.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
-# include <signal.h>
 # include <config.h>
 # include "DataStore.h"
 # include "NetXfr.h"
 
+
+RCSID("$Id: NetXfr.c,v 3.6 1995-04-20 07:57:10 granger Exp $")
 
 
 /*
@@ -132,7 +134,9 @@ static int	Incoming FP ((Message *));
 static void	Die FP ((void));
 static int	Dispatcher FP ((int, struct ui_command *));
 static void	NewRecipients FP ((struct ui_command *));
+#ifdef notdef
 static void	Run FP ((void));
+#endif
 static void	DataAvailable FP ((PlatformId, int, ZebTime *, int, UpdCode));
 static int	NXMessage FP ((Message *));
 static void	SendAux FP ((PlatformId, AuxDataChain));
@@ -147,8 +151,10 @@ static void	ZapIP FP ((InProgress *));
 static void	Timeout FP ((UItime *, int));
 static void	AskRetrans FP ((InProgress *, int));
 void		ProcessPolled FP ((void));
+#ifdef notdef
 static void	RLEDecode FP ((unsigned char *, unsigned char *, int));
 static void 	canIP FP ((void));
+#endif
 void		SendDChunk FP ((DataChunk *, int));
 void		SendOut FP ((PlatformId, void *, int));
 static inline	DataBCChunk *NewBCChunk FP ((void));
@@ -191,6 +197,7 @@ void UglyDeath ()
 
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -264,6 +271,7 @@ char **argv;
 	Pid = getpid ();
 	ui_get_command ("initial", "NetXfr>", Dispatcher, 0);
 	Die ();
+	return (0);
 }
 
 
@@ -325,7 +333,7 @@ struct ui_command *cmds;
 	 * Direct image data out of the rasterizer.
 	 */
 	   case NXC_DIRIMAGE:
-	   	DirImage (UINT (cmds[1]));
+	   	DirImage (UPTR (cmds[1]));
 		break;
 	/*
 	 * Field definition.
@@ -635,7 +643,11 @@ int ns;
 	   case Org3dGrid:	class = DCC_RGrid; break;
 	   case OrgIRGrid:	class = DCC_IRGrid; break;
 	   case OrgScalar:	class = DCC_Scalar; break;
+	   case OrgNSpace:	class = DCC_NSpace; break;
 	   case OrgOutline:	class = DCC_Boundary; break;
+	   default:
+		msg_ELog (EF_PROBLEM, "plat %d, org not handled", plat);
+		return (NULL);
 	};
 /*
  * Get the data.
@@ -808,7 +820,7 @@ DataHdr *hdr;
 /*
  * BCast stuff.
  */
-	if (ip->ip_BCast = hdr->dh_BCast)
+	if ((ip->ip_BCast = hdr->dh_BCast))
 	{
 		ip->ip_NRetrans = ip->ip_NBCast = 0;
 		ip->ip_NBExpect = 1; /* Expect at least this many	*/
@@ -1031,7 +1043,7 @@ char *data;
 		save->dh_Next = PollQueue;
 		PollQueue = save;
 		msg_ELog (EF_INFO, "Saving polled pkt");
-		return;
+		return (0);
 	}
 /*
  * Look for this IP.  If we don't find it, we need to go to some more effort
@@ -1048,7 +1060,7 @@ char *data;
  */
 	if (chunk->dh_MsgType == NMT_DataBRetrans && ip->ip_Arrived &&
 			ip->ip_Arrived[chunk->dh_Chunk])
-		return;
+		return (0);
 /*
  * If this is the first broadcast packet, do some setup.
  */
@@ -1077,6 +1089,7 @@ char *data;
  */
 	if (ip->ip_Done && ip->ip_NBCast >= ip->ip_NBExpect)
 		FinishIP (ip);
+	return (0);
 }
 
 
@@ -1321,7 +1334,6 @@ InProgress *ip;
  * This one is done.
  */
 {
-	int i;
 	ZebTime zt;
 	char atime[30];
 /*
@@ -1331,7 +1343,7 @@ InProgress *ip;
 	TC_EncodeTime (&zt, TC_Full, atime);
 	msg_ELog (DbEL, "Store sequence %d ns %d at %s", ip->ip_Seq, 
 		dc_GetNSample (ip->ip_Dc), atime);
-	ds_Store (ip->ip_Dc, ip->ip_NewFile, 0, 0);
+	ds_StoreBlocks (ip->ip_Dc, ip->ip_NewFile, 0, 0);
 	ZapIP (ip);
 }
 

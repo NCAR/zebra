@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 3.2 1994-10-11 16:26:59 corbet Exp $ */
+/* $Id: NetXfr.h,v 3.3 1995-04-20 07:57:11 granger Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -179,10 +179,18 @@ extern int DbEL;
 void BCastSetup FP ((struct ui_command *));
 int BCastHandler FP ((int, char *, int));
 int DoBCast FP ((PlatformId, DataChunk *));
+void ProcessBCasts FP ((void));
+void DoReceive FP ((int port));
 void ReceiveSetup FP ((int));
 void SendOut FP ((PlatformId, void *, int));
+void SendDChunk FP ((DataChunk *dc, int newfile));
 void Retransmit FP ((DataRetransRq *));
 int ReadBCast FP ((int, char *, int));
+void DirImage FP ((char *plat));
+void DirImageAvail FP ((int set));
+void PrintDrops FP ((void));
+void PollBCast FP ((int process));
+void ShutdownSeg FP ((void));
 
 
 /*

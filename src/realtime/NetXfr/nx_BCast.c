@@ -18,7 +18,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 3.3 1993-08-04 17:17:40 granger Exp $";
 
 # include <sys/time.h>
 #ifdef SVR4
@@ -34,6 +33,7 @@ static char *rcsid = "$Id: nx_BCast.c,v 3.3 1993-08-04 17:17:40 granger Exp $";
 # include "DataStore.h"
 # include "NetXfr.h"
 
+RCSID("$Id: nx_BCast.c,v 3.4 1995-04-20 07:57:13 granger Exp $")
 
 /*
  * Local stuff.
@@ -83,8 +83,9 @@ void Delay FP ((void));
 void Alarm FP ((int));
 static int BCastPlain FP ((tx_BCast *, DataBCChunk *, char *, int));
 static int BCastRLE FP ((tx_BCast *, DataBCChunk *, char *, int));
+#ifdef notdef
 static int RLEncode FP ((unsigned char *, DataBCChunk *, int));
-
+#endif
 
 
 void
@@ -144,7 +145,7 @@ DataChunk *dc;
 {
 	tx_BCast *bcp;
 	DataBCChunk template;
-	int fld, nchunk, nsent, bfld;
+	int nsent;
 	char *cdata = (char *) dc->dc_Data;
 /*
  * Set up to output this sequence.
@@ -194,9 +195,8 @@ int nbyte;
  * Send this stuff out run-length encoded.
  */
 {
-	int count, inlit = FALSE, npacket = 0, nbsent = 0, ninpack;
+	int npacket = 0, nbsent = 0, ninpack;
 	int cmplen = 0;
-	unsigned char *runbegin, *cdest;
 	DataBCChunk *chunk;
 /*
  * Keep sending packets as long as data remains.
@@ -499,7 +499,7 @@ void *junk;
 	 * Find the broadcast structure that can satisfy this one, and
 	 * send out the chunk.
 	 */
-	 	if (bcp = FindBCP (req->dh_DataSeq))
+	 	if ((bcp = FindBCP (req->dh_DataSeq)))
 		{
 			if (req->dh_Chunk > bcp->txb_NChunk)
 			{

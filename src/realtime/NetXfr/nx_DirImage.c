@@ -18,8 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_DirImage.c,v 3.2 1993-07-01 20:17:23 granger Exp $";
-
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
@@ -27,6 +26,7 @@ static char *rcsid = "$Id: nx_DirImage.c,v 3.2 1993-07-01 20:17:23 granger Exp $
 # include <ImageXfr.h>
 # include "NetXfr.h"
 
+RCSID("$Id: nx_DirImage.c,v 3.3 1995-04-20 07:57:14 granger Exp $")
 
 /*
  * We're only set up to deal with one image source for now.  Should
@@ -41,6 +41,7 @@ static PlatformId Plat;
 
 
 static void TrimXY FP ((const unsigned char * , int *, int *, int));
+static int TrimImage FP ((unsigned char *image, int *min, int *max));
 static void AdjoinImage FP ((unsigned char *, int, int, int, int));
 
 void
@@ -96,7 +97,7 @@ int set;
 	ZebTime zt;
 	ScaleInfo scale[2];
 	char *images[4], *attr;
-	int xmin, ymin, xmax, ymax, i, offset, fnb;
+	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
 	float junk;
 	DataChunk *dc;
@@ -166,7 +167,7 @@ int set;
 
 
 
-int
+static int
 TrimImage (image, min, max)
 unsigned char *image;
 int *min, *max;
@@ -233,7 +234,7 @@ int *xmin, *xmax, ny;
  * Return the info and we're done.  Enforce a raster line width that is
  * divisible by four, however.
  */
-	if (rem = ((xmx - xmn + 1) % 4))
+	if ((rem = ((xmx - xmn + 1) % 4)))
 		if ((xmn -= (4 - rem)) < 0)
 		{
 			xmx -= xmn;
@@ -257,7 +258,8 @@ int xmin, ymin, xmax, ymax;
  * Reunite this image.
  */
 {
-	int nx = (xmax - xmin + 1), ny = (ymax - ymin + 1), x, y, im;
+	int nx = (xmax - xmin + 1);
+	int x, y;
 	const int incr = XRes - nx;
 	const unsigned char *cp;
 	unsigned char *mp = image;

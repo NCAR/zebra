@@ -18,7 +18,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 3.4 1994-02-02 20:20:48 burghart Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -31,6 +30,8 @@ static char *rcsid = "$Id: nx_PktGrabber.c,v 3.4 1994-02-02 20:20:48 burghart Ex
 # include <message.h>
 # include "DataStore.h"
 # include "NetXfr.h"
+
+RCSID("$Id: nx_PktGrabber.c,v 3.5 1995-04-20 07:57:15 granger Exp $")
 
 /*
  * The header of our shared memory segment.
@@ -212,6 +213,7 @@ ProcessBCasts ()
 }
 
 
+void
 PrintDrops ()
 {
 	if (Seg && Seg->sm_NDrop)
@@ -310,6 +312,7 @@ Message *msg;
 	   	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 		break;
 	}
+	return (0);
 }
 
 
@@ -333,6 +336,9 @@ Message *msg;
 	   case NMT_NewPort:
 		msg_ELog(EF_INFO,"Opening port %d", ((NewPort *) tm)->dh_Port);
 	   	ReceiveSetup (((NewPort *) tm)->dh_Port);
+		break;
+	   default:
+		/* not handling any others */
 		break;
 	}
 	return (0);
