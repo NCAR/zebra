@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.14 1997-03-26 17:02:41 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.15 1997-06-06 22:37:00 ishikawa Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -546,11 +546,24 @@ Depend::								@@\
 /*
  * The rule which actually generates dependency rules for set of source
  * files using a particular compiler, then appends the rules to $(MDFILE).
+ * IBM's xlc compiler generates .u files instead of output to stdout
+ * when using -M option.
  */
+
+#if defined (AIXArchitecture) && ! UseGcc
+#define ZebraDependTarget(cc,src)					@@\
+									@@\
+dependencies::								@@\
+	cc $(ALLDEFINES) $(DEPEND_DEFINES) src ; \ 			@@\
+	cat *.u >> $(MDFILE) ; rm *.i *.u ;
+
+#else
 #define ZebraDependTarget(cc,src)					@@\
 									@@\
 dependencies::								@@\
 	cc $(ALLDEFINES) $(DEPEND_DEFINES) src >> $(MDFILE)		@@\
+
+#endif
 
 /* ZebraDependTarget */
 
