@@ -1,4 +1,5 @@
-MFVERSION="$Id: Imakefile,v 1.3 1997-01-13 22:29:49 granger Exp $"
+/* -*- C -*- */
+MFVERSION="$Id: Imakefile,v 1.4 1997-07-24 19:05:29 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -50,8 +51,6 @@ install:: libfips123.a
 
 DependTarget()
 LintTarget()
-
-DistfilesTarget($(DISTFILES))
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
