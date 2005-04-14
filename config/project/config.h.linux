@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.linux,v 1.4 2004-01-12 23:47:11 burghart Exp $
+XCOMM $Id: config.h.linux,v 1.5 2005-04-14 15:05:25 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -328,8 +328,8 @@ XCOMM -----------------------------------------------------------------------
 # define XIncDir /usr/X11R6/include
 #endif
 
-#define NetCDFIncDir /net/opt_lnx/local_rh90/include
-#define UDUnitsIncDir /net/opt_lnx/local_rh90/include
+#define NetCDFIncDir /opt/local/include
+#define UDUnitsIncDir /opt/local/include
 
 /*
  * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
@@ -383,7 +383,7 @@ XCOMM -----------------------------------------------------------------------
  * all this.
  */
 # define PCAPLibrary 	-lpcap
-# define PCAPIncludes 	-I/net/opt_lnx/local_rh90/include
+# define PCAPIncludes 	-I/opt/local/include
 
 /*
  * The graphics process can be built to do map projections.  Projections
@@ -397,8 +397,8 @@ XCOMM -----------------------------------------------------------------------
  * appropriate value. 
  */
 # define MapProjections YES
-# define ProjLibDir /net/opt_lnx/local_rh90/lib
-# define ProjIncDir /net/opt_lnx/local_rh90/include
+# define ProjLibDir /opt/local/lib
+# define ProjIncDir /opt/local/include
 	
 /*
  * Examples of command-line options which override the above definitions
@@ -433,8 +433,8 @@ XCOMM -----------------------------------------------------------------------
 # define XLibDir /usr/X11R6/lib
 /* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
-# define NetCDFLibDir /net/opt_lnx/local_rh90/lib
-# define UDUnitsLibDir /net/opt_lnx/local_rh90/lib
+# define NetCDFLibDir /opt/local/lib
+# define UDUnitsLibDir /opt/local/lib
 
 /*
  * To specify the whole command-line option for a library use the symbols
