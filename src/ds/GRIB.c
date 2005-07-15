@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.14 1999-03-01 02:03:33 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.15 2005-07-15 22:14:42 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -382,6 +382,11 @@ GFpds	*pds;
 	    case 4:
 	    case 5:
 		return (grb_TimeUnits (pds) * pds->p2);
+	/*
+	 * Period is 2 bytes: (256 * P1 + P2)
+	 */
+	    case 10:
+	        return (grb_TimeUnits (pds) * ((256 * pds->p1) + pds->p2));
 	/*
 	 * Climatological Mean Value.  See the GRIB documentation for details.
 	 * We just assign the reference time.
