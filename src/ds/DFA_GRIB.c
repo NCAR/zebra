@@ -40,7 +40,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.48 2002-09-17 18:28:43 granger Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.49 2005-07-15 22:13:40 burghart Exp $")
 
 
 /*
@@ -749,7 +749,7 @@ int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
 /*
  * How many vertical levels can we handle? 
  */
-# define MAXLEVELS	50
+# define MAXLEVELS	100
 
 /*
  * Winds info.  Since this stuff takes a while to calculate, we keep track
