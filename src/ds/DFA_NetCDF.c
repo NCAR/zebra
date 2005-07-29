@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.85 2004-07-22 20:59:58 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.86 2005-07-29 21:38:03 granger Exp $")
 
 /*
  * Location fields: standard attributes
@@ -224,7 +224,8 @@ static void     dnc_LoadLocation FP ((NCTag *, Location *, long, long));
 static void	dnc_SPBuildIndex FP ((NCTag *tag));
 static int	dnc_SPIndex FP ((NCTag *tag, PlatformId pid));
 static int      dnc_BuildPMap FP ((NCTag *, int pdim));
-static void     dnc_CFMakeDims FP ((NCTag *, DataChunk *, int *, int *));
+static void     dnc_CFMakeDims FP ((NCTag *, DataChunk *, int *, int *,
+				    dsDetail *details, int ndetail));
 static void     dnc_CFMakeVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFScalarVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFGridVars FP ((NCTag *, DataChunk *));
@@ -261,11 +262,13 @@ static int	dnc_NSpaceVarPut FP ((NCTag *tag, DataChunk *dc, int varid,
 				      FieldId fid, long *start, long *count, 
 				      int ndim, DataPtr data));
 static int	dnc_PutRecords FP ((OpenFile *ofp, DataChunk *dc,
-				    int sample, int nsample, long start));
+				    int sample, int nsample, 
+				    long start[], long count[], int ndim));
 static void	dnc_PutStatic FP ((OpenFile *ofp, DataChunk *dc));
 static void	dnc_DefineVars FP ((NCTag *tag, DataChunk *dc, int ndim,
 				    int *dims));
-static void	dnc_DefineNSpaceDims FP ((NCTag *tag, DataChunk *dc));
+static void     dnc_DefineNSpaceDims(NCTag *tag, DataChunk *dc, 
+				     dsDetail *details, int n);
 static int	dnc_DefineNSpaceVar FP ((NCTag *tag, DataChunk *dc,
 					 FieldId fid, int ndim, int *dims));
 static void	dnc_DefineLocVars FP ((NCTag *tag, DataChunk *dc,
@@ -284,6 +287,9 @@ static int	dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
 static FieldId	dnc_GetFieldByName FP ((NCTag *tag, char *fname));
 static zbool	dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, 
 			       double val);
+static int
+dnc_defineDimension (NCTag* tag, char* name, int len,
+		     dsDetail* details, int ndetail);
 
 
 static inline double
@@ -2939,7 +2945,7 @@ int ndetail;
  */
 	ndim = 1;
 	dims[0] = tag->nc_dTime;
-	dnc_CFMakeDims (tag, dc, &ndim, dims);
+	dnc_CFMakeDims (tag, dc, &ndim, dims, details, ndetail);
 /*
  * Make the time variables.  The time_offset field is now stored as a double
  * so we have sufficient precision to represent reasonable time offsets down
@@ -2981,6 +2987,11 @@ int ndetail;
 	ncattput (tag->nc_id, tag->nc_vTime, VATT_UNITS, NC_CHAR,
 		  strlen(full_time)+1, full_time);
 
+/*
+ * If the DC is NSpace, we have some dimensions to define first
+ */
+	if (dc->dc_Class == DCC_NSpace)
+		dnc_DefineNSpaceDims(tag, dc, details, ndetail);
 	dnc_DefineVars(tag, dc, ndim, dims);
 	dnc_PutGlobalAttributes(tag, dc);
 /*
@@ -3016,11 +3027,6 @@ int *dims;
 	int var;
 	long varid;
 	struct AttArg attarg;
-/*
- * If the DC is NSpace, we have some dimensions to define first
- */
-	if (dc->dc_Class == DCC_NSpace)
-		dnc_DefineNSpaceDims(tag, dc);
 
 	fids = dc_GetFields (dc, &nfield);
 	for (var = 0; var < nfield; var++)
@@ -3100,9 +3106,11 @@ int *dims;
 
 
 static void
-dnc_DefineNSpaceDims(tag, dc)
+dnc_DefineNSpaceDims(tag, dc, details, ndetail)
 NCTag *tag;
 DataChunk *dc;
+dsDetail *details;
+int ndetail;
 {
 	char *names[ DC_MaxDimension ];
 	unsigned long sizes[ DC_MaxDimension ];
@@ -3110,9 +3118,13 @@ DataChunk *dc;
 
 	ndim = dc_NSGetAllDimensions (dc, names, /*dimn ids*/NULL, sizes);
 
+	/* Allow the fixed dimension detail to specify the length instead
+	 * of using the dimension size from this datachunk, in case larger
+	 * dimensions are coming.
+	 */
 	for (i = 0; i < ndim; ++i)
 	{
-		ncdimdef (tag->nc_id, names[i], sizes[i]);
+	  dnc_defineDimension(tag, names[i], sizes[i], details, ndetail);
 	}
 }
 
@@ -3216,7 +3228,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.85 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.86 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
@@ -3249,13 +3261,27 @@ void *arg;
 
 
 
+static int
+dnc_defineDimension (NCTag* tag, char* name, int len,
+		     dsDetail* details, int ndetail)
+{
+  int fixedlength;
+  if (dc_NSFixedDimension (details, ndetail, name, &fixedlength))
+  {
+    len = fixedlength;
+    msg_ELog (EF_DEBUG, "fixing dimn %s length at %i", name, len);
+  }
+  return ncdimdef (tag->nc_id, name, len);
+}
 
 
 static void
-dnc_CFMakeDims (tag, dc, ndim, dims)
+dnc_CFMakeDims (tag, dc, ndim, dims, details, ndetail)
 NCTag *tag;
 DataChunk *dc;
 int *ndim, *dims;
+dsDetail *details;
+int ndetail;
 /*
  * Create the dimensions for this file organization.
  */
@@ -3279,10 +3305,17 @@ int *ndim, *dims;
 	   case Org1dGrid:
 	   	dc_RGGeometry (dc, 0, 0, &rg);
 		if (tag->nc_org == Org3dGrid)
-			dims[(*ndim)++] = ncdimdef (tag->nc_id, "z", rg.rg_nZ);
+		{
+		  dims[(*ndim)++] = 
+		    dnc_defineDimension(tag, "z", rg.rg_nZ, details, ndetail);
+		}
 		if (tag->nc_org == Org3dGrid || tag->nc_org == Org2dGrid)
-			dims[(*ndim)++] = ncdimdef (tag->nc_id, "y", rg.rg_nY);
-		dims[(*ndim)++] = ncdimdef (tag->nc_id, "x", rg.rg_nX);
+		{
+		  dims[(*ndim)++] = 
+		    dnc_defineDimension(tag, "y", rg.rg_nY, details, ndetail);
+		}
+		dims[(*ndim)++] = 
+		  dnc_defineDimension(tag, "x", rg.rg_nX, details, ndetail);
 		break;
 	/*
 	 * IRGrids are funky.
@@ -3797,7 +3830,7 @@ int ndetail;
  * Work out coords and data stuff now.
  */
 	dnc_DoWriteCoords (tag, dc, sample, start, count, &ndim);
-	dnc_PutRecords (ofp, dc, sample, nsample, start[0]);
+	dnc_PutRecords (ofp, dc, sample, nsample, start, count, ndim);
 	dnc_PutStatic (ofp, dc);
 /*
  * For mobile platforms, we need to store the location info too.
@@ -3851,14 +3884,15 @@ FieldId dpids[];
 
 
 
-
 static int
-dnc_PutRecords (ofp, dc, sample, nsample, start)
+dnc_PutRecords (ofp, dc, sample, nsample, start, count, ndim)
 OpenFile *ofp;
 DataChunk *dc;
 int sample;
 int nsample;
-long start;
+long start[];
+long count[];
+int ndim;
 /*
  * Store the record variables sample by sample, taking advantage of a uniform
  * sample stride when possible.
@@ -3866,30 +3900,42 @@ long start;
 {
 	NCTag *tag = TAGP (ofp);
 	int i, f;
-	int sampsize;
+	int sampsize = 0;
 	int nrvars, rvarids[ MAXFIELD ];
 	FieldId dpids[ MAXFIELD ];
+	int len[ MAXFIELD ];
 	void *dp[ MAXFIELD ];
 
 	dnc_InquireRecord (tag, dc, &nrvars, rvarids, dpids);
 	if (dc_SampleStride (dc, &sampsize))
 	{
-		dc_GetMVector (dc, sample, nrvars, dpids, dp, NULL);
-		for (i = 0; i < nsample; ++i)
-		{
-			ncrecput (tag->nc_id, start+i, dp);
-			for (f = 0; f < nrvars; ++f)
-				if (dp[f]) dp[f] = (char *)dp[f] + sampsize;
-		}
+	  dc_GetMVector (dc, sample, nrvars, dpids, dp, len);
 	}
-	else
+	/* We're working one sample at a time. */
+	count[0] = 1;
+	for (i = 0; i < nsample; ++i)
 	{
-		for (i = 0; i < nsample; ++i)
-		{
-			dc_GetMVector (dc, sample+i, nrvars, dpids, dp, NULL);
-			ncrecput (tag->nc_id, start+i, dp);
-		}
+	  if (! sampsize)
+	    dc_GetMVector (dc, sample+i, nrvars, dpids, dp, len);
+	  for (f = 0; f < nrvars; ++f)
+	  {
+	    if (! dp[f])
+	      continue;
+	    if (dc->dc_Class == DCC_NSpace)
+	    {
+	      dnc_NSpaceVarPut(tag, dc, rvarids[f], dpids[f],
+			       start, count, ndim, dp[f]);
+	    }
+	    else
+	    {
+	      ncvarput(tag->nc_id, rvarids[f], start, count, dp[f]);
+	    }
+	    if (sampsize)
+	      dp[f] = (char *)dp[f] + sampsize;
+	  }
+	  start[0] += 1;
 	}
+	start[0] -= nsample;
 	return (0);
 }
 
@@ -3978,7 +4024,7 @@ int *ndim;
 			count[c++] = rg.rg_nZ;
 		if (tag->nc_org == Org3dGrid || tag->nc_org == Org2dGrid)
 			count[c++] = rg.rg_nY;
-		count[c] = rg.rg_nX;
+		count[c++] = rg.rg_nX;
 		break;
 	/*
 	 * In irregular grid land we just qualify by the number of platforms.

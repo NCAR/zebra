@@ -1335,7 +1335,7 @@ ZebTime *when;
 	for (i = 0; i < DC_MaxField - 4; ++i)
 	{
 		sprintf (buf, "sgp915f%d", i);
-		fid = F_DeclareField (buf, buf, "None");
+		fid = F_DeclareField (buf, buf, "1");
 		dc_NSDefineVariable (dc, fid, 3, dims, FALSE);
 		dfields[nfield++] = fid;
 	}
