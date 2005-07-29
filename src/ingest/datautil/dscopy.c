@@ -25,7 +25,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.10 1999-06-15 16:48:25 burghart Exp $")
+MAKE_RCSID ("$Id: dscopy.c,v 1.11 2005-07-29 21:42:00 granger Exp $")
 
 
 # define MAX_TIMES 10000
@@ -48,10 +48,12 @@ MAKE_RCSID ("$Id: dscopy.c,v 1.10 1999-06-15 16:48:25 burghart Exp $")
 PlatformId Source = BadPlatform, Dest = BadPlatform;
 FieldId Fids[MAXFLD], RFids[MAXFLD];
 int NField = 0, NRField = 0;
-ZebTime Begin = { 0, 0 }, End = { 0, 0 };
+ZebTime Begin, End;
 DataClass Class;	/* Class of data we move. */
 
 zbool PreserveObs = TRUE;
+
+char DimensionDetails[256] = "";
 
 /*
  * Forwards.
@@ -73,6 +75,8 @@ char **argv;
 {
 	char loadfile[100], pname[100];
 	SValue v;
+	Begin = ZT_EPOCH;
+	End = ZT_END;
 /*
  * Hook into the user interface.
  */
@@ -89,6 +93,8 @@ char **argv;
 	SetupConfigVariables ();
 	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "preserveobs",
 		&PreserveObs, SYMT_BOOL, 0);
+	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "dimensions",
+		DimensionDetails, SYMT_STRING, sizeof(DimensionDetails));
 /*
  * Hook into the message system.
  */
@@ -184,10 +190,6 @@ Go ()
 		ui_error ("No source platform specified");
 	if (Dest == BadPlatform)
 		ui_error ("No destination platform specified");
-	if (Begin.zt_Sec == 0)
-		ui_error ("No begin time");
-	if (End.zt_Sec == 0)
-		ui_error ("No end time");
 /*
  * Get the times for the source platform.
  */
@@ -217,6 +219,7 @@ Go ()
 	   case OrgOutline:	Class = DCC_Boundary; break;
 	   case OrgCmpImage:
 	   case OrgImage:	Class = DCC_Image; break;
+	   case OrgNSpace:	Class = DCC_NSpace; break;
 	}
 /*
  * Do it.  Times come in descending order, so we reverse them here for the
@@ -238,14 +241,24 @@ int *ntime;
  * Make a list of observation times.
  */
 {
-	static ZebTime Times[500];	/* XXX ! */
-	int nt, i;
+  ZebTime* Times = malloc(1024*sizeof(ZebTime));
+  int nalloc = 1024;
+  int nt, i;
 
-	nt = ds_GetObsTimes (Source, &End, Times, 500, 0);
-	for (*ntime = 0; *ntime < nt; (*ntime)++)
-		if (TC_Less (Times[*ntime], Begin))
-			break;
-	return (*ntime ? Times : 0);
+  /* keep retrieving observation times until they all fit */
+  while ((nt = ds_GetObsTimes (Source, &End, Times, nalloc, 0)) == nalloc)
+  {
+    nalloc += 1024;
+    Times = realloc(Times, nalloc*sizeof(ZebTime));
+  }
+  *ntime = 0;
+  for (i = 0; i < nt; ++i)
+  {
+    if (TC_Less (Times[i], Begin))
+      break;
+    ++(*ntime);
+  }
+  return (*ntime ? Times : 0);
 }
 
 
@@ -259,6 +272,8 @@ ZebTime *t;
  * Figure out the fields.
  */
 {
+  FieldId* fp;
+  int i;
 /*
  * If they gave no fields, we do them all.
  */
@@ -267,6 +282,16 @@ ZebTime *t;
 		NField = MAXFLD;
 		ds_GetFields (Source, t, &NField, Fids);
 	}
+	fp = Fids;
+	for (i = 0; i < NField; ++i)
+	{
+	  if (!strcmp(F_GetName(Fids[i]), "lat") 
+	      || !strcmp(F_GetName(Fids[i]), "lon")
+	      || !strcmp(F_GetName(Fids[i]), "alt"))
+	    continue;
+	  *fp++ = Fids[i];
+	}
+	NField = fp - Fids;
 }
 
 
@@ -313,13 +338,18 @@ ZebTime *t;
 	int nsample, samp, fld;
 	DataChunk *dc;
 	char atime[40];
+	dsDetail details[10];
+	int ndetail = 0;
 
+	if (strlen(DimensionDetails) > 0)
+	{
+	  dc_NSFixedDetails(DimensionDetails, details, &ndetail);
+	  ui_printf ("Setting %d details from %s\n", ndetail, 
+		     DimensionDetails);
+	}
+	ds_SetDetail (DD_NC_ONE_TIME, details, ndetail++);
 	TC_EncodeTime (t, TC_Full, atime);
 	DoFields (t);
-	ui_nf_printf ("Doing obs at %s, %d fields: ", atime, NField);
-	for (fld = 0; fld < NField; fld++)
-		ui_nf_printf ("%s ", F_GetName (Fids[fld]));
-	ui_printf ("\n");
 /*
  * Get the times available in this observation.
  */
@@ -331,25 +361,37 @@ ZebTime *t;
 		times[0] = *t;
 	}
 	/* XXX XXX XXX */
+	ui_nf_printf ("Doing obs at %s, %d samples, %d fields: ", 
+		      atime, nsample, NField);
+	for (fld = 0; fld < NField; fld++)
+		ui_nf_printf ("%s ", F_GetName (Fids[fld]));
+	ui_printf ("\n");
 /*
  * Now just do them.
  */
 	for (samp = 0; samp < nsample; samp++)
 	{
+	        TC_EncodeTime (times+samp, TC_Full, atime);
 		dc = ds_Fetch (Source, Class, times + samp, times + samp,
 			Fids, NField, 0, 0);
+		if (! dc)
+		{
+		  ui_printf("*** Failed to read sample at %s, skipping.\n", 
+			    atime);
+		  continue;
+		}
 		dc->dc_Platform = Dest;
+# ifdef notdef
 		if (samp == 0)
 		{
 		    char sname[80];
 		    strcpy (sname, ds_PlatformName (Source));
 		    dc_SetGlobalAttr (dc, "copied_from", sname);
 		}
-# ifdef notdef
 		ui_printf ("Samp %3d: %.2f\n", samp,
 			dc_GetScalar (dc, 0, Fids[0]));
 # endif
-		ds_Store (dc, PreserveObs && samp == 0, 0, 0);
+		ds_Store (dc, PreserveObs && samp == 0, details, ndetail);
 		dc_DestroyDC (dc);
 	}
 }
