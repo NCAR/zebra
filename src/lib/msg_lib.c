@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.51 1999-08-10 23:10:59 burghart Exp $")
+RCSID ("$Id: msg_lib.c,v 2.52 2005-07-29 21:28:45 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -173,6 +173,11 @@ char *ident;
 	struct mh_greeting greet;
 	struct mh_ident id;
 	char *sn = NULL;
+
+	MZERO(saddr);
+	MZERO(msg);
+	MZERO(greet);
+	MZERO(id);
 /*
  * Preserve our identity
  */
@@ -365,6 +370,7 @@ msg_SendPID ()
  */
 {
 	struct mh_pidmsg pid;
+	MZERO(pid);
 
 	pid.mh_type = MH_PID;
 	pid.mh_pid = getpid ();
@@ -490,6 +496,8 @@ char *group;
 {
 	struct message msg;
 	struct mh_ident ident;
+	MZERO(msg);
+	MZERO(ident);
 /*
  * Put together the JOIN message.
  */
@@ -1256,6 +1264,7 @@ int type, broadcast, datalen;
  */
 {
 	struct message msg;
+	MZERO(msg);
 /*
  * We shouldn't try to send anything if the handler is shutting down
  */

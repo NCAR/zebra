@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.37 1999-08-10 23:10:59 burghart Exp $ */
+/* $Id: message.h,v 2.38 2005-07-29 21:28:45 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -379,6 +379,8 @@ void cp_SetupCmdHandler FP ((int (*fn)(/* char * */)));
  * rather than (fd_set *).  They finally got it right.
  */
 typedef fd_set SelectSet;
+
+#define MZERO(s) memset((void*)&s,0,sizeof(s))
 
 /*
  * The message manager and library reference the netread functions, 
