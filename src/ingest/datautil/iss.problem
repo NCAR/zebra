@@ -1,4 +1,0 @@
-	source surface_met
-	destination surface_cat
-	times 2-may-93 4-may-93
-	set preserveObs false

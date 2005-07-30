@@ -15,88 +15,26 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.19 1999-06-15 16:44:35 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.20 2005-07-30 06:51:53 granger Exp $"
 
-#define IHaveSubdirs
-#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
-
-PROGRAMS = dscopy convmud cdf_interpolate tao_conv gprotocdf \
-           mudtocdf netcdf_fixlon
-
-SUBDIRS = profiler surface
-DISTSUBDIRS = $(SUBDIRS)
+PROGRAMS = dscopy
 
 LIBS = $(ZLIBS) $(LIBNETCDF)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-SRCS  = convmud.c dscopy.c gprotocdf.c mudtocdf.c tao_conv.c \
-	mudutil.c cdf_interpolate.c dump-fgp.c readgp.c fix_cdf.c \
-	netcdf_fixlon.c
+SRCS  = dscopy.c
 
-FSRCS = mudras.F
+OTHERS =  iss.problem
 
-INCLUDES = $(NETCDFINCLUDES)
-
-HEADERS = mudutil.h fixed-gp.h
-
-OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem netcdf_fixlon
-
-DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
+DISTFILES = Imakefile $(SRCS) $(HEADERS) dscopy.state
 
 all:: $(PROGRAMS)
-
-StandardSubdirTargets()
 
 DSCLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 CccProgramTarget(dscopy, dscopy.o, $(DEPLIBS), $(DSCLIBS), $(SYSLIBS))
 InstallProgramWithFlags(dscopy,$(BINDIR),-s)
 
-NormalProgramTarget(convmud,convmud.o mudutil.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
-InstallProgramWithFlags(convmud,$(BINDIR),-s)
-
-CIOBJS = cdf_interpolate.o
-NormalProgramTarget(cdf_interpolate,$(CIOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
-InstallProgramWithFlags(cdf_interpolate,$(BINDIR),-s)
-
-TAOLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
-CccProgramTarget(tao_conv, tao_conv.o, $(DEPLIBS), $(TAOLIBS), $(SYSLIBS))
-InstallProgramWithFlags(tao_conv,$(BINDIR),-s)
-
-/*
- * Links with RDSS libraries twice until calls to ui removed from util
- */
-GPLIBS = $(LIBS) $(LIBRDSS)
-NormalProgramTarget(gprotocdf,gprotocdf.o,$(DEPLIBS), $(GPLIBS), $(SYSLIBS))
-InstallProgramWithFlags(gprotocdf,$(BINDIR),-s)
-
-#ifdef notdef
-NormalProgramTarget(fix-gp,fix-gp.o,$(DEPLIBS),$(LIBS) $(LIBRDSS),$(SYSLIBS))
-#endif
-
-MUDOBJS = mudtocdf.o mudras.o
-NormalProgramTarget(mudtocdf,$(MUDOBJS),$(DEPLIBS),$(LIBS) $(FLIBS),$(SYSLIBS))
-InstallProgramWithFlags(mudtocdf,$(BINDIR),-s)
-
-NormalProgramTarget(netcdf_fixlon,netcdf_fixlon.o,,$(LIBNETCDF),/**/)
-InstallProgramWithFlags(netcdf_fixlon,$(BINDIR),-s)
-
 UISimpleLoadFileTarget(dscopy.lf,dscopy.state)
-
-saber_mc:
-	#setopt ansi
-	#load $(CFLAGS) mudtocdf.c mudras.o -Bstatic $(FLIBS) $(LIBS)
-
-saber_cm:
-	#setopt ansi
-	#load $(CFLAGS) convmud.c mudutil.c -Bstatic $(LIBS)
-
-saber_gp:
-	#setopt ansi
-	#load $(CFLAGS) gprotocdf.c -Bstatic $(LIBS)
-
-saber_dc:
-	#setopt ansi
-	#load $(CFLAGS) dscopy.c -Bstatic $(LIBS)
 
 DependTarget()
 LintTarget()
