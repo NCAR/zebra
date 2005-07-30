@@ -25,7 +25,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.11 2005-07-29 21:42:00 granger Exp $")
+MAKE_RCSID ("$Id: dscopy.c,v 1.12 2005-07-30 06:36:16 granger Exp $")
 
 
 # define MAX_TIMES 10000
@@ -65,6 +65,10 @@ static void	Go FP ((void));
 static ZebTime	*GetTimes FP ((int *));
 static void	DoFields FP ((ZebTime *));
 
+static void
+CopyObservation (ZebTime* t, dsDetail* details, int ndetail);
+
+
 
 
 
@@ -100,6 +104,7 @@ char **argv;
  */
 	sprintf (pname, "dscopy-%d", getpid ());
 	msg_connect (Incoming, pname);
+	msg_ELPrintMask (EF_INFO | EF_EMERGENCY | EF_PROBLEM);
 	ds_Initialize ();
 /*
  * Go.
@@ -225,8 +230,22 @@ Go ()
  * Do it.  Times come in descending order, so we reverse them here for the
  * hell of it.
  */
-	for (ntime--; ntime >= 0; ntime--)
-		CopyObservation (obstimes + ntime);
+	{
+	  dsDetail details[10];
+	  int ndetail = 0;
+
+	  if (strlen(DimensionDetails) > 0)
+	  {
+	    msg_ELog (EF_INFO, "Setting details: %s\n", DimensionDetails);
+	    dc_NSFixedDetails(DimensionDetails, details, &ndetail);
+	  }
+	  ds_SetDetail (DD_NC_ONE_TIME, details, ndetail++);
+
+	  for (ntime--; ntime >= 0; ntime--)
+	  {
+	    CopyObservation (obstimes + ntime, details, ndetail);
+	  }
+	}
 }
 
 
@@ -327,27 +346,20 @@ Message *msg;
 
 
 
-CopyObservation (t)
-ZebTime *t;
+static void
+CopyObservation (ZebTime* t, dsDetail* details, int ndetail)
 /*
  * Copy the observation containing this time.
  */
 {
+        static time_t last = 0;
 	static ZebTime times[MAX_TIMES];
 	Location locs[MAX_TIMES];
 	int nsample, samp, fld;
 	DataChunk *dc;
 	char atime[40];
-	dsDetail details[10];
-	int ndetail = 0;
+	char msg[2048];
 
-	if (strlen(DimensionDetails) > 0)
-	{
-	  dc_NSFixedDetails(DimensionDetails, details, &ndetail);
-	  ui_printf ("Setting %d details from %s\n", ndetail, 
-		     DimensionDetails);
-	}
-	ds_SetDetail (DD_NC_ONE_TIME, details, ndetail++);
 	TC_EncodeTime (t, TC_Full, atime);
 	DoFields (t);
 /*
@@ -361,37 +373,38 @@ ZebTime *t;
 		times[0] = *t;
 	}
 	/* XXX XXX XXX */
-	ui_nf_printf ("Doing obs at %s, %d samples, %d fields: ", 
-		      atime, nsample, NField);
+	sprintf (msg, "Copying obs %s, %d samples, %d fields: ", 
+		 atime, nsample, NField);
 	for (fld = 0; fld < NField; fld++)
-		ui_nf_printf ("%s ", F_GetName (Fids[fld]));
-	ui_printf ("\n");
+	  sprintf (msg+strlen(msg), "%s ", F_GetName (Fids[fld]));
+	msg_ELog (EF_DEBUG, "%s", msg);
 /*
  * Now just do them.
  */
 	for (samp = 0; samp < nsample; samp++)
 	{
-	        TC_EncodeTime (times+samp, TC_Full, atime);
-		dc = ds_Fetch (Source, Class, times + samp, times + samp,
-			Fids, NField, 0, 0);
-		if (! dc)
-		{
-		  ui_printf("*** Failed to read sample at %s, skipping.\n", 
-			    atime);
-		  continue;
-		}
-		dc->dc_Platform = Dest;
-# ifdef notdef
-		if (samp == 0)
-		{
-		    char sname[80];
-		    strcpy (sname, ds_PlatformName (Source));
-		    dc_SetGlobalAttr (dc, "copied_from", sname);
-		}
-		ui_printf ("Samp %3d: %.2f\n", samp,
-			dc_GetScalar (dc, 0, Fids[0]));
-# endif
-		ds_Store (dc, PreserveObs && samp == 0, details, ndetail);
-		dc_DestroyDC (dc);
+	  TC_EncodeTime (times+samp, TC_Full, atime);
+	  if (times[samp].zt_Sec > last)
+	  {
+	    msg_ELog (EF_INFO, "Copying at %s ...", atime);
+	    last = times[samp].zt_Sec;
+	    last = last - last % (24*3600) + 24*3600;
+	  }
+	  dc = ds_Fetch (Source, Class, times + samp, times + samp,
+			 Fids, NField, 0, 0);
+	  if (! dc)
+	  {
+	    msg_ELog(EF_PROBLEM,
+		     "Failed to read sample at %s, skipping.", atime);
+	    continue;
+	  }
+	  dc->dc_Platform = Dest;
+	  {
+	    char sname[256];
+	    strcpy (sname, ds_PlatformName (Source));
+	    dc_SetGlobalAttr (dc, "copied_from", sname);
+	  }
+	  ds_Store (dc, PreserveObs && samp == 0, details, ndetail);
+	  dc_DestroyDC (dc);
 	}
 }
