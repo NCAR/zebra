@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.86 2005-07-29 21:38:03 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.87 2005-07-30 06:34:02 granger Exp $")
 
 /*
  * Location fields: standard attributes
@@ -2958,27 +2958,29 @@ int ndetail;
 	t.zt_MicroSec = 0;
 	if (ds_GetDetail (DD_NC_ONE_TIME, details, ndetail, NULL))
 	{
-		vbase = -1;
-		tag->nc_vTime = ncvardef (tag->nc_id, "time",
-					  tag->nc_timeType, 1, &tag->nc_dTime);
-		ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
-			  strlen(TIME_LONGNAME)+1, TIME_LONGNAME);
+	  tag->nc_vTime = ncvardef (tag->nc_id, "time",
+				    tag->nc_timeType, 1, &tag->nc_dTime);
+	  ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
+		    strlen(TIME_LONGNAME)+1, TIME_LONGNAME);
 	}
 	else
 	{
-		vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
-		tag->nc_vTime = ncvardef (tag->nc_id, "time_offset",
-					  tag->nc_timeType, 1, &tag->nc_dTime);
-		TC_EncodeTime (&t, TC_Full, full_time);
-		strcat (full_time, " GMT");
-		ncattput (tag->nc_id, vbase, "string", NC_CHAR,
-			  strlen(full_time)+1, full_time);
-		ncattput (tag->nc_id, vbase, VATT_LONGNAME, NC_CHAR,
-			  strlen(BT_LONGNAME)+1, BT_LONGNAME);
-		ncattput (tag->nc_id, vbase, VATT_UNITS, NC_CHAR,
-			  strlen(BT_UNITS)+1, BT_UNITS);
-		ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
-			  strlen(OT_LONGNAME)+1, OT_LONGNAME);
+	  tag->nc_vTime = ncvardef (tag->nc_id, "time_offset",
+				    tag->nc_timeType, 1, &tag->nc_dTime);
+	  ncattput (tag->nc_id, tag->nc_vTime, VATT_LONGNAME, NC_CHAR,
+		    strlen(OT_LONGNAME)+1, OT_LONGNAME);
+	}
+	/* define base_time no matter the time variable */
+	{
+	  vbase = ncvardef (tag->nc_id, "base_time", NC_LONG, 0, 0);
+	  TC_EncodeTime (&t, TC_Full, full_time);
+	  strcat (full_time, " GMT");
+	  ncattput (tag->nc_id, vbase, "string", NC_CHAR,
+		    strlen(full_time)+1, full_time);
+	  ncattput (tag->nc_id, vbase, VATT_LONGNAME, NC_CHAR,
+		    strlen(BT_LONGNAME)+1, BT_LONGNAME);
+	  ncattput (tag->nc_id, vbase, VATT_UNITS, NC_CHAR,
+		    strlen(BT_UNITS)+1, BT_UNITS);
 	}
 	TC_ZtSplit (&t, &year, &month, &day, &hour, &minute, &second, 0);
 	sprintf (full_time, 
@@ -3001,8 +3003,7 @@ int ndetail;
  */
 	dnc_CFMakeVars (tag, dc);
 	dnc_LoadFields (tag);
-	if (vbase >= 0)
-		ncvarput1 (tag->nc_id, vbase, 0, &tag->nc_base);
+	ncvarput1 (tag->nc_id, vbase, 0, &tag->nc_base);
 	ncsync (tag->nc_id);
 	return (TRUE);
 }
@@ -3228,7 +3229,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.86 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.87 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
