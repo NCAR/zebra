@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.15 2005-08-01 17:48:33 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.16 2005-08-01 22:27:00 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -820,10 +820,8 @@ fmt_MakeFileName (DataFormat *fmt, const char *plat_name, const ZebraTime *t,
  * the extension.
  */
 {
-	int fullyear;
 	SValue v;
 	char *ext = NULL;
-	fullyear = 1;
 /*
  * See if we're supposed to use an alternative extension.
  */
@@ -865,27 +863,11 @@ fmt_MakeFileName (DataFormat *fmt, const char *plat_name, const ZebraTime *t,
 		int year, mo, day, hr, min, sec, ms;
 		char *c = dest;
 
-		/*
-		 * Here's where we supply a default, with a possibly
-		 * modified extension, with 2- or 4-digit years.
-		 */
-		if (ds_GetDetail (DD_FOUR_YEAR, details, ndetail, NULL))
-			fullyear = 1;
-		else if (ds_GetDetail (DD_TWO_YEAR, details, ndetail, NULL))
-			fullyear = 0;
-
 		TC_ZtSplit (t, &year, &mo, &day, &hr, &min, &sec, &ms);
 
 		sprintf (c, "%s", plat_name);
 		c += strlen(c);
-		if (fullyear)
-		{
-			sprintf (c, ".%04d%02d%02d", year, mo, day);
-		}
-		else 
-		{
-			sprintf (c, ".%02d%02d%02d", (year % 100), mo, day);
-		}
+		sprintf (c, ".%04d%02d%02d", year, mo, day);
 		c += strlen(c);
 		sprintf (c, ".%02d%02d%02d", hr, min, sec);
 		c += strlen(c);
