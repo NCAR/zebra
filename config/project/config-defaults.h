@@ -184,7 +184,6 @@
  * may not be able to compile or run Zebra.
  **************************************************************************/
 
-#define CFG_FULL_YEARS	/* Use four-digit years in netcdf file names */
 /* #define CFG_WARN_FIELD_NAMES *//* Warn about CDL-illegal field names */
 
 /*

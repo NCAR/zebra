@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.14 2002-10-22 08:12:19 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.15 2005-08-01 17:48:33 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -823,11 +823,7 @@ fmt_MakeFileName (DataFormat *fmt, const char *plat_name, const ZebraTime *t,
 	int fullyear;
 	SValue v;
 	char *ext = NULL;
-#ifdef CFG_FULL_YEARS
 	fullyear = 1;
-#else
-	fullyear = 0;
-#endif
 /*
  * See if we're supposed to use an alternative extension.
  */
