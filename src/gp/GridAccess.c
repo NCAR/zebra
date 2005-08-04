@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.41 2004-07-22 21:02:20 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.42 2005-08-04 23:36:19 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -1299,6 +1299,7 @@ zbool transpose;
 	float 		olat, olon;
 	float		float_bad;
 	float		*fdata, *grid;
+	float		*row, *column;
 	void		*nsdata;
 	short		*sdata;
 	short		short_bad;
@@ -1310,6 +1311,7 @@ zbool transpose;
 	ZebTime		when;
 	DC_ElemType	type;
 	int		i, j;
+	int		columnsize, rowsize;
 	double		scale, offset;
 	zbool		use_scaling;
 
@@ -1433,6 +1435,30 @@ zbool transpose;
 
 	if (fdata != (float*) nsdata)
 		free (fdata);
+/*
+ * If latspacing or lonspacing is less than zero, we also need to 
+ * reverse the lat and/or lon ordering in the grid.
+ */
+	if (lonspacing < 0)
+	{
+	  msg_ELog(EF_PROBLEM, 
+		   "ga_NSRgrid: longitude reversal not supported yet!");
+	}
+
+	if (latspacing < 0)
+	{
+	  rowsize = nlons * sizeof(float);
+	  row = (float*)malloc(rowsize);
+
+	  for (j = 0; j < nlats / 2; j++)
+	  {
+	    memcpy(row, (char*)(grid + nlons * j), rowsize);
+	    memcpy((char*)(grid + nlons * j), 
+		   (char*)(grid + (nlats - j - 1) * nlons), rowsize);
+	    memcpy((char*)(grid + (nlats - j - 1) * nlons), row, rowsize);
+	  }
+	}
+	  
 /*
  * Finally, put the grid and time into the new data chunk
  */		
