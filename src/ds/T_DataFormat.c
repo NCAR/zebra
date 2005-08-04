@@ -377,20 +377,17 @@ T_MakeFileName ()
 		/* see what we get */
 		ds_SetDetail (DD_FOUR_YEAR, details, 0);
 		errors += CheckFileName (p, &when, name, details, 1);
-		/* try with two-digit years */
-		strcpy (stime, "960713.120000");
+		/* try with two-digit years, which are now deprecated and
+		   thus should return four-digit years. */
+		strcpy (stime, "19960713.120000");
 		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
 		if ((bar = strrchr (name, '|')))
 			*bar++ = '\0';
 		/* see what we get */
 		ds_SetDetail (DD_TWO_YEAR, details, 0);
 		errors += CheckFileName (p, &when, name, details, 1);
-		/* try the default */
-#ifdef CFG_FULL_YEARS
+		/* try the default, which is now always 4-digit years */
 		strcpy (stime, "19960713.120000");
-#else
-		strcpy (stime, "960713.120000");
-#endif
 		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
 		if ((bar = strrchr (name, '|')))
 			*bar++ = '\0';
