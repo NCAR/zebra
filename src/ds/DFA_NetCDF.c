@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.89 2005-08-17 16:54:07 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.90 2005-08-17 16:59:42 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -482,7 +482,7 @@ int write;
 	}
 	else
 	{
-		msg_ELog (EF_PROBLEM, "netcdf altitude variable not found: %s",
+		msg_ELog (EF_DEBUG, "netcdf altitude variable not found: %s",
 			  "ignoring altitudes");
 	}
 /*
@@ -3235,7 +3235,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.89 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.90 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
