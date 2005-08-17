@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.91 2004-07-06 00:32:30 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.92 2005-08-17 17:26:32 burghart Exp $")
 
 
 /*
@@ -1872,6 +1872,7 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot,
  * Initialize our annotation data now in case we return early.
  */
 	sprintf (topannot, "%s %s plot.", platform, px_FldDesc (fname));
+	*sidelegend = FALSE;
 /*
  * Side annotation (color bar)
  */
