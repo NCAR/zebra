@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.88 2005-08-01 17:48:33 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.89 2005-08-17 16:54:07 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -2563,19 +2563,25 @@ long begin, count;
  * Altitude.
  */
 	fail = 0;
-	if ((var = 
-	     dnc_MatchVarName(tag->nc_id, -1, "alt", "altitude", 0)) < 0)
-	  {
-		msg_ELog (EF_DEBUG, "No match for 'alt' field");
-		fail = 1;
-	}
-	if (ncvargetg (tag->nc_id, var, &begin, &count, 
-		       stride, imap, &(locs[0].l_alt)) < 0) {
+	if ((var = dnc_MatchVarName(tag->nc_id, -1, 
+				    "alt", "altitude", 0)) >= 0)
+	{
+	    if (ncvargetg (tag->nc_id, var, &begin, &count, 
+			   stride, imap, &(locs[0].l_alt)) < 0) 
+	    {
 		dnc_NCError ("Altitude read");
 		fail = 1;
+	    }
 	}
+	else
+	{
+	    msg_ELog (EF_DEBUG, "No match for 'alt' field");
+	    fail = 1;
+	}
+
 	if (fail)
 		locs[0].l_alt = 0.0;
+
 	if (! mobile || fail)
 	{
 		for (i = 1; i < nlocs; i++)
@@ -3229,7 +3235,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.88 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.89 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
