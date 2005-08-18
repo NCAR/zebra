@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.53 2001-08-31 04:20:59 granger Exp $")
+RCSID ("$Id: Track.c,v 2.54 2005-08-18 18:34:30 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -358,6 +358,11 @@ TrackParams *tparams;
 		if ((loc.l_lat == tparams->tp_BadValue) ||
 				(loc.l_lon == tparams->tp_BadValue))
 			continue;
+
+		if (loc.l_lat < -90.0 || loc.l_lat > 90.0 || 
+		    loc.l_lon < -180.0 || loc.l_lon > 360.0)
+		    continue;
+		
 		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
 	/*
