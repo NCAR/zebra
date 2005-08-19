@@ -70,8 +70,8 @@ unalias cd
 while (1)
     cd $dir >/dev/null
     foreach file (`find . -newer $testfile -print`)
-	# Ignore "." and files ending in ".part" or ".tmp"
-	if ($file == "." || $file:e == "part" || $file:e == "tmp") continue;
+	# Ignore directories and files ending in ".part" or ".tmp"
+	if (-d $file || $file:e == "part" || $file:e == "tmp") continue
 	dsrescan -file $file:t $plat >& /dev/null
     end
     touch $testfile
