@@ -59,7 +59,7 @@ try:
         usage()
         sys.exit(1)
 
-    plottime = long(time.time())  # default to now, may be overridden below
+    plottime = long(time.time())	# default to now
 
     if (len(rest) > 0):
         print "Unexpected options: ",
@@ -197,9 +197,7 @@ try:
     status, locstring = commands.getstatusoutput(cmd)
     if (status != 0):
         print "Platloc problem: %s" % locstring
-        lat = originlat
-        lon = originlon
-        datatime = 0
+        sys.exit(1)
     else:
         lat, lon, datatime = string.split(locstring)
         lat = string.atof(lat)
