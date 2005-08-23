@@ -109,6 +109,13 @@ main(int argc, char* argv[])
     DataChunk *dc = ds_Fetch (pid, DCID_Location, &dtime, &dtime, 
 			      0, 0, 0, 0);
 
+    if (! dc)
+    {
+	fprintf(stderr, "Error getting data for %s at %d\n", platname,
+		requestTime);
+	exit(1);
+    }
+
     Location loc;
     dc_GetLoc (dc, 0, &loc);
     if (simpleOutput)
