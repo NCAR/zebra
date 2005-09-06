@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.16 2005-08-01 22:27:00 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.17 2005-09-06 23:41:03 burghart Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -451,17 +451,35 @@ dfa_DataTimes (const DataFile *df, const ZebraTime *when, TimeSpec which,
 {
 	OpenFile *ofp;
 	int count = 0;
+	/*
+	 * KLUGE: Force the "target" time to be less than or equal to the
+	 * currently known end time in the DF entry.  For files that are
+	 * being written in real time, and not rescanned for every addition,
+	 * this keeps us from returning times later than the DF entry's
+	 * end time (which can be a *big* problem later on).
+	 */
+	ZebraTime target = *when;
+	if (TC_LessEq(*when, df->df_core.dfc_end))
+	{
+	  target = *when;
+	}
+	else
+	{
+	  msg_ELog(EF_DEBUG, "Tweaking target to the DF entry end time for %s",
+		   df->df_core.dfc_name);
+	  target = df->df_core.dfc_end;
+	}
 
 	if ((ofp = dfa_OpenFile (df, 0)))
 	{
 		if (ofp->of_fmt->f_DataTimes)
 		{
 			count = (*ofp->of_fmt->f_DataTimes)
-				(ofp, when, which, n, dest);
+				(ofp, &target, which, n, dest);
 		}
 		else
 		{
-			count = fmt_DataTimes (ofp, when, which, n, dest);
+			count = fmt_DataTimes (ofp, &target, which, n, dest);
 		}
 	}
 	return (count);
