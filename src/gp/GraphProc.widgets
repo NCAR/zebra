@@ -4,7 +4,7 @@
 ! Most widgets have now been moved out of here, finding their home instead
 ! in the library directory and brought in through the require mechanism.
 !
-! $Id: GraphProc.widgets,v 1.27 2000-11-10 22:05:01 granger Exp $
+! $Id: GraphProc.widgets,v 1.28 2005-09-13 21:31:52 burghart Exp $
 !
 set ui$initial_state 'initial'
 
@@ -445,10 +445,16 @@ procedure scale-factor factor real
 	local ymin pd_paramsearch("global","y-min","","float")
 	local ymax pd_paramsearch("global","y-max","","float")
 
-	local sxmin string(xmin * factor)
-	local sxmax string(xmax * factor)
-	local symin string(ymin * factor)
-	local symax string(ymax * factor)
+	local xcenter (xmin + xmax)*0.5
+	local new_xsize factor*(xmax - xmin)
+
+	local ycenter (ymin + ymax)*0.5
+	local new_ysize factor*(ymax - ymin)
+
+	local sxmin string(xcenter - 0.5 * new_xsize)
+	local sxmax string(xcenter + 0.5 * new_xsize)
+	local symin string(ycenter - 0.5 * new_ysize)
+	local symax string(ycenter + 0.5 * new_ysize)
 
 	parameter global x-min #sxmin
 	parameter global x-max #sxmax
