@@ -13,7 +13,7 @@
 # include "Serial.h"
 # include "Options.h"
 
-MAKE_RCSID("$Id: Serial.c,v 2.4 2003-07-16 03:52:56 granger Exp $")
+MAKE_RCSID("$Id: Serial.c,v 2.5 2005-12-16 07:16:18 granger Exp $")
 
 #define DEFAULT_TERM	"/dev/ttya"	/* Default port device	*/
 #define DEFAULT_SPEED	"9600"		/* Default baud rate	*/
@@ -726,7 +726,7 @@ int start;		/* where in the buffer the new data begins */
  * we got.
  */
 {
-	ubyte *cp;
+        char *cp;
 	char *newline;
 /*
  * Zap out the top bit for now, but only those characters we haven't
@@ -734,28 +734,28 @@ int start;		/* where in the buffer the new data begins */
  */
 	if (conn->c_striphibit)
 	{
-		for (cp = conn->c_buf + start; 
-		     cp < conn->c_buf + conn->c_nbuf; cp++)
+	  for (cp = (char*)conn->c_buf + start; 
+	       cp < (char*)conn->c_buf + conn->c_nbuf; cp++)
 			*cp &= 0x7f;
 	}
 /*
  * Now look for newlines indicating that whole lines have been read,
  * from the beginning of the buffer.
  */
-	cp = conn->c_buf;
+	cp = (char*)conn->c_buf;
 	conn->c_buf[conn->c_nbuf] = '\0';
-	while ((cp - conn->c_buf < conn->c_nbuf) &&
+	while ((cp - (char*)conn->c_buf < conn->c_nbuf) &&
 	       ((newline = strchr (cp, '\n')) != 0))
 	{
 		*newline = '\0';
-		Send (conn, cp, strlen(cp)+1);
-		(char *) cp = newline + 1;
+		Send (conn, (ubyte*)cp, strlen(cp)+1);
+		cp = newline + 1;
 	}
 /*
  * It's up to our caller to move what's left in the buffer to the front of
  * the buffer.
  */
-	return (cp - conn->c_buf);
+	return (cp - (char*)conn->c_buf);
 }
 
 
