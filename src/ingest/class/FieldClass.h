@@ -1,6 +1,6 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
  *
- * $Id: FieldClass.h,v 2.3 2002-10-21 23:10:03 granger Exp $
+ * $Id: FieldClass.h,v 2.4 2005-12-16 07:15:46 granger Exp $
  *
  * Interface for the classes in the Field class hierarchy.
  */
@@ -202,7 +202,7 @@ public:
 	//inline operator T () const { return m_value; }
 	inline operator T& () { return m_value; }
 
-	bool set (T value_, const char *units_)
+	void set (T value_, const char *units_)
 	{
 		// convert units
 		m_value = value_;
@@ -219,7 +219,7 @@ struct FC##Impl { \
 	static inline FieldClass *newFieldClass () \
  { return new FieldClassT<TYPE> (NAME, TYPENAME, UNITS, DESC); } }; \
 typedef FieldType<FC##Impl,TYPE> FC; \
-FieldClass *FC::info = 0;
+template<> FieldClass *FieldType<FC##Impl,TYPE>::info = 0;
 #else
 #define DefineTypedFieldClass(FC,TYPE,NAME,TYPENAME,UNITS,DESC) \
 struct FC##Impl { \
@@ -244,10 +244,10 @@ template <class F, class SF, class ST>
 class SubFieldClass : public FieldType<SF,ST>
 {
 public:
+	typedef typename FieldType<SF,ST>::datum_type datum_type;
 	// Note the datum_type type must be qualified as is for GCC 3.2
 	// to grok it without complaining about an implicit typename.
-	SubFieldClass (typename FieldType<SF,ST>::datum_type v =
-		       datum_type())
+	SubFieldClass (datum_type v = datum_type())
 		: FieldType<SF,ST>(v)
 	{ }
 };
