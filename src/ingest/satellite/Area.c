@@ -17,7 +17,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: Area.c,v 1.9 2004-08-26 19:50:31 burghart Exp $")
+RCSID("$Id: Area.c,v 1.10 2006-01-20 17:46:14 burghart Exp $")
 
 
 static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -575,17 +575,30 @@ ReadNavCod (AreaFile *f, AreaImage *area, int *nav_cod, char *imtype)
 	{
 		int	*cur_loc = nav_cod + 128 * i;
 		fread ((void *) cur_loc, 4, 128, f->stream);
-		if (f->doswap)
+		/*
+		 * On little-endian systems, we need to byte-swap 
+		 * (most of) the data in the navigation codicil.
+		 * However, the McIDAS GMSX handler seems to do this
+		 * on its own, so we *don't* swap in that case.
+		 * Why just that one?  Who knows...
+		 */
+		if (f->doswap && strncmp((char*)nav_cod, "GMSX", 4))
 		{
-			/* Swap all but first and last 4-byte strings */
-			swapfour (cur_loc + 1, 126);
+		  /*
+		   * For the first chunk, swap all but the first and last
+		   * 4-byte strings.  For the rest of the chunks, swap	
+		   * all but the last 4-byte string.
+		   */
+		  if (i == 0)
+		    swapfour (cur_loc + 1, 126);
+		  else
+		    swapfour (cur_loc, 127);
 		}
 
 		/*
-		 * Don't bother with extra navs unless we're type GVAR
+		 * Stop here if the last 4 bytes of this chunk are not "MORE"
 		 */
-		if ((i == 0 && strncmp ((char*)nav_cod, "GVAR", 4)) ||
-		    strncmp ((char *)(cur_loc + 127), "MORE", 4))
+		if (strncmp ((char *)(cur_loc + 127), "MORE", 4))
 			break;
 
 		if (i == MAXNAVCHUNKS - 1)
