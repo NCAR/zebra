@@ -8,7 +8,7 @@ XCOMM Nearly all of the source files in this directory are U. of Wisconsin
 XCOMM SSEC copyrighted code and should *not* be distributed outside 
 XCOMM of NCAR/UCAR.
 
-MFVERSION = "$Id: Imakefile,v 1.15 2004-10-25 22:53:00 burghart Exp $"
+MFVERSION = "$Id: Imakefile,v 1.16 2006-01-20 18:17:29 burghart Exp $"
 
 REALMCIDASLIB=$(McINST_ROOT)/src/libmcidas.a
 
@@ -92,13 +92,17 @@ NavRule(nvxtanc,NTA)
 NavRuleSed(nvxgoes,NGS,goes.sed)
 NavRuleSed(nvxgmsx,NGX,goes.sed)
 
-$(REALMCIDASLIB): $(McINST_ROOT)/jpeg/jconfig.h
+$(REALMCIDASLIB): $(McINST_ROOT)/jpeg/jconfig.h $(McINST_ROOT)/hdf/hdf/src/h4config.h
 	(cd $(McINST_ROOT)/src && make mclog mcar mccomp mcfc && \
 	 make VENDOR=-g77 libmcidas.a)
 
 $(McINST_ROOT)/jpeg/jconfig.h: 
 	@echo "Configuring $(McINST_ROOT)/jpeg to create jconfig.h" ; \
 	(cd $(McINST_ROOT)/jpeg && ./configure)
+
+$(McINST_ROOT)/hdf/hdf/src/h4config.h:
+	@echo "Configuring $(McINST_ROOT)/hdf to create h4config.h" ; \
+	(cd $(McINST_ROOT)/hdf && ./configure)
 
 hex80.inc: 
 	@if [ ! -f $(McINST_ROOT)/src/hex80.inc ]; then \
