@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.29 2004-03-15 16:51:12 granger Exp $";
+static char *rcsid = "$Id: is.c,v 1.30 2006-01-25 05:47:00 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -25,7 +25,6 @@ static char    *rcsid = "$Id: is.c,v 1.29 2004-03-15 16:51:12 granger Exp $";
 #include <string.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <varargs.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -790,18 +789,12 @@ void
 cfg_go (struct is_config *cfg)
 {
 	int             i;
-#ifdef SVR4
 	pid_t           pid;
-#else
-	int             pid;
-#endif
 
 	static char    *new_args[MAX_PROC_ARGS];
 	extern int      errno;
 	char           *ptr_proc, *ptr_ifile;
-#ifdef SVR4
 	sigset_t 	sig_set;
-#endif
 
 	/*
 	 * this is the most important function in the whole mess. It is
@@ -873,12 +866,8 @@ cfg_go (struct is_config *cfg)
 		 * allow child to take full responsibilty and get all of his
 		 * signals
 		 */
-#ifdef SVR4
 		sigemptyset(&sig_set);
 		sigprocmask(SIG_SETMASK, &sig_set, (sigset_t *)0);
-#else
-		sigsetmask(0);
-#endif
 
 		execvp(cfg->process, new_args);
 		printf("Unable to exec %s\n", cfg->process);
