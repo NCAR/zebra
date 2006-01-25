@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_PktGrabber.c,v 3.8 1996-11-19 08:08:18 granger Exp $")
+RCSID("$Id: nx_PktGrabber.c,v 3.9 2006-01-25 05:33:36 granger Exp $")
 
 /*
  * The header of our shared memory segment.
@@ -153,10 +153,6 @@ CreateShmSeg ()
 {
 	int len = sizeof (struct ShmHeader) + NPACKET*PKTSIZE - 1;
 	char *cseg;
-#if ! defined(SVR4) && ! defined (SYSV)
-	char *shmat ();
-#endif
-
 /*
  * Make the segment exist.
  */
