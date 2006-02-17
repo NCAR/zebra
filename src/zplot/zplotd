@@ -561,7 +561,7 @@ sub clear
     }
 
     $cmd = "(echo \"Subject: zplotd $status, log $log\"; echo \" \"; cat -)"
-	. " | /bin/mail $image_mail_list";
+	. " | /bin/mail -s \"zplotd $status, log $log\" $image_mail_list";
     print "$cmd\n";
     if ($debug < $D_NoEmail && ! open (MAIL, "| $cmd"))
     {

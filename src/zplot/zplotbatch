@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.33 2004-07-19 19:36:40 granger Exp $
+# $Id: zplotbatch,v 1.34 2006-02-17 18:29:14 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -22,6 +22,8 @@ problem()
 # it.  (ie, it may have been started a while ago as a different user, but
 # we'll use that same one anyway.)
 #
+PATH="${PATH}:/usr/bin/X11:/usr/X11R6/bin"
+export PATH
 xvfb="Xvfb -pn -ac"
 
 convert="convert -colors 128 +profile '*'"
