@@ -53,11 +53,12 @@ while read path ; do
 	echo "</tr><tr>"
     fi
     image=`basename $path`
+    imagename=`echo $image | sed -e 's/^research\.//' -e 's/\.png$//'`
     destimage="$destdir/tn_$image"
     $test $destimage -nt $path || \
 	(set -x; convert +profile '*' -colors 128 -geometry 140x140 $brightness $path $destimage) 1>&2
     echo '<td align=center bgcolor="#f0f0f0">'
-    echo "<font size=-1><strong>$image<strong></font><br><a href=$path><img src=$destimage></a>"
+    echo "<font size=-1><strong>$imagename<strong></font><br><a href=$path><img src=$destimage></a>"
     echo "</td>"
     i=`expr $i + 1`
 
