@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.36 2006-02-27 20:47:53 granger Exp $
+# $Id: zplotbatch,v 1.37 2006-02-27 21:37:04 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -260,7 +260,7 @@ while read when config windows; do
 	    fi
 
 	    echo "Process $plot active, displaying window $win at $wtime."
-	    name="$subspool/`catalog_name "$config" "$base" "$win"`
+	    name="$subspool"/`catalog_name "$config" "$base" "$win"`
 	    /bin/rm -f "${name}.xwd" "${name}.png"
 
 	    images="$images ${name}.png"
