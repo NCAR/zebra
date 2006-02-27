@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 #
 # FTP images to a remote host
-# $Id: ftpplots,v 1.8 2002-05-25 00:19:13 burghart Exp $
+# $Id: ftpplots,v 1.9 2006-02-27 23:19:18 granger Exp $
 
 $site="$ENV{'PLOT_FTP_HOST'}";
 $dir="$ENV{'PLOT_FTP_DIR'}";
@@ -16,28 +16,30 @@ if ($#ARGV < 0)
     exit 0;
 }
 
-require ("ftplib.pl");
+use Net::FTP;
 
-&ftp::open($site,$user,$pass) || die;
-&ftp::binary;
+$ftp = Net::FTP->new($site, Passive => 1);
+$ftp->login($user,$pass);
+$ftp->binary();
+
 TRY:
 {
     # print join("\n",&ftp::dir());
 
-    if (! &ftp::cwd($dir))
+    if (! $ftp->cwd($dir))
     {
 	print "CWD $dir failed: $!";
 	++$error;
 	last TRY;
     }
 
-    print &ftp::pwd(), "\n";
+    # print &ftp::pwd(), "\n";
     foreach $local (@ARGV)
     {
 	$remote = $local;
 	$remote =~ s,.*/,,g;
 	print "Putting $local to $remote...";
-	if (! &ftp::put ($local,$remote))
+	if (! $ftp->put ($local,$remote))
 	{
 	    print "$ftp::Error\n";
 	    ++$error;
@@ -48,21 +50,6 @@ TRY:
 
 }
 
-&ftp::close;
+$ftp->close();
 exit $error;
 
-__END__
-
-    # Now remove it, since this is just a test
-    foreach $local (@ARGV)
-    {
-	$remote = $local;
-	$remote =~ s,.*/,,g;
-	print "Removing $remote...";
-	if (! &ftp::delete ($remote))
-	{
-	    print "Delete failed for $f: $!";
-	}
-	print "\n";
-    }
-    
