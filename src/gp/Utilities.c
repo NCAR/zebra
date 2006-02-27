@@ -50,7 +50,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.61 2003-08-06 21:53:46 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.62 2006-02-27 22:01:08 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -829,7 +829,7 @@ char *file;
  * Dump out an image of our screen.
  */
 {
-    char cmd[200], efile[120], xwdname[80], *wname = dm_MessageName ();
+    char cmd[512], efile[512], xwdname[128], *wname = dm_MessageName ();
     date uid;
     FILE *xwdfile;
     int imgfmt, i, ncolors;
@@ -934,6 +934,7 @@ char *file;
  * format.
  */
     sprintf (cmd, "cat %s | %s > %s", xwdname, ImgRules[format], efile);
+    cmd[sizeof(cmd)-1] = '\0';
     system (cmd);
     unlink (xwdname);
 }
