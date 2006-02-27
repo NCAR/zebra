@@ -1,0 +1,66 @@
+#!/bin/sh
+
+# T-REX kludge for field catalog conventions: Translate certain iss
+# configurations and plot window names into their field catalog 
+# designations.
+#
+# This maps the display config name and window name (eg iss1/class,
+# iss-mapr/surfmet) to a platform and product, like (ISS1_Sounding, SkewT)
+# and (ISS_MAPR_Surface, Surface_Met), then generates the field catalog
+# file name from that using the base time.  Field catalog filenames:
+#
+#   research.<platform>.YYYYMMDDHHmm.<product>.png
+#
+
+catalog_translate() # config-name window-name platform-var product-var 
+{
+    config="$1"
+    window="$2"
+
+    # Defaults
+    platform_prefix="$config"
+    suffix=""
+    product="$window"
+
+    # The config is just the platform prefix
+    case "$config" in
+
+	iss1|iss2|iss3|iss4|iss-mapr)
+	    platform_prefix=research.`echo $config | tr a-z- A-Z_`
+            # The window determines the platform suffix and product
+	    case "$window" in
+
+		surf*rad) suffix="Surface"; product="Surface_Rad";;
+		surf*met) suffix="Surface"; product="Surface_Met";;
+		surf*wind) suffix="Surface"; product="Surface_Wind";;
+		prof915l) suffix="Profiler"; product="Wind_Profile_Low_Mode";;
+		prof915h) suffix="Profiler"; product="Wind_Profile_High_Mode";;
+		class) suffix="Sounding"; product="SkewT";;
+		rass) suffix="Profiler"; product="RASS";;
+
+	    esac
+	    ;;
+
+    esac
+
+    platform="${platform_prefix}_${suffix}"
+    if [ -z "$suffix" ]; then
+	platform="$platform_prefix"
+    fi
+    eval $3="$platform"
+    eval $4="$product"
+}
+
+
+
+catalog_name() # config-name time-base window-name
+{
+    config="$1"
+    base="$2"
+    window="$3"
+
+    catalog_translate "$config" "$window" platform product
+    echo "${platform}"."${base}"."${product}"
+}
+
+

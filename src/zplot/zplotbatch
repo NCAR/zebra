@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.35 2006-02-27 18:46:35 granger Exp $
+# $Id: zplotbatch,v 1.36 2006-02-27 20:47:53 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -9,14 +9,7 @@
 echo=
 errors=""
 
-# T-REX kludge for field catalog conventions: Translate certain iss
-# configurations and plot window names into their field catalog 
-# designations.
-#
-# This maps the display config name and window name
-#  (eg iss1/class, iss-mapr/surfmet) to a platform and product, like
-# (ISS1_Sounding, SkewT) and (ISS_MAPR_Surface, Surface_Met).
-
+. catalog_functions
 
 problem()
 {
@@ -211,11 +204,8 @@ while read when config windows; do
 
     # For each process, tell it to dump its plot
 
-    # Field catalog filenames: 
-    #   research.<platform>.YYYYMMDDHHmm.<product>.png
-    # Derive the image name from the plot time
     set `ztsplit $when`
-    base="${config}.$1$2$3$4$5."
+    base="$1$2$3$4$5"
     # For the Web, put the images in directories by date, lumping
     # images from all instruments into the same directory.
     subspool="${spool}/$1$2$3"
@@ -270,13 +260,8 @@ while read when config windows; do
 	    fi
 
 	    echo "Process $plot active, displaying window $win at $wtime."
-	    name="$subspool/${base}${win}"
+	    name="$subspool/`catalog_name "$config" "$base" "$win"`
 	    /bin/rm -f "${name}.xwd" "${name}.png"
-
-	    # Form the file name by extracting the plot name from the
-	    # process. An alternative is to grep the pd-name from a zquery
-	    # of the process, which includes the config name.  For now we
-	    # can prepend the config here.
 
 	    images="$images ${name}.png"
 	    (set -x; zrun $plot \
