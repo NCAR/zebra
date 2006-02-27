@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.34 2006-02-17 18:29:14 granger Exp $
+# $Id: zplotbatch,v 1.35 2006-02-27 18:46:35 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -8,6 +8,15 @@
 # Set to 'echo' to debug rather than actually dump images
 echo=
 errors=""
+
+# T-REX kludge for field catalog conventions: Translate certain iss
+# configurations and plot window names into their field catalog 
+# designations.
+#
+# This maps the display config name and window name
+#  (eg iss1/class, iss-mapr/surfmet) to a platform and product, like
+# (ISS1_Sounding, SkewT) and (ISS_MAPR_Surface, Surface_Met).
+
 
 problem()
 {
@@ -202,8 +211,8 @@ while read when config windows; do
 
     # For each process, tell it to dump its plot
 
-    # JOSS filenames: platform.YYYYMMDDHHmm.plottype.{jpg,gif}
-    # But we're using PNG instead
+    # Field catalog filenames: 
+    #   research.<platform>.YYYYMMDDHHmm.<product>.png
     # Derive the image name from the plot time
     set `ztsplit $when`
     base="${config}.$1$2$3$4$5."

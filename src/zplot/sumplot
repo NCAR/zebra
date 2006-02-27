@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.20 2004-04-16 16:47:52 granger Exp $
+# $Id: sumplot,v 1.21 2006-02-27 18:46:35 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -70,6 +70,9 @@ findimages | tail -$number | \
 (echo "<tr>"
 echo "<td align=center colspan=$number><p><strong><a href="$htmlfile">$title</a></strong></p></td></tr>";
 sumplot_fillrows "$destdir" "$brightness" $number) > $quickpartfile.$$
+if [ `findimages | wc -l ` -eq 0 ]; then
+    cat /dev/null > $quickpartfile.$$
+fi
 
 rm -f $quickpartfile
 mv -f $quickpartfile.$$ $quickpartfile
