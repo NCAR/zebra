@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: zplotloop,v 1.10 2004-07-28 04:59:06 granger Exp $
+# $Id: zplotloop,v 1.11 2006-02-28 05:46:33 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -23,6 +23,9 @@ if ($#ARGV < 1)
     print "The end time can be 'now'.\n";
     print "The end time can be 'end', which uses the project end date.\n";
     print "The plot period in hours defaults to PLOT_PERIOD.\n";
+    print "If the start and end are dates without times, then the first \n";
+    print "plot hour is appended by default.  Dates and times have this \n";
+    print "format: dd-Mon-yyyy,hh:mm:ss\n";
     exit 1;
 }
 
@@ -42,6 +45,11 @@ $plot_hours = "$ENV{'PLOT_HOURS'}";
 @hours = split(/\s+/,"$plot_hours");
 if ("$begin" ne 'start')
 {
+    if ($plot_hours && "$begin" !~ /.*,[0-9:]+/)
+    {
+	$begin = $begin . "," . "$hours[0]:00";
+	print "Using start time: $begin\n";
+    }
     $sbegin = &ztsys($begin);
 }
 elsif (! $project_start_date)
@@ -71,6 +79,11 @@ if ('end' eq "$end")
 }
 elsif ("$end" ne 'now')
 {
+    if ($plot_hours && "$end" !~ /.*,[0-9:]+/)
+    {
+	$end = $end . "," . "$hours[0]:00";
+	print "Using end time: $end\n";
+    }
     $send = &ztsys($end);
 }
 $zplotd = "zplotd -d1 -norescan " . join(" ",@ARGV);
