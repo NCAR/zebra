@@ -6,14 +6,16 @@ sumplot_beginpage() # heading
 cat <<EOF
 <html><head><title>$1</title></head><body>
 <body bgcolor="#ffffff">
-
-<h1><IMG alt="National Center for Atmospheric Research" 
+<table border='0'><tr><td>
+<A HREF="http://www.eol.ucar.edu/"><IMG valign=center alt="EOL..." 
+   SRC="http://www.eol.ucar.edu/graphics/eol_logo_sm.jpg"></a>
+</td>
+<td>
+<IMG alt="National Center for Atmospheric Research" 
      SRC="http://www.atd.ucar.edu/gif/ncar_ban_sml.gif">
 <br>
-<A HREF="http://www.atd.ucar.edu/welcome.html"><IMG valign=center alt="ATD..." 
-   SRC="http://www.atd.ucar.edu/gif/atd_ban_sml.gif"></a>
-$1
-</h1>
+<h1>$1</h1>
+</td></tr></table>
 EOF
 }
 
