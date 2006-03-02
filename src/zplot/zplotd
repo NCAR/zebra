@@ -500,7 +500,7 @@ sub clear
     {
 	if (! open (BP, "zplotbatch - < $batch 2>&1 |"))
 	{
-	    $status="$FAIL zplotbatch: $!";
+	    $status="$FAIL opening zplotbatch: $!";
 	    print "$status" if $debug;
 	    return 0;
 	}
@@ -513,7 +513,7 @@ sub clear
 	    }
 	}
 	close BP;
-	$status = "$FAIL" if ($?);
+	$status = "$FAIL zplotbatch status:" if ($?);
     }
     if ($batchfile)
     {
@@ -550,13 +550,13 @@ sub clear
 	}
 	close FTP;
 	if ($?) {
-	    $status = "$FAIL";
+	    $status = "$FAIL ftp status";
 	    $result = 0;
 	}
     }
     else
     {
-	$status="$FAIL: ftp";
+	$status="$FAIL opening ftpplots";
 	$result = 0;
     }
 

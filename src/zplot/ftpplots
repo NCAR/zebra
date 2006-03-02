@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 #
 # FTP images to a remote host
-# $Id: ftpplots,v 1.9 2006-02-27 23:19:18 granger Exp $
+# $Id: ftpplots,v 1.10 2006-03-02 20:58:37 granger Exp $
 
 $site="$ENV{'PLOT_FTP_HOST'}";
 $dir="$ENV{'PLOT_FTP_DIR'}";
@@ -18,7 +18,7 @@ if ($#ARGV < 0)
 
 use Net::FTP;
 
-$ftp = Net::FTP->new($site, Passive => 1);
+$ftp = Net::FTP->new($site, Passive => 1, Debug => 1);
 $ftp->login($user,$pass);
 $ftp->binary();
 
@@ -41,7 +41,7 @@ TRY:
 	print "Putting $local to $remote...";
 	if (! $ftp->put ($local,$remote))
 	{
-	    print "$ftp::Error\n";
+	    print "Failed.\n";
 	    ++$error;
 	    # last TRY;
 	}
