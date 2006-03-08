@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: plotindex,v 1.4 2006-03-08 05:53:15 granger Exp $
+# $Id: plotindex,v 1.5 2006-03-08 06:00:57 granger Exp $
 #
 # Create an index.html file from a directory of plot images, so that
 # we can control the format and ensure the full file name appears
@@ -38,10 +38,10 @@ foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
     if ($date)
     {
 	# print "Checking $date, prev=$prevdate, next=$nextdate\n";
-	if ($#ARGV > 0)
+	if ($#selected >= 0)
 	{
 	    my $d;
-	    foreach $d (@ARGV)
+	    foreach $d (@selected)
 	    {
 		if ($date eq $d)
 		{
