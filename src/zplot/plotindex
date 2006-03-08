@@ -1,66 +1,81 @@
 #! /usr/bin/env perl
 #
-# $Id: plotindex,v 1.3 2004-03-09 09:12:20 granger Exp $
+# $Id: plotindex,v 1.4 2006-03-08 05:53:15 granger Exp $
 #
 # Create an index.html file from a directory of plot images, so that
 # we can control the format and ensure the full file name appears
 # in the browser.
 #
 
+use strict;
+
 if ($#ARGV < 1)
 {
-    print "Usage: $0 <project> <date directory> [<date>]\n";
+    print "Usage: $0 <project> <date directory> [<date> ...]\n";
     print "If no <date>, creates index.html in each of the date directories\n";
     print "in <date directory>.  Otherwise creates only <date>/index.html\n";
     exit 1;
 }
 
-$project = $ARGV[0];
-$datedir = $ARGV[1];
-$select = $ARGV[2];
+my $project = shift @ARGV;
+my $datedir = shift @ARGV;
+my @selected = @ARGV;
+
+print "Selected:", join(' ',@selected), "\n";
 
 # Traverse the dates in the directory, creating an index.html for each
 # We actually create the index.html for the directory in the previous
-# loop iteration, once we know what the "next" directory should be.
-$prev = "";
-$date = "";
-$next = "";
+# loop iteration, once we know what the "nextdate" directory should be.
+my $prevdate = "";
+my $date = "";
+my $nextdate = "";
+my $f;
 foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
 {
+    # print "At $f...\n";
     next if ($f && (($f !~ /^\d+/) || ! -d "$datedir/$f"));
-    $next = $f;
-    if (! $date)
+    $nextdate = $f;
+    if ($date)
     {
-	$date = $f;
-	next;
+	# print "Checking $date, prev=$prevdate, next=$nextdate\n";
+	if ($#ARGV > 0)
+	{
+	    my $d;
+	    foreach $d (@ARGV)
+	    {
+		if ($date eq $d)
+		{
+		    &create_index;
+		}
+	    }
+	}
+	else
+	{
+	    &create_index;
+	}	
     }
-    if (! $select || ($date eq $select))
-    {
-	&create_index;
-    }
-    $prev = $date;
+    $prevdate = $date;
     $date = $f;
 }
 
 
 sub create_index
 {
-
-    $directory = "$datedir/$date";
-    print "Indexing $directory...\n";
-    chdir("$datedir/$date");
-    $title="Project $project plot images for $date";
-    open (HTML, "| sumplot \"$title\" '.*' . . index.html") || 
+    my $directory = "$datedir/$date";
+    print "Indexing $directory, prev=$prevdate, next=$nextdate, ...\n";
+    # chdir("$datedir/$date");
+    my $title="Project $project plot images for $date";
+    open (HTML, "| cd \"$datedir/$date\" && sumplot \"$title\" '.*' . . index.html") || 
 	die "sumplot: $!";
 
 print HTML "<a href=..>Parent directory</a><HR>\n";
-if ($prev)
+if ($prevdate)
 {
-    print HTML "<p>Previous day: <a href=\"../$prev/\">$prev</a></p>\n";
+    print HTML "<p>Previous day: <a href=\"../$prevdate/\">$prevdate</a></p>\n";
 }
-if ($next)
+if ($nextdate)
 {
-    print HTML "<p>Next day: <a href=\"../$next/\">$next</a></p>\n";
+    print HTML "<p>Next day: <a href=\"../$nextdate/\">$nextdate</a></p>\n";
 }
 close HTML;
 

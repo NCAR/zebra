@@ -449,6 +449,7 @@ sub clear
     # Open zplotbatch and pipe our plot entries to it.
 
     $images = "";
+    $dates = "";
     $status="ok";
     if ($batchfile)
     {
@@ -511,6 +512,10 @@ sub clear
 	    {
 		$images .= " $1 ";
 	    }
+	    if (/^Dates: (.*)$/)
+	    {
+		$dates .= " $1 ";
+	    }
 	}
 	close BP;
 	$status = "$FAIL zplotbatch status:" if ($?);
@@ -522,7 +527,7 @@ sub clear
     }
     unlink("$batch");
 
-    $pindex = "plotindex \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'}";
+    $pindex = "plotindex \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'} $dates";
     if ($debug < $D_NoPlot && ! $noindex)
     {
 	print "Generating plot image index:\n";

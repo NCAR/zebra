@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.37 2006-02-27 21:37:04 granger Exp $
+# $Id: zplotbatch,v 1.38 2006-03-08 05:53:15 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -213,6 +213,7 @@ while read when config windows; do
     if [ ! -d $subspool ]; then
 	mkdir -p $subspool
     fi
+    echo "Dates: $1$2$3"
 
     queryprocs=''
     for plot in $procs ; do
