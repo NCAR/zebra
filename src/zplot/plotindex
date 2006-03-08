@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: plotindex,v 1.5 2006-03-08 06:00:57 granger Exp $
+# $Id: plotindex,v 1.6 2006-03-08 07:02:38 granger Exp $
 #
 # Create an index.html file from a directory of plot images, so that
 # we can control the format and ensure the full file name appears
@@ -43,7 +43,10 @@ foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
 	    my $d;
 	    foreach $d (@selected)
 	    {
-		if ($date eq $d)
+		# Also need to regenerate dates on either side of selected
+		# dates, since the previous and next links on those dates
+		# need to change if the target date is new.
+		if ($d eq $date || $d eq $prevdate || $d eq $nextdate)
 		{
 		    &create_index;
 		}
