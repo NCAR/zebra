@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 #
 # FTP images to a remote host
-# $Id: ftpplots,v 1.11 2006-03-03 09:09:10 granger Exp $
+# $Id: ftpplots,v 1.12 2006-03-12 21:08:07 granger Exp $
 
 $site="$ENV{'PLOT_FTP_HOST'}";
 $dir="$ENV{'PLOT_FTP_DIR'}";
@@ -18,7 +18,8 @@ if ($#ARGV < 0)
 
 use Net::FTP;
 
-$ftp = Net::FTP->new($site, Passive => 1, Debug => 1);
+$ftp = Net::FTP->new($site, Passive => 1);
+# Debug => 1);
 $ftp->login($user,$pass);
 $ftp->binary();
 
