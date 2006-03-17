@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: plotindex,v 1.6 2006-03-08 07:02:38 granger Exp $
+# $Id: plotindex,v 1.7 2006-03-17 16:08:55 granger Exp $
 #
 # Create an index.html file from a directory of plot images, so that
 # we can control the format and ensure the full file name appears
@@ -49,6 +49,7 @@ foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
 		if ($d eq $date || $d eq $prevdate || $d eq $nextdate)
 		{
 		    &create_index;
+		    last;
 		}
 	    }
 	}
