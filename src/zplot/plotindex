@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: plotindex,v 1.7 2006-03-17 16:08:55 granger Exp $
+# $Id: plotindex,v 1.8 2006-04-27 05:48:16 granger Exp $
 #
 # Create an index.html file from a directory of plot images, so that
 # we can control the format and ensure the full file name appears
@@ -11,12 +11,20 @@ use strict;
 
 if ($#ARGV < 1)
 {
-    print "Usage: $0 <project> <date directory> [<date> ...]\n";
+    print "Usage: $0 [options] <project> <date directory> [<date> ...]\n";
+    print " -match <regexp>    Only index files matching regexp.\n";
     print "If no <date>, creates index.html in each of the date directories\n";
     print "in <date directory>.  Otherwise creates only <date>/index.html\n";
     exit 1;
 }
 
+my $match = ".*";
+if ($ARGV[0] eq "-match")
+{
+    shift @ARGV;
+    $match = shift @ARGV;
+    print "Matching $match\n";
+}
 my $project = shift @ARGV;
 my $datedir = shift @ARGV;
 my @selected = @ARGV;
@@ -69,7 +77,7 @@ sub create_index
     print "Indexing $directory, prev=$prevdate, next=$nextdate, ...\n";
     # chdir("$datedir/$date");
     my $title="Project $project plot images for $date";
-    open (HTML, "| cd \"$datedir/$date\" && sumplot \"$title\" '.*' . . index.html") || 
+    open (HTML, "| cd \"$datedir/$date\" && sumplot \"$title\" \'$match\' . . index.html") || 
 	die "sumplot: $!";
 
 print HTML "<a href=..>Parent directory</a><HR>\n";
