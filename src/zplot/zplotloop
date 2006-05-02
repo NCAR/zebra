@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: zplotloop,v 1.11 2006-02-28 05:46:33 granger Exp $
+# $Id: zplotloop,v 1.12 2006-05-02 22:52:53 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -16,7 +16,7 @@ require libzplot;
 
 if ($#ARGV < 1)
 {
-    print "Usage: zplotloop <begin> <end> [<hours>] [-enqueue <queue>]";
+    print "Usage: zplotloop <begin> <end> [<minutes>] [-enqueue <queue>]";
     print " [zplotd opts...]\n";
     print "The begin time can be 'start', which uses the project\n";
     print "start date and the first plot hour.\n";
@@ -30,6 +30,7 @@ if ($#ARGV < 1)
 }
 
 $step = "$ENV{'PLOT_PERIOD'}";
+$step = ($step * 60);
 $begin = $ARGV[0];
 $end = $ARGV[1];
 shift; shift;
@@ -89,7 +90,7 @@ elsif ("$end" ne 'now')
 $zplotd = "zplotd -d1 -norescan " . join(" ",@ARGV);
 print "zplotd command: $zplotd\n";
 print "Looping from ", &syszt($sbegin), " to ", &syszt($send), 
-    ", step $step hours.\n";
+    ", step $step minutes.\n";
 
 $stime = $sbegin;
 $last = '';
@@ -103,6 +104,6 @@ while ($stime <= $send)
 	system ("$cmd");
     }
     $last = $time;
-    $stime += ($step * 3600);
+    $stime += ($step * 60);
 }
 
