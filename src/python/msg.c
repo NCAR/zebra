@@ -2,6 +2,11 @@
  * Zebra Python module which allows use of the messaging facility.
  */
 
+# if __cplusplus
+extern "C"
+{
+# endif
+
 # include <Python.h>
 # include <defs.h>
 # define MESSAGE_LIBRARY	/* just to get FD_MAP_SIZE */
@@ -267,8 +272,7 @@ InitConstants (PyObject *dict)
 
 
 static PyObject *
-ZPmsg_connect (self, args)
-PyObject *self, *args;
+ZPmsg_connect (PyObject* self, PyObject* args)
 /*
  * msg.connect (handler, ident)
  */
@@ -882,8 +886,10 @@ ZPmsg_add_fd (PyObject *self, PyObject *args)
  * Do the add.
  */
 	Py_XINCREF (handler);
-	if (FDHandlers[fd])
-		Py_DECREF (FDHandlers[fd]);
+	if (FDHandlers[fd]) 
+	{
+	  Py_DECREF (FDHandlers[fd]);
+	}
 	FDHandlers[fd] = handler;
 	msg_add_fd (fd, FDHandler);
 /*
@@ -1180,3 +1186,7 @@ ZPmsg_ELog (PyObject *self, PyObject *args)
 	Py_INCREF (Py_None);
 	return (Py_None);
 }
+
+# if __cplusplus
+} // end of extern "C"
+# endif

@@ -51,7 +51,6 @@ initds ()
  */
 {
     PyObject *module, *dict;
-    int i;
 /*
  * Get the module initialized
  */
@@ -83,10 +82,12 @@ ZPds_RequestUpdates (PyObject *self, PyObject *args)
  * Parse out the platform and the function to call when new data are available
  */
     if (Update)
-	Py_XDECREF (Update);
+    {
+      Py_XDECREF (Update);
+    }
     
     if (! PyArg_ParseTuple (args, "sO", &platname, &Update))
-	return 0;
+      return 0;
 /*
  * Make sure the handler is kosher and increment its reference count
  */
@@ -121,7 +122,7 @@ ZPds_RequestUpdates (PyObject *self, PyObject *args)
 static int
 ZPds_DSCheck( void )
 {
-    static initialized = 0;
+    static int initialized = 0;
     
     if (! initialized)
     {
