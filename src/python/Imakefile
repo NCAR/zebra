@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.9 2004-12-02 20:58:27 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.10 2006-06-28 18:26:55 burghart Exp $"
 
 #LIBS = -L/usr/local/lib $(DFALIBS) $(ZLIBS)
 
@@ -28,8 +28,8 @@ DISTFILES = $(SRCS) ($HEADERS) Imakefile
 # Use the Python distutils Setup package to build zebra.so in
 # this directory
 #
-zebra.so:
-	./setup.py build_ext --inplace --build-temp . --include-dirs $(INCDIR)
+zebra.so: zebra.cc msg.c ds.c
+	export EXTRA_LINK_ARGS="$(DFALIBS) $(ZLIBS)"; ./setup.py build_ext --inplace --build-temp . --include-dirs $(INCDIR)
 
 clean::
 	$(RM) zebra.so
