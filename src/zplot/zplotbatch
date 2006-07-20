@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.38 2006-03-08 05:53:15 granger Exp $
+# $Id: zplotbatch,v 1.39 2006-07-20 15:46:19 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -287,7 +287,8 @@ while read when config windows; do
     # our query doesn't succeed *before* the imgdump command is received.
     echo "Waiting for windows to finish image dumps..."
     sleep 2
-    for plot in $queryprocs ; do
+    for plot in $queryprocs END; do
+	[ "$plot" = END ] && break
         zquery -t 30 $plot > /dev/null
     done
     echo "Window dumps finished."
@@ -315,7 +316,9 @@ echo "Shutting down $DM."
 #    # Give the server time to die and clear its socket
 #fi
 
-wait
+# Waiting here seems to hang the script, since we could be leaving
+# an X server behind, or the zebra session, and the dm kill script...
+#wait
 
 # Pass on the image file names in sorted order
 echo Images: `(for img in $images DONE ; do
