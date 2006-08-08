@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: zplotloop,v 1.12 2006-05-02 22:52:53 granger Exp $
+# $Id: zplotloop,v 1.13 2006-08-08 19:08:33 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -92,18 +92,17 @@ print "zplotd command: $zplotd\n";
 print "Looping from ", &syszt($sbegin), " to ", &syszt($send), 
     ", step $step minutes.\n";
 
-$stime = $sbegin;
-$last = '';
-while ($stime <= $send)
+$slast = $sbegin;
+$stime = $slast + ($step * 60);
+# Each iteration covers the period from slast to stime.
+while ($slast < $send)
 {
+    $last = &syszt($slast);
     $time = &syszt($stime);
-    if ($last)
-    {
-	$cmd = "$zplotd -time $last $time";
-	print "$cmd\n";
-	system ("$cmd");
-    }
-    $last = $time;
+    $cmd = "$zplotd -time $last $time";
+    print "$cmd\n";
+    system ("$cmd");
+    $slast = $stime;
     $stime += ($step * 60);
 }
 
