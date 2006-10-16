@@ -36,7 +36,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.31 2000-12-01 23:05:23 granger Exp $")
+RCSID("$Id: AxisControl.c,v 1.32 2006-10-16 20:47:24 granger Exp $")
 
 /*
  * Convenient scratch string
@@ -52,11 +52,12 @@ static int	SpaceUsed[NumSides];
  *  Static functions -- function prototypes
  */
 static void	ac_GetAxisDescriptors FP ((char*, AxisSide, int*, float*, 
-					   float*, char*, char*, float*));
-static void	ac_FormatLabel FP ((DataValPtr, char*, char*));
+					   float*, char*, char*, float*, 
+					   int*));
+static void	ac_FormatLabel FP ((DataValPtr, char*, char*, int tzoffset));
 static void	ac_DrawAxis FP ((char*, AxisSide));
 static void	ac_LabelInfo FP ((DataValPtr, DataValPtr, double, double,
-				  DataValPtr, int*, int*));
+				  DataValPtr, int*, int*, int tzoffset));
 static double	ac_AutoTicInterval FP ((DataValPtr, DataValPtr));
 static void	ac_GetLabel FP ((char *, int, char *));
 
@@ -100,14 +101,16 @@ char	*c;
 
 
 static void
-ac_FormatLabel (v, string1, string2)
+ac_FormatLabel (v, string1, string2, tzoffset)
 DataValPtr	v;
 char		*string1, *string2;
+int tzoffset;
 /*
  * Encode the value from v into string1.  For time values, put the date into
  * string1 and the time into string2.
  */
 {
+    DataValRec v2 = *v;
     switch (v->type)
     {
 	case 'f':
@@ -120,8 +123,9 @@ char		*string1, *string2;
 	    sprintf (string1, "%d", v->val.i);
 	    break;
 	case 't':
-	    TC_EncodeTime (&(v->val.t), TC_DateOnly, string1);
-	    TC_EncodeTime (&(v->val.t), TC_TimeOnly, string2);
+	    v2.val.t.zt_Sec += tzoffset*60;
+	    TC_EncodeTime (&(v2.val.t), TC_DateOnly, string1);
+	    TC_EncodeTime (&(v2.val.t), TC_TimeOnly, string2);
 	    break;
     }
 }
@@ -145,11 +149,12 @@ AxisSide	side;
     float	red, green, blue, hue, lightness, sat;
     DataValRec	ticLoc, min, max, val0, val1;
     XColor	mainPix, gridPix;
+    int tzoffset = 0;
 /*
  * Get the axis drawing details from the plot description
  */
     ac_GetAxisDescriptors (c, side, &ticlen, &ticInterval, &fscale, color, 
-			   label, &drawGrid);
+			   label, &drawGrid, &tzoffset);
 
     if (!ct_GetColorByName (color, &mainPix))
     {
@@ -256,7 +261,7 @@ AxisSide	side;
  * Get max label sizes and the location for the first tic
  */
     ac_LabelInfo (&min, &max, ticInterval, fscale, &ticLoc, &maxHeight, 
-		  &maxWidth);
+		  &maxWidth, tzoffset);
 /*
  * For time axes, we break tic labels onto two lines, so
  * the total height is actually bigger than maxHeight (the
@@ -330,7 +335,7 @@ AxisSide	side;
 		    /*
 		     * Draw the tic label
 		     */
-		    ac_FormatLabel (&ticLoc, ticLabel, ticLabel2);
+		    ac_FormatLabel (&ticLoc, ticLabel, ticLabel2, tzoffset);
 
 		    yloc = yOrig + direction * (ticlen + 2);
 
@@ -456,7 +461,7 @@ AxisSide	side;
 		    /*
 		     * Draw the tic label
 		     */
-		    ac_FormatLabel (&ticLoc, ticLabel, ticLabel2);
+		    ac_FormatLabel (&ticLoc, ticLabel, ticLabel2, tzoffset);
 
 		    xloc = xOrig + direction * (ticlen + 2 + maxWidth / 2);
 
@@ -530,10 +535,12 @@ AxisSide	side;
 
 
 static void
-ac_LabelInfo (min, max, step, fontscale, firstTic, maxHeight, maxWidth)
+ac_LabelInfo (min, max, step, fontscale, firstTic, maxHeight, maxWidth,
+	      tzoffset)
 DataValPtr	min, max, firstTic;
 float		step, fontscale;
 int		*maxHeight, *maxWidth;
+int tzoffset;
 /*
  * Given the min, max, step, and font scale, return the first tic 
  * location and the maximum width and height of the resulting tic labels.
@@ -585,9 +592,9 @@ int		*maxHeight, *maxWidth;
 		 * Get the label(s) for the appropriate tic
 		 */
 		if (i == 0)
-			ac_FormatLabel (firstTic, label1, label2);
+			ac_FormatLabel (firstTic, label1, label2, tzoffset);
 		else
-			ac_FormatLabel (&lastTic, label1, label2);
+			ac_FormatLabel (&lastTic, label1, label2, tzoffset);
 		/*
 		 * Test on the first label
 		 */
@@ -645,13 +652,14 @@ AxisSide	side;
 
 static void
 ac_GetAxisDescriptors (c, side, ticLen, ticInterval, fontScale, color, label, 
-		       drawGrid)
+		       drawGrid, tzoffset)
 char    *c;
 AxisSide	side;
 int     *ticLen;
 float   *ticInterval, *fontScale;
 char    *color, *label;
 float   *drawGrid;
+int *tzoffset;
 /*
  * Return axis info from the plot description for the given component and side.
  */
@@ -678,6 +686,13 @@ float   *drawGrid;
 	*ticLen = 5;
 	sprintf (Scratch, "axis-%c-tic-len", sideletter);
 	pda_Search (Pd, c, Scratch, "xy", (char *) ticLen, SYMT_INT);
+
+	if (tzoffset)
+	{
+	  *tzoffset = 0;
+	  sprintf (Scratch, "axis-%c-timezone-offset", sideletter);
+	  pda_Search (Pd, c, Scratch, "xy", (char *) tzoffset, SYMT_INT);
+	}
 /*
  * Find the scale type (which we need for tic interval below)
  */
