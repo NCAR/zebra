@@ -527,7 +527,7 @@ sub clear
     }
     unlink("$batch");
 
-    $pindex = "plotindex -match \"0600\.|1800\.\" \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'} $dates";
+    $pindex = "plotindex -match \"0600\.|1800\.|SkewT\" \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'} $dates";
     if ($debug < $D_NoPlot && ! $noindex)
     {
 	print "Generating plot image index:\n";
