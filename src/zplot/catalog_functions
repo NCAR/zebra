@@ -44,6 +44,7 @@ catalog_translate() # config-name window-name platform-var product-var
 		prof915h) suffix="Profiler"; product="Wind_Profile_High";;
 		class) suffix="Sounding"; product="SkewT";;
 		rass) suffix="Profiler"; product="RASS";;
+		snow) suffix="Surface"; product="Surface_Snow";;
 
 	    esac
 	    ;;
