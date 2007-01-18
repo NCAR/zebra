@@ -39,7 +39,8 @@ catalog_translate() # config-name window-name platform-var product-var
 		surf*rad) suffix="Surface"; product="Surface_Rad";;
 		surf*met) suffix="Surface"; product="Surface_Met";;
 		surf*wind) suffix="Surface"; product="Surface_Wind";;
-		surf*diag) suffix="Surface"; product="Diagnostics";;
+		surfdiag) suffix="Surface"; product="Diagnostics";;
+		surf2diag) suffix="Surface"; product="Diagnostics2";;
 		prof915l) suffix="Profiler"; product="Wind_Profile_Low";;
 		prof915h) suffix="Profiler"; product="Wind_Profile_High";;
 		class) suffix="Sounding"; product="SkewT";;
