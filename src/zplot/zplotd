@@ -568,7 +568,11 @@ sub clear
     $cmd = "(echo \"Subject: zplotd $status, log $log\"; echo \" \"; cat -)"
 	. " | /bin/mail -s \"zplotd $status, log $log\" $image_mail_list";
     print "$cmd\n";
-    if ($debug < $D_NoEmail && ! open (MAIL, "| $cmd"))
+    if ("$image_mail_list" =~ /^\W*$/)
+    {
+	print "Skipping email, no recipients configured.";
+    }
+    elsif ($debug < $D_NoEmail && ! open (MAIL, "| $cmd"))
     {
 	print "*** Mail failed! ***\n";
     }

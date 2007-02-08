@@ -8,11 +8,11 @@ cat <<EOF
 <body bgcolor="#ffffff">
 <table border='0'><tr><td>
 <A HREF="http://www.eol.ucar.edu/"><IMG valign=center alt="EOL..." 
-   SRC="http://www.eol.ucar.edu/graphics/eol_logo_sm.jpg"></a>
+   SRC="/graphics/eol_logo_sm.jpg"></a>
 </td>
 <td>
 <IMG alt="National Center for Atmospheric Research" 
-     SRC="http://www.atd.ucar.edu/gif/ncar_ban_sml.gif">
+     SRC="/gif/ncar_ban_sml.gif">
 <br>
 <h1>$1</h1>
 </td></tr></table>
