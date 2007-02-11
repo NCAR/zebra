@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.37 2002-08-15 22:37:55 burghart Exp $")
+RCSID ("$Id: Skewt.c,v 2.38 2007-02-11 18:28:26 granger Exp $")
 
 /*
  * General definitions
@@ -660,11 +660,15 @@ float	*pres, *temp, *dp, badvalue;
 
 	for (p = p_lcl; p < p_sfc + pstep; p += pstep)
 	{
+	  int done = 0;
 	/*
 	 * Stop at the surface pressure
 	 */
 		if (p > p_sfc)
-			p = p_sfc;
+		{
+		  p = p_sfc;
+		  done = 1;
+		}
 	/*
 	 * Get the temp corresponding to our theta at this pressure
 	 */
@@ -675,6 +679,9 @@ float	*pres, *temp, *dp, badvalue;
 		y[npts] = YPOS (p);
 		x[npts] = XPOS ((float) t, y[npts]);
 		npts++;
+
+		if (done)
+		  break;
 	}
 
 	sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG1]);
