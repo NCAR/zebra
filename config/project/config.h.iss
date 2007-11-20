@@ -1,0 +1,505 @@
+# ifndef _zebra_config_h_	/* protect against multiple inclusion */
+# define _zebra_config_h_
+
+/* -*- C -*-
+ *
+ * Zebra configuration parameters.
+ * -------------------------------
+ * In this file you can override any of the default configuration
+ * parameters.  All of the parameters are definition directives for
+ * the C pre-processor, of the form:
+
+#define Symbol <definition>
+
+ * To set a symbol to True or Yes or On, use
+
+#define Symbol YES
+  
+ * To turn a parameter off or disable an option, use
+
+#define Symbol NO
+
+ * Some symbols are not YES or NO but actually directory names or commands.
+ * If a Symbol is not defined in this file, it will be assigned a default
+ * definition in the Zebra template file, Project.tmpl, in this directory.
+ * Most of the defaults are mentioned in this file and there are
+ * instructions for how to change many of the configuration parameters.
+ * However, many more parameters exist.  If you think it necessary to
+ * change some other parameters, such as when porting to a new platform,
+ * look in the Project.tmpl file for all of the available parameters and
+ * their defaults.  Also see the Imake chapter of the Zebra Developer's
+ * Guide.  When in doubt about a parameter, try the default first and then
+ * adjust it if it doesn't work.
+ */
+
+/*============================== Don't change anything in this section ==*/
+/*_/////////////////////////////////////////////////////////////////////-*/
+
+/*
+ * Required when being included from a source file
+ */
+# ifndef YES
+#	define YES 1
+# endif
+# ifndef NO
+#	define NO 0
+# endif
+
+# ifdef MAKING_MAKEFILE
+XCOMM -----------------------------------------------------------------------
+XCOMM Definitions from config.h included here.  The definitions here override
+XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
+XCOMM $Id: config.h.iss,v 1.1 2007-11-20 19:37:59 granger Exp $
+XCOMM -----------------------------------------------------------------------
+# endif
+
+/*_/////////////////////////////////////////////////////////////////////-*/
+/*=======================================================================*/
+
+/*
+ * Which html browser do you want to use, netscape or Mosaic?  Use the
+ * MOSAIC_COMMAND symbol to define a default path to the browser; it can be
+ * either an absolute path or an executable name.  If commented out, zebra
+ * looks for Mosaic and xmosaic on your path.  If defined, zebra checks the
+ * defined path before trying the other options.  The path must be quoted.
+ *
+ * Zebra only knows the remote control protocols for Mosaic and netscape.
+ * If MOSAIC_COMMAND includes the text "netscape", then the netscape protocol
+ * will be used.
+ */
+# define MOSAIC_COMMAND "firefox"
+
+# ifdef MAKING_MAKEFILE
+/*=======================================================================
+ * CHECK THE FOLLOWING DEFINITIONS:
+ * 
+ * This section defines the directories in which Zebra files live.  These
+ * are set-up for a default Zebra installation under /zebra, with the bin
+ * and lib directories in /zebra/bin and /zebra/lib.  If you would like to
+ * change the destination for Zebra, edit the definitions below.  The
+ * definitions should be ABSOLUTE PATHS and they should NOT be enclosed in
+ * quotes.  If you wish to install Zebra within the distribution tree,
+ * set BaseDir to the absolute path of the top directory.
+ * 
+ * PLEASE NOTE:
+ * Files will be installed into the LibDir, BinDir, and IncDir
+ * directories.  If you wish to preserve files already stored in these
+ * directories, either move the directories BEFORE building Zebra or
+ * specify different directory paths for the symbols below.  If you wish to
+ * overwrite a previous version of Zebra, you might as well completely
+ * erase the contents of BinDir so that programs which are no longer used
+ * are not left taking up space.
+ */
+
+# define BaseDir	/home/iss/zebra
+# define BinDir		BaseDir/bin
+# define LibDir		BaseDir/lib
+# define IncDir		BaseDir/include
+
+/*
+ * If the UseInstalledZebra symbol is YES, Zebra executables will link with
+ * the installed libraries instead of the libraries built in the source 
+ * directories.  Sometimes it is more convenient to link with the source.
+ * If you don't understand or don't care about the difference, leave this
+ * as YES.
+ */
+# define UseInstalledZebra	YES
+
+/*=======================================================================*/
+
+/* =========================================================================
+ * The following definitions determine which parts of the Zebra system will
+ * be compiled and installed in the build process.
+ *
+ * 	YES --- The capability WILL be compiled into the system.
+ * 	NO  --- The capability WILL NOT be included into the system.
+ *
+   ------------------------------------------------------------------------ */
+
+/* 
+ * Do you want to build any of Zebra's ingest modules?  Only recommended
+ * for Sun machines, and only if you know that you need them.  This only
+ * has an effect if the ingest directory tree exists under the src/
+ * directory, in which case you should edit config-ingest.h also.
+ * The easiest thing to do would be to leave this as no and then configure
+ * and build the ingest tree separately.
+ */
+# define        BuildIngest             YES
+
+# define	BuildDataUtilities	NO
+# define	BuildIngestScheduler	YES
+# define	BuildClassIngest	YES
+# define	BuildSLGrabber		YES
+
+/*
+ * Set this if you want the ingest-oriented DataStore utilities (these being
+ * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  They
+ * will not build properly under a non-ANSI compiler.
+ */
+# define	BuildRealtimeDataStoreTools	YES
+
+/*
+ * The map utilities allow converting maps from a few different existing
+ * formats into a Zebra-usable format.  The forms handled include USGS
+ * DLG/SDTS format, CIA World Database II CBD format, and NCAR Graphics map
+ * format.  A couple of Zebra map "massaging" utilities are also provided. 
+ */
+# define	BuildMapUtilities		YES
+
+
+/* //// That's all of the defintions for choosing pieces to install.///// */
+/* //// Go the next section for other compile configuration options ///// */
+/*========================================================================*/
+
+
+/*========================================================================
+ * COMPILATION OPTIONS
+ * -------------------
+ *
+ * In the following section, you can override any of the configuration
+ * defaults.  In general, here you choose whether you want to compile with
+ * MIT's X Windows or Sun's OpenWindows, and whether you want to use Sun's
+ * C compiler, cc, or GNU C, gcc, or some other C compiler.  Other
+ * parameters indicate the availability of certain capabilities utilized by
+ * Zebra, such as the X Shared Memory extension.
+ *
+ * By default, the configuration will attempt to compile with your systems
+ * default C compiler and link with X libraries from /usr/lib or any other
+ * standard library directories.  You can link with MIT's X and still use
+ * Zebra under OpenWindows, and vice versa.  Zebra must know if it is being
+ * linked with OpenWindows, however, because the build must make some
+ * adjustments in order to link properly.  If you have MIT's X
+ * distribution, Release 4 or 5, use it.  If you only have OpenWindows,
+ * then use that (the most recent version possible) and
+ * define the UseOpenWindows symbol below to YES.
+ */
+
+/*
+ * Using Open Windows?  Then define UseOpenWindows to YES.
+ * If the home directory of OpenWindows is not the default /usr/openwin,
+ * then define OpenWinHome to the correct directory.
+ */
+# define UseOpenWindows 	NO	
+# define OpenWinHome		/usr/openwin
+
+#ifdef notdef
+/*
+ * These are flags which might be useful for gcc.  The first links with
+ * with a static libstdc++ even when shared is the default.  The second
+ * prevents lots of warnings about non-standard X header files.
+ */
+# define ExtraLoadFlags	-nodefaultlibs /usr/local/lib/libstdc++.a -lgcc -lc
+# define XIncludes -idirafter $(XINCDIR)
+#endif
+
+/*
+ * Does your X system support the shared memory extension?  The answer is
+ * YES for MIT X, release 4 or greater, for Openwin 2.0 or above, and for
+ * HPUX.  If unsure, run "xdpyinfo" and look for a line indicating the MIT-SHM
+ * extension.
+ */
+# define XSharedMemory YES
+
+/*
+ * Compiler information:
+ *
+ * An ANSI-compliant C compiler is required.
+ *
+ * If you have gcc (GNU C), we recommend that you use it.
+ * If you wish to use gcc, simply define UseGcc to YES.
+ *  - This setting automatically sets the CCompiler command
+ *    (so don't override it) and any other necessary options
+ *
+ * If you wish to use a C compiler other than the default,
+ * define CCompiler to the C compiler command.  For most systems,
+ * the default will be 'cc'.  Example: To use "acc" (the Sun ANSI C 
+ * Compiler), use the following:
+ *	# define CCompiler acc
+ *
+ * HPUX: Either gcc or the default "cc" command will work.  As of this
+ * 	 writing, the version of gcc distributed by FSF does not support
+ *	 debugging on the HP.  Either turn off "-g" below, or get the
+ *	 special version at jaguar.cs.utah.edu.
+ *
+ * SGI:	 GCC works iff (1) you have Irix 5.2 or greater, and (2) you have 
+ *	 gcc 2.6.1 or greater.  Lacking those, use of the native compiler
+ *	 is highly recommended.
+ */
+# define UseGcc YES
+
+/* 
+ * Zebra compilation now also requires a C++ compiler and (for dsmanage and
+ * tapeindex) GNU's libg++.  In turn, libg++ essentially requires that the
+ * C++ compiler be GNU's g++. (Known reasons are: use of the "#include_next"
+ * preprocessor directive, and assumption of "bool" as a built-in type.)
+ * Hence: we must use g++ and libg++.  Period.
+ *
+ * In general, defaults generated for finding g++ and libg++ will suffice.
+ * In some instances, however, one or more of the following variables may 
+ * need to be #defined below:
+ *
+ *	CplusplusCmd			path to g++, if other than just "g++"
+ * 	CplusplusOptions		options specific to the C++ compiler
+ *	CplusplusSpecialOptions		special library options for C++
+ *
+ * E.g., if your g++ compiler is not in your normal execution path, and lives
+ * in directory /weird/bin, you need a line below of the form:
+ *	# define CplusplusCmd /weird/bin/g++
+ *
+ * If you want debug flags for the C++ compiler and linker, define the
+ * CplusplusDebugFlags macro accordingly.  The CDebugFlags setting is no
+ * longer included automatically on the C++ command line.
+ *
+ * Caution: Enabling debugging can significantly slow compilation time and
+ * increase library and executable size.  If disk space is critical, you
+ * might want to consider either stripping the binaries after installation
+ * or disabling debugging altogether.
+ */
+# define HasCplusplus	YES
+# define CplusplusCmd	g++
+# define CplusplusDebugFlags -g
+
+/*
+ * To set debugging flags for the FORTRAN and C compilers' command
+ * lines, define the symbols CDebugFlags and FortDebugFlags.
+ * The default is no debugging.  Note that for most compilers
+ * (gcc is an exception), the -g and -O flags cannot be combined.
+ * On Sun's, a debugging flag will disable optimization.  The FORTRAN
+ * should probably always be optimized, so make sure FortDebugFlags
+ * does not disable optimization by specifying any debug flags.
+ *
+ */
+# define CDebugFlags -g
+/* # define FortDebugFlags -g */
+
+/*
+ * To change other compiler command line options, such as required by your
+ * compiler (floating point stuff, etc.), or optimization flags, define
+ * CCOptions and FortOptions.  The default is optimization, -O.
+ *
+ * HP-UX: If you will be including the "Proj" map projection library and
+ *	  compiling with the HP native compiler, the HP cc must be given
+ *	  the ANSI "-Aa" option to be able to compile the Proj library
+ *	  header file.  The CCOptions default of "-Aa" for the native
+ *	  compiler should suffice.  If you change CCOptions and you are
+ * 	  compiling Proj, be sure to include the -Aa option. 
+ *
+ * HP-UX: If you override the default for FortOptions, you must also
+ *	  provide the "+ppu" option or you will get undefined externals when
+ *	  you link the graphics process.  Ordinarily the default will suffice.
+ *
+ * IBM-AIX : If you override the default for FortOptions, you must also
+ *           provide the "-qextname" option or you will get some undefined
+ *           external symbols when linking.
+ */
+
+/* # define CCOptions -O */
+
+/* # define FortOptions -O +ppu */
+
+/* # define FortOptions -O -qextname */  /* For IBM-AIX xlf fortran */
+
+/*
+ * During compilation, Zebra's source files must be able to find lots
+ * of include files.  By default, your compiler should check the
+ * standard include directories like /usr/include.  If the header files
+ * for any package that Zebra requires are not in some standard location,
+ * the correct directories need to be defined here.  Note that even if
+ * an include directory is in a compiler's default path, it may not be
+ * in makedepend's. If in doubt, try the defaults first.
+ * The available symbols are:
+ *
+ *	XIncDir		-- Location of X header files.  By default,
+ *			   this will be $OPENWINHOME/include if you
+ *			   are using OpenWindows.  Otherwise it will
+ *			   be empty (i.e. rely on the compiler to search
+ *			   the standard include directories).
+ *	NetCDFIncDir    -- Location of netCDF header files.  The default
+ *			   is empty (use system's default include directories).
+ *	RDSSIncDir	-- RDSS include files.  The default is RDSSDir/include.
+ *			   If not defined above, RDSSDir is /rdss.
+ *	UDUnitsIncDir	-- Header file location for udunits.  The default is 
+ *			   /usr/local/include, the standard install directory
+ *			   for udunits.h.
+ *
+ * Note that gcc will search /usr/local/include by default, most other
+ * compilers and makedepend will not.  Even if using gcc, go ahead and 
+ * specify /usr/local/include if it contains needed header files.
+ */
+
+#ifdef notdef
+#ifdef HPArchitecture
+# define XIncDir /usr/contrib/mitX11R5/include	/* HP-UX version */
+#else
+# define XIncDir /usr/X11R6/include
+#endif
+
+#define NetCDFIncDir /opt/local/include
+#define UDUnitsIncDir /opt/local/include
+#endif
+#define NetCDFIncDir /usr/include/netcdf-3
+
+/*
+ * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
+ * files generated by SeaSpace's TDF-to-HDF converter.  TDF is the
+ * terra-scan data format used by SeaSpace.  HDF comes from the National
+ * Center for Supercomputing Applications at the University of Illinois,
+ * Urbana-Champaign.  Zebra's HDF access is limited to SeaSpace satellite
+ * images and will not work with general Raster, Palette, or SDS data
+ * objects.  If you need to read other HDF files, let us know so that we
+ * have an idea of the demand and the types of access needed.
+ *
+ * Source code and documentation for HDF are on
+ * ftp://ftp.ncsa.uiuc.edu/HDF. Some general information on HDF, including
+ * a FAQ, is available from
+ * http://www.ncsa.uiuc.edu/SDG/Software/HDF/HDFIntro.html.  The Zebra
+ * interface has only been tested with HDF 3.3r2.
+ *
+ * If you don't have HDF, just leave HasHDF as its default of NO.  Usually
+ * only those working with ARM project data will need HDF support.  If you
+ * have HDF and HDF satellite images you'd like to display, define HasHDF
+ * to YES.  HDFIncDir should be the path to the HDF header files, and
+ * HDFLibDir is the directory of the HDF library.  Or you can define
+ * HDFLibrary to the full path, including the file name, of the HDF library
+ * (e.g. /usr/local/ncsa/libdf.a). 
+ */
+#define HasHDF NO
+#define HDFIncDir /usr/local/include/hdf
+#define HDFLibDir /usr/local/lib
+
+/*
+ * Zebra can now cope with radar sweepfiles as well.  Unless you have
+ * the needed libraries, and you know that you want to use this capability,
+ * your best bet is to leave it disabled.  If this is enabled, then 
+ * polar plots in the graphics process will also be enabled.  Without
+ * sweepfile support, polar plots are useless and will be automatically
+ * disabled.
+ *
+ * If enabled, use SweepFileIncDir to say where the dorade library
+ * includes live, and SweepFileLibrary to specify the library itself
+ * (or SweepFileLibDir to just give the directory).
+ */
+# define HasSweepFiles NO
+# define SweepFileIncDir /opt/local/include
+# define SweepFileLibrary /opt/local/lib/libddm.a
+
+/*
+ * Building the radar ingestor now requires the PCAP library from
+ * ftp.ee.lbl.gov.  If you want this module be sure that the symbol
+ * below is set such that the linker will find the library; if you're
+ * not using the radar ingestor (99.9% of all Zebra users), you can ignore
+ * all this.
+ */
+# define PCAPLibrary 	-lpcap
+# define PCAPIncludes 	-I/opt/local/include
+
+/*
+ * The graphics process can be built to do map projections.  Projections
+ * require the proj library, produced by the U.S. Geological Survey, and a
+ * C compiler which supports ANSI prototypes, such as gcc.  The proj library
+ * may be obtained from the ATD FTP site, or from charon.er.usgs.gov.  We
+ * thank Gerald Evenden of USGS for allowing us to use and redistribute
+ * this library.
+ *
+ * To use projections, set MapProjections to YES and ProjLibrary to the
+ * appropriate value. 
+ */
+# define MapProjections YES
+#ifdef notdef
+/* # define ProjLibDir /opt/local/lib */
+# define ProjIncDir /opt/local/include
+# define ProjLibrary /opt/local/lib/libproj.a
+#endif
+	
+/*
+ * Examples of command-line options which override the above definitions
+ */
+/* # define ProjLibrary -L/usr/local/proj/lib -lproj */
+/* # define ProjIncludes -I/usr/local/proj/include */
+
+/*
+ * During linking, the linker must be told where to find the libraries 
+ * for the various packages which Zebra requires.  The locations of these
+ * libraries can be defined in the following parameters.  All of these
+ * default to empty, meaning that the libraries will be found in the
+ * system's default library search path.  If any of these are defined, then
+ * they will automatically be included in a -L option to the compiler,
+ * unless they are overridden by XLibraries, NetCDFLibrary, or RDSSLibrary
+ * below.
+ *
+ * 	XLibDir		-- Location of X libraries.
+ *	NetCDFLibDir    -- Location of the netCDF library.
+ *	RDSSLibDir	-- RDSS Library directory.  IF NOT INSTALLED IN
+ *			   /usr/local/lib OR /usr/lib, DEFINE A DIRECTORY
+ *			   BELOW.
+ *	UDUnitsLibDir	-- Location of the udunits library.
+ *
+ * WARNING: If any of the following libraries are in /usr/lib and you are
+ * building on a Sun, DO NOT specify /usr/lib explicitly.  Otherwise you
+ * will run into extremely weird linking problems involving the fact that
+ * Sun provides at least three math libraries and you HAVE to get the right
+ * one.
+ */
+
+#ifdef notdef
+# define XLibDir /usr/X11R6/lib
+/* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
+
+# define NetCDFLibDir /opt/local/lib
+# define UDUnitsLibDir /opt/local/lib
+#endif
+
+/*
+ * To specify the whole command-line option for a library use the symbols
+ * XLibraries, NetCDFLibrary, UDUnitsLibrary, RDSSLibrary.  For example, to 
+ * use a version of RDSS which has a different name, use 
+ *
+ * #define RDSSLibrary -L/usr/local/lib -lrdssui2 -lrdssutil2
+ *
+ * which on most UNIX systems is equivalent to
+ *
+ * #define RDSSLibrary /usr/local/lib/librdssui2.a \
+ * 		       /usr/local/lib/librdssutil2.a
+ *
+ * Note that defining one of the 'Library' symbols as above will completely
+ * circumvent the definition of the corresponding 'LibDir' symbol.  
+ * FOR ALMOST ALL INSTALLATIONS, it should only be necessary to specify
+ * library directories via the XLibDir, RDSSLibDir, and NetCDFLibDir symbols,
+ * meaning the symbols XLibraries, NetCDFLibrary, and RDSSLibrary do not
+ * need to be defined here. (The names of the libraries will be added
+ * automatically to the LibDir symbols.)
+ *
+ * If you need to define the actual command-line option for specifying
+ * some or all of the libraries, you can change several parameters.
+ * All of these parameters will default to the specified library directory
+ * (such as those that may have been defined above) and the standard
+ * name of the library: e.g. -L<libdir> -l<libname>.  The default is
+ * listed to the right of each of the parameter names.
+ *
+ * For these 4 libraries, it is unlikely that the defaults will not be
+ * sufficient:
+ *
+ *	XLibraries	-lXaw -lXmu -lXt -lXext -lX11
+ *	NetCDFLibrary	-lnetcdf
+ *	UDUnitsLibrary	-ludunits
+ * 	RDSSLibrary	-lrdssui -lrdssutil
+ */
+
+/*========================================================================*/
+# endif /* MAKING_MAKEFILE */
+
+/*-//////////////////////////////////////////////////////////////////////-*/
+/*========================================================================
+ * ////////    You are now finished configuring Zebra!     ///////////////
+ * ////////           DO NOT EDIT ANY FURTHER!	           ///////////////
+ * ////////     Save this file and continue with the	   ///////////////
+ * ////////         installation instructions...	   ///////////////
+ *========================================================================*/
+/*-//////////////////////////////////////////////////////////////////////-*/
+# ifdef MAKING_MAKEFILE
+#include "config-ingest.h"
+# endif /* MAKING_MAKEFILE */
+
+#include "config-defaults.h"
+
+# endif /* ! _zebra_config_h_ */
