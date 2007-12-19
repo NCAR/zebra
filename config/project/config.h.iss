@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.iss,v 1.1 2007-11-20 19:37:59 granger Exp $
+XCOMM $Id: config.h.iss,v 1.2 2007-12-19 20:14:38 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -91,7 +91,7 @@ XCOMM -----------------------------------------------------------------------
  * are not left taking up space.
  */
 
-# define BaseDir	/home/iss/zebra
+# define BaseDir	/opt/local/zebra
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
 # define IncDir		BaseDir/include
