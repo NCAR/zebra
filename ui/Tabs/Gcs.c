@@ -1,4 +1,4 @@
-static	char	rcsid[] = "$Id: Gcs.c,v 1.1 2001-11-30 00:42:08 granger Exp $" ;
+static	char	rcsid[] = "$Id: Gcs.c,v 1.2 2008-04-16 18:26:56 granger Exp $" ;
 
 /*
  * Gcs.c - Utility functions to allocate GCs.
@@ -7,18 +7,6 @@ static	char	rcsid[] = "$Id: Gcs.c,v 1.1 2001-11-30 00:42:08 granger Exp $" ;
  *	   falk@falconer.vip.best.com
  *
  * Date: Sept 29, 1998
- *
- *
- * $Log: not supported by cvs2svn $
- * Revision 1.3  1998/12/15 04:55:05  falk
- * now uses Xmu library for stippled bitmap
- * now includes font in foreground & grey GC
- *
- * Revision 1.2  1998/10/12 16:29:32  falk
- * Now exports the allocPixel and GetGrey50 functions
- *
- * Revision 1.1  1998/10/12 01:38:14  falk
- * Initial revision
  *
  *
  */

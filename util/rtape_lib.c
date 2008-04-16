@@ -20,11 +20,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* JF: modified to make all rmtXXX calls into macros for speed */
 
 #ifndef lint
-static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.6 1998-12-17 17:18:20 burghart Exp $";
+static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.7 2008-04-16 18:26:55 granger Exp $";
 #endif
 
 /*
- * $Log: not supported by cvs2svn $
+ * Revision 1.6  1998/12/17 17:18:20  burghart
+ * Mods to support machines with 64-bit addresses/pointers.  The changes are
+ * almost exclusively changing various ints to longs.  This includes changing
+ * int casts to long casts, and adding a few explicit long casts.
+ *
+ * These changes appear to work for current DEC/OSF1 Alpha boxes using gcc.  Of
+ * course we're screwed if we ever run into a machine regardless of address
+ * size where sizeof(long) != sizeof(void*)...
+ *
  * Revision 1.5  1997/05/13 21:40:41  ishikawa
  * Replaced symbol aix for AIXV3 for IBM
  *

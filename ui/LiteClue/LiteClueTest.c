@@ -31,19 +31,10 @@ Functions:	Provide a test fixture for LiteClue widget
 ;-
 */
 
-/*	Revision Information:
-
-$Log: not supported by cvs2svn $
-
-$log
-Initial version.
-$log
-
-*/
 
 #ifndef __VMS
-#define 	VERSION "$Revision: 1.1 $"
-#ident		"@(#)$Id: LiteClueTest.c,v 1.1 2001-11-30 00:42:07 granger Exp $ $Revision: 1.1 $"
+#define 	VERSION "$Revision: 1.2 $"
+#ident		"@(#)$Id: LiteClueTest.c,v 1.2 2008-04-16 18:26:56 granger Exp $ $Revision: 1.2 $"
 #else
 # define        VERSION "1.2"
 # pragma module LiteClueTest "LiteClueTest 1.2"

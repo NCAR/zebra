@@ -23,28 +23,6 @@ Gary Aviv
 Computer Generation, Inc.,
 gary@compgen.com
 */
-/* Revision History:
-$Log: not supported by cvs2svn $
-Revision 1.5  1998/09/07 14:06:24  gary
-Added const to prototype of XcgLiteClueAddWidget at request from user
-
-Revision 1.4  1997/06/15 14:07:56  gary
-Added XcgLiteClueDispatchEvent
-
-Revision 1.3  1997/04/14 13:03:25  gary
-Added XgcNwaitperiod XgcNcancelWaitPeriod and c++ wrappers
-
-Revision 1.2  1996/10/20 13:39:25  gary
-Version 1.2 freeze
-
-Revision 1.1  1996/10/19 16:08:04  gary
-Initial
-
-
-$log
-Added const to prototype of XcgLiteClueAddWidget at request from user
-$log
-*/
 
 #ifndef _DEF_LiteClue_h
 #define _DEF_LiteClue_h

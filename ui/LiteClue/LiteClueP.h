@@ -24,22 +24,6 @@ Computer Generation, Inc.,
 gary@compgen.com
 
 */
-/* Revision History:
-$Log: not supported by cvs2svn $
-Revision 1.3  1998/07/30 16:06:01  gary
-NO_FONT_SET
-
-Revision 1.2  1997/06/15 14:08:14  gary
-Support for cancel wait period
-
-Revision 1.1  1996/10/19 16:08:51  gary
-Initial
-
-
-$log
-NO_FONT_SET
-$log
-*/
 
 #ifndef _DEF_LiteClueP_h
 #define _DEF_LiteClueP_h

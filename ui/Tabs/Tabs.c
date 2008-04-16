@@ -1,4 +1,4 @@
-/* $Id: Tabs.c,v 1.1 2001-11-30 00:42:09 granger Exp $
+/* $Id: Tabs.c,v 1.2 2008-04-16 18:26:56 granger Exp $
  *
  * Tabs.c - Index Tabs composite widget
  *
@@ -29,7 +29,6 @@
  * width, so that when the topmost tab is drawn, it obliterates part of
  * the frame.
  *
- * $Log: not supported by cvs2svn $
  * Revision 1.18  1999/07/30 23:01:05  falk
  * makes sure top tab is managed
  *
