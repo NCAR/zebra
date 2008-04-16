@@ -11,13 +11,13 @@
  *
  *	Reference number	- SP1/HDR/02000041
  *	
- *	Revision number		- $Revision: 2.2 $
+ *	Revision number		- $Revision: 2.3 $
  *	Release state		- $State: Exp $
  *
  *	Author, designer	- B. Smith
  *
- *	Modification date	- $Date: 1999-03-01 02:04:38 $
- *	Modified by		- $Author: burghart $
+ *	Modification date	- $Date: 2008-04-16 18:26:54 $
+ *	Modified by		- $Author: granger $
  * 
  * COPYRIGHT NOTICE
  *
@@ -36,7 +36,11 @@
  *
  * MODIFICATION RECORD
  *
- * $Log: not supported by cvs2svn $
+ * Revision 2.2  1999/03/01 02:04:38  burghart
+ * It's time to take the plunge.  This is the merge of the large file database
+ * changes made for the U. of Washington, specifically Branch_Seattle_980430.
+ * See the logs of that branch for details.
+ *
  * Revision 2.1  1993/08/18  15:34:44  burghart
  * Created new adrad_ingest program to deal with data from Texas A&M's ADRAD
  * (Aggie Doppler Radar).  The Rasterize() function in Rasterize.c was

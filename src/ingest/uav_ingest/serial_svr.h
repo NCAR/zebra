@@ -6,17 +6,10 @@
 ==
 ==   RCS State: $State: Exp $
 ==
-==   RCS Version: $Revision: 1.2 $
+==   RCS Version: $Revision: 1.3 $
 ==
-==   RCS Creation Date: $Date: 1999-03-01 02:04:41 $
+==   RCS Creation Date: $Date: 2008-04-16 18:26:53 $
 ==
-==   RCS Revision Log:  $Log: not supported by cvs2svn $
- * Revision 1.1  1994/04/15  20:14:03  granger
- * first version
- *
- * Revision 1.1  1994/03/05  22:57:09  d3e728
- * Initial revision
- *
 ==
 ==  Description:  This file gives the pathnames to the FIFOs or named pipes
 ==                        used to distribute data received on a serial port. 
