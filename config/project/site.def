@@ -76,10 +76,13 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
  * Remove default -O2 optimization from Linux compiles, since optimization
  * does weird things to large raster displays of terrain data.  Why?
  * Nobody knows...
+ *
+ * 2008/04/16 gjg  Added back O2 optimization, but removed i486 arch to 
+ * allow builds on 64-bit machines.
  */
 #ifdef LinuxArchitecture
 # undef OptimizedCDebugFlags
-# define OptimizedCDebugFlags    -march=i486
+# define OptimizedCDebugFlags -O2
 #endif
 
 /* 
