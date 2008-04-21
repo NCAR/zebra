@@ -140,7 +140,8 @@ int fd;
  * Something is available on this broadcast port.
  */
 {
-	int len, flen = 0;
+  	int len;
+	socklen_t flen = 0;
 	static char rbuf[MAXBCAST];
 	BCConn *cp = Connections + fd;
 /*

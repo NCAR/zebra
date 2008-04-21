@@ -19,6 +19,8 @@
  * maintenance or updates for its software.
  */
 
+#include <time.h>
+
 # include "defs.h"
 # include "timer.h"
 # include "message.h"

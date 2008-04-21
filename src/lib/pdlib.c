@@ -21,9 +21,8 @@
 # include <stdio.h>
 # include <string.h>
 # include <ctype.h>
-#ifdef SVR4
 # include <unistd.h>
-#endif
+# include <unistd.h>
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <sys/param.h>

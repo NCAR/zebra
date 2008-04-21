@@ -225,7 +225,7 @@ struct ZTime : public ZebraTime
 	// ================
 	// Constructors
 	//
-	// Warning: Because we inherit from a C structre, ZebraTime,
+	// Warning: Because we inherit from a C structure, ZebraTime,
 	// it does not have a constructor which initializes its members,
 	// so these constructors have to make sure they do that.
 

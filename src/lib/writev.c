@@ -1,6 +1,7 @@
 /*
  * Emulation for (sadly) missing readv and writev routines.
  */
+# include <sys/unistd.h>
 # include <sys/types.h>
 # include <sys/uio.h>
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -22,7 +23,7 @@
  */
 
 
-
+int
 fcc_writev (fd, iov, niov)
 int fd, niov;
 struct iovec *iov;
@@ -45,7 +46,7 @@ struct iovec *iov;
 
 
 
-
+int
 fcc_readv (fd, iov, niov)
 int fd, niov;
 struct iovec *iov;

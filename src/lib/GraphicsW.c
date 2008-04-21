@@ -254,8 +254,6 @@ Visual		**visual;
 int		*depth;
 Colormap	*colormap;
 {
-	int		nmatches;
-	XVisualInfo	template, *matches;
 /*
  * Try to use the default visual if possible (so we can also use the
  * default colormap).  We'll take it if it's either an 8-bit pseudocolor
@@ -267,6 +265,8 @@ Colormap	*colormap;
 	msg_ELog (EF_DEBUG, "Got visual 0x%x with depth %d", *visual, *depth);
 
 # ifdef OLD_NASTY_STUFF
+	int		nmatches;
+	XVisualInfo	template, *matches;
 	if ((*visual)->class == PseudoColor && (*depth == 8 || *depth == 1))
 	{
 		*colormap = DefaultColormapOfScreen (w->core.screen);
@@ -605,7 +605,6 @@ GraphicsWidget w;
 #   define HOSTLEN 50
     int maj, min, sp, possible;
     XShmSegmentInfo seg;
-    char host[HOSTLEN];
     Display *dpy = XtDisplay(w);
     int (*oldhandler)(Display*, XErrorEvent*);
 /*

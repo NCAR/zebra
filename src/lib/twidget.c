@@ -41,6 +41,7 @@
 
 # include <ui.h>
 # include <ui_date.h>
+# include <ui_window.h>
 # include "defs.h"
 # include "message.h"
 # include "timer.h"

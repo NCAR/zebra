@@ -78,7 +78,7 @@ InitDirVariables ()
  * explicit, just take the current directory and hope for the best.  If
  * the project envariable is an absolute path, take it as is.
  */
-	if (envbase = getenv ("ZEB_PROJDIR"))
+	if ((envbase = getenv ("ZEB_PROJDIR")))
 	{
 		strcpy (Projdir, envbase);
 	}

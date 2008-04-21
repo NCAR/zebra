@@ -153,7 +153,7 @@ const char *text;
 	if (len < SMALLSIZE && Small)
 	{
 		if (D_string)
-			printf ("A %d ", Small - SmallT);
+		  printf ("A %ld ", (long)(Small - SmallT));
 		ret = Small->data;
 		Small = Small->next;
 		N_small--;
@@ -210,7 +210,7 @@ const char *string;
 		s->next = Small;
 		Small = s;
 		if (D_string)
-			printf ("D %d ", Small - SmallT);
+		  printf ("D %ld ", (long)(Small - SmallT));
 		N_small++;
 	}
 	else if ((m = (union st_med *) string) >= MedT && m < MedEnd)
