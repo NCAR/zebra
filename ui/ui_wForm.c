@@ -21,11 +21,7 @@
 
 static char *Rcsid = "$Id: ui_wForm.c,v 1.11 2001-11-30 00:42:05 granger Exp $";
 
-/*
- * malloc prototype
- */
-void* malloc();
-
+# include <stdlib.h>
 
 # define MAXENTRY 100
 /*

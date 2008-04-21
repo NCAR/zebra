@@ -1,5 +1,6 @@
 # include "ui.h"
 
+#include <stdlib.h>
 
 main ()
 {

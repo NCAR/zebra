@@ -100,11 +100,11 @@ LIBSRCS = ui.c ui_bootstrap.c ui_date.c ui_error.c ui_symbol.c ui_util.c \
 SRCS = 	$(BINSRCS) $(LIBSRCS)
 
 HEADERS = SmeMenu.h RdssMenu.h ui.h ui_symbol.h ui_param.h ui_error.h \
-	ui_date.h ui_expr.h
+	ui_date.h ui_expr.h ui_window.h
 
 PRIVATE_HEADERS = submenu.h ui_commands.h ui_cstack.h ui_globals.h \
 	ui_loadfile.h ui_menu.h ui_mode.h ui_state.h ui_token.h \
-	ui_tty.h ui_window.h RdssMenuP.h SmeMenuP.h X11/Xfuncproto.h
+	ui_tty.h RdssMenuP.h SmeMenuP.h X11/Xfuncproto.h
 
 DISTFILES = Imakefile ui_commands \
 	ui.state $(SRCS) $(HEADERS) $(PRIVATE_HEADERS)

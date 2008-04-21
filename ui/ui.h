@@ -44,96 +44,53 @@ struct ui_command
 /*
  * User interface routine prototypes.
  */
-# ifdef __STDC__
-	void ui_init (char *, int, int);
-	void ui_setup (char *, int *, char **, char *);
-	void ui_get_command (char *, char *, int (*)(), long);
-	void ui_subcommand (char *, char *, int (*)(), long);
-	void ui_perform (char *);
-	int ui_OutputRoutine (void (*)(), void (*)());
-	int ui_ErrorOutputRoutine (void (*)());
-	int ui_ErrHook (void (*)());
-	int ui_printf (char *, ...);
-	int ui_nf_printf (char *, ...);
-	int ui_ErrOut (char *);
-	int ui_WarnOut (char *);
-	void uf_def_function (char *, int, int *, int (*)());
-	int uii_set_handler (void (*)(), int);
-	int uii_clear_handler (void (*)());
-	int ui_int_prompt (char *, char *, int, int, int);
-	double ui_float_prompt (char *, char *, double, double, double);
-	void ui_string_prompt (char *, char *, char *, char *);
-	void ui_date_prompt (char *, char *, date *, date *);
-	int ui_kw_prompt (char *, char *, char *, char *);
-	char *usy_string (const char *);
-	void usy_rel_string (char *);
-	char *usy_pstring (const char *);
-	void tty_watch (int, void (*)());
-	void tty_nowatch (int);
-	struct ui_command *uip_clone_clist (struct ui_command *);
+void ui_init (char *, int, int);
+void ui_finish (void);
+void ui_setup (char *, int *, char **, char *);
+void ui_get_command (char *, char *, int (*)(), long);
+void ui_subcommand (char *, char *, int (*)(), long);
+void ui_perform (char *);
+int ui_OutputRoutine (void (*)(), void (*)());
+int ui_ErrorOutputRoutine (void (*)());
+int ui_ErrHook (void (*)());
+int ui_printf (char *, ...);
+int ui_nf_printf (char *, ...);
+int ui_ErrOut (char *);
+int ui_WarnOut (char *);
+void uf_def_function (char *, int, int *, int (*)());
+int uii_set_handler (void (*)(), int);
+int uii_clear_handler (void (*)());
+int ui_int_prompt (char *, char *, int, int, int);
+double ui_float_prompt (char *, char *, double, double, double);
+void ui_string_prompt (char *, char *, char *, char *);
+void ui_date_prompt (char *, char *, date *, date *);
+int ui_kw_prompt (char *, char *, char *, char *);
+char *usy_string (const char *);
+void usy_rel_string (char *);
+char *usy_pstring (const char *);
+void tty_watch (int, void (*)());
+void tty_nowatch (int);
+struct ui_command *uip_clone_clist (struct ui_command *);
 # ifdef _XtIntrinsic_h
-	void uw_def_widget (char *, char *, Widget (*)(), void (*)(), char *);
-	int uw_ForceWindowMode (char *, Widget *, XtAppContext *);
-	void uw_IWRealize (char *, Widget);
-	Widget uw_IWWidget (char *);
-	void uw_IWPopup (char *);
-	void uw_PositionWidget (Widget w);
-	Widget uw_get_menubutton();
+void uw_def_widget (char *, char *, Widget (*)(), void (*)(), char *);
+int uw_ForceWindowMode (char *, Widget *, XtAppContext *);
+void uw_IWRealize (char *, Widget);
+Widget uw_IWWidget (char *);
+void uw_IWPopup (char *);
+void uw_PositionWidget (Widget w);
+Widget uw_get_menubutton();
 # endif
-	void uw_mk_list (char *, char *, int, char **, void (*)(), char *);
-	void uw_popup (char *);
-	void uw_popdown (char *);
-        char *uw_menu_title(char *menu);
-	void ui_error (char *fmt, ...);
-	void ui_cl_error (bool jump, int col, char *fmt, ...);
-	void ui_ns_error (char *fmt, ...);
-	void ui_bailout (char *fmt, ...);
-	void ui_warning (char *fmt, ...);
-# else
-	void ui_init ();
-	void ui_setup ();
-	void ui_get_command ();
-	void ui_subcommand ();
-	void ui_perform ();
-	int ui_OutputRoutine ();
-	int ui_ErrorOutputRoutine ();
-	int ui_ErrHook ();
-		/* int ui_printf (char *, ...);	*/
-		/* int ui_nf_printf (char *, ...); */
-	int ui_ErrOut ();
-	int ui_WarnOut ();
-	void uf_def_function ();
-	int uii_set_handler ();
-	int uii_clear_handler ();
-	int ui_int_prompt ();
-	double ui_float_prompt ();
-	void ui_string_prompt ();
-	void ui_date_prompt ();
-	int ui_kw_prompt ();
-	char *usy_string ();
-	void usy_rel_string ();
-	char *usy_pstring ();
-	void tty_watch ();
-	void tty_nowatch ();
-	struct ui_command *uip_clone_clist ();
-# ifdef _XtIntrinsic_h
-	void uw_def_widget ();
-	int uw_ForceWindowMode ();
-	void uw_IWRealize ();
-	Widget uw_IWWidget ();
-	void uw_IWPopup ();
-	void uw_PositionWidget ();
-	Widget uw_get_menubutton();
-# endif
-	void uw_mk_list ();
-	void uw_popup ();
-	void uw_popdown ();
-	void ui_error ();
-	void ui_cl_error ();
-	void ui_ns_error ();
-	void ui_bailout ();
-	void ui_warning ();
-# endif
+void uw_mk_list (char *, char *, int, char **, void (*)(), char *);
+void uw_popup (char *);
+void uw_popdown (char *);
+char *uw_menu_title(char *menu);
+void ui_error (char *fmt, ...);
+void ui_cl_error (bool jump, int col, char *fmt, ...);
+void ui_ns_error (char *fmt, ...);
+void ui_bailout (char *fmt, ...);
+void ui_warning (char *fmt, ...);
+void fixdir_t (char *env, char *def, char *file, char *dest, char *type);
+
 
 /*
  * Let the application know if X support is present.

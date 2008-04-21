@@ -56,34 +56,18 @@ typedef char *stbl;
 # endif
 # endif /* __cplusplus */
 
-# ifdef __STDC__
-	void usy_init (void);
-	stbl usy_c_stbl (const char *);
-	void usy_z_stbl (stbl);
-	void usy_z_symbol (stbl, const char *);
-	int usy_g_symbol (const stbl, const char *, int *, SValue *);
-	bool usy_defined (const stbl, const char *);
-	void usy_s_symbol (stbl, const char *, int, const SValue *);
-	void usy_dump_table (const stbl);
-	stbl usy_g_stbl (const char *);
-	void usy_c_indirect (stbl, const char *, const void *, int, int);
-	int usy_daemon (stbl, const char *, int, int (*)(), char *);
-	int usy_z_daemon (stbl, const char *, int, int (*)(), char *);
-# else
-	void usy_init ();
-	stbl usy_c_stbl ();
-	void usy_z_stbl ();
-	void usy_z_symbol ();
-	int usy_g_symbol ();
-	bool usy_defined ();
-	void usy_s_symbol ();
-	void usy_dump_table ();
-	stbl usy_g_stbl ();
-	void usy_c_indirect ();
-	int usy_traverse ();
-	int usy_search ();
-	int usy_daemon ();
-	int usy_z_daemon ();
-# endif
+void usy_init (void);
+stbl usy_c_stbl (const char *);
+void usy_z_stbl (stbl);
+void usy_z_symbol (stbl, const char *);
+int usy_g_symbol (const stbl, const char *, int *, SValue *);
+bool usy_defined (const stbl, const char *);
+void usy_s_symbol (stbl, const char *, int, const SValue *);
+void usy_dump_table (const stbl);
+stbl usy_g_stbl (const char *);
+void usy_c_indirect (stbl, const char *, const void *, int, int);
+int usy_daemon (stbl, const char *, int, int (*)(), char *);
+int usy_z_daemon (stbl, const char *, int, int (*)(), char *);
+void uit_coerce (union usy_value *value, int from, int to);
 
 # endif

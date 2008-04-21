@@ -195,7 +195,7 @@ char *name;
  * Actually define this menu, taking care to clean out the old version,
  * if one exists.
  */
- 	if (old = um_lookup (mp->m_name))
+ 	if ((old = um_lookup (mp->m_name)))
 	{
 		relvm (old->m_choices);
 		relvm (old);

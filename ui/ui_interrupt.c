@@ -5,6 +5,8 @@ static char *rcsid = "$Id: ui_interrupt.c,v 1.12 2002-07-11 22:50:44 burghart Ex
  */
 # include <sys/types.h>
 # include <signal.h>
+# include <unistd.h>
+# include <stdlib.h>
 # include "ui_param.h"
 # include "ui_globals.h"
 
@@ -155,7 +157,7 @@ char *addr;
  * Handle a seg/bus error.
  */
 {
-	printf ("\n\r%s: code %d addr 0x%x!\n\r",
+	printf ("\n\r%s: code %d addr 0x%p!\n\r",
 		sig == SIGBUS ? "Bus error" : "Segmentation violation",
 		code, addr);
 	ui_finish ();	/* Restore tty	*/

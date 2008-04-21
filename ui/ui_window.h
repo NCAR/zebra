@@ -129,24 +129,14 @@ static const int NotSpecified = -1;
 /*
  * Internal functions.
  */
-# ifdef __STDC__
-	int uw_in_map (struct mtemp *mt, struct ui_command *cmds);
-	char *uw_LoadString (int lun);
-	struct map_table *uw_LoadMap (int lun, int nmap);
-	char ** uw_nt_to_array (char *strings);
-	struct frame_widget *uw_make_frame (char *name, char *title);
-	void uw_DoFrameParam (FrameWidget *, struct ui_command *);
-	GenWidget *uw_g_widget (char *);
-	Pixmap uw_GetPixmap (char *);
-	XFontStruct *uw_GetFont (char *);
-# else
-	int uw_in_map ();
-	char *uw_LoadString ();
-	struct map_table *uw_LoadMap ();
-	char ** uw_nt_to_array ();
-	struct frame_widget *uw_make_frame ();
-	void uw_DoFrameParam ();
-	GenWidget *uw_g_widget ();
-	Pixmap uw_GetPixmap ();
-	XFontStruct *uw_GetFont ();
-# endif
+int uw_in_map (struct mtemp *mt, struct ui_command *cmds);
+char *uw_LoadString (int lun);
+struct map_table *uw_LoadMap (int lun, int nmap);
+char ** uw_nt_to_array (char *strings);
+struct frame_widget *uw_make_frame (char *name, char *title);
+void uw_DoFrameParam (FrameWidget *, struct ui_command *);
+GenWidget *uw_g_widget (char *);
+Pixmap uw_GetPixmap (char *);
+XFontStruct *uw_GetFont (char *);
+void uw_NoHeader (char *name);
+void uw_sync ();
