@@ -93,7 +93,8 @@ public:
 	// file is opened or a new file is created.  Pass BF_CREATE to
 	// explicitly re-create an existing file.
 	//
-	BlockFile (const char *path, int app_magic = 0, int flags = 0);
+	BlockFile (const char *path, unsigned long app_magic = 0, 
+		   int flags = 0);
 
 	// Destructor
 

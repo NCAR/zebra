@@ -101,7 +101,7 @@ BlockFile::BlockFile () : log("BlockFile")
 
 
 BlockFile::BlockFile (const char *path_, 
-		      int app_magic /* = 0 */, 
+		      unsigned long app_magic /* = 0 */, 
 		      int flags_ /* = BF_NONE */) : log("BlockFile")
 {
 	init ();
@@ -182,7 +182,11 @@ BlockFile::Open (const char *path_, unsigned long app_magic /* = 0 */,
 		create = 0;
 		header->readSync ();
 		if (app_magic != 0 && app_magic != header->app_magic)
-			status = WRONG_APP_MAGIC;
+		{
+		  log && log.Error (Format("Wrong App Magic: %0lx") %
+				    (unsigned long)header->app_magic);
+		  status = WRONG_APP_MAGIC;
+		}
 		// But leave the file open...
 	}
 	else
