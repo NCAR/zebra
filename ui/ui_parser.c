@@ -675,8 +675,8 @@ char *cp;
 		if (quote[1] == '\0')
 			*quote = '\0';
 		else
-			strcpy (quote, quote + 1);
-		strcpy (cp, cp + 1);
+		  memmove (quote, quote + 1, strlen(quote+1)+1);
+		memmove (cp, cp + 1, strlen(cp+1)+1);
 	}
 }
 
