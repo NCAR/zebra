@@ -27,8 +27,8 @@ typedef unsigned char byte;	/* Basic byte variable */
 
 struct date_st
 {
-	long	ds_yymmdd;	/* Day portion	*/
-	long	ds_hhmmss;	/* time portion */
+  int	ds_yymmdd;	/* Day portion	*/
+  int	ds_hhmmss;	/* time portion */
 };
 typedef struct date_st date;		/* Date in date/time format */
 
