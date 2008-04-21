@@ -1661,8 +1661,8 @@ char *fmtbuf;
 		{
 		    if (DEBUG_MESSAGES)
 			fprintf (stderr, 
-				 "text truncate failed from %d to %d\n", 
-				 0, cut+1);
+				 "text truncate failed from %ld to %ld\n", 
+				 (long)0, (long)(cut+1));
 		}
 		else
 		{
