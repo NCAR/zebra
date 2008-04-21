@@ -13,6 +13,8 @@
 # include <stdio.h>
 # include <string.h>
 # include <fcntl.h>
+# include <unistd.h>
+# include <stdlib.h>
 
 # define BACKLOG 5		/* max length of pending connections que */
 struct servent *getservbyname ();

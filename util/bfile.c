@@ -7,6 +7,7 @@ static char *rcsid = "$Id: bfile.c,v 1.13 2002-07-11 19:30:55 burghart Exp $";
  */
 
 #include <stdio.h>
+#include <string.h>
 
 # ifdef NETACCESS
 #	include "netdisk.h"

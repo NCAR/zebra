@@ -1,3 +1,6 @@
+
+#include <stdio.h>
+
 /* sprintrmt(buf,arg) does what sprintf(buf,"%r",arg) used to
  * 9/93 - calls to this routine were removed from ui, suds, robot which now 
  * use the variable argument C routines.  Any other programs still calling

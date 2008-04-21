@@ -109,6 +109,8 @@ static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.7 20
 #include <string.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #ifdef RMTIOCTL
 #include <sys/ioctl.h>
@@ -543,7 +545,7 @@ int whence;
 {
 	char buffer[BUFMAGIC];
 
-	sprintf(buffer, "L%d\n%d\n", offset, whence);
+	sprintf(buffer, "L%ld\n%d\n", (long)offset, whence);
 	if (command(fildes, buffer) == -1)
 		return(-1);
 
@@ -556,6 +558,7 @@ int whence;
  */
 
 #ifdef RMTIOCTL
+int
 __rmt_ioctl(fildes, op, arg)
 long fildes, op;
 char *arg;

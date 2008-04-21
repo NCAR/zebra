@@ -294,7 +294,7 @@ LTYPE r;
 
 
 
-
+int
 drewind (r)
 LTYPE r;
 /*

@@ -1,5 +1,6 @@
 # define ___   0
 
+# include <unistd.h>
 
 int 
 batch ()

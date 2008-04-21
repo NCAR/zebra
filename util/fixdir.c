@@ -26,7 +26,7 @@ char *env, *def, *file, *dest;
 /*
  * If the environment variable translates, use it.
  */
- 	if (trans = getenv (env))
+ 	if ((trans = getenv (env)))
 	{
 		strcpy (dest, trans);
 /*
@@ -74,7 +74,7 @@ char *env, *def, *file, *dest, *type;
 /*
  * If the environment variable translates, use it.
  */
- 	else if (trans = getenv (env))
+ 	else if ((trans = getenv (env)))
 	{
 		strcpy (dest, trans);
 		strcat (dest, "/");
