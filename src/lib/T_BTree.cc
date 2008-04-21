@@ -161,6 +161,8 @@ Counter<DataFileCore>::operator()()
 	dfc.dfc_end = n + 3599;
 	dfc.dfc_nsample = 3599;
 	dfc.dfc_rev = n;
+	dfc.dfc_inode = 0;
+	dfc.dfc_ftype = 99;
 	return dfc;
 }
 
@@ -864,8 +866,8 @@ int main (int argc, char *argv[])
 
 	// Set the default logger.
 	//ofstream lf("tbtree.log");
-	//StreamLogger log(lf);
-	//Logger::Prototype (log);
+	StreamLogger log(std::cerr);
+	Logger::Prototype (log);
 
 	if (argc > 1)
 		N = atoi(argv[1]);
