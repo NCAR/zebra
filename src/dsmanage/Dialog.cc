@@ -39,7 +39,6 @@ extern "C"
 
 static char *rcsid = "$Id: Dialog.cc,v 1.7 1999-03-01 02:03:51 burghart Exp $";
 
-
 dsDialog::dsDialog (char *title, char *prompt, void (*goproc) (const char *),
 			void (*cancelproc) ()) :
 	dsPopupWindow (*Disp, title, 100)

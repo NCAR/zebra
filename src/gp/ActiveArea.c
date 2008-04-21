@@ -239,7 +239,7 @@ int x, y;
 	AAColumn *cp;
 	const ActiveArea *aa;
 	const ActiveArea *closest;
-	int metric, dist;
+	int metric, dist = 0;
 	int cx, cy;
 		
 	if (! CurrentAreas)

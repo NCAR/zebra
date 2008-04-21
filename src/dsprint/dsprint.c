@@ -301,6 +301,8 @@ char *argv[];
 		(FieldId *) NULL, 0,
 		(dsDetail *) NULL, 0);
 	    break;
+	default:
+	  break;
 	}
 
 	/*
@@ -426,8 +428,8 @@ char *argv[];
 			}
 			if (print_zt) {
 			    dc_GetTime (dc, i, &this_time);
-			    printf ("%8d %8d ", this_time.zt_Sec,
-				this_time.zt_MicroSec);
+			    printf ("%8ld %8ld ", (long)this_time.zt_Sec,
+				    (long)this_time.zt_MicroSec);
 			}
 			for (j = 0; j < fid_count; j++) {
 			    val = dc_GetScalar (dc, i, fids[j]);

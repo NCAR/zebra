@@ -18,6 +18,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+extern "C" void DialogCb (Widget, XtPointer, XtPointer);
+
 class dsDialog : public dsPopupWindow
 {
 	friend void DialogCb (Widget, XtPointer, XtPointer);

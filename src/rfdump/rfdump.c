@@ -244,8 +244,8 @@ DumpFile (int fd, RFHeader *hdr, RFToc *toc)
 		toc[i].rft_Origin.l_lon,
 		toc[i].rft_Origin.l_alt);
 	for (fld = 0; fld < hdr->rf_NField; fld++)
-	    printf ("\tField %d, '%s' at offset: %d\n", fld, 
-		    hdr->rf_Fields[fld].rff_Name, toc[i].rft_Offset[fld]);
+	    printf ("\tField %d, '%s' at offset: %ld\n", fld, 
+		    hdr->rf_Fields[fld].rff_Name,(long)toc[i].rft_Offset[fld]);
 
 	if (toc[i].rft_AttrLen > 0 && toc[i].rft_AttrLen < 512)
 	{

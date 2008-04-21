@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include <X11/Xos.h>
 #include <X11/Xatom.h>

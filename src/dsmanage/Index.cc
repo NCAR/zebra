@@ -278,7 +278,7 @@ PlatformIndex::FindDuplicates (IndexFile &file)
 	//
 	dir = new char[strlen(file.name()) + 1];
 	strcpy (dir, file.name());
-	if (slash = strrchr (dir, '/'))
+	if ((slash = strrchr (dir, '/')))
 		*slash = '\0';
 	else
 	{

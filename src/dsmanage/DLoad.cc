@@ -37,7 +37,6 @@ extern "C"
 {
 #	include <X11/Intrinsic.h>
 #	include <defs.h>
-	extern void ds_ForceRescan (int, int);
 }
 # include "dsmanage.h"
 # include "dsmWindows.h"

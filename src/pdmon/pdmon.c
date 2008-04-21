@@ -40,7 +40,7 @@ static void UnHook FP ((void));
 
 
 
-
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -120,6 +120,8 @@ pdmTemplate *pt;
 		fflush (stdout);
 		write (1, ppd->pt_Pd, ppd->pt_Len);
 		break;
+	default:
+	  break;
 	}
 }
 

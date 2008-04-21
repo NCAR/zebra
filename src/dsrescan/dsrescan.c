@@ -76,7 +76,7 @@ char **argv;
 	int all = FALSE;
 	int fileonly = FALSE;
 	char pname[50];
-	char *filename;
+	char *filename = 0;
 	char **platname = NULL;
 	int i, j, p, nplat, total;
 	int delay = 0;

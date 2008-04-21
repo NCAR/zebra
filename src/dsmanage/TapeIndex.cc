@@ -179,7 +179,7 @@ main (int argc, char **argv)
 	TarHeader *tp;
 	int ndone = 0;
 	signal (SIGINT, Interrupt);
-	while (tp = (TarHeader *) GetTarBlock (tape, outtape))
+	while ((tp = (TarHeader *) GetTarBlock (tape, outtape)))
 	{
 		if ((++ndone % SaveInterval) == 0)
 			index.save (argv[optind + 1]);

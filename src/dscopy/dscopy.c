@@ -72,7 +72,7 @@ CopyObservation (ZebTime* t, dsDetail* details, int ndetail);
 
 
 
-
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -111,6 +111,7 @@ char **argv;
  */
 	ui_get_command ("initial", "dscopy>", Dispatcher, 0);
 	Die ();
+	return 0;
 }
 
 

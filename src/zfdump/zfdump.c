@@ -8,6 +8,7 @@
 # include <string.h>
 # include <errno.h>
 # include <unistd.h>
+# include <fcntl.h>
 
 # include <defs.h>
 # include "DataStore.h"

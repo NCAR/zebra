@@ -27,6 +27,7 @@
 # include <errno.h>
 # include <netdb.h>
 # include <fcntl.h>
+# include <time.h>
 # include <sys/types.h>
 # include <sys/time.h>
 # include <sys/socket.h>
@@ -3036,7 +3037,7 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
 /*
  * Session genesis time
  */
-	sprintf (text, "session began: %s", (char *) ctime(&S_genesis));
+	sprintf (text, "session began: %s", ctime(&S_genesis));
 	sprintf (text+strlen(text)-1, "; proto version '%s'", 
 		 MSG_PROTO_VERSION);
 	msg.m_len = len + strlen (text);
