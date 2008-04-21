@@ -34,8 +34,8 @@ class BlockNode : virtual public BTreeNode<K,T>, virtual public TranslateBlock
 {
 public:
 	BlockNode (BlockFile &bf_, BTreeFile<K,T> &t, int depth_) :
-		SyncBlock (bf_), 
 		BTreeNode<K,T> (t, depth_),
+		SyncBlock (bf_), 
 		overflow (),
 		filetree (t)
 	{ }
