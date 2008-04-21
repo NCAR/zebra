@@ -131,10 +131,8 @@ private:
 	void PFill_2_C (void *);
 	void PFill_4_R (void *);
 	void PFill_4_C (void *);
-	void ScanConverter::TFillR (int, int, float, float, float,
-			unsigned int *);
-	void ScanConverter::TFillC (int, int, float, float, float,
-			unsigned int *);
+	void TFillR (int, int, float, float, float, unsigned int *);
+	void TFillC (int, int, float, float, float, unsigned int *);
 	int SetPixel (int, int, unsigned int);
 //
 // Some convenience routines.
