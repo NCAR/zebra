@@ -750,7 +750,7 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
     //
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "Select");			n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
+	XtSetArg (args[n], XtNfromHoriz, 0);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNstate, True);			n++;
 	XtSetArg (args[n], XtNradioData, p.name ());		n++;
@@ -1392,7 +1392,7 @@ FileChooser::FileChooser (LoadSelect *ls, const char *plat) :
 	sprintf (header, "(%s)", plat);
 	n = 0;
 	XtSetArg (args[n], XtNlabel, header);			n++;
-	XtSetArg (args[n], XtNfromVert, NULL);			n++;
+	XtSetArg (args[n], XtNfromVert, 0);			n++;
 	XtSetArg (args[n], XtNfromHoriz, corner);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);			n++;
 	AddConstraints (args, &n);
@@ -1406,7 +1406,7 @@ FileChooser::FileChooser (LoadSelect *ls, const char *plat) :
 	n = 0;
 	XtSetArg (args[n], XtNlabel, header);			n++;
 	XtSetArg (args[n], XtNborderWidth, 0);			n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
+	XtSetArg (args[n], XtNfromHoriz, 0);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNhorizDistance, 150);		n++;
 	AddConstraints (args, &n);
