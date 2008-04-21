@@ -92,8 +92,8 @@ public:
 	 */
 	sprintf (label, "%s", fmc->title);
         n = 0;
-        XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-        XtSetArg (args[n], XtNfromVert, NULL);		n++;
+        XtSetArg (args[n], XtNfromHoriz, 0);		n++;
+        XtSetArg (args[n], XtNfromVert, 0);		n++;
         XtSetArg (args[n], XtNlabel, label);		n++;
         title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 				       args, n);
@@ -102,7 +102,7 @@ public:
 	 */
         n = 0;
 	XtSetArg (args[n], XtNfromHoriz, title);	n++;
-        XtSetArg (args[n], XtNfromVert, NULL);		n++;
+        XtSetArg (args[n], XtNfromVert, 0);		n++;
         XtSetArg (args[n], XtNhorizDistance, 180);	n++;
         XtSetArg (args[n], XtNright, XtChainRight);	n++;
         XtSetArg (args[n], XtNlabel, "Dismiss");		n++;
@@ -116,7 +116,7 @@ public:
 	above = title;
 	sprintf (label, "Platform: %s", fmc->platform);
         n = 0;
-        XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+        XtSetArg (args[n], XtNfromHoriz, 0);		n++;
         XtSetArg (args[n], XtNfromVert, above);		n++;
         XtSetArg (args[n], XtNlabel, label);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
@@ -139,7 +139,7 @@ public:
 	above = title;
 	strcpy (label, fmc->fcurrent);
         n = 0;
-        XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+        XtSetArg (args[n], XtNfromHoriz, 0);		n++;
         XtSetArg (args[n], XtNfromVert, above);		n++;
 	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
@@ -178,7 +178,7 @@ public:
 	Widget fc = fm_CreateFieldChooser (fmc, form, 
 					   fs_SelectCallback, this, callbacks);
         n = 0;
-        XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+        XtSetArg (args[n], XtNfromHoriz, 0);		n++;
         XtSetArg (args[n], XtNfromVert, above);		n++;
         XtSetValues (fc, args, n);
 
