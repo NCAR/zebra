@@ -32,6 +32,10 @@ public:
 
 	/// Return the encoded size of yourself
 	virtual long encodedSize (SerialBuffer &buf) = 0;
+
+        virtual ~Serializable()
+        {}
+
 };
 
 
