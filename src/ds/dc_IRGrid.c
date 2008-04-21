@@ -167,7 +167,8 @@ DataChunk *dc;
  */
 	printf ("IRGRID class, %d platforms\n", nplat);
 	for (plat = 0; plat < nplat; plat++)
-		printf ("\t%2d: (%s) at %.4f %.4f %.2f\n", pinfo[plat].pi_Id,
+		printf ("\t%2ld: (%s) at %.4f %.4f %.2f\n", 
+			(long)pinfo[plat].pi_Id,
 			ds_PlatformName (pinfo[plat].pi_Id),
 			pinfo[plat].pi_Loc.l_lat, pinfo[plat].pi_Loc.l_lon,
 			pinfo[plat].pi_Loc.l_alt);

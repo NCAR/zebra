@@ -78,7 +78,7 @@ static DataFormat opaqueFileFormatRec =
 	dof_GetFields,			/* GetFields */
 	___,				/* GetAttrs */
 	dof_GetTimes,			/* GetTimes */
-	___,				/* Associated files */
+	___				/* Associated files */
 };
 
 DataFormat *opaqueFileFormat = (DataFormat *) &opaqueFileFormatRec;
@@ -103,6 +103,7 @@ dof_StatFile (const char *file, ZebraTime *begin, off_t *size)
     {
 	*size = sbuf.st_size;
     }
+    return 1;
 }
 
 
@@ -125,8 +126,6 @@ dof_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end,
 static int
 dof_OpenFile (OpenFile *ofp, int write)
 {
-    ZebraTime end;
-    int nsample;
     OpaqueOpenFile *oof = (OpaqueOpenFile *)ofp;
     char *fname = ofp->of_df.df_fullname;
 
@@ -217,7 +216,7 @@ dof_GetData (OpenFile *ofp, DataChunk *dc, int begin, int nsample,
     FILE *fin = oof->opaque_handle;
     size_t len = oof->opaque_length;
     char *fname = ofp->of_df.df_fullname;
-    ZebraTime when = oof->opaque_time;
+    /* ZebraTime when = oof->opaque_time; */
     void *data = 0;
     size_t wrote;
 

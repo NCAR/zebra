@@ -1369,7 +1369,7 @@ AltUnitType	*altunits;
     GFpds	*pds = NULL;
     GFgds	*gds;
     GRB_TypeInfo	*grbinfo = NULL;
-    ZebTime	t;
+    ZebTime	t = { 0, 0 };
     AltUnitType units;
 /*
  * Find the first usable grid for the chosen field and forecast offset.
@@ -1598,7 +1598,7 @@ int max;
 	GFTag	*tag = GFTAGP (ofp);
 	int	i, ntimes, ngrids;
 	GRB_TypeInfo	*grbinfo;
-	Location	gloc;
+	Location	gloc = { 0, 0, 0 };
 
 	ngrids = tag->gt_ngrids;
 /*

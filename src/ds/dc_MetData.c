@@ -1370,7 +1370,7 @@ int *len;
 	int findex = -1;
 	int f;
 	int fsize;
-	int foffset;
+	int foffset = 0;
 	DataPtr data;
 /*
  * The usual sanity checking.

@@ -3,6 +3,7 @@
  */
 
 # include <math.h>	/* for fabs() */
+# include <time.h>
 # include <message.h>
 # include "DataStore.h"
 # include "apple.h"

@@ -1904,7 +1904,7 @@ FindDF (char *who, struct dsp_FindDF *req, int before)
     ZebraTime besttime;
     DataFileCore bestcore;
     const SourceId *sids;
-    SourceId bestsrc;
+    SourceId bestsrc = -1;
     int s, nsids;
     zbool havematch;
 /*
@@ -2056,7 +2056,7 @@ FindDFLink (char *who, struct dsp_FindDFLink *req, int prev)
     const Platform *p = dt_FindPlatform (pid);
     zbool haveone = FALSE;
     DataFileCore best;
-    Source *bestsrc;
+    Source *bestsrc = 0;
     ZTime t = df_in->df_core.dfc_begin;
     /*
      * Set our file-finding function based on whether we want the 

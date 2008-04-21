@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>	/* for HUGE_VAL */
+#include <time.h>
 
 #include <defs.h>
 #include <message.h>
@@ -566,7 +567,7 @@ int	*times, *ntimes;
  */
 {
 	const DataFile *df;
-	int result;
+	int result = FALSE;
 /*
  * First make sure it's a model platform
  */
@@ -1609,7 +1610,7 @@ ds_FindBlock (const DataFile *df, const DataFile *dfnext, DataChunk *dc,
     int smp, fut = 0;	/* counters			*/
     int nsample;
     ZebraTime when, past;
-    ZebraTime next;		/* time dfnext starts		*/
+    ZebraTime next = { 0, 0 };		/* time dfnext starts		*/
     int avail;		/* samples available in the file*/
     ZebraTime *future = NULL;	/* data times already in file	*/
     int nfuture = 0;	/* returned by dfa_DataTimes	*/
