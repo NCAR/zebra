@@ -30,27 +30,13 @@ DataFileCore::translate( SerialStream& ss )
 //
 {
 //
-// Name first...
+// Name first...  There's no operator to translate the FileType enum
+// directly, so we translate it back and forth between an int.
 //
     ss.cstring( dfc_name, sizeof( dfc_name ) );
-//
-// ...then the rest
-//
-// We represent our inodes externally using 64 bits, since some OSs (e.g.,
-// Irix 6.x) have 64-bit ino_t's.  We break the inode up before and
-// reconstruct after, since we don't know whether this is an input or
-// output operation.
-//
-    unsigned long x_inode[2] = {0, 0};
-    char *xi = (char*) &x_inode;
-    memcpy ((void*)(xi + 8 - sizeof (ino_t)), (void*)&dfc_inode, 
-	    sizeof (ino_t));
-	
-    ss << dfc_begin << dfc_end << dfc_rev << x_inode[0] << x_inode[1] << 
-	(int&) dfc_ftype << dfc_nsample;
-
-    memcpy ((void*)&dfc_inode, (void*)(xi + 8 - sizeof (ino_t)), 
-	    sizeof (ino_t));
+    int ft = dfc_ftype;
+    ss << dfc_begin << dfc_end << dfc_rev << dfc_inode << ft << dfc_nsample;
+    dfc_ftype = (FileType)ft;
 }
 
 
