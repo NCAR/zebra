@@ -37,7 +37,7 @@ static PlatformId dt_ClientDefinePlatform (PlatClassId cid, const char *name,
 static int dt_AwaitClass (Message *msg, PlatformClass **pc);
 static PlatformClass *dt_ClientClassStruct (PlatClassId cid, const char *name);
 static int dt_AwaitPlat (Message *msg, Platform **p);
-static Platform *dt_ClientPlatStruct (int pid, const char *name);
+static Platform *dt_ClientPlatStruct (PlatformId pid, const char *name);
 static int dt_AwaitPID (Message *msg, PlatformId *pid);
 static int dt_ClientGetNPlat ();
 static int dt_AwaitNPlat (Message *msg, int *np);
@@ -160,7 +160,7 @@ PlatformId *pid;
 
 
 static Platform *
-dt_ClientPlatStruct (int pid, const char *name)
+dt_ClientPlatStruct (PlatformId pid, const char *name)
 /*
  * Request the platform structure for this PID from the daemon.
  * We are only called if the caller explicitly wants us to ask the daemon.

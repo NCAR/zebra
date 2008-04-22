@@ -1,4 +1,4 @@
-/*
+/* -*- c-basic-offset: 8 -*-
  * $Id: dsPrivate.h,v 3.37 2002-01-19 06:56:45 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
@@ -384,14 +384,14 @@ struct dsp_PID
 struct dsp_AddSubplat
 {
 	enum dsp_Types dsp_type;	/* == dpt_AddSubplat		*/
-	int dsp_class;			/* Id of target class		*/
+	PlatClassId dsp_class;		/* Id of target class		*/
 	SubPlatform dsp_subplat;	/* description of subplatform	*/
 };
 
 struct dsp_Instance
 {
 	enum dsp_Types dsp_type;	/* == dpt_Instantiate		*/
-	int dsp_class;			/* class to instantiate		*/
+	PlatClassId dsp_class;		/* class to instantiate		*/
 	char dsp_name[CFG_PLATNAME_LEN];/* name of instance		*/
 	PlatformId dsp_parent;		/* ID of parent platform	*/
 };
@@ -450,7 +450,7 @@ struct dsp_GetPlatDir
 {
 	enum dsp_Types dsp_type;	/* dpt_GetPlatDir		*/
 	int dsp_srcid;			/* id of the desired source	*/
-	int dsp_pid;			/* id of the desired platform	*/
+	PlatformId dsp_pid;		/* id of the desired platform	*/
 };
 
 struct dsp_R_PlatDir
