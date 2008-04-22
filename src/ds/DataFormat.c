@@ -564,8 +564,8 @@ dfa_OpenFile (const DataFile *df, int write)
 	/*
 	 * Pointer to the rev in the DF portion of our open file
 	 */
-		int *ofrev = &(ofp->of_df.df_core.dfc_rev);
-	    
+		long *ofrev = &(ofp->of_df.df_core.dfc_rev);
+
                 if (write && ! ofp->of_write)
                 {
 #ifdef DEBUG
@@ -581,9 +581,9 @@ dfa_OpenFile (const DataFile *df, int write)
                  * The latest data file entry has a new revision, so our
                  * open file's tag must be out of date.  Thus sync the file. 
                  */
-                        msg_ELog (EF_DEBUG, "file %s out of sync: %d < %d",
-                                  df->df_fullname, *ofrev,
-				  df->df_core.dfc_rev);
+                        msg_ELog (EF_DEBUG, "file %s out of sync: %ld < %ld",
+                                  df->df_fullname, (long)*ofrev,
+				  (long)df->df_core.dfc_rev);
 #ifdef NCSYNC_FIXED
 			dfa_SyncFile (ofp);
                         *ofrev = df->df_core.dfc_rev;
