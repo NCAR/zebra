@@ -313,6 +313,7 @@ test.apple: test.apple.only test.close
 #define TEST_ENV \
 	-@ZEBRA_SOCKET=$(SOCKET); export ZEBRA_SOCKET; \ @@\
 	DSDUMP=$(DSDUMP); export DSDUMP; \ @@\
+	ZEB_PROJDIR=`pwd`/$(TESTPROJ); export ZEB_PROJDIR; \ @@	\
 	ZEB_PROJECT=$(TESTPROJ); export ZEB_PROJECT; \ @@\
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ @@\
         LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:-$(BUILDLIBDIR)}:$(BUILDLIBDIR)
@@ -326,8 +327,6 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	set -x; \
 	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
-	if [ ! -d ./derivs/. ]; then rm -f ./derivs; \
-	ln -s $(TESTPROJ)/derivs . ; fi ; \
 	rm -f $(DATA_DIR)/Zebra.cache ;			\
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
