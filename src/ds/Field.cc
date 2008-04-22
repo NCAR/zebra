@@ -301,13 +301,13 @@ operator<<( std::ostream& s, const Field& f )
 
 
 static const char*
-CachedString( const char* string )
+CachedString( const char* string_in )
 //
-// If possible, return the string matching 'string' from our cache.  Otherwise,
-// make a new cache entry and return that.  This ensures that everybody who
-// asks for a given string gets exactly the same pointer.  Hence, string
-// equivalence comparisons between strings obtained from CachedString() are
-// simple pointer equality tests.
+// If possible, return the string matching 'string_in' from our cache.
+// Otherwise, make a new cache entry and return that.  This ensures
+// that everybody who asks for a given string gets exactly the same
+// pointer.  Hence, string equivalence comparisons between strings
+// obtained from CachedString() are simple pointer equality tests.
 //
 {
     static char** stringcache = NULL;
@@ -323,7 +323,7 @@ CachedString( const char* string )
     while (bottom <= top)
     {
 	int	middle = (bottom + top) / 2;
-	int	cmp = strcmp( string, stringcache[middle] );
+	int	cmp = strcmp( string_in, stringcache[middle] );
 	if (cmp < 0)
 	    top = middle - 1;
 	else if (cmp == 0)
@@ -351,8 +351,8 @@ CachedString( const char* string )
 
     memmove( stringcache + loc + 1, stringcache + loc, 
 	     (nstrings - loc) * sizeof (char*) );
-    stringcache[loc] = new char[strlen(string) + 1];
-    strcpy( stringcache[loc], string );
+    stringcache[loc] = new char[strlen(string_in) + 1];
+    strcpy( stringcache[loc], string_in );
     nstrings++;
     return( stringcache[loc] );
 }
