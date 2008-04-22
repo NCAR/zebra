@@ -17,6 +17,7 @@
  */
 
 # include <stdio.h>
+# include <unistd.h>
 # include <fcntl.h>
 
 # include <defs.h>
@@ -25,10 +26,8 @@
 
 /* $Id: bfdump.c,v 2.5 2002-02-12 23:40:38 granger Exp $ */
 
-
-main (argc, argv)
-int argc;
-char **argv;
+int
+main (int argc, char **argv)
 {
 	int fd, i;
 	struct BFHeader hdr;
@@ -68,5 +67,7 @@ char **argv;
 		printf ("Bnd %2d, np %d, time %d %06d, offset %d\n", i,
 			btable[i].bt_NPoint, btable[i].bt_Time.ds_yymmdd,
 			btable[i].bt_Time.ds_hhmmss, btable[i].bt_Offset);
+
+	return 0;
 }
 
