@@ -209,53 +209,53 @@ static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int));
 static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int));
 static void	zn_ReadTrans FP ((znTag *, DataChunk *, int, int, int));
 static void	zn_ReadLocation FP ((znTag *, DataChunk *, int, int));
-static void	zn_RdRGridOffset FP ((RGrid *, Location *, long *, int *,
+static void	zn_RdRGridOffset FP ((RGrid *, Location *, int *, int *,
 			dsDetail *, int));
 static void	zn_DoBadval FP ((float *, int, double, double));
 static void	zn_SetBad FP ((float *, int, double));
 
-static long	zn_WriteBlock FP((znTag *tag, DataChunk *dc, int fsample, 
+static int	zn_WriteBlock FP((znTag *tag, DataChunk *dc, int fsample, 
 				    int sample, int nsample, WriteCode wc,
-				    unsigned long *size));
+				    unsigned int *size));
 static void	zn_LoopBlock FP((znTag *tag, DataChunk *dc, int fsample, 
 				 int sample, int nsample, WriteCode wc,
 				 int *index, FieldId *fids, int nfield));
 static int	zn_DetectDataBlock FP((znTag *tag, DataChunk *dc, int fsample,
 				       int nsample, int *index, int nfield,
-				       long *roffset, int *rsize));
+				       int *roffset, int *rsize));
 static void*	zn_WrScalarBlock FP((znTag *tag, DataChunk *dc, int fsample,
 				     int dcsample, int nsample, WriteCode wc,
 				     int *index, FieldId *fids, int nfield,
-				     unsigned long *size));
+				     unsigned int *size));
 static void*	zn_WrFixScalarBlock FP((znTag *tag, DataChunk *dc, 
 					int fsample, int dcsample, int nsample,
 					WriteCode wc, int *index, 
 					FieldId *fids, int nfield, 
-					unsigned long *size));
+					unsigned int *size));
 static void*	zn_WrTransBlock FP((znTag *tag, DataChunk *dc, int fsample, 
 				    int dcsample, int nsample, WriteCode wc,
-				    unsigned long *size));
+				    unsigned int *size));
 static void*	zn_WrBoundaryBlock FP((znTag *tag, DataChunk *dc,
 				       int fsample, int dcsample, int nsample,
 				       WriteCode wc, int index, 
-				       unsigned long *size));
+				       unsigned int *size));
 static void*	zn_WrGridBlock FP((znTag *tag, DataChunk *dc, int fsample, 
 				   int dcsample, int nsample, WriteCode wc,
 				   int *index, FieldId *fids, int nfield,
-				   unsigned long *size));
+				   unsigned int *size));
 static void*	zn_WrIRGridBlock FP((znTag *tag, DataChunk *dc, int fsample,
 				     int dcsample, int nsample, WriteCode wc,
 				     int *index, FieldId *fids, int nfield,
-				     unsigned long *size));
+				     unsigned int *size));
 
-static long	zn_GetFromFree FP ((znTag *, int, long, zn_Free *, long));
-static long	zn_GetSpace FP ((znTag *, int));
-static void	zn_GetFreeBlock FP ((znTag *, long, zn_Free *));
-static void	zn_PutFreeBlock FP ((znTag *tag, long offset, zn_Free *fb));
-static void	zn_GetBlock FP ((znTag *, long, void *, int));
-static void	zn_PutBlock FP ((znTag *, long, void *, int));
-static void	zn_FreeSpace FP ((znTag *, long, int));
-static void	zn_TruncateFreeBlock FP ((znTag *, long offset, zn_Free *fb));
+static int	zn_GetFromFree FP ((znTag *, int, int, zn_Free *, int));
+static int	zn_GetSpace FP ((znTag *, int));
+static void	zn_GetFreeBlock FP ((znTag *, int, zn_Free *));
+static void	zn_PutFreeBlock FP ((znTag *tag, int offset, zn_Free *fb));
+static void	zn_GetBlock FP ((znTag *, int, void *, int));
+static void	zn_PutBlock FP ((znTag *, int, void *, int));
+static void	zn_FreeSpace FP ((znTag *, int, int));
+static void	zn_TruncateFreeBlock FP ((znTag *, int offset, zn_Free *fb));
 
 static int 	zn_SASize FP ((zn_Header *, int));
 static zn_Sample *zn_FindSampStr FP ((znTag *, int));
@@ -713,7 +713,7 @@ int ndetail;
 {
 	int fsample, alen;
 	int i;
-	unsigned long block_size;
+	unsigned int block_size;
 	znTag *tag = TAGP (ofp);
 	ZebTime t;
 	zn_Sample *samp;
@@ -801,13 +801,13 @@ int ndetail;
 
 
 
-static long
+static int
 zn_WriteBlock (tag, dc, fsample, sample, nsample, wc, size)
 znTag *tag;
 DataChunk *dc;
 int fsample, sample, nsample;
 WriteCode wc;
-unsigned long *size;
+unsigned int *size;
 /*
  * It is up to each organization to construct a transparent block of bytes
  * of data and edit the sizes and offsets in the Sample array according to
@@ -825,12 +825,12 @@ unsigned long *size;
 {
 	void *block;
 	int *index;
-	unsigned long block_size;
+	unsigned int block_size;
 	FieldId *fids = NULL;
 	zn_Sample *samp;
 	int nfield, i, fld;
 	zn_Header *hdr = &tag->zt_Hdr;
-	long offset;
+	int offset;
 	int freed, freed_size;
 
 	/*
@@ -1066,9 +1066,9 @@ int fsample, sample, nsample;
 	zn_Sample *zs;
 	int i;
 	int alen;
-	long aspace;
+	int aspace;
 	char *ablock, *satt, *bptr;
-	long offset;
+	int offset;
 
 	aspace = 0;
 	for (i = 0; i < nsample; ++i)
@@ -1158,7 +1158,7 @@ DataChunk *dc;
 int fsample, nsample;
 int *index;
 int nfield;
-long *roffset;
+int *roffset;
 int *rsize;
 /*
  * Verify that the desired fields of the desired samples all occur
@@ -1180,7 +1180,7 @@ int *rsize;
 {
 	zn_Sample *samp;
 	int i, fld;
-	long offset;
+	int offset;
 	int size;
 
 	*roffset = 0;
@@ -1732,7 +1732,7 @@ WriteCode wc;
 int *index; 
 FieldId *fids;
 int nfield;
-unsigned long *size;
+unsigned int *size;
 /*
  * Write out grid samples into a block of memory.
  */
@@ -1841,7 +1841,7 @@ WriteCode wc;
 int *index; 
 FieldId *fids;
 int nfield;
-unsigned long *size;
+unsigned int *size;
 /*
  * Write out irregular grid samples into a block of memory.
  */
@@ -1933,7 +1933,7 @@ WriteCode wc;
 int *index;
 FieldId *fids;
 int nfield;
-unsigned long *size;
+unsigned int *size;
 /*
  * Store some scalar data into a block of memory.
  */
@@ -2033,7 +2033,7 @@ WriteCode wc;
 int *index;
 FieldId *fids;
 int nfield;
-unsigned long *size;
+unsigned int *size;
 /*
  * Write out some fixed-field scalar data into a block of memory.
  */
@@ -2141,7 +2141,7 @@ DataChunk *dc;
 int fsample, dcsample, nsample;
 WriteCode wc;
 int index;
-unsigned long *size;
+unsigned int *size;
 /*
  * Construct a boundary block out of 'nsample' samples.
  */
@@ -2227,7 +2227,7 @@ znTag *tag;
 DataChunk *dc;
 int fsample, dcsample, nsample;
 WriteCode wc;
-unsigned long *size;
+unsigned int *size;
 /*
  * Write out a block of transparent samples to memory.
  */
@@ -2893,7 +2893,7 @@ DataChunk *dc;
 int dcsamp, tbegin, tend;
 {
 	int sample, *index, nfield, fld, offset = 0, plat;
-	long boffset;
+	int boffset;
 	int bsize;
 	FieldId *fids;
 	zn_Sample *zs;
@@ -3163,7 +3163,7 @@ dsDetail *details;
  * Pull some grids in.
  */
 {
-	long offset;
+	int offset;
 	int size, sample, *index, nfield, fld;
 	FieldId *fids;
 	RGrid rg;
@@ -3232,7 +3232,7 @@ static void
 zn_RdRGridOffset (rg, loc, offset, size, details, ndetail)
 RGrid *rg;
 Location *loc;
-long *offset;
+int *offset;
 int *size, ndetail;
 dsDetail *details;
 /*
@@ -3376,13 +3376,13 @@ int *ntime;
 /*
  * Low-level space allocation.
  */
-static long
+static int
 zn_GetSpace (tag, size)
 znTag *tag;
 int size;
 {
 	zn_Free fb;
-	long prev = -1, prevlast = -1, free, last;
+	int prev = -1, prevlast = -1, free, last;
 	zn_Header *hdr = &tag->zt_Hdr;
 /*
  * Scan through the free list to see if there is anything usable.  First try
@@ -3444,11 +3444,11 @@ int size;
 
 
 
-static long
+static int
 zn_GetFromFree (tag, size, offset, fb, prev)
 znTag *tag;
 int size;
-long offset, prev;
+int offset, prev;
 zn_Free *fb;
 /*
  * Allocate a portion of this free block.
@@ -3464,9 +3464,9 @@ zn_Free *fb;
  * for a long to store a condensed free block node.  If that won't fit,
  * go on to handing out the entire block.
  */
-	if ((size + sizeof (long)) <= fb->znf_Size)
+	if ((size + sizeof (int)) <= fb->znf_Size)
 	{
-		long ret = offset + fb->znf_Size - size;
+		int ret = offset + fb->znf_Size - size;
 		fb->znf_Size -= size;
 		zn_PutFreeBlock (tag, offset, fb);
 		hdr->znh_NFreeB -= size;
@@ -3499,15 +3499,15 @@ zn_Free *fb;
 static void
 zn_GetFreeBlock (tag, offset, fb)
 znTag *tag;
-long offset;
+int offset;
 zn_Free *fb;
 /*
  * Pull in a free space block.
  */
 {
-	long magic;
+	int magic;
 
-	zn_GetBlock (tag, offset, &magic, sizeof (long));
+	zn_GetBlock (tag, offset, &magic, sizeof (int));
 	if (magic != ZN_FREE_MAGIC)
 	{
 	/*
@@ -3518,17 +3518,17 @@ zn_Free *fb;
 			magic = ZN_FREE_MAGIC;
 		fb->znf_FMagic = ZN_FREE_MAGIC;
 		fb->znf_Next = magic;
-		fb->znf_Size = sizeof(long);
+		fb->znf_Size = sizeof(int);
 	/*
 	 * Look for adjacent short blocks and string them together
 	 */
 		while (fb->znf_Next == offset + fb->znf_Size)
 		{
-			zn_GetBlock(tag,fb->znf_Next,&magic,sizeof(long));
+			zn_GetBlock(tag,fb->znf_Next,&magic,sizeof(int));
 			if (magic == 0)
 				magic = ZN_FREE_MAGIC;
 			fb->znf_Next = magic;
-			fb->znf_Size += sizeof(long);
+			fb->znf_Size += sizeof(int);
 		}
 	}
 	else
@@ -3547,7 +3547,7 @@ zn_Free *fb;
 static void
 zn_PutFreeBlock (tag, offset, fb)
 znTag *tag;
-long offset;
+int offset;
 zn_Free *fb;
 /*
  * Write out a free space block, accounting for blocks which aren't large
@@ -3556,8 +3556,8 @@ zn_Free *fb;
 {
 	if (fb->znf_Size < sizeof(zn_Free))
 	{
-		long next;
-		long zero = 0;
+		int next;
+		int zero = 0;
 		int size_left = fb->znf_Size;
 	/*
 	 * Store a series of offsets pointing to each other in 
@@ -3565,19 +3565,19 @@ zn_Free *fb;
 	 * as zero to avoid confusion with other freed space.  This assumes
 	 * we'll never try to free the file header.
 	 */
-		next = offset + sizeof(long);
-		while (size_left >= 2*sizeof(long))
+		next = offset + sizeof(int);
+		while (size_left >= 2*sizeof(int))
 		{
 			zn_PutBlock (tag, offset, (next == ZN_FREE_MAGIC) ?
-				     (&zero) : (&next), sizeof(long));
-			next += sizeof(long);
-			offset += sizeof(long);
-			size_left -= sizeof(long);
+				     (&zero) : (&next), sizeof(int));
+			next += sizeof(int);
+			offset += sizeof(int);
+			size_left -= sizeof(int);
 		}
 		next = fb->znf_Next;
 		zn_PutBlock (tag, offset,
 			     (next == ZN_FREE_MAGIC) ? (&zero) : (&next), 
-			     sizeof(long));
+			     sizeof(int));
 	}
 	else
 	{
@@ -3594,7 +3594,7 @@ zn_Free *fb;
 static void
 zn_GetBlock (tag, offset, dest, len)
 znTag *tag;
-long offset;
+int offset;
 void *dest;
 int len;
 /*
@@ -3630,7 +3630,7 @@ int len;
 static void
 zn_PutBlock (tag, offset, data, len)
 znTag *tag;
-long offset;
+int offset;
 void *data;
 int len;
 /*
@@ -3648,7 +3648,7 @@ int len;
 static void
 zn_FreeSpace (tag, offset, len)
 znTag *tag;
-long offset;
+int offset;
 int len;
 /*
  * Free up a chunk of space in the file.  Put new blocks at the END of the
@@ -3657,7 +3657,7 @@ int len;
  * TOC arrays.
  */
 {
-	long before = 0, after = 0, free, last = 0;
+	int before = 0, after = 0, free, last = 0;
 	zn_Header *hdr = &tag->zt_Hdr;
 	zn_Free fb, afterfb, pfb;
 /*
@@ -3670,10 +3670,10 @@ int len;
 /*
  * It might happen that this block does not contain enough space for
  * a zn_Free node.  For now, we have to forget the extremely small ones.
- * Those larger than a long but smaller than zn_Free are specially handled
+ * Those larger than an int but smaller than zn_Free are specially handled
  * in zn_PutFreeBlock().
  */
-	if (len < sizeof(long))
+	if (len < sizeof(int))
 	{
 		msg_ELog (EF_PROBLEM,
 			  "znf: can't free block size %d, too small", len);
@@ -3791,10 +3791,10 @@ int len;
 static void
 zn_TruncateFreeBlock (tag, offset, fb)
 znTag *tag;
-long offset;
+int offset;
 zn_Free *fb;
 {
-	long prev;
+	int prev;
 	zn_Free prevfb;
 	zn_Header *hdr = &tag->zt_Hdr;
 /*

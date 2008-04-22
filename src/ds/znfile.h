@@ -27,10 +27,10 @@ typedef struct _zn_Header
 {
 	int	znh_Magic;		/* Magic ID number		*/
 	/* Space allocation info */
-	long	znh_Free;		/* First free list entry	*/
+	int	znh_Free;		/* First free list entry	*/
 	int	znh_NFree;		/* Number of free chunks	*/
 	int	znh_NFreeB;		/* Number of internal free bytes */
-	long	znh_Len;		/* Length of this file		*/
+	int	znh_Len;		/* Length of this file		*/
 	/* General contents info */
 	int	znh_NSample;		/* Number of data samples 	*/
 	int	znh_NSampAlloc;		/* How much sample space allocd */
@@ -38,19 +38,19 @@ typedef struct _zn_Header
 	DataOrganization znh_Org;	/* Organization of this file	*/
 	Location znh_Loc;		/* Static location		*/
 	/* Offsets to header info */
-	long	znh_OffTime;		/* Offset to time array		*/
-	long	znh_OffSample;		/* Offset to sample info array	*/
-	long	znh_OffField;		/* Offset to field array	*/
-	long	znh_OffRg;		/* Offset to rgrid array	*/
-	long	znh_OffLoc;		/* Offset to location array	*/
+	int	znh_OffTime;		/* Offset to time array		*/
+	int	znh_OffSample;		/* Offset to sample info array	*/
+	int	znh_OffField;		/* Offset to field array	*/
+	int	znh_OffRg;		/* Offset to rgrid array	*/
+	int	znh_OffLoc;		/* Offset to location array	*/
 	/* Station information for IRGRID files */
 
 	int	znh_NStation;		/* Number of stations		*/
-	long	znh_OffStation;		/* Where the array is		*/
+	int	znh_OffStation;		/* Where the array is		*/
 	/* Global attributes			*/
 	int	znh_GlAttrLen;		/* How big they are		*/
-	long	znh_OffGlAttr;		/* Where they are		*/
-	long	znh_OffAttr;		/* Per-sample attribute array	*/
+	int	znh_OffGlAttr;		/* Where they are		*/
+	int	znh_OffAttr;		/* Per-sample attribute array	*/
 /* 
  * Version 2: znh_Version and znh_altUnits added
  */
@@ -74,9 +74,9 @@ typedef struct _zn_Header
  */
 typedef struct _zn_Free
 {
-	long	znf_FMagic;		/* Free chunk magic		*/
+	int	znf_FMagic;		/* Free chunk magic		*/
 	int	znf_Size;		/* Size of this chunk		*/
-	long	znf_Next;		/* Next free chunk		*/
+	int	znf_Next;		/* Next free chunk		*/
 } zn_Free;
 
 # define ZN_FREE_MAGIC	0x920602
@@ -87,7 +87,7 @@ typedef struct _zn_Free
 typedef struct _zn_Sample
 {
 	int	znf_Size;		/* How big this one is		*/
-	long	znf_Offset;		/* Where to find it		*/
+	int	znf_Offset;		/* Where to find it		*/
 } zn_Sample;
 
 /*
@@ -122,7 +122,7 @@ typedef struct _zn_Field
 	DataFormat zf_Format;		/* Storage format		*/
 	ScaleInfo zf_Scale;		/* Scaling (for scaled fmts)	*/
 	int	zf_AttrLen;		/* How big they are		*/
-	long	zf_OffAttr;		/* Where they are		*/
+	int	zf_OffAttr;		/* Where they are		*/
 } zn_Field;
 
 /*
