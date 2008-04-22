@@ -26,12 +26,12 @@ zn_Header *hdr;
 	zn_Free fb;
 	int i = 0;
 
-	printf ("   ffree %ld, nfree %d, nfreeb %d len %ld\n", 
+	printf ("   ffree %d, nfree %d, nfreeb %d len %d\n", 
 	   hdr->znh_Free, hdr->znh_NFree, hdr->znh_NFreeB, hdr->znh_Len);
 	for (block = hdr->znh_Free; block > 0; block = fb.znf_Next)
 	{
 		zn_GetFreeBlock (tag, block, &fb);
-		printf ("   %2d at %7ld size %5d next %7ld\n", i++,
+		printf ("   %2d at %7ld size %5d next %7d\n", i++,
 			block, fb.znf_Size, fb.znf_Next);
 	}
 	printf ("\n");
