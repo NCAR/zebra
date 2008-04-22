@@ -128,7 +128,8 @@ ZebraTime *base_time)
 	char time_units[256];
 	int alen;
 	ZebraTime zt;
-	long base, dimlen;
+	int base;
+	long dimlen;
 
 	if (ncinquire (id, &ndim, &nvar, &natt, &rdim) < 0)
 		return (FALSE);
@@ -208,7 +209,7 @@ ZebraTime *base_time)
 		return (FALSE);
 	}
 	else
-		base = (long) zt.zt_Sec;
+		base = (int) zt.zt_Sec;
 	if (vtime) *vtime = tvar;
 	if (dtime) *dtime = dims[0];
 	if (ntime) *ntime = dimlen;
@@ -327,6 +328,10 @@ dnc_MatchVarName (int id, int platid, const char *name,
 		    && (alen < 1024))
 		{
 		    ncattget (id, varid, VATT_LONGNAME, (void *)lname);
+		    /* Either the value contains a null, and this one is
+		     * extra, or it doesn't, and this one is necessary.
+		     */
+		    lname[alen] = '\0';
 		}
 		strtolower (lname);
 		if (! strncmp (vname, target, strlen(target)) &&

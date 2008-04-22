@@ -62,7 +62,7 @@ RCSID ("$Id: DFA_NetCDF.c,v 3.90 2005-08-17 16:59:42 burghart Exp $")
 typedef struct _nctag
 {
 	int             nc_id;		/* netCDF ID value		*/
-	long            nc_base;	/* Base time value from the file*/
+        int             nc_base;	/* Base time value from the file*/
 	int             nc_vTime;	/* Time variable ID		*/
 	zbool		nc_haveTimeDim;	/* Is there a time dimension?	*/
 	int             nc_dTime;	/* The time dimension ID	*/
@@ -285,8 +285,10 @@ static int	dnc_ReadGlobalAtts FP ((DataChunk *, NCTag *));
 static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
 static int	dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
 static FieldId	dnc_GetFieldByName FP ((NCTag *tag, char *fname));
+#if 0
 static zbool	dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, 
 			       double val);
+#endif
 static int
 dnc_defineDimension (NCTag* tag, char* name, int len,
 		     dsDetail* details, int ndetail);
@@ -333,7 +335,7 @@ dnc_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsamp)
 	nc_type dtype;
 	float foffset;
 	double offset;
-	long loffset;
+	int loffset;
 /*
  * Try opening the file.
  */
@@ -882,6 +884,7 @@ NCTag *tag;
  */
 {
 	int v, d;
+	long ldim;
 /*
  * Get the grid origin.
  */
@@ -921,8 +924,8 @@ NCTag *tag;
 			dnc_NCError ("No z dimension");
 			return (FALSE);
 		}
-		ncdiminq (tag->nc_id, d, (char *) 0,
-					(long *) &tag->nc_rgrid.rg_nZ);
+		ncdiminq (tag->nc_id, d, (char *) 0, &ldim);
+		tag->nc_rgrid.rg_nZ = ldim;
 
 	     /* fall into */
 	   case Org2dGrid:
@@ -931,8 +934,8 @@ NCTag *tag;
 			dnc_NCError ("No y dimension");
 			return (FALSE);
 		}
-		ncdiminq (tag->nc_id, d, (char *) 0,
-					(long *) &tag->nc_rgrid.rg_nY);
+		ncdiminq (tag->nc_id, d, (char *) 0, &ldim);
+		tag->nc_rgrid.rg_nY = ldim;
 
 	     /* fall into */
 	   case Org1dGrid:
@@ -941,8 +944,8 @@ NCTag *tag;
 			dnc_NCError("No x dimension");
 			return (FALSE);
 		}
-		ncdiminq (tag->nc_id, d, (char *) 0,
-					(long *) &tag->nc_rgrid.rg_nX);
+		ncdiminq (tag->nc_id, d, (char *) 0, &ldim);
+		tag->nc_rgrid.rg_nX = ldim;
 		break;
 	   default:
 		/* silence warnings */
@@ -1176,7 +1179,7 @@ NCTag *tag;
 	long ntime, zero = 0;
 	double *dtime;
 	float *ftime;
-	long *ltime;
+	int *ltime;
 	int status, i;
 /*
  * If the number of times available exceeds the space allocated,
@@ -1249,12 +1252,12 @@ NCTag *tag;
 						tag->nc_times + i);
 		free (ftime);
 	}
-	else /* tag->nc_timeType == NC_LONG */
+	else /* tag->nc_timeType == NC_LONG or NC_INT */
 	{
 	/*
-	 * Read times as longs, then move them to the ZebTime array.
+	 * Read times as ints, then move them to the ZebTime array.
 	 */
-		ltime = (long *) malloc (ntime * sizeof (long));
+		ltime = (int *) malloc (ntime * sizeof (ltime[0]));
 		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
 				   ltime);
 		if (status >= 0)
@@ -2361,8 +2364,8 @@ dsDetail *dets;
  */
 {
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
-	int i, sample, field, vfield, dsamp = dc_GetNSample (dc);
-	int dim, xdim, ydim, zdim;
+	int sample, field, vfield, dsamp = dc_GetNSample (dc);
+	int dim, xdim, ydim, zdim = 0;
 	SValue v;
 	Location origin;
 	RGrid rg;
@@ -3195,6 +3198,7 @@ DataChunk *dc;
 	struct AttArg attarg;
 	void *badval;
 	DC_ElemType type;
+	ZebTime now;
 
 	attarg.tag = tag;
 	attarg.varid = NC_GLOBAL;
@@ -3234,7 +3238,9 @@ DataChunk *dc;
 	}
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
-	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
+	now.zt_Sec = tv.tv_sec;
+	now.zt_MicroSec = tv.tv_usec;
+	TC_EncodeTime(&now, TC_Full, history+strlen(history));
 	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.90 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
@@ -3712,7 +3718,7 @@ long *start;
 	int status;
 	double *dtime = NULL;
 	float *ftime = NULL;
-	long *ltime = NULL;
+	int *ltime = NULL;
 	unsigned long i;
 	ZebTime t;
 	unsigned long nsample = (unsigned long)count;
@@ -3781,11 +3787,11 @@ long *start;
 				   (long *) &nsample, (void *) ftime);
 		free (ftime);
 	}
-	else /* tag->nc_timeType == NC_LONG */
+	else /* tag->nc_timeType == NC_LONG aka NC_INT */
 	{
-		ltime = (long *) malloc (nsample * sizeof(long));
+		ltime = (int *) malloc (nsample * sizeof(int));
 		for (i = 0; i < nsample; i++)
-			ltime[i] = (long) dnc_ZtToOffset
+			ltime[i] = (int) dnc_ZtToOffset
 				(tag, tag->nc_times + *start + i);
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
 				   (long *) &nsample, (void *) ltime);
@@ -4188,7 +4194,7 @@ nc_type type;
 	   case NC_SHORT:
 		return (DCT_ShortInt);
 	   case NC_LONG:
-		return (DCT_LongInt);
+		return (DCT_Integer);
 	   case NC_FLOAT:
 		return (DCT_Float);
 	   case NC_DOUBLE:
@@ -4224,9 +4230,12 @@ DC_ElemType type;
 		return (NC_SHORT);
 	   case DCT_Integer:
 	   case DCT_UnsignedInt:
+		return (NC_LONG);
 	   case DCT_LongInt:
 	   case DCT_UnsignedLong:
-		return (NC_LONG);
+	        msg_ELog (EF_PROBLEM, 
+			  "Unable to convert long datachunk type "
+			  "(DCT_LongInt or DCT_UnsignedLong) to netcdf type!");
 	   default:
 	        return (NC_LONG);	/* no good answer here... */
 	}
@@ -4370,6 +4379,7 @@ int nfield;
 }
 
 
+#ifdef notdef
 /*
  * Return true iff the given time var has a missing_value flag and the
  * given value matches the flag.
@@ -4379,7 +4389,7 @@ dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, double val)
 {
     double missing;
     float fmissing;
-    long lmissing;
+    int lmissing;
 
     switch (ttype)
     {
@@ -4404,3 +4414,4 @@ dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, double val)
 
     return (val == missing);
 }
+#endif
