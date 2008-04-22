@@ -66,6 +66,8 @@ public:
 	SS_TRANSLATE(unsigned int);
 	SS_TRANSLATE(short);
 	SS_TRANSLATE(unsigned short);
+	SS_TRANSLATE(long);
+	SS_TRANSLATE(unsigned long);
 	SS_TRANSLATE(float);
 	SS_TRANSLATE(double);
 	SS_TRANSLATE(quad_t);
@@ -112,6 +114,8 @@ public:
 	SS_OPERATOR(float);
 	SS_OPERATOR(double);
 	SS_OPERATOR(string);
+	SS_OPERATOR(long);
+	SS_OPERATOR(u_long);
 	SS_OPERATOR(quad_t);
 	SS_OPERATOR(u_quad_t);
 
@@ -283,6 +287,8 @@ public:
 	SIZE_TRANSLATE(unsigned short);
 	SIZE_TRANSLATE(float);
 	SIZE_TRANSLATE(double);
+	SIZE_TRANSLATE(long);
+	SIZE_TRANSLATE(u_long);
 	SIZE_TRANSLATE(quad_t);
 	SIZE_TRANSLATE(u_quad_t);
 

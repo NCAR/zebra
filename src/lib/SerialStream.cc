@@ -43,6 +43,8 @@ SS_METHOD(short);
 SS_METHOD(u_short);
 SS_METHOD(float);
 SS_METHOD(double);
+SS_METHOD(long);
+SS_METHOD(u_long);
 SS_METHOD(quad_t);
 SS_METHOD(u_quad_t);
 
@@ -234,6 +236,8 @@ SIZE_TRANSLATE(short);
 SIZE_TRANSLATE(u_short);
 SIZE_TRANSLATE(float);
 SIZE_TRANSLATE(double);
+SIZE_TRANSLATE(long);
+SIZE_TRANSLATE(u_long);
 SIZE_TRANSLATE(quad_t);
 SIZE_TRANSLATE(u_quad_t);
 

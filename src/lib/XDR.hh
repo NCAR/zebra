@@ -1,4 +1,4 @@
-/*
+/* -*- mode: c++; c-basic-offset: 8; -*-
  * $Id: XDR.hh,v 1.6 1998-03-16 17:50:36 burghart Exp $
  *
  * C++ interface to the xdr layer.
@@ -68,6 +68,8 @@ public:
 	XDR_LENGTH_METHOD(u_short, 4);
 	XDR_LENGTH_METHOD(float, 4);
 	XDR_LENGTH_METHOD(double, 8);
+	XDR_LENGTH_METHOD(long, sizeof(long));
+	XDR_LENGTH_METHOD(u_long, sizeof(unsigned long));
 	XDR_LENGTH_METHOD(quad_t, 8);
 	XDR_LENGTH_METHOD(u_quad_t, 8);
 
@@ -150,6 +152,48 @@ public:
 
 #undef XDR_METHOD
 
+	template <int N>
+	bool_t
+	my_xdr_u_long(u_long& tp);
+
+	template <int N>
+	bool_t
+	my_xdr_long(long& tp);
+
+	/**
+	 * Translate methods for longs are different, since we encode
+	 * as a different XDR type depending upon the architecture.
+	 * Someday the better alternative might be to always encode
+	 * longs as 8 bytes, so they can be decoded on machines where
+	 * native longs are 8 bytes.  However, for now, for the case
+	 * of zebra, we won't worry so much about architecture
+	 * portability.  Especially since that change would make
+	 * different versions of zebra incompatible on the same
+	 * machine.
+	 **/
+	bool_t translate (unsigned long &tp);
+
+	XDRStream &operator<< (unsigned long &tp)
+	{ 
+		translate (tp); return (*this);
+	}
+	XDRStream &operator>> (unsigned long &tp)
+	{
+		translate (tp); return (*this);
+	}
+
+	bool_t translate (long &tp);
+
+	XDRStream &operator<< (long &tp)
+	{ 
+		translate (tp); return (*this);
+	}
+	XDRStream &operator>> (long &tp)
+	{
+		translate (tp); return (*this);
+	}
+
+
 	/// User-supplied type translations
 	bool_t translate (void *data, XDRTranslator xp)
 	{
@@ -158,6 +202,55 @@ public:
 
 };
 
+template<>
+inline bool_t
+XDRStream::
+my_xdr_u_long<4>(u_long& tp)
+{
+	return check(xdr_uint32_t (&this->xdrs, (uint32_t*)&tp));
+}
+
+template<>
+inline bool_t
+XDRStream::
+my_xdr_u_long<8>(u_long& tp)
+{
+	return check(xdr_u_hyper (&this->xdrs, (u_quad_t*)&tp));
+}
+
+inline bool_t
+XDRStream::
+translate (unsigned long &tp)
+{
+	return my_xdr_u_long<sizeof(unsigned long)>(tp);
+};
+
+
+
+template<>
+inline
+bool_t
+XDRStream::
+my_xdr_long<4>(long& tp)
+{
+	return check(xdr_int32_t (&this->xdrs, (int32_t*)&tp));
+}
+
+template<>
+inline
+bool_t
+XDRStream::
+my_xdr_long<8>(long& tp)
+{
+	return check(xdr_hyper (&this->xdrs, (quad_t*)&tp));
+}
+
+inline bool_t
+XDRStream::
+translate (long &tp)
+{
+	return my_xdr_long<sizeof(long)>(tp);
+};
 
 // Applications can add operators << and >> for their own types
 // with this macro, given a type T and its xdr procedure XP.
