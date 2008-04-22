@@ -70,8 +70,10 @@ public:
 	XDR_LENGTH_METHOD(double, 8);
 	XDR_LENGTH_METHOD(long, sizeof(long));
 	XDR_LENGTH_METHOD(u_long, sizeof(unsigned long));
+#if __WORDSIZE != 64
 	XDR_LENGTH_METHOD(quad_t, 8);
 	XDR_LENGTH_METHOD(u_quad_t, 8);
+#endif
 
 # undef XDR_LENGTH_METHOD
 
@@ -147,9 +149,10 @@ public:
 	XDR_METHOD(u_short);
 	XDR_METHOD(float);
 	XDR_METHOD(double);
+#if __WORDSIZE != 64
 	XDR_METHOD(quad_t);
 	XDR_METHOD(u_quad_t);
-
+#endif
 #undef XDR_METHOD
 
 	template <int N>

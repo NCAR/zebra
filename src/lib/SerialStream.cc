@@ -45,8 +45,10 @@ SS_METHOD(float);
 SS_METHOD(double);
 SS_METHOD(long);
 SS_METHOD(u_long);
+#if __WORDSIZE != 64
 SS_METHOD(quad_t);
 SS_METHOD(u_quad_t);
+#endif
 
 #undef SS_METHOD
 
@@ -238,9 +240,10 @@ SIZE_TRANSLATE(float);
 SIZE_TRANSLATE(double);
 SIZE_TRANSLATE(long);
 SIZE_TRANSLATE(u_long);
+#if __WORDSIZE != 64
 SIZE_TRANSLATE(quad_t);
 SIZE_TRANSLATE(u_quad_t);
-
+#endif
 #undef SIZE_TRANSLATE
 
 #ifdef notdef

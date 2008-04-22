@@ -70,8 +70,10 @@ public:
 	SS_TRANSLATE(unsigned long);
 	SS_TRANSLATE(float);
 	SS_TRANSLATE(double);
+#if __WORDSIZE != 64
 	SS_TRANSLATE(quad_t);
 	SS_TRANSLATE(u_quad_t);
+#endif
 
 #undef SS_TRANSLATE
 
@@ -116,9 +118,10 @@ public:
 	SS_OPERATOR(string);
 	SS_OPERATOR(long);
 	SS_OPERATOR(u_long);
+#if __WORDSIZE != 64
 	SS_OPERATOR(quad_t);
 	SS_OPERATOR(u_quad_t);
-
+#endif
 	SS_OPERATOR(Serializable);
 
 #undef SS_OPERATOR
@@ -289,8 +292,10 @@ public:
 	SIZE_TRANSLATE(double);
 	SIZE_TRANSLATE(long);
 	SIZE_TRANSLATE(u_long);
+#if __WORDSIZE != 64
 	SIZE_TRANSLATE(quad_t);
 	SIZE_TRANSLATE(u_quad_t);
+#endif
 
 #undef SIZE_TRANSLATE
 
