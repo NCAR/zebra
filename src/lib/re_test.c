@@ -16,7 +16,7 @@ main()
 	 * Just compile a few strings and try to match.  Report
 	 * any discrepancies.
 	 */
-	if (stat = zl_re_comp("[abc]"))
+	if ((stat = zl_re_comp("[abc]")))
 	{
 		printf ("regex error: %s\n", stat);
 		++errors;
@@ -26,7 +26,7 @@ main()
 	else if (zl_re_exec("  fgh ") != 0)
 		++errors;
 
-	if (stat = zl_re_comp("^.234.*5$"))
+	if ((stat = zl_re_comp("^.234.*5$")))
 	{
 		printf ("regex error: %s\n", stat);
 		++errors;

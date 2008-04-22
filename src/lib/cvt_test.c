@@ -67,7 +67,7 @@ float olat, olon;
 {
 	int errors = 0;
 	int i;
-	float delta, deg;
+	float delta;
 	float lat, lon;
 	float x, y;
 #	define FIX(lon) ((lon)>180?((lon)-360):((lon)<-180?(lon)+360:(lon)))
