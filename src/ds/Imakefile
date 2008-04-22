@@ -282,13 +282,11 @@ DSDUMP = $(TOP)/src/dsdump/dsdump
 #endif
 ZPROGS = $(MESSAGE) $(TIMER) $(ZSTOP) $(DSDUMP)
 /*
- * The default test project directory will be linked into the current directory
- * if not already done so manually.
+ * Use the local test project directory checked out as part of this tree.
  */
-DEFAULTTESTPROJ = /net/shared/zebra/project/test
 TESTPROJ = test
 DSCONFIG = perm.config
-DATA_DIR = ./data
+DATA_DIR = ./test/data
 SOCKET = /tmp/DStest.socket
 INVENTORY = 10
 #ifdef DebugFlag
@@ -328,13 +326,9 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	set -x; \
 	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
-	if [ ! -d ./test/. ]; then rm -f ./test; \
-	ln -s $(DEFAULTTESTPROJ) test ; fi ; \
-	if [ ! -d ./data/. ]; then rm -f ./data; \
-	ln -s $(TESTPROJ)/data . ; fi ; \
 	if [ ! -d ./derivs/. ]; then rm -f ./derivs; \
 	ln -s $(TESTPROJ)/derivs . ; fi ; \
-	rm -f ./data/Zebra.cache ; \
+	rm -f $(DATA_DIR)/Zebra.cache ;			\
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 
