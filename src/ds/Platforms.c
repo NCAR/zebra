@@ -715,11 +715,11 @@ PlatformId subid;
 {
 	int len;
 
-	len = (plat->dp_nsubplats + ALLOC_SUBPLATS) * sizeof(int);
+	len = (plat->dp_nsubplats + ALLOC_SUBPLATS) * sizeof(PlatformId);
 	if (plat->dp_nsubplats == 0)
-		plat->dp_subplats = (int *) malloc (len);
+		plat->dp_subplats = (PlatformId *) malloc (len);
 	else if ((plat->dp_nsubplats % ALLOC_SUBPLATS) == 0)
-		plat->dp_subplats = (int *)
+		plat->dp_subplats = (PlatformId *)
 			realloc (plat->dp_subplats, len);
 	plat->dp_subplats[plat->dp_nsubplats++] = subid;
 }

@@ -44,7 +44,7 @@ extern int CTableGrow;		/* Amount to grow by		*/
  */
 typedef struct ds_SubPlatform
 {
-	int	dps_class;		/* Class of this subplatform	*/
+	PlatClassId dps_class;		/* Class of this subplatform	*/
 	char	dps_name[CFG_PLATNAME_LEN];	/* Name for instances	*/
 } SubPlatform;
 
@@ -54,9 +54,9 @@ typedef struct ds_SubPlatform
  */
 typedef struct ds_PlatformClass
 {
-	int	dpc_id;			/* Class id			*/
+        PlatClassId	dpc_id;		/* Class id			*/
 	char	dpc_name[CFG_PLATNAME_LEN];	/* name of this class	*/
-	int	dpc_superclass;		/* Class hierarchy backpointer	*/
+	PlatClassId 	dpc_superclass;	/* Class hierarchy backpointer	*/
 	DataOrganization dpc_org;	/* Native data organization	*/
 	FileType dpc_ftype;		/* Default file type		*/
 	unsigned int dpc_maxsamp;	/* Maximum file samples		*/
@@ -101,12 +101,12 @@ extern int DefaultKeep;
  */
 typedef struct ds_PlatformInstance
 {
-	int	dp_id;			/* Platform instance id 	*/
+        PlatformId dp_id;		/* Platform instance id 	*/
 	char	dp_name[CFG_PLATNAME_LEN];/* Full name of this platform	*/
 	PlatClassId dp_class;		/* Class id of the platform	*/
 	PlatformId dp_parent;		/* Hierarchy backpointer	*/
 	unsigned short dp_flags;	/* Attribute flags		*/
-	int	*dp_subplats;		/* Indices to subplat instances	*/
+	PlatformId *dp_subplats;	/* Indices to subplat instances	*/
 	int	dp_nsubplats;		/* Number of indices (not alloc)*/
 } PlatformInstance;
 
@@ -259,9 +259,10 @@ typedef struct dsp_PlatformSearch PlatformSearch;
  */
 typedef struct _PlatformMethods
 {
-	Platform *(*PlatStruct)(int id, const char *name);
-	PlatformClass *(*ClassStruct)(int id, const char *name);
-	PlatformId (*DefinePlatform)(int cid, const char *name, int parent);
+	Platform *(*PlatStruct)(PlatformId id, const char *name);
+	PlatformClass *(*ClassStruct)(PlatClassId id, const char *name);
+	PlatformId (*DefinePlatform)(PlatClassId cid, const char *name, 
+				     PlatformId parent);
 	PlatClassId (*DefineClass)(PlatClassRef pc);
 	void (*SendSearch)(PlatformSearch *, PlatformList *pl);
 	int (*GetNPlat)();
