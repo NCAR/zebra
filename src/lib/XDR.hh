@@ -64,12 +64,12 @@ public:
 	XDR_LENGTH_METHOD(u_char, 4);
 	XDR_LENGTH_METHOD(int, 4);
 	XDR_LENGTH_METHOD(u_int, 4);
-	XDR_LENGTH_METHOD(long, 4);
-	XDR_LENGTH_METHOD(u_long, 4);
 	XDR_LENGTH_METHOD(short, 4);
 	XDR_LENGTH_METHOD(u_short, 4);
 	XDR_LENGTH_METHOD(float, 4);
 	XDR_LENGTH_METHOD(double, 8);
+	XDR_LENGTH_METHOD(quad_t, 8);
+	XDR_LENGTH_METHOD(u_quad_t, 8);
 
 # undef XDR_LENGTH_METHOD
 
@@ -141,12 +141,12 @@ public:
 	XDR_METHOD(u_char);
 	XDR_METHOD(int);
 	XDR_METHOD(u_int);
-	XDR_METHOD(long);
-	XDR_METHOD(u_long);
 	XDR_METHOD(short);
 	XDR_METHOD(u_short);
 	XDR_METHOD(float);
 	XDR_METHOD(double);
+	XDR_METHOD(quad_t);
+	XDR_METHOD(u_quad_t);
 
 #undef XDR_METHOD
 

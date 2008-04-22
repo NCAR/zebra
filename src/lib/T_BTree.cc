@@ -148,20 +148,21 @@ DataFileCore
 Counter<DataFileCore>::operator()()
 {
 	string s;
-	n += 3600;
+	++n;
+	unsigned long t = n*3600;
 	if (! (cin >> s))
 	{
 		char buf[16];
-		sprintf (buf, "zzz%08ld", n);
+		sprintf (buf, "zzz%08ld", t);
 		s = buf;
 	}
 	DataFileCore dfc;
 	strcpy (dfc.dfc_name, s.c_str());
-	dfc.dfc_begin = n;
-	dfc.dfc_end = n + 3599;
+	dfc.dfc_begin = t;
+	dfc.dfc_end = t + 3599;
 	dfc.dfc_nsample = 3599;
-	dfc.dfc_rev = n;
-	dfc.dfc_inode = 0;
+	dfc.dfc_rev = n*n;
+	dfc.dfc_inode = (ino_t)(1) << (n % 64);
 	dfc.dfc_ftype = 99;
 	return dfc;
 }
@@ -866,8 +867,8 @@ int main (int argc, char *argv[])
 
 	// Set the default logger.
 	//ofstream lf("tbtree.log");
-	StreamLogger log(std::cerr);
-	Logger::Prototype (log);
+	//StreamLogger log(std::cerr);
+	//Logger::Prototype (log);
 
 	if (argc > 1)
 		N = atoi(argv[1]);

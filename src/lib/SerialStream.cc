@@ -39,12 +39,12 @@ SS_METHOD(char);
 SS_METHOD(u_char);
 SS_METHOD(int);
 SS_METHOD(u_int);
-SS_METHOD(long);
-SS_METHOD(u_long);
 SS_METHOD(short);
 SS_METHOD(u_short);
 SS_METHOD(float);
 SS_METHOD(double);
+SS_METHOD(quad_t);
+SS_METHOD(u_quad_t);
 
 #undef SS_METHOD
 
@@ -230,12 +230,12 @@ SIZE_TRANSLATE(char);
 SIZE_TRANSLATE(u_char);
 SIZE_TRANSLATE(int);
 SIZE_TRANSLATE(u_int);
-SIZE_TRANSLATE(long);
-SIZE_TRANSLATE(u_long);
 SIZE_TRANSLATE(short);
 SIZE_TRANSLATE(u_short);
 SIZE_TRANSLATE(float);
 SIZE_TRANSLATE(double);
+SIZE_TRANSLATE(quad_t);
+SIZE_TRANSLATE(u_quad_t);
 
 #undef SIZE_TRANSLATE
 

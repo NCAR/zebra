@@ -64,12 +64,12 @@ public:
 	SS_TRANSLATE(unsigned char);
 	SS_TRANSLATE(int);
 	SS_TRANSLATE(unsigned int);
-	SS_TRANSLATE(long);
-	SS_TRANSLATE(unsigned long);
 	SS_TRANSLATE(short);
 	SS_TRANSLATE(unsigned short);
 	SS_TRANSLATE(float);
 	SS_TRANSLATE(double);
+	SS_TRANSLATE(quad_t);
+	SS_TRANSLATE(u_quad_t);
 
 #undef SS_TRANSLATE
 
@@ -107,13 +107,13 @@ public:
 	SS_OPERATOR(unsigned char);
 	SS_OPERATOR(int);
 	SS_OPERATOR(unsigned int);
-	SS_OPERATOR(long);
-	SS_OPERATOR(unsigned long);
 	SS_OPERATOR(short);
 	SS_OPERATOR(unsigned short);
 	SS_OPERATOR(float);
 	SS_OPERATOR(double);
 	SS_OPERATOR(string);
+	SS_OPERATOR(quad_t);
+	SS_OPERATOR(u_quad_t);
 
 	SS_OPERATOR(Serializable);
 
@@ -279,12 +279,12 @@ public:
 	SIZE_TRANSLATE(unsigned char);
 	SIZE_TRANSLATE(int);
 	SIZE_TRANSLATE(unsigned int);
-	SIZE_TRANSLATE(long);
-	SIZE_TRANSLATE(unsigned long);
 	SIZE_TRANSLATE(short);
 	SIZE_TRANSLATE(unsigned short);
 	SIZE_TRANSLATE(float);
 	SIZE_TRANSLATE(double);
+	SIZE_TRANSLATE(quad_t);
+	SIZE_TRANSLATE(u_quad_t);
 
 #undef SIZE_TRANSLATE
 
