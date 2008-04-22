@@ -372,11 +372,7 @@ int arg;
 
 
 static int
-TraverseTest (name, type, v, arg)
-char *name;
-int type;
-SValue *v;
-int arg;
+TraverseTest (char *name, int type, SValue *v, long arg)
 {
 	TestRoutine *tr = (TestRoutine *) v->us_v_ptr;
 	int *errors = (int *) arg;
@@ -518,7 +514,7 @@ char *argv[];
 	while (msg_poll(1) == 0);
 	if (AllTests)
 	{
-		usy_traverse (TestNames, TraverseTest, (int)&errors, TRUE);
+		usy_traverse (TestNames, TraverseTest, (long)&errors, TRUE);
 	}
 	else
 	{

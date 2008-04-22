@@ -367,7 +367,7 @@ PlatClassRef pc;
  */
 {
 	const PlatformClass *spc = NULL;
-	PlatformClass *add;
+	PlatformClass *add = 0;
 	int cid;
 
 	if (! Initialized)
@@ -1150,7 +1150,7 @@ int *npids;
  */
 	if (re_result == NULL)
 	{
-		zl_search (Platforms, MatchPlatform, (int)&info, 
+		zl_search (Platforms, MatchPlatform, (long)&info, 
 			   req->dsp_alphabet, NULL);
 		*npids = info.si_npids;
 	}
