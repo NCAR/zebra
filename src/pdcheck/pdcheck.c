@@ -10,6 +10,8 @@
 #include <message.h>
 #include <pd.h>
 
+void usy_init();
+
 RCSID ("$Id: pdcheck.c,v 1.3 1995-06-29 22:37:41 granger Exp $")
 
 int
