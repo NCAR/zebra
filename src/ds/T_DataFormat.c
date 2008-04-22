@@ -91,14 +91,14 @@ DataFormat *target;
 {
 	DataFormat *fmt;
 
-	if (! Formats[(int)ft])
+	if (! getFormat(ft))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Skipping filetype '%s' check: NULL format", name);
 		return (1);
 	}
 
-	fmt = FMTP(ft);
+	fmt = getFormat(ft);
 	if (fmt != target)
 	{
 		msg_ELog (EF_PROBLEM, " * Filetype '%s' does not map to %s",
@@ -164,15 +164,14 @@ TestFormats ()
 
     for (i = 0; i < NumFormats; ++i)
     {
-	if (! Formats[i])
+        if (! getFormat((FileType)i))
 	{
 	    msg_ELog (EF_PROBLEM, " * Format %d: %s\n", i,
 		      "NULL table pointer");
 	    ++nerror;
 	    continue;
 	}
-	fmt = *Formats[i];
-
+	fmt = getFormat((FileType)i);
     /*
      * Start printing information about the format
      */
@@ -317,7 +316,7 @@ char *name;
 dsDetail *details;
 int ndetail;
 {
-	DataFormat *fmt = FMTP(pi_FileType (p));
+	DataFormat *fmt = getFormat(pi_FileType (p));
 	int errors = 0;
 	char dest[256];
 
@@ -367,7 +366,7 @@ T_MakeFileName ()
 		fplat.ftype = ft;
 		fplat.name = (char *) ds_FTypeName (fplat.ftype);
 		pid = MakePlatform (&fplat);
-		fmt = FMTP(fplat.ftype);
+		fmt = getFormat(fplat.ftype);
 		p = dt_FindPlatform (pid);
 		/* try with four-digit years */
 		strcpy (stime, "19960713.120000");
@@ -460,7 +459,7 @@ T_DFAStatus ()
 	while (ofp)
 	{
 		printf(" %3d %8li %2s %10s %45s\n", ofp->of_lru, 
-		       ofp->of_df.df_core.dfc_rev, 
+		       (long)ofp->of_df.df_core.dfc_rev, 
 		       ofp->of_write ? "rw" : "ro", ofp->of_fmt->f_name, 
 		       ofp->of_df.df_core.dfc_name);
 		num++;
@@ -479,7 +478,7 @@ T_DFAStatus ()
 	printf ("\nFormats:\n");
 	for (i = 0; i < NumFormats; ++i)
 	{
-		fmt = *Formats[i];
+	  	fmt = getFormat((FileType)i);
 		num = space = 0;
 		ofp = fmt->f_of_free;
 		while (ofp)

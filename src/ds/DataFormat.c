@@ -68,7 +68,7 @@ extern DataFormat *opaqueFileFormat;
  * And here is the format table.  Indexing into this table is done through
  * the FileType enum in dsPrivate.h.
  */
-static DataFormat **Formats[] =
+static DataFormat **_dfa_Formats[] =
 {
 	&netcdfFormat,
 	&boundaryFormat,
@@ -84,9 +84,22 @@ static DataFormat **Formats[] =
 	&opaqueFileFormat,
 };
 
-static const int NumFormats = (sizeof(Formats)/sizeof(Formats[0]));
+static const int NumFormats = (sizeof(_dfa_Formats)/sizeof(_dfa_Formats[0]));
 
-#define FMTP(ft) (*(Formats[(ft)]))
+static DataFormat*
+getFormat(FileType ft)
+{
+  DataFormat* fmt = *(_dfa_Formats[(int)ft]);
+  //  msg_ELog (EF_DEBUG, "returning format for %d: %s",
+  //	    ft, fmt->f_name);
+  if (fmt->f_ftype != ft)
+  {
+    msg_ELog (EF_PROBLEM,
+	      "selected format does not equal requested filetype!");
+  }
+  return fmt;
+}
+
 
 /*********************************************************************/
 /*
@@ -141,7 +154,7 @@ dfa_CreateFile (const DataFile *df, DataChunk *dc, ZebraTime *t,
  */
 	dfa_ForceClose (df);
 	pid = df->df_pid;
-	fmt = FMTP(df->df_core.dfc_ftype);
+	fmt = getFormat(df->df_core.dfc_ftype);
 /*
  * Make sure the format isn't read-only
  */
@@ -268,7 +281,7 @@ dfa_QueryDate (int type, const char *name, ZebraTime *begin, ZebraTime *end,
  * Query the dates on this file.
  */
 {
-	return ((*FMTP(type)->f_QueryTime) (name, begin, end, nsample));
+	return ((*getFormat(type)->f_QueryTime) (name, begin, end, nsample));
 }
 
 
@@ -285,7 +298,7 @@ dfa_Setup (GetList *gl, FieldId *fields, int nfield, DataClass class)
 	DataFile *dfp = &(gl->gl_df);
 	DataOrganization org;
 
-	fmt = FMTP(dfp->df_core.dfc_ftype);
+	fmt = getFormat(dfp->df_core.dfc_ftype);
 /*
  * Check for compatibility of the request, then open the file and pass it on
  */
@@ -499,7 +512,7 @@ dfa_GetAssociatedFiles (const DataFile *df, int *nfiles)
     DataFormat *fmt;
     char **filenames;
 
-    fmt = FMTP(df->df_core.dfc_ftype);
+    fmt = getFormat(df->df_core.dfc_ftype);
     if (fmt->f_GetAssociatedFiles)
 	return ((char **) (*fmt->f_GetAssociatedFiles) ( df, nfiles ));
     else
@@ -533,7 +546,7 @@ dfa_OpenFile (const DataFile *df, int write)
         OpenFile *ofp;
 	DataFormat *fmt;
 
-	fmt = FMTP(df->df_core.dfc_ftype);
+	fmt = getFormat(df->df_core.dfc_ftype);
 /* 
  * Verify they don't want to open a read-only format for writing.
  */
@@ -551,7 +564,7 @@ dfa_OpenFile (const DataFile *df, int write)
 	/*
 	 * Pointer to the rev in the DF portion of our open file
 	 */
-		long *ofrev = &(ofp->of_df.df_core.dfc_rev);
+		int *ofrev = &(ofp->of_df.df_core.dfc_rev);
 	    
                 if (write && ! ofp->of_write)
                 {
@@ -912,7 +925,7 @@ void
 dfa_MakeFileName (const Platform *plat, const ZebraTime *t, char *dest, 
 		  dsDetail *details, int ndetail)
 {
-	DataFormat *fmt = FMTP(pi_FileType (plat));
+	DataFormat *fmt = getFormat(pi_FileType (plat));
 /*
  * Shouldn't need to make file names for format's we can't write
  */
@@ -973,7 +986,7 @@ dfa_ForceClosure (void)
 	 */
 	for (i = 0; i < NumFormats; ++i)
 	{
-		fmt = *Formats[i];
+	  	fmt = getFormat((FileType)i);
 		ofp = fmt->f_of_free;
 		while (ofp)
 		{
@@ -994,7 +1007,7 @@ dfa_CheckName (int type, const char *name)
  * See if this file name is consistent with this file type.
  */
 {
-	char *ldot, *dot, *ext = FMTP(type)->f_ext;
+	char *ldot, *dot, *ext = getFormat(type)->f_ext;
 /*
  * First hack of the day...a, um, certain file format puts its extension
  * at the beginning instead of the end.  Have a look for a ^ in the
@@ -1032,7 +1045,7 @@ char *file;
 	/*
 	 * Perform the kludgy front-end check here too.
 	 */
-		char *ext = FMTP(fmt)->f_ext;
+		char *ext = getFormat(fmt)->f_ext;
 		if (ext && ext[0] == '^' &&
 				! strncmp (ext + 1, file, strlen (ext + 1)))
 			return (fmt);
@@ -1301,7 +1314,7 @@ char *dot;	/* file suffix to match against this format's extensions */
 	int dotlen;
 
 	dotlen = strlen(dot);
-	ext = FMTP(fmt)->f_ext;
+	ext = getFormat(fmt)->f_ext;
 	while (ext)
 	{
 		/* note that the short circuit keeps us from testing
