@@ -42,9 +42,11 @@ T_1DGrid ()
 	fflush(stdout);
 	dest_id = NeedPlatform ("t_1dgrid_cdf");
 	dc->dc_Platform = dest_id;
+	Announce ("Storing observation to t_1dgrid_cdf... ");
 	err += !TP_Store (dc, TRUE, 0, 0);
 	dest_id = NeedPlatform ("t_1dgrid_znf");
 	dc->dc_Platform = dest_id;
+	Announce ("Storing observation to t_1dgrid_znf... ");
 	err += !TP_Store (dc, TRUE, 0, 0);
 	dc_DestroyDC (dc);
 	return (err);
