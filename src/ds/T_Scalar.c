@@ -161,6 +161,7 @@ FieldId *fields;
 {
 	char cvalue;
 	int ivalue;
+	long lvalue;
 	double dvalue;
 	short svalue;
 	float fvalue;
@@ -170,6 +171,7 @@ FieldId *fields;
 #define CVAL(sample) ('A' + (int)(sample))
 #define SVAL(sample) (1 << (sample))
 #define IVAL(sample) (1024 + (2*(sample)))
+#define LVAL(sample) ((1 << 30) + (2*(sample)))
 
 	fvalue = FVAL(sample);
 	dc_AddScalar (dc, &when, sample, fields[DCT_Float-1], &fvalue);
@@ -188,8 +190,10 @@ FieldId *fields;
 	ivalue = IVAL(sample);
 	dc_AddScalar (dc, &when, sample, fields[DCT_Integer-1], &ivalue);
 	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedInt-1], &ivalue);
-	dc_AddScalar (dc, &when, sample, fields[DCT_LongInt-1], &ivalue);
-	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedLong-1], &ivalue);
+
+	lvalue = LVAL(sample);
+	dc_AddScalar (dc, &when, sample, fields[DCT_LongInt-1], &lvalue);
+	dc_AddScalar (dc, &when, sample, fields[DCT_UnsignedLong-1], &lvalue);
 }
 
 
@@ -236,9 +240,9 @@ FieldId *fields;
 	value = dc_GetScalar (dc, sample, fields[DCT_UnsignedInt-1]);
 	errors += ! Equal (value, (float)IVAL(sample));
 	value = dc_GetScalar (dc, sample, fields[DCT_LongInt-1]);
-	errors += ! Equal (value, (float)IVAL(sample));
+	errors += ! Equal (value, (float)LVAL(sample));
 	value = dc_GetScalar (dc, sample, fields[DCT_UnsignedLong-1]);
-	errors += ! Equal (value, (float)IVAL(sample));
+	errors += ! Equal (value, (float)LVAL(sample));
 
 	return (errors);
 }
@@ -348,7 +352,10 @@ ZebTime *when;
 	
 	msg_ELog (EF_DEBUG, 
 		  "ds_Store()'ing the typed DataChunk to t_fieldtypes");
+	TX_ExpectMany (EF_ALL, TRUE, 2, 
+		       "Unable to convert long datachunk type.*to netcdf");
 	err += !ds_Store (dc, TRUE, 0, 0);
+	TX_Seen();
 	dc_DestroyDC (dc);
 	msg_ELog (EF_DEBUG, "Fetching the typed scalar observation");
 	dc = ds_FetchObs (plat_id, DCC_Scalar, &begin, fields, nfield, 0, 0);
