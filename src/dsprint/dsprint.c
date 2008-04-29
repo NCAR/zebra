@@ -117,6 +117,9 @@ char            print_stars = 0;/* set if we want stars printed in place of
 				 * badval */
 char            print_missing = 0;	/* set if we want missingval printed */
 
+int maximum_seconds = 0;
+/* if non-zero, keep printing samples from observations until maximum */
+
 /*************************************************************************** */
 
 int
@@ -137,19 +140,6 @@ char *argv[];
     struct timeval  tv;
     struct tm      *t;
 
-
-    static char    *mname[] =
-    {
-	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
-    int             year,
-                    month,
-                    day,
-                    hour,
-                    min,
-                    sec,
-                    usec;
     int             i,
                     j,
                     k,
@@ -187,41 +177,15 @@ char *argv[];
 	exit (0);
     }
     if (time_string) {
-	char            mon[4];
-	int             n;
-	*(mon + 3) = 0;
-	if ((n = sscanf (time_string, "%d%*c%c%c%c%*c%d%*c%d%*c%d%*c%d",
-			 &day, mon, mon + 1, mon + 2, 
-			 &year, &hour, &min, &sec) != 8))
+      if (! TC_DecodeTime(time_string, &sample_time))
 	{
 
 	    msg_ELog (EF_PROBLEM, "incorrect date,time format\n");
 	    exit (0);
-	} else {
-	    *mon = toupper (*mon);
-	    for (i = 1; i < (int) strlen (mon); i++)
-		*(mon + i) = tolower (*(mon + i));
-
-	    for (month = 0; month < 12; month++)
-		if (!strcmp (mname[month], mon))
-		    break;
-	    if (month == 12) {
-		msg_ELog (EF_PROBLEM, "bad month name, exiting");
-		exit (0);
-	    }
-	    month++;
-	    TC_ZtAssemble (&sample_time, year, month, day, hour, min, sec, 0);
 	}
     } else {
 
 	TC_SysToZt (tv.tv_sec, &sample_time);
-	t = gmtime ((time_t *) &tv.tv_sec);
-	year = t->tm_year;
-	month = t->tm_mon + 1;
-	day = t->tm_mday;
-	hour = t->tm_hour;
-	min = t->tm_min;
-	sec = t->tm_sec;
     }
 
 #ifdef NEXUS
@@ -242,27 +206,23 @@ char *argv[];
     else
 	dclass = DCC_Transparent;
 
+    /* Load up the list of observations before the chosen time. */
+    if (!(n_times = ds_GetObsTimes (pid, &sample_time, times, 
+				    MAX_OBS, NULL)))
+    {
+      msg_ELog(EF_PROBLEM, 
+	       "unable to find observation before %s",
+	       TC_AscTime(&sample_time, TC_Full));
+      exit (0);
+    }
+
     switch (action) {
 
       case OBS_LIST:
 
-	if (!(n_times = ds_GetObsTimes (pid, &sample_time, times, 
-					MAX_OBS, NULL)))
+	for (i = 0; i < n_times; i++)
 	{
-	    msg_ELog(EF_PROBLEM, 
-		     "unable to find entry before %02d-%s-%02d,%02d:%02d:%02d",
-		     day, mname[month - 1], year, hour, min, sec);
-	    exit (0);
-	}
-	else
-	{
-	    for (i = 0; i < n_times; i++)
-	    {
-		TC_ZtSplit (&times[i], &year, &month, &day, &hour, 
-			    &min, &sec, &usec);
-		printf ("%02d-%s-%04d,%02d:%02d:%02d\n",
-		    day, mname[month - 1], year, hour, min, sec);
-	    }
+	  printf ("%s\n", TC_AscTime(times+i, TC_Full));
 	}
 	break;
 
@@ -273,16 +233,19 @@ char *argv[];
       case OBS_LAST_GOOD:
       case OBS_INTERVAL:
 
-
-	if (!ds_GetObsTimes (pid, &sample_time, times, 1, NULL)) {
-	    msg_ELog (EF_PROBLEM,
-		"unable to find entry before %02d-%s-%02d,%02d:%02d:%02d",
-		day, mname[month - 1], year, hour, min, sec);
-	    exit (0);
-	}
 	switch (dclass) {
 	  case DCC_Scalar:
 	    field_init (&times[0]);
+	    if (maximum_seconds > 0)
+	    {
+	      ZTime first_time = sample_time;
+	      first_time.zt_Sec -= maximum_seconds;
+	      dc = ds_Fetch (pid, DCC_Scalar, &first_time, &sample_time,
+			     (FieldId *) fids, fid_count,
+			     (dsDetail *) NULL, 0);
+	    }
+	    else
+	    {
 	    dc = ds_FetchObs (pid, DCC_Scalar,
 		times,
 		(FieldId *) fids, fid_count,
@@ -293,6 +256,7 @@ char *argv[];
 		    times,
 		    (FieldId *) & limit_fid, 1,
 		    (dsDetail *) NULL, 0);
+	    }
 	    }
 	    break;
 	  case DCC_Transparent:
@@ -310,13 +274,12 @@ char *argv[];
 	 * complain and exit
 	 */
 
-	if (time_string) {
-	    if ((sample_time.zt_Sec != times[0].zt_Sec) ||
-		(sample_time.zt_MicroSec != times[0].zt_MicroSec)) {
-		msg_ELog (EF_PROBLEM,
-		    "unable to find entry for %s at time %s", plat_name, time_string);
-		exit (0);
-	    }
+	if (!dc || (time_string && ! TC_Eq(sample_time, times[0])))
+	{
+	  msg_ELog (EF_PROBLEM,
+		    "unable to find entry for %s at %s", 
+		    plat_name, TC_AscTime(&sample_time, TC_Full));
+	  exit (0);
 	}
 	if (dc) {
 
@@ -382,7 +345,7 @@ char *argv[];
 			printf ("%7s ", "age");
 
 		    if (print_zt)
-			printf ("%15s ", "zt");
+			printf ("%21s ", "time");
 
 		    for (j = 0; j < fid_count; j++) {
 			sprintf (format_string, "%%%ds ", field_size[j]);
@@ -428,8 +391,12 @@ char *argv[];
 			}
 			if (print_zt) {
 			    dc_GetTime (dc, i, &this_time);
-			    printf ("%8ld %8ld ", (long)this_time.zt_Sec,
-				    (long)this_time.zt_MicroSec);
+			    if (print_zt == 1)
+			      printf ("     %8ld %06ld ", 
+				      (long)this_time.zt_Sec,
+				      (long)this_time.zt_MicroSec);
+			    else
+			      printf ("%21s ", TC_AscTime(&this_time, TC_Full));
 			}
 			for (j = 0; j < fid_count; j++) {
 			    val = dc_GetScalar (dc, i, fids[j]);
@@ -462,13 +429,7 @@ char *argv[];
 		}
 		break;
 	    }
-	} else {
-	    msg_ELog (EF_PROBLEM,
-		      "unable to fetch entry for %02d-%s-%02d,%02d:%02d:%02d",
-		      day, mname[month - 1], year, hour, min, sec);
-	    exit (0);
 	}
-
 	break;
 
     }
@@ -504,7 +465,8 @@ field_init (ztime)
     /* If no fields specified, then print out all available fields */
     if (fid_count == 0) {
 	nf = MAX_FIDS;
-	fid_count = ds_GetFields (pid, ztime, &nf, fids);
+	if (ds_GetFields (pid, ztime, &nf, fids))
+	  fid_count = nf;
 	for (k = 0; k < fid_count; k++) {
 	    field_name[k] = malloc (strlen (F_GetName (fids[k])) + 1);
 	    strcpy (field_name[k], F_GetName (fids[k]));
@@ -514,13 +476,18 @@ field_init (ztime)
 
     } else {
 	for (k = 0; k < fid_count; k++) {
+	    field_format[k] = malloc (strlen (field_spec[k]) + 1);
+	    strcpy (field_format[k], "%10.7g");
+	    field_name[k] = malloc (strlen (field_spec[k]) + 1);
 	    ptr = strtok (field_spec[k], "(");
-	    field_name[k] = malloc (strlen (ptr) + 1);
+	    if (!ptr) ptr = field_spec[k];
 	    strcpy (field_name[k], ptr);
 
-	    ptr = strtok (NULL, ")");
-	    field_format[k] = malloc (strlen (ptr) + 1);
-	    strcpy (field_format[k], ptr);
+	    if (ptr != field_spec[k])
+	    {
+	      ptr = strtok (NULL, ")");
+	      strcpy (field_format[k], ptr);
+	    }
 	    fids[k] = F_Lookup (field_name[k]);
 	}
     }
@@ -603,6 +570,7 @@ char *myname;
 	printf ("      -r    Retrieve the observation\n");
 	printf ("      -b    Beginning of observation\n");
 	printf ("      -e    End of observation\n");
+	printf ("      -x <n> Print from this number of seconds before\n");
 	printf ("      -l    List observations\n");
 	printf ("      -g <first|last>\n");
 	printf ("            Either the first or last good observation\n");
@@ -610,11 +578,13 @@ char *myname;
 	printf ("available options:\n");
 	printf ("   -f field(format):...\n");
 	printf ("   -t dd-mmm-yy,hh:mm:ss\n");
-	printf ("   -n\n");
-	printf ("   -a\n");
-	printf ("   -z\n");
-	printf ("   -s\n");
-	printf ("   -m\n");
+	printf ("            Select the observation to print by given time.\n");
+	printf ("   -n       Do not print the header line.\n");
+	printf ("   -a       Print the age of the samples.\n");
+	printf ("   -d       Print the sample time in date and time format.\n");
+	printf ("   -z       Print zebra time as seconds and microsecs.\n");
+	printf ("   -s       Print stars in place of bad values.\n");
+	printf ("   -m       Print missing data.\n");
 	printf ("   -h       This message.\n");
 }
 
@@ -642,7 +612,7 @@ char *argv[];
     char            limit_string[100];
     double          tempd;
 
-    while ((c = getopt (argc, argv, "p:rlf:t:benazg:smi:h")) != -1) {
+    while ((c = getopt (argc, argv, "p:rx:lf:t:benazdg:smi:h")) != -1) {
 	switch (c) {
 
 	  case 'h':
@@ -659,6 +629,10 @@ char *argv[];
 
 	  case 'z':
 	    print_zt = 1;
+	    break;
+
+	  case 'd':
+	    print_zt = 2;
 	    break;
 
 	  case 'a':
@@ -720,6 +694,12 @@ char *argv[];
 	  case 'r':
 	    action = OBS_RETRIEVE;
 	    iaction++;
+	    break;
+
+	  case 'x':
+	    action = OBS_RETRIEVE;
+	    iaction++;
+	    maximum_seconds = atoi(optarg);
 	    break;
 
 	  case 'l':
