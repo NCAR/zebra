@@ -1,6 +1,7 @@
 /* $Id: Options.c,v 2.2 2000-07-23 06:32:22 granger Exp $ */
 
 #include "Options.h"
+#include <string.h>
 
 static int *Argc;
 static char **Argv;
