@@ -51,8 +51,8 @@ static char rcsid[]="$Id: xncdump.c,v 1.4 2001-12-20 21:38:55 burghart Exp $";
 static char *fallbacks[] = {
 "Xncdump*text.height:		400",
 "Xncdump*text.width:		700",
-"Xncdump*text.scrollVertical:	whenNeeded",
-"Xncdump*text.scrollHorizontal:	whenNeeded",
+"Xncdump*text.scrollVertical:	always",
+"Xncdump*text.scrollHorizontal:	always",
 "Xncdump*foreground:		darkviolet",
 "Xncdump*background:		lightyellow",
 NULL };
