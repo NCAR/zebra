@@ -2067,7 +2067,7 @@ SuspendWrite(int waitsecs)
 void
 SuspendWrite (Widget w, XtPointer call_data)
 {
-	int waitsecs = (int) call_data;
+	long waitsecs = (long) call_data;
 	ZebTime now;
 	static ZebTime ends;		/* Time this suspension ends */
 					/* Must be static since the
