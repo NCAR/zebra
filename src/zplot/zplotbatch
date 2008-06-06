@@ -135,7 +135,7 @@ sleep 1
 
 DEFAULT_CONFIG=empty
 DM=B$$
-ZEB_DM="dm"
+ZEB_DM="xterm -e dm"
 ZEB_DM_CONFIG="-multiple -name $DM dm.config"
 export DEFAULT_CONFIG ZEB_DM_CONFIG ZEB_DM
 echo "-- Starting display manager:"
