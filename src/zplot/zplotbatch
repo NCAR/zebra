@@ -28,7 +28,9 @@ PATH="${PATH}:/usr/bin/X11:/usr/X11R6/bin"
 export PATH
 xvfb="Xvfb -pn -ac"
 
+# Passing -colors 128 on EL5 results in a corrupt image.
 convert="convert -colors 128 +profile '*'"
+convert="convert +profile '*'"
 #font="-font helvetica -pointsize 12"
 font="-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*'"
 
@@ -272,8 +274,8 @@ while read when config windows; do
 	     $convert $font -gravity southwest -fill black -box white \
 		-draw "text 20,20 ' REAL-TIME DATA, NOT CHECKED FOR QUALITY '"\
 		"${name}.xwd" "png:${name}.png.tmp" ; \
-	     /bin/mv -f "${name}.png.tmp" "${name}.png" ; \
-	     /bin/rm -f "${name}.xwd" ) &
+		/bin/mv -f "${name}.png.tmp" "${name}.png" ; \
+		/bin/rm -f "${name}.xwd" ) &
 	    queryprocs="$queryprocs $plot"
 
 	fi
