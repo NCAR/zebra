@@ -580,6 +580,8 @@ sub clear
     }
     elsif ($debug < $D_NoEmail)
     {
+	$projecturl="http://www.eol.ucar.edu/rtf/projects/$project_name/iss";
+	$projectdir="/net/www/docs/rtf/projects/$project_name/iss";
 	print MAIL "Images:\n\n";
 	$images =~ s/^\s+//;
 	foreach $i (split(/\s+/,$images))
@@ -587,18 +589,24 @@ sub clear
 	    # Setup a file url first, and if it matches the http path,
 	    # then replace the file path with the http url.
 	    $url = "file://$i";
-	    $url =~ s,file:///net/www/docs,http://www.eol.ucar.edu, ;
 	    $parenturl = "file://" . `dirname $i`;
 	    chop $parenturl;
-	    $parenturl =~ s,file:///net/www/docs,http://www.eol.ucar.edu, ;
+	    print MAIL "$url\n";
 	    print MAIL "$parenturl\n";
-	    print MAIL "$url\n\n";
+	    $url =~ s,file://.*realtime,realtime, ;
+	    if ( -f "$projectdir/$url" ) 
+	    {
+		$url = "$projecturl/$url" ;
+		$parenturl =~ s,file://.*realtime,$projecturl/realtime, ;
+		print MAIL "$url\n";
+		print MAIL "$parenturl\n";
+	    }
+	    print MAIL "\n";
 	}
 	print MAIL "\n";
 	print MAIL "Log files:\n";
 	print MAIL "file://$log\n";
-	print MAIL "http://www.eol.ucar.edu/rtf/projects/" .
-	    "$project_name/iss/realtime/logs/logs-$datedir/" . `basename $log`;
+	print MAIL "$projecturl/realtime/logs/logs-$datedir/".`basename $log`;
 	print MAIL "\n";
 	close MAIL;
 	print "--- Mail sent. ---\n";
