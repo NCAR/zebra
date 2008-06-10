@@ -31,8 +31,9 @@ xvfb="Xvfb -pn -ac"
 # Passing -colors 128 on EL5 results in a corrupt image.
 convert="convert -colors 128 +profile '*'"
 convert="convert +profile '*'"
+font="-font helvetica -pointsize 16 -weight bold"
 #font="-font helvetica -pointsize 12"
-font="-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*'"
+#font="-font '-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-*'"
 
 if [ x$BATCH_IMAGE_SPOOL = x ]; then
     echo "Batch image spool directory not set: BATCH_IMAGE_SPOOL"
