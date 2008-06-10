@@ -26,7 +26,19 @@ problem()
 #
 PATH="${PATH}:/usr/bin/X11:/usr/X11R6/bin"
 export PATH
-xvfb="Xvfb -pn -ac"
+fp=""
+for d in TTF Type1 100dpi encodings misc util ; do
+    fontdir=/usr/share/X11/fonts/$d
+    if [ -f $fontdir/fonts.dir ] ; then
+	if [ -n "$fp" ]; then
+	    fp="$fp,$fontdir"
+	else
+	    fp="$fontdir"
+	fi
+    fi
+done
+[ -n "$fp" ] && fp="-fp $fp"
+xvfb="Xvfb -pn -ac $fp"
 
 # Passing -colors 128 on EL5 results in a corrupt image.
 convert="convert -colors 128 +profile '*'"
