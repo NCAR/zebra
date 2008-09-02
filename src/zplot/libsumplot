@@ -60,7 +60,9 @@ while read path ; do
     $test $destimage -nt $path || \
 	(set -x; convert +profile '*' -colors 128 -geometry 140x140 $brightness $path $destimage) 1>&2
     echo '<td align=center bgcolor="#f0f0f0">'
-    echo "<font size=-1><strong>$imagename<strong></font><br><a href=$path><img src=$destimage></a>"
+    # Shorten the title for images with the long ISS_MAPR_ prefix
+    celltitle=`echo "$imagename" | sed -e 's/^ISS_MAPR_[^.]*/MAPR/'`
+    echo "<font size=-1><strong>$celltitle<strong></font><br><a href=$path><img src=$destimage></a>"
     echo "</td>"
     i=`expr $i + 1`
 
