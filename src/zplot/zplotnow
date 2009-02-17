@@ -64,7 +64,7 @@ for d in [ currentday-24*3600, currentday, currentday+24*3600 ]:
 # Any reason this can't be run in parallel?  Leaving serial for now...
 for p in plotperiods:
     cmd="zplotd -period " + formatTime(p, "%d-%h-%Y,%H:00:00")
-    cmd += " ".join(zplotdargs)
+    cmd += " " + " ".join(zplotdargs)
     print(cmd)
     if not options.justecho:
         os.system(cmd)
