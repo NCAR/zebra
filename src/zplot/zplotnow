@@ -1,95 +1,70 @@
-#! /bin/sh
+#! /bin/env python
 
-if [ "$1" = "-h" ]; then
-    echo "Usage: $0 [h1 h2 ...] [-- <zplotd options>]"
-    echo "Generate plots for any data since and before the current"
-    echo "plot hour.  If no arguments, uses the value of"
-    echo "PLOT_HOURS from the project configuration."
-    echo "The plot hours need to be in increasing order."
-    exit 0
-fi
+import os
+import sys
 
-# Separate zplotd options from our plot hours
-zplotdargs=""
-opthours=""
-justecho=0
-echo=""
-while [ $# -ne 0 ]; do
-    case $1 in
-    -x) justecho=1 ; echo=echo
-	;;
-    --) shift; zplotdargs="$zplotdargs $*"
-        break
-	;;
-    *)  opthours="$opthours $1"
-	;;
-    esac
-    shift
-done
-set skip $opthours
-shift
+from optparse import OptionParser
 
-if [ $# -eq 0 ]; then
-    set skip $PLOT_HOURS
-    shift
-else
-    PLOT_HOURS="$*"
-fi
+parser = OptionParser()
+parser.add_option("-e", "--echo", action="store_true", dest="justecho",
+                  default=False,
+                  help="Echo commands but do not execute them.")
+parser.add_option("", "--hours", action="store", dest="hours",
+                  default=os.environ.get("PLOT_HOURS", None),
+                  help="Space-separated list of plot hours in increasing order, or else the PLOT_HOURS environment variable from the project configuration.")
 
-if [ $# -eq 0 ]; then
-    echo "No plot hours.  Exiting."
-    exit 1
-fi
+(options, args) = parser.parse_args()
 
-echo "Plot hours: $*"
+zplotdargs=args
+hours=[]
+if not options.hours:
+    print("PLOT_HOURS must be defined or specified on command line.")
+    sys.exit(1)
 
-currenthour=`date -u '+%H'`
-h1=99
-h2=99
-hlast=0
-hfirst=$1
-doplot2=0
-for h in $*; do
+print("Plot hours: %s" % options.hours)
+hours = [ int(i) for i in options.hours.split() ]
 
-    if [ $h -lt $currenthour ]; then
-	h1=$h
-	doplot2=1
-    elif [ $h -eq $currenthour ]; then
-	h1=$h
-	doplot2=0
-    elif [ $h2 -eq 99 ]; then
-	h2=$h
-    fi
-    hlast=$h
+# We have to assume we're never getting more data than for the last
+# four hours, so we only want to plot the time periods which overlap
+# with that window, at most 2 plot periods.
 
-done
+import time
+from datetime import datetime
 
-# If h1 is set, then the first plot time is on the current day at
-# the plot hour given by h1.
-# If h1 is not set, then the first plot time is the
-# last plot hour on the previous day, which we find by shifting timezone.
-# Also, unset h1 means the current hour does not equal the plot hour,
-# so we're more than one hour into the second plot period and should plot it.
-if [ $h1 -ne 99 ]; then
-    plot1=`date -u +"%d-%h-%Y,$h1:00:00"`
-else
-    doplot2=1
-    plot1=`TZ=GMT+24 date +"%d-%h-%Y,$hlast:00:00"`
-fi
+def formatTime(timet, format="%Y-%m-%d,%H:%M:%S"):
+    return datetime.utcfromtimestamp(timet).strftime(format)
 
-# Similar setup for the second plot time, except we have to advance a day
-# if no plot hours found greater than the current hour.
-if [ $h2 -ne 99 ]; then
-    plot2=`date -u +"%d-%h-%Y,$h2:00:00"`
-else
-    plot2=`TZ=GMT-24 date +"%d-%h-%Y,$hfirst:00:00"`
-fi
+currenttime = time.time()
+currentday = currenttime - (currenttime % (24*3600))
+datatime = currenttime - 4*3600
+print("Data time window: %s - %s" % (formatTime(datatime),
+                                     formatTime(currenttime)))
+
+# For each plot hour and the plot period it specifies, see if it
+# overlaps with the data window.
+
+lasthour = hours[-1]
+plotperiods = []
+lasttime = None
+for d in [ currentday-24*3600, currentday, currentday+24*3600 ]:
+    for h in hours:
+
+        if not lasttime:
+            lasttime = d + (hours[-1]*3600) - 24*3600
+        plottime = d + (h * 3600)
+        # print("Checking plot period %s - %s" %
+        #    (formatTime(lasttime), formatTime(plottime)))
+        if ((lasttime <= datatime and datatime <= plottime) or
+            (lasttime <= currenttime and currenttime <= plottime)):
+            print("Selecting plot time %s" % formatTime(plottime))
+            plotperiods.append(plottime)
+        lasttime = plottime
+
 
 # Any reason this can't be run in parallel?  Leaving serial for now...
-# Run the second plot if the current hour is not also the plot hour.
-set -x
-$echo zplotd -period $plot1 $zplotdargs
-if [ $doplot2 -ne 0 ]; then
-    $echo zplotd -period $plot2 $zplotdargs
-fi
-
+for p in plotperiods:
+    cmd="zplotd -period " + formatTime(p, "%d-%h-%Y,%H:00:00")
+    cmd += " ".join(zplotdargs)
+    print(cmd)
+    if not options.justecho:
+        os.system(cmd)
