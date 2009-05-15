@@ -14,6 +14,7 @@ EOF
 	[ -f "$d/header.html" ] && hfile="$d/header.html" && break
     done
     if [ -n "$hfile" ]; then
+	echo "<body>"
 	cat "$hfile"
 	echo "<h1>$1</h1>"
     else
@@ -99,7 +100,7 @@ sumplot_endpage()
     # Try to find the standard eol footer and insert it.
     ffile=''
     for d in $html_search_dirs ; do
-	[ -f "$d/footer.html" ] && hfile="$d/footer.html" && break
+	[ -f "$d/footer.html" ] && ffile="$d/footer.html" && break
     done
     if [ -n "$ffile" ]; then
 	cat "$ffile"
