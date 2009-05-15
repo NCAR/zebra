@@ -6,8 +6,7 @@ html_search_dirs="$HOME/iss/eol /iss/eol /h/eol/iss/iss/eol"
 sumplot_beginpage() # heading
 {
     cat <<EOF
-<html><head><title>$1</title></head><body>
-<body bgcolor="#ffffff">
+<html><head><title>$1</title></head>
 EOF
     # Try to find the standard eol header and insert it.
     hfile=''
@@ -20,6 +19,7 @@ EOF
     else
     # Use a table to align the header elements
 cat <<EOF
+<body bgcolor="#ffffff">
 <table border='0'><tr><td>
 <A HREF="http://www.eol.ucar.edu/"><IMG valign=center alt="EOL..." 
    SRC="/graphics/eol_logo_sm.jpg"></a>
