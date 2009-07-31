@@ -73,6 +73,7 @@ foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
 
 sub create_index
 {
+    my $style = "style='border:2px solid; padding:5px'";
     my $directory = "$datedir/$date";
     print "Indexing $directory, prev=$prevdate, next=$nextdate, ...\n";
     # chdir("$datedir/$date");
@@ -80,15 +81,18 @@ sub create_index
     open (HTML, "| cd \"$datedir/$date\" && sumplot \"$title\" \'$match\' . . index.html") || 
 	die "sumplot: $!";
 
-print HTML "<a href=..>Parent directory</a><HR>\n";
+    print HTML "<table>";
+    print HTML "<tr>";
 if ($prevdate)
 {
-    print HTML "<p>Previous day: <a href=\"../$prevdate/\">$prevdate</a></p>\n";
+    print HTML "<td $style>Previous day: <a href=\"../$prevdate/index.html\">$prevdate</a></td>\n";
 }
+print HTML "<td $style><a href=..>Parent directory</a></td>\n";
 if ($nextdate)
 {
-    print HTML "<p>Next day: <a href=\"../$nextdate/\">$nextdate</a></p>\n";
+    print HTML "<td $style>Next day: <a href=\"../$nextdate/index.html\">$nextdate</a></td>\n";
 }
+    print HTML "</tr></table>";
 close HTML;
 
 }
