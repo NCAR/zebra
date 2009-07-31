@@ -59,7 +59,7 @@ brightness=""
 if [ "$2" -ne 0 ]; then
     brightness="+contrast +contrast +contrast"
 fi
-ncol=4;
+ncol=5;
 if [ $# -ge 3 ]; then
     ncol="$3"
 fi
