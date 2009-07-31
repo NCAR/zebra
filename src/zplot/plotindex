@@ -85,12 +85,12 @@ sub create_index
     print HTML "<tr>";
 if ($prevdate)
 {
-    print HTML "<td $style>Previous day: <a href=\"../$prevdate/index.html\">$prevdate</a></td>\n";
+    print HTML "<td $style><a href=\"../$prevdate/index.html\">Previous day:</a> <a href=\"../$prevdate/index.html\">$prevdate</a></td>\n";
 }
 print HTML "<td $style><a href=..>Parent directory</a></td>\n";
 if ($nextdate)
 {
-    print HTML "<td $style>Next day: <a href=\"../$nextdate/index.html\">$nextdate</a></td>\n";
+    print HTML "<td $style><a href=\"../$nextdate/index.html\">Next day:</a> <a href=\"../$nextdate/index.html\">$nextdate</a></td>\n";
 }
     print HTML "</tr></table>";
 close HTML;
