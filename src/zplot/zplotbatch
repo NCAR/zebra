@@ -197,9 +197,16 @@ while read when config windows; do
 	sleep 2
 	lastconfig="$config";
     fi
-    if [ $when = "now" ]; then
-	when=$now
-    fi
+    latest=""
+    case "$when" in 
+	now)
+	    when=$now
+	    ;;
+	*_latest*)
+	    when=`echo $when | sed -e 's/_latest//'`
+	    latest="_latest"
+	    ;;
+    esac
     (set -x; zrun $DM "history all $when")
     if [ $? -ne 0 ]; then
 	problem "Failed to set time: $when"
@@ -220,7 +227,7 @@ while read when config windows; do
     # For each process, tell it to dump its plot
 
     set `ztsplit $when`
-    base="$1$2$3$4$5"
+    base="$1$2$3$4$5$latest"
     # For the Web, put the images in directories by date, lumping
     # images from all instruments into the same directory.
     subspool="${spool}/$1$2$3"

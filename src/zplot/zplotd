@@ -116,7 +116,7 @@ while (<PLOTS>)
 	print "$platform status: $message\n" if ($debug);
 	next;
     }
-    print "$platform, $obs, ", join(' ', @windows), "\n" if ($debug);
+    print "$platform, $obs, ", join(' ', @windows), "\n" if ($debug > 1);
     if ("$obs" eq "yes")
     {
 	$Observations{"$platform"} = 1;
@@ -362,8 +362,17 @@ while (<DS>)
 	    # if all are given the same end time.
 	    if ($Observations{$platform})
 	    {
-		$obs=`dsdump -e $platform | egrep $time | awk '{print \$2;}'`;
-		chop $obs;
+		# If the observation filename contains _latest_, then flag
+		# the observation time 
+		$obs=`dsdump -e $platform | egrep $time`;
+		chomp($obs);
+		$obs =~ s/^\s+//;
+		print "\nObs line:$obs" if ($debug);
+		($obsfile, $obs) = split(/\s+/,$obs);
+		if ($obsfile =~ /.*_latest_.*/)
+		{
+		    $obs = "$obs" . "_latest";
+		}
 		print "\nobservation $time reset to $obs"
 		    if ($debug);
 		$time = $obs;
@@ -541,6 +550,18 @@ sub clear
 	print "Skipping: $pindex\n";
     }
 
+    $ftpimages = "";
+    foreach $i (split(/\s+/,$images))
+    {
+	if ($i !~ /.*_latest.*/)
+	{
+	    $ftpimages .= " $i ";
+	}
+	else
+	{
+	    print "Not sending $i to catalog." if ($debug);
+	}
+    }
     if (! $enable_ftp)
     {
 	print "ftpplots not enabled.\n";
@@ -549,7 +570,7 @@ sub clear
     {
 	print "Disabled by debug level: ftpplots\n";
     }
-    elsif (open (FTP, "ftpplots $images 2>&1 |"))
+    elsif (open (FTP, "ftpplots $ftpimages 2>&1 |"))
     {
 	while (<FTP>)
 	{

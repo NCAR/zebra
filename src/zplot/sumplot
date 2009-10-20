@@ -42,7 +42,9 @@ fi
 
 findimages()
 {
-    find $basedir/. -type f | egrep -v '/tn_' | egrep -i '\.jpg$|\.png$' | \
+    find $basedir/. -type f -name "tn_*" -prune -o \
+	-type f -name "*.[jJpP][pPnN][gG]" ! -name "*_latest*" -print -o \
+	-type f -name "*_latest*.[jJpP][pPnN][gG]" -mmin -120 -print | \
 	egrep "${pattern}" | sort
 }
 
