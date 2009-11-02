@@ -72,7 +72,15 @@ while read path ; do
     fi
     image=`basename $path`
     imagename=`echo $image | sed -e 's/^research\.//' -e 's/\.png$//'`
+
+    # To remove everything except the timestamp:
     #imagename=`echo $imagename | sed -e 's/.*\(200[0-9][0-9][0-9][0-9][0-9][0-9]*\).*/\1/g'`
+
+    # Omit the leading site designation before the timestamp, eg
+    # ISS1_Profiler, to be enabled only for projects with only one
+    # site.
+    imagename=`echo $imagename | sed -e 's/^ISS[0-9][^.]*\.//'`
+    # Shorten names which are still too long...
     imagename=`echo $imagename | sed -e 's/\(..................................\).*/\1.../'`
     destimage="$destdir/tn_$image"
     $test $destimage -nt $path || \
