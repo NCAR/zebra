@@ -1878,8 +1878,13 @@ msg_log (char *fmt, ...)
 
 
 
+# ifdef __cplusplus
+void
+msg_ELog (int flag, const char *s ...)
+# else
 void
 msg_ELog (int flag, char *fmt, ...)
+# endif /* __cplusplus */
 /*
  * Extended message logging interface.
  */

@@ -27,7 +27,7 @@
 #endif
 # include <stdio.h>
 # include <iostream>
-# include <string>
+# include <string.h>
 
 //
 // Zeb includes.
@@ -45,9 +45,6 @@
 # include "plcontainer.h"
 
 MAKE_RCSID ("$Id: dsmanage.cc,v 1.17 2002-12-18 00:24:13 granger Exp $");
-
-extern "C" char *strcat (char *, const char *);
-extern "C" char *strrchr (const char *, int);
 
 //
 // Global source id (we just use 0 for now)

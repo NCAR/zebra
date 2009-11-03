@@ -41,11 +41,10 @@
 #ifndef _Format_hh_
 #define _Format_hh_
 
-#include <string>
+#include <cstring>
 #include <stdio.h>	// vsprintf() and sprintf()
 #include <stdlib.h>
 #include <stdarg.h>
-//#include <std.h>
 #include <iostream>
 
 class Format
@@ -149,9 +148,9 @@ public:
 		char temp[1024]; \
 		char flag = 0; \
 		string f = parse_format (temp, &flag); \
-		if (! strchr (F,flag)) \
+		if (! std::strchr (F,flag))	       \
 			f = error(TYPE_MISMATCH); \
-		if (strchr (F,'s') && t == 0) \
+		if (std::strchr (F,'s') && t == 0)	\
 			f = "<null>"; \
 		sprintf (temp, f.c_str(), t); \
 		buf += temp; \

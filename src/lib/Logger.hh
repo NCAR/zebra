@@ -18,7 +18,7 @@
 
 #include <iostream>
 #include <sstream>
-#include <string>		// for strerror()
+#include <string.h>		// for strerror()
 #include <errno.h>
 
 

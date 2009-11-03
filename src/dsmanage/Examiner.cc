@@ -20,7 +20,7 @@
  */
 
 # include <stdio.h>
-# include <stream.h>
+# include <iostream>
 # include <unistd.h>
 # include "dsmanage.h"
 
