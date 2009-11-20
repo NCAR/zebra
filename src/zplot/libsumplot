@@ -80,6 +80,7 @@ while read path ; do
     # ISS1_Profiler, to be enabled only for projects with only one
     # site.
     imagename=`echo $imagename | sed -e 's/^ISS[0-9][^.]*\.//'`
+    imagename=`echo $imagename | sed -e 's/^MISS[^.]*\.//'`
     # Shorten names which are still too long...
     imagename=`echo $imagename | sed -e 's/\(..................................\).*/\1.../'`
     destimage="$destdir/tn_$image"
