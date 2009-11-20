@@ -33,6 +33,11 @@ catalog_translate() # config-name window-name platform-var product-var
 
 	iss1|iss2|iss3|iss4|iss-mapr)
 	    platform_prefix=research.`echo $config | tr a-z- A-Z_`
+	    # Override the platform for MISS
+	    case "$config" in
+		iss1) platform_prefix="MISS" ;;
+	    esac
+
             # The window determines the platform suffix and product
 	    case "$window" in
 
