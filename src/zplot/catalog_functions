@@ -51,11 +51,16 @@ catalog_translate() # config-name window-name platform-var product-var
 		class) suffix="Sounding"; product="SkewT";;
 		rass) suffix="Profiler"; product="RASS";;
 		snow) suffix="Surface"; product="Surface_Snow";;
-		soap_24hr) suffix="Profiler"; product="Moments";;
-		con_snrw) suffix="Profiler"; product="SNR_Winds";;
-		con_moms) suffix="Profiler"; product="NIMA_Consensus_Moments";;
-		con_rass) suffix="Profiler"; product="NIMA_Consensus_RASS";;
-		prof_200) suffix="Profiler"; product="Profiles";;
+		soap_24hr|soapmoments*)
+		    suffix="Profiler"; product="Moments";;
+		con_snrw|nimawinds*) 
+		    suffix="Profiler"; product="SNR_Winds";;
+		con_moms|nimamoments*)
+		    suffix="Profiler"; product="NIMA_Consensus_Moments";;
+		con_rass|nimarass*)
+		    suffix="Profiler"; product="NIMA_Consensus_RASS";;
+		prof_200|soapprofiles*) 
+		    suffix="Profiler"; product="Profiles";;
 
 	    esac
 	    ;;
