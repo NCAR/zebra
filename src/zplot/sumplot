@@ -40,12 +40,21 @@ if [ ! -d $destdir ]; then
     exit 1
 fi
 
-findimages()
+getimages()
 {
     find $basedir/. -type f -name "tn_*" -prune -o \
 	-type f -name "*.[jJpP][pPnN][gG]" ! -name "*_latest*" -print -o \
 	-type f -name "*_latest*.[jJpP][pPnN][gG]" -mmin -120 -print | \
-	egrep "${pattern}" | sort
+	egrep "${pattern}"
+}
+
+findimages()
+{
+    # Include a single _latest plot only if it's the most recent of all
+    # the SkewT plots.
+    lastskewt=`getimages | egrep SkewT | sort -r | head -1 | egrep _latest`
+    (test -n "$lastskewt" && echo "$lastskewt"
+	(getimages | egrep -v _latest) ) | sort
 }
 
 . libsumplot
