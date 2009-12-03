@@ -66,7 +66,12 @@ foreach $f (split(/\s+/,`/bin/ls $datedir`), "")
 	    # If the index.html is already the newest file, and this 
 	    # directory was not explicitly selected, no need to
 	    # regenerate it.
-	    if (`ls -t "$datedir/$date" | head -1` =~ /index\.html/)
+	    #
+	    # Neither of these approaches really works.
+	    # if (`ls -t "$datedir/$date" | head -1` =~ /index\.html/)
+	    # my $latest=`find "$datedir/$date" -newer "$datedir/$date/index.html" | head -1`;
+	    # if ("$latest" !~ /index\.html/)
+	    if (0)
 	    {
 		print "$date already up to date.\n";
 	    }
