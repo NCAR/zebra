@@ -544,7 +544,7 @@ sub clear
 	}
 	else
 	{
-	    print "Not sending $i to catalog." if ($debug);
+	    print "Not sending $i to catalog.\n" if ($debug);
 	}
     }
     if (! $enable_ftp)
@@ -557,15 +557,19 @@ sub clear
     }
     elsif (open (FTP, "ftpplots $ftpimages 2>&1 |"))
     {
-	print "ftpplots $ftpimages";
+	print "ftpplots $ftpimages\n";
 	while (<FTP>)
 	{
 	    print;
 	}
 	close FTP;
+	# Report failures, but don't change the status, since the ftp
+	# often exits with non-zero status without explanation, but
+	# the images still appear to be getting through.
 	if ($?) {
-	    $status = "$FAIL ftp status";
-	    $result = 0;
+	    print "*** $FAIL ftp status ***\n"
+	    # $status = "$FAIL ftp status";
+	    # $result = 0;
 	}
     }
     else
