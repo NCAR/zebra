@@ -557,6 +557,7 @@ sub clear
     }
     elsif (open (FTP, "ftpplots $ftpimages 2>&1 |"))
     {
+	print "ftpplots $ftpimages";
 	while (<FTP>)
 	{
 	    print;
