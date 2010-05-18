@@ -43,8 +43,8 @@ fi
 getimages()
 {
     find $basedir/. -type f -name "tn_*" -prune -o \
-	-type f -name "*.[jJpP][pPnN][gG]" ! -name "*_latest*" -print -o \
-	-type f -name "*_latest*.[jJpP][pPnN][gG]" -mmin -120 -print | \
+	-type f -name "*.[jJpPsS][pPnNvV][gG]" ! -name "*_latest*" -print -o \
+	-type f -name "*_latest*.[jJpPsS][pPnNvV][gG]" -mmin -120 -print | \
 	egrep "${pattern}"
 }
 
