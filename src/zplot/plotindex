@@ -13,17 +13,34 @@ if ($#ARGV < 1)
 {
     print "Usage: $0 [options] <project> <date directory> [<date> ...]\n";
     print " -match <regexp>    Only index files matching regexp.\n";
+    print " -index <filename>  Generate <filename>, default is index.html\n";
     print "If no <date>, creates index.html in each of the date directories\n";
     print "in <date directory>.  Otherwise creates only <date>/index.html\n";
     exit 1;
 }
 
+my $filename = "index.html";
 my $match = ".*";
-if ($ARGV[0] eq "-match")
+my $arg;
+while (@ARGV)
 {
-    shift @ARGV;
-    $match = shift @ARGV;
-    print "Matching $match\n";
+    $arg = $ARGV[0];
+    if ($arg eq "-match")
+    {
+	shift @ARGV;
+	$match = shift @ARGV;
+	print "Matching $match\n";
+    }
+    elsif ($arg eq "-index")
+    {
+	shift @ARGV;
+	$filename = shift @ARGV;
+	print "Generating $filename\n";
+    }
+    else
+    {
+	last;
+    }
 }
 my $project = shift @ARGV;
 my $datedir = shift @ARGV;
@@ -93,19 +110,19 @@ sub create_index
     print "Indexing $directory, prev=$prevdate, next=$nextdate, ...\n";
     # chdir("$datedir/$date");
     my $title="Project $project plot images for $date";
-    open (HTML, "| cd \"$datedir/$date\" && sumplot \"$title\" \'$match\' . . index.html") || 
+    open (HTML, "| cd \"$datedir/$date\" && sumplot \"$title\" \'$match\' . . $filename") || 
 	die "sumplot: $!";
 
     print HTML "<table>";
     print HTML "<tr>";
 if ($prevdate)
 {
-    print HTML "<td $style><a href=\"../$prevdate/index.html\">Previous day:</a> <a href=\"../$prevdate/index.html\">$prevdate</a></td>\n";
+    print HTML "<td $style><a href=\"../$prevdate/$filename\">Previous day:</a> <a href=\"../$prevdate/$filename\">$prevdate</a></td>\n";
 }
 print HTML "<td $style><a href=..>Parent directory</a></td>\n";
 if ($nextdate)
 {
-    print HTML "<td $style><a href=\"../$nextdate/index.html\">Next day:</a> <a href=\"../$nextdate/index.html\">$nextdate</a></td>\n";
+    print HTML "<td $style><a href=\"../$nextdate/$filename\">Next day:</a> <a href=\"../$nextdate/$filename\">$nextdate</a></td>\n";
 }
     print HTML "</tr></table>";
 close HTML;
