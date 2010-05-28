@@ -39,7 +39,7 @@ ud_y2k_date (struct date_st *d)
 	
 	if (y <= 0)
 		return; /* Relative date */
-	if (y < 10)
+	if (y < 50)
 		d->ds_yymmdd += 20000000;
 	else if (y < 100)
 		d->ds_yymmdd += 19000000;
