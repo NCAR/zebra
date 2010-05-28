@@ -120,6 +120,7 @@ if ($prevdate)
     print HTML "<td $style><a href=\"../$prevdate/$filename\">Previous day:</a> <a href=\"../$prevdate/$filename\">$prevdate</a></td>\n";
 }
 print HTML "<td $style><a href=..>Parent directory</a></td>\n";
+print HTML "<td $style><a href=.>This directory</a></td>\n";
 if ($nextdate)
 {
     print HTML "<td $style><a href=\"../$nextdate/$filename\">Next day:</a> <a href=\"../$nextdate/$filename\">$nextdate</a></td>\n";
