@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rdssui, [20020827], rdp-support@atd.ucar.edu)
+AC_INIT(rdssui, [20100727], rdp-support@eol.ucar.edu)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([ui.c])
 
@@ -13,8 +13,8 @@ AC_PROG_RANLIB
 #
 AC_CHECK_LIB([m], [pow], ,
 	[echo "Cannot find math library"; exit 1])
-AC_CHECK_LIB([termcap], [tgetstr], ,
-	[echo "Cannot find termcap library"; exit 1])
+AC_SEARCH_LIBS([tgetstr], [ncurses termcap], ,
+	[echo "Cannot find ncurses/termcap library"; exit 1])
 # Link to libnsl and libsocket if we can find them (i.e., on Solaris systems),
 # otherwise we probably get the necessary stuff from libc (i.e., under Linux)
 AC_CHECK_LIB([nsl], [gethostbyname])
