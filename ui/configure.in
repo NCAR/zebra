@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rdssui, [20100727], rdp-support@eol.ucar.edu)
-AM_INIT_AUTOMAKE
+AC_INIT(rdssui, [20110602], rdp-support@eol.ucar.edu)
 AC_CONFIG_SRCDIR([ui.c])
+AM_INIT_AUTOMAKE
 
 # Checks for programs.
 AC_PROG_CC
@@ -60,20 +60,11 @@ AC_CHECK_LIB([Xaw], [XawInitializeWidgetSet], ,
 #
 LDFLAGS="$LDFLAGS -L${libdir}"
 
-# Checks for header files.
-AC_HEADER_STDC
-AC_CHECK_HEADERS([errno.h fcntl.h malloc.h stdlib.h string.h sys/ioctl.h sys/time.h termios.h unistd.h])
-
 # Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
-AC_FUNC_MALLOC
-AC_TYPE_SIGNAL
-AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([memset pow re_comp regcmp regcomp select sqrt strchr strdup strrchr])
 
 AC_CONFIG_SUBDIRS([LiteClue])
 AC_CONFIG_FILES([Makefile])
