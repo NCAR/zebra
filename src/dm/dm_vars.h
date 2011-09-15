@@ -115,7 +115,7 @@ inline static int IsWidget (cfw) struct cf_window *cfw;
 { 
 	return (cfw->cfw_class == W_Widget); 
 }
-inline static char *WinClassName (cfw) struct cf_window *cfw;
+inline static const char *WinClassName (cfw) struct cf_window *cfw;
 {
 	return ((IsGraphic (cfw)) ? "graphic" :
 		(IsNonGraphic (cfw)) ? "nongraphic" :
@@ -179,9 +179,7 @@ extern int TestMode;
  * X window system-oriented stuff.  Only compile this in if the routine
  * is prepared to deal with it.
  */
-# ifdef _XLIB_H_
 extern Display		*Dm_Display;		/* Our display		*/
-# endif
 
 /*
  * Public functions.

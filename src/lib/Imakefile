@@ -89,7 +89,7 @@ TESTOBJS = cvt_test.o re_test.o msg_test.o ztime_test.o
 CHEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
 	draw.h version.h zl_symbol.h zl_param.h Test.h zebra.h zebra_rpc.h \
-	map.h zl_mtio.h
+	map.h zl_mtio.h dm_ctable.h
 
 DOCXX_HEADERS = Buffer.hh SerialBuffer.hh SerialStream.hh \
 	Serializable.hh AuxBlock.hh XDR.hh BlockObject.hh

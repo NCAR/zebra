@@ -168,21 +168,6 @@ struct dm_ctr
 	char dmm_table[PDLEN];	/* The name of the table of interest	*/
 };
 
-/*
- * A color table reply.
- */
-# ifdef _XLIB_H_
-struct dm_ctable
-{
-	int dmm_type;		/* == DM_TABLE or DM_NOTABLE		*/
-	char dmm_table[PDLEN];	/* The name of the table again		*/
-	int dmm_ncolor;		/* The length of the color table	*/
-	XColor dmm_cols[1];	/* The array of color values		*/
-};
-
-# endif
-
-
 
 /*
  * These are the action codes for the prefined event actions.
@@ -253,7 +238,5 @@ void dm_Send FP ((void *msg, int len));
 void dm_Greet FP ((void));
 void dm_Reconfig FP ((struct dm_reconfig *dmsg));
 void dm_SendWindowID FP ((long win));
-struct dm_ctable *dm_ColorTable FP ((char *name));
-
 
 #endif /* !__zeb_dm_h_ */

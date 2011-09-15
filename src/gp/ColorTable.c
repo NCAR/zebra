@@ -25,6 +25,7 @@
 # include <defs.h>
 # include <zl_symbol.h>
 # include <dm.h>
+# include <dm_ctable.h>
 # include <pd.h>
 # include <message.h>
 # include "GraphProc.h"

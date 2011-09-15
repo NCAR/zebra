@@ -25,6 +25,7 @@
 # include <ui_error.h>
 # include <defs.h>
 # include <dm.h>
+# include <dm_ctable.h>
 # include "dm_cmds.h"
 # include "dm_vars.h"
 

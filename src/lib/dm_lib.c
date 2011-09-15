@@ -16,6 +16,7 @@
 #include "defs.h"
 #include "message.h"
 #include "dm.h"
+#include "dm_ctable.h"
 #include "setup.h"
 
 RCSID ("$Id: dm_lib.c,v 2.4 1996-11-19 08:03:19 granger Exp $")
