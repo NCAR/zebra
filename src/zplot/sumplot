@@ -77,11 +77,16 @@ echo "Done generating $htmlfile"
 #
 number=4
 quickpartfile="$htmlfile.quick.part"
-findimages | tail -$number | \
+# Make sure the most recent images appear at the right.
+(echo skip; echo skip; echo skip; echo skip; echo skip; findimages) | \
+    tail -$number | \
 (echo "<tr>"
 echo "<td align=center colspan=$number><p><strong><a href="$htmlfile">$title</a></strong></p></td></tr>";
 sumplot_fillrows "$destdir" "$brightness" $number) > $quickpartfile.$$
-if [ `findimages | wc -l ` -eq 0 ]; then
+# Remove the row if it has no plots.
+if egrep -q '<img src' $quickpartfile.$$ ; then
+    true
+else
     cat /dev/null > $quickpartfile.$$
 fi
 
