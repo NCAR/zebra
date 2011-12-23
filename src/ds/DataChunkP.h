@@ -100,20 +100,20 @@ typedef struct _TransADE	/* our very own ADE placeholder */
  */
 typedef struct _AuxTrans
 {
-	unsigned short at_NSample;	/* Number of samples in this DC	 */
+	unsigned int at_NSample;	/* Number of samples in this DC	 */
 	TransSample *at_Samples;	/* Dynamic samples array */
-	unsigned short at_NSampAlloc;	/* Space allocated for this many */
-	unsigned short at_HintNSample;	/* estimated # of samples to store */
-	unsigned short at_HintSampSize;	/* estimate of a single sample's size*/
-	unsigned short at_HintUseAvgs;	/* use average sample size as needed */
-	unsigned short at_SampOverhead;	/* sample size overhead of subclasses*/
-	unsigned short at_SampDataSize;	/* hint for size of data in a sample */
-	unsigned short at_InOrder;	/* true if samples are contiguous */
+	unsigned int at_NSampAlloc;	/* Space allocated for this many */
+	unsigned int at_HintNSample;	/* estimated # of samples to store */
+	unsigned int at_HintSampSize;	/* estimate of a single sample's size*/
+	unsigned int at_HintUseAvgs;	/* use average sample size as needed */
+	unsigned int at_SampOverhead;	/* sample size overhead of subclasses*/
+	unsigned int at_SampDataSize;	/* hint for size of data in a sample */
+	unsigned int at_InOrder;	/* true if samples are contiguous */
 	long at_NextOffset;		/* Next offset into buffered raw data,
 					   equals dc_DataLen if no buffer */
 	AltUnitType at_LocAltUnits;	/* Altitude units for Locations */
 	Location at_SLoc;		/* Location for static platforms */
-	unsigned short at_NSubSample;	/* Number of possible subdivisions */
+	unsigned int at_NSubSample;	/* Number of possible subdivisions */
 
 	/* ADE shortcut array, indexed by the ST_ codes */
 	TransADE at_ade[TR_NUM_SUBTYPES];

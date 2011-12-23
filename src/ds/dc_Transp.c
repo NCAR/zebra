@@ -81,9 +81,10 @@ RawClass TranspMethods =
 DataClassP DCP_Transparent = (DataClassP)&TranspMethods;
 
 /*
- * This is the limit imposed by using unsigned short's to count samples
+ * This is the limit imposed by reason, although ultimately it is
+ * limited to the unsigned int's used to count samples
  */
-const unsigned short MaxSamples = 65535;
+const unsigned int MaxSamples = 256000;
 
 /*
  * Local routines.
@@ -212,7 +213,7 @@ zbool decrease;
 		return;
 	tp = ATP(dc);
 	if (nsample >= 0 && 
-	    (decrease || ((unsigned short) nsample > tp->at_HintNSample)))
+	    (decrease || ((unsigned int) nsample > tp->at_HintNSample)))
 		tp->at_HintNSample = nsample;
 }
 
@@ -368,9 +369,9 @@ DataChunk *dc;
 AuxTrans *tp;
 int nnew;
 {
-	if (tp->at_HintNSample > (unsigned short) (tp->at_NSample + nnew))
+	if (tp->at_HintNSample > (unsigned int) (tp->at_NSample + nnew))
 		return (tp->at_HintNSample);
-	else if (tp->at_NSampAlloc > (unsigned short) (tp->at_NSample + nnew))
+	else if (tp->at_NSampAlloc > (unsigned int) (tp->at_NSample + nnew))
 		return (tp->at_NSampAlloc);
 	else
 		return (tp->at_NSample + nnew);
@@ -1334,7 +1335,7 @@ DataChunk *dc;
 {
 	AuxTrans *tp;
 	PlatformId *list;
-	unsigned short i;
+	unsigned int i;
 	struct sortrecord {
 		TransSample trans;
 		PlatformId pid;
@@ -1640,7 +1641,7 @@ int sample, newsize;
  */
 {
 	AuxTrans *tp;
-	unsigned short i;
+	unsigned int i;
 	int diff, oldlen;
 	TransSample *ts;
 	int next_sample;
@@ -1884,7 +1885,7 @@ DataChunk *dc;
  */
 {
 	AuxTrans *tp;
-	unsigned short i;
+	unsigned int i;
 	char atime[40];
 	PlatformId *list;
 /*
