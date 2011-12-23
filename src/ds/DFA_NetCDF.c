@@ -433,7 +433,7 @@ int write;
  * Try to open the file.
  */
 	ncopts = 0;	/* Change default error behavior */
-	flags = (write ? (NC_WRITE | NC_NOFILL) : NC_NOWRITE);
+	flags = (write ? NC_WRITE : NC_NOWRITE);
 	if ((tag->nc_id = ncopen (fname, flags)) < 0)
 	{
 		dnc_NCError ("file open");
@@ -2899,7 +2899,7 @@ int ndetail;
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
  */
-	flags = (NC_WRITE | NC_CLOBBER | NC_NOFILL);
+	flags = (NC_CLOBBER | NC_NOFILL);
 	if ((tag->nc_id = nccreate (fname, flags)) < 0)
 	{
 		dnc_NCError ("File create");
