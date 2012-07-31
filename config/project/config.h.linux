@@ -252,7 +252,7 @@ XCOMM -----------------------------------------------------------------------
  */
 # define HasCplusplus	YES
 # define CplusplusCmd	g++
-# define CplusplusDebugFlags -g
+# define CplusplusDebugFlags -g -Wno-write-strings
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -264,7 +264,7 @@ XCOMM -----------------------------------------------------------------------
  * does not disable optimization by specifying any debug flags.
  *
  */
-# define CDebugFlags -g
+# define CDebugFlags -g -Wno-write-strings
 /* # define FortDebugFlags -g */
 
 /*
