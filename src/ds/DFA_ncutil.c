@@ -27,15 +27,16 @@
 /*
  * Defined in DFA_ncutil.c.
  */
-NCU_STATIC void dnc_NCError (char *);
-NCU_STATIC int	dnc_Varid (int id, char *name);
-NCU_STATIC int	dnc_Dimid (int id, char *name);
+NCU_STATIC void dnc_NCError (const char *);
+NCU_STATIC int	dnc_Varid (int id, const char *name);
+NCU_STATIC int	dnc_Dimid (int id, const char *name);
 NCU_STATIC int	dnc_DecipherTime (int id, int *vtime, int *dtime,
 				  long *ntime, nc_type *, ZebraTime *base);
 NCU_STATIC int  dnc_TimeUnits (ZebraTime *zt, const char *time_units);
 NCU_STATIC char *dnc_ValueToString (void *value, nc_type type, int len);
 NCU_STATIC char *dnc_GetStringAtt (int cdfid, int varid, 
-				   char *att_name, char *att_val, int len);
+				   const char *att_name, 
+				   char *att_val, int len);
 NCU_STATIC int	dnc_MatchVarName (int id, int platid, const char *name, 
 				  const char *longname, int pri);
 
@@ -67,7 +68,7 @@ strtolower (char *c)
 
 
 NCU_STATIC int
-dnc_Varid (int id, char *name)
+dnc_Varid (int id, const char *name)
 {
 	return dnc_MatchVarName (id, -1, name, 0, 50);
 }
@@ -75,7 +76,7 @@ dnc_Varid (int id, char *name)
 
 
 NCU_STATIC int
-dnc_Dimid (int id, char *name)
+dnc_Dimid (int id, const char *name)
 /*
  * Search the dimension names for a match which ignores case.
  * Return -1 on failure, otherwise the dimid of the matching dimension.
@@ -496,7 +497,7 @@ dnc_TimeUnits (ZebraTime *zt, const char *time_units)
 
 
 NCU_STATIC void
-dnc_NCError (char *s)
+dnc_NCError (const char *s)
 /*
  * Report a NETCDF error.
  */
@@ -568,7 +569,8 @@ dnc_ValueToString (void *value, nc_type type, int len)
 
 
 NCU_STATIC char *
-dnc_GetStringAtt(int cdfid, int varid, char *att_name, char *att_val, int len)
+dnc_GetStringAtt(int cdfid, int varid, const char *att_name, 
+		 char *att_val, int len)
 /*
  * Retrieve named attribute from given varid, making sure value is of
  * type NC_CHAR and not longer than len.  Returns att_val if 

@@ -326,11 +326,7 @@ void msg_send FP ((char *, int, int, void *, int));
 void msg_join FP ((char *));
 void msg_quit FP ((char *));
 void msg_log (char *fmt, ...);
-# ifdef __cplusplus
-void msg_ELog (int flag, const char *s ...);
-# else
-void msg_ELog (int flag, char *fmt, ...);
-# endif /* __cplusplus */
+void msg_ELog (int flag, const char *s, ...);
 void msg_LogCallback FP ((int mask, int (*fn) (), void *arg));
 int msg_ELSendMask FP ((int mask));
 int msg_ELPrintMask FP ((int mask));
