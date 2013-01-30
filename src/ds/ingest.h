@@ -53,6 +53,11 @@
 # define streq(a,b) (strcmp(a,b) == 0)
 # endif
 
+# if __cplusplus
+extern "C"
+{
+# endif
+
 /* ---------------------------------------------------------------------
  * Ingest Public Prototypes:						*/
 
@@ -150,5 +155,10 @@ extern short ShowIngestName;
 #define IngestSetNoEventLogger()	SetNoEventLogger()
 #define IngestSetNoDataStore()		SetNoDataStore()
 #define IngestSetDryRun()		SetDryRun()
+
+# if __cplusplus
+} // end of extern "C"
+# endif
+
 
 # endif /* _ingest_h_ */
