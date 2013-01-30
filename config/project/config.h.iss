@@ -146,6 +146,8 @@ XCOMM -----------------------------------------------------------------------
  */
 # define	BuildMapUtilities		YES
 
+/* Skip python until needed again and it works. */
+# define 	BuildPythonUtils		NO
 
 /* //// That's all of the defintions for choosing pieces to install.///// */
 /* //// Go the next section for other compile configuration options ///// */
@@ -484,6 +486,8 @@ XCOMM -----------------------------------------------------------------------
  *	UDUnitsLibrary	-ludunits
  * 	RDSSLibrary	-lrdssui -lrdssutil
  */
+
+#define UDUnitsLibrary	-ludunits
 
 /*========================================================================*/
 # endif /* MAKING_MAKEFILE */
