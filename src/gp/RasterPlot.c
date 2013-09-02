@@ -1,4 +1,4 @@
-/*
+/* -*- c-basic-offset: 4; -*-
  * Raster display a rectangular array
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -115,18 +115,6 @@ static XRectangle	Clip;
 # define WRAPLON(l) (((l) > 180.0) ? ((l) - 360) : (l))
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
-
-/*
- * Kludgery of sorts: some of the raster code uses "fake floats" -- 32-bit
- * ints where the least-significant two bytes contain the fractional part
- * of a floating point number.  The point of all this is to allow floating
- * point precision (sort of) precision while making the integer part really
- * fast to get at.
- *
- * Here we give the offset (in shorts) to the integer part of such a number.
- */
-# define FF_OFFSET (LittleEndian() ? 1 : 0)
-
 
 /*--------------------------------------------------
  * Public prototypes
@@ -432,8 +420,8 @@ float *leftcol_out, *toprow_out;
 	colinc = ((float) xdim - 1) / ((float) (*xhi - *xlo + 1));
 	rowinc = -((float) ydim - 1) / ((float) (*ylo - *yhi + 1));
 #ifdef DEBUG
-	msg_ELog (EF_INFO, "xdim %d; ydim %d", xdim, ydim);
-	msg_ELog (EF_INFO, "estimate: columns/pixel %f; rows/pixel %f", 
+	msg_ELog (EF_DEBUG, "xdim %d; ydim %d", xdim, ydim);
+	msg_ELog (EF_DEBUG, "estimate: columns/pixel %f; rows/pixel %f", 
 		  colinc, rowinc);
 #endif
 	if (fabs(rowinc) < 0.00001 || fabs(colinc) < 0.00001)
@@ -513,10 +501,10 @@ float *leftcol_out, *toprow_out;
  * leftcol.
  */
 	toprow += rowinc;
-#ifdef DEBUG
-	msg_ELog (EF_INFO, "recalc: columns/pixel %f; rows/pixel %f", 
+#if DEBUG
+	msg_ELog (EF_DEBUG, "recalc: columns/pixel %f; rows/pixel %f", 
 		  colinc, rowinc);
-	msg_ELog (EF_INFO, "width: %d; height %d; toprow %f",
+	msg_ELog (EF_DEBUG, "width: %d; height %d; toprow %f",
 		  width, height, toprow);
 	/*
 	 * Check some assertions
@@ -647,11 +635,9 @@ zbool	fast; /* not used any more */
 
 
 static void
-RP_IRasterize (di, colgrid, row, icol, rowinc, colinc,	xdim)
-DestImage *di;
-Pixel 	*colgrid;
-float 		row, icol, rowinc, colinc;
-int		xdim;
+RP_IRasterize (DestImage *di, Pixel *colgrid, 
+	       double row, double icol, double rowinc, double colinc,
+	       int xdim)
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  *
@@ -663,26 +649,13 @@ int		xdim;
  * does a better job anyway and would keep the code simpler.
  */
 {
-    int i, j, icolinc;
-# ifdef __STDC__
-    static int col;
-    static short *s_col;
-# else
-    int col;
-    short *s_col;
-# endif
+    int i, j;
+    double col;
     unsigned short *simp;
-    unsigned long *limp;
+    unsigned int *limp;
     const int outrange = Color_outrange.pixel;
     const int bdepth = di->di_bdepth;
 	
-    s_col = FF_OFFSET + (short *) &col;
-    /*
-     * Set up our integer values, which are simply the FP values scaled by 
-     * 64K, so that the integer part is in the upper two bytes.  We then kludge
-     * our way in with the short pointer to pull out the int part directly.
-     */
-    icolinc = (int) (colinc * 65536);
     /*
      * Step through the data.
      */
@@ -691,8 +664,8 @@ int		xdim;
 	Pixel *cp = colgrid + ((int) row) * xdim;
 	unsigned char *ximp = (unsigned char*)di->di_image + 
 	    di->di_ioffset + i*di->di_bpl;
+	col = icol;
 
-	col = (int) (icol * 65536);
 	/*
 	 * Branch out based on our display depth.
 	 */
@@ -700,46 +673,46 @@ int		xdim;
 	{
 	case 1:
 	    if (Transparent)
-		for (j = 0; j < di->di_w; j++, col += icolinc)
+		for (j = 0; j < di->di_w; j++, col += colinc)
 		{
-		    if (cp[*s_col] != outrange)
-			*ximp = cp[*s_col];
+		    if (cp[(int)col] != outrange)
+			*ximp = cp[(int)col];
 		    ximp++;
 		}
 	    else
-		for (j = 0; j < di->di_w; j++, col += icolinc)
+		for (j = 0; j < di->di_w; j++, col += colinc)
 		{
-		    *ximp++ = cp[*s_col];
+		    *ximp++ = cp[(int)col];
 		}
 	    break;
 	case 2:
 	    simp = (unsigned short *) ximp;
 	    if (Transparent)
-		for (j = 0; j < di->di_w; j++, col += icolinc)
+		for (j = 0; j < di->di_w; j++, col += colinc)
 		{
-		    if (cp[*s_col] != outrange)
-			*simp = cp[*s_col];
+		    if (cp[(int)col] != outrange)
+			*simp = cp[(int)col];
 		    simp++;
 		}
 	    else
-		for (j = 0; j < di->di_w; j++, col += icolinc)
+		for (j = 0; j < di->di_w; j++, col += colinc)
 		{
-		    *simp++ = cp[*s_col];
+		    *simp++ = cp[(int)col];
 		}
 	    break;
 	case 4:
-	    limp = (unsigned long *) ximp;
+	    limp = (unsigned int *) ximp;
 	    if (Transparent)
-		for (j = 0; j < di->di_w; j++, col += icolinc)
+		for (j = 0; j < di->di_w; j++, col += colinc)
 		{
-		    if (cp[*s_col] != outrange)
-			*limp = cp[*s_col];
+		    if (cp[(int)col] != outrange)
+			*limp = cp[(int)col];
 		    limp++;
 		}
 	    else
-		for (j = 0; j < di->di_w; j++, col += icolinc)
+		for (j = 0; j < di->di_w; j++, col += colinc)
 		{
-		    *limp++ = cp[*s_col];
+		    *limp++ = cp[(int)col];
 		}
 	    break;
 	default:
@@ -932,47 +905,32 @@ RGrid *rg;
 
 
 static void
-RP_ImageRasterize (ximp, width, height, grid, cmap, row, icol, rowinc, colinc,
-		   xdim, ydim, pad, bdepth)
-unsigned char 	*ximp;
-int 		width, height;
-unsigned char 	*grid;
-Pixel		*cmap;
-float 		row, icol, rowinc, colinc;
-int		xdim, ydim, pad, bdepth;
+RP_ImageRasterize (unsigned char *ximp, 
+		   int width, int height,
+		   unsigned char *grid,
+		   Pixel *cmap,
+		   double row, double icol, double rowinc, double colinc,
+		   int xdim, int ydim, int pad, int bdepth)
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
 {
-	int i, j, icolinc;
+	int i, j;
+	double col;
 	unsigned short *simp;
-	unsigned long *limp;
-# ifdef __STDC__
-	static int col;
-	static short *s_col;
-# else
-	int col;
-	short *s_col;
-# endif
-	s_col = FF_OFFSET + (short *) &col;
-/*
- * Set up our integer values, which are simply the FP values scaled by 
- * 64K, so that the integer part is in the upper two bytes.  We then kludge
- * our way in with the short pointer to pull out the int part directly.
- */
-	icolinc = (int) (colinc * 65536);
+	unsigned int *limp;
 /*
  * Step through the data.
  */
 	for (i = 0; i < height; i++)
 	{
 		unsigned char *cp = grid + ((int) row) * xdim;
-#ifdef DEBUG
+#if DEBUG
 		if (row < 0 || (int)row >= ydim)
 			msg_ELog (EF_PROBLEM, "Image: row %f out of bounds",
 				  row);
 #endif
-		col = (int) (icol * 65536);
+		col = icol;
 	/*
 	 * Actual rendering is depth-specific.  The loop is essentially
 	 * repeated three times to avoid doing the bdepth test for each
@@ -984,25 +942,25 @@ int		xdim, ydim, pad, bdepth;
 		    case 1: /* Eight-bit video */
 			for (j = 0; j < width; j++)
 			{
-				*ximp++ = cmap[cp[*s_col]];
-				col += icolinc;
+			    *ximp++ = cmap[cp[(int)col]];
+				col += colinc;
 			}
 			break;
 		    case 2:
 			simp = (unsigned short *) ximp;
 			for (j = 0; j < width; j++)
 			{
-				*simp++ = cmap[cp[*s_col]];
-				col += icolinc;
+			    *simp++ = cmap[cp[(int)col]];
+				col += colinc;
 			}
 			ximp = (unsigned char *) simp;
 			break;
 		    case 4:
-			limp = (unsigned long *) ximp;
+			limp = (unsigned int *) ximp;
 			for (j = 0; j < width; j++)
 			{
-				*limp++ = cmap[cp[*s_col]];
-				col += icolinc;
+			    *limp++ = cmap[cp[(int)col]];
+				col += colinc;
 			}
 			ximp = (unsigned char *) limp;
 			break;
@@ -1011,13 +969,12 @@ int		xdim, ydim, pad, bdepth;
 			msg_ELog (EF_PROBLEM, "Bad bdepth %d", bdepth);
 			return;
 		}
-	/* *ximp++ = cmap[cp[*s_col]]; */
 		row += rowinc;
 		ximp += pad;	/* End of raster line padding.	*/
 	}
-#ifdef DEBUG
-	if (height && *s_col >= xdim)
-		msg_ELog (EF_PROBLEM, "Image: col %f out of bounds",*s_col);
+#if DEBUG
+	if (height && col >= xdim)
+	    msg_ELog (EF_PROBLEM, "Image: col %f out of bounds", col);
 #endif
 }
 
@@ -1157,7 +1114,7 @@ RGrid *rg;
 				* ((unsigned short *) dest) = pval;
 				break;
 			    case 4:
-				* ((unsigned long *) dest) = pval;
+				* ((unsigned int *) dest) = pval;
 			        break;
 			    default:
 				msg_ELog (EF_PROBLEM, "Bad byte depth");

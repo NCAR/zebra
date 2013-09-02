@@ -108,7 +108,7 @@ ri_ClearBackground (DestImage *i)
 	for (ix = 0; ix < i->di_w; ix++)
 	{
 	    unsigned short *sdp = (unsigned short*) dp;
-	    unsigned long *ldp = (unsigned long*) dp;
+	    unsigned int *ldp = (unsigned int*) dp;
 		
 	    switch (i->di_bdepth)
 	    {
