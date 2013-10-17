@@ -84,8 +84,8 @@ while read path ; do
 	# Omit the leading site designation before the timestamp, eg
 	# ISS1_Profiler, to be enabled only for projects with only one
 	# site.
-	imagename=`echo $imagename | sed -e 's/^ISS[0-9][^.]*\.//'`
-	imagename=`echo $imagename | sed -e 's/^MISS[^.]*\.//'`
+	#imagename=`echo $imagename | sed -e 's/^ISS[0-9][^.]*\.//'`
+	#imagename=`echo $imagename | sed -e 's/^MISS[^.]*\.//'`
 	# Shorten names which are still too long...
 	imagename=`echo $imagename | sed -e 's/\(...............................\)....*/\1.../'`
 	# Always create png thumbnails, even if the target is a different format
