@@ -6,7 +6,7 @@
 $site="$ENV{'PLOT_FTP_HOST'}";
 $dir="$ENV{'PLOT_FTP_DIR'}";
 $user="anonymous";
-$pass="iss\@atd.ucar.edu";
+$pass="iss\@eol.ucar.edu";
 
 $error=0;
 
