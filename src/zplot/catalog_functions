@@ -48,6 +48,8 @@ catalog_translate() # config-name window-name platform-var product-var
 		surf2diag) suffix="Surface"; product="Diagnostics2";;
 		prof915l) suffix="Profiler"; product="Wind_Profile_Low";;
 		prof915h) suffix="Profiler"; product="Wind_Profile_High";;
+		prof449-30m) suffix="Profiler"; product="Wind_30m";;
+		prof449-5m) suffix="Profiler"; product="Wind_5m";;
 		class) suffix="Sounding"; product="SkewT";;
 		rass) suffix="Profiler"; product="RASS";;
 		snow) suffix="Surface"; product="Surface_Snow";;
