@@ -75,8 +75,8 @@ while read path ; do
     if [ -f "$path" ]; then
 	# Remove the 3-character image type extension, whatever it is
 	image=`basename $path | sed -e 's/\....$//'`
-	# Remove the excessive research prefix from the name
-	imagename=`echo $image | sed -e 's/^research\.//'`
+	# Remove the excessive prefixes from the name
+	imagename=`echo $image | sed -e 's/^(research|upperair)\.//'`
 
 	# To remove everything except the timestamp:
 	#imagename=`echo $imagename | sed -e 's/.*\(200[0-9][0-9][0-9][0-9][0-9][0-9]*\).*/\1/g'`
