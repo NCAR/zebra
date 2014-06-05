@@ -18,7 +18,8 @@ catalog_translate() # config-name window-name platform-var product-var
     window="$2"
 
     # Defaults
-    platform_prefix="$config"
+    ptype="upperair"
+    platform="$config"
     suffix=""
     product="$window"
 
@@ -26,16 +27,16 @@ catalog_translate() # config-name window-name platform-var product-var
     case "$config" in
 
 	mglass1) 
-	    platform_prefix="upperair.MGAUS"
+	    platform="upperair.MGAUS"
 	    suffix="Sounding"
 	    product="skewT"
 	    ;;
 
 	iss1|iss2|iss3|iss4|iss-mapr)
-	    platform_prefix=upperair.`echo $config | tr a-z- A-Z_`
+	    platform=`echo $config | tr a-z- A-Z_`
 	    # Override the platform for MISS
 	    case "$config" in
-		iss1) platform_prefix="upperair.ISS1" ;;
+		iss1) prefix="ISS1" ;;
 	    esac
 
             # The window determines the platform suffix and product
@@ -68,9 +69,13 @@ catalog_translate() # config-name window-name platform-var product-var
 
     esac
 
-    platform="${platform_prefix}_${suffix}"
+    case "$window" in 
+	surf*|snow*) ptype="surface" ;;
+    esac
+
+    platform="${ptype}.${platform}_${suffix}"
     if [ -z "$suffix" ]; then
-	platform="$platform_prefix"
+	platform="${ptype}.${platform}"
     fi
     eval $3="$platform"
     eval $4="$product"
