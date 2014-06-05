@@ -91,7 +91,7 @@ XCOMM -----------------------------------------------------------------------
  * are not left taking up space.
  */
 
-# define BaseDir	/opt/local/zebra
+# define BaseDir	/opt/local/iss-system/zebra
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
 # define IncDir		BaseDir/include
