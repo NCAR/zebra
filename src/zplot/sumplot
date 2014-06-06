@@ -52,7 +52,7 @@ findimages()
 {
     # Include a single _latest plot only if it's the most recent of all
     # the SkewT plots.
-    lastskewt=`getimages | egrep SkewT | sort -r | head -1 | egrep _latest`
+    lastskewt=`getimages | egrep -i skewt | sort -r | head -1 | egrep _latest`
     (test -n "$lastskewt" && echo "$lastskewt"
 	(getimages | egrep -v _latest) ) | sort
 }
