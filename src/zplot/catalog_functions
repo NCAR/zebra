@@ -42,6 +42,9 @@ catalog_translate() # config-name window-name platform-var product-var
             # The window determines the platform suffix and product
 	    case "$window" in
 
+		surf2*rad) suffix="Surface2"; product="radiation";;
+		surf2*met) suffix="Surface2"; product="pth";;
+		surf2*wind) suffix="Surface2"; product="wind";;
 		surf*rad) suffix="Surface"; product="radiation";;
 		surf*met) suffix="Surface"; product="pth";;
 		surf*wind) suffix="Surface"; product="wind";;
