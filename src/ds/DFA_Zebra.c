@@ -20,6 +20,7 @@
  */
 
 # include <stdio.h>
+# include <stdlib.h>
 # include <sys/types.h>
 # include <fcntl.h>
 # include <unistd.h>
@@ -170,99 +171,99 @@ DataFormat *zebraFormat = (DataFormat *) &zebraFormatRec;
 /*
  * Forwards.
  */
-static void	zn_CFMakeFields FP ((znTag *, DataChunk *));
-static void	zn_WriteSync FP ((znTag *));
-static void	zn_CFMakeStations FP ((znTag *, DataChunk *));
-static int	zn_FindDest FP ((OpenFile *, ZebTime *, int nsample, 
-				 WriteCode));
-static void	zn_ExpandTOC FP ((znTag *, int increase));
-static void	zn_ReallocTOC FP ((znTag *tag, int newns));
-static void	zn_OpenSlot FP ((znTag *, int));
-static int	zn_WrBoundary FP ((znTag *, DataChunk *, int, zn_Sample *,
-			 WriteCode, int));
-static int	zn_WrGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
-			WriteCode, int *, FieldId *, int));
-static int	zn_WrIRGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
-			WriteCode, int *, FieldId *, int));
-static void	zn_WrScalar FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
-			WriteCode, int *, FieldId *, int));
-static int	zn_WrFixScalar FP ((znTag *, DataChunk *, int, int,
-			zn_Sample *, WriteCode, int *, FieldId *, int));
-static void 	zn_WrLocInfo FP ((znTag *, int, Location *, RGrid *));
-static void	zn_WrLocations FP ((znTag *tag, DataChunk *dc, int fsample,
-				    int dcsample, int nsample));
-static int	zn_WrTrans FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
-			WriteCode));
-static void	zn_GetFieldIndex FP ((znTag *, FieldId *, int, int *, int));
-static void	zn_DataWrite FP ((znTag *, void *, int, zn_Sample *,
-			WriteCode));
-static void	zn_OFLoadStations FP ((znTag *));
-static void	zn_PutAttrs FP ((znTag *, int, void *, int));
+static void	zn_CFMakeFields(znTag *, DataChunk *);
+static void	zn_WriteSync(znTag *);
+static void	zn_CFMakeStations(znTag *, DataChunk *);
+static int	zn_FindDest(OpenFile *, ZebTime *, int nsample, 
+			    WriteCode);
+static void	zn_ExpandTOC(znTag *, int increase);
+static void	zn_ReallocTOC(znTag *tag, int newns);
+static void	zn_OpenSlot(znTag *, int);
+static int	zn_WrBoundary(znTag *, DataChunk *, int, zn_Sample *,
+			      WriteCode, int);
+static int	zn_WrGrid(znTag *, DataChunk *, int, int, zn_Sample *, 
+			  WriteCode, int *, FieldId *, int);
+static int	zn_WrIRGrid(znTag *, DataChunk *, int, int, zn_Sample *, 
+			    WriteCode, int *, FieldId *, int);
+static void	zn_WrScalar(znTag *, DataChunk *, int, int, zn_Sample *, 
+			    WriteCode, int *, FieldId *, int);
+static int	zn_WrFixScalar(znTag *, DataChunk *, int, int,
+			       zn_Sample *, WriteCode, int *, FieldId *, int);
+static void 	zn_WrLocInfo(znTag *, int, Location *, RGrid *);
+static void	zn_WrLocations(znTag *tag, DataChunk *dc, int fsample,
+			       int dcsample, int nsample);
+static int	zn_WrTrans(znTag *, DataChunk *, int, int, zn_Sample *, 
+			   WriteCode);
+static void	zn_GetFieldIndex(znTag *, FieldId *, int, int *, int);
+static void	zn_DataWrite(znTag *, void *, int, zn_Sample *,
+			     WriteCode);
+static void	zn_OFLoadStations(znTag *);
+static void	zn_PutAttrs(znTag *, int, void *, int);
 #ifdef maybe
-static void	zn_PutAttrsBlock FP ((znTag *tag, DataChunk *dc,
-				      int fsample, int sample, int nsample));
+static void	zn_PutAttrsBlock(znTag *tag, DataChunk *dc,
+				 int fsample, int sample, int nsample);
 #endif
-static void	zn_ReadBoundary FP ((znTag *, DataChunk *, int, int));
-static void	zn_ReadGrid FP ((znTag *, DataChunk *, int, int, int,
-				 dsDetail *, int));
-static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int));
-static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int));
-static void	zn_ReadTrans FP ((znTag *, DataChunk *, int, int, int));
-static void	zn_ReadLocation FP ((znTag *, DataChunk *, int, int));
-static void	zn_RdRGridOffset FP ((RGrid *, Location *, int *, int *,
-			dsDetail *, int));
-static void	zn_DoBadval FP ((float *, int, double, double));
-static void	zn_SetBad FP ((float *, int, double));
+static void	zn_ReadBoundary(znTag *, DataChunk *, int, int);
+static void	zn_ReadGrid(znTag *, DataChunk *, int, int, int,
+			    dsDetail *, int);
+static void	zn_ReadIRG(znTag *, DataChunk *, int, int, int);
+static void	zn_ReadScalar(znTag *, DataChunk *, int, int, int);
+static void	zn_ReadTrans(znTag *, DataChunk *, int, int, int);
+static void	zn_ReadLocation(znTag *, DataChunk *, int, int);
+static void	zn_RdRGridOffset(RGrid *, Location *, int *, int *,
+				 dsDetail *, int);
+static void	zn_DoBadval(float *, int, double, double);
+static void	zn_SetBad(float *, int, double);
 
-static int	zn_WriteBlock FP((znTag *tag, DataChunk *dc, int fsample, 
-				    int sample, int nsample, WriteCode wc,
-				    unsigned int *size));
-static void	zn_LoopBlock FP((znTag *tag, DataChunk *dc, int fsample, 
-				 int sample, int nsample, WriteCode wc,
-				 int *index, FieldId *fids, int nfield));
-static int	zn_DetectDataBlock FP((znTag *tag, DataChunk *dc, int fsample,
-				       int nsample, int *index, int nfield,
-				       int *roffset, int *rsize));
-static void*	zn_WrScalarBlock FP((znTag *tag, DataChunk *dc, int fsample,
-				     int dcsample, int nsample, WriteCode wc,
-				     int *index, FieldId *fids, int nfield,
-				     unsigned int *size));
-static void*	zn_WrFixScalarBlock FP((znTag *tag, DataChunk *dc, 
-					int fsample, int dcsample, int nsample,
-					WriteCode wc, int *index, 
-					FieldId *fids, int nfield, 
-					unsigned int *size));
-static void*	zn_WrTransBlock FP((znTag *tag, DataChunk *dc, int fsample, 
-				    int dcsample, int nsample, WriteCode wc,
-				    unsigned int *size));
-static void*	zn_WrBoundaryBlock FP((znTag *tag, DataChunk *dc,
-				       int fsample, int dcsample, int nsample,
-				       WriteCode wc, int index, 
-				       unsigned int *size));
-static void*	zn_WrGridBlock FP((znTag *tag, DataChunk *dc, int fsample, 
-				   int dcsample, int nsample, WriteCode wc,
-				   int *index, FieldId *fids, int nfield,
-				   unsigned int *size));
-static void*	zn_WrIRGridBlock FP((znTag *tag, DataChunk *dc, int fsample,
-				     int dcsample, int nsample, WriteCode wc,
-				     int *index, FieldId *fids, int nfield,
-				     unsigned int *size));
+static int	zn_WriteBlock(znTag *tag, DataChunk *dc, int fsample, 
+			      int sample, int nsample, WriteCode wc,
+			      unsigned int *size);
+static void	zn_LoopBlock(znTag *tag, DataChunk *dc, int fsample, 
+			     int sample, int nsample, WriteCode wc,
+			     int *index, FieldId *fids, int nfield);
+static int	zn_DetectDataBlock(znTag *tag, DataChunk *dc, int fsample,
+				   int nsample, int *index, int nfield,
+				   int *roffset, int *rsize);
+static void*	zn_WrScalarBlock(znTag *tag, DataChunk *dc, int fsample,
+				 int dcsample, int nsample, WriteCode wc,
+				 int *index, FieldId *fids, int nfield,
+				 unsigned int *size);
+static void*	zn_WrFixScalarBlock(znTag *tag, DataChunk *dc, 
+				    int fsample, int dcsample, int nsample,
+				    WriteCode wc, int *index, 
+				    FieldId *fids, int nfield, 
+				    unsigned int *size);
+static void*	zn_WrTransBlock(znTag *tag, DataChunk *dc, int fsample, 
+				int dcsample, int nsample, WriteCode wc,
+				unsigned int *size);
+static void*	zn_WrBoundaryBlock(znTag *tag, DataChunk *dc,
+				   int fsample, int dcsample, int nsample,
+				   WriteCode wc, int index, 
+				   unsigned int *size);
+static void*	zn_WrGridBlock(znTag *tag, DataChunk *dc, int fsample, 
+			       int dcsample, int nsample, WriteCode wc,
+			       int *index, FieldId *fids, int nfield,
+			       unsigned int *size);
+static void*	zn_WrIRGridBlock(znTag *tag, DataChunk *dc, int fsample,
+				 int dcsample, int nsample, WriteCode wc,
+				 int *index, FieldId *fids, int nfield,
+				 unsigned int *size);
 
-static int	zn_GetFromFree FP ((znTag *, int, int, zn_Free *, int));
-static int	zn_GetSpace FP ((znTag *, int));
-static void	zn_GetFreeBlock FP ((znTag *, int, zn_Free *));
-static void	zn_PutFreeBlock FP ((znTag *tag, int offset, zn_Free *fb));
-static void	zn_GetBlock FP ((znTag *, int, void *, int));
-static void	zn_PutBlock FP ((znTag *, int, void *, int));
-static void	zn_FreeSpace FP ((znTag *, int, int));
-static void	zn_TruncateFreeBlock FP ((znTag *, int offset, zn_Free *fb));
+static int	zn_GetFromFree(znTag *, int, int, zn_Free *, int);
+static int	zn_GetSpace(znTag *, int);
+static void	zn_GetFreeBlock(znTag *, int, zn_Free *);
+static void	zn_PutFreeBlock(znTag *tag, int offset, zn_Free *fb);
+static void	zn_GetBlock(znTag *, int, void *, int);
+static void	zn_PutBlock(znTag *, int, void *, int);
+static void	zn_FreeSpace(znTag *, int, int);
+static void	zn_TruncateFreeBlock(znTag *, int offset, zn_Free *fb);
 
-static int 	zn_SASize FP ((zn_Header *, int));
-static zn_Sample *zn_FindSampStr FP ((znTag *, int));
-static int	zn_AltUnits FP ((AltUnitType));
-static AltUnitType zn_CvtAltUnits FP ((int zau));
-static void	zn_RdFieldInfo FP ((znTag *));
-static void	zn_WrFieldInfo FP ((znTag *));
+static int 	zn_SASize(zn_Header *, int);
+static zn_Sample *zn_FindSampStr(znTag *, int);
+static int	zn_AltUnits(AltUnitType);
+static AltUnitType zn_CvtAltUnits(int zau);
+static void	zn_RdFieldInfo(znTag *);
+static void	zn_WrFieldInfo(znTag *);
 
 
 
@@ -3382,7 +3383,7 @@ znTag *tag;
 int size;
 {
 	zn_Free fb;
-	int prev = -1, prevlast = -1, free, last;
+	int prev = -1, prevlast = -1, nfree, last;
 	zn_Header *hdr = &tag->zt_Hdr;
 /*
  * Scan through the free list to see if there is anything usable.  First try
@@ -3394,27 +3395,27 @@ int size;
  * file.
  */
 	last = -1;
-	for (free = hdr->znh_Free; free > 0 && !tag->zt_Append;
-	     free = fb.znf_Next)
+	for (nfree = hdr->znh_Free; nfree > 0 && !tag->zt_Append;
+	     nfree = fb.znf_Next)
 	{
 	/*
 	 * Pull up this block and see if it is big enough or at the end of
 	 * the file.
 	 */
-		zn_GetFreeBlock (tag, free, &fb);
-		if (free + fb.znf_Size == hdr->znh_Len)
+		zn_GetFreeBlock (tag, nfree, &fb);
+		if (nfree + fb.znf_Size == hdr->znh_Len)
 		{
-			last = free;
+			last = nfree;
 			prevlast = prev;
 		}
 		if (fb.znf_Size >= size)
 			break;
-		prev = free;
+		prev = nfree;
 	}
 			
-	if (free > 0 && !tag->zt_Append)	/* normal case */
+	if (nfree > 0 && !tag->zt_Append)	/* normal case */
 	{
-		return (zn_GetFromFree (tag, size, free, &fb, prev));
+		return (zn_GetFromFree (tag, size, nfree, &fb, prev));
 	}
 	else if (last > 0 && !tag->zt_Append)	/* take free space at end */
 	{
@@ -3424,7 +3425,7 @@ int size;
 		zn_GetFreeBlock (tag, last, &fb);
 		hdr->znh_Len += (size - fb.znf_Size);
 		(void) zn_GetFromFree (tag, fb.znf_Size, last, &fb, prevlast);
-		free = last;
+		nfree = last;
 	}
 	else				/* append to end of file */
 	{
@@ -3432,12 +3433,12 @@ int size;
 	 * None of that worked, or we're forced to append, 
 	 * so we'll just allocate the space at the end.
 	 */
-		free = hdr->znh_Len;
+		nfree = hdr->znh_Len;
 		hdr->znh_Len += size;
 	}
 
 	tag->zt_Sync |= SF_HEADER;
-	return (free);
+	return (nfree);
 }
 
 
@@ -3603,6 +3604,7 @@ int len;
 {
 	int n;
 
+	msg_ELog (EF_DEVELOP, "zn_GetBlock(@%d, len=%d)", offset, len);
 	if (len == 0)
 		return;
 	lseek (tag->zt_Fd, offset, SEEK_SET);
@@ -3637,6 +3639,7 @@ int len;
  * Write a chunk of data to this file.
  */
 {
+	msg_ELog (EF_DEVELOP, "zn_PutBlock(@%d, len=%d)", offset, len);
 	lseek (tag->zt_Fd, offset, SEEK_SET);
 	if (write (tag->zt_Fd, data, len) != len)
 		msg_ELog (EF_PROBLEM, "ZN Write error %d", errno);
@@ -3657,7 +3660,7 @@ int len;
  * TOC arrays.
  */
 {
-	int before = 0, after = 0, free, last = 0;
+	int before = 0, after = 0, nfree, last = 0;
 	zn_Header *hdr = &tag->zt_Hdr;
 	zn_Free fb, afterfb, pfb;
 /*
@@ -3683,14 +3686,14 @@ int len;
  * Pass through the free list and see if there are free blocks that adjoin
  * this one at either end.
  */
-	for (free = hdr->znh_Free; free >= 0; free = fb.znf_Next)
+	for (nfree = hdr->znh_Free; nfree >= 0; nfree = fb.znf_Next)
 	{
-		zn_GetFreeBlock (tag, free, &fb);
-		if ((free + fb.znf_Size) == offset)
-			before = free;
-		else if ((offset + len) == free)
-			after = free;
-		last = free;
+		zn_GetFreeBlock (tag, nfree, &fb);
+		if ((nfree + fb.znf_Size) == offset)
+			before = nfree;
+		else if ((offset + len) == nfree)
+			after = nfree;
+		last = nfree;
 	}
 # ifdef DEBUG_FREE_LIST
 	ui_printf ("Free %d at %ld, before %ld, after %ld\n", 
@@ -3746,25 +3749,25 @@ int len;
 			fb.znf_Next = afterfb.znf_Next;
 		else
 		{
-		 	for (free = hdr->znh_Free; free >= 0;
-					free = pfb.znf_Next)
+		 	for (nfree = hdr->znh_Free; nfree >= 0;
+					nfree = pfb.znf_Next)
 			{
 			/*
 			 * If looking for the node we currently have in memory,
 			 * use it rather than read from the disk.  We already
 			 * know it's not the node we're looking for.
 			 */
-				if (free == offset)
+				if (nfree == offset)
 					pfb.znf_Next = fb.znf_Next;
 				else
 				{
-					zn_GetFreeBlock (tag, free, &pfb);
+					zn_GetFreeBlock (tag, nfree, &pfb);
 					if (pfb.znf_Next == after)
 						break;
 				}
 			}
 			pfb.znf_Next = afterfb.znf_Next;
-			zn_PutFreeBlock (tag, free, &pfb);
+			zn_PutFreeBlock (tag, nfree, &pfb);
 		}
 		hdr->znh_NFree--;
 	}
