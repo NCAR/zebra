@@ -42,7 +42,7 @@
 #define _Format_hh_
 
 #include <cstring>
-#include <stdio.h>	// vsprintf() and sprintf()
+#include <stdio.h>	// vsnprintf() and sprintf()
 #include <stdlib.h>
 #include <stdarg.h>
 #include <iostream>
@@ -147,12 +147,12 @@ public:
 	{ \
 		char temp[1024]; \
 		char flag = 0; \
-		string f = parse_format (temp, &flag); \
+		string f = parse_format (temp, sizeof(temp), &flag);	\
 		if (! std::strchr (F,flag))	       \
 			f = error(TYPE_MISMATCH); \
 		if (std::strchr (F,'s') && t == 0)	\
 			f = "<null>"; \
-		sprintf (temp, f.c_str(), t); \
+		snprintf (temp, sizeof(temp), f.c_str(), t);	\
 		buf += temp; \
 		return *this; \
 	}
@@ -222,7 +222,7 @@ protected:
 	// Flag string
 	static const char *Specifiers;
 
-	string parse_format (char *temp, char *flag)
+        string parse_format (char *temp, size_t n, char *flag)
 	{
 		if (pos >= fmt.length())
 			reset();
@@ -231,7 +231,7 @@ protected:
 			f = next_format (flag);
 			if (*flag == '%')
 			{
-				sprintf (temp, f.c_str());
+                                snprintf (temp, n, f.c_str());
 				buf += temp;
 			}
 		}
@@ -297,7 +297,7 @@ public:
 		char sbuf[1024];
 		va_list vl;
 		va_start (vl, s);
-		vsprintf (sbuf, s, vl);
+		vsnprintf (sbuf, sizeof(sbuf), s, vl);
 		va_end (vl);
 		buf = sbuf;
 		pos = fmt.length();
@@ -308,7 +308,7 @@ public:
 		char *sbuf = new char[n];
 		va_list vl;
 		va_start (vl, s);
-		vsprintf (sbuf, s, vl);
+		vsnprintf (sbuf, n, s, vl);
 		va_end (vl);
 		buf = sbuf;
 		pos = fmt.length();

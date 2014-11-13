@@ -1796,9 +1796,10 @@ int *reply;
  * ---------------------------------------------------------------------
  */
 
-static char LogBuffer[512];	/* for msg_log and msg_ELog to share */
-static char PushBuffer[512];	/* for the callback routine to use */
+static char LogBuffer[2048];	/* for msg_log and msg_ELog to share */
+static char PushBuffer[2048];	/* for the callback routine to use */
 static struct msg_elog *EL = (struct msg_elog *) LogBuffer;
+static size_t MaxLogLength = sizeof(LogBuffer) - sizeof(struct msg_elog);
 static int (*LogCB)() = NULL;	/* log callback function */
 static int CBMask = 0;		/* callback mask */
 static void *CBArg = NULL;	/* callback arg */
@@ -1850,7 +1851,7 @@ msg_PError (char *fmt, ...)
  * Format and print the message to stderr.
  */
  	va_start (args, fmt);
-	vsprintf (EL->el_text, fmt, args);
+	vsnprintf (EL->el_text, MaxLogLength, fmt, args);
 	va_end (args);
 	fprintf (stderr, "%s: %s\n", Identity, EL->el_text);
 }
@@ -1871,7 +1872,7 @@ msg_log (char *fmt, ...)
  */
 	el->el_flag = EF_INFO;
 	va_start (args, fmt);
-	vsprintf (el->el_text, fmt, args);
+	vsnprintf (el->el_text, MaxLogLength, fmt, args);
 	va_end (args);
 	msg_SendLog (el);
 }
@@ -1891,7 +1892,7 @@ msg_ELog (int flag, const char *fmt, ...)
  */
 	va_start (args, fmt);
 	el->el_flag = flag;
-	vsprintf (el->el_text, fmt, args);
+	vsnprintf (el->el_text, MaxLogLength, fmt, args);
 	va_end (args);
 	msg_SendLog (el);
 }
