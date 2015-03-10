@@ -46,6 +46,10 @@
 #define MaxFields		(16)
 #define FieldListLen		(MaxFields * 8)
 
+#define MAXALT		1024	/* Max heights we expect to see		*/
+
+
+
 /*
  * This flag is set when something happens which should abort an ongoing
  * plot operation.
