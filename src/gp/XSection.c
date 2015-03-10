@@ -2035,7 +2035,7 @@ xs_Bilinear (char *comp, char *platform, char *fldname, ZebTime *dtime)
 	float	f_i0, f_istep, f_j0, f_jstep, f_i, f_j;
 	float	grid_x0, grid_y0, di, dj, z, below, above;
 	float	val0, val1, val2, val3;
-	float	alts[80];	/* should be enough... */
+	float	alts[1024];	/* should be enough... */
 	RGrid	rg;
 	DPlane	*plane;
 	Location	loc;
