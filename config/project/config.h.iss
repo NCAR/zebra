@@ -339,7 +339,6 @@ XCOMM -----------------------------------------------------------------------
 #define NetCDFIncDir /opt/local/include
 #define UDUnitsIncDir /opt/local/include
 #endif
-#define NetCDFIncDir /usr/include/netcdf-3
 
 /*
  * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
@@ -487,7 +486,11 @@ XCOMM -----------------------------------------------------------------------
  * 	RDSSLibrary	-lrdssui -lrdssutil
  */
 
-#define UDUnitsLibrary	-ludunits
+/* CentOS 7 no longer includes the plain udunits package, only udunits2 is
+ * available, so make the switch for good here.
+ */
+#define UDUnitsLibrary	-ludunits2
+#define UDUnitsIncDir /usr/include/udunits2
 
 /*========================================================================*/
 # endif /* MAKING_MAKEFILE */
