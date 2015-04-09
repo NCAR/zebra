@@ -12,7 +12,7 @@ CXXOPTIONS=-fexceptions
 
 #ifdef LinuxArchitecture
 NDBMINCLUDES = -I/usr/include/gdbm
-LIBNDBM = -lgdbm
+LIBNDBM = -lgdbm_compat
 #endif
 
 INCLUDES = $(NDBMINCLUDES) $(XINCLUDES) 
