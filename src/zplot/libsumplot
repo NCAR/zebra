@@ -16,7 +16,7 @@ EOF
     if [ -n "$hfile" ]; then
 	echo "<body>"
 	cat "$hfile"
-	echo "<h1>$1</h1>"
+	echo "<h1 align=center>$1</h1>"
     else
     # Use a table to align the header elements
 cat <<EOF
