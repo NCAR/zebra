@@ -19,59 +19,47 @@ catalog_translate() # config-name window-name platform-var product-var
 
     # Defaults
     ptype="upperair"
-    platform="$config"
     suffix=""
     product="$window"
 
-    # The config is just the platform prefix
+    platform=`echo $config | tr a-z- A-Z_`
+    # Override the platform as necessary
     case "$config" in
-
-	mglass1) 
-	    platform="upperair.MGAUS"
-	    suffix="Sounding"
-	    product="skewT"
-	    ;;
-
-	iss1|iss2|iss3|iss4|iss-mapr)
-	    platform=`echo $config | tr a-z- A-Z_`
-	    # Override the platform for MISS
-	    case "$config" in
-		iss1) prefix="ISS1" ;;
-	    esac
-
-            # The window determines the platform suffix and product
-	    case "$window" in
-
-		surf2*rad) suffix="Surface2"; product="radiation";;
-		surf2*met) suffix="Surface2"; product="pth";;
-		surf2*wind) suffix="Surface2"; product="wind";;
-		surf*rad) suffix="Surface"; product="radiation";;
-		surf*met) suffix="Surface"; product="pth";;
-		surf*wind) suffix="Surface"; product="wind";;
-		surfdiag) suffix="Surface"; product="diagnostics";;
-		prof915l) suffix="Profiler"; product="wind_profile_low";;
-		prof915h) suffix="Profiler"; product="wind_profile_high";;
-		prof449-30m) suffix="Profiler"; product="wind_30m";;
-		prof449-5m) suffix="Profiler"; product="wind_5m";;
-		class) suffix="Sounding"; product="skewT";;
-		rass) suffix="Profiler"; product="rass";;
-		snow) suffix="Surface"; product="snow";;
-		soap_24hr|soapmoments*)
-		    suffix="Profiler"; product="moments";;
-		con_snrw|nimawinds*) 
-		    suffix="Profiler"; product="snr_winds";;
-		con_moms|nimamoments*)
-		    suffix="Profiler"; product="nima_consensus_moments";;
-		con_rass|nimarass*)
-		    suffix="Profiler"; product="nima_consensus_rass";;
-		prof_200|soapprofiles*) 
-		    suffix="Profiler"; product="profiles";;
-
-	    esac
-	    ;;
-
+	iss1) platform="FP3" ;;
+	iss2) platform="FP4" ;;
+	iss3) platform="FP5" ;;
+	iss4) platform="MP4" ;;
     esac
 
+    # The window determines the platform suffix and product
+    case "$window" in
+
+	surf2*rad) suffix="Surface2"; product="radiation";;
+	surf2*met) suffix="Surface2"; product="pth";;
+	surf2*wind) suffix="Surface2"; product="wind";;
+	surf*rad) suffix="Surface"; product="radiation";;
+	surf*met) suffix="Surface"; product="pth";;
+	surf*wind) suffix="Surface"; product="wind";;
+	surfdiag) suffix="Surface"; product="diagnostics";;
+	prof915l) suffix="Profiler"; product="wind_profile_low";;
+	prof915h) suffix="Profiler"; product="wind_profile_high";;
+	prof449-30m) suffix="Profiler"; product="wind_30m";;
+	prof449-5m) suffix="Profiler"; product="wind_5m";;
+	class) suffix="Sonde"; product="skewT";;
+	rass) suffix="Profiler"; product="rass";;
+	snow) suffix="Surface"; product="snow";;
+	soap_24hr|soapmoments*)
+	    suffix="Profiler"; product="moments";;
+	con_snrw|nimawinds*) 
+	    suffix="Profiler"; product="snr_winds";;
+	con_moms|nimamoments*)
+	    suffix="Profiler"; product="nima_consensus_moments";;
+	con_rass|nimarass*)
+	    suffix="Profiler"; product="nima_consensus_rass";;
+	prof_200|soapprofiles*) 
+	    suffix="Profiler"; product="profiles";;
+
+    esac
     case "$window" in 
 	surf*|snow*) ptype="surface" ;;
     esac
