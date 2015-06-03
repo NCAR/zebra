@@ -60,6 +60,10 @@ catalog_translate() # config-name window-name platform-var product-var
 	    suffix="Profiler"; product="profiles";;
 	webcam)
 	    suffix="Webcam"; product="photo";;
+	skycamraw)
+	    suffix="AllSkyCamera"; product="photo";;
+	skycampano)
+	    suffix="AllSkyCamera"; product="pano";;
 
     esac
     case "$window" in 
