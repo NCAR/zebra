@@ -58,6 +58,8 @@ catalog_translate() # config-name window-name platform-var product-var
 	    suffix="Profiler"; product="nima_consensus_rass";;
 	prof_200|soapprofiles*) 
 	    suffix="Profiler"; product="profiles";;
+	webcam)
+	    suffix="Webcam"; product="photo";;
 
     esac
     case "$window" in 
