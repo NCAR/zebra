@@ -1026,8 +1026,7 @@ new_un_connection ()
 /*
  * Accept the new connection.
  */
-	conn = accept (M_un_socket, (struct sockaddr *) 0,
-		       (int *) 0);
+	conn = accept (M_un_socket, (struct sockaddr *) 0, (unsigned int *) 0);
 	if (conn < 0)
 	{
 		perror ("Accept error on UNIX socket");
@@ -1056,7 +1055,7 @@ NewInConnection ()
 {
 	struct connection *conp;
 	struct sockaddr_in saddr;
-	int saddrlen;
+	unsigned int saddrlen;
 	unsigned long inaddr;
 	int conn;
 	int one = 1;
@@ -2977,7 +2976,7 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
  * Send statistics back to this guy.
  */
 {
-	char buffer[2048];
+	char buffer[8*2048];
 	char *text;
 	char *username;
 	struct message msg;
