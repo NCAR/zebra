@@ -214,8 +214,16 @@ while read when config windows; do
     fi
     # Likewise give the windows a little time to receive the time change,
     # but in this case we'll actually verify the time change further down.
+    # A little delay helps make sure the dm has started changing the
+    # display, then the zquery below makes sure it finishes.  It would be
+    # nice to verify the name of the display, but that information is not
+    # in the zquery.
     sleep 2
-
+    (set -x; zquery -t 30 $DM > /dev/null 2>&1)
+    if [ $? -ne 0 ]; then
+	problem "Display manager $DM did not respond after display $config."
+	continue
+    fi
     # Get a list of the graphics processes appearing in this display
     procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
     if [ -z "$procs" ]; then
