@@ -60,6 +60,8 @@ catalog_translate() # config-name window-name platform-var product-var
 	    suffix="Profiler"; product="profiles";;
 	webcam)
 	    suffix="Webcam"; product="photo";;
+	usbcam)
+	    suffix="Camera"; product="photo";;
 	skycamraw)
 	    suffix="AllSkyCamera"; product="photo";;
 	skycampano)
