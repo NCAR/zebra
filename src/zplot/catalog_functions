@@ -48,8 +48,10 @@ catalog_translate() # config-name window-name platform-var product-var
 	class) suffix="Sonde"; product="skewT";;
 	rass) suffix="Profiler"; product="rass";;
 	snow) suffix="Surface"; product="snow";;
-	soap_24hr|soapmoments*)
+	soap_24hr|soapmoments_fc)
 	    suffix="Profiler"; product="moments";;
+	soapmoments_4hr_fc)
+	    suffix="Profiler"; product="moments_4hr";;
 	con_snrw|nimawinds*) 
 	    suffix="Profiler"; product="snr_winds";;
 	con_moms|nimamoments*)
