@@ -198,6 +198,7 @@ FDParse.tab.h: FDParse.tab.cc
 FDParse.tab.cc: FDParse.bison
 	bison -p FD -d --output-file=FDParse.tab.c  FDParse.bison
 	$(MV) FDParse.tab.c FDParse.tab.cc
+	test -f FDParse.h && mv -f FDParse.h FDParse.tab.h
 	$(CP) -f $@ $@.dist
 
 depend:: FDScan.cc FDParse.tab.cc
