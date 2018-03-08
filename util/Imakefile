@@ -1,0 +1,82 @@
+/* -*- C -*- */
+
+/*
+ * This Imakefile is now here only for builds via Zebra.  If Zebra gets
+ * a different build mechanism, this file can go away...
+ */
+
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.8 2002-07-11 22:36:07 burghart Exp $"
+
+#define PassCDebugFlags /* 'CDEBUGFLAGS=$(CDEBUGFLAGS)' */
+
+LOCALLIB = libutil.a
+
+#if ZebraSharedLibraries
+PICDEFS = $(PICFLAGS)
+#endif
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) -DNETACCESS $(PICDEFS)
+
+LIBOBJS = strcpyUC.o bio.o fixdir.o swap4.o vm.o batch.o sprintrmt.o \
+	  disk.o cpanic.o bfile.o parsetime.o ntdsk_client.o rtape_lib.o \
+	  getgnum.o log_time.o tcpip.o met_formulas.o
+
+
+LIBSRCS = $(LIBOBJS:.o=.c)
+
+SRCS =  $(LIBSRCS)
+
+HEADERS = met_formulas.h
+
+PRIVATE_HEADERS = netdisk.h
+
+DISTFILES = Imakefile $(LIBSRCS) $(HEADERS) $(PRIVATE_HEADERS) 
+
+/*
+ * When RDSS moves to R6 imake, this ifdef can be removed.
+ */
+#ifdef ProjectZebra
+
+#if ZebraSharedLibraries
+SharedLibraryTarget(rdssutil,1,$(LIBOBJS),.,.)
+InstallSharedLibrary(rdssutil,1,$(LIBDIR))
+#else
+NormalLibraryTarget(rdssutil,$(LIBOBJS))
+InstallLibrary(rdssutil,$(LIBDIR))
+#endif
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
+#else /* ProjectRDSSLibs */
+
+NormalLibraryTarget($(LOCALLIB),$(LIBOBJS))
+InstallObjectsIntoLibrary($(LIBRDSSUTIL),$(LIBOBJS))
+
+BuildIncludes($(HEADERS),.,.)
+
+#endif /* ProjectZebra */
+
+LintTarget()
+
+DependTarget()
+
+DistfilesTarget($(DISTFILES))
+
+

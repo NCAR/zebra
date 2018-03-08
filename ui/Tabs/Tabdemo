@@ -1,0 +1,52 @@
+! $Id: Tabdemo,v 1.1 2001-11-30 00:42:09 granger Exp $
+
+!*TabsDemo.InsensitiveContrast: 25
+!*TabsDemo.selectInsensitive: False
+!Tabdemo*beNiceToColormap: true
+
+*borderWidth:	0
+
+
+*TabsLbl.label: Index Tabs
+
+*childA.tabLabel: one
+*childA.label: Tabs child no. 1
+
+*childB.tabLabel: two
+*childB.label: A callback is called\nwhen the user selects\na tab.
+*childB.sensitive: False
+
+*childC.tabLabel: three
+*childC.label: This could be any\ncomposite widget.
+*childC.tabForeground: red
+
+*childD.tabLabel: four
+*childD.label: Tabs resources:\n\
+  topWidget\n\
+  callback\n\
+  popdownCallback
+*childD.tabForeground: red
+*childD.sensitive: False
+
+*childE.tabLabel: five
+*childE.label: Child resources:\n\
+  tabLabel\n\
+  foreground\n\
+  resizable
+
+*childF.tabLabel: six
+*childF.tabLeftBitmap: /usr/X11/include/X11/bitmaps/xlogo11
+!*childF.tabLeftBitmap: /usr/openwin/include/X11/bitmaps/xlogo11
+
+*childG.tabLabel: seven
+
+*childH.tabLabel: eight
+
+*yes.label: Oui
+*no.label: Non
+*maybe.label: Peut etre
+*newTab.label: New Tab
+*delTab.label: Delete Tab
+
+Tabdemo.baseTranslations: #augment\n\
+	<Message>WM_PROTOCOLS: WMProtocols()\n

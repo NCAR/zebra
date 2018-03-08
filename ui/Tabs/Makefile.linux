@@ -1,0 +1,19 @@
+# $Id: Makefile.linux,v 1.1 2001-11-30 00:42:09 granger Exp $
+
+CC = gcc
+
+CFLAGS = -O2 -I/usr/X11R6/include
+
+LIBS = -L/usr/X11R6/lib -lXaw -lXmu -lXt -lX11
+
+SRCS = tabdemo.c Tabs.c
+OBJS = $(SRCS:.c=.o)
+
+all: tabdemo
+
+tabdemo: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LIBS)
+
+clean:
+	rm -f tabdemo
+	rm -f *.CKP *.BAK *.bak *.o core errs tags TAGS

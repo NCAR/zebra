@@ -1,0 +1,21 @@
+# $Id: Makefile.solaris,v 1.1 2001-11-30 00:42:09 granger Exp $
+
+CC = cc
+
+CFLAGS = -O -Xc -xF -xcg92 -I/usr/openwin/include  -Dsun -Dsparc -DSVR4 -DSYSV
+
+#LIBS = -L/usr/openwin/lib -lXaw -lXmu -lm -lXt -lSM -lICE -lXext -lX11    -lsocket -lnsl  
+LIBS = -L/usr/openwin/lib -lXaw -lXmu -lXt -lXext -lX11
+
+SRCS = tabdemo.c Tabs.c
+OBJS = $(SRCS:.c=.o)
+
+all: tabdemo
+
+tabdemo: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LIBS)
+
+clean:
+	rm -f tabdemo
+	rm -f *.CKP *.BAK *.bak *.o core errs tags TAGS
+

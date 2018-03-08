@@ -1,0 +1,132 @@
+! 1/87 jc
+!
+! This is the information that should be included in your initial command
+! state entry.  To set it up, enter:
+!
+!       define state initial    ! <initial> or whatever....
+!               read ui_include:ui_commands.
+!               <all of your other stuff>
+!       enddef
+!
+! $Id: ui_commands,v 1.4 1992-12-18 21:10:30 corbet Exp $
+!
+        input 'define' -1
+                next ust$define_what
+        endinput
+        input 'dump' -7
+                next ust$dump_what
+        endinput
+        input 'exit' -2
+                next ust$no_more
+        endinput
+        input 'save' -3
+                next ust$save_file
+        endinput
+        input 'read' -8
+                next ust$final_filename
+        endinput
+        input '@' -8
+                next ust$at_file
+        endinput
+        input 'set' -25
+                next ust$set_what
+        endinput
+        input 'load' -30
+                next ust$final_unmunged_string
+        endinput
+        input 'eval' -33
+                next ust$final_unmunged_string
+        endinput
+        input 'recall' -34
+                next ust$no_more
+        endinput
+        input 'edt' -41
+                next ust$final_unmunged_string
+        endinput
+        input 'edit' -41
+                next ust$final_unmunged_string
+        endinput
+        
+        input 'message' -17
+                next ust$message_string
+        endinput
+        input 'vset' -36
+                next ust$vset_what
+        endinput
+        input 'sset' -38
+                next ust$vset_what
+        endinput
+        
+        input 'prompt' -42
+                next ust$prompt-variable
+        endinput
+        
+        input 'type' -49
+                next ust$final_string
+        endinput
+        !
+        ! Control structures, with their own range.
+        !
+        input 'while' -1000
+                next ust$while_expr
+        endinput
+        input 'endwhile' -1001
+                next ust$no_more
+        endinput
+        input 'if' -1004
+                next ust$if_expr
+        endinput
+        input 'else' -1006
+                next ust$catch_else_if
+        endinput
+        input 'elseif' -1007
+                next ust$elseif_expr
+        endinput
+        input 'endif' -1008
+                next ust$no_more
+        endinput
+        input 'foreach' -1002
+                next ust$foreach_var
+        endinput
+        input 'endfor' -1003
+                next ust$no_more
+        endinput
+        input 'procedure' -1009
+                next ust$proc_name
+        endinput
+        input 'endprocedure' -1010
+                next ust$no_more
+        endinput
+        input 'pcall' -55
+                next ust$pcall_name
+        endinput
+        input 'return' -56
+                next ust$no_more
+        endinput
+	input 'mode' -57
+		next ust$what_mode
+	endinput
+	input 'endmode' -58
+		next ust$no_more
+	endinput
+	input 'keypad' -60
+		next ust$keypad_state
+	endinput
+	input 'delete' -63
+		next ust$delete_what
+	endinput
+	input 'popup' -68
+		next ust$popup_what
+	endinput
+	input 'popdown' -69
+		next ust$final_string
+	endinput
+	input 'local' -79
+		next ust$set_what
+	endinput
+	input 'formtext' -96
+		next ust$ft_widget
+	endinput
+	input 'formmenu' -98
+		next ust$ft_widget
+	endinput

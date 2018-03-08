@@ -1,0 +1,573 @@
+%!PS-Adobe-3.0
+%%Creator: PRNF - Ver 2.2
+%%CreationDate: 
+%%Orientation: Portrait
+%%DocumentMedia: LETTER 612 792
+%%BoundingBox: 0 0 612 792
+%%Pages: (atend)
+%%EndComments
+/M { moveto } bind def % shorthand for moveto
+/SF { setfont } bind def % shorthand for setfont 
+/H { show } bind def % shorthand for show 
+% move to x position without changing y position (stack x)
+/X {currentpoint exch pop moveto} bind def
+% move over x ponts without changing y position (stack x)
+/S {currentpoint 3 1 roll add  exch  moveto} bind def
+% Start Underlining (stack: )
+/SU {currentpoint pop /Ux exch def 
+} bind def
+% End Underlining: draw a line from Ux to current x (stack: )
+/EU {gsave currentpoint newpath 1.6 sub moveto Ux currentpoint pop sub 0 rlineto
+.5  setlinewidth stroke grestore
+} bind def
+% change the encoding of a font (stack: /newname /font-name )
+/ENC {
+findfont
+dup length dict begin
+{1 index /FID ne {def} {pop pop} ifelse} forall
+ /Encoding ISOLatin1Encoding def
+ currentdict
+end
+definefont pop
+} bind def
+
+% produce a rectangular path  (stack: width height x y -> -)
+% x,y is upper left corner, 
+/RECT {newpath 
+moveto 
+dup neg 0 exch rlineto	% vert line going down
+exch 0 rlineto	% horiz line of width going right
+0 exch rlineto	% vert line going up
+closepath 
+} bind def
+
+% produce shaded box stack:   shade width height x y
+% x,y is upper left corner, shade from 0 to 1 (100%), 
+/SHADE {gsave RECT
+100 div neg 1 add setgray 
+fill
+grestore } bind def
+% produce shaded box with outline  stack:   shade width height x y
+% x,y is upper left corner, shade from 0% to 100% 
+/BOX {gsave RECT
+gsave 100 div neg 1 add setgray fill grestore 
+0 setgray .7   setlinewidth stroke
+grestore } bind def
+
+% The available Fonts
+/F-TR  /Times-Roman ENC
+/F-TI  /Times-Italic ENC
+/F-TB  /Times-Bold ENC
+/F-TBI /Times-BoldItalic ENC
+/F-HR  /Helvetica ENC
+/F-HI  /Helvetica-Oblique ENC
+/F-HB  /Helvetica-Bold ENC
+/F-HBI /Helvetica-BoldOblique ENC
+/F-CR  /Courier ENC
+/F-CI  /Courier-Oblique ENC
+/F-CB  /Courier-Bold ENC
+/F-CBI /Courier-BoldOblique ENC
+
+% define font (stack: /newname points /font-name )
+% eg: /F1 12 /F-HBI DF % defines F1 as 12 point Helvetica
+% usage: F1 setfont
+/DF {
+findfont
+exch
+scalefont
+def } bind def
+
+% define proc that precedes inclusion of eps file 
+/BeginEPSF {
+/b4_inc_state save def		%save state for cleanup
+/dict_count countdictstack def	% count objects in dict stack
+/op_count count 1 sub def	%  count objects on opernad stack
+userdict begin			% push userdict on stack
+/showpage { } def		% make showpage a null
+0 setgray 0 setlinecap
+1 setlinewidth 0 setlinejoin
+10 setmiterlimit [ ] 0 setdash newpath
+/languagelevel where		% if level != 1 then
+{ pop languagelevel 		% set strokeadjust and
+1 ne
+ {false setstrokeadjust false setoverprint
+ } if
+} if
+} bind def
+
+% define proc that follows inclusion of eps file 
+/EndEPSF {
+count op_count sub {pop} repeat	%clean up stacks
+countdictstack dict_count sub {end} repeat
+b4_inc_state restore
+} bind def
+
+ statusdict begin
+ /pagesize [612 792] store
+end
+ /F0 10 /F-TR DF
+ /F1 10 /F-HB DF
+ /F2 7.2 /F-CR DF
+ /F3 10 /F-TI DF
+ /F4 14 /F-HR DF
+ /F5 6.4 /F-CR DF
+ /F6 12 /F-HB DF
+ /F7 11 /F-HB DF
+ /F8 10 /F-CR DF
+ /F9 10 /F-HR DF
+ /F10 10 /F-TB DF
+ /F11 8 /F-TR DF
+ /F12 7 /F-TR DF
+ /F13 8 /F-HB DF
+
+%%EndProlog
+%%BeginSetup
+%%EndSetup
+
+%%Page: 1 1
+
+ F0 SF F4 SF
+ 241.2 720 M(The LiteClue Widget )H
+ F0 SF
+ 72 690 M F4 SF(1.   )H
+ 95.04 690 M(Copyright)H F0 SF
+ 72 665.52 M(Copyright 1995 Computer Generation, Inc.  You may reproduce this document without charge provided the)H
+ 72 653.28 M(copyright and disclaimer notices appear.  The software described in this document is copyrighted under separate)H
+ 72 641.04 M(terms.  See the source code available at ftp://ftp.compgen.com/pub/widgets/LiteClue.tar.Z )H
+ 72 616.56 M(The software is provided "as is", without warranty of any kind, express or implied, including but not limited to the)H
+ 72 604.32 M(warranties of merchantability, fitness for a particular purpose and noninfringement.  In no event shall Computer)H
+ 72 592.08 M(Generation, inc.  nor the author\(s\) be liable for any claim, damages or other liability, whether in an action of)H
+ 72 579.84 M(contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the)H
+ 72 567.6 M(software.  )H
+ 72 543.12 M(The author welcomes comments and suggestions.  )H
+ 72 530.88 M(Gary Aviv )H
+ 72 518.64 M(Computer Generation, Inc.,)H
+ 72 506.4 M(gary@compgen.com)H
+ 72 494.16 M(404-705-2811)H
+ 72 469.68 M(Thanks to contributers:: J Satchell, Eric Marttila, Addy Klos.  )H
+ 72 445.2 M(If you wish to be on an Emailing list regarding this or other CGI widgets, please send a request to the above)H
+ 72 432.96 M(address.  You will be notified when this or other widgets are upgraded or when new widgets become available.  )H
+ 72 408.48 M(Updated: 30 October 1998 )H
+ 72 371.76 M F4 SF(2.   )H
+ 95.04 371.76 M(Introduction)H F0 SF
+ 276.48 353.28 M
+ BeginEPSF
+ 
+%%BeginDocument: LiteClue
+ 276.48 294.48 translate
+ 0 0 translate
+ newpath 0 0 moveto 59 0 lineto 59 59 lineto 0 59 lineto closepath clip newpath
+%!PS-Adobe-2.0 EPSF-2.0
+%%BoundingBox: 0 0 59 59
+%%Creator: xgrabsc
+%%Title: LiteClue
+%%File: /usr3/cgi/doc/xform/LiteClue.eps
+%%CreationDate: Fri Aug  2 17:24:01 1996
+%%EndComments
+%
+%
+%%EndProlog
+%%Page: 1 1
+/inch {72 mul} def
+/rlebuffer 2 string def
+/samples 256 string def
+/plotimage
+{59 59 8 [59 0 0 -59 0 59]
+% run-length decoding block
+  { currentfile rlebuffer readhexstring pop pop
+    rlebuffer 0 get 1 add       %% number of copies of the sample
+    /nsamples exch store        %% save it away
+    /lum rlebuffer 1 get store  %% the sample itself
+    0 1 nsamples 1 sub { samples exch lum put } for
+    samples 0 nsamples getinterval %% leave the pixels on the stack
+  }
+  image
+} def
+gsave
+59 59 scale
+plotimage
+feff6aff1c001dff1c001dff010018cf01001dff010017cf008e01001dff
+010001cf14ff018e01001dff010001cf09ff005c09ff018e01001dff0100
+01cf03ff010002ff005c0000005c08ff018e01001dff010001cf03ff0100
+01ff005c0200005c07ff018e01001dff010001cf03ff010000ff005c0100
+005c0100005c06ff018e01001dff010001cf03ff0100005c0100005c00cf
+005c0100005c05ff018e01001dff010001cf03ff0000005c0100005c02cf
+005c0100005c04ff018e01001dff010001cf03ff005c0100005c04cf005c
+0100005c03ff018e01001dff010001cf02ff0e0002ff018e01001dff0100
+01cf02ff00000ccf000002ff018e01001dff010001cf02ff000000cf0200
+04cf020000cf000002ff018e01001dff010001cf02ff000000cf020004cf
+020000cf000002ff018e01001dff010001cf02ff000000cf020004cf0200
+00cf000002ff018e01001dff010001cf02ff00000ccf000002ff018e0100
+1dff010001cf02ff000003cf045c03cf000002ff018e01001dff010001cf
+02ff000003cf005c0200005c03cf000002ff018e01001dff010001cf02ff
+000003cf005c0200005c03cf000002ff018e01001dff010001cf02ff0000
+03cf005c0200005c03cf000002ff018e01001dff010001cf02ff000003cf
+005c0200005c03cf000002ff018e01001dff010001cf02ff0e0002ff018e
+01001dff010001cf14ff018e01001dff010001cf168e01001dff010000cf
+178e01001dff1c001dff1c001dff2c000dff00002aff00000dff00002aff
+00000cff008e00002aff0000018e0aff00cf00002aff000001cf0bff0000
+01ff030001ff03001eff00000dff000002ff010003ff01001fff00000dff
+000002ff010003ff01001fff00000dff000002ff010003ff010003ff0200
+02ff020000ff010001ff010004ff020003ff00000dff000002ff070001ff
+020000ff020001ff020000ff020000ff010001ff020000ff010002ff0000
+0dff000002ff010003ff010001ff010002ff010001ff010001ff010001ff
+010001ff050002ff00000dff000002ff010003ff010001ff010002ff0100
+01ff010001ff010001ff010001ff010006ff00000dff000002ff010003ff
+010001ff020000ff020001ff010001ff010001ff010001ff020000ff0100
+02ff00000dff000001ff030001ff030002ff020002ff030000ff020000ff
+020002ff020003ff00000dff00002aff00000dff00002aff00000dff0000
+2aff00000dff00002aff00000dff00002aff00000dff2c00f1ff
+
+%
+% Run-length encoding savings =  73.4%
+%
+
+
+
+grestore
+showpage
+
+%%Trailer
+ 
+%%EndDocument
+ EndEPSF
+ 72 264 M(LiteClue is a widget which pops a one line help message when the user passes the pointer over another "watched")H
+ 72 251.76 M(widget.  This is known by various names in the industry such as hints, clues, tips, bubble help and balloon help.  )H
+ 72 227.28 M(Clues are particularly helpful for push buttons that contain graphic pixmaps rather than text.  They obviate the need)H
+ 72 215.04 M(to place text within graphics in the button which creates internationalization problems.  A clue may be attached to)H
+ 72 202.8 M(virtually any widget that has a window \(no gadgets\).  LiteClue works with Motif but does not require it.  )H
+ 72 178.32 M(None of this affects the behaviour of the watched widget itself.  LiteClue monitors enter and leave events of the)H
+ 72 166.08 M(watched widget's window passively.  )H
+ 72 141.6 M(LiteClue relies on EnterNotify and LeaveNotify events for the the widgets it is watching.  This will normally)H
+ 72 129.36 M(prevent clues from poping up when the watched widgets are insensitive.  See the function )H F10 SF
+ 72 117.12 M(XcgLiteClueDispatchEvent)H F0 SF( for a way to bypass this limitation.  )H
+ 72 92.64 M(LiteClue inherits behaviour and ewsources from OverrideShell.  )H
+ F9 SF
+ 537.12 36 M( )H
+ 303.12 36 M(1)H
+ showpage
+%%EndPage: 1
+
+
+%%Page: 2 2
+ F0 SF
+ 72 720 M(The class pointer is xcgLiteClueWidgetClass.  )H
+ 72 695.52 M(The class name is xcgLiteClue.  )H
+ 72 658.8 M F4 SF(3.   )H
+ 95.04 658.8 M(Version Information)H F0 SF
+ 72 634.32 M F10 SF(Version 1.2)H F0 SF( )H
+ 96 622.08 M(1.  )H
+ 108 622.08 M(R4 back compatibility )H
+ 96 609.84 M(2.  )H
+ 108 609.84 M(Delay before pop up of help; )H F10 SF(XcgNwaitperiod)H F0 SF( resource \(default 500 ms\).  )H
+ 96 597.6 M(3.  )H
+ 108 597.6 M(Button press in watched widget pops down help.  )H
+ 72 573.12 M F10 SF(Version 1.3)H F0 SF( )H
+ 96 560.88 M(1.  )H
+ 108 560.88 M(Support of cancelWaitPeriod resource.  this is the period after a help popdown occurs in which the normal)H
+ 108 548.64 M(waitPeriod is suspended for the next popup.  )H
+ 96 536.4 M(2.  )H
+ 108 536.4 M(minor fixes )H
+ 72 511.92 M F10 SF(Version 1.4)H F0 SF( )H
+ 96 499.68 M(1.  )H
+ 108 499.68 M(Support for clues on insensitive widgets.  See )H F10 SF(XcgLiteClueDispatch)H F0 SF( function below.  )H
+ 72 475.2 M F10 SF(Version 1.4)H F0 SF( )H
+ 96 462.96 M(1.  )H
+ 108 462.96 M(Position the clue above the watched widget or move the clue right or left to make it visible if it would)H
+ 108 450.72 M(otherwise be off the screen.  )H
+ 72 414 M F4 SF(4.   )H
+ 95.04 414 M(Distribution Kit)H F0 SF
+ 72 389.52 M(The source distribution kit contains the following files: )H
+ 72 365.04 M F10 SF(LiteClue.c LiteClue.h LiteClueP.h )H F0 SF( )H
+ 108 352.8 M(The LiteClue widget source code )H
+ 72 340.56 M F10 SF(LiteClueTest.c)H F0 SF( )H
+ 108 328.32 M(A small demonstration program )H
+ 72 316.08 M F10 SF(Imake)H F0 SF( )H
+ 108 316.08 M(an Imake file.  )H
+ 72 303.84 M F10 SF(BUILD.COM)H F0 SF( )H
+ 108 291.6 M(a command file for building under DEC VMS )H
+ 72 279.36 M F10 SF(LiteClue.html LiteClue.txt LiteClue.ps )H F0 SF( )H
+ 108 267.12 M(Documentation in HTML, plain text and PostScript formats )H
+ 72 242.64 M(LiteClue has been compiled successfully on NCR MPRAS, Digital OSF/Unix, ULTRIX \(XR4\), Linux, VMS and)H
+ 72 230.4 M(probably many others.  )H
+ 72 205.92 M(To build the test program: )H
+ F8 SF
+ 72 181.44 M 120 X(xmkmf)H
+ 72 169.2 M 120 X(make)H
+ F0 SF
+ 72 144.72 M(For VMS, see the file BUILD.COM.  )H
+ 72 120.24 M(LiteClue is designed for X11R4 or higher.  It checks XtSpecificationRelease at compile time.  When compiled for)H
+ 72 108 M(X11R5 or higher, it uses font sets which gives it good internationalization support \(see Section 10 below\).)H
+ 72 95.76 M(However, you can also force it to use font structs instead by setting a compile time variable \(see make file\).  )H
+ F9 SF
+ 72 756 M(LiteClue Widget)H 72 743.76 M 72 731.52 M 72 719.28 M 72 36 M( )H
+ 303.12 36 M(2)H
+ showpage
+%%EndPage: 2
+
+
+%%Page: 3 3
+ F0 SF
+ 72 720 M(When using font sets, you may get the message: )H
+ F8 SF
+ 72 695.52 M(Warning: Missing charsets in String to FontSet conversion)H
+ 72 683.28 M(Warning: Unable to load any usable fontset)H
+ F0 SF
+ 72 658.8 M(which means that your locale does not support the font's character sets.  On many machine, the default C locale)H
+ 72 646.56 M(does not allow 8-bit characters or the iso88591 character set required by the default fonts.  Fix this by setting your)H
+ 72 634.32 M(LANG environment variable.  For example, on HP-UX in the US you set: )H
+ F8 SF
+ 72 609.84 M 120 X(LANG=C.iso88591)H
+ F0 SF
+ 72 573.12 M F4 SF(5.   )H
+ 95.04 573.12 M(Resources)H F0 SF
+ 72 548.64 M(LiteClue adds the following resources to those it inherits.  The resource class is obtained by replacing the N by a C)H
+ 72 536.4 M(in the resource name \(eg: XtNfontSet is the name XtNfontSet is the class.  The access types are C \(resource may be)H
+ 72 524.16 M(set at create time\), S \(may be se using XtSetValues\), or G \(may be read using XtGetValues\).  )H
+ 72 505.68 M 100 468 0.72 72 505.68 SHADE
+ 72 487.44 M F10 SF(XtNfontSet)H F0 SF( )H
+ 108 475.2 M(Type = FontSet, Default = "-adobe-new century schoolbook-bold-r-normal-*-12-*, Access = CG)H
+ 108 462.96 M(The font used to display the clue.  For Xt Release 4 or less, the resource name )H F10 SF(XtNfont)H F0 SF( and the type is)H
+ 108 450.72 M(FontStruct.  )H
+ 108 444.48 M 100 432 0.72 108 444.48 SHADE
+ 72 426.24 M F10 SF(XtNforeground)H F0 SF( )H
+ 108 414 M(Type = Pixel, Default = "black", Access = CSG)H
+ 108 401.76 M(The color used to render the clue text )H
+ 108 395.52 M 100 432 0.72 108 395.52 SHADE
+ 72 377.28 M F10 SF(XcgNwaitperiod)H F0 SF( )H
+ 108 365.04 M(Type = Integer, Default = 500, Access = CSG)H
+ 108 352.8 M(The delay from the time the pointer enters the watched widget until the help is popped up in milliseconds.  )H
+ 108 346.56 M 100 432 0.72 108 346.56 SHADE
+ 72 328.32 M F10 SF(XcgNcancelWaitPeriod)H F0 SF( )H
+ 108 316.08 M(Type = Integer, Default = 2000, Access = CSG)H
+ 108 303.84 M(The period \(in milliseconds\) after a help popdown occurs in which the normal )H F10 SF(waitPeriod)H F0 SF( is suspended.  If)H
+ 108 291.6 M(the pointer should re-enter a watched widget during this period help pops up immediately rather than)H
+ 108 279.36 M(waiting )H F10 SF(waitPeriod)H F0 SF( milliseconds.  )H
+ 72 273.12 M 100 468 0.72 72 273.12 SHADE
+ 72 242.64 M(The background color resource )H F10 SF(XtNbackground)H F0 SF( of the clue popup is inherited from OverrideShell.  )H
+ 72 205.92 M F4 SF(6.   )H
+ 95.04 205.92 M(Callbacks)H F0 SF
+ 72 181.44 M(LiteClue adds no new callbacks over those it inherits.  )H
+ 72 156.96 M F4 SF(7.   )H
+ 95.04 156.96 M(Translations)H F0 SF
+ 72 132.48 M(LiteClue has no translations.  )H
+ F9 SF
+ 444 756 M(Computer Generation)H 540 743.76 M 540 731.52 M 540 719.28 M 537.12 36 M( )H
+ 303.12 36 M(3)H
+ showpage
+%%EndPage: 3
+
+
+%%Page: 4 4
+ F0 SF
+ 72 720 M F4 SF(8.   )H
+ 95.04 720 M(LiteClue API)H F0 SF
+ 72 695.52 M(LiteClue contains the following functions that control the widget behaviour.  )H
+ 72 671.04 M F6 SF(8.1  )H
+ 95.52 671.04 M(XcgLiteClueAddWidget -- Add a widget to be watched.)H F0 SF
+ 72 658.8 M F10 SF(Function)H F0 SF( )H
+ 108 646.56 M(A widget will be added to the LiteClue watched list.  Clues are given for sensitive watched widgets when)H
+ 108 634.32 M(the pointer enters its window.  If the widget is already watched, the passed text replaces its current clue)H
+ 108 622.08 M(text.  If text is null, the widget is still added, if it is not already in the list, but no clue will appear.  Text)H
+ 108 609.84 M(may be specified with XcgLiteClueAddWidget in a subsequent call.  When text is null and the widget is)H
+ 108 597.6 M(already in the list, its text is not changed.  When a widget will is added to the watched list, it automatically)H
+ 108 585.36 M(becomes sensitive.  Otherwise, its sensitivity is not changed.  A watched widget which is not sensitive)H
+ 108 573.12 M(retains its context but clues are suppressed.  None of this affects the behaviour of the watched widget)H
+ 108 560.88 M(itself.  LiteClue monitors enter and leave events of the watched widget's window passively.  )H
+ 72 536.4 M F10 SF(C-call)H F0 SF( )H
+ 108 536.4 M(void XcgLiteClueAddWidget\(Widget w, Widget watch, char * text, int size, int option \) )H
+ 72 511.92 M F10 SF(Input)H F0 SF( )H
+ 108 511.92 M F10 SF(w )H F0 SF( )H
+ 144 511.92 M(LiteClue widget )H
+ 108 499.68 M F10 SF(watch )H F0 SF( )H
+ 144 499.68 M(the widget for which clues will be given )H
+ 108 487.44 M F10 SF(text )H F0 SF( )H
+ 144 487.44 M(pointer to buffer containing text.  Must be null terminated )H
+ 108 475.2 M F10 SF(size )H F0 SF( )H
+ 144 475.2 M(size of text, if 0, it will be computed \(strlen\) )H
+ 108 462.96 M F10 SF(option )H F0 SF( )H
+ 144 462.96 M(option mask - must be zero )H
+ 72 438.48 M F10 SF(Output)H F0 SF( )H
+ 108 438.48 M(Nothing )H
+ 72 401.76 M F6 SF(8.2  )H
+ 95.52 401.76 M(XcgLiteClueDeleteWidget -- Delete a widget that is watched.)H F0 SF
+ 72 377.28 M F10 SF(Function)H F0 SF( )H
+ 108 365.04 M(A widget is deleted from the watched list and its resources are freed.  LiteClue is no longer given for the)H
+ 108 352.8 M(widget.  If the widget is not watched, nothing is done.  None of this affects the behaviour of the watched)H
+ 108 340.56 M(widget itself, just whether a clue is poped for the widget.  )H
+ 72 316.08 M F10 SF(C-call)H F0 SF( )H
+ 108 316.08 M(void XcgLiteClueDeleteWidget\(Widget w, Widget watch\) )H
+ 108 291.6 M F10 SF(w )H F0 SF( )H
+ 144 291.6 M(LiteClue widget )H
+ 108 279.36 M F10 SF(watch )H F0 SF( )H
+ 144 279.36 M(the widget to remove from watched list )H
+ 72 254.88 M F10 SF(Output)H F0 SF( )H
+ 108 254.88 M(Nothing )H
+ 72 230.4 M F6 SF(8.3  )H
+ 95.52 230.4 M(XcgLiteClueSetSensitive - Enable/disable clues for watched widget.)H F0 SF
+ 72 205.92 M F10 SF(Function)H F0 SF( )H
+ 108 193.68 M(When a watched widget is sensitive, a clue is poped up when the pointer enters its window.  When a)H
+ 108 181.44 M(watched widget is insensitive, the widget is retained in the watched list but no clue is poped.  The)H
+ 108 169.2 M(sensitivity of a watched widget relative to clues is set or reset by this function.  The Xt sensitivity of the)H
+ 108 156.96 M(watched widget is not altered by this function.  )H
+ 72 132.48 M F10 SF(C-call)H F0 SF( )H
+ 108 132.48 M(void XcgLiteClueSetSensitive\(Widget w, Widget watch, Boolean sensitive\) )H
+ 108 108 M F10 SF(w )H F0 SF( )H
+ 144 108 M(LiteClue widget )H
+ 108 95.76 M F10 SF(watch )H F0 SF( )H
+ 144 95.76 M(the widget to alter sensitivity )H
+ 108 83.52 M F10 SF(sensitive)H F0 SF( )H
+ F9 SF
+ 72 756 M(LiteClue Widget)H 72 743.76 M 72 731.52 M 72 719.28 M 72 36 M( )H
+ 303.12 36 M(4)H
+ showpage
+%%EndPage: 4
+
+
+%%Page: 5 5
+ F0 SF
+ 144 720 M(True - restore sensitivity)H
+ 144 707.76 M(False - make insensitivity )H
+ 72 683.28 M F10 SF(Output)H F0 SF( )H
+ 108 683.28 M(Nothing )H
+ 72 646.56 M F6 SF(8.4  )H
+ 95.52 646.56 M(XcgLiteClueGetSensitive - Get sensitivity setting for watched widget.)H F0 SF
+ 72 622.08 M F10 SF(Function)H F0 SF( )H
+ 108 609.84 M(When a watched widget is sensitive, a clue is poped up when the pointer enters its window.  When a)H
+ 108 597.6 M(watched widget is insensitive, the widget is retained in the watched list but no clue is poped.  The)H
+ 108 585.36 M(sensitivity state of a watched widget relative to clues is returned by this function.  The Xt sensitivity of a)H
+ 108 573.12 M(widget is a totally independent concept.  )H
+ 72 548.64 M F10 SF(C-call)H F0 SF( )H
+ 108 548.64 M(Boolean XcgLiteClueGetSensitive \(Widget w, Widget watch\) )H
+ 108 524.16 M F10 SF(w )H F0 SF( )H
+ 144 524.16 M(LiteClue widget )H
+ 108 511.92 M F10 SF(watch )H F0 SF( )H
+ 144 511.92 M(the widget for which to get sensitivity state.  If NULL first watched widget is used.  If there are no)H
+ 144 499.68 M(watched widgets, False is returned.  )H
+ 72 475.2 M F10 SF(Output)H F0 SF( )H
+ 108 475.2 M(Nothing )H
+ 72 450.72 M F10 SF(Return)H F0 SF 108 X( )H
+ 108 438.48 M(True - watched widget is sensitive)H
+ 108 426.24 M(False - watched widget is not sensitive )H
+ 72 401.76 M F6 SF(8.5  )H
+ 95.52 401.76 M(XcgLiteClueDispatchEvent -- Dispatch event from main X event loop)H F0 SF
+ 72 377.28 M F10 SF(Function)H F0 SF( )H
+ 108 365.04 M(This function may be used to enable clues for insensitive watched widgets.  Normally, XtAppMainLoop)H
+ 108 352.8 M(\(which calls XtDispatchEvent\) will not deliver EnterNotify and LeaveNotify events to widgets that are not)H
+ 108 340.56 M(sensitive \(XtSetSensitive\).  This prevents clues from poping up for these widgets.  To bypass this)H
+ 108 328.32 M(limitation, you can break out XtAppMainLoop and add a call to XcgLiteClueDispatchEvent ass follows: )H
+ F8 SF
+ 108 303.84 M(MyXtAppMainLoop\(XtAppContext app\))H
+ 108 291.6 M({)H
+ 108 279.36 M(    XEvent event;)H
+ 108 267.12 M(    for \(;;\) {)H
+ 108 254.88 M(        XtAppNextEvent\(app, &event\);)H
+ 108 242.64 M 156 X(XcgLiteClueDispatchEvent\(w, event\) ;)H
+ 108 230.4 M(        XtDispatchEvent\(&event\);)H
+ 108 218.16 M(    })H
+ 108 205.92 M(})H
+ F0 SF
+ 72 181.44 M F10 SF(C-call)H F0 SF( )H
+ 108 181.44 M(Boolean XcgLiteClueDispatchEvent \(Widget w, XEvent *event\) )H
+ 108 156.96 M F10 SF(w )H F0 SF( )H
+ 144 156.96 M(LiteClue widget )H
+ 108 144.72 M F10 SF(event )H F0 SF( )H
+ 144 144.72 M(received event, normally from call to XtAppNextEvent.  )H
+ 72 120.24 M F10 SF(Output)H F0 SF( )H
+ 108 120.24 M(Nothing )H
+ 72 95.76 M F10 SF(Return)H F0 SF 108 X( )H
+ 108 83.52 M(True )H
+ 144 83.52 M(- event was dispatched to non-sensitive watched widget.  )H
+ F9 SF
+ 444 756 M(Computer Generation)H 540 743.76 M 540 731.52 M 540 719.28 M 537.12 36 M( )H
+ 303.12 36 M(5)H
+ showpage
+%%EndPage: 5
+
+
+%%Page: 6 6
+ F0 SF
+ 108 720 M(False )H
+ 144 720 M(- not a EnterNotify or LeaveNotify event or window in event is not a non-sensitive watched)H
+ 144 707.76 M(widget.  )H
+ 72 683.28 M F4 SF(9.   )H
+ 95.04 683.28 M(Sample Use)H F0 SF
+ 72 658.8 M(Since LiteClue is a shell widget , you make an instance of the shell as in this example: )H
+ F8 SF
+ 72 634.32 M 120 X(Widget liteClue, toplevel ;)H
+ 72 622.08 M 120 X(...)H
+ 72 609.84 M(  )H 120 X(toplevel = XtVaAppInitialize\(&AppContext,)H
+ 72 597.6 M 120 X(...)H
+ 72 585.36 M 120 X(liteClue = XtVaCreatePopupShell\( "LiteClue_shell",)H
+ 72 573.12 M 120 X 168 X(xcgLiteClueWidgetClass, toplevel, ..., NULL\);)H
+ F0 SF
+ 72 548.64 M(If you want to change the font used by LiteClue, you could add the fontSet resource at create time as in: )H
+ F8 SF
+ 72 524.16 M(#define RES_CONVERT\( res_name, res_value\) \\)H
+ 72 511.92 M(       XtVaTypedArg, \(res_name\), XmRString, \(res_value\), strlen\(res_value\) + 1)H
+ 72 487.44 M 120 X(liteClue = XtVaCreatePopupShell\( "LiteClue_shell",)H
+ 72 475.2 M 120 X 168 X(xcgLiteClueWidgetClass, toplevel,)H
+ 72 462.96 M 120 X 168 X( RES_CONVERT\(XtNfontSet, \\)H
+ 72 450.72 M 120 X 168 X 216 X("-adobe-new century schoolbook-bold-r-normal-*-18-*"\),)H
+ 72 438.48 M 120 X 168 X(NULL\);)H
+ F0 SF
+ 72 414 M(You need only create a single instance of the widget for the application.  To attach help to a widget \(usually a push)H
+ 72 401.76 M(button\) use the function )H F10 SF(XcgLiteClueAddWidget)H F0 SF( \(Section 8.1\) as in: )H
+ F8 SF
+ 72 377.28 M 120 X(button_widg = XtVaCreateManagedWidget\("Button1", xmPushButtonWidgetClass,)H
+ 72 365.04 M 120 X(...)H
+ 72 352.8 M 120 X(XcgLiteClueAddWidget\(liteClue, button_widg,  "Help Message", 0, 0\);)H
+ F0 SF
+ 72 316.08 M(In order to enable clues for insensitive widgets you will need to replace the standard call to XtAppMainLoop with)H
+ 72 303.84 M(the code as illustrated in the function )H F10 SF(XcgLiteClueDispatchEvent)H F0 SF(.  )H
+ 72 267.12 M F4 SF(10.   )H
+ 102.72 267.12 M(Internationalization)H F0 SF
+ 72 242.64 M(The LiteClue widget is designed to allow the display of internationalized text.  This has been tested on a limited)H
+ 72 230.4 M(basis with Japanese.  )H
+ 72 205.92 M(In order to make use of internationalization, you must have support in your operating system for the desired locale)H
+ 72 193.68 M(and must have the needed fonts.  In some cases, you may use the X provided locale support instead.  At)H
+ 72 181.44 M(initialization, you should have code that looks something like: )H
+ F8 SF
+ 72 156.96 M 120 X(if \(setlocale\(LC_ALL,""\) == NULL\))H
+ 72 144.72 M 120 X 168 X(fprintf\(stderr, "LiteCluetest: Can't set locale\\n"\);)H
+ 72 132.48 M 120 X(if \(!XSupportsLocale\(\)\))H
+ 72 120.24 M 120 X({)H
+ 72 108 M 120 X 168 X(fprintf\(stderr, "LiteCluetest: X does not support locale\\n"\);)H
+ 72 95.76 M 120 X 168 X(setlocale\(LC_ALL,NULL\) ;)H
+ 72 83.52 M 120 X(})H
+ F9 SF
+ 72 756 M(LiteClue Widget)H 72 743.76 M 72 731.52 M 72 719.28 M 72 36 M( )H
+ 303.12 36 M(6)H
+ showpage
+%%EndPage: 6
+
+
+%%Page: 7 7
+ F8 SF
+ 72 720 M 120 X(if \(XSetLocaleModifiers\(""\) == NULL\))H
+ 72 707.76 M 120 X 168 X(fprintf\(stderr, "LiteCluetest: Can't XSetLocaleModifiers\\n"\);)H
+ F0 SF
+ 72 683.28 M(If you need the X locale package, add the following: )H
+ F8 SF
+ 72 658.8 M 120 X(#define X_LOCALE)H
+ 72 646.56 M 120 X(#include <X11/Xlocale.h>)H
+ F0 SF
+ 72 609.84 M(LiteClue makes use of the XR5 Font Set technology.  All font resources are converted to Font Sets.  For example,)H
+ 72 597.6 M(for Japanese you will need three fonts for each font set: )H
+ F8 SF
+ 72 573.12 M(*XcgLiteClue.fontSet: \\)H
+ 72 560.88 M(-sony-fixed-medium-r-normal--0-110-100-100-c-0-jisx0201.1976-0,\\)H
+ 72 548.64 M(-adobe-new century schoolbook-medium-r-normal-*-14-*,\\)H
+ 72 536.4 M(-jis-fixed-medium-r-normal--16-110-100-100-c-160-jisx0208.1983-0)H
+ F0 SF
+ 72 511.92 M(Finally, you must set the environment symbol LANG to the appropriate locale.  For Japanese, one possibility is)H
+ 72 499.68 M("LANG=ja_JP.eucJP".  )H
+ F9 SF
+ 444 756 M(Computer Generation)H 540 743.76 M 540 731.52 M 540 719.28 M 537.12 36 M( )H
+ 303.12 36 M(7)H
+ showpage
+%%EndPage: 7
+
+
+%%EOF
+

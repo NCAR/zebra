@@ -1,0 +1,206 @@
+
+Changes, re-writes, and explanations of rdss/SmeMenu development.  The
+version numbers referenced below refer to RCS symbolic tags where 1.1
+is tagged as 'V1_1'.
+
+$Id: SMEMENUCHANGES,v 1.4 1994-09-01 10:54:25 granger Exp $
+
+RdssMenu and SmeMenu Changes
+----------------------------
+
+rdssMenu{.h,.c,P.h} capitalized to become RdssMenu{.h,.c,P.h} Yeah, this
+might require lots of changes in UI source's include directives, but the
+names really should be capitalized.
+
+SmeMenu no longer uses popdown callbacks to make sure all menu shells
+in the cascade get popped down on a <BtnUp>.  Instead, the SmeMenu's
+Unhighlight method explicitly calls its popup menu shell's 'unhighlight'
+action and then explicitly pops down the shell.
+
+When a SmeMenu creates a menu popup shell, the shell's <BtnUp> translation
+is overridden to just "<BtnUp>: notify()", removing the calls to
+"MenuPopdown()" and "unhighlight()".  Because all of the sub-menus are
+popped up XtGrabNonexclusive, all <BtnUp> events are echoed ('remapped') to
+the spring-loaded shell at the top of the modal cascade (the one popped up
+with XtGrabExclusive).  This activates that shell's 'unhighlight' method,
+which then traverses the cascade of SmeMenuObjects and RdssMenu shells
+popping down shells and calling 'unhighlight' methods.
+
+The original fix to the "LeaveNotify event in parent menu shell when
+SmeMenu child pops-up sub-menu" was not complete.  A <BtnUp> somewhere
+would call Unhighlight() in the top menu, but if the event occurred inside
+the submenu, the SmeMenu object would ignore it by assuming it was from an
+errant LeaveNotify.  The call to SmeMenuPoppedUp() would then return true
+and entry_set would not get set to NULL as it should have.  So... the
+RdssMenu's Unhighlight was made more intelligent, only calling a SmeMenu
+object's Unhighlight when positive that is what is intended.  The
+QueryPointer in SmeMenu's Unhighlight could then be removed.
+
+The test menu is now in the file 'menu' named 'menu'.  Depth of about 5 or
+6 menus I think.  And in a little testing I've seen no XtRemoveGrab
+warnings.
+
+A SmeMenu entry now reverses video on any highlight call, and the menu
+pops up when the cursor is 40 pixels to the right.  The menu title pops up
+underneath the cursor.  I think this behavior looks nicer, but it could
+be changed.  40 may even be too much, now that things work as they should
+anyway.
+
+The works/ directory is as things were after the first fix to the
+"LeaveNotify" problem.  1.1/ contains preliminary changes such as file name
+changes.  1.2/ contains the whole shibbang described above.
+
+Some debugging macros were added.  Beaucoup messages get printed (some may
+even be helpful) if DEBUG is defined in SmeMenu.c and RdssMenu.c. If so,
+ignore the XtName() argument type warnings.
+
+1.4  -- Everything up to but not including the XWarpPointer changes
+
+1.5  -- Ongoing work to make XWarpPointer for menus in lower-right corner work
+
+1.6  -- XWarpPointer works, XtRemoveGrab warning fixed, actions added,
+        GetEventEntry() bug fixed, works in principle, but still a couple
+        bugs to fix and some coding to clean up.
+
+	Some drastic changes had to be made to see this stuff work.  Warping
+	the pointer appears to work only if the submenu is popped up *before*
+	actually warping the pointer.  The leave event in the parent menu is
+	ignored because the submenu's MenuPoppedUp() returns true, and the
+	submenu gets the enter event at the pointer's destination rather than some
+	other previously-popped-up menu.  Hence to warp the pointer, the
+	position and popup actions can be done spearately as was the tradition.
+	[Version 1.7 below makes access to the simultaneous position and popup
+	functionality more sophisticated than the methods kludged in this version.]
+
+	The XtRemoveGrab warning occurs because of the ordering of actions in the
+	<BtnUp> event translation in the RdssMenu.  XtPopdown() calls XtRemoveGrab(),
+	and XtRemoveGrab() removed not only the grab on the window being popped down
+	but also on any descendants of the window in the modal cascade (which
+	makes sense).  So the remapped <BtnUp> event which gets sent to the top
+	of the cascade causes the top window to pop down and the grab to be removed
+	from all other windows in the cascade.  So when each of these windows
+	pops down, and XtRemoveGrab is called for each window and its descendants,
+	the grab has previously been removed and the error is generated.  So the fix
+	is popping down the windows from the lowest level (greatest depth) to the
+	highest level (initial pop-up, spring-loaded menu with XtGrabExclusive
+	(the rest have XtGrabNonexclusive)).  However, this causes problems.
+	When a submenu popsdown while the cursor is inside it and over the parent
+	menu, the parent menu will get an <EnterNotify> event, which will cause the
+	parent menu to highlight() its entry, which can popup the submenu again.
+	The parent is then popped down only to leave its submenu stranded.  The
+	solution used here is to disable or inhibit highlight() actions while the
+	cascade is popping down as a result of a <BtnUp> event.  Two methods:
+
+	1)	Rather than popdown a menu, unmap it so that it gets no more
+		events.  Then do the notify() and unhighlight() actions, then
+		call MenuPopdown().  The windows will disappear (unmap) from
+		top to bottom, but the popdown will be from bottom up.  This
+		is a simple solution, but aesthetically it might be nicer to
+		see the windows disappear from bottom to top.
+
+	2)	Disable highlighting through some action which sets an internal
+		flag.  Any highlights received while the flag is true are
+		ignored.  This way the popdowns occur in reverse order, but
+		the EnterNotify events caused by submenus popping down do not
+		cause any action to be taken by any ancestor menus.
+
+	Functionality for both methods is in place.  The second is currently
+	in use.  Example translations for each would be:
+
+    "<EnterWindow>:     highlight()             \n\
+     <LeaveWindow>:     unhighlight()           \n\
+     <BtnMotion>:       highlight()             \n\
+     <BtnUp>:           disable-highlight() notify() \
+			unhighlight() MenuPopdown()";
+
+    "<EnterWindow>:     highlight()             \n\
+     <LeaveWindow>:     unhighlight()           \n\
+     <BtnMotion>:       highlight()             \n\
+     <BtnUp>:           unmap() notify() unhighlight() MenuPopdown()";
+
+	The method used in RdssMenu's translations should correspond with
+	that used in SmeMenu's unhighlight method.  Unhighlight() popsdown
+	a submenu by first calling either of the submenu's "unmap" or
+	"disable-highlight" actions.  Then it pops down the submenu.
+
+	Since RdssMenu's Unhighlight() action now ignores <LeaveNotify>
+	events in an SmeMenu entry while its submenu is popped up, it is
+	possible to leave the right side of an entry without causing an
+	unhighlight.  However, due to a bug in GetEventEntry(), a <Motion>
+	event at the edge of an entry would be returned as a NULL entry.
+	This would cause an unhighlight() action would pop down the
+	submenu.  The problem was that GetEventEntry was not taking into
+	account its border width when determining whether an event occurred
+	inside one of its gadgets.  This has been fixed.
+
+
+1.7 -- No changes to SmeMenu.c, except debugging undefined.  RdssMenu.c:
+	Modularized the menu position, move, and popup procedures and
+	re-wrote the PositionMenuAction to take advantage.  Added two
+	methods of public access to the PositionAndPopup functionality,
+	which takes care of positioning, moving, and popping up an RdssMenu
+	with the cursor under the default entry, even if the menu must be
+	moved to appear entirely on the screen.  The two methods:
+
+     1)	Action named "PositionAndPopupRdssMenu".  If no argument, tries to
+	get the menu name from the menuName of the widget whose
+	translations called the action (i.e. a MenuButton).  Otherwise it
+	takes a single argument which is the name of the menu.
+
+     2) Public function RdssMenuPositionAndPopup(Widget, XPoint *,
+	XtGrabKind).  Intended to be called by SmeMenu objects in modal
+	cascades with XtGrabNonexclusive.
+
+	Also, the action "PositionRdssMenu" is now an alias for the
+	original position action "RdssPositionSimpleMenu" (either name can
+	be used).
+
+	The file uic.ad has been added.  It sets MenuButton translations to
+	use the PositionAndPopupRdssMenu() action.  Run 'xrdb -merge
+	uic.ad' before running uic> to see its effect on the MenuButton
+	popup behavior.
+
+
+1.8 -- 	There was a problem with re-using the same popup shell in different
+	parts of a menu hierarchy.  SmeMenu's highlight method overrides
+	the popup shell's <BtnUp> translations to disable the usual 
+	unhighlight() and popdown() actions, which will get invoked from 
+	above.  However, if the same popup shell is subsequently use as a
+	top-level menu, it will need its original translations back.  So
+	the SmeMenu widget now has a private structure member called
+	"popup_trans" which holds the popup shell's original translations.
+	The translations are restored whenever the popup shell is popped
+	down.  I think the changes in translations may be entirely 
+	unnecessary now that the action order has changed from 
+	popdown-notify-unhighlight to notify-unhighlight-popdown.  Without
+	the translation change in SmeMenu:Highlight(), there will be some
+	calls to unhighlight and popdown from any parent SmeMenu objects
+	after the RdssMenu has already popped itself down.  This doesn't
+	cause XtRemoveGrab errors because the RdssMenu popping down is at
+	the bottom of the modal cascade.
+
+	For now the translation shuffling has been left there.
+
+1.9 --  All of the translation stuff was removed as tests on SmeMenu:1.8.1
+	seem to show that it is not necessary, as long as the translations
+	are like the defaults coded into RdssMenu.c (i.e. popdowns done
+	in post-order traversal of the modal cascade).
+
+----------------
+1.10
+
+Finally done away with the pointer warping, making the implementation a
+little conformant to the ICCCM.  Two critical ideas were implemented.
+First, the EnterWindow event did not to be bound to a highlight() action --
+the BtnMotion event suffices.  This prevents submenu entries from
+immediately highlighting if they pop-up underneath the pointer.  Second,
+rather than warp the pointer at the right edge of the screen to make the
+menus fit, the menus are instead placed on the opposite side of the pointer
+(ala left-cascading).  The menu must be beyond the pointer, because if the
+pointer falls inside the right edge it will likely immediately activate a
+menu entry.  To allow the pointer to traverse left into a menu without
+unhighlighting it on the way, the menu popup code uses different X limits
+for changing pop-up status.  The limit for going from popped up to popping
+down is 20 pixels left of the limit for doing the reverse.  Vertical
+warping should never have been necessary, and it was definitiely a nuisance
+at times.  Now neither horizontal nor vertical warping is required.

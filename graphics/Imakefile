@@ -1,0 +1,72 @@
+MFVERSION="$Id: Imakefile,v 1.3 1993-12-28 20:54:48 case Exp $"
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+
+LOCALLIB = glib.a
+
+LIBS = $(LIBRDSSUTIL) $(XLIB) $(SUNVIEWLIBS)
+
+DEPLIBS = $(LOCALLIB) 
+
+INCLUDES = $(XINCLUDES)
+
+EXTRA_DEFINES = $(ENDIANFLAG) -I$(CONFIGDIR) -DCOLORDB=$(COLORDB)
+
+BINSRCS = gt.c
+
+LIBOBJS= clip.o control.o device.o dev_4107.o dev_comtal.o dev_ramtek.o \
+	dev_tek.o messages.o oplist.o overlay.o pixel.o pixel_font_0.o \
+	sfont_0.o sfont_1.o text.o util.o dev_xwin.o color.o image.o \
+	dev_null.o tty.o dev_4010.o dev_pixrect.o dev_sunview.o dev_x11.o \
+	dev_xtitan.o dev_ps.o dev_psc.o
+
+LIBSRCS = $(LIBOBJS:.o=.c)
+
+SRCS= 	$(BINSRCS) $(LIBSRCS) 
+
+HEADERS = graphics.h pixel.h
+
+PRIVATE_HEADERS = color.h device.h image.h oplist.h overlay.h param.h \
+	pxl.h ramtek.h tty.h version.h workstation.h 
+
+DISTFILES = Imakefile Makefile $(SRCS) $(HEADERS) $(PRIVATE_HEADERS)
+
+
+NormalLibraryTarget ($(LOCALLIB), $(LIBOBJS))
+
+NormalProgramTargetNoInstall (gt,gt.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+InstallObjectsIntoLibrary($(LIBRDSSGRAPH),$(LIBOBJS))
+
+saber_lib:
+	#setopt ansi
+	#load $(CFLAGS) $(SRCS)
+	#load -Bstatic $(LIBDIR)/librdssutil.a -lX11 MathLib $(LIBDIR)/gcc-gnulib
+
+saber_gt: saber_lib
+	#load $(CFLAGS) gt.c
+
+BuildIncludes($(HEADERS),.,.)
+
+DependTarget()
+
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+

@@ -1,0 +1,21 @@
+# $Id: Imakefile,v 1.1 2001-11-30 00:42:09 granger Exp $
+
+#CDEBUGFLAGS = -g -DDEBUG -pedantic
+
+SRCS = Tabs.c Gcs.c
+OBJS = Tabs.o Gcs.o
+HDRS = Tabs.h TabsP.h Gcs.h
+
+LOCAL_LIBRARIES = $(XLIBS)
+
+DISTFILES = \
+        Tabs.lsm Readme Tabs.man Imakefile Makefile.linux Makefile.solaris \
+        Makefile.sunos $(HDRS) $(SRCS) Tabdemo Tabs.gif
+
+AllTarget($(OBJS))
+
+TestProgramTarget(tabdemo,$(OBJS) tabdemo.o,/**/,$(XLIBS),/**/)
+
+BuildIncludesTop($(HDRS))
+InstallMultipleFlags($(HDRS),$(INCDIR),$(INSTINCFLAGS))
+

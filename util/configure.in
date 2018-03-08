@@ -1,0 +1,16 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT(rdssutil, [20110602], rdp-support@eol.ucar.edu)
+AC_CONFIG_SRCDIR([batch.c])
+AM_INIT_AUTOMAKE
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_CPP
+AC_PROG_RANLIB
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_OFF_T
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

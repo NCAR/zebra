@@ -1,0 +1,1324 @@
+! 1/87 jc
+!
+! Contained herein are the user interface state definitions.
+! Note an important file interdependance: All keywords defined herein are
+! given numbers as defined in ui_commands.h.  Please make sure that the
+! two agree with each other.
+!
+! Stuff contained here is constrained by the fact that uib needs to be
+! able to understand it.  Since uib has the absolute minimum set of
+! instructions that I could get away with hardcoding, it's not too smart.
+! Nothing other than "define state" and its inferiors should appear here.
+! IF YOU CHANGE THIS FILE, MAKE SURE IT WILL GET THROUGH uib!
+!
+! $Id: ui.state,v 1.6 2000-12-02 07:05:26 granger Exp $
+
+!
+! Kludge needed to get the state definitions read in with the bootstrap
+! stuff.  This state is redefined below.
+!
+define state ust$input_initial
+	input '@' -8
+		next ust$final_string
+	endinput
+	input 'input' -6	! The "input" command
+		next ust$input_what
+	endinput
+	input 'enddef' -5	! End the state definition
+		next ust$no_more
+	endinput
+	input 'eoftext' -23
+		next ust$final_string
+	endinput
+	input 'ctable' -28
+		next ust$final_string
+	endinput
+	input 'helpfile' -29
+		next ust$final_string
+	endinput
+enddef
+
+!
+! This is the initial user interface state.
+!
+define state ust$boot_initial
+	eoftext 'exit'
+	ctable 'ui$command_table'
+	helpfile 'ust$boot_initial.help'
+	@ ui_commands
+	input 'test' -31
+		next ust$final_expression
+	endinput
+!	input 'parse' -32
+!		next ust$final_string
+!	endinput
+enddef
+
+
+
+
+!
+! This state describes all of the junk that can appear within an INPUT block.
+!
+define state ust$within_input
+	eoftext "endinput"
+	input 'reject' -16
+		next ust$no_more
+	endinput
+	input 'message' -17
+		next ust$final_string
+	endinput
+	input 'ignore' -18
+		next ust$no_more
+	endinput
+	input 'next' -19
+		next ust$final_string
+	endinput
+!	input 'pushback' -20
+!		next ust$no_more
+!	endinput
+	input 'endinput' -21
+		next ust$no_more
+	endinput
+	input 'done' -22
+		next ust$no_more
+	endinput
+	input 'lowercase' -40
+		next ust$no_more
+	endinput
+	input 'forceeval' -85
+		next ust$no_more
+	endinput
+!	input 'partial-ok' -27
+!		next ust$no_more
+!	endinput
+enddef
+
+!
+! ust$final_filename is for commands that have a string value parameter as
+! the last item.  No case conversion is done, since we need upper and lower
+! case for some filenames.
+!
+define state ust$final_filename
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+define state ust$save_file
+	input string
+		next ust$save_all
+	endinput
+enddef
+
+define state ust$save_all
+	input EOS
+		done
+	endinput
+	input 'all' 1  ! (number irrelevant -- presence is what matters)
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! ust$final_string is for commands that have a string value parameter as the 
+! last item.  It is converted to lower case.
+!
+define state ust$final_string
+	input string
+		lowercase
+		next ust$no_more
+	endinput
+enddef
+
+define state ust$final_unmunged_string
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+!
+! For a final date...
+!
+define state ust$final_date
+	input date
+		next ust$no_more
+	endinput
+	input other
+		message "*sigh* . . . I really wanted a date here. . ."
+		reject
+		next ust$final_date
+	endinput
+enddef
+
+!
+! ust$final_int is for a trailing integer parameter.
+!
+define state ust$final_int
+	input integer
+		next ust$no_more
+	endinput
+	input other
+		message "Please enter an integer value here"
+		reject
+	endinput
+enddef
+
+!
+! ust$final_real is for a trailing real parameter.
+!
+define state ust$final_real
+	input real
+		next ust$no_more
+	endinput
+	input other
+		message "Please enter a real value here"
+		reject
+	endinput
+enddef
+
+!
+! ust$no_more indicates the end of a command.
+!
+define state ust$no_more
+	helpfile 'ust$no_more'
+	input eos	! Good, the user quit.
+		ignore
+		done
+	endinput
+	input other
+		message 'Unexpected junk past the end of a good command'
+		reject
+		next ust$no_more
+	endinput
+enddef
+
+
+
+!
+! Once we are within DEFINE STATE, we enter this state.
+!
+define state ust$input_initial
+	helpfile 'ust$input_initial'
+	eoftext "enddef"
+	input '@' -8
+		next ust$final_filename
+	endinput
+	input 'input' -6	! The "input" command
+		next ust$input_what
+	endinput
+	input 'enddef' -5	! End the state definition
+		next ust$no_more
+	endinput
+	input 'eoftext' -23
+		next ust$final_string
+	endinput
+	input 'ctable' -28
+		next ust$final_string
+	endinput
+	input 'helpfile' -29
+		next ust$final_string
+	endinput
+enddef
+
+!
+! The first parameter to the INPUT command.
+!
+define state ust$input_what
+	helpfile 'ust$input_what'
+	input string	! For the definition of keywords
+		lowercase
+		next ust$final_int
+	endinput
+	input 'string' -9
+		next ust$no_more
+	endinput
+	input 'integer' -10
+		next ust$no_more
+	endinput
+	input 'real' -11
+		next ust$no_more
+	endinput
+	input 'date' -12
+		next ust$no_more
+	endinput
+	input 'boolean' -13
+		next ust$no_more
+	endinput
+	input 'expression' -64
+		next ust$no_more
+	endinput
+	input 'eos' -14
+		next ust$no_more
+	endinput
+	input 'other' -15
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! A final expression of any type.
+!
+define state ust$final_expression
+	input expression
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! For the DUMP command -- what to dump
+!
+define state ust$dump_what
+	input 'table' -24
+		next ust$final_string
+	endinput
+	input 'state' -4
+		next ust$final_string
+	endinput
+	input 'command' -26
+		next ust$final_string
+	endinput
+	input 'csave' -37
+		next ust$no_more
+	endinput
+	input 'key' -39
+		next ust$no_more
+	endinput
+	input 'menu' -50
+		next ust$final_string
+	endinput
+enddef
+
+!
+! ust$set_what, to find out what the user wants to SET.
+!
+define state ust$set_what
+	input string
+		next ust$set_value
+	endinput
+enddef
+
+define state ust$set_value
+	input eos
+		done
+		ignore
+	endinput
+	input expression
+		next ust$no_more
+	endinput
+enddef
+
+!
+! Given a DEFINE command, the user should tell what is to be defined.
+!
+define state ust$define_what
+	input 'state' -4
+		next ust$final_string
+	endinput
+	input 'command' -26
+		next ust$command_name
+	endinput
+	input 'key' -39
+		next ust$key_name
+	endinput
+	input 'menu' -50
+		next ust$final_string
+	endinput
+	input 'widget' -65
+		next ust$widget_name
+	endinput
+enddef
+
+!
+! Get the command name, then grab the substitute string.
+!
+define state ust$command_name
+	input string
+		lowercase
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+define state fix-what
+	input string
+		lowercase
+		next ust$final_string
+	endinput
+enddef
+
+!
+! Define key.
+!
+define state ust$key_name
+	helpfile 'ust$key_name'
+	input string
+		lowercase
+		next ust$key_command
+	endinput
+enddef
+
+
+define state ust$key_command
+	helpfile 'ust$key_command'
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! Take the boolean expression for a WHILE command.
+!
+define state ust$while_expr
+	helpfile 'ust$while_expr'
+	input boolean
+		next ust$no_more
+	endinput
+enddef
+
+!
+! Message states.
+!
+define state ust$message_string
+	helpfile 'ust$message'
+	input string
+		next ust$message_param
+	endinput
+enddef
+
+define state ust$message_param
+	helpfile 'ust$message'
+	input string
+		next ust$message_param
+	endinput
+	input EOS
+		ignore
+		done
+	endinput
+enddef
+
+
+!
+! Vset
+!
+define state ust$vset_what
+	input string
+		lowercase
+		next ust$final_string
+	endinput
+enddef
+
+!
+! If/then/elseif/else/endif
+!
+define state ust$if_expr
+	helpfile 'ust$if_expr'
+	input boolean
+		next ust$then_opt
+	endinput
+enddef
+
+define state ust$elseif_expr
+	helpfile 'ust$if_expr'
+	input boolean
+		ForceEval
+		next ust$then_opt
+	endinput
+enddef
+
+define state ust$then_opt
+	input 'then' -1005
+		ignore
+		next ust$no_more
+	endinput
+	input EOS
+		done
+		ignore
+	endinput
+enddef
+
+!
+! The elseif command is supposed to be a single word, but let's try to do
+! the right thing if they put in a space.
+!
+define state ust$catch_else_if
+	helpfile 'ust$catch_else_if'
+	input EOS	! Normal ELSE
+		ignore
+		done
+	endinput
+	input 'if' -1004
+		ignore
+		next ust$elseif_expr
+	endinput
+enddef
+
+!
+! Foreach.
+!
+define state ust$foreach_var
+	helpfile 'ust$foreach_var'
+	input string
+		lowercase
+		next ust$foreach_loop
+	endinput
+enddef
+
+define state ust$foreach_loop
+	helpfile 'ust$foreach_loop'
+	input string
+		next ust$foreach_loop
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+!
+! @
+!
+define state ust$at_file
+	helpfile 'ust$at_file'
+	input string
+		next ust$at_loop
+	endinput
+enddef
+
+define state ust$at_loop
+	helpfile 'ust$at_loop'
+	input string
+		next ust$at_loop
+	endinput
+	input EOS
+		ignore
+		done
+	endinput
+enddef
+
+
+!
+! Prompting.
+!
+define state ust$prompt-variable
+	input string
+		next ust$prompt-type
+	endinput
+enddef
+
+
+define state ust$prompt-type
+	helpfile 'ust$prompt-type'
+	input 'real' -11
+		next ust$prompt-string
+	endinput
+	input 'integer' -10
+		next ust$prompt-string
+	endinput
+	input 'date' -12
+		next ust$pr-date-string
+	endinput
+	input 'string' -9
+		next ust$pr-string-string
+	endinput
+	input 'y_or_n' -46
+		next ust$pr-yn-string
+	endinput
+enddef
+
+define state ust$prompt-string
+	input string
+		next ust$prompt-options
+	endinput
+enddef
+
+define state ust$prompt-options
+	input 'lower' -43
+		next ust$prompt-limit
+	endinput
+	input 'upper' -44
+		next ust$prompt-limit
+	endinput
+	input 'default' -45
+		next ust$prompt-limit
+	endinput
+	input 'helpfile' -29
+		next ust$prompt-helpfile
+	endinput
+	input EOS
+		ignore
+		done
+	endinput
+enddef
+
+
+define state ust$prompt-limit
+	input real
+		next ust$prompt-options
+	endinput
+enddef
+
+
+define state ust$prompt-helpfile
+	input string
+		next ust$prompt-options
+	endinput
+enddef
+
+define state ust$pr-date-string
+	input string
+		next ust$pr-date-opts
+	endinput
+enddef
+
+define state ust$pr-date-opts
+	input 'default' -45
+		next ust$pr-date-def
+	endinput
+	input 'helpfile' -29
+		next ust$pr-date-help
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+define state ust$pr-date-def
+	input date
+		next ust$pr-date-opts
+	endinput
+enddef
+
+
+define state ust$pr-date-help
+	input string
+		next ust$pr-date-opts
+	endinput
+enddef
+
+
+define state ust$pr-string-string
+	input string
+		next ust$pr-string-opts
+	endinput
+enddef
+
+
+define state ust$pr-string-opts
+	input 'default' -45
+		next ust$pr-string-def
+	endinput
+	input 'helpfile' -29
+		next ust$pr-string-help
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+define state ust$pr-string-def
+	input expression
+		next ust$pr-string-opts
+	endinput
+enddef
+
+
+define state ust$pr-string-help
+	input string
+		next ust$pr-string-opts
+	endinput
+enddef
+
+
+define state ust$pr-yn-string
+	input string
+		next ust$pr-yn-opts
+	endinput
+enddef
+
+
+define state ust$pr-yn-opts
+	input 'default' -45
+		next ust$pr-yn-def
+	endinput
+	input 'helpfile' -29
+		next ust$pr-yn-help
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+!
+! This state is also invoked in ui_cp_yn ().
+!
+define state ust$pr-yn-def
+	input 'yes' -47
+		next ust$pr-yn-opts
+	endinput
+	input 'no' -48
+		next ust$pr-yn-opts
+	endinput
+enddef
+
+
+define state ust$pr-yn-help
+	input string
+		next ust$pr-yn-opts
+	endinput
+enddef
+
+
+!
+! Command definitions for menus.  After a DEFINE MENU command is
+! encountered, we get thrown into ust$within_menu, to get the various
+! menu options.  The sub-sub-state ust$menu_choice is used for the
+! definitions of the actual menu entries.
+!
+define state ust$within_menu
+	eoftext 'enddef'
+	input 'title' -51
+		next ust$final_unmunged_string
+	endinput
+	input 'default' -45
+		next ust$def_choice
+	endinput
+	input 'choice' -52
+		next ust$message_string
+	endinput
+	input 'enddef' -5
+		next ust$no_more
+	endinput
+enddef
+
+
+
+define state ust$def_choice
+	input 'choice' -52
+		ignore
+		next ust$message_string
+	endinput
+	input string
+		next ust$message_param
+	endinput
+enddef
+
+
+define state ust$menu_choice
+	eoftext 'endchoice'
+	input 'command' -26
+		next ust$final_unmunged_string
+	endinput
+	input 'helpfile' -29
+		next ust$final_string
+	endinput
+	input 'return' -53
+		next ust$no_more
+	endinput
+	input 'replace' -61
+		next ust$final_string
+	endinput
+	input 'push' -62
+		next ust$final_string
+	endinput
+	input 'endchoice' -54
+		next ust$no_more
+	endinput
+	input 'newdefault' -59
+		next ust$final_int
+	endinput
+enddef
+
+
+!
+! Stuff for procedure definition.
+!
+define state ust$proc_name
+	input string
+		next ust$proc_args
+	endinput
+enddef
+
+define state ust$proc_args
+	input EOS  ! End of (possibly empty) arg list.
+		done
+	endinput
+	input string ! arg name
+		next ust$proc_arg_type
+	endinput
+enddef
+
+
+define state ust$proc_arg_type
+	input EOS
+		message 'You must give a type for the last argument'
+		reject
+		next ust$proc_arg_type
+	endinput
+	input 'string' 2	! SYMT_STRING
+		next ust$proc_args
+	endinput
+	input 'integer' 1	! SYMT_INT
+		next ust$proc_args
+	endinput
+	input 'real' 0		! SYMT_FLOAT
+		next ust$proc_args
+	endinput
+	input 'date' 3		! SYMT_DATE
+		next ust$proc_args
+	endinput
+	input 'boolean' 4	! SYMT_BOOL
+		next ust$proc_args
+	endinput
+enddef
+
+
+define state ust$pcall_name
+	input string
+		next ust$pcall_args
+	endinput
+enddef
+
+
+define state ust$pcall_args
+	input EOS
+		done
+	endinput
+	input string
+		next ust$pcall_args
+	endinput
+enddef
+
+
+
+
+define state ust$what_mode
+	input 'menu' 1 ! M_MENU
+		next ust$menu_name
+	endinput
+	input 'window' 4 ! M_WINDOW
+		next ust$mw_widget
+	endinput
+enddef
+
+
+define state ust$menu_name
+	input eos
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+define state ust$mw_widget
+	input eos
+		done
+	endinput
+	input string
+		next ust$mw_geom
+	endinput
+enddef
+
+define state ust$mw_geom
+	input eos
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+define state ust$keypad_state
+	input 'on' 1
+		next ust$no_more
+	endinput
+	input 'function' 1
+		next ust$no_more
+	endinput
+	input 'off' 0
+		next ust$no_more
+	endinput
+	input 'number' 0
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! DELETE.
+!
+define state ust$delete_what
+	input 'key' -39
+		next ust$final_string
+	endinput
+	input 'menu' -50
+		next ust$final_string
+	endinput
+	input 'state' -4
+		next ust$final_string
+	endinput
+	input 'command' -26
+		next ust$final_string
+	endinput
+enddef
+
+!
+! Popup
+!
+define state ust$popup_what
+	input string
+		next ust$popup_where
+	endinput
+enddef
+
+define state ust$popup_where
+	input eos
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! Widgets.
+!
+define state ust$widget_name
+	input string
+		lowercase
+		next ust$widget_type
+	endinput
+enddef
+
+!
+! The keyword numbers are widget types from ui_window.h
+!
+define state ust$widget_type
+	input 'list' 0
+		next ust$final_unmunged_string
+	endinput
+	input 'cmenu' 1
+		next ust$final_unmunged_string
+	endinput
+	input 'stack' 3
+		next ust$final_unmunged_string
+	endinput
+	input 'menubar' 4
+		next ust$final_unmunged_string
+	endinput
+	input 'intmenu' 6
+		next ust$final_unmunged_string
+	endinput
+	input 'form' 8
+		next ust$final_unmunged_string
+	endinput
+	input other
+		reject
+		message 'Unknown widget type'
+	endinput
+enddef
+
+
+!
+! Menubar widget definition.
+!
+define state ust$in-menubar
+	eoftext 'enddef'
+	input 'enddef' -5
+		next ust$no_more
+	endinput
+	input 'menu' -50
+		next ust$menu-name
+	endinput
+	input 'vertical' -81
+		next ust$no_more
+	endinput
+	input 'noheader' -82
+		next ust$no_more
+	endinput
+	input 'override' -75
+		next ust$no_more
+	endinput
+	input 'location' -83
+		next ust$fp-2-ints
+	endinput
+	input 'size' -84
+		next ust$fp-2-ints
+	endinput
+enddef
+
+!
+! menu name label [selector]
+! manu name bitmap file [selector]
+!
+define state ust$menu-name
+	input string
+		ignore		! for now
+		next ust$menu-label
+	endinput
+enddef
+
+
+
+define state ust$menu-label
+	input 'bitmap' -80
+		next ust$menu-pixmap
+	endinput
+	input string
+		next ust$menu-opt-sel
+	endinput
+enddef
+
+define state ust$menu-pixmap
+	input string
+		next ust$menu-opt-sel
+	endinput
+enddef
+
+
+define state ust$menu-opt-sel
+	input EOS
+		done
+	endinput
+	input string
+		lowercase	! Var name
+		next ust$no_more
+	endinput
+	input 'selector' -71
+		ignore
+		next ust$final_string
+	endinput
+enddef
+
+
+!
+! Pulldown menu definition
+!
+define state ust$in-mb-entry
+	eoftext 'endmenu'
+	input 'endmenu' -77
+		next ust$no_more
+	endinput
+	input 'entry' -70
+		next ust$mb-entry-text
+	endinput
+	input 'line' -78
+		next ust$no_more
+	endinput
+	input 'submenu' -86
+		next ust$submenu-text
+	endinput
+	input 'mapping' -72
+		next ust$no_more
+	endinput
+	input 'title' -51
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+define state ust$submenu-text
+	input string
+		next ust$final_string
+	endinput
+enddef
+
+
+define state ust$mb-entry-text
+	input string
+		next ust$mb-command
+	endinput
+enddef
+
+define state ust$mb-command
+	input string
+		next ust$mb-opt-mark
+	endinput
+enddef
+
+define state ust$mb-opt-mark
+	input string
+		next ust$no_more
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+
+!
+! The initial state for definition of list widgets.
+!
+
+define state ust$in-list
+	input 'command' -26
+		next ust$final_unmunged_string
+	endinput
+	input 'items' -67
+		next ust$item_list
+	endinput
+!	input 'title' -51
+!		next ust$final_unmunged_string
+!	endinput
+	input 'enddef' -5
+		next ust$no_more
+	endinput
+	input 'endwidget' -5
+		next ust$no_more
+	endinput
+	input 'end' -5
+		next ust$no_more
+	endinput
+	input 'selector' -71
+		next ust$final_string
+	endinput
+	input 'mapping' -72
+		next ust$no_more
+	endinput
+	input 'horizontal' -74
+		next ust$no_more
+	endinput
+enddef
+
+
+define state ust$item_list
+	input string
+		next ust$opt-item
+	endinput
+enddef
+
+
+define state ust$opt-item
+	input EOS
+		done
+	endinput
+	input string
+		next ust$opt-item
+	endinput
+enddef
+
+!
+! Stuff for the cmenu internal definition.
+!
+define state ust$in-cmenu
+	eoftext 'enddef'
+	input 'entry' -70
+		next ust$cm-entry
+	endinput
+	input 'enddef' -5
+		next ust$no_more
+	endinput
+	input 'end' -5
+		next ust$no_more
+	endinput
+	input 'endwidget' -5
+		next ust$no_more
+	endinput
+	input 'selector' -71
+		next ust$final_string
+	endinput
+	input 'mapping' -72
+		next ust$no_more
+	endinput
+	input 'horizontal' -74
+		next ust$no_more
+	endinput
+enddef
+
+
+define state ust$cm-entry
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+
+
+!
+! Stack widgets.
+!
+define state ust$in-stack
+	eoftext 'enddef'
+	input 'subwidget' 0
+		ignore
+		next ust$in_stack
+	endinput
+	input 'list' 0
+		next ust$no_more
+	endinput
+	input 'cmenu' 1
+		next ust$no_more
+	endinput
+	input 'enddef' -5
+		next ust$no_more
+	endinput
+	input 'endwidget' -5
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! Syntax for map tables.
+!
+define state ust$in-map
+	eoftext 'endmapping'
+	input expression
+		next ust$map-opt-to
+	endinput
+	input 'endmapping' -73
+		next ust$no_more
+	endinput
+enddef
+
+
+
+define state ust$map-opt-to
+	input 'to' 0
+		ignore
+		next ust$map-target
+	endinput
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+
+define state ust$map-target
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! Frames.  Get two integers, which could be either locations or sizes.
+!
+define state ust$fp-2-ints
+	input integer
+		next ust$final_int
+	endinput
+enddef
+
+
+
+
+! 
+! Stuff for definition of forms.
+!
+define state ust$in_form
+	input 'popup' -68
+		next ust$final_unmunged_string
+	endinput
+	input 'label' -87
+		next ust$form_entry_name
+	endinput
+	input 'blank' -95
+		next ust$form_entry_name
+	endinput
+	input 'button' -94
+		next ust$form_entry_name
+	endinput
+	input 'newline' -92
+		next ust$no_more
+	endinput
+	input 'endform' -93
+		next ust$no_more
+	endinput
+	input 'enddef' -93
+		next ust$no_more
+	endinput
+	input 'pulldown' -97
+		next ust$form_entry_name
+	endinput
+	input 'noheader' -82
+		next ust$no_more
+	endinput
+	input 'override' -75
+		next ust$no_more
+	endinput
+	input 'location' -83
+		next ust$fp-2-ints
+	endinput
+	input 'size' -84
+		next ust$fp-2-ints
+	endinput
+enddef
+
+define state ust$form_entry_name
+	input string
+		next ust$form_entry_text
+	endinput
+enddef
+
+define state ust$form_entry_text
+	input string
+		next ust$form_entry_params
+	endinput
+	input 'variable' -88
+		next ust$form_text_string
+	endinput
+	input 'bitmap' -80
+		next ust$form_text_string
+	endinput
+enddef
+
+define state ust$form_text_string
+	input string
+		next ust$form_entry_params
+	endinput
+enddef
+
+
+define state ust$form_entry_params
+	input 'width' -89
+		next ust$form_entry_width
+	endinput
+	input 'font' -90
+		next ust$form_entry_string
+	endinput
+	input 'color' -91
+		next ust$form_entry_string
+	endinput
+	input 'command' -26
+		next ust$form_entry_string
+	endinput
+	input 'menu' -50
+		next ust$form_entry_string
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+define state ust$form_entry_width
+	input integer
+		next ust$form_entry_params
+	endinput
+enddef
+
+define state ust$form_entry_string
+	input string
+		next ust$form_entry_params
+	endinput
+enddef
+
+
+
+define state ust$ft_widget
+	input string
+		next ust$ft_entry
+	endinput
+enddef
+
+define state ust$ft_entry
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
