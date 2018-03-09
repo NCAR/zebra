@@ -1,0 +1,6 @@
+Makefile
+Makefile.dep
+*~
+*.o
+share/
+
