@@ -1,0 +1,36 @@
+#! /bin/sh
+
+# This must be run with nohup to run in the background, because it seems
+# svn2git expects to write progress to a tty:
+#
+# nohup ./zebra-to-git &> zebra-to-git.log 2>&1 &
+
+# This depends on a complete authors file in ~/.svn2git/authors
+
+set -x
+
+base=`pwd`
+
+# svn2git final gc can fail for some reason, so do it manually and keep
+# the script going
+
+mkdir zebra
+cd zebra
+svn2git --metadata http://svn.eol.ucar.edu/svn/rdss --trunk trunk/zebra/source  --nobranches --notags || git gc
+
+cd ..
+mkdir rdsslibs
+cd rdsslibs
+svn2git --metadata http://svn.eol.ucar.edu/svn/rdss --trunk trunk/rdsslibs  --nobranches --notags || git gc
+ 
+cd ../zebra
+git remote add rdsslibs file://$base/rdsslibs
+git fetch rdsslibs master:rdsslibs
+git checkout rdsslibs
+git rm aclocal.m4 configure configure.in depcomp INSTALL install-sh Makefile.am Makefile.in  missing mkinstalldirs README version_update .cvsignore
+git commit -m'remove rdsslibs top-level unneeded files'
+git checkout master
+git merge --allow-unrelated-histories -m'add rdsslibs directories' rdsslibs
+git remote remove rdsslibs
+
+cd ..
