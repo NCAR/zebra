@@ -188,17 +188,18 @@ TestProgramTarget (bfdump,bfdump.o,/**/,/**/,/**/)
  * depend:: target assures that FDScan.cc and FDParse.tab.cc get built before 
  * we generate the dependency list. 
  */
-FDScan.cc: FDScan.flex FDParse.tab.h
+FDScan.cc: FDScan.flex FDParse.tab.hh
 	flex -t -PFD FDScan.flex > FDScan.cc
 	$(CP) -f $@ $@.dist
 
-FDParse.tab.h: FDParse.tab.cc
+FDParse.tab.hh: FDParse.tab.cc
 	$(CP) -f $@ $@.dist
 
+/*
+ * bison generates FDParse.tab.hh when --output-file is FDParse.tab.cc
+ */
 FDParse.tab.cc: FDParse.bison
-	bison -p FD -d --output-file=FDParse.tab.c  FDParse.bison
-	$(MV) FDParse.tab.c FDParse.tab.cc
-	test -f FDParse.h && mv -f FDParse.h FDParse.tab.h
+	bison -p FD -d --output-file=FDParse.tab.cc  FDParse.bison
 	$(CP) -f $@ $@.dist
 
 depend:: FDScan.cc FDParse.tab.cc

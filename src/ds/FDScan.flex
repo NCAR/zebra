@@ -10,7 +10,7 @@
 # include <string.h>	/* for strcpy() */
 
 # include "DerivNode.h"
-# include "FDParse.tab.h"
+# include "FDParse.tab.hh"
 
 /*
  * Redefine yylval to use the "FD" prefix, since "flex -P" neglects to redefine

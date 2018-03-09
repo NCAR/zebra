@@ -9,7 +9,7 @@
 DataTypes.h
 DataTypes_xdr.c
 FDParse.tab.cc
-FDParse.tab.h
+FDParse.tab.hh
 FDScan.cc
 GRIBdump
 Makefile
