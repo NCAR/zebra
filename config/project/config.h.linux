@@ -49,7 +49,6 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.linux,v 1.7 2005-05-17 22:44:36 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -67,7 +66,7 @@ XCOMM -----------------------------------------------------------------------
  * If MOSAIC_COMMAND includes the text "netscape", then the netscape protocol
  * will be used.
  */
-# define MOSAIC_COMMAND "netscape"
+# define MOSAIC_COMMAND "firefox"
 
 # ifdef MAKING_MAKEFILE
 /*=======================================================================
@@ -99,11 +98,9 @@ XCOMM -----------------------------------------------------------------------
 /*
  * If the UseInstalledZebra symbol is YES, Zebra executables will link with
  * the installed libraries instead of the libraries built in the source 
- * directories.  Sometimes it is more convenient to link with the source.
- * If you don't understand or don't care about the difference, leave this
- * as YES.
+ * directories.  For development it is more convenient to link with the source.
  */
-# define UseInstalledZebra	YES
+# define UseInstalledZebra	NO
 
 /*=======================================================================*/
 
@@ -124,14 +121,19 @@ XCOMM -----------------------------------------------------------------------
  * The easiest thing to do would be to leave this as no and then configure
  * and build the ingest tree separately.
  */
-# define        BuildIngest             NO
+# define        BuildIngest             YES
+
+# define	BuildDataUtilities	NO
+# define	BuildIngestScheduler	YES
+# define	BuildClassIngest	YES
+# define	BuildSLGrabber		YES
 
 /*
  * Set this if you want the ingest-oriented DataStore utilities (these being
  * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  They
  * will not build properly under a non-ANSI compiler.
  */
-# define	BuildRealtimeDataStoreTools	NO
+# define	BuildRealtimeDataStoreTools	YES
 
 /*
  * The map utilities allow converting maps from a few different existing
@@ -141,6 +143,8 @@ XCOMM -----------------------------------------------------------------------
  */
 # define	BuildMapUtilities		YES
 
+/* Skip python until needed again and it works. */
+# define 	BuildPythonUtils		NO
 
 /* //// That's all of the defintions for choosing pieces to install.///// */
 /* //// Go the next section for other compile configuration options ///// */
@@ -252,7 +256,7 @@ XCOMM -----------------------------------------------------------------------
  */
 # define HasCplusplus	YES
 # define CplusplusCmd	g++
-# define CplusplusDebugFlags -g -Wno-write-strings
+# define CplusplusDebugFlags -g
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -264,7 +268,7 @@ XCOMM -----------------------------------------------------------------------
  * does not disable optimization by specifying any debug flags.
  *
  */
-# define CDebugFlags -g -Wno-write-strings
+# define CDebugFlags -g
 /* # define FortDebugFlags -g */
 
 /*
@@ -322,6 +326,7 @@ XCOMM -----------------------------------------------------------------------
  * specify /usr/local/include if it contains needed header files.
  */
 
+#ifdef notdef
 #ifdef HPArchitecture
 # define XIncDir /usr/contrib/mitX11R5/include	/* HP-UX version */
 #else
@@ -330,6 +335,7 @@ XCOMM -----------------------------------------------------------------------
 
 #define NetCDFIncDir /opt/local/include
 #define UDUnitsIncDir /opt/local/include
+#endif
 
 /*
  * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
@@ -371,7 +377,7 @@ XCOMM -----------------------------------------------------------------------
  * includes live, and SweepFileLibrary to specify the library itself
  * (or SweepFileLibDir to just give the directory).
  */
-# define HasSweepFiles YES
+# define HasSweepFiles NO
 # define SweepFileIncDir /opt/local/include
 # define SweepFileLibrary /opt/local/lib/libddm.a
 
@@ -397,9 +403,11 @@ XCOMM -----------------------------------------------------------------------
  * appropriate value. 
  */
 # define MapProjections YES
+#ifdef notdef
 /* # define ProjLibDir /opt/local/lib */
 # define ProjIncDir /opt/local/include
 # define ProjLibrary /opt/local/lib/libproj.a
+#endif
 	
 /*
  * Examples of command-line options which override the above definitions
@@ -431,11 +439,13 @@ XCOMM -----------------------------------------------------------------------
  * one.
  */
 
+#ifdef notdef
 # define XLibDir /usr/X11R6/lib
 /* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
 # define NetCDFLibDir /opt/local/lib
 # define UDUnitsLibDir /opt/local/lib
+#endif
 
 /*
  * To specify the whole command-line option for a library use the symbols
@@ -472,6 +482,12 @@ XCOMM -----------------------------------------------------------------------
  *	UDUnitsLibrary	-ludunits
  * 	RDSSLibrary	-lrdssui -lrdssutil
  */
+
+/* CentOS 7 no longer includes the plain udunits package, only udunits2 is
+ * available, so make the switch for good here.
+ */
+#define UDUnitsLibrary	-ludunits2
+#define UDUnitsIncDir /usr/include/udunits2
 
 /*========================================================================*/
 # endif /* MAKING_MAKEFILE */

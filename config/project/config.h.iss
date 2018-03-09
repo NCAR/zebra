@@ -49,7 +49,6 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.iss,v 1.2 2007-12-19 20:14:38 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -99,11 +98,9 @@ XCOMM -----------------------------------------------------------------------
 /*
  * If the UseInstalledZebra symbol is YES, Zebra executables will link with
  * the installed libraries instead of the libraries built in the source 
- * directories.  Sometimes it is more convenient to link with the source.
- * If you don't understand or don't care about the difference, leave this
- * as YES.
+ * directories.  For development it is more convenient to link with the source.
  */
-# define UseInstalledZebra	YES
+# define UseInstalledZebra	NO
 
 /*=======================================================================*/
 
