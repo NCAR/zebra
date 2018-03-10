@@ -1,0 +1,40 @@
+# Docker container for building aeros on ubuntu.
+#
+# See the ./runc script to mount the aeros source tree to be compiled in
+# the container running this image.
+#
+
+FROM ubuntu
+
+ARG user=zebra
+ARG uid=1000
+ARG group=eol
+ARG gid=1000
+
+RUN apt-get update
+RUN apt-get upgrade -y
+
+RUN apt-get install -y \
+  sudo \
+  gcc \
+  g++ \
+  make \
+  git \
+  libnetcdf-dev \
+  libnetcdf-cxx-legacy-dev \
+  netcdf-bin \
+  x11-apps x11-utils x11-common libx11-dev libxaw7-dev \
+  libncurses-dev \
+  libproj-dev \
+  libudunits2-dev \
+  bison++
+
+RUN addgroup --gid $gid $group
+RUN adduser --ingroup $group --disabled-password --uid $uid --gecos '' $user && echo "${user}:${user}" | chpasswd && adduser $user sudo
+
+RUN echo "%sudo   ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/sudo_group
+
+USER $user
+WORKDIR /home/$user
+ENV HOME /home/$user
+

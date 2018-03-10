@@ -1,0 +1,6 @@
+#! /bin/sh
+
+exec docker run --rm --user `id -u`:eol \
+    --volume `cd .. && pwd`:/home/zebra/zebra:rw,Z -i \
+    -t "$1" /bin/bash
+
