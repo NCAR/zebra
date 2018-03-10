@@ -132,8 +132,11 @@ XCOMM -----------------------------------------------------------------------
  * Set this if you want the ingest-oriented DataStore utilities (these being
  * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  They
  * will not build properly under a non-ANSI compiler.
+ *
+ * Default to off because Archiver depends on the old ndbm interface, and the
+ * build configuration for that is inconsistent across Linux distros.
  */
-# define	BuildRealtimeDataStoreTools	YES
+# define	BuildRealtimeDataStoreTools	NO
 
 /*
  * The map utilities allow converting maps from a few different existing
