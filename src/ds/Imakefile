@@ -178,6 +178,9 @@ XDRFILES = DataTypes.x
 
 XDRTarget(DataTypes)
 
+clean::
+	$(RM) -f $(RPCGENFILES)
+
 /*
  * Dump routines.
  */
@@ -192,17 +195,23 @@ FDScan.cc: FDScan.flex FDParse.tab.hh
 	flex -t -PFD FDScan.flex > FDScan.cc
 	$(CP) -f $@ $@.dist
 
-FDParse.tab.hh: FDParse.tab.cc
-	$(CP) -f $@ $@.dist
+clean::
+	$(RM) -f FDScan.cc
 
 /*
- * bison generates FDParse.tab.hh when --output-file is FDParse.tab.cc
+ * Some versions of bison generate FDParse.tab.hh when --output-file is
+ * FDParse.tab.cc, but others (Ubuntu) still generate FDParse.h.
  */
-FDParse.tab.cc: FDParse.bison
+FDParse.tab.cc FDParse.tab.hh: FDParse.bison
 	bison -p FD -d --output-file=FDParse.tab.cc  FDParse.bison
-	$(CP) -f $@ $@.dist
+	test -f FDParse.h && mv -f FDParse.h FDParse.tab.hh
+	$(CP) -f FDParse.tab.cc FDParse.tab.cc.dist
+	$(CP) -f FDParse.tab.hh FDParse.tab.hh.dist
 
 depend:: FDScan.cc FDParse.tab.cc
+
+clean::
+	$(RM) -f FDParse.tab.cc FDParse.tab.hh
 
 /*
  * Test routines.
