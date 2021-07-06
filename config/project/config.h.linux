@@ -257,10 +257,13 @@ XCOMM -----------------------------------------------------------------------
  * might want to consider either stripping the binaries after installation
  * or disabling debugging altogether.
  */
+# define RPCInclude     -I/usr/include/tirpc
+# define RPCLibs        -ltirpc
+# define ExtraLoadFlags	RPCLibs
 # define HasCplusplus	YES
 # define CplusplusCmd	g++
 /* -Wno-cpp avoids warnings about _SVID_SOURCE and _BSD_SOURCE deprecation */
-# define CplusplusDebugFlags -g -Wno-cpp
+# define CplusplusDebugFlags -g -Wno-cpp RPCInclude
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -272,7 +275,7 @@ XCOMM -----------------------------------------------------------------------
  * does not disable optimization by specifying any debug flags.
  *
  */
-# define CDebugFlags -g -Wno-cpp
+# define CDebugFlags -g -Wno-cpp RPCInclude -Wno-implicit-function-declaration
 /* # define FortDebugFlags -g */
 
 /*
