@@ -45,7 +45,7 @@ T_Derivations ()
 {
     DataChunk *dc;
     PlatformId pid = ds_LookupPlatform ("sgpaerich1C1.a1");
-    FieldId want_fld = F_Field (0, "theta_e", 0, "F");
+    FieldId want_fld = F_Field (0, "theta_e", 0, "degF");
     ZebraTime now, times[NTIMES];
     float *data;
     int i, err;
@@ -207,9 +207,12 @@ T_ClassDerivations ()
 	    target = 1500;
 	else
 	    nwant = 0;
+	msg_ELog (EF_DEBUG, "checking field %s, expecting %d values of %f...",
+		  F_GetFullName (fields[i]), target);
 	for (j = 0; j < nsample; ++j)
 	{
 	    float f = dc_GetScalar (dc, j, fields[i]);
+	    msg_ELog (EF_DEVELOP, "value %i: %f", j, f);
 	    if (f == target)
 		++nfound;
 	}
