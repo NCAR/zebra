@@ -10,9 +10,9 @@
 class Serializable;
 class SerialBuffer;
 class MemoryXDR;
-# ifndef __sgi__
-class XDR;
-# endif
+// # ifndef __sgi__
+// class XDR;
+// # endif
 
 /*
  * We want basic string serialization built-in.
