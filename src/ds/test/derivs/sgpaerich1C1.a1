@@ -1,0 +1,8 @@
+/*
+ * For sgpaerich1C1.a1, we use "thermistor0" for the default temperature field,
+ * "pressure" for the default pressure, and "humidity_relative" for default
+ * relative humidity.
+ */
+[T][degC] = thermistor0;
+[P][hPa] = pressure;
+[rh][%] = humidity_relative;

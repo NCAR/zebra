@@ -1,0 +1,7 @@
+/*
+ * Since ZNF files don't hold units or descriptions, we need to create
+ * aliases if fields are to be accessed using these extras.
+ */
+scalar[][none][Test Field] = scalar;
+field2[][none][Test Field, too] = field2;
+fld3[][none][field #3] = fld3;
