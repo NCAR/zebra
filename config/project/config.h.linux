@@ -259,7 +259,8 @@ XCOMM -----------------------------------------------------------------------
  */
 # define HasCplusplus	YES
 # define CplusplusCmd	g++
-# define CplusplusDebugFlags -g
+/* -Wno-cpp avoids warnings about _SVID_SOURCE and _BSD_SOURCE deprecation */
+# define CplusplusDebugFlags -g -Wno-cpp
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -271,7 +272,7 @@ XCOMM -----------------------------------------------------------------------
  * does not disable optimization by specifying any debug flags.
  *
  */
-# define CDebugFlags -g
+# define CDebugFlags -g -Wno-cpp
 /* # define FortDebugFlags -g */
 
 /*
