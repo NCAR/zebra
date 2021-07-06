@@ -57,13 +57,14 @@ static char *projopt[2] = { "@(#)$GP: Map projections NOT compiled $",
 # ifdef PI
 # undef PI
 # endif
-# include "projects.h"
+# define ACCEPT_USE_OF_DEPRECATED_PROJ_API_H
+# include "proj_api.h"
 
 /*
  * This "PJ" dude is the magic cookie used by the proj library to describe
  * our current projection scheme.
  */
-static PJ *OurPJ = 0;
+static struct PJ *OurPJ = 0;
 static float VOffset;	/* N-S offset in m */
 static int PKey;	/* The "key" value we return */
 char Pname[80];		/* Name of the projection	*/
