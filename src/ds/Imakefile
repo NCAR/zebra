@@ -327,6 +327,7 @@ test.apple: test.apple.only test.close
 	ZEB_PROJDIR=`pwd`/$(TESTPROJ); export ZEB_PROJDIR; \ @@	\
 	ZEB_PROJECT=$(TESTPROJ); export ZEB_PROJECT; \ @@\
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ @@\
+	test -f /usr/share/udunits/udunits2.xml && export UDUNITS2_XML_PATH=/usr/share/udunits/udunits2.xml; \ @@\
         LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:-$(BUILDLIBDIR)}:$(BUILDLIBDIR)
 
 
