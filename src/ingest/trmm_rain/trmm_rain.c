@@ -558,13 +558,7 @@ int *ryear;	/* year used for the Month and Day being ingested */
 	local.tm_year = year - 1900;
 	local.tm_wday = 0;
 	local.tm_yday = 0;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
 	local.tm_isdst = -1;
-#else
-	local.tm_isdst = 0;
-	local.tm_zone = NULL;
-	local.tm_gmtoff = 0;
-#endif
 	t.zt_MicroSec = 0;	/* we won't be using micro-seconds */
 	last.zt_MicroSec = last.zt_Sec = 0;
 	end.zt_MicroSec = end.zt_Sec = 0;
@@ -601,11 +595,7 @@ int *ryear;	/* year used for the Month and Day being ingested */
 		local.tm_hour = hour;
 		local.tm_mday = mday;
 		local.tm_mon = month - 1;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
 		t.zt_Sec = mktime (&local);
-#else
-		t.zt_Sec = (unsigned long) timelocal (&local);
-#endif
 	/*
 	 * If we have an end time, and t is later, we know we can
 	 * abort now.

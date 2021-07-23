@@ -802,13 +802,9 @@ int parm;
 {
 	Connection *conn = (Connection *)parm;
 	int mbits, status;
-# ifdef linux
 	struct termios tinfo;
 	status = tcgetattr (conn->c_Fd, &tinfo);
 	mbits = tinfo.c_line;	/* Non-standard! */
-# else
-	status = ioctl (conn->c_Fd, TIOCMGET, &mbits);
-# endif
 /*
  * Do the check.
  */

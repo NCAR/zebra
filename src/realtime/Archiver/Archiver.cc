@@ -1590,15 +1590,7 @@ RunTar (char *cmd)
 	int step = 4;
 	unsigned long nblocks = 0;
 	unsigned long blocksize = BFactor * 512;
-# ifdef hpux
-	int fd = pfp->__fileL;	/* HP weirdness -- untested */
-# else
-#  ifdef linux
-	int fd = pfp->_fileno;	/* LINUX */
-#  else
-	int fd = pfp->_file;
-#  endif
-# endif
+	int fd = pfp->_fileno;
 /*
  * Be sure we can run tar.
  */

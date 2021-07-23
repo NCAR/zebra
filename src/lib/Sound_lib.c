@@ -18,11 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# if defined(SUNOS_4_1) || defined(SVR4) || defined(linux)
 # include <unistd.h>
-# else
-# include <sys/file.h>
-# endif
 # include <string.h>
 
 # include "defs.h"

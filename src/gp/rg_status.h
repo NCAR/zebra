@@ -27,6 +27,4 @@
  * Useful place for this.  When g77 is in use, we need to add another
  * underscore to do_rgrid -- they changed the interface...sigh...
  */
-# ifdef linux
 # define do_rgrid_ do_rgrid__
-# endif

@@ -70,11 +70,7 @@ char           *field_param;
 
 char           *time_string = NULL;	/* if sample time is specified */
 
-#if defined(SVR4) || defined(SYSV) || defined(linux)
 # define USE_STRERROR
-#else
-extern char    *sys_errlist[];
-#endif
 
 enum
 {

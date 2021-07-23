@@ -4,9 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 # include <math.h>
-#ifdef linux
 # include <getopt.h>
-#endif
 
 #include <defs.h>
 #include <message.h>
