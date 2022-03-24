@@ -262,6 +262,9 @@ XCOMM -----------------------------------------------------------------------
 /* -Wno-cpp avoids warnings about _SVID_SOURCE and _BSD_SOURCE deprecation */
 # define CplusplusDebugFlags -g -Wno-cpp
 
+/* default 'ar clq' on recent Linux causes 'libdeps specified more than once' */
+# define ArCmd ar cq
+
 # define RPCInclude     -I/usr/include/tirpc
 # define RPCLibs        -ltirpc
 # define ExtraLoadFlags	RPCLibs
@@ -411,7 +414,7 @@ XCOMM -----------------------------------------------------------------------
  * To use projections, set MapProjections to YES and ProjLibrary to the
  * appropriate value. 
  */
-# define MapProjections YES
+# define MapProjections NO
 #ifdef notdef
 /* # define ProjLibDir /opt/local/lib */
 # define ProjIncDir /opt/local/include
